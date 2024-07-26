@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: ice License 1.0
+
+logger:
+  encoder: console
+  level: info
+cmd/heimdall:
+  host: localhost
+  version: local
+  defaultEndpointTimeout: 30s
+  proxyDfnsEndpoints:
+    - method: POST
+      endpoint: "/auth/registration/delegated"
+    - method: POST
+      endpoint: "/auth/registration/enduser"
+    - method: POST
+      endpoint: "/auth/login/init"
+    - method: POST
+      endpoint: "/auth/login"
+    - method: POST
+      endpoint: "/auth/login/delegated"
+    - method: PUT
+      endpoint: "/auth/logout"
+  httpServer:
+    port: 1444
+    certPath: cmd/heimdall/.testdata/localhost.crt
+    keyPath: cmd/heimdall/.testdata/localhost.key
+accounts:
+  dfns:
+    baseURL: https://api.dfns.ninja/
+    appId: bogus
+    serviceKey: bogus-key
+    credentialPrivateKey: bogus
+    credentialId: bogus
