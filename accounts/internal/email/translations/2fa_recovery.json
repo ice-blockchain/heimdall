@@ -1,0 +1,206 @@
+{
+  "af" : {
+    "subject" : "Jou bevestigingskode",
+    "body" : "<p>Hallo,</p>\n    <p>Ons het 'n versoek ontvang om by ons toepassing aan te meld met hierdie e-posadres. As jy met jou {{.Email}}-rekening wil aanmeld, gebruik hierdie bevestigingskode:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>As jy nie hierdie kode versoek het nie, kan jy hierdie e-pos veilig ignoreer.</p>\n    <p>Dankie,</br>Ice Labs-span</p>"
+  },
+  "am" : {
+    "subject" : "የማረጋገጫ ኮድዎ",
+    "body" : "<p>ሰላም,</p>\n    <p>በዚህ ኢሜል አድራሻ ለመግባት ጥያቄ እንቀበላለን። ከ{{.Email}} መለያ ጋር ለመግባት፣ ይህን የማረጋገጫ ኮድ ተጠቀሙ:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>ይህን ኮድ ካልጠየቃችሁ፣ ይህን ኢሜል በደኅና ማግኘት ይችላሉ።</p>\n    <p>አመሰግናለሁ,</br>Ice Labs ቡድን</p>"
+  },
+  "ar" : {
+    "subject" : "رمز التأكيد الخاص بك",
+    "body" : "<p>مرحبًا،</p>\n    <p>لقد تلقينا طلبًا لتسجيل الدخول إلى تطبيقنا باستخدام عنوان البريد الإلكتروني هذا. إذا كنت ترغب في تسجيل الدخول بحسابك {{.Email}}، فاستخدم رمز التأكيد هذا:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>إذا لم تطلب هذا الرمز، يمكنك تجاهل هذا البريد الإلكتروني بأمان.</p>\n    <p>شكرًا،</br>فريق Ice Labs</p>"
+  },
+  "az" : {
+    "subject" : "Təsdiq kodunuz",
+    "body" : "<p>Salam,</p>\n    <p>Bu e-poçt ünvanından istifadə edərək tətbiqimizə daxil olmaq üçün bir sorğu aldıq. {{.Email}} hesabınızla daxil olmaq istəyirsinizsə, bu təsdiq kodundan istifadə edin:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Əgər bu kodu tələb etməmisinizsə, bu e-poçtu təhlükəsiz şəkildə gözardı edə bilərsiniz.</p>\n    <p>Təşəkkürlər,</br>Ice Labs komandası</p>"
+  },
+  "bg" : {
+    "subject" : "Вашият код за потвърждение",
+    "body" : "<p>Здравейте,</p>\n    <p>Получихме заявка за вход в нашето приложение, използвайки този имейл адрес. Ако искате да влезете с вашия акаунт {{.Email}}, използвайте този код за потвърждение:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Ако не сте заявявали този код, можете спокойно да игнорирате този имейл.</p>\n    <p>Благодарим ви,</br>Екипът на Ice Labs</p>"
+  },
+  "bn" : {
+    "subject" : "আপনার নিশ্চিতকরণ কোড",
+    "body" : "<p>হাই,</p>\n    <p>আমরা আমাদের অ্যাপ্লিকেশনটিতে এই ইমেল ঠিকানাটি ব্যবহার করে সাইন ইন করার জন্য একটি অনুরোধ পেয়েছি। আপনি যদি আপনার {{.Email}} অ্যাকাউন্ট দিয়ে সাইন ইন করতে চান, তবে এই নিশ্চিতকরণ কোডটি ব্যবহার করুন:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>আপনি যদি এই কোডটি অনুরোধ না করেন, তবে আপনি নিরাপদে এই ইমেলটি উপেক্ষা করতে পারেন।</p>\n    <p>ধন্যবাদ,</br>Ice Labs টিম</p>"
+  },
+  "cs" : {
+    "subject" : "Váš potvrzovací kód",
+    "body" : "<p>Ahoj,</p>\n    <p>Obdrželi jsme žádost o přihlášení do naší aplikace pomocí této e-mailové adresy. Pokud se chcete přihlásit pomocí svého účtu {{.Email}}, použijte tento potvrzovací kód:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Pokud jste o tento kód nežádali, můžete tento e-mail bezpečně ignorovat.</p>\n    <p>Děkujeme,</br>Tým Ice Labs</p>"
+  },
+  "de" : {
+    "subject" : "Ihr Bestätigungscode",
+    "body" : "<p>Hallo,</p>\n    <p>Wir haben eine Anfrage erhalten, sich mit dieser E-Mail-Adresse bei unserer Anwendung anzumelden. Wenn Sie sich mit Ihrem {{.Email}}-Konto anmelden möchten, verwenden Sie diesen Bestätigungscode:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Wenn Sie diesen Code nicht angefordert haben, können Sie diese E-Mail sicher ignorieren.</p>\n    <p>Danke,</br>Ihr Ice Labs Team</p>"
+  },
+  "el" : {
+    "subject" : "Ο κωδικός επιβεβαίωσής σας",
+    "body" : "<p>Γεια σας,</p>\n    <p>Λάβαμε αίτημα σύνδεσης στην εφαρμογή μας χρησιμοποιώντας αυτή τη διεύθυνση email. Αν θέλετε να συνδεθείτε με τον λογαριασμό σας {{.Email}}, χρησιμοποιήστε αυτόν τον κωδικό επιβεβαίωσης:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Αν δεν ζητήσατε αυτόν τον κωδικό, μπορείτε να αγνοήσετε με ασφάλεια αυτό το email.</p>\n    <p>Ευχαριστούμε,</br>Η ομάδα Ice Labs</p>"
+  },
+  "en" : {
+    "subject" : "Your confirmation code",
+    "body" : "<p>Hi,</p>\n<p>We received a request to sign in to our application using this email address. If you want to sign in with your {{.Email}} account, use this confirmation code:</p>\n<p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n<p>If you did not request this code, you can safely ignore this email.</p>\n<p>Thanks,</br>\nIce Labs Team</p>"
+  },
+  "es" : {
+    "subject" : "Tu código de confirmación",
+    "body" : "<p>Hola,</p>\n    <p>Hemos recibido una solicitud para iniciar sesión en nuestra aplicación utilizando esta dirección de correo electrónico. Si deseas iniciar sesión con tu cuenta {{.Email}}, usa este código de confirmación:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Si no solicitaste este código, puedes ignorar este correo electrónico de forma segura.</p>\n    <p>Gracias,</br>Equipo de Ice Labs</p>"
+  },
+  "fa" : {
+    "subject" : "کد تأیید شما",
+    "body" : "<p>سلام،</p>\n    <p>ما یک درخواست برای ورود به برنامه‌مان با استفاده از این آدرس ایمیل دریافت کردیم. اگر می‌خواهید با حساب {{.Email}} خود وارد شوید، از این کد تأیید استفاده کنید:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>اگر این کد را درخواست نکردید، می‌توانید این ایمیل را نادیده بگیرید.</p>\n    <p>با تشکر،</br>تیم Ice Labs</p>"
+  },
+  "fr" : {
+    "subject" : "Votre code de confirmation",
+    "body" : "<p>Bonjour,</p>\n    <p>Nous avons reçu une demande de connexion à notre application en utilisant cette adresse e-mail. Si vous souhaitez vous connecter avec votre compte {{.Email}}, utilisez ce code de confirmation:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Si vous n'avez pas demandé ce code, vous pouvez ignorer cet e-mail en toute sécurité.</p>\n    <p>Merci,</br>L'équipe Ice Labs</p>"
+  },
+  "gu" : {
+    "subject" : "તમારો પુષ્ટિકરણ કોડ",
+    "body" : "<p>હાય,</p>\n    <p>આ ઇમેઇલ સરનામાનો ઉપયોગ કરીને અમારું એપ્લિકેશનમાં સાઇન ઇન કરવા માટેની વિનંતી પ્રાપ્ત થઈ. જો તમે તમારી {{.Email}} ખાતા સાથે સાઇન ઇન કરવા માંગો છો, તો આ પુષ્ટિકરણ કોડનો ઉપયોગ કરો:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>જો તમે આ કોડનું વિનંતી નથી કરી, તો તમે આ ઇમેઇલને સુરક્ષિત રીતે અવગણિત કરી શકો છો.</p>\n    <p>આભાર,</br>Ice Labs ટીમ</p>"
+  },
+  "he" : {
+    "subject" : "קוד האישור שלך",
+    "body" : "<p>שלום,</p>\n    <p>קיבלנו בקשה להיכנס לאפליקציה שלנו באמצעות כתובת האימייל הזו. אם ברצונך להיכנס עם חשבון {{.Email}}, השתמש בקוד האישור הזה:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>אם לא ביקשת קוד זה, תוכל להתעלם מהאימייל הזה בבטחה.</p>\n    <p>תודה,</br>צוות Ice Labs</p>"
+  },
+  "hi" : {
+    "subject" : "आपका पुष्टि कोड",
+    "body" : "<p>नमस्ते,</p>\n    <p>हमें इस ईमेल पते का उपयोग करके हमारे एप्लिकेशन में साइन इन करने के लिए एक अनुरोध प्राप्त हुआ है। यदि आप अपने {{.Email}} खाते के साथ साइन इन करना चाहते हैं, तो इस पुष्टि कोड का उपयोग करें:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>यदि आपने इस कोड का अनुरोध नहीं किया है, तो आप इस ईमेल को सुरक्षित रूप से अनदेखा कर सकते हैं।</p>\n    <p>धन्यवाद,</br>Ice Labs टीम</p>"
+  },
+  "hu" : {
+    "subject" : "A megerősítő kódja",
+    "body" : "<p>Szia,</p>\n    <p>Kaptunk egy kérést, hogy jelentkezzen be az alkalmazásunkba ezzel az e-mail címmel. Ha a {{.Email}} fiókkal szeretne bejelentkezni, használja ezt a megerősítő kódot:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Ha nem kérte ezt a kódot, akkor ezt az e-mailt figyelmen kívül hagyhatja.</p>\n    <p>Köszönöm,</br>Ice Labs csapat</p>"
+  },
+  "id" : {
+    "subject" : "Kode konfirmasi Anda",
+    "body" : "<p>Hai,</p>\n    <p>Kami menerima permintaan untuk masuk ke aplikasi kami menggunakan alamat email ini. Jika Anda ingin masuk dengan akun {{.Email}}, gunakan kode konfirmasi ini:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Jika Anda tidak meminta kode ini, Anda dapat mengabaikan email ini dengan aman.</p>\n    <p>Terima kasih,</br>Tim Ice Labs</p>"
+  },
+  "it" : {
+    "subject" : "Il tuo codice di conferma",
+    "body" : "<p>Ciao,</p>\n    <p>Abbiamo ricevuto una richiesta di accesso alla nostra applicazione utilizzando questo indirizzo email. Se vuoi accedere con il tuo account {{.Email}}, usa questo codice di conferma:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Se non hai richiesto questo codice, puoi ignorare questa email in sicurezza.</p>\n    <p>Grazie,</br>Il team di Ice Labs</p>"
+  },
+  "ja" : {
+    "subject" : "あなたの確認コード",
+    "body" : "<p>こんにちは、</p>\n    <p>このメールアドレスを使用してアプリケーションにサインインするリクエストを受け取りました。 {{.Email}} アカウントでサインインする場合は、次の確認コードを使用してください:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>このコードをリクエストしていない場合は、このメールを無視してください。</p>\n    <p>ありがとう、</br>Ice Labs チーム</p>"
+  },
+  "jv" : {
+    "subject" : "Kode konfirmasi sampeyan",
+    "body" : "<p>Hai,</p>\n    <p>Kami nampi panyuwunan kanggo mlebu menyang aplikasi kita nggunakake alamat email iki. Yen sampeyan pengin mlebu nganggo akun {{.Email}}, gunakake kode konfirmasi iki:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Yen sampeyan ora njaluk kode iki, sampeyan bisa nglirwakake email iki kanthi aman.</p>\n    <p>Matur nuwun,</br>Tim Ice Labs</p>"
+  },
+  "kn" : {
+    "subject" : "ನಿಮ್ಮ ದೃಢೀಕರಣ ಕೋಡ್",
+    "body" : "<p>ನಮಸ್ಕಾರ,</p>\n    <p>ನಾವು ಈ ಇಮೇಲ್ ವಿಳಾಸವನ್ನು ಬಳಸಿಕೊಂಡು ನಮ್ಮ ಅಪ್ಲಿಕೇಶನ್‌ಗೆ ಸೈನ್ ಇನ್ ಮಾಡಲು ವಿನಂತಿಯನ್ನು ಸ್ವೀಕರಿಸಿದ್ದೇವೆ. ನೀವು ನಿಮ್ಮ {{.Email}} ಖಾತೆಯೊಂದಿಗೆ ಸೈನ್ ಇನ್ ಮಾಡಲು ಬಯಸಿದರೆ, ಈ ದೃಢೀಕರಣ ಕೋಡ್ ಬಳಸಿ:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>ನೀವು ಈ ಕೋಡ್ ಅನ್ನು ವಿನಂತಿಸದಿದ್ದರೆ, ನೀವು ಈ ಇಮೇಲ್ ಅನ್ನು ಸುರಕ್ಷಿತವಾಗಿ ನಿರ್ಲಕ್ಷಿಸಬಹುದು.</p>\n    <p>ಧನ್ಯವಾದಗಳು,</br>Ice Labs ತಂಡ</p>"
+  },
+  "ko" : {
+    "subject" : "귀하의 확인 코드",
+    "body" : "<p>안녕하세요,</p>\n    <p>이 이메일 주소를 사용하여 애플리케이션에 로그인하려는 요청을 받았습니다. {{.Email}} 계정으로 로그인하려면 이 확인 코드를 사용하십시오:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>이 코드를 요청하지 않은 경우 이 이메일을 무시해도 됩니다.</p>\n    <p>감사합니다,</br>Ice Labs 팀</p>"
+  },
+  "mr" : {
+    "subject" : "आपला पुष्टीकरण कोड",
+    "body" : "<p>हाय,</p>\n    <p>आम्हाला या ईमेल पत्त्याचा वापर करून आमच्या अनुप्रयोगात साइन इन करण्यासाठी विनंती प्राप्त झाली आहे. जर तुम्हाला तुमच्या {{.Email}} खात्यासह साइन इन करायचे असेल, तर हा पुष्टीकरण कोड वापरा:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>जर तुम्ही हा कोड विनंती केला नसेल, तर तुम्ही हा ईमेल सुरक्षितपणे दुर्लक्ष करू शकता.</p>\n    <p>धन्यवाद,</br>Ice Labs टीम</p>"
+  },
+  "ms" : {
+    "subject" : "Kod pengesahan anda",
+    "body" : "<p>Hai,</p>\n    <p>Kami menerima permintaan untuk masuk ke aplikasi kami menggunakan alamat email ini. Jika anda ingin masuk dengan akaun {{.Email}}, gunakan kod pengesahan ini:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Jika anda tidak meminta kod ini, anda boleh mengabaikan email ini dengan selamat.</p>\n    <p>Terima kasih,</br>Pasukan Ice Labs</p>"
+  },
+  "nb" : {
+    "subject" : "Din bekreftelseskode",
+    "body" : "<p>Hei,</p>\n    <p>Vi mottok en forespørsel om å logge inn på applikasjonen vår med denne e-postadressen. Hvis du vil logge inn med din {{.Email}}-konto, bruk denne bekreftelseskoden:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Hvis du ikke har bedt om denne koden, kan du trygt ignorere denne e-posten.</p>\n    <p>Takk,</br>Ice Labs-teamet</p>"
+  },
+  "nn" : {
+    "subject" : "Din bekreftelseskode",
+    "body" : "<p>Hei,</p>\n    <p>Vi mottok en forespørsel om å logge inn på applikasjonen vår med denne e-postadressen. Hvis du vil logge inn med din {{.Email}}-konto, bruk denne bekreftelseskoden:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Hvis du ikke har bedt om denne koden, kan du trygt ignorere denne e-posten.</p>\n    <p>Takk,</br>Ice Labs-teamet</p>"
+  },
+  "pa-in" : {
+    "subject" : "ਤੁਹਾਡਾ ਪੁਸ਼ਟੀਕਰਨ ਕੋਡ",
+    "body" : "<p>ਹੈਲੋ,</p>\n    <p>ਅਸੀਂ ਆਪਣੀ ਐਪਲੀਕੇਸ਼ਨ ਵਿੱਚ ਇਸ ਈਮੇਲ ਪਤੇ ਨੂੰ ਵਰਤ ਕੇ ਸਾਇਨ ਇਨ ਕਰਨ ਲਈ ਇੱਕ ਬੇਨਤੀ ਪ੍ਰਾਪਤ ਕੀਤੀ ਹੈ। ਜੇ ਤੁਸੀਂ ਆਪਣੇ {{.Email}} ਖਾਤੇ ਨਾਲ ਸਾਇਨ ਇਨ ਕਰਨਾ ਚਾਹੁੰਦੇ ਹੋ, ਤਾਂ ਇਸ ਪੁਸ਼ਟੀਕਰਨ ਕੋਡ ਦਾ ਉਪਯੋਗ ਕਰੋ:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>ਜੇ ਤੁਸੀਂ ਇਸ ਕੋਡ ਦੀ ਬੇਨਤੀ ਨਹੀਂ ਕੀਤੀ ਹੈ, ਤਾਂ ਤੁਸੀਂ ਇਸ ਈਮੇਲ ਨੂੰ ਸੁਰੱਖਿਅਤ ਢੰਗ ਨਾਲ ਅਣਦੇਖਾ ਕਰ ਸਕਦੇ ਹੋ।</p>\n    <p>ਧੰਨਵਾਦ,</br>Ice Labs ਟੀਮ</p>"
+  },
+  "pl" : {
+    "subject" : "Twój kod potwierdzający",
+    "body" : "<p>Witaj,</p>\n    <p>Otrzymaliśmy prośbę o zalogowanie się do naszej aplikacji przy użyciu tego adresu e-mail. Jeśli chcesz zalogować się na swoje konto {{.Email}}, użyj tego kodu potwierdzającego:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Jeśli nie żądałeś tego kodu, możesz bezpiecznie zignorować tę wiadomość e-mail.</p>\n    <p>Dziękujemy,</br>Zespół Ice Labs</p>"
+  },
+  "ps" : {
+    "subject" : "ستاسو د تایید کود",
+    "body" : "<p>سلام،</p>\n    <p>موږ غوښتنه ترلاسه کړه چې زموږ په غوښتنلیک کې د ننوتلو لپاره دا بریښنالیک پته وکاروئ. که تاسو غواړئ د خپل {{.Email}} حساب سره ننوتل، دا د تایید کود وکاروئ:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>که تاسو دا کود غوښتنه نه وي کړې، تاسو کولی شئ دا بریښنالیک په خوندي ډول له پامه غورځوئ.</p>\n    <p>مننه،</br>د Ice Labs ټیم</p>"
+  },
+  "pt" : {
+    "subject" : "Seu código de confirmação",
+    "body" : "<p>Olá,</p>\n    <p>Recebemos um pedido para entrar em nosso aplicativo usando este endereço de email. Se você deseja entrar com sua conta {{.Email}}, use este código de confirmação:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Se você não solicitou este código, pode ignorar este email com segurança.</p>\n    <p>Obrigado,</br>Equipe Ice Labs</p>"
+  },
+  "ro" : {
+    "subject" : "Codul dvs. de confirmare",
+    "body" : "<p>Bună,</p>\n    <p>Am primit o cerere de conectare la aplicația noastră folosind această adresă de email. Dacă doriți să vă conectați cu contul {{.Email}}, utilizați acest cod de confirmare:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Dacă nu ați solicitat acest cod, puteți ignora în siguranță acest email.</p>\n    <p>Mulțumim,</br>Echipa Ice Labs</p>"
+  },
+  "ru" : {
+    "subject" : "Ваш код подтверждения",
+    "body" : "<p>Привет,</p>\n    <p>Мы получили запрос на вход в наше приложение, используя этот адрес электронной почты. Если вы хотите войти с помощью своей учетной записи {{.Email}}, используйте этот код подтверждения:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Если вы не запрашивали этот код, вы можете безопасно проигнорировать это письмо.</p>\n    <p>Спасибо,</br>Команда Ice Labs</p>"
+  },
+  "sd" : {
+    "subject" : "توھان جو تصديق ڪوڊ",
+    "body" : "<p>هيلو،</p>\n    <p>اسان کي هن اي ميل پتي کي استعمال ڪندي اسان جي درخواست تي سائن ان ڪرڻ جي درخواست ملي. جيڪڏھن توھان پنھنجي {{.Email}} کاتي سان سائن ان ڪرڻ چاھيو ٿا، ته ھن تصديق ڪوڊ کي استعمال ڪريو:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>جيڪڏهن توهان هن ڪوڊ کي درخواست نه ڪئي آهي، توهان هن اي ميل کي محفوظ طور تي نظرانداز ڪري سگهو ٿا.</p>\n    <p>مهرباني،</br>Ice Labs ٽيم</p>"
+  },
+  "sk" : {
+    "subject" : "Váš potvrdzovací kód",
+    "body" : "<p>Ahoj,</p>\n    <p>Obdržali sme žiadosť o prihlásenie do našej aplikácie pomocou tejto e-mailovej adresy. Ak sa chcete prihlásiť pomocou svojho účtu {{.Email}}, použite tento potvrdzovací kód:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Ak ste tento kód nežiadali, môžete tento e-mail bezpečne ignorovať.</p>\n    <p>Ďakujeme,</br>Tím Ice Labs</p>"
+  },
+  "sl" : {
+    "subject" : "Vaša potrditvena koda",
+    "body" : "<p>Zdravo,</p>\n    <p>Prejeli smo zahtevo za prijavo v našo aplikacijo s tem e-poštnim naslovom. Če želite prijaviti z vašim računom {{.Email}}, uporabite to potrditveno kodo:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Če te kode niste zahtevali, lahko to e-pošto varno prezrete.</p>\n    <p>Hvala,</br>Ekipa Ice Labs</p>"
+  },
+  "sq" : {
+    "subject" : "Kodi juaj i konfirmimit",
+    "body" : "<p>Përshëndetje,</p>\n    <p>Ne morëm një kërkesë për të hyrë në aplikacionin tonë duke përdorur këtë adresë emaili. Nëse dëshironi të hyni me llogarinë tuaj {{.Email}}, përdorni këtë kod konfirmimi:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Nëse nuk e keni kërkuar këtë kod, mund ta injoroni këtë email në mënyrë të sigurt.</p>\n    <p>Faleminderit,</br>Ekipi Ice Labs</p>"
+  },
+  "su" : {
+    "subject" : "Kode konfirmasi anjeun",
+    "body" : "<p>Hai,</p>\n    <p>Urang nampi paménta pikeun asup kana aplikasi kami nganggo alamat email ieu. Upami anjeun hoyong asup nganggo akun {{.Email}}, anggo kode konfirmasi ieu:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Upami anjeun henteu nyungkeun kode ieu, anjeun tiasa ngahémat email ieu kalayan aman.</p>\n    <p>Hatur nuhun,</br>Tim Ice Labs</p>"
+  },
+  "sv" : {
+    "subject" : "Din bekräftelsekod",
+    "body" : "<p>Hej,</p>\n    <p>Vi har mottagit en begäran om att logga in på vår applikation med denna e-postadress. Om du vill logga in med ditt {{.Email}}-konto, använd denna bekräftelsekod:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Om du inte har begärt denna kod kan du säkert ignorera detta e-postmeddelande.</p>\n    <p>Tack,</br>Ice Labs-teamet</p>"
+  },
+  "ta" : {
+    "subject" : "உங்கள் உறுதிப்படுத்தல் குறியீடு",
+    "body" : "<p>வணக்கம்,</p>\n    <p>இந்த மின்னஞ்சல் முகவரியைப் பயன்படுத்தி எங்கள் பயன்பாட்டில் உள்நுழையக் கோரிக்கை கிடைத்தது. நீங்கள் உங்கள் {{.Email}} கணக்குடன் உள்நுழைய விரும்பினால், இந்த உறுதிப்படுத்தல் குறியீட்டை பயன்படுத்தவும்:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>நீங்கள் இந்தக் குறியீட்டை கோரவில்லை என்றால், இந்த மின்னஞ்சலைப் பாதுகாப்பாக புறக்கணிக்கலாம்.</p>\n    <p>நன்றி,</br>Ice Labs குழு</p>"
+  },
+  "te" : {
+    "subject" : "మీ నిర్ధారణ కోడ్",
+    "body" : "<p>హలో,</p>\n    <p>ఈ ఇమెయిల్ చిరునామాను ఉపయోగించి మా అప్లికేషన్‌లో సైన్ ఇన్ చేయడానికి మాకు ఒక అభ్యర్థన వచ్చింది. మీరు మీ {{.Email}} ఖాతాతో సైన్ ఇన్ చేయాలనుకుంటే, ఈ నిర్ధారణ కోడ్‌ని ఉపయోగించండి:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>మీరు ఈ కోడ్‌ను అభ్యర్థించకపోతే, మీరు ఈ ఇమెయిల్‌ను సురక్షితంగా నిర్లక్ష్యం చేయవచ్చు.</p>\n    <p>ధన్యవాదాలు,</br>Ice Labs బృందం</p>"
+  },
+  "th" : {
+    "subject" : "รหัสยืนยันของคุณ",
+    "body" : "<p>สวัสดี,</p>\n    <p>เราได้รับคำขอลงชื่อเข้าใช้แอปพลิเคชันของเราด้วยที่อยู่อีเมลนี้ หากคุณต้องการลงชื่อเข้าใช้ด้วยบัญชี {{.Email}} ของคุณ ให้ใช้รหัสยืนยันนี้:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>หากคุณไม่ได้ร้องขอรหัสนี้ คุณสามารถเพิกเฉยต่ออีเมลนี้ได้อย่างปลอดภัย</p>\n    <p>ขอบคุณ,</br>ทีม Ice Labs</p>"
+  },
+  "tl-ph" : {
+    "subject" : "Ang iyong kumpirmasyon na code",
+    "body" : "<p>Kumusta,</p>\n    <p>Nakatanggap kami ng kahilingan upang mag-sign in sa aming application gamit ang email address na ito. Kung nais mong mag-sign in gamit ang iyong {{.Email}} account, gamitin ang kumpirmasyon code na ito:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Kung hindi mo hiningi ang code na ito, maaari mong balewalain nang ligtas ang email na ito.</p>\n    <p>Salamat,</br>Ice Labs Team</p>"
+  },
+  "tr" : {
+    "subject" : "Onay kodunuz",
+    "body" : "<p>Merhaba,</p>\n    <p>Bu e-posta adresini kullanarak uygulamamıza giriş yapmak için bir istek aldık. {{.Email}} hesabınızla giriş yapmak istiyorsanız, bu onay kodunu kullanın:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Bu kodu talep etmediyseniz, bu e-postayı görmezden gelebilirsiniz.</p>\n    <p>Teşekkürler,</br>Ice Labs Ekibi</p>"
+  },
+  "uk" : {
+    "subject" : "Ваш код підтвердження",
+    "body" : "<p>Привіт,</p>\n    <p>Ми отримали запит на вхід до нашої програми за цією адресою електронної пошти. Якщо ви хочете ввійти з вашим обліковим записом {{.Email}}, використовуйте цей код підтвердження:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Якщо ви не запитували цей код, ви можете безпечно проігнорувати цей електронний лист.</p>\n    <p>Дякуємо,</br>Команда Ice Labs</p>"
+  },
+  "ur" : {
+    "subject" : "آپ کا تصدیقی کوڈ",
+    "body" : "<p>ہیلو،</p>\n    <p>ہمیں اس ای میل ایڈریس کا استعمال کرتے ہوئے اپنے ایپلیکیشن میں سائن ان کرنے کی درخواست موصول ہوئی ہے۔ اگر آپ اپنے {{.Email}} اکاؤنٹ کے ساتھ سائن ان کرنا چاہتے ہیں تو اس تصدیقی کوڈ کا استعمال کریں:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>اگر آپ نے اس کوڈ کی درخواست نہیں کی ہے، تو آپ اس ای میل کو محفوظ طریقے سے نظر انداز کر سکتے ہیں۔</p>\n    <p>شکریہ،</br>Ice Labs ٹیم</p>"
+  },
+  "vi" : {
+    "subject" : "Mã xác nhận của bạn",
+    "body" : "<p>Chào,</p>\n    <p>Chúng tôi đã nhận được yêu cầu đăng nhập vào ứng dụng của chúng tôi bằng địa chỉ email này. Nếu bạn muốn đăng nhập bằng tài khoản {{.Email}}, hãy sử dụng mã xác nhận này:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Nếu bạn không yêu cầu mã này, bạn có thể bỏ qua email này một cách an toàn.</p>\n    <p>Cảm ơn,</br>Đội ngũ Ice Labs</p>"
+  },
+  "yo" : {
+    "subject" : "Koodu ìfàṣẹsí rẹ",
+    "body" : "<p>Pẹlẹ o,</p>\n    <p>A gba ibeere kan lati wọle si ohun elo wa nipa lilo adirẹsi imeeli yii. Ti o ba fẹ lati wọle pẹlu akọọlẹ {{.Email}} rẹ, lo koodu ìfàṣẹsí yi:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Ti o ko ba beere fun koodu yi, o le foju imeeli yi lai si ewu kankan.</p>\n    <p>O ṣeun,</br>Ẹgbẹ Ice Labs</p>"
+  },
+  "zh" : {
+    "subject" : "您的确认码",
+    "body" : "<p>你好，</p>\n    <p>我们收到了使用此电子邮件地址登录应用程序的请求。如果您想使用您的 {{.Email}} 帐户登录，请使用此确认码：</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>如果您没有请求此代码，可以放心忽略此电子邮件。</p>\n    <p>谢谢，</br>Ice Labs团队</p>"
+  },
+  "zh-cn" : {
+    "subject" : "您的确认码",
+    "body" : "<p>你好，</p>\n    <p>我们收到了使用此电子邮件地址登录应用程序的请求。如果您想使用您的 {{.Email}} 帐户登录，请使用此确认码：</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>如果您没有请求此代码，可以放心忽略此电子邮件。</p>\n    <p>谢谢，</br>Ice Labs团队</p>"
+  },
+  "zu" : {
+    "subject" : "Ikhodi yakho yokuqinisekisa",
+    "body" : "<p>Sawubona,</p>\n    <p>Sithole isicelo sokungena kuhlelo lwethu sisebenzisa leli kheli le-imeyili. Uma ufuna ukungena nge-akhawunti yakho {{.Email}}, sebenzisa le khodi yokuqinisekisa:</p>\n    <p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n    <p>Uma ungacelanga le khodi, ungayicabangela le imeyili ngaphandle kokukhathazeka.</p>\n    <p>Siyabonga,</br>Iqembu le-Ice Labs</p>"
+  }
+}

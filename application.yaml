@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: ice License 1.0
+development: true
+logger:
+  encoder: console
+  level: debug
+cmd/heimdall-identity-io:
+  host: localhost:8001
+  version: local
+  defaultEndpointTimeout: 30s
+  httpServer:
+    port: 8001
+    certPath: cmd/heimdall-identity-io/.testdata/localhost.crt
+    keyPath: cmd/heimdall-identity-io/.testdata/localhost.key
+accounts:
+  delegated_relying_party:
+    auth:
+      issuer: auth.dfns.ninja
+    #baseUrl: https://bogus.example
+    #webhookUrl:
+    #appId: bogus
+    #serviceKey: bogus-key
+    #credentialPrivateKey: bogus
+    #credentialId: bogus
+  fromEmailAddress: no-reply@ice.io
+  fromEmailName: ice
+  wintr/email:
+    credentials:
+      #apiKey: bogus
+  wintr/sms:
+    credentials:
+      #user: bogus
+      #password: bogus
+  wintr/totp:
+    issuer: ION
+  emailExpiration: 15m
+  smsExpiration: 15m
+  wintr/connectors/storage/v2:
+    runDDL: true
+    primaryURL: postgresql://root:pass@localhost:5437/heimdall
+    credentials:
+      user: root
+      password: pass
+    replicaURLs:
+      - postgresql://root:pass@localhost:5437/heimdall
+
