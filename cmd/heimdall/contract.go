@@ -52,12 +52,30 @@ type (
 			EncryptedRecoveryKey string `json:"encryptedRecoveryKey"`
 		} `json:"allowedRecoveryCredentials"`
 	}
+
+	Send2FARequestReq struct {
+		UserID      string          `uri:"userId" required:"true" swaggerignore:"true"`
+		TwoFAOption TwoFAOptionEnum `uri:"twoFAOption" required:"true" swaggerignore:"true"`
+		Language    string          `header:"X-Language" swaggerignore:"true"`
+		Email       *string         `json:"email,omitempty"`
+		PhoneNumber *string         `json:"phoneNumber,omitempty"`
+	}
+	Send2FARequestResp struct {
+		TOTPAuthentificatorURL *string `json:"TOTPAuthentificatorURL,omitempty"`
+	}
+	Verify2FARequestReq struct {
+		UserID      string          `uri:"userId" required:"true"`
+		TwoFAOption TwoFAOptionEnum `uri:"twoFAOption" required:"true"`
+	}
+	Verify2FARequestResp struct {
+	}
 )
 
 const (
 	applicationYamlKey         = "cmd/heimdall"
 	proxyTimeout               = 30 * time.Second
 	invalidPropertiesErrorCode = "INVALID_PROPERTIES"
+	twoFAAlreadySetupErrorCode = "2FA_ALREADY_SETUP"
 )
 
 type (
@@ -66,9 +84,8 @@ type (
 		cfg      *config
 	}
 	config struct {
-		// TODO: swagger
-		//Host               string `yaml:"host"`
-		//Version            string `yaml:"version"`
+		Host               string `yaml:"host"`
+		Version            string `yaml:"version"`
 		ProxyDfnsEndpoints []struct {
 			Endpoint string `yaml:"endpoint"`
 			Method   string `yaml:"method"`

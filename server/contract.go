@@ -4,13 +4,13 @@ package server
 
 import (
 	"context"
-	"github.com/quic-go/quic-go/http3"
 	"net"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/quic-go/quic-go/http3"
 )
 
 // Public API.

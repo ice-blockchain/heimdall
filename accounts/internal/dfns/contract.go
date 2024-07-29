@@ -4,9 +4,10 @@ package dfns
 
 import (
 	"context"
-	"github.com/ice-blockchain/wintr/time"
 	"net/http"
 	"net/http/httputil"
+
+	"github.com/ice-blockchain/wintr/time"
 )
 
 type (

@@ -1,11 +1,15 @@
+// SPDX-License-Identifier: ice License 1.0
+
 package dfns
 
 import (
-	"github.com/goccy/go-json"
-	"github.com/ice-blockchain/wintr/log"
-	"github.com/pkg/errors"
 	"net/http"
 	"reflect"
+
+	"github.com/goccy/go-json"
+	"github.com/pkg/errors"
+
+	"github.com/ice-blockchain/wintr/log"
 )
 
 type dfnsInternalError struct {

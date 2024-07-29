@@ -2,9 +2,9 @@
 
 logger:
   encoder: console
-  level: info
+  level: debug
 cmd/heimdall:
-  host: localhost
+  host: localhost:1444
   version: local
   defaultEndpointTimeout: 30s
   proxyDfnsEndpoints:
@@ -31,3 +31,19 @@ accounts:
     serviceKey: bogus-key
     credentialPrivateKey: bogus
     credentialId: bogus
+  fromEmailAddress: no-reply@ice.io
+  fromEmailName: ice
+  wintr/email:
+    credentials:
+      #apiKey: bogus
+  wintr/totp:
+    issuer: ION
+  wintr/connectors/storage/v2:
+    runDDL: true
+    primaryURL: postgresql://root:pass@localhost:5437/heimdall
+    credentials:
+      user: root
+      password: pass
+    replicaURLs:
+      - postgresql://root:pass@localhost:5437/heimdall
+

@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts"
+	"github.com/ice-blockchain/heimdall/cmd/heimdall/api"
 	"github.com/ice-blockchain/heimdall/server"
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/log"
@@ -26,11 +27,14 @@ func main() {
 	defer cancel()
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
+	api.SwaggerInfo.Host = cfg.Host
+	api.SwaggerInfo.Version = cfg.Version
 	server.New(&service{cfg: &cfg}, applicationYamlKey, "/docs/").ListenAndServe(ctx, cancel)
 }
 
 func (s *service) RegisterRoutes(router *server.Router) {
 	s.setupDfnsProxyRoutes(router)
+	s.setup2FARoutes(router)
 }
 
 func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {

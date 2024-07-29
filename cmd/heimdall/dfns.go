@@ -4,10 +4,12 @@ package main
 
 import (
 	"context"
+
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
+
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/server"
-	"github.com/pkg/errors"
 )
 
 type (

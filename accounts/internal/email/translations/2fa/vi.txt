@@ -1,0 +1,3 @@
+{
+    "subject": "Mã xác nhận của bạn"
+}

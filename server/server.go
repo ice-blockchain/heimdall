@@ -5,8 +5,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/quic-go/quic-go"
-	"github.com/quic-go/quic-go/http3"
 	"io"
 	"net"
 	"net/http"
@@ -17,6 +15,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
+	"github.com/quic-go/quic-go"
+	"github.com/quic-go/quic-go/http3"
 	swaggerfiles "github.com/swaggo/files"
 	ginswagger "github.com/swaggo/gin-swagger"
 

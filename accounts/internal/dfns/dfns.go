@@ -5,16 +5,18 @@ package dfns
 import (
 	"bytes"
 	"context"
-	"github.com/dfns/dfns-sdk-go/credentials"
-	"github.com/dfns/dfns-sdk-go/dfnsapiclient"
-	"github.com/goccy/go-json"
-	appcfg "github.com/ice-blockchain/wintr/config"
-	"github.com/ice-blockchain/wintr/log"
-	"github.com/pkg/errors"
 	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+
+	"github.com/dfns/dfns-sdk-go/credentials"
+	"github.com/dfns/dfns-sdk-go/dfnsapiclient"
+	"github.com/goccy/go-json"
+	"github.com/pkg/errors"
+
+	appcfg "github.com/ice-blockchain/wintr/config"
+	"github.com/ice-blockchain/wintr/log"
 )
 
 func NewDfnsClient(ctx context.Context, applicationYamlKey string) DfnsClient {

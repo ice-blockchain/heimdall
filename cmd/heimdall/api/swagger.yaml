@@ -1,0 +1,90 @@
+# SPDX-License-Identifier: ice License 1.0
+
+definitions:
+  main.Send2FARequestReq:
+    properties:
+      email:
+        type: string
+      phoneNumber:
+        type: string
+    type: object
+  main.Send2FARequestResp:
+    properties:
+      TOTPAuthentificatorURL:
+        type: string
+    type: object
+  server.ErrorResponse:
+    properties:
+      code:
+        example: SOMETHING_NOT_FOUND
+        type: string
+      data:
+        additionalProperties: {}
+        type: object
+      error:
+        example: something is missing
+        type: string
+    type: object
+info:
+  contact:
+    name: ice.io
+    url: https://ice.io
+  description: It is responsible for providing off chain account management for the
+    ION Platform; it is the first layer of interaction between users and the platform.
+  title: User accounts management for ION
+  version: latest
+paths:
+  /v1/users/{userId}/2fa/{twoFAOption}/verification-requests:
+    post:
+      description: Initiates sending of 2FA code to the user
+      parameters:
+      - default: ""
+        description: Language
+        in: header
+        name: X-Language
+        type: string
+      - description: ID of the user
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: type of 2fa (sms/email/google_authentificator)
+        in: path
+        name: twoFAOption
+        required: true
+        type: string
+      - description: Request params containing email or phone number to set up 2FA
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.Send2FARequestReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.Send2FARequestResp'
+        "400":
+          description: if user's email / phone number is not provided
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "403":
+          description: if user already have 2FA set up, and it is requested for new
+            email / phone
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - 2FA
+schemes:
+- https
+swagger: "2.0"

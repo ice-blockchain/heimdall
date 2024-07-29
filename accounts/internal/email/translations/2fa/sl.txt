@@ -1,0 +1,3 @@
+{
+    "subject": "Vaša potrditvena koda"
+}
