@@ -9,17 +9,17 @@ cmd/heimdall:
   defaultEndpointTimeout: 30s
   proxyDfnsEndpoints:
     - method: POST
-      endpoint: "/auth/registration/delegated"
+      endpoint: "auth/registration/delegated"
     - method: POST
-      endpoint: "/auth/registration/enduser"
+      endpoint: "auth/registration/enduser"
     - method: POST
-      endpoint: "/auth/login/init"
+      endpoint: "auth/login/init"
     - method: POST
-      endpoint: "/auth/login"
+      endpoint: "auth/login"
     - method: POST
-      endpoint: "/auth/login/delegated"
+      endpoint: "auth/login/delegated"
     - method: PUT
-      endpoint: "/auth/logout"
+      endpoint: "auth/logout"
   httpServer:
     port: 1444
     certPath: cmd/heimdall/.testdata/localhost.crt

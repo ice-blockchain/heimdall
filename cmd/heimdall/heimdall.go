@@ -9,9 +9,9 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts"
+	"github.com/ice-blockchain/heimdall/server"
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/log"
-	"github.com/ice-blockchain/wintr/server"
 )
 
 // @title						User accounts management for ION
