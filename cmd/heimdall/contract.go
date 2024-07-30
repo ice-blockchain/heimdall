@@ -64,8 +64,9 @@ type (
 		TOTPAuthentificatorURL *string `json:"TOTPAuthentificatorURL,omitempty"`
 	}
 	Verify2FARequestReq struct {
-		UserID      string          `uri:"userId" required:"true"`
-		TwoFAOption TwoFAOptionEnum `uri:"twoFAOption" required:"true"`
+		UserID      string          `uri:"userId" required:"true" swaggerignore:"true"`
+		TwoFAOption TwoFAOptionEnum `uri:"twoFAOption" required:"true" swaggerignore:"true"`
+		Code        string          `form:"code" required:"true" swaggerignore:"true"`
 	}
 	Verify2FARequestResp struct {
 	}
@@ -76,6 +77,9 @@ const (
 	proxyTimeout               = 30 * time.Second
 	invalidPropertiesErrorCode = "INVALID_PROPERTIES"
 	twoFAAlreadySetupErrorCode = "2FA_ALREADY_SETUP"
+	twoFANoPendingCode         = "NO_PENDING_2FA"
+	twoFAInvalidCode           = "2FA_INVALID_CODE"
+	twoFAExpiredCode           = "2FA_EXPIRED_CODE"
 )
 
 type (

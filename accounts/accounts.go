@@ -4,6 +4,7 @@ package accounts
 
 import (
 	"context"
+	appcfg "github.com/ice-blockchain/wintr/config"
 	"net/http"
 
 	"github.com/pkg/errors"
@@ -19,11 +20,14 @@ func New(ctx context.Context) Accounts {
 	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
 	totp := totp2.New(applicationYamlKey)
 	em := email.New(applicationYamlKey)
+	var cfg config
+	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	acc := accounts{dfnsClient: cl,
 		db:           db,
 		shutdown:     db.Close,
 		totpProvider: totp,
 		emailCode:    em,
+		cfg:          &cfg,
 	}
 	return &acc
 }

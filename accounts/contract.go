@@ -7,6 +7,7 @@ import (
 	_ "embed"
 	"io"
 	"net/http"
+	stdlibtime "time"
 
 	"github.com/pkg/errors"
 
@@ -42,6 +43,9 @@ var (
 	}
 	Err2FAAlreadySetup         = errors.New("2FA already set up")
 	Err2FADeliverToNotProvided = errors.New("no email or phone number provided for 2FA")
+	ErrNoPending2FA            = errors.New("no pending 2FA request")
+	Err2FAExpired              = errors.New("2FA request expired")
+	Err2FAInvalidCode          = errors.New("invalid code")
 )
 
 const applicationYamlKey = "accounts"
@@ -56,6 +60,7 @@ type (
 		db           *storage.DB
 		shutdown     func() error
 		emailCode    email.EmailSender
+		cfg          *config
 	}
 	user struct {
 		ID                        string
@@ -64,10 +69,15 @@ type (
 		TotpAuthentificatorSecret *string `db:"totp_authentificator_secret"`
 	}
 	twoFACode struct {
-		CreatedAt *time.Time
-		UserID    string
-		Option    TwoFAOptionEnum
-		DeliverTo string
-		Code      string
+		CreatedAt   *time.Time
+		ConfirmedAt *time.Time
+		UserID      string
+		Option      TwoFAOptionEnum
+		DeliverTo   string
+		Code        string
+	}
+	config struct {
+		EmailExpiration stdlibtime.Duration `yaml:"emailExpiration"`
+		SMSExpiration   stdlibtime.Duration `yaml:"smsExpiration"`
 	}
 )

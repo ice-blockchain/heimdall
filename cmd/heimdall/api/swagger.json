@@ -14,6 +14,70 @@
     },
     "paths": {
         "/v1/users/{userId}/2fa/{twoFAOption}/verification-requests": {
+            "put": {
+                "description": "Verifies 2FA code from the user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "2FA"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID of the user",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "type of 2fa (sms/email/google_authentificator)",
+                        "name": "twoFAOption",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "code from second factor",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.Verify2FARequestResp"
+                        }
+                    },
+                    "400": {
+                        "description": "if code is invalid or expired",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "if there is no pending 2FA verification",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            },
             "post": {
                 "description": "Initiates sending of 2FA code to the user",
                 "produces": [
@@ -108,6 +172,9 @@
                     "type": "string"
                 }
             }
+        },
+        "main.Verify2FARequestResp": {
+            "type": "object"
         },
         "server.ErrorResponse": {
             "type": "object",

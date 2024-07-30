@@ -73,9 +73,39 @@ func (s *Send2FARequestReq) deliveryChannel() (*string, error) {
 	}
 }
 
+// Verify2FARequest godoc
+//
+//	@Schemes
+//	@Description	Verifies 2FA code from the user
+//	@Tags			2FA
+//	@Produce		json
+//	@Param			userId		path		string	true	"ID of the user"
+//	@Param			twoFAOption	path		string	true	"type of 2fa (sms/email/google_authentificator)"
+//	@Param			code		query		string	true	"code from second factor"
+//	@Success		200			{object}	Verify2FARequestResp
+//	@Failure		400			{object}	server.ErrorResponse	"if code is invalid or expired"
+//	@Failure		409			{object}	server.ErrorResponse	"if there is no pending 2FA verification"
+//	@Failure		500			{object}	server.ErrorResponse
+//	@Failure		504			{object}	server.ErrorResponse	"if request times out"
+//	@Router			/v1/users/{userId}/2fa/{twoFAOption}/verification-requests [PUT].
 func (s *service) Verify2FARequest(
 	ctx context.Context,
 	req *server.Request[Verify2FARequestReq, Verify2FARequestResp],
 ) (successResp *server.Response[Verify2FARequestResp], errorResp *server.Response[server.ErrorResponse]) {
+	err := s.accounts.Verify2FA(ctx, req.Data.UserID, map[accounts.TwoFAOptionEnum]string{
+		req.Data.TwoFAOption: req.Data.Code,
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, accounts.ErrNoPending2FA):
+			return nil, server.Conflict(err, twoFANoPendingCode)
+		case errors.Is(err, accounts.Err2FAExpired):
+			return nil, server.BadRequest(err, twoFAExpiredCode)
+		case errors.Is(err, accounts.Err2FAInvalidCode):
+			return nil, server.BadRequest(err, twoFAInvalidCode)
+		default:
+			return nil, server.Unexpected(err)
+		}
+	}
 	return server.OK[Verify2FARequestResp](&Verify2FARequestResp{}), nil
 }

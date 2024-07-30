@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS twofa_codes (
     created_at timestamp NOT NULL,
+    confirmed_at timestamp,
     user_id TEXT NOT NULL REFERENCES users(id),
     option TEXT NOT NULL,
     deliver_to TEXT NOT NULL,

@@ -38,6 +38,8 @@ accounts:
       #apiKey: bogus
   wintr/totp:
     issuer: ION
+  emailExpiration: 15h
+  smsExpiration: 15m
   wintr/connectors/storage/v2:
     runDDL: true
     primaryURL: postgresql://root:pass@localhost:5437/heimdall

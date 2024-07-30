@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -16,9 +17,139 @@ import (
 	"github.com/ice-blockchain/wintr/time"
 )
 
-func (a *accounts) Verify2FA(ctx context.Context, userID string, codes map[TwoFAOptionEnum]string) error {
-	return errors.New("not impl")
+func (a *accounts) Verify2FA(ctx context.Context, userID string, userInputCodes map[TwoFAOptionEnum]string) error {
+	codes, err := a.get2FACodes(ctx, userID, userInputCodes)
+	if err != nil {
+		return errors.Wrapf(err, "failed to verify codes %v for userID %v", userInputCodes, userID)
+	}
+	now := time.Now()
+	var vErr error
+	for t, c := range codes {
+		if vErr = c.expired(a, now); vErr != nil {
+			break
+		}
+		if vErr = c.invalidCode(a, now, userInputCodes[t]); vErr != nil {
+			break
+		}
+	}
+	if vErr != nil {
+		return errors.Wrapf(vErr, "failed to verify 2FA code")
+	}
+	return errors.Wrapf(a.updateUserWithConfirmed2FA(ctx, now, userID, codes), "failed to update users")
 }
+
+func (c *twoFACode) expired(a *accounts, now *time.Time) error {
+	expired := false
+	switch c.Option {
+	case TwoFAOptionEmail:
+		expired = now.After(c.CreatedAt.Add(a.cfg.EmailExpiration))
+	case TwoFAOptionSMS:
+		expired = now.After(c.CreatedAt.Add(a.cfg.SMSExpiration))
+	}
+	if expired {
+		return Err2FAExpired
+	}
+	return nil
+}
+func (c *twoFACode) invalidCode(a *accounts, now *time.Time, inputCode string) error {
+	invalidCode := false
+	switch c.Option {
+	case TwoFAOptionEmail, TwoFAOptionSMS:
+		invalidCode = c.Code != inputCode
+	case TwoFAOptionTOTPAuthentificator:
+		invalidCode = !(a.totpProvider.Verify(now, c.Code, inputCode))
+	}
+	if invalidCode {
+		return Err2FAInvalidCode
+	}
+
+	return nil
+}
+
+func (a *accounts) updateUserWithConfirmed2FA(ctx context.Context, now *time.Time, userID string, codes map[TwoFAOptionEnum]*twoFACode) error {
+	if len(codes) == 0 {
+		return nil
+	}
+	whereClause, extraParams := buildWhereClause(codes)
+	authentificatorCode := ""
+	if authentificator, hasAuthentificator := codes[TwoFAOptionTOTPAuthentificator]; hasAuthentificator {
+		authentificatorCode = authentificator.Code
+	}
+	params := append([]any{userID, *now.Time, authentificatorCode}, extraParams...)
+	sql := fmt.Sprintf(`
+WITH upd AS (
+    UPDATE twofa_codes SET
+        confirmed_at = $2,
+        code = user_id
+        WHERE user_id = $1 AND (%v)
+        RETURNING
+            user_id as user_id,
+            option,
+            (CASE WHEN option = 'email' THEN deliver_to ELSE NULL END) as email,
+            (CASE WHEN option = 'sms' THEN deliver_to ELSE NULL END) as phone_number,
+            (CASE WHEN option = 'google_authentificator' THEN $3 ELSE NULL END) as totp_authentificator_secret
+), collapsed AS (
+    select $1 as id,
+           (array_agg(email) FILTER ( WHERE email is not null))[1] as email,
+           (array_agg(phone_number) FILTER ( WHERE phone_number is not null))[1] as phone_number,
+           (array_agg(totp_authentificator_secret) FILTER ( WHERE totp_authentificator_secret is not null))[1] as totp_authentificator_secret
+    from upd
+), upd_users AS (
+	UPDATE users SET
+		   email = COALESCE(NULLIF(collapsed.email,users.email), users.email),
+		   phone_number = COALESCE(NULLIF(collapsed.phone_number,users.phone_number), users.phone_number),
+		   totp_authentificator_secret = COALESCE(NULLIF(collapsed.totp_authentificator_secret,users.totp_authentificator_secret), users.totp_authentificator_secret)
+	FROM collapsed, upd
+	WHERE users.id = $1
+	returning users.id
+)
+SELECT upd.option as option from upd
+inner join upd_users on upd.user_id = upd_users.id;`, whereClause)
+	res, err := storage.ExecMany[struct {
+		Option TwoFAOptionEnum `db:"option"`
+	}](ctx, a.db, sql, params...)
+	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
+		return errors.Wrapf(err, "failed to update user with 2FA passed")
+	}
+	if len(res) != len(codes) {
+		return Err2FAInvalidCode
+	}
+	return nil
+}
+
+func buildWhereClause(codes map[TwoFAOptionEnum]*twoFACode) (string, []any) {
+	where := make([]string, 0, len(codes))
+	params := make([]any, 0, len(codes)*2)
+	nextIndex := 4
+	for _, c := range codes {
+		where = append(where, fmt.Sprintf("(option = $%[1]v and code =$%[2]v )", nextIndex, nextIndex+1))
+		params = append(params, c.Option, c.Code)
+		nextIndex += 2
+	}
+	return strings.Join(where, " OR "), params
+}
+
+func (a *accounts) get2FACodes(ctx context.Context, userID string, inputCodes map[TwoFAOptionEnum]string) (map[TwoFAOptionEnum]*twoFACode, error) {
+	kinds := make([]string, len(inputCodes))
+	for k := range inputCodes {
+		kinds = append(kinds, k)
+	}
+	sql := `SELECT * FROM twofa_codes WHERE user_id = $1 and option = ANY($2)`
+	codes, err := storage.Select[twoFACode](ctx, a.db, sql, userID, kinds)
+	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
+		return nil, errors.Wrapf(err, "failed to select 2fa codes")
+	}
+	if len(codes) != len(inputCodes) {
+		return nil, ErrNoPending2FA
+	}
+	res := make(map[TwoFAOptionEnum]*twoFACode)
+	for _, c := range codes {
+		res[c.Option] = c
+	}
+
+	return res, nil
+}
+
 func (a *accounts) Send2FA(ctx context.Context, userID string, opt TwoFAOptionEnum, optDeliverTo *string, language string) (*string, error) {
 	deliverTo, err := a.checkDeliveryChannelFor2FA(ctx, userID, opt, optDeliverTo)
 	if err != nil {
