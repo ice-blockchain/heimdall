@@ -24,9 +24,12 @@ type (
 		ProxyDfnsCall(ctx context.Context, rw http.ResponseWriter, r *http.Request)
 		Verify2FA(ctx context.Context, userID string, codes map[TwoFAOptionEnum]string) error
 		Send2FA(ctx context.Context, userID string, channel TwoFAOptionEnum, deliverTo *string, language string) (authentificatorUri *string, err error)
+		StartDelegatedRecovery(ctx context.Context, userID string, codes map[TwoFAOptionEnum]string, dfnsUsername, credentialID string) (resp *StartedDelegatedRecovery, err error)
 	}
 
-	TwoFAOptionEnum = string
+	TwoFAOptionEnum          = string
+	StartedDelegatedRecovery = dfns.StartedDelegatedRecovery
+	DfnsErr                  = dfns.DfnsInternalError
 )
 
 const (
@@ -46,6 +49,7 @@ var (
 	ErrNoPending2FA            = errors.New("no pending 2FA request")
 	Err2FAExpired              = errors.New("2FA request expired")
 	Err2FAInvalidCode          = errors.New("invalid code")
+	Err2FARequired             = errors.New("2FA required")
 )
 
 const applicationYamlKey = "accounts"

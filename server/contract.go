@@ -44,8 +44,17 @@ type (
 		allowForbiddenGet            bool                        //nolint:structcheck // Wrong.
 		allowForbiddenWriteOperation bool                        //nolint:structcheck // Wrong.
 	}
+	InternalErr[T any] interface {
+		InternalErr() error
+		*T
+	}
 	Response[RESP any] struct {
 		Data    *RESP
+		Headers map[string]string
+		Code    int
+	}
+	ErrResponse[RESP any] struct {
+		Data    RESP
 		Headers map[string]string
 		Code    int
 	}

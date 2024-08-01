@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"math"
 	"math/big"
 	"strings"
 
@@ -112,7 +113,22 @@ inner join upd_users on upd.user_id = upd_users.id;`, whereClause)
 		return errors.Wrapf(err, "failed to update user with 2FA passed")
 	}
 	if len(res) != len(codes) {
-		return Err2FAInvalidCode
+		missing := make([]TwoFAOptionEnum, 0, len(codes)-len(res))
+		for c := range codes {
+			f := false
+			for _, r := range res {
+				if c == r.Option {
+					f = true
+					break
+				}
+			}
+			if !f {
+				missing = append(missing, c)
+			}
+		}
+		if !(len(missing) == 1 && missing[0] == TwoFAOptionTOTPAuthentificator) {
+			return Err2FAInvalidCode
+		}
 	}
 	return nil
 }
@@ -130,11 +146,20 @@ func buildWhereClause(codes map[TwoFAOptionEnum]*twoFACode) (string, []any) {
 }
 
 func (a *accounts) get2FACodes(ctx context.Context, userID string, inputCodes map[TwoFAOptionEnum]string) (map[TwoFAOptionEnum]*twoFACode, error) {
-	kinds := make([]string, len(inputCodes))
+	kinds := make([]string, 0, len(inputCodes))
 	for k := range inputCodes {
 		kinds = append(kinds, k)
 	}
-	sql := `SELECT * FROM twofa_codes WHERE user_id = $1 and option = ANY($2)`
+	sql := fmt.Sprintf(`SELECT 
+    	created_at,
+    	user_id,
+    	option,
+    	deliver_to,
+    	(case WHEN option = '%[1]v' THEN COALESCE(u.totp_authentificator_secret, twofa_codes.code) ELSE twofa_codes.code END) as code,
+    	confirmed_at
+    FROM twofa_codes 
+    INNER JOIN users u on u.id = twofa_codes.user_id
+    WHERE twofa_codes.user_id = $1 and option = ANY($2)`, TwoFAOptionTOTPAuthentificator)
 	codes, err := storage.Select[twoFACode](ctx, a.db, sql, userID, kinds)
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 		return nil, errors.Wrapf(err, "failed to select 2fa codes")
@@ -178,10 +203,16 @@ func (a *accounts) Send2FA(ctx context.Context, userID string, opt TwoFAOptionEn
 }
 
 func generateConfirmationCode() string {
-	result, err := rand.Int(rand.Reader, big.NewInt(999999)) //nolint:gomnd // It's max value.
+	length := 6
+
+	result, err := rand.Int(rand.Reader, big.NewInt(int64(math.Pow10(length)-1))) //nolint:gomnd // It's max value.
 	log.Panic(err, "random wrong")
 
-	return fmt.Sprintf("%03d", result.Int64()+1)
+	str := fmt.Sprintf("%03d", result.Int64()+1)
+	if missingNums := length - len(str); missingNums > 0 {
+		str = strings.Repeat("0", missingNums) + str
+	}
+	return str
 }
 func generateAuthentifcatorSecret() string {
 	const length = 10
@@ -230,7 +261,7 @@ func (a *accounts) checkDeliveryChannelFor2FA(ctx context.Context, userID string
 		case opt == TwoFAOptionTOTPAuthentificator && usr.TotpAuthentificatorSecret != nil:
 			return "", Err2FAAlreadySetup
 		}
-		if existingDeliveryChannel != "" && existingDeliveryChannel != *newChannel {
+		if newChannel != nil && existingDeliveryChannel != "" && existingDeliveryChannel != *newChannel {
 			return "", Err2FAAlreadySetup
 		}
 	}

@@ -81,7 +81,7 @@ func (c *dfnsClient) mustRegisterAllEventsWebhook(ctx context.Context) (whSecret
 		Events:      []string{"*"},
 	})
 	log.Panic(errors.Wrapf(err, "failed to marshal webhook struct into json"))
-	status, resp, _, err := c.ClientCall(ctx, "POST", "/webhooks", http.Header{}, jData)
+	status, resp, _, err := c.clientCall(ctx, "POST", "/webhooks", http.Header{}, jData)
 	log.Panic(errors.Wrapf(err, "failed to register webhook"))
 	if status != http.StatusOK {
 		log.Panic(errors.Wrapf(err, "failed to register webhook with status %v body %v", status, string(resp)))
@@ -97,7 +97,7 @@ func (c *dfnsClient) mustRegisterAllEventsWebhook(ctx context.Context) (whSecret
 }
 
 func (c *dfnsClient) mustListWebhooks(ctx context.Context) []webhook {
-	_, jWebhooks, _, err := c.ClientCall(ctx, "GET", "/webhooks?limit=1", http.Header{}, nil)
+	_, jWebhooks, _, err := c.clientCall(ctx, "GET", "/webhooks?limit=1", http.Header{}, nil)
 	if err != nil {
 		log.Panic(errors.Wrapf(err, "failed to list webhooks"))
 	}
@@ -115,7 +115,7 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 		c.userProxy.ServeHTTP(rw, req)
 	}
 }
-func (c *dfnsClient) ClientCall(ctx context.Context, method, url string, headers http.Header, jsonData []byte) (int, []byte, http.Header, error) {
+func (c *dfnsClient) clientCall(ctx context.Context, method, url string, headers http.Header, jsonData []byte) (int, []byte, http.Header, error) {
 	if c.urlSupportsServiceAccount(url) {
 		return c.doClientCall(ctx, c.serviceAccountClient, method, url, headers, jsonData) // TODO: backoff
 	} else {
@@ -148,4 +148,30 @@ func (c *dfnsClient) doClientCall(ctx context.Context, httpClient *http.Client, 
 		log.Error(errors.Errorf("dfns req to %v %v ended up with %v (data: %v)", method, url, response.StatusCode, string(bodyData)))
 	}
 	return response.StatusCode, bodyData, respHeaders, nil
+}
+
+func (c *dfnsClient) StartDelegatedRecovery(ctx context.Context, username string, credentialId string) (*StartedDelegatedRecovery, error) {
+	params := struct {
+		Username     string `json:"username"`
+		CredentialID string `json:"credentialId"`
+	}{
+		Username:     username,
+		CredentialID: credentialId,
+	}
+	postData, err := json.MarshalContext(ctx, params)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to serialize %#v to json for startDelegatedRecovery username %v")
+	}
+	_, body, _, err := c.clientCall(ctx, "POST", "/auth/recover/user/delegated", nil, postData)
+	if err != nil {
+		if dfnsErr := ParseErrAsDfnsInternalErr(err); dfnsErr != nil {
+			return nil, errors.Wrapf(dfnsErr, "failed to start delegated recovery for username %v credID %v", username, credentialId)
+		}
+		return nil, errors.Wrapf(err, "failed to start delegated recovery for username %v credID %v", username, credentialId)
+	}
+	var resp StartedDelegatedRecovery
+	if err = json.UnmarshalContext(ctx, body, &resp); err != nil {
+		return nil, errors.Wrapf(err, "failed to unmarshal response %v for startDelegatedRecovery", string(body))
+	}
+	return &resp, nil
 }

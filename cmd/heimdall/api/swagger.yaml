@@ -13,6 +13,93 @@ definitions:
       TOTPAuthentificatorURL:
         type: string
     type: object
+  main.StartDelegatedRecoveryReq:
+    properties:
+      2FAVerificationCodes:
+        additionalProperties:
+          type: string
+        type: object
+      credentialId:
+        type: string
+      username:
+        type: string
+    type: object
+  main.StartDelegatedRecoveryResp:
+    properties:
+      allowedRecoveryCredentials:
+        items:
+          properties:
+            encryptedRecoveryKey:
+              type: string
+            id:
+              type: string
+          type: object
+        type: array
+      attestation:
+        type: string
+      authenticatorSelection:
+        properties:
+          authenticatorAttachment:
+            type: string
+          requireResidentKey:
+            type: boolean
+          residentKey:
+            type: string
+          userVerification:
+            type: string
+        type: object
+      challenge:
+        type: string
+      excludeCredentials:
+        items:
+          properties:
+            id:
+              type: string
+            transports:
+              type: string
+            type:
+              type: string
+          type: object
+        type: array
+      pubKeyCredParam:
+        items:
+          properties:
+            alg:
+              type: integer
+            type:
+              type: string
+          type: object
+        type: array
+      rp:
+        properties:
+          id:
+            type: string
+          name:
+            type: string
+        type: object
+      supportedCredentialKinds:
+        properties:
+          firstFactor:
+            items:
+              type: string
+            type: array
+          secondFactor:
+            items:
+              type: string
+            type: array
+        type: object
+      temporaryAuthenticationToken:
+        type: string
+      user:
+        properties:
+          displayName:
+            type: string
+          id:
+            type: string
+          name:
+            type: string
+        type: object
+    type: object
   main.Verify2FARequestResp:
     type: object
   server.ErrorResponse:
@@ -36,6 +123,41 @@ info:
   title: User accounts management for ION
   version: latest
 paths:
+  /auth/recover/user/delegated:
+    post:
+      description: Initiates recovery process with dfns
+      parameters:
+      - description: Request params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.StartDelegatedRecoveryReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.StartDelegatedRecoveryResp'
+        "400":
+          description: if invalid 2FA code is provided
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "403":
+          description: if 2FA required
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Recovery
   /v1/users/{userId}/2fa/{twoFAOption}/verification-requests:
     post:
       description: Initiates sending of 2FA code to the user

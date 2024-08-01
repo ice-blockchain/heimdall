@@ -66,7 +66,7 @@ func (s *srv) setupRouter() {
 }
 
 func (s *srv) setupHealthCheckRoutes() {
-	s.router.GET("health-check", RootHandler(func(ctx context.Context, _ *Request[healthCheck, map[string]string]) (*Response[map[string]string], *Response[ErrorResponse]) { //nolint:lll // .
+	s.router.GET("health-check", RootHandler[healthCheck, map[string]string, *ErrorResponse](func(ctx context.Context, _ *Request[healthCheck, map[string]string]) (*Response[map[string]string], *ErrResponse[*ErrorResponse]) { //nolint:lll // .
 		if err := s.State.CheckHealth(ctx); err != nil {
 			return nil, Unexpected(errors.Wrapf(err, "health check failed"))
 		}

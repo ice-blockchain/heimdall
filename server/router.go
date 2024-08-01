@@ -27,7 +27,7 @@ func init() {
 }
 
 //nolint:funlen // .
-func RootHandler[REQ, RESP any](handleRequest func(context.Context, *Request[REQ, RESP]) (*Response[RESP], *Response[ErrorResponse])) func(*gin.Context) {
+func RootHandler[REQ, RESP any, ERR InternalErr[ERRSTR], ERRSTR any](handleRequest func(context.Context, *Request[REQ, RESP]) (*Response[RESP], *ErrResponse[ERR])) func(*gin.Context) {
 	return func(ginCtx *gin.Context) {
 		ctx, cancel := context.WithTimeout(ginCtx.Request.Context(), cfg.DefaultEndpointTimeout)
 		defer cancel()
@@ -50,8 +50,8 @@ func RootHandler[REQ, RESP any](handleRequest func(context.Context, *Request[REQ
 		//reqCtx := context.WithValue(ctx, requestingUserIDCtxValueKey, req.AuthenticatedUser.UserID) //nolint:staticcheck,revive // .
 		success, failure := handleRequest(ctx, req)
 		if failure != nil {
-			log.Error(errors.Wrap(failure.Data.InternalErr(), "endpoint failed"), fmt.Sprintf("%[1]T", req.Data), req, "Response", failure)
-			ginCtx.JSON(req.processErrorResponse(ctx, failure))
+			log.Error(errors.Wrap((failure.Data).InternalErr(), "endpoint failed"), fmt.Sprintf("%[1]T", req.Data), req, "Response", failure)
+			ginCtx.JSON(processErrorResponse[REQ, RESP, ERR, ERRSTR](ctx, req, failure))
 
 			return
 		}
@@ -119,7 +119,7 @@ func (req *Request[REQ, RESP]) processTags() {
 	}
 }
 
-func (req *Request[REQ, RESP]) processRequest() *Response[ErrorResponse] {
+func (req *Request[REQ, RESP]) processRequest() *ErrResponse[*ErrorResponse] {
 	req.processTags()
 	var errs []error
 	for b := range req.bindings {
@@ -143,7 +143,7 @@ func (req *Request[REQ, RESP]) processRequest() *Response[ErrorResponse] {
 	return req.validate()
 }
 
-func (req *Request[REQ, RESP]) validate() *Response[ErrorResponse] {
+func (req *Request[REQ, RESP]) validate() *ErrResponse[*ErrorResponse] {
 	if len(req.requiredFields) == 0 {
 		return nil
 	}
@@ -161,8 +161,8 @@ func (req *Request[REQ, RESP]) validate() *Response[ErrorResponse] {
 	return UnprocessableEntity(errors.Errorf("properties `%v` are required", strings.Join(requiredFields, ",")), "MISSING_PROPERTIES")
 }
 
-func (req *Request[REQ, RESP]) processErrorResponse(ctx context.Context, failure *Response[ErrorResponse]) (int, *ErrorResponse) {
-	err := failure.Data.InternalErr()
+func processErrorResponse[REQ, RESP any, ERR InternalErr[ERRSTR], ERRSTR any](ctx context.Context, req *Request[REQ, RESP], failure *ErrResponse[ERR]) (int, any) {
+	err := (failure.Data).InternalErr()
 	if errors.Is(err, req.ginCtx.Request.Context().Err()) {
 		return http.StatusServiceUnavailable, &ErrorResponse{Error: "service is shutting down"}
 	}

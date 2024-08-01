@@ -12,20 +12,25 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
-type dfnsInternalError struct {
+type DfnsInternalError struct {
 	raw        string
 	HTTPStatus int                    `json:"httpStatus"`        // HTTP status code
 	Message    string                 `json:"message"`           // Error message
 	Context    map[string]interface{} `json:"context,omitempty"` // Additional context
 }
 
-func parseErrAsDfnsInternalErr(err error) error {
+func ParseErrAsDfnsInternalErr(err error) error {
 	if err == nil {
 		return nil
 	}
+	err = unwrap(err)
+	var alreadyParsedDfnsErr *DfnsInternalError
+	if errors.As(err, &alreadyParsedDfnsErr) {
+		return alreadyParsedDfnsErr
+	}
 	errValue := reflect.ValueOf(err)
 	if errValue.Type().String() == "*dfnsapiclient.DfnsError" {
-		var dfnsErr dfnsInternalError
+		var dfnsErr DfnsInternalError
 		dfnsErr.raw = err.Error()
 		if jErr := json.Unmarshal([]byte(err.Error()), &dfnsErr); jErr != nil {
 			return errors.Wrapf(jErr, "dfns sdk compatibility issue: unable to parse dfnsapiclient.DfnsError with %v as json", err.Error())
@@ -34,13 +39,26 @@ func parseErrAsDfnsInternalErr(err error) error {
 	}
 	return nil
 }
-func (d *dfnsInternalError) Error() string {
+func (d *DfnsInternalError) Error() string {
 	return d.raw
 }
 
+func unwrap(err error) error {
+	switch x := err.(type) {
+	case interface{ Unwrap() error }:
+		err = x.Unwrap()
+		if err == nil {
+			return nil
+		}
+		return unwrap(err)
+	default:
+		return err
+	}
+}
+
 func passErrorInResponse(writer http.ResponseWriter, request *http.Request, err error) {
-	if dfnsErr := parseErrAsDfnsInternalErr(err); dfnsErr != nil {
-		var dfnsParsedErr *dfnsInternalError
+	if dfnsErr := ParseErrAsDfnsInternalErr(err); dfnsErr != nil {
+		var dfnsParsedErr *DfnsInternalError
 		if errors.As(dfnsErr, &dfnsParsedErr) {
 			var body []byte
 			var headers http.Header

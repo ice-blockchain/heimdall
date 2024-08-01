@@ -13,6 +13,60 @@
         "version": "latest"
     },
     "paths": {
+        "/auth/recover/user/delegated": {
+            "post": {
+                "description": "Initiates recovery process with dfns",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Recovery"
+                ],
+                "parameters": [
+                    {
+                        "description": "Request params",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.StartDelegatedRecoveryReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.StartDelegatedRecoveryResp"
+                        }
+                    },
+                    "400": {
+                        "description": "if invalid 2FA code is provided",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "if 2FA required",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/users/{userId}/2fa/{twoFAOption}/verification-requests": {
             "put": {
                 "description": "Verifies 2FA code from the user",
@@ -170,6 +224,141 @@
             "properties": {
                 "TOTPAuthentificatorURL": {
                     "type": "string"
+                }
+            }
+        },
+        "main.StartDelegatedRecoveryReq": {
+            "type": "object",
+            "properties": {
+                "2FAVerificationCodes": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "credentialId": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.StartDelegatedRecoveryResp": {
+            "type": "object",
+            "properties": {
+                "allowedRecoveryCredentials": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "encryptedRecoveryKey": {
+                                "type": "string"
+                            },
+                            "id": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "attestation": {
+                    "type": "string"
+                },
+                "authenticatorSelection": {
+                    "type": "object",
+                    "properties": {
+                        "authenticatorAttachment": {
+                            "type": "string"
+                        },
+                        "requireResidentKey": {
+                            "type": "boolean"
+                        },
+                        "residentKey": {
+                            "type": "string"
+                        },
+                        "userVerification": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "challenge": {
+                    "type": "string"
+                },
+                "excludeCredentials": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "transports": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "pubKeyCredParam": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "alg": {
+                                "type": "integer"
+                            },
+                            "type": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "rp": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "string"
+                        },
+                        "name": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "supportedCredentialKinds": {
+                    "type": "object",
+                    "properties": {
+                        "firstFactor": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "secondFactor": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "temporaryAuthenticationToken": {
+                    "type": "string"
+                },
+                "user": {
+                    "type": "object",
+                    "properties": {
+                        "displayName": {
+                            "type": "string"
+                        },
+                        "id": {
+                            "type": "string"
+                        },
+                        "name": {
+                            "type": "string"
+                        }
+                    }
                 }
             }
         },

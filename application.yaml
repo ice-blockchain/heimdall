@@ -20,6 +20,8 @@ cmd/heimdall:
       endpoint: "auth/login/delegated"
     - method: PUT
       endpoint: "auth/logout"
+    - method: PUT
+      endpoint: "auth/recover/user"
   httpServer:
     port: 1444
     certPath: cmd/heimdall/.testdata/localhost.crt

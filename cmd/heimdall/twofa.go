@@ -37,7 +37,7 @@ func (s *service) setup2FARoutes(router gin.IRoutes) {
 func (s *service) Send2FARequest(
 	ctx context.Context,
 	req *server.Request[Send2FARequestReq, Send2FARequestResp],
-) (successResp *server.Response[Send2FARequestResp], errorResp *server.Response[server.ErrorResponse]) {
+) (successResp *server.Response[Send2FARequestResp], errorResp *server.ErrResponse[*server.ErrorResponse]) {
 	if req.Data.Language == "" {
 		req.Data.Language = "en"
 	}
@@ -91,11 +91,13 @@ func (s *Send2FARequestReq) deliveryChannel() (*string, error) {
 func (s *service) Verify2FARequest(
 	ctx context.Context,
 	req *server.Request[Verify2FARequestReq, Verify2FARequestResp],
-) (successResp *server.Response[Verify2FARequestResp], errorResp *server.Response[server.ErrorResponse]) {
-	err := s.accounts.Verify2FA(ctx, req.Data.UserID, map[accounts.TwoFAOptionEnum]string{
+) (successResp *server.Response[Verify2FARequestResp], errorResp *server.ErrResponse[*server.ErrorResponse]) {
+	if err := req.Data.validate(); err != nil {
+		return nil, server.UnprocessableEntity(err, invalidPropertiesErrorCode)
+	}
+	if err := s.accounts.Verify2FA(ctx, req.Data.UserID, map[accounts.TwoFAOptionEnum]string{
 		req.Data.TwoFAOption: req.Data.Code,
-	})
-	if err != nil {
+	}); err != nil {
 		switch {
 		case errors.Is(err, accounts.ErrNoPending2FA):
 			return nil, server.Conflict(err, twoFANoPendingCode)
@@ -108,4 +110,13 @@ func (s *service) Verify2FARequest(
 		}
 	}
 	return server.OK[Verify2FARequestResp](&Verify2FARequestResp{}), nil
+}
+
+func (r *Verify2FARequestReq) validate() error {
+	for _, opt := range accounts.AllTwoFAOptions {
+		if r.TwoFAOption == opt {
+			return nil
+		}
+	}
+	return errors.Errorf("invalid 2fa option: %v", r.TwoFAOption)
 }

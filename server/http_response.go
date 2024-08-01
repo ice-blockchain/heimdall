@@ -8,13 +8,13 @@ import (
 	"github.com/pkg/errors"
 )
 
-func BadRequest(err error, code string, dataArg ...map[string]any) *Response[ErrorResponse] {
+func BadRequest(err error, code string, dataArg ...map[string]any) *ErrResponse[*ErrorResponse] {
 	var data map[string]any
 	if len(dataArg) == 1 {
 		data = dataArg[0]
 	}
 
-	return &Response[ErrorResponse]{
+	return &ErrResponse[*ErrorResponse]{
 		Data: &ErrorResponse{
 			error: err,
 			Error: err.Error(),
@@ -25,13 +25,13 @@ func BadRequest(err error, code string, dataArg ...map[string]any) *Response[Err
 	}
 }
 
-func UnprocessableEntity(err error, code string, dataArg ...map[string]any) *Response[ErrorResponse] {
+func UnprocessableEntity(err error, code string, dataArg ...map[string]any) *ErrResponse[*ErrorResponse] {
 	var data map[string]any
 	if len(dataArg) == 1 {
 		data = dataArg[0]
 	}
 
-	return &Response[ErrorResponse]{
+	return &ErrResponse[*ErrorResponse]{
 		Data: &ErrorResponse{
 			error: err,
 			Error: err.Error(),
@@ -42,13 +42,13 @@ func UnprocessableEntity(err error, code string, dataArg ...map[string]any) *Res
 	}
 }
 
-func Conflict(err error, code string, dataArg ...map[string]any) *Response[ErrorResponse] {
+func Conflict(err error, code string, dataArg ...map[string]any) *ErrResponse[*ErrorResponse] {
 	var data map[string]any
 	if len(dataArg) == 1 {
 		data = dataArg[0]
 	}
 
-	return &Response[ErrorResponse]{
+	return &ErrResponse[*ErrorResponse]{
 		Data: &ErrorResponse{
 			error: err,
 			Error: err.Error(),
@@ -59,13 +59,13 @@ func Conflict(err error, code string, dataArg ...map[string]any) *Response[Error
 	}
 }
 
-func NotFound(err error, code string, dataArg ...map[string]any) *Response[ErrorResponse] {
+func NotFound(err error, code string, dataArg ...map[string]any) *ErrResponse[*ErrorResponse] {
 	var data map[string]any
 	if len(dataArg) == 1 {
 		data = dataArg[0]
 	}
 
-	return &Response[ErrorResponse]{
+	return &ErrResponse[*ErrorResponse]{
 		Data: &ErrorResponse{
 			error: err,
 			Error: err.Error(),
@@ -76,8 +76,8 @@ func NotFound(err error, code string, dataArg ...map[string]any) *Response[Error
 	}
 }
 
-func Unexpected(err error) *Response[ErrorResponse] {
-	return &Response[ErrorResponse]{
+func Unexpected(err error) *ErrResponse[*ErrorResponse] {
+	return &ErrResponse[*ErrorResponse]{
 		Code: -1,
 		Data: &ErrorResponse{
 			error: err,
@@ -86,13 +86,13 @@ func Unexpected(err error) *Response[ErrorResponse] {
 	}
 }
 
-func Unauthorized(err error, dataArg ...map[string]any) *Response[ErrorResponse] {
+func Unauthorized(err error, dataArg ...map[string]any) *ErrResponse[*ErrorResponse] {
 	var data map[string]any
 	if len(dataArg) == 1 {
 		data = dataArg[0]
 	}
 
-	return &Response[ErrorResponse]{
+	return &ErrResponse[*ErrorResponse]{
 		Code: http.StatusUnauthorized,
 		Data: &ErrorResponse{
 			error: errors.Wrapf(err, "authorization failed"),
@@ -103,13 +103,13 @@ func Unauthorized(err error, dataArg ...map[string]any) *Response[ErrorResponse]
 	}
 }
 
-func Forbidden(err error, dataArg ...map[string]any) *Response[ErrorResponse] {
+func Forbidden(err error, dataArg ...map[string]any) *ErrResponse[*ErrorResponse] {
 	var data map[string]any
 	if len(dataArg) == 1 {
 		data = dataArg[0]
 	}
 
-	return &Response[ErrorResponse]{
+	return &ErrResponse[*ErrorResponse]{
 		Code: http.StatusForbidden,
 		Data: &ErrorResponse{
 			error: err,
@@ -120,13 +120,13 @@ func Forbidden(err error, dataArg ...map[string]any) *Response[ErrorResponse] {
 	}
 }
 
-func ForbiddenWithCode(err error, code string, dataArg ...map[string]any) *Response[ErrorResponse] {
+func ForbiddenWithCode(err error, code string, dataArg ...map[string]any) *ErrResponse[*ErrorResponse] {
 	var data map[string]any
 	if len(dataArg) == 1 {
 		data = dataArg[0]
 	}
 
-	return &Response[ErrorResponse]{
+	return &ErrResponse[*ErrorResponse]{
 		Code: http.StatusForbidden,
 		Data: &ErrorResponse{
 			error: err,

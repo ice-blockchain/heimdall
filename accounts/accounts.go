@@ -4,13 +4,12 @@ package accounts
 
 import (
 	"context"
-	appcfg "github.com/ice-blockchain/wintr/config"
-	"net/http"
 
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
+	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	totp2 "github.com/ice-blockchain/wintr/totp"
 )
@@ -31,10 +30,11 @@ func New(ctx context.Context) Accounts {
 	}
 	return &acc
 }
-func (a *accounts) ProxyDfnsCall(ctx context.Context, rw http.ResponseWriter, r *http.Request) {
-	a.dfnsClient.ProxyCall(ctx, rw, r)
-}
 
 func (a *accounts) Close() error {
 	return errors.Wrapf(a.shutdown(), "failed to close accounts repository")
+}
+
+func ParseErrAsDfnsInternalErr(err error) error {
+	return dfns.ParseErrAsDfnsInternalErr(err)
 }
