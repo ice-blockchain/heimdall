@@ -6,6 +6,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httputil"
+	stdlibtime "time"
 
 	"github.com/ice-blockchain/wintr/time"
 )
@@ -16,6 +17,7 @@ type (
 		ProxyCall(ctx context.Context, rw http.ResponseWriter, r *http.Request)
 		StartDelegatedRecovery(ctx context.Context, username string, credentialId string) (*StartedDelegatedRecovery, error)
 		GetUser(ctx context.Context, userID string) (*User, error)
+		VerifyWebhookSecret(fromWebhook string) bool
 	}
 	StartedDelegatedRecovery struct {
 		Rp struct {
@@ -87,7 +89,10 @@ type (
 )
 
 const (
-	AuthHeaderCtxValue = "authHeader"
+	AuthHeaderCtxValue = "authHeaderCtxValue"
+	AppIDCtxValue      = "XDfnsAppIDCtxValue"
+	appIDHeader        = "X-DFNS-APPID"
+	requestDeadline    = 25 * stdlibtime.Second
 )
 
 type (
@@ -97,8 +102,8 @@ type (
 
 		serviceAccountProxy *httputil.ReverseProxy
 		userProxy           *httputil.ReverseProxy
-
-		cfg *config
+		webhookSecret       string
+		cfg                 *config
 	}
 	config struct {
 		DFNS struct {

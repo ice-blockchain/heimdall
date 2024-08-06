@@ -245,6 +245,12 @@ paths:
     post:
       description: Initiates recovery process with dfns
       parameters:
+      - default: ap-...
+        description: Dfns app id
+        in: header
+        name: X-DFNS-APPID
+        required: true
+        type: string
       - description: Request params
         in: body
         name: request
@@ -289,6 +295,12 @@ paths:
         description: Dfns token
         in: header
         name: Authorization
+        required: true
+        type: string
+      - default: ap-...
+        description: Dfns app id
+        in: header
+        name: X-DFNS-APPID
         required: true
         type: string
       produces:

@@ -93,7 +93,9 @@ func passErrorInResponse(writer http.ResponseWriter, request *http.Request, err 
 			status := dfnsParsedErr.HTTPStatus
 			if b, hasBody := dfnsParsedErr.Context["Body"]; hasBody {
 				if body, err = json.Marshal(b.(map[string]interface{})); err != nil {
-					// TODO
+					log.Error(errors.Wrapf(err, "failed to marshal %#v", b))
+					writer.WriteHeader(status)
+					return
 				}
 			}
 			if h, hasHeaders := dfnsParsedErr.Context["Header"]; hasHeaders {

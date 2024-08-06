@@ -100,7 +100,6 @@ func (s *srv) setupServer(ctx context.Context) {
 		Port:    int(cfg.HTTPServer.Port),
 		Handler: s.router,
 		ConnContext: func(connCtx context.Context, c quic.Connection) context.Context {
-			// TODO: reload values from ctx
 			return connCtx
 		},
 	}

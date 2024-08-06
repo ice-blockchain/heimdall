@@ -9,10 +9,12 @@ import (
 )
 
 type (
+	DfnsProxyData             map[string]any
 	StartDelegatedRecoveryReq struct {
 		Username               string                     `json:"username"`
 		CredentialID           string                     `json:"credentialId"`
 		TwoFAVerificationCodes map[TwoFAOptionEnum]string `json:"2FAVerificationCodes"`
+		AppID                  string                     `header:"X-DFNS-APPID" swaggerignore:"true"`
 	}
 	TwoFAOptionEnum            = accounts.TwoFAOptionEnum
 	StartDelegatedRecoveryResp struct {
@@ -21,6 +23,7 @@ type (
 	GetUserReq struct {
 		UserID        string `uri:"userId" required:"true" swaggerignore:"true"`
 		Authorization string `header:"Authorization" swaggerignore:"true"`
+		AppID         string `header:"X-DFNS-APPID" swaggerignore:"true"`
 	}
 	User struct {
 		*accounts.User
@@ -55,6 +58,13 @@ type (
 	}
 	Verify2FARequestResp struct {
 	}
+	WebhookData struct {
+		ID   string         `json:"id"`
+		Kind string         `json:"kind"`
+		Date *time.Time     `json:"date"`
+		Data map[string]any `json:"data"`
+	}
+	WebhookResp struct{}
 )
 
 const (
@@ -74,11 +84,13 @@ type (
 		cfg      *config
 	}
 	config struct {
-		Host               string `yaml:"host"`
-		Version            string `yaml:"version"`
-		ProxyDfnsEndpoints []struct {
-			Endpoint string `yaml:"endpoint"`
-			Method   string `yaml:"method"`
-		} `yaml:"proxyDfnsEndpoints"`
+		Host               string          `yaml:"host"`
+		Version            string          `yaml:"version"`
+		ProxyDfnsEndpoints []*dfnsEndpoint `yaml:"proxyDfnsEndpoints"`
+	}
+	dfnsEndpoint struct {
+		Endpoint string `yaml:"endpoint"`
+		Method   string `yaml:"method"`
+		Tag      string `yaml:"tag"`
 	}
 )

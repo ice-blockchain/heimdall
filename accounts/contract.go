@@ -48,6 +48,7 @@ const (
 	TwoFAOptionEmail                = TwoFAOptionEnum("email")
 	TwoFAOptionTOTPAuthentificator  = TwoFAOptionEnum("google_authentificator")
 	DfnsAuthorizationHeaderCtxValue = dfns.AuthHeaderCtxValue
+	DfnsAppIDHeaderCtxValue         = dfns.AppIDCtxValue
 )
 
 var (

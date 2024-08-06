@@ -4,6 +4,7 @@ package accounts
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/pkg/errors"
 
@@ -15,8 +16,8 @@ import (
 )
 
 func New(ctx context.Context) Accounts {
-	cl := dfns.NewDfnsClient(ctx, applicationYamlKey)
-	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
+	cl, whSecret := dfns.NewDfnsClient(ctx, applicationYamlKey)
+	db := storage.MustConnect(ctx, fmt.Sprintf(ddl, whSecret), applicationYamlKey)
 	totp := totp2.New(applicationYamlKey)
 	em := email.New(applicationYamlKey)
 	var cfg config

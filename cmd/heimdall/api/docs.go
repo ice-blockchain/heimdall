@@ -31,6 +31,14 @@ const docTemplate = `{
                 ],
                 "parameters": [
                     {
+                        "type": "string",
+                        "default": "ap-...",
+                        "description": "Dfns app id",
+                        "name": "X-DFNS-APPID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
                         "description": "Request params",
                         "name": "request",
                         "in": "body",
@@ -96,6 +104,14 @@ const docTemplate = `{
                         "default": "Bearer \u003cAdd token here\u003e",
                         "description": "Dfns token",
                         "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "ap-...",
+                        "description": "Dfns app id",
+                        "name": "X-DFNS-APPID",
                         "in": "header",
                         "required": true
                     }

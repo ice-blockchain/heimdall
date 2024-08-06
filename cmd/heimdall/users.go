@@ -4,18 +4,19 @@ package main
 
 import (
 	"context"
-	"github.com/ice-blockchain/heimdall/accounts"
-	"github.com/pkg/errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 
+	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/server"
 )
 
 func (s *service) setupUserRoutes(router gin.IRoutes) {
 	router.POST("v1/users/:userId/ion-connect-relays", server.RootHandler(s.UserRelays)).
-		GET("v1/users/:userId/ion-connect-indexers", server.RootHandler(s.UserIndexers))
+		GET("v1/users/:userId/ion-connect-indexers", server.RootHandler(s.UserIndexers)).
+		GET("auth/users/:userId", server.RootHandler(s.GetUser))
 }
 
 // UserRelays godoc
@@ -79,6 +80,7 @@ func (s *service) UserIndexers(
 //	@Produce		json
 //	@Param			userId			path		string	true	"ID of the user"
 //	@Param			Authorization	header		string	true	"Dfns token"	default(Bearer <Add token here>)
+//	@Param			X-DFNS-APPID	header		string	true	"Dfns app id"	default(ap-...)
 //	@Success		200				{object}	User
 //	@Failure		500				{object}	dfnsErrorResponse
 //	@Failure		504				{object}	server.ErrorResponse	"if request times out"
@@ -87,7 +89,9 @@ func (s *service) GetUser(
 	ctx context.Context,
 	req *server.Request[GetUserReq, User],
 ) (successResp *server.Response[User], errorResp *server.ErrResponse[*dfnsErrorResponse]) {
-	usr, err := s.accounts.GetUser(context.WithValue(ctx, accounts.DfnsAuthorizationHeaderCtxValue, req.Data.Authorization), req.Data.UserID)
+	ctx = context.WithValue(ctx, accounts.DfnsAuthorizationHeaderCtxValue, req.Data.Authorization)
+	ctx = context.WithValue(ctx, accounts.DfnsAppIDHeaderCtxValue, req.Data.AppID)
+	usr, err := s.accounts.GetUser(ctx, req.Data.UserID)
 	if err != nil {
 		switch {
 		default:

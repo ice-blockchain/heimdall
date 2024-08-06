@@ -15,12 +15,12 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
-// @title					User accounts management for ION
+// @title						User accounts management for ION
 // @version					latest
 // @description				It is responsible for providing off chain account management for the ION Platform; it is the first layer of interaction between users and the platform.
 // @query.collection.format	multi
 // @schemes					https
-// @contact.name			ice.io
+// @contact.name				ice.io
 // @contact.url				https://ice.io
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())

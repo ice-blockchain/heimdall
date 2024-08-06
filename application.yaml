@@ -9,19 +9,62 @@ cmd/heimdall:
   defaultEndpointTimeout: 30s
   proxyDfnsEndpoints:
     - method: POST
-      endpoint: "auth/registration/delegated"
+      endpoint: "/auth/registration/delegated"
+      tag: Login
     - method: POST
-      endpoint: "auth/registration/enduser"
+      endpoint: "/auth/registration/enduser"
+      tag: Login
     - method: POST
-      endpoint: "auth/login/init"
+      endpoint: "/auth/login/init"
+      tag: Login
     - method: POST
-      endpoint: "auth/login"
+      endpoint: "/auth/login"
+      tag: Login
     - method: POST
-      endpoint: "auth/login/delegated"
+      endpoint: "/auth/login/delegated"
+      tag: Login
     - method: PUT
-      endpoint: "auth/logout"
+      endpoint: "/auth/logout"
+      tag: Login
     - method: PUT
-      endpoint: "auth/recover/user"
+      endpoint: "/auth/recover/user"
+      tag: Recovery
+    - method: POST
+      endpoint: "/wallets"
+      tag: Wallets
+    - method: POST
+      endpoint: "/wallets/:walletId/delegate"
+      tag: Wallets
+    - method: GET
+      endpoint: "/wallets/:walletId"
+      tag: Wallets
+    - method: GET
+      endpoint: "/wallets"
+      tag: Wallets
+    - method: GET
+      endpoint: "/wallets/:walletId/assets"
+      tag: Wallets
+    - method: GET
+      endpoint: "/wallets/:walletId/nfts"
+      tag: Wallets
+    - method: GET
+      endpoint: "/wallets/:walletId/history"
+      tag: Wallets
+    - method: PUT
+      endpoint: "/wallets/:walletId/tags"
+      tag: Wallets
+    - method: POST
+      endpoint: "/wallets/:walletId/transfers"
+      tag: Wallets
+    - method: POST
+      endpoint: "/wallets/:walletId/transactions"
+      tag: Wallets
+    - method: GET
+      endpoint: "/wallets/:walletId/transactions"
+      tag: Wallets
+    - method: POST
+      endpoint: "/wallets/:walletId/signatures"
+      tag: Wallets
   httpServer:
     port: 1444
     certPath: cmd/heimdall/.testdata/localhost.crt

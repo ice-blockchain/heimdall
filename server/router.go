@@ -41,6 +41,7 @@ func RootHandler[REQ, RESP any, ERR InternalErr[ERRSTR], ERRSTR any](handleReque
 
 			return
 		}
+		// TODO: check with dfns token content
 		//if err := req.authorize(ctx); err != nil {
 		//	log.Error(errors.Wrap(err.Data.InternalErr(), "endpoint authentication failed"), fmt.Sprintf("%[1]T", req.Data), req, "Response", err)
 		//	ginCtx.JSON(err.Code, err.Data)

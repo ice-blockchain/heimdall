@@ -10,7 +10,9 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	stdlibtime "time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/dfns/dfns-sdk-go/credentials"
 	"github.com/dfns/dfns-sdk-go/dfnsapiclient"
 	"github.com/goccy/go-json"
@@ -20,7 +22,7 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
-func NewDfnsClient(ctx context.Context, applicationYamlKey string) DfnsClient {
+func NewDfnsClient(ctx context.Context, applicationYamlKey string) (DfnsClient, string) {
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	if cfg.DFNS.BaseURL == "" {
@@ -46,10 +48,10 @@ func NewDfnsClient(ctx context.Context, applicationYamlKey string) DfnsClient {
 
 	cl := &dfnsClient{serviceAccountClient: serviceClient, userClient: &http.Client{}, cfg: &cfg}
 	cl.mustInitProxy()
-	//if len(cl.mustListWebhooks(ctx)) == 0 {
-	//	_ = cl.mustRegisterAllEventsWebhook(ctx) // TODO: register secret in db to prove events from webhook
-	//}
-	return cl
+	if cfg.DFNS.WebhookURL != "" && len(cl.mustListWebhooks(ctx)) == 0 {
+		cl.webhookSecret = cl.mustRegisterAllEventsWebhook(ctx)
+	}
+	return cl, cl.webhookSecret
 }
 
 func (c *dfnsClient) mustInitProxy() {
@@ -68,7 +70,9 @@ func (c *dfnsClient) mustInitProxy() {
 	c.userProxy.ErrorHandler = passErrorInResponse
 	c.serviceAccountProxy.Transport = c.serviceAccountClient.Transport
 }
-
+func (c *dfnsClient) VerifyWebhookSecret(fromWebhook string) bool {
+	return c.webhookSecret != "" && c.webhookSecret == fromWebhook
+}
 func (c *dfnsClient) mustRegisterAllEventsWebhook(ctx context.Context) (whSecret string) {
 	jData, err := json.MarshalContext(ctx, struct {
 		Url         string   `json:"url"`
@@ -82,7 +86,7 @@ func (c *dfnsClient) mustRegisterAllEventsWebhook(ctx context.Context) (whSecret
 		Events:      []string{"*"},
 	})
 	log.Panic(errors.Wrapf(err, "failed to marshal webhook struct into json"))
-	status, resp, _, err := c.clientCall(ctx, "POST", "/webhooks", http.Header{}, jData)
+	status, resp, err := c.clientCall(ctx, "POST", "/webhooks", http.Header{}, jData)
 	log.Panic(errors.Wrapf(err, "failed to register webhook"))
 	if status != http.StatusOK {
 		log.Panic(errors.Wrapf(err, "failed to register webhook with status %v body %v", status, string(resp)))
@@ -98,7 +102,7 @@ func (c *dfnsClient) mustRegisterAllEventsWebhook(ctx context.Context) (whSecret
 }
 
 func (c *dfnsClient) mustListWebhooks(ctx context.Context) []webhook {
-	_, jWebhooks, _, err := c.clientCall(ctx, "GET", "/webhooks?limit=1", http.Header{}, nil)
+	_, jWebhooks, err := c.clientCall(ctx, "GET", "/webhooks?limit=1", http.Header{}, nil)
 	if err != nil {
 		log.Panic(errors.Wrapf(err, "failed to list webhooks"))
 	}
@@ -116,11 +120,15 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 		c.userProxy.ServeHTTP(rw, req)
 	}
 }
-func (c *dfnsClient) clientCall(ctx context.Context, method, url string, headers http.Header, jsonData []byte) (int, []byte, http.Header, error) {
+func (c *dfnsClient) clientCall(ctx context.Context, method, url string, headers http.Header, jsonData []byte) (int, []byte, error) {
 	if c.urlSupportsServiceAccount(url) {
-		return c.doClientCall(ctx, c.serviceAccountClient, method, url, headers, jsonData) // TODO: backoff
+		return retry(ctx, func() (status int, body []byte, err error) {
+			return c.doClientCall(ctx, c.serviceAccountClient, method, url, headers, jsonData)
+		})
 	} else {
-		return c.doClientCall(ctx, c.userClient, method, url, headers, jsonData)
+		return retry(ctx, func() (status int, body []byte, err error) {
+			return c.doClientCall(ctx, c.userClient, method, url, headers, jsonData)
+		})
 	}
 }
 func (c *dfnsClient) urlSupportsServiceAccount(url string) bool {
@@ -129,26 +137,25 @@ func (c *dfnsClient) urlSupportsServiceAccount(url string) bool {
 		url == "/auth/recover/user/delegated"
 }
 
-func (c *dfnsClient) doClientCall(ctx context.Context, httpClient *http.Client, method, url string, headers http.Header, jsonData []byte) (int, []byte, http.Header, error) {
+func (c *dfnsClient) doClientCall(ctx context.Context, httpClient *http.Client, method, url string, headers http.Header, jsonData []byte) (int, []byte, error) {
 	req, err := http.NewRequestWithContext(ctx, method, c.cfg.DFNS.BaseURL+url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return 0, nil, nil, errors.Wrapf(err, "failed to consturct dfns request to %v %v", method, url)
+		return 0, nil, errors.Wrapf(err, "failed to consturct dfns request to %v %v", method, url)
 	}
 
 	response, err := httpClient.Do(req)
 	if err != nil {
-		return 0, nil, nil, errors.Wrapf(err, "failed to exec dfns request to %v %v", method, url)
+		return 0, nil, errors.Wrapf(err, "failed to exec dfns request to %v %v", method, url)
 	}
 	defer response.Body.Close()
-	respHeaders := response.Header
 	bodyData, err := io.ReadAll(response.Body)
 	if err != nil {
-		return response.StatusCode, nil, nil, errors.Wrapf(err, "failed to read body data for dfns request to %v %v", method, url)
+		return response.StatusCode, nil, errors.Wrapf(err, "failed to read body data for dfns request to %v %v", method, url)
 	}
-	if response.StatusCode >= http.StatusBadRequest {
-		log.Error(errors.Errorf("dfns req to %v %v ended up with %v (data: %v)", method, url, response.StatusCode, string(bodyData)))
+	if response.StatusCode >= http.StatusBadRequest && err == nil {
+		err = errors.Errorf("dfns req to %v %v ended up with %v (data: %v)", method, url, response.StatusCode, string(bodyData))
 	}
-	return response.StatusCode, bodyData, respHeaders, nil
+	return response.StatusCode, bodyData, nil
 }
 
 func (c *dfnsClient) StartDelegatedRecovery(ctx context.Context, username string, credentialId string) (*StartedDelegatedRecovery, error) {
@@ -163,11 +170,15 @@ func (c *dfnsClient) StartDelegatedRecovery(ctx context.Context, username string
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to serialize %#v to json for startDelegatedRecovery username %v")
 	}
-	_, body, _, err := c.clientCall(ctx, "POST", "/auth/recover/user/delegated", nil, postData)
+	uri := "/auth/recover/user/delegated"
+	status, body, err := c.clientCall(ctx, "POST", uri, http.Header{"X-DFNS-APPID": []string{appID(ctx)}}, postData)
 	if err != nil {
 		if dfnsErr := ParseErrAsDfnsInternalErr(err); dfnsErr != nil {
 			return nil, errors.Wrapf(dfnsErr, "failed to start delegated recovery for username %v credID %v", username, credentialId)
 		}
+		return nil, errors.Wrapf(err, "failed to start delegated recovery for username %v credID %v", username, credentialId)
+	} else if status >= http.StatusBadRequest {
+		err = buildDfnsError(status, uri, body)
 		return nil, errors.Wrapf(err, "failed to start delegated recovery for username %v credID %v", username, credentialId)
 	}
 	var resp StartedDelegatedRecovery
@@ -180,14 +191,17 @@ func (c *dfnsClient) StartDelegatedRecovery(ctx context.Context, username string
 func dfnsAuthHeader(ctx context.Context) string {
 	return ctx.Value(AuthHeaderCtxValue).(string)
 }
+func appID(ctx context.Context) string {
+	return ctx.Value(AuthHeaderCtxValue).(string)
+}
 
 func (c *dfnsClient) GetUser(ctx context.Context, userID string) (*User, error) {
 	headers := http.Header{
-		"X-DFNS-APPID":    []string{c.cfg.DFNS.AppID},
+		"X-DFNS-APPID":    []string{appID(ctx)},
 		"Authorization: ": []string{dfnsAuthHeader(ctx)},
 	}
 	uri := fmt.Sprintf("/auth/users/%v", userID)
-	status, body, _, err := c.clientCall(ctx, "GET", uri, headers, nil)
+	status, body, err := c.clientCall(ctx, "GET", uri, headers, nil)
 	if status >= http.StatusBadRequest && err == nil {
 		err = buildDfnsError(status, uri, body)
 	}
@@ -199,4 +213,25 @@ func (c *dfnsClient) GetUser(ctx context.Context, userID string) (*User, error) 
 		return nil, errors.Wrapf(err, "failed to unmarshal response %v for to User", string(body))
 	}
 	return &usr, nil
+}
+
+func retry(ctx context.Context, op func() (status int, body []byte, err error)) (status int, body []byte, err error) {
+	err = backoff.RetryNotify(
+		func() error {
+			status, body, err = op()
+			return err
+		},
+		backoff.WithContext(&backoff.ExponentialBackOff{
+			InitialInterval:     10 * stdlibtime.Millisecond, //nolint:mnd,gomnd // .
+			RandomizationFactor: 0.5,                         //nolint:mnd,gomnd // .
+			Multiplier:          2.5,                         //nolint:mnd,gomnd // .
+			MaxInterval:         5 * stdlibtime.Second,
+			MaxElapsedTime:      requestDeadline,
+			Stop:                backoff.Stop,
+			Clock:               backoff.SystemClock,
+		}, ctx),
+		func(e error, next stdlibtime.Duration) {
+			log.Error(errors.Wrapf(e, "call to dfns failed. retrying in %v... ", next))
+		})
+	return status, body, err
 }
