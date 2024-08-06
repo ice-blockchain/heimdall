@@ -74,6 +74,54 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/users/{userId}": {
+            "get": {
+                "description": "Initiates recovery process with dfns",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID of the user",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cAdd token here\u003e",
+                        "description": "Dfns token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.User"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.dfnsErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/users/{userId}/2fa/{twoFAOption}/verification-requests": {
             "put": {
                 "description": "Verifies 2FA code from the user",
@@ -212,9 +260,201 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/v1/users/{userId}/ion-connect-indexers": {
+            "get": {
+                "description": "Returns indexers list for the user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID of the user",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cAdd token here\u003e",
+                        "description": "Dfns token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.Relays"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/users/{userId}/ion-connect-relays": {
+            "post": {
+                "description": "Assigns relay list for the user based on his followee list",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID of the user",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cAdd token here\u003e",
+                        "description": "Dfns token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Request params",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.RelaysReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.Relays"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "accounts.TwoFAOptionEnum": {
+            "type": "string",
+            "enum": [
+                "sms",
+                "email",
+                "google_authentificator"
+            ],
+            "x-enum-varnames": [
+                "TwoFAOptionSMS",
+                "TwoFAOptionEmail",
+                "TwoFAOptionTOTPAuthentificator"
+            ]
+        },
+        "dfns.Permission": {
+            "type": "object",
+            "properties": {
+                "dateCreated": {
+                    "type": "string"
+                },
+                "dateUpdated": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "isArchived": {
+                    "type": "boolean"
+                },
+                "isImmutable": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "operations": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "dfns.PermissionAssignment": {
+            "type": "object",
+            "properties": {
+                "assignmentId": {
+                    "type": "string"
+                },
+                "operations": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "permissionId": {
+                    "type": "string"
+                },
+                "permissionName": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.Relays": {
+            "type": "object",
+            "properties": {
+                "ionConnectRelays": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "main.RelaysReq": {
+            "type": "object",
+            "properties": {
+                "followeeList": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "main.Send2FARequestReq": {
             "type": "object",
             "properties": {
@@ -369,8 +609,99 @@ const docTemplate = `{
                 }
             }
         },
+        "main.User": {
+            "type": "object",
+            "properties": {
+                "2faOptions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/accounts.TwoFAOptionEnum"
+                    }
+                },
+                "credentialUuid": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "ionIndexers": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "ionRelays": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "isActive": {
+                    "type": "boolean"
+                },
+                "isRegistered": {
+                    "type": "boolean"
+                },
+                "isServiceAccount": {
+                    "type": "boolean"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "orgId": {
+                    "type": "string"
+                },
+                "permissionAssignments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dfns.PermissionAssignment"
+                    }
+                },
+                "permissions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dfns.Permission"
+                    }
+                },
+                "phoneNumber": {
+                    "type": "string"
+                },
+                "scopes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "userId": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
         "main.Verify2FARequestResp": {
             "type": "object"
+        },
+        "main.dfnsErrorResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "error": {
+                    "$ref": "#/definitions/main.errMessage"
+                }
+            }
+        },
+        "main.errMessage": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
         },
         "server.ErrorResponse": {
             "type": "object",

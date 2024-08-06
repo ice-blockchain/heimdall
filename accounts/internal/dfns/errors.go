@@ -3,6 +3,7 @@
 package dfns
 
 import (
+	"fmt"
 	"net/http"
 	"reflect"
 
@@ -41,6 +42,33 @@ func ParseErrAsDfnsInternalErr(err error) error {
 }
 func (d *DfnsInternalError) Error() string {
 	return d.raw
+}
+
+func buildDfnsError(status int, url string, respBody []byte) error {
+	var body map[string]interface{}
+	if err := json.Unmarshal(respBody, &body); err != nil {
+		return errors.Wrapf(err, "failed to parse body %v", string(respBody))
+	}
+	var message string
+
+	if errorObj, ok := body["error"].(map[string]interface{}); ok {
+		if errMsg, ok := errorObj["message"].(string); ok {
+			message = errMsg
+		}
+	} else if errMsg, ok := body["message"].(string); ok {
+		message = errMsg
+	} else {
+		message = "Unknown error"
+	}
+	return &DfnsInternalError{
+		raw:        fmt.Sprintf("status %v (data: %v)", status, string(respBody)),
+		HTTPStatus: status,
+		Message:    message,
+		Context: map[string]interface{}{
+			"URL":  url,
+			"Body": body,
+		},
+	}
 }
 
 func unwrap(err error) error {

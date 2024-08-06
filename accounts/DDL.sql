@@ -2,11 +2,14 @@
 
 CREATE TABLE IF NOT EXISTS users (
     id                                     TEXT NOT NULL,
+    -- TODO: check if we need that for matching or token has userID: dfns_username                          TEXT NOT NULL UNIQUE,
     email                                  TEXT,
     phone_number                           TEXT,
     totp_authentificator_secret            TEXT,
+    ion_relays                             TEXT[],
     primary key(id)
 ) WITH (FILLFACTOR = 70);
+
 
 CREATE TABLE IF NOT EXISTS twofa_codes (
     created_at timestamp NOT NULL,
@@ -16,4 +19,6 @@ CREATE TABLE IF NOT EXISTS twofa_codes (
     deliver_to TEXT NOT NULL,
     code    TEXT NOT NULL,
     primary key (user_id, option)
-)
+);
+
+CREATE INDEX IF NOT EXISTS twofa_codes_option_code ON twofa_codes (option, code);

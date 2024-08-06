@@ -50,6 +50,7 @@ func (s *service) setupDfnsProxyRoutes(router gin.IRoutes) {
 		router = router.Handle(endpoint.Method, endpoint.Endpoint, s.proxyDfns())
 	}
 	router.POST("auth/recover/user/delegated", server.RootHandler(s.StartDelegatedRecovery))
+	router.GET("auth/users/:userId", server.RootHandler(s.GetUser))
 }
 
 func (s *service) proxyDfns() func(*gin.Context) {
@@ -81,7 +82,7 @@ func (s *service) StartDelegatedRecovery(
 		return nil, buildDfnsErrorResponse(http.StatusBadRequest, errors.Wrapf(err, "invalid 2fa option provided"), invalidPropertiesErrorCode)
 	}
 
-	_, err := s.accounts.StartDelegatedRecovery(ctx, req.Data.Username, req.Data.TwoFAVerificationCodes, req.Data.Username, req.Data.CredentialID)
+	resp, err := s.accounts.StartDelegatedRecovery(ctx, req.Data.Username, req.Data.TwoFAVerificationCodes, req.Data.Username, req.Data.CredentialID)
 	if err != nil {
 		switch {
 		case errors.Is(err, accounts.ErrNoPending2FA):
@@ -104,7 +105,7 @@ func (s *service) StartDelegatedRecovery(
 			return nil, buildDfnsErrorResponse(http.StatusInternalServerError, err, "")
 		}
 	}
-	return server.OK[StartDelegatedRecoveryResp](nil), nil
+	return server.OK[StartDelegatedRecoveryResp](&StartDelegatedRecoveryResp{resp}), nil
 }
 
 func (r *StartDelegatedRecoveryReq) validate() error {

@@ -15,8 +15,29 @@ type (
 		TwoFAVerificationCodes map[TwoFAOptionEnum]string `json:"2FAVerificationCodes"`
 	}
 	TwoFAOptionEnum            = accounts.TwoFAOptionEnum
-	StartDelegatedRecoveryResp = accounts.StartedDelegatedRecovery
-
+	StartDelegatedRecoveryResp struct {
+		*accounts.StartedDelegatedRecovery
+	}
+	GetUserReq struct {
+		UserID        string `uri:"userId" required:"true" swaggerignore:"true"`
+		Authorization string `header:"Authorization" swaggerignore:"true"`
+	}
+	User struct {
+		*accounts.User
+	}
+	RelaysReq struct {
+		UserID       string   `uri:"userId" required:"true" swaggerignore:"true"`
+		FolloweeList []string `json:"followeeList"`
+	}
+	Relays struct {
+		IONConnectRelays []string `json:"ionConnectRelays"`
+	}
+	IndexersReq struct {
+		UserID string `uri:"userId" required:"true" swaggerignore:"true"`
+	}
+	Indexers struct {
+		IONConnectIndexers []string `json:"ionConnectIndexers"`
+	}
 	Send2FARequestReq struct {
 		UserID      string          `uri:"userId" required:"true" swaggerignore:"true"`
 		TwoFAOption TwoFAOptionEnum `uri:"twoFAOption" required:"true" swaggerignore:"true"`

@@ -25,17 +25,29 @@ type (
 		Verify2FA(ctx context.Context, userID string, codes map[TwoFAOptionEnum]string) error
 		Send2FA(ctx context.Context, userID string, channel TwoFAOptionEnum, deliverTo *string, language string) (authentificatorUri *string, err error)
 		StartDelegatedRecovery(ctx context.Context, userID string, codes map[TwoFAOptionEnum]string, dfnsUsername, credentialID string) (resp *StartedDelegatedRecovery, err error)
+		GetIONRelays(ctx context.Context, userID string, followees []string) (relays []string, err error)
+		GetIONIndexers(ctx context.Context, userID string) (indexers []string, err error)
+		GetUser(ctx context.Context, userID string) (usr *User, err error)
 	}
 
 	TwoFAOptionEnum          = string
 	StartedDelegatedRecovery = dfns.StartedDelegatedRecovery
 	DfnsErr                  = dfns.DfnsInternalError
+	User                     struct {
+		*dfns.User
+		IONRelays    []string          `json:"ionRelays"`
+		IONIndexers  []string          `json:"ionIndexers"`
+		Email        string            `json:"email,omitempty"`
+		PhoneNumber  string            `json:"phoneNumber,omitempty"`
+		TwoFAOptions []TwoFAOptionEnum `json:"2faOptions"`
+	}
 )
 
 const (
-	TwoFAOptionSMS                 = TwoFAOptionEnum("sms")
-	TwoFAOptionEmail               = TwoFAOptionEnum("email")
-	TwoFAOptionTOTPAuthentificator = TwoFAOptionEnum("google_authentificator")
+	TwoFAOptionSMS                  = TwoFAOptionEnum("sms")
+	TwoFAOptionEmail                = TwoFAOptionEnum("email")
+	TwoFAOptionTOTPAuthentificator  = TwoFAOptionEnum("google_authentificator")
+	DfnsAuthorizationHeaderCtxValue = dfns.AuthHeaderCtxValue
 )
 
 var (
@@ -52,7 +64,10 @@ var (
 	Err2FARequired             = errors.New("2FA required")
 )
 
-const applicationYamlKey = "accounts"
+const (
+	applicationYamlKey  = "accounts"
+	clientIPCtxValueKey = "clientIPCtxValueKey"
+)
 
 //go:embed DDL.sql
 var ddl string
@@ -70,7 +85,8 @@ type (
 		ID                        string
 		Email                     *string
 		PhoneNumber               *string
-		TotpAuthentificatorSecret *string `db:"totp_authentificator_secret"`
+		TotpAuthentificatorSecret *string
+		IONRelays                 []string
 	}
 	twoFACode struct {
 		CreatedAt   *time.Time

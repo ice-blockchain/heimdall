@@ -47,8 +47,8 @@ func RootHandler[REQ, RESP any, ERR InternalErr[ERRSTR], ERRSTR any](handleReque
 		//
 		//	return
 		//}
-		//reqCtx := context.WithValue(ctx, requestingUserIDCtxValueKey, req.AuthenticatedUser.UserID) //nolint:staticcheck,revive // .
-		success, failure := handleRequest(ctx, req)
+		reqCtx := context.WithValue(ctx, clientIPCtxValueKey, ginCtx.ClientIP()) //nolint:staticcheck,revive // .
+		success, failure := handleRequest(reqCtx, req)
 		if failure != nil {
 			log.Error(errors.Wrap((failure.Data).InternalErr(), "endpoint failed"), fmt.Sprintf("%[1]T", req.Data), req, "Response", failure)
 			ginCtx.JSON(processErrorResponse[REQ, RESP, ERR, ERRSTR](ctx, req, failure))

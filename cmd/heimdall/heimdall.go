@@ -15,12 +15,12 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
-// @title						User accounts management for ION
+// @title					User accounts management for ION
 // @version					latest
 // @description				It is responsible for providing off chain account management for the ION Platform; it is the first layer of interaction between users and the platform.
 // @query.collection.format	multi
 // @schemes					https
-// @contact.name				ice.io
+// @contact.name			ice.io
 // @contact.url				https://ice.io
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -29,12 +29,13 @@ func main() {
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	api.SwaggerInfo.Host = cfg.Host
 	api.SwaggerInfo.Version = cfg.Version
-	server.New(&service{cfg: &cfg}, applicationYamlKey, "/docs/").ListenAndServe(ctx, cancel)
+	server.New(&service{cfg: &cfg}, applicationYamlKey, "/accounts/").ListenAndServe(ctx, cancel)
 }
 
 func (s *service) RegisterRoutes(router *server.Router) {
 	s.setupDfnsProxyRoutes(router)
 	s.setup2FARoutes(router)
+	s.setupUserRoutes(router)
 }
 
 func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {

@@ -15,6 +15,7 @@ type (
 		//ClientCall(ctx context.Context, method, url string, headers http.Header, jsonData []byte) (int, []byte, http.Header, error)
 		ProxyCall(ctx context.Context, rw http.ResponseWriter, r *http.Request)
 		StartDelegatedRecovery(ctx context.Context, username string, credentialId string) (*StartedDelegatedRecovery, error)
+		GetUser(ctx context.Context, userID string) (*User, error)
 	}
 	StartedDelegatedRecovery struct {
 		Rp struct {
@@ -53,6 +54,40 @@ type (
 			EncryptedRecoveryKey string `json:"encryptedRecoveryKey"`
 		} `json:"allowedRecoveryCredentials"`
 	}
+
+	User struct {
+		Username              string                 `json:"username"`
+		UserID                string                 `json:"userId"`
+		Kind                  string                 `json:"kind"`
+		CredentialUuid        string                 `json:"credentialUuid"`
+		OrgID                 string                 `json:"orgId"`
+		Permissions           []Permission           `json:"permissions"`
+		Scopes                []string               `json:"scopes"`
+		IsActive              bool                   `json:"isActive"`
+		IsServiceAccount      bool                   `json:"isServiceAccount"`
+		IsRegistered          bool                   `json:"isRegistered"`
+		PermissionAssignments []PermissionAssignment `json:"permissionAssignments"`
+	}
+	PermissionAssignment struct {
+		PermissionID string   `json:"permissionId"`
+		AssignmentID string   `json:"assignmentId"`
+		Name         string   `json:"permissionName"`
+		Operations   []string `json:"operations"`
+	}
+	Permission struct {
+		Id          string     `json:"id"`
+		Name        string     `json:"name"`
+		Operations  []string   `json:"operations"`
+		Status      string     `json:"status"`
+		IsImmutable bool       `json:"isImmutable"`
+		DateCreated *time.Time `json:"dateCreated"`
+		DateUpdated *time.Time `json:"dateUpdated"`
+		IsArchived  bool       `json:"isArchived"`
+	}
+)
+
+const (
+	AuthHeaderCtxValue = "authHeader"
 )
 
 type (

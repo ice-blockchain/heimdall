@@ -5,6 +5,7 @@ package dfns
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httputil"
@@ -144,7 +145,7 @@ func (c *dfnsClient) doClientCall(ctx context.Context, httpClient *http.Client, 
 	if err != nil {
 		return response.StatusCode, nil, nil, errors.Wrapf(err, "failed to read body data for dfns request to %v %v", method, url)
 	}
-	if response.StatusCode > http.StatusBadRequest {
+	if response.StatusCode >= http.StatusBadRequest {
 		log.Error(errors.Errorf("dfns req to %v %v ended up with %v (data: %v)", method, url, response.StatusCode, string(bodyData)))
 	}
 	return response.StatusCode, bodyData, respHeaders, nil
@@ -174,4 +175,28 @@ func (c *dfnsClient) StartDelegatedRecovery(ctx context.Context, username string
 		return nil, errors.Wrapf(err, "failed to unmarshal response %v for startDelegatedRecovery", string(body))
 	}
 	return &resp, nil
+}
+
+func dfnsAuthHeader(ctx context.Context) string {
+	return ctx.Value(AuthHeaderCtxValue).(string)
+}
+
+func (c *dfnsClient) GetUser(ctx context.Context, userID string) (*User, error) {
+	headers := http.Header{
+		"X-DFNS-APPID":    []string{c.cfg.DFNS.AppID},
+		"Authorization: ": []string{dfnsAuthHeader(ctx)},
+	}
+	uri := fmt.Sprintf("/auth/users/%v", userID)
+	status, body, _, err := c.clientCall(ctx, "GET", uri, headers, nil)
+	if status >= http.StatusBadRequest && err == nil {
+		err = buildDfnsError(status, uri, body)
+	}
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get user %v from dfns", userID)
+	}
+	var usr User
+	if err = json.UnmarshalContext(ctx, body, &usr); err != nil {
+		return nil, errors.Wrapf(err, "failed to unmarshal response %v for to User", string(body))
+	}
+	return &usr, nil
 }
