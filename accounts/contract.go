@@ -5,6 +5,7 @@ package accounts
 import (
 	"context"
 	_ "embed"
+	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
 	"io"
 	"net/http"
 	stdlibtime "time"
@@ -79,7 +80,8 @@ type (
 		totpProvider totp.TOTP
 		db           *storage.DB
 		shutdown     func() error
-		emailCode    email.EmailSender
+		emailSender  email.EmailSender
+		smsSender    sms.SmsSender
 		cfg          *config
 	}
 	user struct {

@@ -28,9 +28,9 @@ type (
 		FromEmailAddress string
 	}
 	config struct {
-		ExtraEmailLoadBalancersCount int    `yaml:"extraEmailLoadBalancersCount"`
-		FromEmailName                string `yaml:"fromEmailName"`
-		FromEmailAddress             string `yaml:"fromEmailAddress"`
+		ExtraLoadBalancersCount int    `yaml:"extraLoadBalancersCount"`
+		FromEmailName           string `yaml:"fromEmailName"`
+		FromEmailAddress        string `yaml:"fromEmailAddress"`
 	}
 	emailTemplate struct {
 		subject, body *template.Template

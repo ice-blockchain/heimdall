@@ -5,6 +5,7 @@ package accounts
 import (
 	"context"
 	"fmt"
+	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
 
 	"github.com/pkg/errors"
 
@@ -20,13 +21,19 @@ func New(ctx context.Context) Accounts {
 	db := storage.MustConnect(ctx, fmt.Sprintf(ddl, whSecret), applicationYamlKey)
 	totp := totp2.New(applicationYamlKey)
 	em := email.New(applicationYamlKey)
+	var smsSender sms.SmsSender
+	if false { // TODO: creds
+		smsSender = sms.New(applicationYamlKey)
+	}
+
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	acc := accounts{dfnsClient: cl,
 		db:           db,
 		shutdown:     db.Close,
 		totpProvider: totp,
-		emailCode:    em,
+		emailSender:  em,
+		smsSender:    smsSender,
 		cfg:          &cfg,
 	}
 	return &acc

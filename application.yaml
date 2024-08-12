@@ -81,6 +81,10 @@ accounts:
   wintr/email:
     credentials:
       #apiKey: bogus
+  wintr/sms:
+    credentials:
+      #user: bogus
+      #password: bogus
   wintr/totp:
     issuer: ION
   emailExpiration: 15h

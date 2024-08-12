@@ -28,12 +28,12 @@ func New(applicationYamlKey string) EmailSender {
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	em := emailSender{
 		cfg:            &cfg,
-		emailClients:   make([]email.Client, 0, cfg.ExtraEmailLoadBalancersCount+1),
-		fromRecipients: make([]fromRecipient, 0, cfg.ExtraEmailLoadBalancersCount+1),
+		emailClients:   make([]email.Client, 0, cfg.ExtraLoadBalancersCount+1),
+		fromRecipients: make([]fromRecipient, 0, cfg.ExtraLoadBalancersCount+1),
 	}
 	em.emailClients = append(em.emailClients, email.New(applicationYamlKey))
 	em.fromRecipients = append(em.fromRecipients, fromRecipient{cfg.FromEmailName, cfg.FromEmailAddress})
-	for i := range cfg.ExtraEmailLoadBalancersCount {
+	for i := range cfg.ExtraLoadBalancersCount {
 		var nestedCfg config
 		appcfg.MustLoadFromKey(fmt.Sprintf("%v/%v", applicationYamlKey, i+1), &nestedCfg)
 		em.emailClients = append(em.emailClients, email.New(fmt.Sprintf("%v/%v", applicationYamlKey, i+1)))
@@ -126,7 +126,7 @@ func (a *emailSender) DeliverCode(ctx context.Context, code, emailAddress, langu
 		ConfirmationCode: code,
 	}
 
-	lbIdx := atomic.AddUint64(&a.emailClientLBIndex, 1) % uint64(a.cfg.ExtraEmailLoadBalancersCount+1)
+	lbIdx := atomic.AddUint64(&a.emailClientLBIndex, 1) % uint64(a.cfg.ExtraLoadBalancersCount+1)
 
 	return errors.Wrapf(a.emailClients[lbIdx].Send(ctx, &email.Parcel{
 		Body: &email.Body{

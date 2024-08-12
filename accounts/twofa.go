@@ -236,14 +236,16 @@ func (a *accounts) deliverCode(ctx context.Context, opt TwoFAOptionEnum, deliver
 		uri := a.totpProvider.GenerateURI(code, deliverTo)
 		return &uri, nil
 	case TwoFAOptionEmail:
-		codeDeliverer = a.emailCode
+		codeDeliverer = a.emailSender
+	case TwoFAOptionSMS:
+		codeDeliverer = a.smsSender
 	default:
-		return nil, errors.Errorf("Check what sms provider will be used wintr/sms(twilio) or smth else")
+		log.Panic(errors.Errorf("unsupported 2FA provider %v", opt))
 	}
 	if codeDeliverer != nil {
-		return nil, codeDeliverer.DeliverCode(ctx, code, deliverTo, language)
+		return nil, errors.Wrapf(codeDeliverer.DeliverCode(ctx, code, deliverTo, language), "failed to deliver 2fa code to %v using %v", deliverTo, opt)
 	}
-	return nil, errors.Errorf("Check what sms provider will be used wintr/sms(twilio) or smth else")
+	return nil, errors.Errorf("unsupported 2FA provider %v", opt)
 }
 
 func (a *accounts) checkDeliveryChannelFor2FA(ctx context.Context, userID string, opt TwoFAOptionEnum, newChannel *string) (string, error) {
