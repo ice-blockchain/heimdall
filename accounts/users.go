@@ -14,7 +14,14 @@ import (
 func (a *accounts) getUserByID(ctx context.Context, userID string) (*user, error) {
 	u, err := storage.Get[user](ctx, a.db, `SELECT * FROM users where id = $1`, userID)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get user by ID %v")
+		return nil, errors.Wrapf(err, "failed to get user by ID %v", userID)
+	}
+	return u, nil
+}
+func (a *accounts) getUserByUsername(ctx context.Context, username string) (*user, error) {
+	u, err := storage.Get[user](ctx, a.db, `SELECT * FROM users where dfns_username = $1`, username)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get user by username %v", username)
 	}
 	return u, nil
 }
@@ -43,7 +50,7 @@ func (a *accounts) fetchAndUpdateRelaysFromPolaris(ctx context.Context, userID s
 		var usr *user
 		usr, err = storage.ExecOne[user](ctx, a.db, `
 					INSERT INTO 
-    					users (id, ion_relays) VALUES ($1, $2) 
+    					users (id, ion_relays, dfns_username) VALUES ($1, $2, $1) 
     				ON CONFLICT(id) DO UPDATE 
     					SET ion_relays = $2
     				WHERE users.ion_relays IS NULL RETURNING *`, userID, relays)
@@ -81,7 +88,6 @@ func (a *accounts) GetUser(ctx context.Context, userID string) (*User, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get user from dfns for ID %v", userID)
 	}
-	callingUserOwnsProfile := true // TODO: token parse
 	usr := &User{User: dfnsUsr}
 	if dbUsr != nil {
 		usr.IONRelays = dbUsr.IONRelays
@@ -92,19 +98,22 @@ func (a *accounts) GetUser(ctx context.Context, userID string) (*User, error) {
 		twoFAOptions := make([]TwoFAOptionEnum, 0, len(AllTwoFAOptions))
 		if dbUsr.Email != nil && *dbUsr.Email != "" {
 			twoFAOptions = append(twoFAOptions, TwoFAOptionEmail)
-			if callingUserOwnsProfile {
-				usr.Email = *dbUsr.Email
-			}
+			usr.Email = *dbUsr.Email
+
 		}
 		if dbUsr.PhoneNumber != nil && *dbUsr.PhoneNumber != "" {
 			twoFAOptions = append(twoFAOptions, TwoFAOptionSMS)
-			if callingUserOwnsProfile {
-				usr.PhoneNumber = *dbUsr.PhoneNumber
-			}
+			usr.PhoneNumber = *dbUsr.PhoneNumber
 		}
 		if dbUsr.TotpAuthentificatorSecret != nil && *dbUsr.TotpAuthentificatorSecret != "" {
 			twoFAOptions = append(twoFAOptions, TwoFAOptionTOTPAuthentificator)
 		}
 	}
 	return usr, nil
+}
+func (a *accounts) insertUserWithUsername(ctx context.Context, userID, dfnsUsername string) error {
+	_, err := storage.Exec(ctx, a.db, `INSERT INTO users(id, dfns_username) VALUES ($1,$2) ON CONFLICT(id) DO UPDATE 
+    										SET dfns_username = $2 WHERE users.dfns_username = '' OR users.dfns_username = users.id`, userID, dfnsUsername)
+	return errors.Wrapf(err, "failed to update user with username in db %v %v", userID, dfnsUsername)
+
 }

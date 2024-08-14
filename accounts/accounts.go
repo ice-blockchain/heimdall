@@ -5,12 +5,12 @@ package accounts
 import (
 	"context"
 	"fmt"
-	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
 
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
+	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	totp2 "github.com/ice-blockchain/wintr/totp"

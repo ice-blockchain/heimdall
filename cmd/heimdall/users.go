@@ -80,7 +80,6 @@ func (s *service) UserIndexers(
 //	@Produce		json
 //	@Param			userId			path		string	true	"ID of the user"
 //	@Param			Authorization	header		string	true	"Dfns token"	default(Bearer <Add token here>)
-//	@Param			X-DFNS-APPID	header		string	true	"Dfns app id"	default(ap-...)
 //	@Success		200				{object}	User
 //	@Failure		500				{object}	dfnsErrorResponse
 //	@Failure		504				{object}	server.ErrorResponse	"if request times out"
@@ -89,8 +88,10 @@ func (s *service) GetUser(
 	ctx context.Context,
 	req *server.Request[GetUserReq, User],
 ) (successResp *server.Response[User], errorResp *server.ErrResponse[*dfnsErrorResponse]) {
+	if req.AuthenticatedUser.UserID != req.Data.UserID {
+		return nil, buildDfnsErrorResponse(http.StatusForbidden, errors.Errorf("Is not authorized to query other user"), "")
+	}
 	ctx = context.WithValue(ctx, accounts.DfnsAuthorizationHeaderCtxValue, req.Data.Authorization)
-	ctx = context.WithValue(ctx, accounts.DfnsAppIDHeaderCtxValue, req.Data.AppID)
 	usr, err := s.accounts.GetUser(ctx, req.Data.UserID)
 	if err != nil {
 		switch {

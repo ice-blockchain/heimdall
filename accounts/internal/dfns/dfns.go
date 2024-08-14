@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	stdlibtime "time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -29,10 +30,37 @@ func NewDfnsClient(ctx context.Context, applicationYamlKey string) (DfnsClient, 
 		log.Panic(errors.Errorf("dfns baseURL not set"))
 	}
 	if cfg.DFNS.AppID == "" {
-		log.Panic(errors.Errorf("dfns appId not set"))
+		cfg.DFNS.AppID = os.Getenv("DFNS_APP_ID")
+		if cfg.DFNS.AppID == "" {
+			log.Panic(errors.Errorf("dfns appId not set"))
+		}
 	}
 	if cfg.DFNS.ServiceKey == "" {
-		log.Panic(errors.Errorf("dfns serviceKey not set"))
+		cfg.DFNS.ServiceKey = os.Getenv("DFNS_SERVICE_KEY")
+		if cfg.DFNS.ServiceKey == "" {
+			log.Panic(errors.Errorf("dfns serviceKey not set"))
+		}
+	}
+	if cfg.DFNS.ServiceAccountPrivateKey == "" {
+		cfg.DFNS.ServiceAccountPrivateKey = os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY")
+		if cfg.DFNS.ServiceAccountPrivateKey == "" {
+			pkFile, pkErr := os.Open(os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY_FILE"))
+			log.Panic(errors.Wrapf(pkErr, "failed to read dfns private key from file %v"), os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY_FILE"))
+			defer pkFile.Close()
+			var pk []byte
+			pk, pkErr = io.ReadAll(pkFile)
+			log.Panic(errors.Wrapf(pkErr, "failed to read dfns private key from file %v"), os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY_FILE"))
+			cfg.DFNS.ServiceAccountPrivateKey = string(pk)
+			if cfg.DFNS.ServiceAccountPrivateKey == "" {
+				log.Panic(errors.Errorf("dfns service account private key not set"))
+			}
+		}
+	}
+	if cfg.DFNS.ServiceAccountCredentialID == "" {
+		cfg.DFNS.ServiceAccountCredentialID = os.Getenv("DFNS_SERVICE_SERVICE_ACCOUNT_CREDENTIAL_ID")
+		if cfg.DFNS.ServiceAccountCredentialID == "" {
+			log.Panic(errors.Errorf("dfns service account credential id not set"))
+		}
 	}
 	serviceAccountSigner := credentials.NewAsymmetricKeySigner(&credentials.AsymmetricKeySignerConfig{
 		PrivateKey: cfg.DFNS.ServiceAccountPrivateKey,
@@ -60,9 +88,11 @@ func (c *dfnsClient) mustInitProxy() {
 	c.serviceAccountProxy = httputil.NewSingleHostReverseProxy(remote)
 	c.userProxy = httputil.NewSingleHostReverseProxy(remote)
 	overwriteHostProxyDirector := func(req *http.Request) {
+		req.RequestURI = ""
 		req.Host = remote.Host
 		req.URL.Scheme = remote.Scheme
 		req.URL.Host = remote.Host
+		req.Header.Set(appIDHeader, c.cfg.DFNS.AppID)
 	}
 	c.userProxy.Director = overwriteHostProxyDirector
 	c.serviceAccountProxy.Director = overwriteHostProxyDirector
@@ -138,10 +168,12 @@ func (c *dfnsClient) urlSupportsServiceAccount(url string) bool {
 }
 
 func (c *dfnsClient) doClientCall(ctx context.Context, httpClient *http.Client, method, url string, headers http.Header, jsonData []byte) (int, []byte, error) {
+	headers.Set("Content-Type", "application/json")
 	req, err := http.NewRequestWithContext(ctx, method, c.cfg.DFNS.BaseURL+url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return 0, nil, errors.Wrapf(err, "failed to consturct dfns request to %v %v", method, url)
 	}
+	req.Header = headers
 
 	response, err := httpClient.Do(req)
 	if err != nil {
@@ -157,7 +189,6 @@ func (c *dfnsClient) doClientCall(ctx context.Context, httpClient *http.Client, 
 	}
 	return response.StatusCode, bodyData, nil
 }
-
 func (c *dfnsClient) StartDelegatedRecovery(ctx context.Context, username string, credentialId string) (*StartedDelegatedRecovery, error) {
 	params := struct {
 		Username     string `json:"username"`
@@ -166,24 +197,55 @@ func (c *dfnsClient) StartDelegatedRecovery(ctx context.Context, username string
 		Username:     username,
 		CredentialID: credentialId,
 	}
+	header := http.Header{}
+	header.Set(appIDHeader, appID(ctx))
+	resp, err := dfnsCall[struct {
+		Username     string `json:"username"`
+		CredentialID string `json:"credentialId"`
+	}, StartedDelegatedRecovery](ctx, c, params, "POST", "/auth/recover/user/delegated", header)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to start delegated recovery for username %v credID %v", username, credentialId)
+	}
+	return resp, nil
+}
+func (c *dfnsClient) StartDelegatedRegistration(ctx context.Context, username, kind string) (*StartedDelegatedRegistration, error) {
+	params := struct {
+		Email string `json:"email"`
+		Kind  string `json:"kind"`
+	}{
+		Email: username,
+		Kind:  kind,
+	}
+	header := http.Header{}
+	header.Set(appIDHeader, c.cfg.DFNS.AppID)
+	resp, err := dfnsCall[struct {
+		Email string `json:"email"`
+		Kind  string `json:"kind"`
+	}, StartedDelegatedRegistration](ctx, c, params, "POST", "/auth/registration/delegated", header)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to start delegated registration for username/email %v kind %v", username, kind)
+	}
+	return resp, nil
+}
+
+func dfnsCall[REQ any, RESP any](ctx context.Context, c *dfnsClient, params REQ, method, uri string, headers http.Header) (*RESP, error) {
 	postData, err := json.MarshalContext(ctx, params)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to serialize %#v to json for startDelegatedRecovery username %v")
+		return nil, errors.Wrapf(err, "failed to serialize %#v to json")
 	}
-	uri := "/auth/recover/user/delegated"
-	status, body, err := c.clientCall(ctx, "POST", uri, http.Header{"X-DFNS-APPID": []string{appID(ctx)}}, postData)
+	status, body, err := c.clientCall(ctx, "POST", uri, headers, postData)
 	if err != nil {
 		if dfnsErr := ParseErrAsDfnsInternalErr(err); dfnsErr != nil {
-			return nil, errors.Wrapf(dfnsErr, "failed to start delegated recovery for username %v credID %v", username, credentialId)
+			return nil, errors.Wrapf(dfnsErr, "failed to call %v %v", method, uri)
 		}
-		return nil, errors.Wrapf(err, "failed to start delegated recovery for username %v credID %v", username, credentialId)
+		return nil, errors.Wrapf(err, "failed to call %v %v", method, uri)
 	} else if status >= http.StatusBadRequest {
 		err = buildDfnsError(status, uri, body)
-		return nil, errors.Wrapf(err, "failed to start delegated recovery for username %v credID %v", username, credentialId)
+		return nil, errors.Wrapf(err, "failed to call %v %v", method, uri)
 	}
-	var resp StartedDelegatedRecovery
+	var resp RESP
 	if err = json.UnmarshalContext(ctx, body, &resp); err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal response %v for startDelegatedRecovery", string(body))
+		return nil, errors.Wrapf(err, "failed to unmarshal response %v for call %v %v", string(body))
 	}
 	return &resp, nil
 }
@@ -196,10 +258,9 @@ func appID(ctx context.Context) string {
 }
 
 func (c *dfnsClient) GetUser(ctx context.Context, userID string) (*User, error) {
-	headers := http.Header{
-		"X-DFNS-APPID":    []string{appID(ctx)},
-		"Authorization: ": []string{dfnsAuthHeader(ctx)},
-	}
+	headers := http.Header{}
+	headers.Set(appIDHeader, c.cfg.DFNS.AppID)
+	headers.Set("Authorization", dfnsAuthHeader(ctx))
 	uri := fmt.Sprintf("/auth/users/%v", userID)
 	status, body, err := c.clientCall(ctx, "GET", uri, headers, nil)
 	if status >= http.StatusBadRequest && err == nil {

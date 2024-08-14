@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/pkg/errors"
 	"github.com/quic-go/quic-go/http3"
 )
 
@@ -34,9 +36,9 @@ type (
 		CheckHealth(ctx context.Context) error
 	}
 	Request[REQ any, RESP any] struct {
-		Data   *REQ         `json:"data,omitempty"`
-		ginCtx *gin.Context //nolint:structcheck // Wrong.
-		//AuthenticatedUser            AuthenticatedUser           `json:"authenticatedUser,omitempty"`
+		Data                         *REQ                        `json:"data,omitempty"`
+		ginCtx                       *gin.Context                //nolint:structcheck // Wrong.
+		AuthenticatedUser            Token                       `json:"authenticatedUser,omitempty"`
 		ClientIP                     net.IP                      `json:"clientIp,omitempty"`
 		bindings                     map[requestBinding]struct{} //nolint:structcheck // Wrong.
 		requiredFields               []string                    //nolint:structcheck // Wrong.
@@ -65,6 +67,13 @@ type (
 		Error string         `json:"error" example:"something is missing"`
 		Code  string         `json:"code,omitempty" example:"SOMETHING_NOT_FOUND"`
 	}
+	AuthClient interface {
+		VerifyToken(ctx context.Context, token string) (*Token, error)
+	}
+	Token struct {
+		UserID   string
+		Username string
+	}
 	Config struct {
 		HTTPServer struct {
 			CertPath string `yaml:"certPath"`
@@ -72,7 +81,18 @@ type (
 			Port     uint16 `yaml:"port"`
 		} `yaml:"httpServer"`
 		DefaultEndpointTimeout time.Duration `yaml:"defaultEndpointTimeout"`
+		AuthDfns               struct {
+			Issuer         string `yaml:"issuer" mapstructure:"issuer"`
+			OrganizationID string `yaml:"organizationId" mapstructure:"organizationId"`
+			AppID          string `yaml:"appId" mapstructure:"appId"`
+			BaseURL        string `yaml:"baseUrl" mapstructure:"baseUrl"`
+		} `yaml:"auth/dfns" mapstructure:"auth/dfns"`
 	}
+)
+
+var (
+	ErrInvalidToken = errors.Errorf("invalid token")
+	ErrExpiredToken = errors.Errorf("expired token")
 )
 
 // Private API.
@@ -85,6 +105,7 @@ const (
 	formMultipart
 
 	languageHeader = "X-Language"
+	jwksSuffix     = "/.well-known/jwks.json"
 )
 
 const (
@@ -115,5 +136,8 @@ type (
 		quit               chan<- os.Signal
 		swaggerRoot        string
 		applicationYAMLKey string
+	}
+	dfnsAuth struct {
+		dfnsPubKeys *jwk.Cache
 	}
 )

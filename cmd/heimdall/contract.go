@@ -9,9 +9,15 @@ import (
 )
 
 type (
-	DfnsProxyData             map[string]any
+	StartDelegatedRegistrationReq struct {
+		Email string `json:"email" allowUnauthorized:"true"`
+		Kind  string `json:"kind"`
+	}
+	StartDelegatedRegistrationResp struct {
+		*accounts.StartedDelegatedRegistration
+	}
 	StartDelegatedRecoveryReq struct {
-		Username               string                     `json:"username"`
+		Username               string                     `json:"username" allowUnauthorized:"true"`
 		CredentialID           string                     `json:"credentialId"`
 		TwoFAVerificationCodes map[TwoFAOptionEnum]string `json:"2FAVerificationCodes"`
 		AppID                  string                     `header:"X-DFNS-APPID" swaggerignore:"true"`
@@ -23,7 +29,6 @@ type (
 	GetUserReq struct {
 		UserID        string `uri:"userId" required:"true" swaggerignore:"true"`
 		Authorization string `header:"Authorization" swaggerignore:"true"`
-		AppID         string `header:"X-DFNS-APPID" swaggerignore:"true"`
 	}
 	User struct {
 		*accounts.User

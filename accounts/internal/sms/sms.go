@@ -1,16 +1,20 @@
+// SPDX-License-Identifier: ice License 1.0
+
 package sms
 
 import (
 	"bytes"
 	"context"
 	"fmt"
-	appcfg "github.com/ice-blockchain/wintr/config"
-	"github.com/ice-blockchain/wintr/log"
-	"github.com/ice-blockchain/wintr/sms"
-	"github.com/pkg/errors"
 	"strings"
 	"sync/atomic"
 	"text/template"
+
+	"github.com/pkg/errors"
+
+	appcfg "github.com/ice-blockchain/wintr/config"
+	"github.com/ice-blockchain/wintr/log"
+	"github.com/ice-blockchain/wintr/sms"
 )
 
 func init() {

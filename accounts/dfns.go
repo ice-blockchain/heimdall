@@ -16,10 +16,10 @@ func (a *accounts) ProxyDfnsCall(ctx context.Context, rw http.ResponseWriter, r 
 	a.dfnsClient.ProxyCall(ctx, rw, r)
 }
 
-func (a *accounts) StartDelegatedRecovery(ctx context.Context, userID string, codes map[TwoFAOptionEnum]string, dfnsUsername, credentialID string) (*StartedDelegatedRecovery, error) {
-	usr, err := a.getUserByID(ctx, userID)
+func (a *accounts) StartDelegatedRecovery(ctx context.Context, dfnsUsername, credentialID string, codes map[TwoFAOptionEnum]string) (*StartedDelegatedRecovery, error) {
+	usr, err := a.getUserByID(ctx, dfnsUsername)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get user 2FA state for userID %v", userID)
+		return nil, errors.Wrapf(err, "failed to get user 2FA state for username %v", dfnsUsername)
 	}
 	twoFARequired := make([]TwoFAOptionEnum, 0, len(AllTwoFAOptions))
 	for _, opt := range AllTwoFAOptions {
@@ -32,7 +32,7 @@ func (a *accounts) StartDelegatedRecovery(ctx context.Context, userID string, co
 			"options": twoFARequired,
 		})
 	}
-	if err = a.Verify2FA(ctx, userID, codes); err != nil {
+	if err = a.Verify2FA(ctx, usr.ID, codes); err != nil {
 		return nil, errors.Wrapf(err, "failed to verify 2FA codes")
 	}
 	var dfnsResp *StartedDelegatedRecovery
@@ -61,4 +61,15 @@ func checkIf2FARequired(usr *user, opt TwoFAOptionEnum, codes map[TwoFAOptionEnu
 		}
 	}
 	return nil
+}
+
+func (a *accounts) StartDelegatedRegistration(ctx context.Context, username, userKind string) (*StartedDelegatedRegistration, error) {
+	regResponse, err := a.dfnsClient.StartDelegatedRegistration(ctx, username, userKind)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to register user %v", username)
+	}
+	if uErr := a.insertUserWithUsername(ctx, regResponse.User.Id, regResponse.User.Name); uErr != nil {
+		return regResponse, nil
+	}
+	return regResponse, nil
 }

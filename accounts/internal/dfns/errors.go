@@ -85,33 +85,35 @@ func unwrap(err error) error {
 }
 
 func passErrorInResponse(writer http.ResponseWriter, request *http.Request, err error) {
-	if dfnsErr := ParseErrAsDfnsInternalErr(err); dfnsErr != nil {
-		var dfnsParsedErr *DfnsInternalError
-		if errors.As(dfnsErr, &dfnsParsedErr) {
-			var body []byte
-			var headers http.Header
-			status := dfnsParsedErr.HTTPStatus
-			if b, hasBody := dfnsParsedErr.Context["Body"]; hasBody {
-				if body, err = json.Marshal(b.(map[string]interface{})); err != nil {
-					log.Error(errors.Wrapf(err, "failed to marshal %#v", b))
-					writer.WriteHeader(status)
-					return
+	if err != nil {
+		if dfnsErr := ParseErrAsDfnsInternalErr(err); dfnsErr != nil {
+			var dfnsParsedErr *DfnsInternalError
+			if errors.As(dfnsErr, &dfnsParsedErr) {
+				var body []byte
+				var headers http.Header
+				status := dfnsParsedErr.HTTPStatus
+				if b, hasBody := dfnsParsedErr.Context["Body"]; hasBody {
+					if body, err = json.Marshal(b.(map[string]interface{})); err != nil {
+						log.Error(errors.Wrapf(err, "failed to marshal %#v", b))
+						writer.WriteHeader(status)
+						return
+					}
 				}
-			}
-			if h, hasHeaders := dfnsParsedErr.Context["Header"]; hasHeaders {
-				headers = h.(http.Header)
-			}
-			for k, hh := range headers {
-				for _, h := range hh {
-					writer.Header().Add(k, h)
+				if h, hasHeaders := dfnsParsedErr.Context["Header"]; hasHeaders {
+					headers = h.(http.Header)
 				}
+				for k, hh := range headers {
+					for _, h := range hh {
+						writer.Header().Add(k, h)
+					}
+				}
+				writer.WriteHeader(status)
+				writer.Write(body)
+				log.Error(errors.Errorf("dfns req to %v %v ended up with %v (data: %v)", request.Method, request.URL.Path, status, string(body)))
+				return
 			}
-			writer.WriteHeader(status)
-			writer.Write(body)
-			log.Error(errors.Errorf("dfns req to %v %v ended up with %v (data: %v)", request.Method, request.URL.Path, status, string(body)))
-			return
 		}
+		log.Error(errors.Wrapf(err, "dfns req to %v %v ended up with error", request.Method, request.URL.Path))
+		writer.WriteHeader(http.StatusBadGateway)
 	}
-	log.Error(errors.Errorf("dfns req to %v %v ended up with error", request.Method, request.URL.Path))
-	writer.WriteHeader(http.StatusBadGateway)
 }

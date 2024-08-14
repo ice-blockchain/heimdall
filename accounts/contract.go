@@ -5,7 +5,6 @@ package accounts
 import (
 	"context"
 	_ "embed"
-	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
 	"io"
 	"net/http"
 	stdlibtime "time"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
+	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/time"
 	"github.com/ice-blockchain/wintr/totp"
@@ -25,16 +25,18 @@ type (
 		ProxyDfnsCall(ctx context.Context, rw http.ResponseWriter, r *http.Request)
 		Verify2FA(ctx context.Context, userID string, codes map[TwoFAOptionEnum]string) error
 		Send2FA(ctx context.Context, userID string, channel TwoFAOptionEnum, deliverTo *string, language string) (authentificatorUri *string, err error)
-		StartDelegatedRecovery(ctx context.Context, userID string, codes map[TwoFAOptionEnum]string, dfnsUsername, credentialID string) (resp *StartedDelegatedRecovery, err error)
+		StartDelegatedRecovery(ctx context.Context, dfnsUsername, credentialID string, codes map[TwoFAOptionEnum]string) (resp *StartedDelegatedRecovery, err error)
+		StartDelegatedRegistration(ctx context.Context, username, userKind string) (*StartedDelegatedRegistration, error)
 		GetIONRelays(ctx context.Context, userID string, followees []string) (relays []string, err error)
 		GetIONIndexers(ctx context.Context, userID string) (indexers []string, err error)
 		GetUser(ctx context.Context, userID string) (usr *User, err error)
 	}
 
-	TwoFAOptionEnum          = string
-	StartedDelegatedRecovery = dfns.StartedDelegatedRecovery
-	DfnsErr                  = dfns.DfnsInternalError
-	User                     struct {
+	TwoFAOptionEnum              = string
+	StartedDelegatedRecovery     = dfns.StartedDelegatedRecovery
+	StartedDelegatedRegistration = dfns.StartedDelegatedRegistration
+	DfnsErr                      = dfns.DfnsInternalError
+	User                         struct {
 		*dfns.User
 		IONRelays    []string          `json:"ionRelays"`
 		IONIndexers  []string          `json:"ionIndexers"`
@@ -86,6 +88,7 @@ type (
 	}
 	user struct {
 		ID                        string
+		DfnsUsername              string
 		Email                     *string
 		PhoneNumber               *string
 		TotpAuthentificatorSecret *string

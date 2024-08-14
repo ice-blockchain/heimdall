@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
+	"github.com/ice-blockchain/wintr/auth"
 	"github.com/ice-blockchain/wintr/log"
 )
 
@@ -41,13 +42,12 @@ func RootHandler[REQ, RESP any, ERR InternalErr[ERRSTR], ERRSTR any](handleReque
 
 			return
 		}
-		// TODO: check with dfns token content
-		//if err := req.authorize(ctx); err != nil {
-		//	log.Error(errors.Wrap(err.Data.InternalErr(), "endpoint authentication failed"), fmt.Sprintf("%[1]T", req.Data), req, "Response", err)
-		//	ginCtx.JSON(err.Code, err.Data)
-		//
-		//	return
-		//}
+		if err := req.authorize(ctx); err != nil {
+			log.Error(errors.Wrap(err.Data.InternalErr(), "endpoint authentication failed"), fmt.Sprintf("%[1]T", req.Data), req, "Response", err)
+			ginCtx.JSON(err.Code, err.Data)
+
+			return
+		}
 		reqCtx := context.WithValue(ctx, clientIPCtxValueKey, ginCtx.ClientIP()) //nolint:staticcheck,revive // .
 		success, failure := handleRequest(reqCtx, req)
 		if failure != nil {
@@ -160,6 +160,35 @@ func (req *Request[REQ, RESP]) validate() *ErrResponse[*ErrorResponse] {
 	}
 
 	return UnprocessableEntity(errors.Errorf("properties `%v` are required", strings.Join(requiredFields, ",")), "MISSING_PROPERTIES")
+}
+
+//nolint:gocyclo,revive,cyclop,gocognit // .
+func (req *Request[REQ, RESP]) authorize(ctx context.Context) (errResp *ErrResponse[*ErrorResponse]) {
+	userID := strings.Trim(req.ginCtx.Param("userId"), " ")
+	if req.allowUnauthorized {
+		defer func() {
+			if ((req.ginCtx.Request.Method == http.MethodGet || req.ginCtx.Request.Method == http.MethodPost) && userID == "") || userID == "-" {
+				errResp = nil
+			}
+		}()
+	}
+	authToken := strings.TrimPrefix(req.ginCtx.GetHeader("Authorization"), "Bearer ")
+	token, err := Auth(ctx).VerifyToken(ctx, authToken)
+	if err != nil {
+		if errors.Is(err, auth.ErrForbidden) {
+			return Forbidden(err)
+		}
+
+		return Unauthorized(err)
+	}
+	req.AuthenticatedUser = *token
+	if userID != "" && userID != "-" && req.AuthenticatedUser.UserID != userID &&
+		((!req.allowForbiddenWriteOperation && req.ginCtx.Request.Method != http.MethodGet) ||
+			(req.ginCtx.Request.Method == http.MethodGet && !req.allowForbiddenGet && !strings.HasSuffix(req.ginCtx.Request.URL.Path, userID))) {
+		return Forbidden(errors.Errorf("operation not allowed. uri>%v!=token>%v", userID, req.AuthenticatedUser.UserID))
+	}
+
+	return nil
 }
 
 func processErrorResponse[REQ, RESP any, ERR InternalErr[ERRSTR], ERRSTR any](ctx context.Context, req *Request[REQ, RESP], failure *ErrResponse[ERR]) (int, any) {

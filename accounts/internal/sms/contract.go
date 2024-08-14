@@ -1,10 +1,13 @@
+// SPDX-License-Identifier: ice License 1.0
+
 package sms
 
 import (
 	"context"
 	"embed"
-	"github.com/ice-blockchain/wintr/sms"
 	"text/template"
+
+	"github.com/ice-blockchain/wintr/sms"
 )
 
 type (

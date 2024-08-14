@@ -1,16 +1,18 @@
 # SPDX-License-Identifier: ice License 1.0
-
+development: true
 logger:
   encoder: console
   level: debug
 cmd/heimdall:
-  host: localhost:1444
+  auth/dfns:
+    issuer: auth.dfns.ninja
+    baseURL: https://api.dfns.ninja
+    #appId: bogus
+    #organizationId: bogus
+  host: localhost:8001
   version: local
   defaultEndpointTimeout: 30s
   proxyDfnsEndpoints:
-    - method: POST
-      endpoint: "/auth/registration/delegated"
-      tag: Login
     - method: POST
       endpoint: "/auth/registration/enduser"
       tag: Login
@@ -66,16 +68,16 @@ cmd/heimdall:
       endpoint: "/wallets/:walletId/signatures"
       tag: Wallets
   httpServer:
-    port: 1444
+    port: 8001
     certPath: cmd/heimdall/.testdata/localhost.crt
     keyPath: cmd/heimdall/.testdata/localhost.key
 accounts:
   dfns:
-    baseURL: https://api.dfns.ninja/
-    appId: bogus
-    serviceKey: bogus-key
-    credentialPrivateKey: bogus
-    credentialId: bogus
+    baseURL: https://api.dfns.ninja
+    #appId: bogus
+    #serviceKey: bogus-key
+    #credentialPrivateKey: bogus
+    #credentialId: bogus
   fromEmailAddress: no-reply@ice.io
   fromEmailName: ice
   wintr/email:

@@ -66,6 +66,8 @@ func (s *service) setupDfnsProxyRoutes(router gin.IRoutes) {
 	api.SwaggerInfo.SwaggerTemplate = string(b)
 	router.POST("auth/recover/user/delegated", server.RootHandler(s.StartDelegatedRecovery)).
 		POST("/auth/action/init", s.proxyDfns()).
+		POST("/auth/action", s.proxyDfns()).
+		POST("/auth/registration/delegated", server.RootHandler(s.StartDelegatedRegistration)).
 		POST("/v1/webhooks/dfns/events", server.RootHandler(s.DfnsEventWebhook))
 }
 
@@ -142,6 +144,32 @@ func (s *service) proxyDfns() func(*gin.Context) {
 	}
 }
 
+// StartDelegatedRegistration godoc
+//
+//	@Schemes
+//	@Description	Initiates registration process with dfns
+//	@Tags			Login
+//	@Produce		json
+//	@Param			X-DFNS-APPID	header		string							true	"Dfns app id"	default(ap-...)
+//	@Param			request			body		StartDelegatedRegistrationReq	true	"Request params"
+//	@Success		200				{object}	StartDelegatedRecoveryResp
+func (s *service) StartDelegatedRegistration(
+	ctx context.Context,
+	req *server.Request[StartDelegatedRegistrationReq, StartDelegatedRegistrationResp],
+) (successResp *server.Response[StartDelegatedRegistrationResp], errorResp *server.ErrResponse[*dfnsErrorResponse]) {
+	resp, err := s.accounts.StartDelegatedRegistration(ctx, req.Data.Email, req.Data.Kind)
+	if err != nil {
+		if dfnsErr := accounts.ParseErrAsDfnsInternalErr(err); dfnsErr != nil {
+			var dfnsParsedErr *accounts.DfnsErr
+			if errors.As(dfnsErr, &dfnsParsedErr) {
+				return nil, buildDfnsErrorResponse(dfnsParsedErr.HTTPStatus, err, dfnsParsedErr.Message)
+			}
+		}
+		return nil, buildDfnsErrorResponse(http.StatusInternalServerError, err, "")
+	}
+	return server.OK[StartDelegatedRegistrationResp](&StartDelegatedRegistrationResp{resp}), nil
+}
+
 // StartDelegatedRecovery godoc
 //
 //	@Schemes
@@ -164,7 +192,7 @@ func (s *service) StartDelegatedRecovery(
 		return nil, buildDfnsErrorResponse(http.StatusBadRequest, errors.Wrapf(err, "invalid 2fa option provided"), invalidPropertiesErrorCode)
 	}
 	ctx = context.WithValue(ctx, accounts.DfnsAppIDHeaderCtxValue, req.Data.AppID)
-	resp, err := s.accounts.StartDelegatedRecovery(ctx, req.Data.Username, req.Data.TwoFAVerificationCodes, req.Data.Username, req.Data.CredentialID)
+	resp, err := s.accounts.StartDelegatedRecovery(ctx, req.Data.Username, req.Data.CredentialID, req.Data.TwoFAVerificationCodes)
 	if err != nil {
 		switch {
 		case errors.Is(err, accounts.ErrNoPending2FA):

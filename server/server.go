@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"github.com/quic-go/quic-go"
@@ -32,6 +33,8 @@ func New(state State, cfgKey, swaggerRoot string) Server {
 }
 
 func (s *srv) ListenAndServe(ctx context.Context, cancel context.CancelFunc) {
+	authClient := newDfnsTokenAuth(ctx)
+	ctx = context.WithValue(ctx, authClientCtxValueKey, authClient) //nolint:staticcheck,revive // .
 	s.Init(ctx, cancel)
 	s.setupRouter() //nolint:contextcheck // Nope, we don't need it.
 	s.setupServer(ctx)
@@ -49,6 +52,10 @@ func (s *srv) setupRouter() {
 	} else {
 		gin.ForceConsoleColor()
 		s.router = gin.Default()
+		corscfg := cors.DefaultConfig()
+		corscfg.AllowAllOrigins = true
+		corscfg.AllowHeaders = append(corscfg.AllowHeaders, []string{"content-type", "x-dfns-appid"}...)
+		s.router.Use(cors.New(corscfg))
 	}
 	log.Info(fmt.Sprintf("GIN Mode: %v\n", gin.Mode()))
 	s.router.RemoteIPHeaders = []string{"cf-connecting-ip", "X-Real-IP", "X-Forwarded-For"}
@@ -100,7 +107,7 @@ func (s *srv) setupServer(ctx context.Context) {
 		Port:    int(cfg.HTTPServer.Port),
 		Handler: s.router,
 		ConnContext: func(connCtx context.Context, c quic.Connection) context.Context {
-			return connCtx
+			return context.WithValue(connCtx, authClientCtxValueKey, ctx.Value(authClientCtxValueKey))
 		},
 	}
 }
@@ -156,4 +163,8 @@ func (s *srv) shutDown() {
 	} else {
 		log.Info("state close succeeded")
 	}
+}
+
+func Auth(ctx context.Context) AuthClient {
+	return ctx.Value(authClientCtxValueKey).(AuthClient)
 }

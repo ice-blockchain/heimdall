@@ -119,7 +119,9 @@ definitions:
               type: string
           type: object
         type: array
-      pubKeyCredParam:
+      otpUrl:
+        type: string
+      pubKeyCredParams:
         items:
           properties:
             alg:
@@ -157,6 +159,13 @@ definitions:
           name:
             type: string
         type: object
+    type: object
+  main.StartDelegatedRegistrationReq:
+    properties:
+      email:
+        type: string
+      kind:
+        type: string
     type: object
   main.User:
     properties:
@@ -297,12 +306,6 @@ paths:
         name: Authorization
         required: true
         type: string
-      - default: ap-...
-        description: Dfns app id
-        in: header
-        name: X-DFNS-APPID
-        required: true
-        type: string
       produces:
       - application/json
       responses:
@@ -324,10 +327,16 @@ paths:
     post:
       description: Initiates sending of 2FA code to the user
       parameters:
-      - default: ""
+      - default: en
         description: Language
         in: header
         name: X-Language
+        type: string
+      - default: Bearer <token>
+        description: Auth header
+        in: header
+        name: Authorization
+        required: true
         type: string
       - description: ID of the user
         in: path
@@ -387,6 +396,12 @@ paths:
       - description: code from second factor
         in: query
         name: code
+        required: true
+        type: string
+      - default: Bearer <token>
+        description: Auth header
+        in: header
+        name: Authorization
         required: true
         type: string
       produces:

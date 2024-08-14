@@ -106,14 +106,6 @@ const docTemplate = `{
                         "name": "Authorization",
                         "in": "header",
                         "required": true
-                    },
-                    {
-                        "type": "string",
-                        "default": "ap-...",
-                        "description": "Dfns app id",
-                        "name": "X-DFNS-APPID",
-                        "in": "header",
-                        "required": true
                     }
                 ],
                 "responses": {
@@ -168,6 +160,14 @@ const docTemplate = `{
                         "name": "code",
                         "in": "query",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003ctoken\u003e",
+                        "description": "Auth header",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -214,10 +214,18 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "default": "",
+                        "default": "en",
                         "description": "Language",
                         "name": "X-Language",
                         "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003ctoken\u003e",
+                        "description": "Auth header",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
                     },
                     {
                         "type": "string",
@@ -564,7 +572,10 @@ const docTemplate = `{
                         }
                     }
                 },
-                "pubKeyCredParam": {
+                "otpUrl": {
+                    "type": "string"
+                },
+                "pubKeyCredParams": {
                     "type": "array",
                     "items": {
                         "type": "object",
@@ -622,6 +633,17 @@ const docTemplate = `{
                             "type": "string"
                         }
                     }
+                }
+            }
+        },
+        "main.StartDelegatedRegistrationReq": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
                 }
             }
         },

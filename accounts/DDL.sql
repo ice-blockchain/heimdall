@@ -2,7 +2,7 @@
 
 CREATE TABLE IF NOT EXISTS users (
     id                                     TEXT NOT NULL,
-    -- TODO: check if we need that for matching or token has userID: dfns_username                          TEXT NOT NULL UNIQUE(?),
+    dfns_username                          TEXT NOT NULL UNIQUE,
     email                                  TEXT,
     phone_number                           TEXT,
     totp_authentificator_secret            TEXT,
