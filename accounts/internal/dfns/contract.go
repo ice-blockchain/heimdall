@@ -13,7 +13,6 @@ import (
 
 type (
 	DfnsClient interface {
-		//ClientCall(ctx context.Context, method, url string, headers http.Header, jsonData []byte) (int, []byte, http.Header, error)
 		ProxyCall(ctx context.Context, rw http.ResponseWriter, r *http.Request)
 		StartDelegatedRecovery(ctx context.Context, username string, credentialId string) (*StartedDelegatedRecovery, error)
 		StartDelegatedRegistration(ctx context.Context, username, kind string) (*StartedDelegatedRegistration, error)

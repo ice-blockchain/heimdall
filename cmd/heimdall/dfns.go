@@ -150,9 +150,8 @@ func (s *service) proxyDfns() func(*gin.Context) {
 //	@Description	Initiates registration process with dfns
 //	@Tags			Login
 //	@Produce		json
-//	@Param			X-DFNS-APPID	header		string							true	"Dfns app id"	default(ap-...)
-//	@Param			request			body		StartDelegatedRegistrationReq	true	"Request params"
-//	@Success		200				{object}	StartDelegatedRecoveryResp
+//	@Param			request	body		StartDelegatedRegistrationReq	true	"Request params"
+//	@Success		200		{object}	StartDelegatedRecoveryResp
 func (s *service) StartDelegatedRegistration(
 	ctx context.Context,
 	req *server.Request[StartDelegatedRegistrationReq, StartDelegatedRegistrationResp],
@@ -176,13 +175,12 @@ func (s *service) StartDelegatedRegistration(
 //	@Description	Initiates recovery process with dfns
 //	@Tags			Recovery
 //	@Produce		json
-//	@Param			X-DFNS-APPID	header		string						true	"Dfns app id"	default(ap-...)
-//	@Param			request			body		StartDelegatedRecoveryReq	true	"Request params"
-//	@Success		200				{object}	StartDelegatedRecoveryResp
-//	@Failure		400				{object}	server.ErrorResponse	"if invalid 2FA code is provided"
-//	@Failure		403				{object}	server.ErrorResponse	"if 2FA required"
-//	@Failure		500				{object}	server.ErrorResponse
-//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
+//	@Param			request	body		StartDelegatedRecoveryReq	true	"Request params"
+//	@Success		200		{object}	StartDelegatedRecoveryResp
+//	@Failure		400		{object}	server.ErrorResponse	"if invalid 2FA code is provided"
+//	@Failure		403		{object}	server.ErrorResponse	"if 2FA required"
+//	@Failure		500		{object}	server.ErrorResponse
+//	@Failure		504		{object}	server.ErrorResponse	"if request times out"
 //	@Router			/auth/recover/user/delegated [POST].
 func (s *service) StartDelegatedRecovery(
 	ctx context.Context,
@@ -191,7 +189,6 @@ func (s *service) StartDelegatedRecovery(
 	if err := req.Data.validate(); err != nil {
 		return nil, buildDfnsErrorResponse(http.StatusBadRequest, errors.Wrapf(err, "invalid 2fa option provided"), invalidPropertiesErrorCode)
 	}
-	ctx = context.WithValue(ctx, accounts.DfnsAppIDHeaderCtxValue, req.Data.AppID)
 	resp, err := s.accounts.StartDelegatedRecovery(ctx, req.Data.Username, req.Data.CredentialID, req.Data.TwoFAVerificationCodes)
 	if err != nil {
 		switch {
@@ -238,6 +235,6 @@ func (s *service) DfnsEventWebhook(
 	ctx context.Context,
 	req *server.Request[WebhookData, WebhookResp],
 ) (successResp *server.Response[WebhookResp], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	log.Info("Webhook call for %v %v", req.Data.Kind, req.Data.Kind)
+	log.Info(fmt.Sprintf("Webhook call for %v %v", req.Data.Kind, req.Data.Data))
 	return server.OK[WebhookResp](&WebhookResp{}), nil
 }

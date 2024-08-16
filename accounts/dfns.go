@@ -17,7 +17,7 @@ func (a *accounts) ProxyDfnsCall(ctx context.Context, rw http.ResponseWriter, r 
 }
 
 func (a *accounts) StartDelegatedRecovery(ctx context.Context, dfnsUsername, credentialID string, codes map[TwoFAOptionEnum]string) (*StartedDelegatedRecovery, error) {
-	usr, err := a.getUserByID(ctx, dfnsUsername)
+	usr, err := a.getUserByUsername(ctx, dfnsUsername)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get user 2FA state for username %v", dfnsUsername)
 	}
@@ -32,12 +32,14 @@ func (a *accounts) StartDelegatedRecovery(ctx context.Context, dfnsUsername, cre
 			"options": twoFARequired,
 		})
 	}
-	if err = a.Verify2FA(ctx, usr.ID, codes); err != nil {
+	var rollbackCodes map[TwoFAOptionEnum]string
+	if rollbackCodes, err = a.verify2FA(ctx, usr.ID, codes); err != nil {
 		return nil, errors.Wrapf(err, "failed to verify 2FA codes")
 	}
 	var dfnsResp *StartedDelegatedRecovery
 	dfnsResp, err = a.dfnsClient.StartDelegatedRecovery(ctx, dfnsUsername, credentialID)
 	if err != nil {
+		log.Error(errors.Wrapf(a.rollbackRedeemed2FACodes(usr.ID, rollbackCodes), "failed to rollback used 2fa codes "))
 		return nil, errors.Wrapf(err, "failed to start delegated recovery for username %v", dfnsUsername)
 	}
 	return dfnsResp, nil

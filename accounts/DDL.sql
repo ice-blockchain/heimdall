@@ -27,8 +27,3 @@ CREATE TABLE IF NOT EXISTS global  (
        value TEXT NOT NULL,
        key text primary key
 );
-INSERT INTO global (key,value) VALUES ('WEBHOOK_SECRET', '%[1]v') ON CONFLICT(key) DO
-    UPDATE
-        SET value = excluded.value
-    WHERE global.value != '%[1]v' and excluded.value != ''
-;

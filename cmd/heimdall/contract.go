@@ -20,7 +20,6 @@ type (
 		Username               string                     `json:"username" allowUnauthorized:"true"`
 		CredentialID           string                     `json:"credentialId"`
 		TwoFAVerificationCodes map[TwoFAOptionEnum]string `json:"2FAVerificationCodes"`
-		AppID                  string                     `header:"X-DFNS-APPID" swaggerignore:"true"`
 	}
 	TwoFAOptionEnum            = accounts.TwoFAOptionEnum
 	StartDelegatedRecoveryResp struct {
@@ -64,7 +63,7 @@ type (
 	Verify2FARequestResp struct {
 	}
 	WebhookData struct {
-		ID   string         `json:"id"`
+		ID   string         `json:"id" allowUnauthorized:"true"`
 		Kind string         `json:"kind"`
 		Date *time.Time     `json:"date"`
 		Data map[string]any `json:"data"`

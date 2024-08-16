@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"io"
 	"net/http"
 	"net/http/httputil"
@@ -23,7 +24,7 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
-func NewDfnsClient(ctx context.Context, applicationYamlKey string) (DfnsClient, string) {
+func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey string) DfnsClient {
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	if cfg.DFNS.BaseURL == "" {
@@ -76,10 +77,64 @@ func NewDfnsClient(ctx context.Context, applicationYamlKey string) (DfnsClient, 
 
 	cl := &dfnsClient{serviceAccountClient: serviceClient, userClient: &http.Client{}, cfg: &cfg}
 	cl.mustInitProxy()
-	if cfg.DFNS.WebhookURL != "" && len(cl.mustListWebhooks(ctx)) == 0 {
-		cl.webhookSecret = cl.mustRegisterAllEventsWebhook(ctx)
+	cl.mustSetupWebhookOrLoadSecret(ctx, db, &cfg)
+
+	return cl
+}
+
+func (c *dfnsClient) mustSetupWebhookOrLoadSecret(ctx context.Context, db *storage.DB, cfg *config) {
+	var err error
+	whCtx, whCancel := context.WithTimeout(ctx, 30*stdlibtime.Second)
+	defer whCancel()
+	whLock := storage.NewMutex(db, "registerWebhook")
+	for whCtx.Err() == nil {
+		if err = whLock.Lock(whCtx); err != nil {
+			if !errors.Is(err, storage.ErrMutexNotLocked) {
+				log.Panic(errors.Wrapf(err, "failed to obtain registerWebhook db lock"))
+			}
+			if c.webhookSecret, err = c.loadWebhookSecret(whCtx, db); err != nil {
+				if storage.IsErr(err, storage.ErrNotFound) {
+					// Wait until at least one instance create WH and store secret
+					stdlibtime.Sleep(500 * stdlibtime.Millisecond)
+					continue
+				}
+				log.Panic(errors.Wrapf(err, "failed to load webhook secret while another instance is creating"))
+			}
+			return
+		}
+		break
 	}
-	return cl, cl.webhookSecret
+	if cfg.DFNS.WebhookURL != "" && len(c.mustListWebhooks(ctx)) == 0 {
+		c.webhookSecret = c.mustRegisterAllEventsWebhook(ctx)
+		log.Panic(c.storeWebhookSecret(whCtx, db, c.webhookSecret))
+	} else {
+		if c.webhookSecret, err = c.loadWebhookSecret(whCtx, db); err != nil {
+			log.Panic(errors.Wrapf(err, "failed to read stored webhook secret, must re-create webhook"))
+		}
+	}
+	_ = whLock.Unlock(whCtx)
+}
+
+func (c *dfnsClient) storeWebhookSecret(ctx context.Context, db *storage.DB, whSecret string) error {
+	_, err := storage.Exec(ctx, db, `INSERT INTO global (key,value) VALUES ('WEBHOOK_SECRET', $1) ON CONFLICT(key) DO
+    UPDATE
+        SET value = excluded.value
+    WHERE global.value != $1 and excluded.value != '';`, whSecret)
+
+	return errors.Wrapf(err, "failed to store webhook secret")
+}
+func (c *dfnsClient) loadWebhookSecret(ctx context.Context, db *storage.DB) (string, error) {
+	res, err := storage.Select[struct {
+		Key   string
+		Value string
+	}](ctx, db, `SELECT * FROM global WHERE key = $1;`, "WEBHOOK_SECRET")
+	if err != nil || res == nil {
+		if res == nil {
+			err = storage.ErrNotFound
+		}
+		return "", errors.Wrapf(err, "failed to read webhook secret")
+	}
+	return res[0].Value, nil
 }
 
 func (c *dfnsClient) mustInitProxy() {
@@ -116,10 +171,12 @@ func (c *dfnsClient) mustRegisterAllEventsWebhook(ctx context.Context) (whSecret
 		Events:      []string{"*"},
 	})
 	log.Panic(errors.Wrapf(err, "failed to marshal webhook struct into json"))
-	status, resp, err := c.clientCall(ctx, "POST", "/webhooks", http.Header{}, jData)
+	header := http.Header{}
+	header.Set(appIDHeader, c.cfg.DFNS.AppID)
+	status, resp, err := c.doClientCall(ctx, c.serviceAccountClient, "POST", "/webhooks", http.Header{}, jData)
 	log.Panic(errors.Wrapf(err, "failed to register webhook"))
 	if status != http.StatusOK {
-		log.Panic(errors.Wrapf(err, "failed to register webhook with status %v body %v", status, string(resp)))
+		log.Panic(errors.Errorf("failed to register webhook with status %v body %v", status, string(resp)))
 	}
 	var wh webhook
 	if err = json.UnmarshalContext(ctx, resp, &wh); err != nil {
@@ -132,7 +189,7 @@ func (c *dfnsClient) mustRegisterAllEventsWebhook(ctx context.Context) (whSecret
 }
 
 func (c *dfnsClient) mustListWebhooks(ctx context.Context) []webhook {
-	_, jWebhooks, err := c.clientCall(ctx, "GET", "/webhooks?limit=1", http.Header{}, nil)
+	_, jWebhooks, err := c.doClientCall(ctx, c.serviceAccountClient, "GET", "/webhooks?limit=1", http.Header{}, nil)
 	if err != nil {
 		log.Panic(errors.Wrapf(err, "failed to list webhooks"))
 	}
@@ -140,7 +197,13 @@ func (c *dfnsClient) mustListWebhooks(ctx context.Context) []webhook {
 	if err = json.UnmarshalContext(ctx, jWebhooks, &p); err != nil {
 		log.Panic(errors.Wrapf(err, "failed to unmarshal %v into %#v", string(jWebhooks), p))
 	}
-	return p.Items
+	filteredItems := make([]webhook, 0, 1)
+	for _, w := range p.Items {
+		if w.Url == c.cfg.DFNS.WebhookURL && w.Status == "Enabled" {
+			filteredItems = append(filteredItems, w)
+		}
+	}
+	return filteredItems
 }
 
 func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
@@ -173,7 +236,7 @@ func (c *dfnsClient) doClientCall(ctx context.Context, httpClient *http.Client, 
 	if err != nil {
 		return 0, nil, errors.Wrapf(err, "failed to consturct dfns request to %v %v", method, url)
 	}
-	req.Header = headers
+	req.Header = headers.Clone()
 
 	response, err := httpClient.Do(req)
 	if err != nil {
@@ -197,12 +260,10 @@ func (c *dfnsClient) StartDelegatedRecovery(ctx context.Context, username string
 		Username:     username,
 		CredentialID: credentialId,
 	}
-	header := http.Header{}
-	header.Set(appIDHeader, appID(ctx))
 	resp, err := dfnsCall[struct {
 		Username     string `json:"username"`
 		CredentialID string `json:"credentialId"`
-	}, StartedDelegatedRecovery](ctx, c, params, "POST", "/auth/recover/user/delegated", header)
+	}, StartedDelegatedRecovery](ctx, c, params, "POST", "/auth/recover/user/delegated", http.Header{})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to start delegated recovery for username %v credID %v", username, credentialId)
 	}
@@ -251,9 +312,6 @@ func dfnsCall[REQ any, RESP any](ctx context.Context, c *dfnsClient, params REQ,
 }
 
 func dfnsAuthHeader(ctx context.Context) string {
-	return ctx.Value(AuthHeaderCtxValue).(string)
-}
-func appID(ctx context.Context) string {
 	return ctx.Value(AuthHeaderCtxValue).(string)
 }
 

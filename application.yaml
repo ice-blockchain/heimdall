@@ -28,7 +28,7 @@ cmd/heimdall:
     - method: PUT
       endpoint: "/auth/logout"
       tag: Login
-    - method: PUT
+    - method: POST
       endpoint: "/auth/recover/user"
       tag: Recovery
     - method: POST
@@ -64,6 +64,9 @@ cmd/heimdall:
     - method: GET
       endpoint: "/wallets/:walletId/transactions"
       tag: Wallets
+    - method: GET
+      endpoint: "/wallets/:walletId/transfers"
+      tag: Wallets
     - method: POST
       endpoint: "/wallets/:walletId/signatures"
       tag: Wallets
@@ -73,7 +76,8 @@ cmd/heimdall:
     keyPath: cmd/heimdall/.testdata/localhost.key
 accounts:
   dfns:
-    baseURL: https://api.dfns.ninja
+    baseUrl: https://api.dfns.ninja
+    #webhookUrl:
     #appId: bogus
     #serviceKey: bogus-key
     #credentialPrivateKey: bogus

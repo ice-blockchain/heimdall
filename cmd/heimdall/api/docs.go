@@ -31,14 +31,6 @@ const docTemplate = `{
                 ],
                 "parameters": [
                     {
-                        "type": "string",
-                        "default": "ap-...",
-                        "description": "Dfns app id",
-                        "name": "X-DFNS-APPID",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
                         "description": "Request params",
                         "name": "request",
                         "in": "body",

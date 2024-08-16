@@ -4,8 +4,6 @@ package accounts
 
 import (
 	"context"
-	"fmt"
-
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
@@ -17,8 +15,8 @@ import (
 )
 
 func New(ctx context.Context) Accounts {
-	cl, whSecret := dfns.NewDfnsClient(ctx, applicationYamlKey)
-	db := storage.MustConnect(ctx, fmt.Sprintf(ddl, whSecret), applicationYamlKey)
+	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
+	cl := dfns.NewDfnsClient(ctx, db, applicationYamlKey)
 	totp := totp2.New(applicationYamlKey)
 	em := email.New(applicationYamlKey)
 	var smsSender sms.SmsSender

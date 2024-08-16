@@ -10,8 +10,10 @@ import (
 	"math"
 	"math/big"
 	"strings"
+	stdlibtime "time"
 
 	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
@@ -19,9 +21,13 @@ import (
 )
 
 func (a *accounts) Verify2FA(ctx context.Context, userID string, userInputCodes map[TwoFAOptionEnum]string) error {
+	_, err := a.verify2FA(ctx, userID, userInputCodes)
+	return errors.Wrapf(err, "failed to update codes as redeemed")
+}
+func (a *accounts) verify2FA(ctx context.Context, userID string, userInputCodes map[TwoFAOptionEnum]string) (rollback map[TwoFAOptionEnum]string, err error) {
 	codes, err := a.get2FACodes(ctx, userID, userInputCodes)
 	if err != nil {
-		return errors.Wrapf(err, "failed to verify codes %v for userID %v", userInputCodes, userID)
+		return nil, errors.Wrapf(err, "failed to verify codes %v for userID %v", userInputCodes, userID)
 	}
 	now := time.Now()
 	var vErr error
@@ -34,9 +40,22 @@ func (a *accounts) Verify2FA(ctx context.Context, userID string, userInputCodes 
 		}
 	}
 	if vErr != nil {
-		return errors.Wrapf(vErr, "failed to verify 2FA code")
+		return nil, errors.Wrapf(vErr, "failed to verify 2FA code")
 	}
-	return errors.Wrapf(a.updateUserWithConfirmed2FA(ctx, now, userID, codes), "failed to update users")
+	return a.updateUserWithConfirmed2FA(ctx, now, userID, codes)
+}
+
+func (a *accounts) rollbackRedeemed2FACodes(usrID string, codes map[TwoFAOptionEnum]string) error {
+	rollbackCtx, rollbackCancel := context.WithTimeout(context.Background(), 5*stdlibtime.Second)
+	defer rollbackCancel()
+	rollbackCaseClause, rbParams := buildRollbackClause(codes)
+	params := append([]any{usrID, maps.Keys(codes)}, rbParams...)
+	sql := fmt.Sprintf(`UPDATE twofa_codes SET
+        confirmed_at = NULL,
+        code = (%v)
+        WHERE user_id = $1 AND code = user_id AND option = ANY($2)`, rollbackCaseClause)
+	_, err := storage.Exec(rollbackCtx, a.db, sql, params...)
+	return errors.Wrapf(err, "failed to rollback codes for userID %v", usrID)
 }
 
 func (c *twoFACode) expired(a *accounts, now *time.Time) error {
@@ -67,9 +86,9 @@ func (c *twoFACode) invalidCode(a *accounts, now *time.Time, inputCode string) e
 	return nil
 }
 
-func (a *accounts) updateUserWithConfirmed2FA(ctx context.Context, now *time.Time, userID string, codes map[TwoFAOptionEnum]*twoFACode) error {
+func (a *accounts) updateUserWithConfirmed2FA(ctx context.Context, now *time.Time, userID string, codes map[TwoFAOptionEnum]*twoFACode) (codesToRollback map[TwoFAOptionEnum]string, err error) {
 	if len(codes) == 0 {
-		return nil
+		return map[TwoFAOptionEnum]string{}, nil
 	}
 	whereClause, extraParams := buildWhereClause(codes)
 	authentificatorCode := ""
@@ -110,27 +129,29 @@ inner join upd_users on upd.user_id = upd_users.id;`, whereClause)
 		Option TwoFAOptionEnum `db:"option"`
 	}](ctx, a.db, sql, params...)
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
-		return errors.Wrapf(err, "failed to update user with 2FA passed")
+		return nil, errors.Wrapf(err, "failed to update user with 2FA passed")
 	}
+	codesForRollback := make(map[TwoFAOptionEnum]string, len(codes))
 	if len(res) != len(codes) {
 		missing := make([]TwoFAOptionEnum, 0, len(codes)-len(res))
 		for c := range codes {
 			f := false
 			for _, r := range res {
+				codesForRollback[r.Option] = codes[r.Option].Code
 				if c == r.Option {
 					f = true
-					break
 				}
 			}
 			if !f {
 				missing = append(missing, c)
 			}
 		}
-		if !(len(missing) == 1 && missing[0] == TwoFAOptionTOTPAuthentificator) {
-			return Err2FAInvalidCode
+		if len(missing) > 0 && !(len(missing) == 1 && missing[0] == TwoFAOptionTOTPAuthentificator) {
+			log.Error(a.rollbackRedeemed2FACodes(userID, codesForRollback))
+			return nil, Err2FAInvalidCode
 		}
 	}
-	return nil
+	return codesForRollback, nil
 }
 
 func buildWhereClause(codes map[TwoFAOptionEnum]*twoFACode) (string, []any) {
@@ -138,11 +159,22 @@ func buildWhereClause(codes map[TwoFAOptionEnum]*twoFACode) (string, []any) {
 	params := make([]any, 0, len(codes)*2)
 	nextIndex := 4
 	for _, c := range codes {
-		where = append(where, fmt.Sprintf("(option = $%[1]v and code =$%[2]v )", nextIndex, nextIndex+1))
+		where = append(where, fmt.Sprintf("(option = $%[1]v and code = $%[2]v )", nextIndex, nextIndex+1))
 		params = append(params, c.Option, c.Code)
 		nextIndex += 2
 	}
 	return strings.Join(where, " OR "), params
+}
+func buildRollbackClause(codes map[TwoFAOptionEnum]string) (string, []any) {
+	cases := make([]string, 0, len(codes))
+	params := make([]any, 0, len(codes)*2)
+	nextIndex := 3
+	for k, v := range codes {
+		cases = append(cases, fmt.Sprintf("WHEN option = $%[1]v THEN $%[2]v", nextIndex, nextIndex+1))
+		params = append(params, k, v)
+		nextIndex += 2
+	}
+	return "CASE \n" + strings.Join(cases, "\n") + "\nEND", params
 }
 
 func (a *accounts) get2FACodes(ctx context.Context, userID string, inputCodes map[TwoFAOptionEnum]string) (map[TwoFAOptionEnum]*twoFACode, error) {
@@ -274,9 +306,9 @@ func (a *accounts) checkDeliveryChannelFor2FA(ctx context.Context, userID string
 		var accountName string
 		switch {
 		case usr.Email != nil:
-			accountName = *usr.Email
+			accountName = usr.DfnsUsername
 		case usr.PhoneNumber != nil:
-			accountName = *usr.PhoneNumber
+			accountName = usr.DfnsUsername
 		default:
 			return "", errors.Errorf("cannot setup authentificator without setting up email / phone before")
 		}
