@@ -4,11 +4,16 @@ package accounts
 
 import (
 	"context"
+	"io"
+	"reflect"
+	"strings"
 
+	"github.com/goccy/go-json"
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
+	"github.com/ice-blockchain/wintr/time"
 )
 
 func (a *accounts) getUserByID(ctx context.Context, userID string) (*user, error) {
@@ -19,7 +24,7 @@ func (a *accounts) getUserByID(ctx context.Context, userID string) (*user, error
 	return u, nil
 }
 func (a *accounts) getUserByUsername(ctx context.Context, username string) (*user, error) {
-	u, err := storage.Get[user](ctx, a.db, `SELECT * FROM users where dfns_username = $1`, username)
+	u, err := storage.Get[user](ctx, a.db, `SELECT * FROM users where username = $1`, username)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get user by username %v", username)
 	}
@@ -28,21 +33,22 @@ func (a *accounts) getUserByUsername(ctx context.Context, username string) (*use
 func clientIPAddress(ctx context.Context) string {
 	return ctx.Value(clientIPCtxValueKey).(string)
 }
-func (a *accounts) GetIONRelays(ctx context.Context, userID string, followees []string) (relays []string, err error) {
+func (a *accounts) GetOrAssignIONConnectRelays(ctx context.Context, userID string, followees []string) (relays []string, err error) {
 	usr, err := a.getUserByID(ctx, userID)
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 		return nil, errors.Wrapf(err, "failed to check if user already have ion relays")
 	}
-	if len(usr.IONRelays) > 0 {
-		return usr.IONRelays, nil
+	if len(usr.IONConnectRelays) > 0 {
+		return usr.IONConnectRelays, nil
 	}
 	return a.fetchAndUpdateRelaysFromPolaris(ctx, userID, followees)
 }
-func (a *accounts) GetIONIndexers(ctx context.Context, userID string) (indexers []string, err error) {
+func (a *accounts) GetIONConnectIndexerRelays(ctx context.Context, userID string) (indexers []string, err error) {
 	return a.fetchIONIndexers(ctx, userID)
 }
 
 func (a *accounts) fetchAndUpdateRelaysFromPolaris(ctx context.Context, userID string, followees []string) (relays []string, err error) {
+	now := time.Now()
 	if relays, err = a.fetchRelays(ctx, userID, followees); err != nil {
 		return nil, errors.Wrapf(err, "cannot fetch relay list from polaris")
 	}
@@ -50,10 +56,12 @@ func (a *accounts) fetchAndUpdateRelaysFromPolaris(ctx context.Context, userID s
 		var usr *user
 		usr, err = storage.ExecOne[user](ctx, a.db, `
 					INSERT INTO 
-    					users (id, ion_relays, dfns_username) VALUES ($1, $2, $1) 
+    					users (created_at, updated_at, id, ion_connect_relays, username, clients) VALUES ($3,$3,$1, $2, $1,$4) 
     				ON CONFLICT(id) DO UPDATE 
-    					SET ion_relays = $2
-    				WHERE users.ion_relays IS NULL RETURNING *`, userID, relays)
+    					SET 
+    					    ion_connect_relays = $2,
+    					    updated_at = $3
+    				WHERE users.ion_connect_relays IS NULL RETURNING *`, userID, relays, *now.Time, []string{a.cfg.Client})
 		if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 			return nil, errors.Wrapf(err, "failed to persist ion relays for userID %v", userID)
 		}
@@ -64,7 +72,7 @@ func (a *accounts) fetchAndUpdateRelaysFromPolaris(ctx context.Context, userID s
 			}
 		}
 
-		return usr.IONRelays, nil
+		return usr.IONConnectRelays, nil
 	}
 
 	return relays, nil
@@ -76,7 +84,7 @@ func (a *accounts) fetchRelays(ctx context.Context, userID string, followeeList 
 }
 func (a *accounts) fetchIONIndexers(ctx context.Context, userID string) (relays []string, err error) {
 	log.Info("Fetching indexers from polaris for %v", clientIPAddress(ctx))
-	return []string{"https://indexer-example1.com/", "https://indexer-example2.com/", "https://indexer-example3.com/ws"}, nil
+	return []string{"ws://indexer-example1.com/", "wss://indexer-example2.com/", "wss://indexer-example3.com/ws"}, nil
 }
 
 func (a *accounts) GetUser(ctx context.Context, userID string) (*User, error) {
@@ -84,36 +92,71 @@ func (a *accounts) GetUser(ctx context.Context, userID string) (*User, error) {
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 		return nil, errors.Wrapf(err, "failed to read extra information about user %v", userID)
 	}
-	dfnsUsr, err := a.dfnsClient.GetUser(ctx, userID)
+	delegatedUsr, err := a.delegatedRPClient.GetUser(ctx, userID)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get user from dfns for ID %v", userID)
+		return nil, errors.Wrapf(err, "failed to get user from delegated party for ID %v", userID)
 	}
-	usr := &User{User: dfnsUsr}
+	usr := &User{User: *delegatedUsr}
 	if dbUsr != nil {
-		usr.IONRelays = dbUsr.IONRelays
-		usr.IONIndexers, err = a.GetIONIndexers(ctx, userID)
+		usr.IONConnectRelays = dbUsr.IONConnectRelays
+		usr.IONConnectIndexerRelays, err = a.GetIONConnectIndexerRelays(ctx, userID)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to fetch indexers for userID %v", userID)
 		}
 		twoFAOptions := make([]TwoFAOptionEnum, 0, len(AllTwoFAOptions))
-		if dbUsr.Email != nil && *dbUsr.Email != "" {
+		if len(dbUsr.Email) > 0 {
 			twoFAOptions = append(twoFAOptions, TwoFAOptionEmail)
-			usr.Email = *dbUsr.Email
+			usr.Email = dbUsr.Email
 
 		}
-		if dbUsr.PhoneNumber != nil && *dbUsr.PhoneNumber != "" {
+		if len(dbUsr.PhoneNumber) > 0 {
 			twoFAOptions = append(twoFAOptions, TwoFAOptionSMS)
-			usr.PhoneNumber = *dbUsr.PhoneNumber
+			usr.PhoneNumber = dbUsr.PhoneNumber
 		}
-		if dbUsr.TotpAuthentificatorSecret != nil && *dbUsr.TotpAuthentificatorSecret != "" {
+		if len(dbUsr.TotpAuthentificatorSecret) > 0 {
 			twoFAOptions = append(twoFAOptions, TwoFAOptionTOTPAuthentificator)
 		}
+		usr.TwoFAOptions = twoFAOptions
 	}
 	return usr, nil
 }
-func (a *accounts) insertUserWithUsername(ctx context.Context, userID, dfnsUsername string) error {
-	_, err := storage.Exec(ctx, a.db, `INSERT INTO users(id, dfns_username) VALUES ($1,$2) ON CONFLICT(id) DO UPDATE 
-    										SET dfns_username = $2 WHERE users.dfns_username = '' OR users.dfns_username = users.id`, userID, dfnsUsername)
-	return errors.Wrapf(err, "failed to update user with username in db %v %v", userID, dfnsUsername)
 
+func (a *accounts) upsertUsername(ctx context.Context, now *time.Time, body io.Reader) error {
+	respData, err := io.ReadAll(body)
+	if err != nil {
+		return errors.Wrapf(err, "failed to read delegated relying party body")
+	}
+	var res map[string]any
+	if err = json.UnmarshalContext(ctx, respData, &res); err != nil {
+		return errors.Wrapf(err, "failed to parse json for %v", string(respData))
+	}
+	var usr map[string]any
+	if userInferface, hasUser := res["user"]; hasUser {
+		usr = userInferface.(map[string]any)
+	}
+	userID := usr["id"]
+	username := usr["name"]
+	_, err = storage.Exec(ctx, a.db, `INSERT INTO users(created_at, updated_at, id, username, clients) VALUES ($4,$4,$1,$2,$3) ON CONFLICT(id) DO UPDATE 
+    										SET 
+    										    username = $2,
+    										    updated_at = $4
+                                            WHERE users.username = '' OR users.username = users.id`, userID, username, []string{a.cfg.Client}, *now.Time)
+	return errors.Wrapf(err, "failed to update user with username in db %v %v", userID, username, []string{a.cfg.Client}, now.Time)
+}
+
+func (u *User) MarshalJSON() ([]byte, error) {
+	if u == nil || u.User == nil {
+		return []byte("null"), nil
+	}
+	values := u.User
+	rUser := reflect.TypeOf(u).Elem()
+	rUserVal := reflect.Indirect(reflect.ValueOf(u))
+	for i := range rUser.NumField() {
+		field := rUser.Field(i)
+		if jsonTag := field.Tag.Get("json"); jsonTag != "" && jsonTag != "-" {
+			jsonTag, _, _ = strings.Cut(jsonTag, ",")
+			values[jsonTag] = rUserVal.FieldByName(field.Name).Interface()
+		}
+	}
+	return json.Marshal(values)
 }

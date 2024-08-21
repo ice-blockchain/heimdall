@@ -12,25 +12,23 @@ import (
 
 type (
 	EmailSender interface {
-		DeliverCode(ctx context.Context, code, emailAddress, language string) error
+		DeliverCode(ctx context.Context, code, language string, emailAddresses []string) error
 	}
 )
 
 type (
 	emailSender struct {
-		emailClients       []email.Client
-		fromRecipients     []fromRecipient
-		emailClientLBIndex uint64
-		cfg                *config
+		emailClient   email.Client
+		fromRecipient fromRecipient
+		cfg           *config
 	}
 	fromRecipient struct {
 		FromEmailName    string
 		FromEmailAddress string
 	}
 	config struct {
-		ExtraLoadBalancersCount int    `yaml:"extraLoadBalancersCount"`
-		FromEmailName           string `yaml:"fromEmailName"`
-		FromEmailAddress        string `yaml:"fromEmailAddress"`
+		FromEmailName    string `yaml:"fromEmailName"`
+		FromEmailAddress string `yaml:"fromEmailAddress"`
 	}
 	emailTemplate struct {
 		subject, body *template.Template
@@ -48,6 +46,6 @@ var (
 	//nolint:gochecknoglobals // Its loaded once at startup.
 	allEmailTemplates map[string]map[languageCode]*emailTemplate
 	allEmailTypes     = []string{
-		"2fa",
+		"2fa_recovery",
 	}
 )

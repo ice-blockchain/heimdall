@@ -4,20 +4,26 @@ package accounts
 
 import (
 	"context"
+
 	"github.com/pkg/errors"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
 	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
-	totp2 "github.com/ice-blockchain/wintr/totp"
+	"github.com/ice-blockchain/wintr/totp"
 )
+
+func NewDelegatedRPAuth(ctx context.Context) dfns.AuthClient {
+	return dfns.NewDfnsTokenAuth(ctx, applicationYamlKey)
+}
 
 func New(ctx context.Context) Accounts {
 	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
 	cl := dfns.NewDfnsClient(ctx, db, applicationYamlKey)
-	totp := totp2.New(applicationYamlKey)
+	totpAuth := totp.New(applicationYamlKey)
 	em := email.New(applicationYamlKey)
 	var smsSender sms.SmsSender
 	if false { // TODO: creds
@@ -26,13 +32,17 @@ func New(ctx context.Context) Accounts {
 
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
-	acc := accounts{dfnsClient: cl,
-		db:           db,
-		shutdown:     db.Close,
-		totpProvider: totp,
-		emailSender:  em,
-		smsSender:    smsSender,
-		cfg:          &cfg,
+	acc := accounts{delegatedRPClient: cl,
+		db:                   db,
+		shutdown:             db.Close,
+		totpProvider:         totpAuth,
+		emailSender:          em,
+		smsSender:            smsSender,
+		cfg:                  &cfg,
+		singleCodesGenerator: make(map[TwoFAOptionEnum]*singleflight.Group),
+	}
+	for _, opt := range AllTwoFAOptions {
+		acc.singleCodesGenerator[opt] = &singleflight.Group{}
 	}
 	return &acc
 }
@@ -41,6 +51,6 @@ func (a *accounts) Close() error {
 	return errors.Wrapf(a.shutdown(), "failed to close accounts repository")
 }
 
-func ParseErrAsDfnsInternalErr(err error) error {
+func ParseErrAsDelegatedInternalErr(err error) error {
 	return dfns.ParseErrAsDfnsInternalErr(err)
 }

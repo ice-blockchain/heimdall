@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/pkg/errors"
 	"github.com/quic-go/quic-go/http3"
 )
@@ -21,13 +20,8 @@ type (
 	Router = gin.Engine
 	Server interface {
 		// ListenAndServe starts everything and blocks indefinitely.
-		ListenAndServe(ctx context.Context, cancel context.CancelFunc)
+		ListenAndServe(ctx context.Context, cancel context.CancelFunc, auth AuthClient)
 	}
-	//// AuthenticatedUser is the payload structure extracted from the Authorization header, after a successful authentication.
-	//AuthenticatedUser struct {
-	//	auth.Token
-	//	Language string
-	//}
 	// State is the actual custom behaviour that has to be implemented by users of this package to customize their http server`s lifecycle.
 	State interface {
 		Init(ctx context.Context, cancel context.CancelFunc)
@@ -68,11 +62,11 @@ type (
 		Code  string         `json:"code,omitempty" example:"SOMETHING_NOT_FOUND"`
 	}
 	AuthClient interface {
-		VerifyToken(ctx context.Context, token string) (*Token, error)
+		VerifyToken(ctx context.Context, token string) (Token, error)
 	}
-	Token struct {
-		UserID   string
-		Username string
+	Token interface {
+		UserID() string
+		Username() string
 	}
 	Config struct {
 		HTTPServer struct {
@@ -105,7 +99,6 @@ const (
 	formMultipart
 
 	languageHeader = "X-Language"
-	jwksSuffix     = "/.well-known/jwks.json"
 )
 
 const (
@@ -136,8 +129,5 @@ type (
 		quit               chan<- os.Signal
 		swaggerRoot        string
 		applicationYAMLKey string
-	}
-	dfnsAuth struct {
-		dfnsPubKeys *jwk.Cache
 	}
 )

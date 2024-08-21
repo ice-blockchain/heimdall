@@ -1,0 +1,5 @@
+{
+  "en": {
+    "text": "Your ION confirmation code: {{.ConfirmationCode}}"
+  }
+}

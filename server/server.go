@@ -32,8 +32,7 @@ func New(state State, cfgKey, swaggerRoot string) Server {
 	return &srv{State: state, swaggerRoot: swaggerRoot, applicationYAMLKey: cfgKey}
 }
 
-func (s *srv) ListenAndServe(ctx context.Context, cancel context.CancelFunc) {
-	authClient := newDfnsTokenAuth(ctx)
+func (s *srv) ListenAndServe(ctx context.Context, cancel context.CancelFunc, authClient AuthClient) {
 	ctx = context.WithValue(ctx, authClientCtxValueKey, authClient) //nolint:staticcheck,revive // .
 	s.Init(ctx, cancel)
 	s.setupRouter() //nolint:contextcheck // Nope, we don't need it.
@@ -64,7 +63,6 @@ func (s *srv) setupRouter() {
 	s.router.RedirectFixedPath = true
 	s.router.RemoveExtraSlash = true
 	s.router.UseRawPath = true
-
 	log.Info("registering routes...")
 	s.RegisterRoutes(s.router)
 	log.Info(fmt.Sprintf("%v routes registered", len(s.router.Routes())))

@@ -1,3 +1,0 @@
-{
-    "subject": "Təsdiq kodunuz"
-}

@@ -10,6 +10,7 @@ import (
 	stdlibtime "time"
 
 	"github.com/pkg/errors"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
@@ -22,36 +23,34 @@ import (
 type (
 	Accounts interface {
 		io.Closer
-		ProxyDfnsCall(ctx context.Context, rw http.ResponseWriter, r *http.Request)
+		ProxyDelegatedRelyingParty(ctx context.Context, rw http.ResponseWriter, r *http.Request)
 		Verify2FA(ctx context.Context, userID string, codes map[TwoFAOptionEnum]string) error
 		Send2FA(ctx context.Context, userID string, channel TwoFAOptionEnum, deliverTo *string, language string) (authentificatorUri *string, err error)
-		StartDelegatedRecovery(ctx context.Context, dfnsUsername, credentialID string, codes map[TwoFAOptionEnum]string) (resp *StartedDelegatedRecovery, err error)
-		StartDelegatedRegistration(ctx context.Context, username, userKind string) (*StartedDelegatedRegistration, error)
-		GetIONRelays(ctx context.Context, userID string, followees []string) (relays []string, err error)
-		GetIONIndexers(ctx context.Context, userID string) (indexers []string, err error)
+		StartDelegatedRecovery(ctx context.Context, username, credentialID string, codes map[TwoFAOptionEnum]string) (resp *StartedDelegatedRecovery, err error)
+		GetOrAssignIONConnectRelays(ctx context.Context, userID string, followees []string) (relays []string, err error)
+		GetIONConnectIndexerRelays(ctx context.Context, userID string) (indexers []string, err error)
 		GetUser(ctx context.Context, userID string) (usr *User, err error)
 	}
 
-	TwoFAOptionEnum              = string
-	StartedDelegatedRecovery     = dfns.StartedDelegatedRecovery
-	StartedDelegatedRegistration = dfns.StartedDelegatedRegistration
-	DfnsErr                      = dfns.DfnsInternalError
-	User                         struct {
-		*dfns.User
-		IONRelays    []string          `json:"ionRelays"`
-		IONIndexers  []string          `json:"ionIndexers"`
-		Email        string            `json:"email,omitempty"`
-		PhoneNumber  string            `json:"phoneNumber,omitempty"`
-		TwoFAOptions []TwoFAOptionEnum `json:"2faOptions"`
+	TwoFAOptionEnum          = string
+	StartedDelegatedRecovery = dfns.StartedDelegatedRecovery
+	DelegatedRelyingPartyErr = dfns.DfnsInternalError
+	User                     struct {
+		dfns.User
+		IONConnectRelays        []string          `json:"ionConnectRelays"`
+		IONConnectIndexerRelays []string          `json:"ionConnectIndexerRelays"`
+		Email                   []string          `json:"email,omitempty"`
+		PhoneNumber             []string          `json:"phoneNumber,omitempty"`
+		TwoFAOptions            []TwoFAOptionEnum `json:"2faOptions"`
 	}
 )
 
 const (
-	TwoFAOptionSMS                  = TwoFAOptionEnum("sms")
-	TwoFAOptionEmail                = TwoFAOptionEnum("email")
-	TwoFAOptionTOTPAuthentificator  = TwoFAOptionEnum("google_authentificator")
-	DfnsAuthorizationHeaderCtxValue = dfns.AuthHeaderCtxValue
-	DfnsAppIDHeaderCtxValue         = dfns.AppIDCtxValue
+	TwoFAOptionSMS                 = TwoFAOptionEnum("sms")
+	TwoFAOptionEmail               = TwoFAOptionEnum("email")
+	TwoFAOptionTOTPAuthentificator = TwoFAOptionEnum("google_authentificator")
+	AuthorizationHeaderCtxValue    = dfns.AuthHeaderCtxValue
+	registrationUrl                = "/auth/registration/delegated"
 )
 
 var (
@@ -69,8 +68,9 @@ var (
 )
 
 const (
-	applicationYamlKey  = "accounts"
-	clientIPCtxValueKey = "clientIPCtxValueKey"
+	applicationYamlKey     = "accounts"
+	clientIPCtxValueKey    = "clientIPCtxValueKey"
+	confirmationCodeLength = 6
 )
 
 //go:embed DDL.sql
@@ -78,21 +78,25 @@ var ddl string
 
 type (
 	accounts struct {
-		dfnsClient   dfns.DfnsClient
-		totpProvider totp.TOTP
-		db           *storage.DB
-		shutdown     func() error
-		emailSender  email.EmailSender
-		smsSender    sms.SmsSender
-		cfg          *config
+		delegatedRPClient    dfns.DfnsClient
+		totpProvider         totp.TOTP
+		db                   *storage.DB
+		shutdown             func() error
+		emailSender          email.EmailSender
+		smsSender            sms.SmsSender
+		singleCodesGenerator map[TwoFAOptionEnum]*singleflight.Group
+		cfg                  *config
 	}
 	user struct {
+		CreatedAt                 *time.Time
+		UpdatedAt                 *time.Time
 		ID                        string
-		DfnsUsername              string
-		Email                     *string
-		PhoneNumber               *string
-		TotpAuthentificatorSecret *string
-		IONRelays                 []string
+		Username                  string
+		Email                     []string
+		PhoneNumber               []string
+		TotpAuthentificatorSecret []string
+		IONConnectRelays          []string
+		Clients                   []string
 	}
 	twoFACode struct {
 		CreatedAt   *time.Time
@@ -105,5 +109,6 @@ type (
 	config struct {
 		EmailExpiration stdlibtime.Duration `yaml:"emailExpiration"`
 		SMSExpiration   stdlibtime.Duration `yaml:"smsExpiration"`
+		Client          string              `yaml:"client"`
 	}
 )

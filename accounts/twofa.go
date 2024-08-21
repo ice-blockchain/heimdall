@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"slices"
 	"strings"
 	stdlibtime "time"
 
@@ -110,12 +111,13 @@ WITH upd AS (
             (CASE WHEN option = 'google_authentificator' THEN $3 ELSE NULL END) as totp_authentificator_secret
 ), collapsed AS (
     select $1 as id,
-           (array_agg(email) FILTER ( WHERE email is not null))[1] as email,
-           (array_agg(phone_number) FILTER ( WHERE phone_number is not null))[1] as phone_number,
-           (array_agg(totp_authentificator_secret) FILTER ( WHERE totp_authentificator_secret is not null))[1] as totp_authentificator_secret
+           (array_agg(email) FILTER ( WHERE email is not null)) as email,
+           (array_agg(phone_number) FILTER ( WHERE phone_number is not null)) as phone_number,
+           (array_agg(totp_authentificator_secret) FILTER ( WHERE totp_authentificator_secret is not null)) as totp_authentificator_secret
     from upd
 ), upd_users AS (
 	UPDATE users SET
+           updated_at = $2,
 		   email = COALESCE(NULLIF(collapsed.email,users.email), users.email),
 		   phone_number = COALESCE(NULLIF(collapsed.phone_number,users.phone_number), users.phone_number),
 		   totp_authentificator_secret = COALESCE(NULLIF(collapsed.totp_authentificator_secret,users.totp_authentificator_secret), users.totp_authentificator_secret)
@@ -183,11 +185,11 @@ func (a *accounts) get2FACodes(ctx context.Context, userID string, inputCodes ma
 		kinds = append(kinds, k)
 	}
 	sql := fmt.Sprintf(`SELECT 
-    	created_at,
+    	twofa_codes.created_at as created_at,
     	user_id,
     	option,
     	deliver_to,
-    	(case WHEN option = '%[1]v' THEN COALESCE(u.totp_authentificator_secret, twofa_codes.code) ELSE twofa_codes.code END) as code,
+    	(case WHEN option = '%[1]v' THEN COALESCE(u.totp_authentificator_secret[1], twofa_codes.code) ELSE twofa_codes.code END) as code,
     	confirmed_at
     FROM twofa_codes 
     INNER JOIN users u on u.id = twofa_codes.user_id
@@ -214,58 +216,66 @@ func (a *accounts) Send2FA(ctx context.Context, userID string, opt TwoFAOptionEn
 	}
 	var code string
 	if opt == TwoFAOptionTOTPAuthentificator {
-		code = generateAuthentifcatorSecret()
+		code = a.generateAuthentifcatorSecret(opt, userID)
 	} else {
-		code = generateConfirmationCode()
+		code = a.generateConfirmationCode(opt, userID)
 	}
-	if uErr := a.upsert2FACode(ctx, &twoFACode{
-		CreatedAt: time.Now(),
-		UserID:    userID,
-		Option:    opt,
-		DeliverTo: deliverTo,
-		Code:      code,
-	}); uErr != nil {
-		return nil, errors.Wrapf(uErr, "failed to upsert code for userID %v", userID)
+	defer a.singleCodesGenerator[opt].Forget(userID)
+	for _, deliver := range deliverTo {
+		if uErr := a.upsert2FACode(ctx, &twoFACode{
+			CreatedAt: time.Now(),
+			UserID:    userID,
+			Option:    opt,
+			DeliverTo: deliver,
+			Code:      code,
+		}); uErr != nil {
+			return nil, errors.Wrapf(uErr, "failed to upsert code for userID %v", userID)
+		}
 	}
-	authentificatorUri, dErr := a.deliverCode(ctx, opt, deliverTo, code, language)
+
+	authentificatorUri, dErr := a.deliverCode(ctx, opt, code, language, deliverTo)
 	if dErr != nil {
 		return nil, errors.Wrapf(dErr, "failed to deliver 2fa code to user %v with %v:%v", userID, opt, deliverTo)
 	}
 	return authentificatorUri, nil
 }
 
-func generateConfirmationCode() string {
-	length := 6
-
-	result, err := rand.Int(rand.Reader, big.NewInt(int64(math.Pow10(length)-1))) //nolint:gomnd // It's max value.
-	log.Panic(err, "random wrong")
-
-	str := fmt.Sprintf("%03d", result.Int64()+1)
-	if missingNums := length - len(str); missingNums > 0 {
-		str = strings.Repeat("0", missingNums) + str
-	}
-	return str
-}
-func generateAuthentifcatorSecret() string {
-	const length = 10
-	secret := make([]byte, length)
-	gen, err := rand.Read(secret)
-	if err != nil || gen != length {
-		if gen != length {
-			err = errors.Errorf("unexpected length: %v instead of %v", gen, length)
-		}
+func (a *accounts) generateConfirmationCode(opt TwoFAOptionEnum, userID string) string {
+	code, _, _ := a.singleCodesGenerator[opt].Do(userID, func() (interface{}, error) {
+		result, err := rand.Int(rand.Reader, big.NewInt(int64(math.Pow10(confirmationCodeLength)-1))) //nolint:gomnd // It's max value.
 		log.Panic(err, "random wrong")
-	}
-	return base64.StdEncoding.EncodeToString(secret)
+
+		str := fmt.Sprintf("%03d", result.Int64()+1)
+		if missingNums := confirmationCodeLength - len(str); missingNums > 0 {
+			str = strings.Repeat("0", missingNums) + str
+		}
+		return str, nil
+	})
+	return code.(string)
+}
+func (a *accounts) generateAuthentifcatorSecret(opt TwoFAOptionEnum, userID string) string {
+	code, _, _ := a.singleCodesGenerator[opt].Do(userID, func() (interface{}, error) {
+		const length = 10
+		secret := make([]byte, length)
+		gen, err := rand.Read(secret)
+		if err != nil || gen != length {
+			if gen != length {
+				err = errors.Errorf("unexpected length: %v instead of %v", gen, length)
+			}
+			log.Panic(err, "random wrong")
+		}
+		return base64.StdEncoding.EncodeToString(secret), nil
+	})
+	return code.(string)
 }
 
-func (a *accounts) deliverCode(ctx context.Context, opt TwoFAOptionEnum, deliverTo, code string, language string) (*string, error) {
+func (a *accounts) deliverCode(ctx context.Context, opt TwoFAOptionEnum, code, language string, deliverTo []string) (*string, error) {
 	var codeDeliverer interface {
-		DeliverCode(ctx context.Context, code, emailAddress, language string) error
+		DeliverCode(ctx context.Context, code, language string, deliverTo []string) error
 	}
 	switch opt {
 	case TwoFAOptionTOTPAuthentificator:
-		uri := a.totpProvider.GenerateURI(code, deliverTo)
+		uri := a.totpProvider.GenerateURI(code, deliverTo[0])
 		return &uri, nil
 	case TwoFAOptionEmail:
 		codeDeliverer = a.emailSender
@@ -275,49 +285,49 @@ func (a *accounts) deliverCode(ctx context.Context, opt TwoFAOptionEnum, deliver
 		log.Panic(errors.Errorf("unsupported 2FA provider %v", opt))
 	}
 	if codeDeliverer != nil {
-		return nil, errors.Wrapf(codeDeliverer.DeliverCode(ctx, code, deliverTo, language), "failed to deliver 2fa code to %v using %v", deliverTo, opt)
+		return nil, errors.Wrapf(codeDeliverer.DeliverCode(ctx, code, language, deliverTo), "failed to deliver 2fa code to %v using %v", deliverTo, opt)
 	}
 	return nil, errors.Errorf("unsupported 2FA provider %v", opt)
 }
 
-func (a *accounts) checkDeliveryChannelFor2FA(ctx context.Context, userID string, opt TwoFAOptionEnum, newChannel *string) (string, error) {
-	var existingDeliveryChannel string
+func (a *accounts) checkDeliveryChannelFor2FA(ctx context.Context, userID string, opt TwoFAOptionEnum, newChannel *string) ([]string, error) {
+	var existingDeliveryChannel []string
 	usr, err := a.getUserByID(ctx, userID)
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
-		return "", errors.Wrapf(err, "failed to check existing user phone and email for userID %v", userID)
+		return nil, errors.Wrapf(err, "failed to check existing user phone and email for userID %v", userID)
 	}
 	if usr != nil {
 		switch {
 		case opt == TwoFAOptionEmail && usr.Email != nil:
-			existingDeliveryChannel = *usr.Email
+			existingDeliveryChannel = usr.Email
 		case opt == TwoFAOptionSMS && usr.PhoneNumber != nil:
-			existingDeliveryChannel = *usr.PhoneNumber
+			existingDeliveryChannel = usr.PhoneNumber
 		case opt == TwoFAOptionTOTPAuthentificator && usr.TotpAuthentificatorSecret != nil:
-			return "", Err2FAAlreadySetup
+			return nil, Err2FAAlreadySetup
 		}
-		if newChannel != nil && existingDeliveryChannel != "" && existingDeliveryChannel != *newChannel {
-			return "", Err2FAAlreadySetup
+		if newChannel != nil && len(existingDeliveryChannel) > 0 && !slices.Contains(existingDeliveryChannel, *newChannel) {
+			return nil, Err2FAAlreadySetup
 		}
 	}
-	if existingDeliveryChannel != "" {
+	if len(existingDeliveryChannel) > 0 {
 		return existingDeliveryChannel, nil
 	}
 	if opt == TwoFAOptionTOTPAuthentificator {
 		var accountName string
 		switch {
 		case usr.Email != nil:
-			accountName = usr.DfnsUsername
+			accountName = usr.Username
 		case usr.PhoneNumber != nil:
-			accountName = usr.DfnsUsername
+			accountName = usr.Username
 		default:
-			return "", errors.Errorf("cannot setup authentificator without setting up email / phone before")
+			return nil, errors.Errorf("cannot setup authentificator without setting up email / phone before")
 		}
-		return accountName, nil
+		return []string{accountName}, nil
 	}
 	if newChannel == nil {
-		return "", Err2FADeliverToNotProvided
+		return nil, Err2FADeliverToNotProvided
 	}
-	return *newChannel, nil
+	return []string{*newChannel}, nil
 
 }
 

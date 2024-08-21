@@ -1,6 +1,6 @@
 module github.com/ice-blockchain/heimdall
 
-go 1.22.2
+go 1.23
 
 require (
 	github.com/cenkalti/backoff/v4 v4.3.0

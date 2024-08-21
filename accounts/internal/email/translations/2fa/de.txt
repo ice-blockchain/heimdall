@@ -1,3 +1,0 @@
-{
-    "subject": "Ihr Bestätigungscode"
-}

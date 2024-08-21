@@ -1,3 +1,0 @@
-{
-    "subject": "Ang iyong kumpirmasyon na code"
-}

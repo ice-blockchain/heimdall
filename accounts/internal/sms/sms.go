@@ -6,13 +6,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"strings"
-	"sync/atomic"
 	"text/template"
 
+	"github.com/goccy/go-json"
 	"github.com/pkg/errors"
 
-	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/sms"
 )
@@ -22,23 +20,15 @@ func init() {
 }
 
 func New(applicationYamlKey string) SmsSender {
-	var cfg config
-	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	smsClient := &smsSender{
-		cfg:        &cfg,
-		smsClients: make([]sms.Client, 0, cfg.ExtraLoadBalancersCount+1),
+		smsClient: sms.New(applicationYamlKey),
 	}
-	smsClient.smsClients = append(smsClient.smsClients, sms.New(applicationYamlKey))
-	for i := range cfg.ExtraLoadBalancersCount {
-		var nestedCfg config
-		appcfg.MustLoadFromKey(fmt.Sprintf("%v/%v", applicationYamlKey, i+1), &nestedCfg)
-		smsClient.smsClients = append(smsClient.smsClients, sms.New(fmt.Sprintf("%v/%v", applicationYamlKey, i+1)))
-	}
+
 	return smsClient
 }
 
-func (a *smsSender) DeliverCode(ctx context.Context, code, phoneNumber, language string) error {
-	smsType := "2fa"
+func (a *smsSender) DeliverCode(ctx context.Context, code, language string, phoneNumbers []string) error {
+	smsType := "2fa_recovery"
 	var tmpl *smsTemplate
 	tmpl, ok := allTemplates[smsType][language]
 	if !ok {
@@ -50,13 +40,11 @@ func (a *smsSender) DeliverCode(ctx context.Context, code, phoneNumber, language
 		ConfirmationCode: code,
 	}
 
-	lbIdx := atomic.AddUint64(&a.smsClientLBIndex, 1) % uint64(a.cfg.ExtraLoadBalancersCount+1)
-
-	return errors.Wrapf(a.smsClients[lbIdx].Send(ctx, &sms.Parcel{
+	return errors.Wrapf(a.smsClient.Send(ctx, &sms.Parcel{
 		SendAt:   nil,
-		ToNumber: phoneNumber,
+		ToNumber: phoneNumbers[0],
 		Message:  tmpl.getBody(dataBody),
-	}), "failed to send sms with type:%v for user with phoneNumber:%v", smsType, phoneNumber)
+	}), "failed to send sms with type:%v for user with phoneNumber:%v", smsType, phoneNumbers[0])
 }
 
 func (t *smsTemplate) getBody(data any) string {
@@ -73,32 +61,24 @@ func loadTranslations() { //nolint:funlen,gocognit,revive // .
 	const totalLanguages = 50
 	allTemplates = make(map[string]map[languageCode]*smsTemplate, len(allSmsTypes))
 	for _, smsType := range allSmsTypes {
-		files, err := translations.ReadDir(fmt.Sprintf("translations/%v", smsType))
-		if err != nil {
-			panic(err)
-		}
 		allTemplates[smsType] = make(map[languageCode]*smsTemplate, totalLanguages)
-		for _, file := range files {
-			content, fErr := translations.ReadFile(fmt.Sprintf("translations/%v/%v", smsType, file.Name()))
-			if fErr != nil {
-				panic(fErr)
-			}
-			fileName := strings.Split(file.Name(), ".")
-			language := languageCode(fileName[0])
-			ext := fileName[1]
-			var tmpl smsTemplate
-			switch ext {
-			case "txt":
-				body := template.Must(template.New(fmt.Sprintf("sms_%v_%v_subject", smsType, language)).Parse(string(content)))
-				if allTemplates[smsType][language] != nil {
-					allTemplates[smsType][language].body = body
-					allTemplates[smsType][language].Body = tmpl.Body
-				} else {
-					tmpl.body = body
-					allTemplates[smsType][language] = &tmpl
-				}
-			default:
-				log.Panic("wrong translation file extension")
+		content, fErr := translations.ReadFile(fmt.Sprintf("translations/%v.json", smsType))
+		if fErr != nil {
+			panic(fErr)
+		}
+		var tmpl smsTemplate
+		var languageData map[string]*struct {
+			Text string `json:"text"`
+		}
+		log.Panic(errors.Wrapf(json.Unmarshal(content, &languageData), "failed to load json sms translations file%v", smsType))
+		for language, data := range languageData {
+			body := template.Must(template.New(fmt.Sprintf("sms_%v_%v_subject", smsType, language)).Parse(data.Text))
+			if allTemplates[smsType][language] != nil {
+				allTemplates[smsType][language].body = body
+				allTemplates[smsType][language].Body = tmpl.Body
+			} else {
+				tmpl.body = body
+				allTemplates[smsType][language] = &tmpl
 			}
 		}
 	}

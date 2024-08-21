@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"io"
 	"net/http"
 	"net/http/httputil"
@@ -21,48 +20,12 @@ import (
 	"github.com/pkg/errors"
 
 	appcfg "github.com/ice-blockchain/wintr/config"
+	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 )
 
 func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey string) DfnsClient {
-	var cfg config
-	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
-	if cfg.DFNS.BaseURL == "" {
-		log.Panic(errors.Errorf("dfns baseURL not set"))
-	}
-	if cfg.DFNS.AppID == "" {
-		cfg.DFNS.AppID = os.Getenv("DFNS_APP_ID")
-		if cfg.DFNS.AppID == "" {
-			log.Panic(errors.Errorf("dfns appId not set"))
-		}
-	}
-	if cfg.DFNS.ServiceKey == "" {
-		cfg.DFNS.ServiceKey = os.Getenv("DFNS_SERVICE_KEY")
-		if cfg.DFNS.ServiceKey == "" {
-			log.Panic(errors.Errorf("dfns serviceKey not set"))
-		}
-	}
-	if cfg.DFNS.ServiceAccountPrivateKey == "" {
-		cfg.DFNS.ServiceAccountPrivateKey = os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY")
-		if cfg.DFNS.ServiceAccountPrivateKey == "" {
-			pkFile, pkErr := os.Open(os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY_FILE"))
-			log.Panic(errors.Wrapf(pkErr, "failed to read dfns private key from file %v"), os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY_FILE"))
-			defer pkFile.Close()
-			var pk []byte
-			pk, pkErr = io.ReadAll(pkFile)
-			log.Panic(errors.Wrapf(pkErr, "failed to read dfns private key from file %v"), os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY_FILE"))
-			cfg.DFNS.ServiceAccountPrivateKey = string(pk)
-			if cfg.DFNS.ServiceAccountPrivateKey == "" {
-				log.Panic(errors.Errorf("dfns service account private key not set"))
-			}
-		}
-	}
-	if cfg.DFNS.ServiceAccountCredentialID == "" {
-		cfg.DFNS.ServiceAccountCredentialID = os.Getenv("DFNS_SERVICE_SERVICE_ACCOUNT_CREDENTIAL_ID")
-		if cfg.DFNS.ServiceAccountCredentialID == "" {
-			log.Panic(errors.Errorf("dfns service account credential id not set"))
-		}
-	}
+	cfg.loadCfg(applicationYamlKey)
 	serviceAccountSigner := credentials.NewAsymmetricKeySigner(&credentials.AsymmetricKeySignerConfig{
 		PrivateKey: cfg.DFNS.ServiceAccountPrivateKey,
 		CredID:     cfg.DFNS.ServiceAccountCredentialID,
@@ -72,10 +35,15 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 		AuthToken: &cfg.DFNS.ServiceKey,
 		BaseURL:   cfg.DFNS.BaseURL,
 	}, serviceAccountSigner)
-	log.Panic(errors.Wrapf(err, "failed to initialize dfns options"))
+	log.Panic(errors.Wrapf(err, "failed to initialize dfns options with serviceAccount signer"))
 	serviceClient := dfnsapiclient.CreateDfnsAPIClient(opts)
-
-	cl := &dfnsClient{serviceAccountClient: serviceClient, userClient: &http.Client{}, cfg: &cfg}
+	userOpts, err := dfnsapiclient.NewDfnsAPIOptions(&dfnsapiclient.DfnsAPIConfig{
+		AppID:     cfg.DFNS.AppID,
+		AuthToken: &cfg.DFNS.ServiceKey,
+		BaseURL:   cfg.DFNS.BaseURL,
+	}, nil)
+	log.Panic(errors.Wrapf(err, "failed to initialize dfns options for user"))
+	cl := &dfnsClient{serviceAccountClient: serviceClient, userClient: dfnsapiclient.CreateDfnsAPIClient(userOpts)}
 	cl.mustInitProxy()
 	cl.mustSetupWebhookOrLoadSecret(ctx, db, &cfg)
 
@@ -138,8 +106,8 @@ func (c *dfnsClient) loadWebhookSecret(ctx context.Context, db *storage.DB) (str
 }
 
 func (c *dfnsClient) mustInitProxy() {
-	remote, err := url.Parse(c.cfg.DFNS.BaseURL)
-	log.Panic(errors.Wrapf(err, "failed to parse dfns base url %v", c.cfg.DFNS.BaseURL))
+	remote, err := url.Parse(cfg.DFNS.BaseURL)
+	log.Panic(errors.Wrapf(err, "failed to parse dfns base url %v", cfg.DFNS.BaseURL))
 	c.serviceAccountProxy = httputil.NewSingleHostReverseProxy(remote)
 	c.userProxy = httputil.NewSingleHostReverseProxy(remote)
 	overwriteHostProxyDirector := func(req *http.Request) {
@@ -147,7 +115,7 @@ func (c *dfnsClient) mustInitProxy() {
 		req.Host = remote.Host
 		req.URL.Scheme = remote.Scheme
 		req.URL.Host = remote.Host
-		req.Header.Set(appIDHeader, c.cfg.DFNS.AppID)
+		req.Header.Set(appIDHeader, cfg.DFNS.AppID)
 	}
 	c.userProxy.Director = overwriteHostProxyDirector
 	c.serviceAccountProxy.Director = overwriteHostProxyDirector
@@ -165,14 +133,14 @@ func (c *dfnsClient) mustRegisterAllEventsWebhook(ctx context.Context) (whSecret
 		Status      string   `json:"status"`
 		Events      []string `json:"events"`
 	}{
-		Url:         c.cfg.DFNS.WebhookURL,
+		Url:         cfg.DFNS.WebhookURL,
 		Description: "All events webhook",
 		Status:      "Enabled",
 		Events:      []string{"*"},
 	})
 	log.Panic(errors.Wrapf(err, "failed to marshal webhook struct into json"))
 	header := http.Header{}
-	header.Set(appIDHeader, c.cfg.DFNS.AppID)
+	header.Set(appIDHeader, cfg.DFNS.AppID)
 	status, resp, err := c.doClientCall(ctx, c.serviceAccountClient, "POST", "/webhooks", http.Header{}, jData)
 	log.Panic(errors.Wrapf(err, "failed to register webhook"))
 	if status != http.StatusOK {
@@ -199,22 +167,30 @@ func (c *dfnsClient) mustListWebhooks(ctx context.Context) []webhook {
 	}
 	filteredItems := make([]webhook, 0, 1)
 	for _, w := range p.Items {
-		if w.Url == c.cfg.DFNS.WebhookURL && w.Status == "Enabled" {
+		if w.Url == cfg.DFNS.WebhookURL && w.Status == "Enabled" {
 			filteredItems = append(filteredItems, w)
 		}
 	}
 	return filteredItems
 }
 
-func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req *http.Request) {
-	if c.urlSupportsServiceAccount(req.URL.Path) {
-		c.serviceAccountProxy.ServeHTTP(rw, req)
+func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req *http.Request) io.Reader {
+	respBody := bytes.NewBuffer([]byte{})
+	if c.urlRequiresServiceAccountSignature(req.URL.Path) {
+		c.serviceAccountProxy.ServeHTTP(&proxyResponseBody{ResponseWriter: rw, Body: respBody}, req)
 	} else {
-		c.userProxy.ServeHTTP(rw, req)
+		c.userProxy.ServeHTTP(&proxyResponseBody{ResponseWriter: rw, Body: respBody}, req)
 	}
+	return respBody
 }
+
+func (p *proxyResponseBody) Write(b []byte) (int, error) {
+	_, _ = p.Body.Write(b)
+	return p.ResponseWriter.Write(b)
+}
+
 func (c *dfnsClient) clientCall(ctx context.Context, method, url string, headers http.Header, jsonData []byte) (int, []byte, error) {
-	if c.urlSupportsServiceAccount(url) {
+	if c.urlRequiresServiceAccountSignature(url) {
 		return retry(ctx, func() (status int, body []byte, err error) {
 			return c.doClientCall(ctx, c.serviceAccountClient, method, url, headers, jsonData)
 		})
@@ -224,31 +200,35 @@ func (c *dfnsClient) clientCall(ctx context.Context, method, url string, headers
 		})
 	}
 }
-func (c *dfnsClient) urlSupportsServiceAccount(url string) bool {
+func (c *dfnsClient) urlRequiresServiceAccountSignature(url string) bool {
 	return url == "/auth/registration/delegated" ||
 		url == "/auth/login/delegated" ||
 		url == "/auth/recover/user/delegated"
 }
 
-func (c *dfnsClient) doClientCall(ctx context.Context, httpClient *http.Client, method, url string, headers http.Header, jsonData []byte) (int, []byte, error) {
+func (c *dfnsClient) doClientCall(ctx context.Context, httpClient *http.Client, method, relativeUrl string, headers http.Header, jsonData []byte) (int, []byte, error) {
 	headers.Set("Content-Type", "application/json")
-	req, err := http.NewRequestWithContext(ctx, method, c.cfg.DFNS.BaseURL+url, bytes.NewBuffer(jsonData))
+	fullUrl, err := url.JoinPath(cfg.DFNS.BaseURL, relativeUrl)
 	if err != nil {
-		return 0, nil, errors.Wrapf(err, "failed to consturct dfns request to %v %v", method, url)
+		return 0, nil, errors.Wrapf(err, "failed to build url from %v %v", cfg.DFNS.BaseURL, relativeUrl)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, fullUrl, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return 0, nil, errors.Wrapf(err, "failed to consturct dfns request to %v %v", method, relativeUrl)
 	}
 	req.Header = headers.Clone()
 
 	response, err := httpClient.Do(req)
 	if err != nil {
-		return 0, nil, errors.Wrapf(err, "failed to exec dfns request to %v %v", method, url)
+		return 0, nil, errors.Wrapf(err, "failed to exec dfns request to %v %v", method, relativeUrl)
 	}
 	defer response.Body.Close()
 	bodyData, err := io.ReadAll(response.Body)
 	if err != nil {
-		return response.StatusCode, nil, errors.Wrapf(err, "failed to read body data for dfns request to %v %v", method, url)
+		return response.StatusCode, nil, errors.Wrapf(err, "failed to read body data for dfns request to %v %v", method, relativeUrl)
 	}
 	if response.StatusCode >= http.StatusBadRequest && err == nil {
-		err = errors.Errorf("dfns req to %v %v ended up with %v (data: %v)", method, url, response.StatusCode, string(bodyData))
+		err = errors.Errorf("dfns req to %v %v ended up with %v (data: %v)", method, relativeUrl, response.StatusCode, string(bodyData))
 	}
 	return response.StatusCode, bodyData, nil
 }
@@ -269,32 +249,13 @@ func (c *dfnsClient) StartDelegatedRecovery(ctx context.Context, username string
 	}
 	return resp, nil
 }
-func (c *dfnsClient) StartDelegatedRegistration(ctx context.Context, username, kind string) (*StartedDelegatedRegistration, error) {
-	params := struct {
-		Email string `json:"email"`
-		Kind  string `json:"kind"`
-	}{
-		Email: username,
-		Kind:  kind,
-	}
-	header := http.Header{}
-	header.Set(appIDHeader, c.cfg.DFNS.AppID)
-	resp, err := dfnsCall[struct {
-		Email string `json:"email"`
-		Kind  string `json:"kind"`
-	}, StartedDelegatedRegistration](ctx, c, params, "POST", "/auth/registration/delegated", header)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to start delegated registration for username/email %v kind %v", username, kind)
-	}
-	return resp, nil
-}
 
 func dfnsCall[REQ any, RESP any](ctx context.Context, c *dfnsClient, params REQ, method, uri string, headers http.Header) (*RESP, error) {
 	postData, err := json.MarshalContext(ctx, params)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to serialize %#v to json")
 	}
-	status, body, err := c.clientCall(ctx, "POST", uri, headers, postData)
+	status, body, err := c.clientCall(ctx, method, uri, headers, postData)
 	if err != nil {
 		if dfnsErr := ParseErrAsDfnsInternalErr(err); dfnsErr != nil {
 			return nil, errors.Wrapf(dfnsErr, "failed to call %v %v", method, uri)
@@ -317,8 +278,7 @@ func dfnsAuthHeader(ctx context.Context) string {
 
 func (c *dfnsClient) GetUser(ctx context.Context, userID string) (*User, error) {
 	headers := http.Header{}
-	headers.Set(appIDHeader, c.cfg.DFNS.AppID)
-	headers.Set("Authorization", dfnsAuthHeader(ctx))
+	headers.Set(appIDHeader, cfg.DFNS.AppID)
 	uri := fmt.Sprintf("/auth/users/%v", userID)
 	status, body, err := c.clientCall(ctx, "GET", uri, headers, nil)
 	if status >= http.StatusBadRequest && err == nil {
@@ -353,4 +313,55 @@ func retry(ctx context.Context, op func() (status int, body []byte, err error)) 
 			log.Error(errors.Wrapf(e, "call to dfns failed. retrying in %v... ", next))
 		})
 	return status, body, err
+}
+
+func (cfg *config) loadCfg(applicationYamlKey string) {
+	if fullCfg := os.Getenv("DFNS_CONFIGURATION"); fullCfg != "" {
+		var jsonCfg dfnsCfg
+		log.Panic(errors.Wrapf(json.Unmarshal([]byte(fullCfg), &jsonCfg), "failed to parse configuration from DFNS_CONFIGURATION env"))
+		*cfg = config{DFNS: jsonCfg}
+	}
+	var yamlCfg config
+	appcfg.MustLoadFromKey(applicationYamlKey, &yamlCfg)
+	cfg.mustLoadField(&cfg.DFNS.BaseURL, "DFNS_BASE_URL", yamlCfg.DFNS.BaseURL)
+	cfg.mustLoadField(&cfg.DFNS.AppID, "DFNS_APP_ID", yamlCfg.DFNS.AppID)
+	cfg.mustLoadField(&cfg.DFNS.ServiceKey, "DFNS_SERVICE_KEY", yamlCfg.DFNS.ServiceKey)
+	cfg.mustLoadField(&cfg.DFNS.ServiceAccountCredentialID, "DFNS_SERVICE_ACCOUNT_CREDENTIAL_ID", yamlCfg.DFNS.ServiceAccountCredentialID)
+	cfg.mustLoadField(&cfg.DFNS.OrganizationID, "DFNS_ORGANIZATION_ID", yamlCfg.DFNS.OrganizationID)
+
+	if cfg.DFNS.ServiceAccountPrivateKey == "" {
+		cfg.DFNS.ServiceAccountPrivateKey = yamlCfg.DFNS.ServiceAccountPrivateKey
+		if cfg.DFNS.ServiceAccountPrivateKey == "" {
+			cfg.DFNS.ServiceAccountPrivateKey = os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY")
+			if cfg.DFNS.ServiceAccountPrivateKey == "" {
+				pkFile, pkErr := os.Open(os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY_FILE"))
+				log.Panic(errors.Wrapf(pkErr, "failed to read dfns private key from file %v"), os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY_FILE"))
+				defer pkFile.Close()
+				var pk []byte
+				pk, pkErr = io.ReadAll(pkFile)
+				log.Panic(errors.Wrapf(pkErr, "failed to read dfns private key from file %v"), os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY_FILE"))
+				cfg.DFNS.ServiceAccountPrivateKey = string(pk)
+				if cfg.DFNS.ServiceAccountPrivateKey == "" {
+					log.Panic(errors.Errorf("dfns service account private key not set"))
+				}
+			}
+		}
+	}
+	cfg.DFNS.WebhookURL = yamlCfg.DFNS.WebhookURL
+	cfg.DFNS.Auth.Issuer = yamlCfg.DFNS.Auth.Issuer
+}
+
+func (*config) mustLoadField(field *string, env, yamlVal string) {
+	if field == nil {
+		return
+	}
+	if *field == "" {
+		*field = yamlVal
+		if *field == "" {
+			*field = os.Getenv(env)
+			if *field == "" {
+				log.Panic(errors.Errorf("%v not set", env))
+			}
+		}
+	}
 }

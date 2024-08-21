@@ -4,79 +4,18 @@ logger:
   encoder: console
   level: debug
 cmd/heimdall:
-  auth/dfns:
-    issuer: auth.dfns.ninja
-    baseURL: https://api.dfns.ninja
-    #appId: bogus
-    #organizationId: bogus
   host: localhost:8001
   version: local
   defaultEndpointTimeout: 30s
-  proxyDfnsEndpoints:
-    - method: POST
-      endpoint: "/auth/registration/enduser"
-      tag: Login
-    - method: POST
-      endpoint: "/auth/login/init"
-      tag: Login
-    - method: POST
-      endpoint: "/auth/login"
-      tag: Login
-    - method: POST
-      endpoint: "/auth/login/delegated"
-      tag: Login
-    - method: PUT
-      endpoint: "/auth/logout"
-      tag: Login
-    - method: POST
-      endpoint: "/auth/recover/user"
-      tag: Recovery
-    - method: POST
-      endpoint: "/wallets"
-      tag: Wallets
-    - method: POST
-      endpoint: "/wallets/:walletId/delegate"
-      tag: Wallets
-    - method: GET
-      endpoint: "/wallets/:walletId"
-      tag: Wallets
-    - method: GET
-      endpoint: "/wallets"
-      tag: Wallets
-    - method: GET
-      endpoint: "/wallets/:walletId/assets"
-      tag: Wallets
-    - method: GET
-      endpoint: "/wallets/:walletId/nfts"
-      tag: Wallets
-    - method: GET
-      endpoint: "/wallets/:walletId/history"
-      tag: Wallets
-    - method: PUT
-      endpoint: "/wallets/:walletId/tags"
-      tag: Wallets
-    - method: POST
-      endpoint: "/wallets/:walletId/transfers"
-      tag: Wallets
-    - method: POST
-      endpoint: "/wallets/:walletId/transactions"
-      tag: Wallets
-    - method: GET
-      endpoint: "/wallets/:walletId/transactions"
-      tag: Wallets
-    - method: GET
-      endpoint: "/wallets/:walletId/transfers"
-      tag: Wallets
-    - method: POST
-      endpoint: "/wallets/:walletId/signatures"
-      tag: Wallets
   httpServer:
     port: 8001
-    certPath: cmd/heimdall/.testdata/localhost.crt
-    keyPath: cmd/heimdall/.testdata/localhost.key
+    certPath: cmd/heimdall-identity-io/.testdata/localhost.crt
+    keyPath: cmd/heimdall-identity-io/.testdata/localhost.key
 accounts:
-  dfns:
-    baseUrl: https://api.dfns.ninja
+  delegated_relying_party:
+    auth:
+      issuer: auth.dfns.ninja
+    #baseUrl: https://bogus.example
     #webhookUrl:
     #appId: bogus
     #serviceKey: bogus-key
@@ -93,7 +32,7 @@ accounts:
       #password: bogus
   wintr/totp:
     issuer: ION
-  emailExpiration: 15h
+  emailExpiration: 15m
   smsExpiration: 15m
   wintr/connectors/storage/v2:
     runDDL: true

@@ -12,23 +12,18 @@ import (
 
 type (
 	SmsSender interface {
-		DeliverCode(ctx context.Context, code, phoneNumber, language string) error
+		DeliverCode(ctx context.Context, code, language string, phoneNumbers []string) error
 	}
 )
 
 type (
 	smsSender struct {
-		smsClients       []sms.Client
-		smsClientLBIndex uint64
-		cfg              *config
+		smsClient sms.Client
 	}
 	languageCode = string
 	smsTemplate  struct {
 		body *template.Template
 		Body string
-	}
-	config struct {
-		ExtraLoadBalancersCount int `yaml:"extraLoadBalancersCount"`
 	}
 )
 
@@ -42,6 +37,6 @@ var (
 	//nolint:gochecknoglobals // Its loaded once at startup.
 	allTemplates map[string]map[languageCode]*smsTemplate
 	allSmsTypes  []string = []string{
-		"2fa",
+		"2fa_recovery",
 	}
 )

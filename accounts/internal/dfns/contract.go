@@ -4,107 +4,32 @@ package dfns
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	stdlibtime "time"
 
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/pkg/errors"
+
+	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/wintr/time"
 )
 
 type (
+	AuthClient interface {
+		VerifyToken(ctx context.Context, token string) (server.Token, error)
+	}
 	DfnsClient interface {
-		ProxyCall(ctx context.Context, rw http.ResponseWriter, r *http.Request)
+		ProxyCall(ctx context.Context, rw http.ResponseWriter, r *http.Request) (respBody io.Reader)
 		StartDelegatedRecovery(ctx context.Context, username string, credentialId string) (*StartedDelegatedRecovery, error)
-		StartDelegatedRegistration(ctx context.Context, username, kind string) (*StartedDelegatedRegistration, error)
+		//StartDelegatedRegistration(ctx context.Context, username, kind string) (*StartedDelegatedRegistration, error)
 		GetUser(ctx context.Context, userID string) (*User, error)
 		VerifyWebhookSecret(fromWebhook string) bool
 	}
-	StartedDelegatedRecovery struct {
-		Rp struct {
-			Id   string `json:"id"`
-			Name string `json:"name"`
-		} `json:"rp"`
-		User struct {
-			Id          string `json:"id"`
-			Name        string `json:"name"`
-			DisplayName string `json:"displayName"`
-		} `json:"user"`
-		TemporaryAuthenticationToken string `json:"temporaryAuthenticationToken"`
-		SupportedCredentialKinds     struct {
-			FirstFactor  []string `json:"firstFactor"`
-			SecondFactor []string `json:"secondFactor"`
-		} `json:"supportedCredentialKinds"`
-		Challenge       string `json:"challenge"`
-		PubKeyCredParam []struct {
-			Type string `json:"type"`
-			Alg  int    `json:"alg"`
-		} `json:"pubKeyCredParams"`
-		Attestation        string `json:"attestation"`
-		ExcludeCredentials []struct {
-			Type       string `json:"type"`
-			Id         string `json:"id"`
-			Transports string `json:"transports"`
-		} `json:"excludeCredentials"`
-		AuthenticatorSelection struct {
-			AuthenticatorAttachment string `json:"authenticatorAttachment"`
-			ResidentKey             string `json:"residentKey"`
-			RequireResidentKey      bool   `json:"requireResidentKey"`
-			UserVerification        string `json:"userVerification"`
-		} `json:"authenticatorSelection"`
-		AllowedRecoveryCredentials []struct {
-			Id                   string `json:"id"`
-			EncryptedRecoveryKey string `json:"encryptedRecoveryKey"`
-		} `json:"allowedRecoveryCredentials"`
-		OTPUrl string `json:"otpUrl"`
-	}
-	StartedDelegatedRegistration struct {
-		Rp struct {
-			Id   string `json:"id"`
-			Name string `json:"name"`
-		} `json:"rp"`
-		User struct {
-			Id          string `json:"id"`
-			Name        string `json:"name"`
-			DisplayName string `json:"displayName"`
-		} `json:"user"`
-		TemporaryAuthenticationToken string `json:"temporaryAuthenticationToken"`
-		SupportedCredentialKinds     struct {
-			FirstFactor  []string `json:"firstFactor"`
-			SecondFactor []string `json:"secondFactor"`
-		} `json:"supportedCredentialKinds"`
-		Challenge       string `json:"challenge"`
-		PubKeyCredParam []struct {
-			Type string `json:"type"`
-			Alg  int    `json:"alg"`
-		} `json:"pubKeyCredParams"`
-		Attestation        string `json:"attestation"`
-		ExcludeCredentials []struct {
-			Type       string `json:"type"`
-			Id         string `json:"id"`
-			Transports string `json:"transports"`
-		} `json:"excludeCredentials"`
-		AuthenticatorSelection struct {
-			AuthenticatorAttachment string `json:"authenticatorAttachment"`
-			ResidentKey             string `json:"residentKey"`
-			RequireResidentKey      bool   `json:"requireResidentKey"`
-			UserVerification        string `json:"userVerification"`
-		} `json:"authenticatorSelection"`
-		OTPUrl string `json:"otpUrl"`
-	}
-	User struct {
-		Username              string                 `json:"username"`
-		UserID                string                 `json:"userId"`
-		Kind                  string                 `json:"kind"`
-		CredentialUuid        string                 `json:"credentialUuid"`
-		OrgID                 string                 `json:"orgId"`
-		Permissions           []Permission           `json:"permissions"`
-		Scopes                []string               `json:"scopes"`
-		IsActive              bool                   `json:"isActive"`
-		IsServiceAccount      bool                   `json:"isServiceAccount"`
-		IsRegistered          bool                   `json:"isRegistered"`
-		PermissionAssignments []PermissionAssignment `json:"permissionAssignments"`
-	}
-	PermissionAssignment struct {
+	StartedDelegatedRecovery map[string]any
+	User                     map[string]any
+	PermissionAssignment     struct {
 		PermissionID string   `json:"permissionId"`
 		AssignmentID string   `json:"assignmentId"`
 		Name         string   `json:"permissionName"`
@@ -127,6 +52,16 @@ const (
 	AppIDCtxValue      = "XDfnsAppIDCtxValue"
 	appIDHeader        = "x-dfns-appid"
 	requestDeadline    = 25 * stdlibtime.Second
+	jwksUrl            = "/.well-known/jwks.json"
+)
+
+var (
+	ErrInvalidToken = errors.Errorf("invalid token")
+	ErrExpiredToken = errors.Errorf("expired token")
+)
+
+var (
+	cfg config
 )
 
 type (
@@ -137,17 +72,21 @@ type (
 		serviceAccountProxy *httputil.ReverseProxy
 		userProxy           *httputil.ReverseProxy
 		webhookSecret       string
-		cfg                 *config
 	}
 	config struct {
-		DFNS struct {
-			ServiceKey                 string `yaml:"serviceKey" mapstructure:"serviceKey"`
-			ServiceAccountCredentialID string `yaml:"serviceAccountCredentialId" mapstructure:"serviceAccountCredentialId"`
-			ServiceAccountPrivateKey   string `yaml:"serviceAccountPrivateKey" mapstructure:"serviceAccountPrivateKey"`
-			AppID                      string `yaml:"appId" mapstructure:"appId"`
-			BaseURL                    string `yaml:"baseUrl" mapstructure:"baseUrl"`
-			WebhookURL                 string `yaml:"webhookUrl" mapstructure:"webhookUrl"`
-		} `yaml:"dfns" mapstructure:"dfns"`
+		DFNS dfnsCfg `yaml:"delegated_relying_party" mapstructure:"delegated_relying_party"`
+	}
+	dfnsCfg struct {
+		ServiceKey                 string `yaml:"serviceKey" mapstructure:"serviceKey" json:"serviceKey"`
+		ServiceAccountCredentialID string `yaml:"serviceAccountCredentialId" mapstructure:"serviceAccountCredentialId" json:"serviceAccountCredentialId"`
+		ServiceAccountPrivateKey   string `yaml:"serviceAccountPrivateKey" mapstructure:"serviceAccountPrivateKey" json:"serviceAccountPrivateKey"`
+		AppID                      string `yaml:"appId" mapstructure:"appId" json:"appId"`
+		OrganizationID             string `yaml:"organizationId" mapstructure:"organizationId" json:"organizationId"`
+		BaseURL                    string `yaml:"baseUrl" mapstructure:"baseUrl" json:"baseUrl"`
+		WebhookURL                 string `yaml:"webhookUrl" mapstructure:"webhookUrl"`
+		Auth                       struct {
+			Issuer string `yaml:"issuer" mapstructure:"issuer"`
+		} `yaml:"auth" mapstructure:"auth"`
 	}
 
 	webhook struct {
@@ -162,5 +101,16 @@ type (
 	}
 	page[T any] struct {
 		Items []T `json:"items"`
+	}
+	dfnsAuth struct {
+		dfnsPubKeys *jwk.Cache
+	}
+	dfnsToken struct {
+		userID   string
+		username string
+	}
+	proxyResponseBody struct {
+		http.ResponseWriter
+		Body io.Writer
 	}
 )

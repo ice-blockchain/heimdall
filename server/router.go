@@ -181,8 +181,8 @@ func (req *Request[REQ, RESP]) authorize(ctx context.Context) (errResp *ErrRespo
 
 		return Unauthorized(err)
 	}
-	req.AuthenticatedUser = *token
-	if userID != "" && userID != "-" && req.AuthenticatedUser.UserID != userID &&
+	req.AuthenticatedUser = token
+	if userID != "" && userID != "-" && req.AuthenticatedUser.UserID() != userID &&
 		((!req.allowForbiddenWriteOperation && req.ginCtx.Request.Method != http.MethodGet) ||
 			(req.ginCtx.Request.Method == http.MethodGet && !req.allowForbiddenGet && !strings.HasSuffix(req.ginCtx.Request.URL.Path, userID))) {
 		return Forbidden(errors.Errorf("operation not allowed. uri>%v!=token>%v", userID, req.AuthenticatedUser.UserID))

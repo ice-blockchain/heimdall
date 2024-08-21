@@ -1,0 +1,357 @@
+# SPDX-License-Identifier: ice License 1.0
+
+definitions:
+  accounts.TwoFAOptionEnum:
+    enum:
+    - sms
+    - email
+    - google_authentificator
+    type: string
+    x-enum-varnames:
+    - TwoFAOptionSMS
+    - TwoFAOptionEmail
+    - TwoFAOptionTOTPAuthentificator
+  main.Relays:
+    properties:
+      ionConnectRelays:
+        items:
+          type: string
+        type: array
+    type: object
+  main.RelaysReq:
+    properties:
+      followeeList:
+        items:
+          type: string
+        type: array
+    type: object
+  main.Send2FARequestReq:
+    properties:
+      email:
+        type: string
+      phoneNumber:
+        type: string
+    type: object
+  main.Send2FARequestResp:
+    properties:
+      TOTPAuthentificatorURL:
+        type: string
+    type: object
+  main.StartDelegatedRecoveryReq:
+    properties:
+      2FAVerificationCodes:
+        additionalProperties:
+          type: string
+        type: object
+      credentialId:
+        type: string
+      username:
+        type: string
+    type: object
+  main.StartDelegatedRecoveryResp:
+    type: object
+  main.User:
+    properties:
+      2faOptions:
+        items:
+          $ref: '#/definitions/accounts.TwoFAOptionEnum'
+        type: array
+      email:
+        items:
+          type: string
+        type: array
+      ionConnectIndexerRelays:
+        items:
+          type: string
+        type: array
+      ionConnectRelays:
+        items:
+          type: string
+        type: array
+      phoneNumber:
+        items:
+          type: string
+        type: array
+    type: object
+  main.Verify2FARequestResp:
+    type: object
+  main.delegatedErrorResponse:
+    properties:
+      data:
+        additionalProperties: {}
+        type: object
+      error:
+        $ref: '#/definitions/main.errMessage'
+    type: object
+  main.errMessage:
+    properties:
+      message:
+        type: string
+    type: object
+  server.ErrorResponse:
+    properties:
+      code:
+        example: SOMETHING_NOT_FOUND
+        type: string
+      data:
+        additionalProperties: {}
+        type: object
+      error:
+        example: something is missing
+        type: string
+    type: object
+info:
+  contact:
+    name: ice.io
+    url: https://ice.io
+  description: It is responsible for providing off chain account management for the
+    ION Platform; it is the first layer of interaction between users and the platform.
+  title: User accounts management for ION
+  version: latest
+paths:
+  /auth/recover/user/delegated:
+    post:
+      description: Initiates recovery process with delegated RP
+      parameters:
+      - description: Request params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.StartDelegatedRecoveryReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.StartDelegatedRecoveryResp'
+        "400":
+          description: if invalid 2FA code is provided
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "403":
+          description: if 2FA required
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Recovery
+  /auth/users/{userId}:
+    get:
+      description: Initiates recovery process with delegated relying party
+      parameters:
+      - description: ID of the user
+        in: path
+        name: userId
+        required: true
+        type: string
+      - default: Bearer <Add token here>
+        description: Auth token from delegated RP
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.User'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.delegatedErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Users
+  /v1/users/{userId}/2fa/{twoFAOption}/verification-requests:
+    post:
+      description: Initiates sending of 2FA code to the user
+      parameters:
+      - default: en
+        description: Language
+        in: header
+        name: X-Language
+        type: string
+      - default: Bearer <token>
+        description: Auth header
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: ID of the user
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: type of 2fa (sms/email/google_authentificator)
+        in: path
+        name: twoFAOption
+        required: true
+        type: string
+      - description: Request params containing email or phone number to set up 2FA
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.Send2FARequestReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.Send2FARequestResp'
+        "400":
+          description: if user's email / phone number is not provided
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "403":
+          description: if user already have 2FA set up, and it is requested for new
+            email / phone
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - 2FA
+    put:
+      description: Verifies 2FA code from the user
+      parameters:
+      - description: ID of the user
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: type of 2fa (sms/email/google_authentificator)
+        in: path
+        name: twoFAOption
+        required: true
+        type: string
+      - description: code from second factor
+        in: query
+        name: code
+        required: true
+        type: string
+      - default: Bearer <token>
+        description: Auth header
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.Verify2FARequestResp'
+        "400":
+          description: if code is invalid or expired
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "409":
+          description: if there is no pending 2FA verification
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - 2FA
+  /v1/users/{userId}/ion-connect-indexers:
+    get:
+      description: Returns indexers list for the user
+      parameters:
+      - description: ID of the user
+        in: path
+        name: userId
+        required: true
+        type: string
+      - default: Bearer <Add token here>
+        description: Auth token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.Relays'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Users
+  /v1/users/{userId}/ion-connect-relays:
+    put:
+      description: Assigns relay list for the user based on his followee list
+      parameters:
+      - description: ID of the user
+        in: path
+        name: userId
+        required: true
+        type: string
+      - default: Bearer <Add token here>
+        description: Auth token from delegated relying party
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Request params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.RelaysReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.Relays'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Users
+schemes:
+- https
+swagger: "2.0"
