@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 DO $$ BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'twofa_option') THEN
-            CREATE TYPE twofa_option AS ENUM ('email', 'sms', 'google_authentificator');
+            CREATE TYPE twofa_option AS ENUM ('email', 'sms', 'totp_authentificator');
         END IF;
 END$$;
 

@@ -12,7 +12,7 @@ import (
 
 type (
 	SmsSender interface {
-		DeliverCode(ctx context.Context, code, language string, phoneNumbers []string) error
+		DeliverCode(ctx context.Context, code, language, phoneNumbers string) error
 	}
 )
 

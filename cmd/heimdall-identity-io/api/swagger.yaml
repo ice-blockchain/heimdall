@@ -5,7 +5,7 @@ definitions:
     enum:
     - sms
     - email
-    - google_authentificator
+    - totp_authentificator
     type: string
     x-enum-varnames:
     - TwoFAOptionSMS
@@ -49,6 +49,7 @@ definitions:
         type: string
     type: object
   main.StartDelegatedRecoveryResp:
+    additionalProperties: {}
     type: object
   main.User:
     properties:
@@ -177,63 +178,7 @@ paths:
       tags:
       - Users
   /v1/users/{userId}/2fa/{twoFAOption}/verification-requests:
-    post:
-      description: Initiates sending of 2FA code to the user
-      parameters:
-      - default: en
-        description: Language
-        in: header
-        name: X-Language
-        type: string
-      - default: Bearer <token>
-        description: Auth header
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      - description: ID of the user
-        in: path
-        name: userId
-        required: true
-        type: string
-      - description: type of 2fa (sms/email/google_authentificator)
-        in: path
-        name: twoFAOption
-        required: true
-        type: string
-      - description: Request params containing email or phone number to set up 2FA
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/main.Send2FARequestReq'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.Send2FARequestResp'
-        "400":
-          description: if user's email / phone number is not provided
-          schema:
-            $ref: '#/definitions/server.ErrorResponse'
-        "403":
-          description: if user already have 2FA set up, and it is requested for new
-            email / phone
-          schema:
-            $ref: '#/definitions/server.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/server.ErrorResponse'
-        "504":
-          description: if request times out
-          schema:
-            $ref: '#/definitions/server.ErrorResponse'
-      tags:
-      - 2FA
-    put:
+    patch:
       description: Verifies 2FA code from the user
       parameters:
       - description: ID of the user
@@ -241,7 +186,7 @@ paths:
         name: userId
         required: true
         type: string
-      - description: type of 2fa (sms/email/google_authentificator)
+      - description: type of 2fa (sms/email/totp_authentificator)
         in: path
         name: twoFAOption
         required: true
@@ -270,6 +215,62 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
         "409":
           description: if there is no pending 2FA verification
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - 2FA
+    post:
+      description: Initiates sending of 2FA code to the user
+      parameters:
+      - default: en
+        description: Language
+        in: header
+        name: X-Language
+        type: string
+      - default: Bearer <token>
+        description: Auth header
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: ID of the user
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: type of 2fa (sms/email/totp_authentificator)
+        in: path
+        name: twoFAOption
+        required: true
+        type: string
+      - description: Request params containing email or phone number to set up 2FA
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.Send2FARequestReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.Send2FARequestResp'
+        "400":
+          description: if user's email / phone number is not provided
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "403":
+          description: if user already have 2FA set up, and it is requested for new
+            email / phone
           schema:
             $ref: '#/definitions/server.ErrorResponse'
         "500":
@@ -315,7 +316,7 @@ paths:
       tags:
       - Users
   /v1/users/{userId}/ion-connect-relays:
-    put:
+    patch:
       description: Assigns relay list for the user based on his followee list
       parameters:
       - description: ID of the user

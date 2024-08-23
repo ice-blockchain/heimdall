@@ -5,7 +5,6 @@ package main
 import (
 	"context"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts"
@@ -48,12 +47,10 @@ func (s *service) Close(ctx context.Context) error {
 		return errors.Wrap(ctx.Err(), "could not close repository because context ended")
 	}
 
-	return multierror.Append( //nolint:wrapcheck //.
-		nil,
-	).ErrorOrNil()
+	return errors.Wrapf(s.accounts.Close(), "failed to close accounts")
 }
 
 func (s *service) CheckHealth(ctx context.Context) error {
-	log.Debug("checking health...", "package", "users")
-	return nil
+	log.Debug("checking health...", "package", "accounts")
+	return errors.Wrapf(s.accounts.HealthCheck(ctx), "accounts check failed")
 }

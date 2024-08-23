@@ -4,13 +4,12 @@ package accounts
 
 import (
 	"context"
+	"sync"
 
 	"github.com/pkg/errors"
-	"golang.org/x/sync/singleflight"
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
-	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/totp"
@@ -23,32 +22,33 @@ func NewDelegatedRPAuth(ctx context.Context) dfns.AuthClient {
 func New(ctx context.Context) Accounts {
 	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
 	cl := dfns.NewDfnsClient(ctx, db, applicationYamlKey)
-	totpAuth := totp.New(applicationYamlKey)
-	em := email.New(applicationYamlKey)
-	var smsSender sms.SmsSender
-	if false { // TODO: creds
-		smsSender = sms.New(applicationYamlKey)
-	}
 
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	acc := accounts{delegatedRPClient: cl,
-		db:                   db,
-		shutdown:             db.Close,
-		totpProvider:         totpAuth,
-		emailSender:          em,
-		smsSender:            smsSender,
-		cfg:                  &cfg,
-		singleCodesGenerator: make(map[TwoFAOptionEnum]*singleflight.Group),
+		db:                         db,
+		shutdown:                   db.Close,
+		totpProvider:               totp.New(applicationYamlKey),
+		emailSender:                email.New(applicationYamlKey),
+		smsSender:                  nil, //sms.New(applicationYamlKey),
+		cfg:                        &cfg,
+		concurrentlyGeneratedCodes: make(map[TwoFAOptionEnum]*sync.Map),
 	}
 	for _, opt := range AllTwoFAOptions {
-		acc.singleCodesGenerator[opt] = &singleflight.Group{}
+		acc.concurrentlyGeneratedCodes[opt] = &sync.Map{}
 	}
 	return &acc
 }
 
 func (a *accounts) Close() error {
 	return errors.Wrapf(a.shutdown(), "failed to close accounts repository")
+}
+
+func (a *accounts) HealthCheck(ctx context.Context) error {
+	if err := a.db.Ping(ctx); err != nil {
+		return errors.Wrap(err, "[health-check] failed to ping DB")
+	}
+	return nil
 }
 
 func ParseErrAsDelegatedInternalErr(err error) error {

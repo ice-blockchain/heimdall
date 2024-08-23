@@ -3,7 +3,7 @@ development: true
 logger:
   encoder: console
   level: debug
-cmd/heimdall:
+cmd/heimdall-identity-io:
   host: localhost:8001
   version: local
   defaultEndpointTimeout: 30s

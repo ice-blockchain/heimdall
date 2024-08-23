@@ -14,12 +14,12 @@ import (
 )
 
 func (s *service) setupUserRoutes(router gin.IRoutes) {
-	router.PUT("v1/users/:userId/ion-connect-relays", server.RootHandler(s.UserRelays)).
+	router.PATCH("v1/users/:userId/ion-connect-relays", server.RootHandler(s.GetOrAssignIONConnectRelays)).
 		GET("v1/users/:userId/ion-connect-indexers", server.RootHandler(s.UserIndexers)).
 		GET("auth/users/:userId", server.RootHandler(s.GetUser))
 }
 
-// UserRelays godoc
+// GetOrAssignIONConnectRelays godoc
 //
 //	@Schemes
 //	@Description	Assigns relay list for the user based on his followee list
@@ -31,8 +31,8 @@ func (s *service) setupUserRoutes(router gin.IRoutes) {
 //	@Success		200				{object}	Relays
 //	@Failure		500				{object}	server.ErrorResponse
 //	@Failure		504				{object}	server.ErrorResponse	"if request times out"
-//	@Router			/v1/users/{userId}/ion-connect-relays [PUT].
-func (s *service) UserRelays(
+//	@Router			/v1/users/{userId}/ion-connect-relays [PATCH].
+func (s *service) GetOrAssignIONConnectRelays(
 	ctx context.Context,
 	req *server.Request[RelaysReq, Relays],
 ) (successResp *server.Response[Relays], errorResp *server.ErrResponse[*server.ErrorResponse]) {

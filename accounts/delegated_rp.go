@@ -16,8 +16,14 @@ import (
 func (a *accounts) ProxyDelegatedRelyingParty(ctx context.Context, rw http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	respBody := a.delegatedRPClient.ProxyCall(ctx, rw, r)
+	switch r.URL.Path {
+	case registrationUrl:
+		log.Error(errors.Wrapf(a.upsertUsernameFromRegistration(ctx, now, respBody), "failed to store username for user on registration"))
+	case completeLoginUrl, delegatedLoginUrl:
+		log.Error(errors.Wrapf(a.upsertUsernameFromLogin(ctx, now, respBody), "failed to store username for user on login (%v)", r.URL.Path))
+	}
 	if r.URL.Path == registrationUrl {
-		log.Error(errors.Wrapf(a.upsertUsername(ctx, now, respBody), "failed to store username for user on registration"))
+		log.Error(errors.Wrapf(a.upsertUsernameFromRegistration(ctx, now, respBody), "failed to store username for user on registration"))
 	}
 }
 

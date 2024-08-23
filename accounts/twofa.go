@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"slices"
 	"strings"
 	stdlibtime "time"
 
@@ -108,7 +107,7 @@ WITH upd AS (
             option,
             (CASE WHEN option = 'email' THEN deliver_to ELSE NULL END) as email,
             (CASE WHEN option = 'sms' THEN deliver_to ELSE NULL END) as phone_number,
-            (CASE WHEN option = 'google_authentificator' THEN $3 ELSE NULL END) as totp_authentificator_secret
+            (CASE WHEN option = '%[2]v' THEN $3 ELSE NULL END) as totp_authentificator_secret
 ), collapsed AS (
     select $1 as id,
            (array_agg(email) FILTER ( WHERE email is not null)) as email,
@@ -121,12 +120,12 @@ WITH upd AS (
 		   email = COALESCE(NULLIF(collapsed.email,users.email), users.email),
 		   phone_number = COALESCE(NULLIF(collapsed.phone_number,users.phone_number), users.phone_number),
 		   totp_authentificator_secret = COALESCE(NULLIF(collapsed.totp_authentificator_secret,users.totp_authentificator_secret), users.totp_authentificator_secret)
-	FROM collapsed, upd
+	FROM collapsed
 	WHERE users.id = $1
 	returning users.id
 )
 SELECT upd.option as option from upd
-inner join upd_users on upd.user_id = upd_users.id;`, whereClause)
+inner join upd_users on upd.user_id = upd_users.id;`, whereClause, TwoFAOptionTOTPAuthentificator)
 	res, err := storage.ExecMany[struct {
 		Option TwoFAOptionEnum `db:"option"`
 	}](ctx, a.db, sql, params...)
@@ -220,20 +219,18 @@ func (a *accounts) Send2FA(ctx context.Context, userID string, opt TwoFAOptionEn
 	} else {
 		code = a.generateConfirmationCode(opt, userID)
 	}
-	defer a.singleCodesGenerator[opt].Forget(userID)
-	for _, deliver := range deliverTo {
-		if uErr := a.upsert2FACode(ctx, &twoFACode{
-			CreatedAt: time.Now(),
-			UserID:    userID,
-			Option:    opt,
-			DeliverTo: deliver,
-			Code:      code,
-		}); uErr != nil {
-			return nil, errors.Wrapf(uErr, "failed to upsert code for userID %v", userID)
-		}
+	defer a.concurrentlyGeneratedCodes[opt].Delete(userID)
+	if uErr := a.upsert2FACode(ctx, &twoFACode{
+		CreatedAt: time.Now(),
+		UserID:    userID,
+		Option:    opt,
+		DeliverTo: deliverTo,
+		Code:      code,
+	}); uErr != nil {
+		return nil, errors.Wrapf(uErr, "failed to upsert code for userID %v", userID)
 	}
 
-	authentificatorUri, dErr := a.deliverCode(ctx, opt, code, language, deliverTo)
+	authentificatorUri, dErr := a.deliverCode(ctx, opt, code, language, deliverTo) // TODO: selection of active 2fa in
 	if dErr != nil {
 		return nil, errors.Wrapf(dErr, "failed to deliver 2fa code to user %v with %v:%v", userID, opt, deliverTo)
 	}
@@ -241,41 +238,44 @@ func (a *accounts) Send2FA(ctx context.Context, userID string, opt TwoFAOptionEn
 }
 
 func (a *accounts) generateConfirmationCode(opt TwoFAOptionEnum, userID string) string {
-	code, _, _ := a.singleCodesGenerator[opt].Do(userID, func() (interface{}, error) {
-		result, err := rand.Int(rand.Reader, big.NewInt(int64(math.Pow10(confirmationCodeLength)-1))) //nolint:gomnd // It's max value.
-		log.Panic(err, "random wrong")
+	if alreadyGeneratedCode, alreadyGenerated := a.concurrentlyGeneratedCodes[opt].Load(userID); alreadyGenerated {
+		return alreadyGeneratedCode.(string)
+	}
+	result, err := rand.Int(rand.Reader, big.NewInt(int64(math.Pow10(confirmationCodeLength)-1))) //nolint:gomnd // It's max value.
+	log.Panic(err, "random wrong")
 
-		str := fmt.Sprintf("%03d", result.Int64()+1)
-		if missingNums := confirmationCodeLength - len(str); missingNums > 0 {
-			str = strings.Repeat("0", missingNums) + str
-		}
-		return str, nil
-	})
-	return code.(string)
+	str := fmt.Sprintf("%03d", result.Int64()+1)
+	if missingNums := confirmationCodeLength - len(str); missingNums > 0 {
+		str = strings.Repeat("0", missingNums) + str
+	}
+	a.concurrentlyGeneratedCodes[opt].Store(userID, str)
+	return str
 }
 func (a *accounts) generateAuthentifcatorSecret(opt TwoFAOptionEnum, userID string) string {
-	code, _, _ := a.singleCodesGenerator[opt].Do(userID, func() (interface{}, error) {
-		const length = 10
-		secret := make([]byte, length)
-		gen, err := rand.Read(secret)
-		if err != nil || gen != length {
-			if gen != length {
-				err = errors.Errorf("unexpected length: %v instead of %v", gen, length)
-			}
-			log.Panic(err, "random wrong")
+	if alreadyGeneratedCode, alreadyGenerated := a.concurrentlyGeneratedCodes[opt].Load(userID); alreadyGenerated {
+		return alreadyGeneratedCode.(string)
+	}
+	const length = 10
+	secret := make([]byte, length)
+	gen, err := rand.Read(secret)
+	if err != nil || gen != length {
+		if gen != length {
+			err = errors.Errorf("unexpected length: %v instead of %v", gen, length)
 		}
-		return base64.StdEncoding.EncodeToString(secret), nil
-	})
-	return code.(string)
+		log.Panic(err, "random wrong")
+	}
+	encoded := base64.StdEncoding.EncodeToString(secret)
+	a.concurrentlyGeneratedCodes[opt].Store(userID, encoded)
+	return encoded
 }
 
-func (a *accounts) deliverCode(ctx context.Context, opt TwoFAOptionEnum, code, language string, deliverTo []string) (*string, error) {
+func (a *accounts) deliverCode(ctx context.Context, opt TwoFAOptionEnum, code, language string, deliverTo string) (*string, error) {
 	var codeDeliverer interface {
-		DeliverCode(ctx context.Context, code, language string, deliverTo []string) error
+		DeliverCode(ctx context.Context, code, language string, deliverTo string) error
 	}
 	switch opt {
 	case TwoFAOptionTOTPAuthentificator:
-		uri := a.totpProvider.GenerateURI(code, deliverTo[0])
+		uri := a.totpProvider.GenerateURI(code, deliverTo)
 		return &uri, nil
 	case TwoFAOptionEmail:
 		codeDeliverer = a.emailSender
@@ -290,23 +290,24 @@ func (a *accounts) deliverCode(ctx context.Context, opt TwoFAOptionEnum, code, l
 	return nil, errors.Errorf("unsupported 2FA provider %v", opt)
 }
 
-func (a *accounts) checkDeliveryChannelFor2FA(ctx context.Context, userID string, opt TwoFAOptionEnum, newChannel *string) ([]string, error) {
-	var existingDeliveryChannel []string
+func (a *accounts) checkDeliveryChannelFor2FA(ctx context.Context, userID string, opt TwoFAOptionEnum, newChannel *string) (string, error) {
+	var existingDeliveryChannel string
 	usr, err := a.getUserByID(ctx, userID)
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
-		return nil, errors.Wrapf(err, "failed to check existing user phone and email for userID %v", userID)
+		return "", errors.Wrapf(err, "failed to check existing user phone and email for userID %v", userID)
 	}
 	if usr != nil {
 		switch {
-		case opt == TwoFAOptionEmail && usr.Email != nil:
-			existingDeliveryChannel = usr.Email
-		case opt == TwoFAOptionSMS && usr.PhoneNumber != nil:
-			existingDeliveryChannel = usr.PhoneNumber
-		case opt == TwoFAOptionTOTPAuthentificator && usr.TotpAuthentificatorSecret != nil:
-			return nil, Err2FAAlreadySetup
+		// TODO: user selection what delivery to use
+		case opt == TwoFAOptionEmail && len(usr.Email) > 0:
+			existingDeliveryChannel = usr.Email[0]
+		case opt == TwoFAOptionSMS && len(usr.PhoneNumber) > 0:
+			existingDeliveryChannel = usr.PhoneNumber[0]
+		case opt == TwoFAOptionTOTPAuthentificator && len(usr.TotpAuthentificatorSecret) > 0:
+			return "", Err2FAAlreadySetup
 		}
-		if newChannel != nil && len(existingDeliveryChannel) > 0 && !slices.Contains(existingDeliveryChannel, *newChannel) {
-			return nil, Err2FAAlreadySetup
+		if newChannel != nil && len(existingDeliveryChannel) > 0 && existingDeliveryChannel != *newChannel {
+			return "", Err2FAAlreadySetup
 		}
 	}
 	if len(existingDeliveryChannel) > 0 {
@@ -320,14 +321,14 @@ func (a *accounts) checkDeliveryChannelFor2FA(ctx context.Context, userID string
 		case usr.PhoneNumber != nil:
 			accountName = usr.Username
 		default:
-			return nil, errors.Errorf("cannot setup authentificator without setting up email / phone before")
+			return "", errors.Errorf("cannot setup authentificator without setting up email / phone before")
 		}
-		return []string{accountName}, nil
+		return accountName, nil
 	}
 	if newChannel == nil {
-		return nil, Err2FADeliverToNotProvided
+		return "", Err2FADeliverToNotProvided
 	}
-	return []string{*newChannel}, nil
+	return *newChannel, nil
 
 }
 

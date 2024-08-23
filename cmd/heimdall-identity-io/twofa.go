@@ -15,7 +15,7 @@ import (
 func (s *service) setup2FARoutes(router gin.IRoutes) {
 	router.
 		POST("v1/users/:userId/2fa/:twoFAOption/verification-requests", server.RootHandler(s.Send2FARequest)).
-		PUT("v1/users/:userId/2fa/:twoFAOption/verification-requests", server.RootHandler(s.Verify2FARequest))
+		PATCH("v1/users/:userId/2fa/:twoFAOption/verification-requests", server.RootHandler(s.Verify2FARequest))
 }
 
 // Send2FARequest godoc
@@ -27,7 +27,7 @@ func (s *service) setup2FARoutes(router gin.IRoutes) {
 //	@Param			X-Language		header		string				false	"Language"		default(en)
 //	@Param			Authorization	header		string				true	"Auth header"	default(Bearer <token>)
 //	@Param			userId			path		string				true	"ID of the user"
-//	@Param			twoFAOption		path		string				true	"type of 2fa (sms/email/google_authentificator)"
+//	@Param			twoFAOption		path		string				true	"type of 2fa (sms/email/totp_authentificator)"
 //	@Param			request			body		Send2FARequestReq	true	"Request params containing email or phone number to set up 2FA"
 //	@Success		200				{object}	Send2FARequestResp
 //	@Failure		400				{object}	server.ErrorResponse	"if user's email / phone number is not provided"
@@ -81,7 +81,7 @@ func (s *Send2FARequestReq) deliveryChannel() (*string, error) {
 //	@Tags			2FA
 //	@Produce		json
 //	@Param			userId			path		string	true	"ID of the user"
-//	@Param			twoFAOption		path		string	true	"type of 2fa (sms/email/google_authentificator)"
+//	@Param			twoFAOption		path		string	true	"type of 2fa (sms/email/totp_authentificator)"
 //	@Param			code			query		string	true	"code from second factor"
 //	@Param			Authorization	header		string	true	"Auth header"	default(Bearer <token>)
 //	@Success		200				{object}	Verify2FARequestResp
@@ -89,7 +89,7 @@ func (s *Send2FARequestReq) deliveryChannel() (*string, error) {
 //	@Failure		409				{object}	server.ErrorResponse	"if there is no pending 2FA verification"
 //	@Failure		500				{object}	server.ErrorResponse
 //	@Failure		504				{object}	server.ErrorResponse	"if request times out"
-//	@Router			/v1/users/{userId}/2fa/{twoFAOption}/verification-requests [PUT].
+//	@Router			/v1/users/{userId}/2fa/{twoFAOption}/verification-requests [PATCH].
 func (s *service) Verify2FARequest(
 	ctx context.Context,
 	req *server.Request[Verify2FARequestReq, Verify2FARequestResp],

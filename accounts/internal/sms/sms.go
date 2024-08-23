@@ -27,7 +27,7 @@ func New(applicationYamlKey string) SmsSender {
 	return smsClient
 }
 
-func (a *smsSender) DeliverCode(ctx context.Context, code, language string, phoneNumbers []string) error {
+func (a *smsSender) DeliverCode(ctx context.Context, code, language, phoneNumber string) error {
 	smsType := "2fa_recovery"
 	var tmpl *smsTemplate
 	tmpl, ok := allTemplates[smsType][language]
@@ -42,9 +42,9 @@ func (a *smsSender) DeliverCode(ctx context.Context, code, language string, phon
 
 	return errors.Wrapf(a.smsClient.Send(ctx, &sms.Parcel{
 		SendAt:   nil,
-		ToNumber: phoneNumbers[0],
+		ToNumber: phoneNumber,
 		Message:  tmpl.getBody(dataBody),
-	}), "failed to send sms with type:%v for user with phoneNumber:%v", smsType, phoneNumbers[0])
+	}), "failed to send sms with type:%v for user with phoneNumber:%v", smsType, phoneNumber)
 }
 
 func (t *smsTemplate) getBody(data any) string {

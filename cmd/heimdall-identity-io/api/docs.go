@@ -123,7 +123,88 @@ const docTemplate = `{
             }
         },
         "/v1/users/{userId}/2fa/{twoFAOption}/verification-requests": {
-            "put": {
+            "post": {
+                "description": "Initiates sending of 2FA code to the user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "2FA"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "en",
+                        "description": "Language",
+                        "name": "X-Language",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003ctoken\u003e",
+                        "description": "Auth header",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID of the user",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "type of 2fa (sms/email/totp_authentificator)",
+                        "name": "twoFAOption",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Request params containing email or phone number to set up 2FA",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.Send2FARequestReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.Send2FARequestResp"
+                        }
+                    },
+                    "400": {
+                        "description": "if user's email / phone number is not provided",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "if user already have 2FA set up, and it is requested for new email / phone",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
                 "description": "Verifies 2FA code from the user",
                 "produces": [
                     "application/json"
@@ -141,7 +222,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "type of 2fa (sms/email/google_authentificator)",
+                        "description": "type of 2fa (sms/email/totp_authentificator)",
                         "name": "twoFAOption",
                         "in": "path",
                         "required": true
@@ -177,87 +258,6 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "if there is no pending 2FA verification",
-                        "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
-                        }
-                    },
-                    "504": {
-                        "description": "if request times out",
-                        "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Initiates sending of 2FA code to the user",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "2FA"
-                ],
-                "parameters": [
-                    {
-                        "type": "string",
-                        "default": "en",
-                        "description": "Language",
-                        "name": "X-Language",
-                        "in": "header"
-                    },
-                    {
-                        "type": "string",
-                        "default": "Bearer \u003ctoken\u003e",
-                        "description": "Auth header",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "ID of the user",
-                        "name": "userId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "type of 2fa (sms/email/google_authentificator)",
-                        "name": "twoFAOption",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Request params containing email or phone number to set up 2FA",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/main.Send2FARequestReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/main.Send2FARequestResp"
-                        }
-                    },
-                    "400": {
-                        "description": "if user's email / phone number is not provided",
-                        "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "if user already have 2FA set up, and it is requested for new email / phone",
                         "schema": {
                             "$ref": "#/definitions/server.ErrorResponse"
                         }
@@ -326,7 +326,7 @@ const docTemplate = `{
             }
         },
         "/v1/users/{userId}/ion-connect-relays": {
-            "put": {
+            "patch": {
                 "description": "Assigns relay list for the user based on his followee list",
                 "produces": [
                     "application/json"
@@ -389,7 +389,7 @@ const docTemplate = `{
             "enum": [
                 "sms",
                 "email",
-                "google_authentificator"
+                "totp_authentificator"
             ],
             "x-enum-varnames": [
                 "TwoFAOptionSMS",
@@ -456,7 +456,8 @@ const docTemplate = `{
             }
         },
         "main.StartDelegatedRecoveryResp": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": {}
         },
         "main.User": {
             "type": "object",

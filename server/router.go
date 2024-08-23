@@ -3,8 +3,11 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	encJson "encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -42,7 +45,8 @@ func RootHandler[REQ, RESP any, ERR InternalErr[ERRSTR], ERRSTR any](handleReque
 
 			return
 		}
-		if err := req.authorize(ctx); err != nil {
+		var err *ErrResponse[*ErrorResponse]
+		if req.AuthenticatedUser, err = Authorize(ctx, ginCtx, req.allowUnauthorized); err != nil {
 			log.Error(errors.Wrap(err.Data.InternalErr(), "endpoint authentication failed"), fmt.Sprintf("%[1]T", req.Data), req, "Response", err)
 			ginCtx.JSON(err.Code, err.Data)
 
@@ -162,33 +166,69 @@ func (req *Request[REQ, RESP]) validate() *ErrResponse[*ErrorResponse] {
 	return UnprocessableEntity(errors.Errorf("properties `%v` are required", strings.Join(requiredFields, ",")), "MISSING_PROPERTIES")
 }
 
+func tryToExtractUserFromDynamicJSON(req *http.Request) (userID string, username string, err error) {
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		return "", "", errors.Wrapf(err, "couldn't read request body at %v", req.URL.Path)
+	}
+	defer req.Body.Close()
+
+	req.Body = io.NopCloser(bytes.NewReader(body))
+	if len(body) == 0 {
+		return "", "", nil
+	}
+	var vals map[string]any
+	if err = encJson.Unmarshal(body, &vals); err != nil {
+		return "", "", errors.Wrapf(err, "failed to decode %v as json at %v", string(body), req.URL.Path)
+	}
+	if userIDInterface, hasUserID := vals["userId"]; hasUserID {
+		userID = userIDInterface.(string)
+	}
+	if usernameInterface, hasUsername := vals["username"]; hasUsername {
+		username = usernameInterface.(string)
+	}
+	if emailInterface, hasEmail := vals["email"]; hasEmail {
+		username = emailInterface.(string)
+	}
+	return userID, username, nil
+}
+
 //nolint:gocyclo,revive,cyclop,gocognit // .
-func (req *Request[REQ, RESP]) authorize(ctx context.Context) (errResp *ErrResponse[*ErrorResponse]) {
-	userID := strings.Trim(req.ginCtx.Param("userId"), " ")
-	if req.allowUnauthorized {
+func Authorize(ctx context.Context, ginCtx *gin.Context, allowUnauthorized bool) (authUser Token, errResp *ErrResponse[*ErrorResponse]) {
+	userID := strings.Trim(ginCtx.GetString("userId"), " ")
+	if userID == "" {
+		userID = strings.Trim(ginCtx.Param("userId"), " ")
+	}
+	username := strings.Trim(ginCtx.GetString("username"), " ")
+	if userID == "" && username == "" && !allowUnauthorized {
+		var err error
+		if userID, username, err = tryToExtractUserFromDynamicJSON(ginCtx.Request); err != nil {
+			return nil, Unauthorized(err)
+		}
+	}
+	if allowUnauthorized {
 		defer func() {
-			if ((req.ginCtx.Request.Method == http.MethodGet || req.ginCtx.Request.Method == http.MethodPost) && userID == "") || userID == "-" {
-				errResp = nil
-			}
+			errResp = nil
 		}()
 	}
-	authToken := strings.TrimPrefix(req.ginCtx.GetHeader("Authorization"), "Bearer ")
+
+	authToken := strings.TrimPrefix(ginCtx.GetHeader("Authorization"), "Bearer ")
 	token, err := Auth(ctx).VerifyToken(ctx, authToken)
 	if err != nil {
 		if errors.Is(err, auth.ErrForbidden) {
-			return Forbidden(err)
+			return nil, Forbidden(err)
 		}
 
-		return Unauthorized(err)
+		return nil, Unauthorized(err)
 	}
-	req.AuthenticatedUser = token
-	if userID != "" && userID != "-" && req.AuthenticatedUser.UserID() != userID &&
-		((!req.allowForbiddenWriteOperation && req.ginCtx.Request.Method != http.MethodGet) ||
-			(req.ginCtx.Request.Method == http.MethodGet && !req.allowForbiddenGet && !strings.HasSuffix(req.ginCtx.Request.URL.Path, userID))) {
-		return Forbidden(errors.Errorf("operation not allowed. uri>%v!=token>%v", userID, req.AuthenticatedUser.UserID))
+	if userID != "" && token.UserID() != userID {
+		return nil, Forbidden(errors.Errorf("operation not allowed. param>%v!=token>%v", userID, token.UserID()))
+	}
+	if username != "" && token.Username() != username {
+		return nil, Forbidden(errors.Errorf("operation not allowed, mismatched username. param>%v!=token>%v", username, token.Username()))
 	}
 
-	return nil
+	return token, nil
 }
 
 func processErrorResponse[REQ, RESP any, ERR InternalErr[ERRSTR], ERRSTR any](ctx context.Context, req *Request[REQ, RESP], failure *ErrResponse[ERR]) (int, any) {

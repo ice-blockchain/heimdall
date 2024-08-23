@@ -7,10 +7,10 @@ import (
 	_ "embed"
 	"io"
 	"net/http"
+	"sync"
 	stdlibtime "time"
 
 	"github.com/pkg/errors"
-	"golang.org/x/sync/singleflight"
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
@@ -30,6 +30,7 @@ type (
 		GetOrAssignIONConnectRelays(ctx context.Context, userID string, followees []string) (relays []string, err error)
 		GetIONConnectIndexerRelays(ctx context.Context, userID string) (indexers []string, err error)
 		GetUser(ctx context.Context, userID string) (usr *User, err error)
+		HealthCheck(ctx context.Context) error
 	}
 
 	TwoFAOptionEnum          = string
@@ -48,9 +49,11 @@ type (
 const (
 	TwoFAOptionSMS                 = TwoFAOptionEnum("sms")
 	TwoFAOptionEmail               = TwoFAOptionEnum("email")
-	TwoFAOptionTOTPAuthentificator = TwoFAOptionEnum("google_authentificator")
+	TwoFAOptionTOTPAuthentificator = TwoFAOptionEnum("totp_authentificator")
 	AuthorizationHeaderCtxValue    = dfns.AuthHeaderCtxValue
 	registrationUrl                = "/auth/registration/delegated"
+	completeLoginUrl               = "/auth/login"
+	delegatedLoginUrl              = "/auth/login/delegated"
 )
 
 var (
@@ -65,6 +68,7 @@ var (
 	Err2FAExpired              = errors.New("2FA request expired")
 	Err2FAInvalidCode          = errors.New("invalid code")
 	Err2FARequired             = errors.New("2FA required")
+	ErrUserNotFound            = storage.ErrNotFound
 )
 
 const (
@@ -78,14 +82,14 @@ var ddl string
 
 type (
 	accounts struct {
-		delegatedRPClient    dfns.DfnsClient
-		totpProvider         totp.TOTP
-		db                   *storage.DB
-		shutdown             func() error
-		emailSender          email.EmailSender
-		smsSender            sms.SmsSender
-		singleCodesGenerator map[TwoFAOptionEnum]*singleflight.Group
-		cfg                  *config
+		delegatedRPClient          dfns.DfnsClient
+		totpProvider               totp.TOTP
+		db                         *storage.DB
+		shutdown                   func() error
+		emailSender                email.EmailSender
+		smsSender                  sms.SmsSender
+		concurrentlyGeneratedCodes map[TwoFAOptionEnum]*sync.Map
+		cfg                        *config
 	}
 	user struct {
 		CreatedAt                 *time.Time
@@ -109,6 +113,5 @@ type (
 	config struct {
 		EmailExpiration stdlibtime.Duration `yaml:"emailExpiration"`
 		SMSExpiration   stdlibtime.Duration `yaml:"smsExpiration"`
-		Client          string              `yaml:"client"`
 	}
 )

@@ -23,28 +23,11 @@ type (
 	DfnsClient interface {
 		ProxyCall(ctx context.Context, rw http.ResponseWriter, r *http.Request) (respBody io.Reader)
 		StartDelegatedRecovery(ctx context.Context, username string, credentialId string) (*StartedDelegatedRecovery, error)
-		//StartDelegatedRegistration(ctx context.Context, username, kind string) (*StartedDelegatedRegistration, error)
 		GetUser(ctx context.Context, userID string) (*User, error)
 		VerifyWebhookSecret(fromWebhook string) bool
 	}
 	StartedDelegatedRecovery map[string]any
 	User                     map[string]any
-	PermissionAssignment     struct {
-		PermissionID string   `json:"permissionId"`
-		AssignmentID string   `json:"assignmentId"`
-		Name         string   `json:"permissionName"`
-		Operations   []string `json:"operations"`
-	}
-	Permission struct {
-		Id          string     `json:"id"`
-		Name        string     `json:"name"`
-		Operations  []string   `json:"operations"`
-		Status      string     `json:"status"`
-		IsImmutable bool       `json:"isImmutable"`
-		DateCreated *time.Time `json:"dateCreated"`
-		DateUpdated *time.Time `json:"dateUpdated"`
-		IsArchived  bool       `json:"isArchived"`
-	}
 )
 
 const (
@@ -60,18 +43,14 @@ var (
 	ErrExpiredToken = errors.Errorf("expired token")
 )
 
-var (
-	cfg config
-)
-
 type (
 	dfnsClient struct {
 		serviceAccountClient *http.Client
 		userClient           *http.Client
-
-		serviceAccountProxy *httputil.ReverseProxy
-		userProxy           *httputil.ReverseProxy
-		webhookSecret       string
+		cfg                  *config
+		serviceAccountProxy  *httputil.ReverseProxy
+		userProxy            *httputil.ReverseProxy
+		webhookSecret        string
 	}
 	config struct {
 		DFNS dfnsCfg `yaml:"delegated_relying_party" mapstructure:"delegated_relying_party"`
@@ -104,6 +83,7 @@ type (
 	}
 	dfnsAuth struct {
 		dfnsPubKeys *jwk.Cache
+		cfg         *config
 	}
 	dfnsToken struct {
 		userID   string

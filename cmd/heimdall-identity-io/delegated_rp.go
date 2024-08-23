@@ -48,18 +48,23 @@ func buildDelegatedErrorResponse(status int, err error, code string, data ...map
 }
 
 func (s *service) setupDelegatedRPProxyRoutes(router *server.Router) {
-	router.NoRoute(s.proxyToDelegatedRP())
-	router.NoMethod(s.proxyToDelegatedRP())
+	router.NoRoute(s.proxyToDelegatedRP(true))
+	router.NoMethod(s.proxyToDelegatedRP(true))
 	router.
 		POST("auth/recover/user/delegated", server.RootHandler(s.StartDelegatedRecovery)).
+		POST("/auth/login/delegated", s.proxyToDelegatedRP(false)).
 		POST("/v1/webhooks/dfns/events", server.RootHandler(s.EventWebhookFromDelegatedRP))
 
 }
 
-func (s *service) proxyToDelegatedRP() func(*gin.Context) {
+func (s *service) proxyToDelegatedRP(allowUnauthorized bool) func(*gin.Context) {
 	return func(ginCtx *gin.Context) {
 		ctx, cancel := context.WithTimeout(ginCtx.Request.Context(), proxyTimeout)
 		defer cancel()
+		if _, err := server.Authorize(ctx, ginCtx, allowUnauthorized); err != nil {
+			ginCtx.JSON(err.Code, &delegatedErrorResponse{Error: errMessage{Message: err.Data.Code}, err: err.Data.InternalErr()})
+			return
+		}
 		s.accounts.ProxyDelegatedRelyingParty(ctx, ginCtx.Writer, ginCtx.Request)
 	}
 }
@@ -93,6 +98,8 @@ func (s *service) StartDelegatedRecovery(
 			return nil, buildDelegatedErrorResponse(http.StatusBadRequest, err, twoFAExpiredCode)
 		case errors.Is(err, accounts.Err2FAInvalidCode):
 			return nil, buildDelegatedErrorResponse(http.StatusBadRequest, err, twoFAInvalidCode)
+		case errors.Is(err, accounts.ErrUserNotFound):
+			return nil, buildDelegatedErrorResponse(http.StatusNotFound, err, userNotFound)
 		case errors.Is(err, accounts.Err2FARequired):
 			if tErr := terror.As(err); tErr != nil {
 				return nil, buildDelegatedErrorResponse(http.StatusForbidden, err, twoFARequired, tErr.Data)
@@ -130,6 +137,6 @@ func (s *service) EventWebhookFromDelegatedRP(
 	ctx context.Context,
 	req *server.Request[WebhookData, WebhookResp],
 ) (successResp *server.Response[WebhookResp], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	log.Info(fmt.Sprintf("Webhook call for %v %v", req.Data.Kind, req.Data.Data))
+	log.Info(fmt.Sprintf("Webhook call for %v %+v", req.Data.Kind, req.Data.Data))
 	return server.OK[WebhookResp](&WebhookResp{}), nil
 }

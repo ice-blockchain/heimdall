@@ -11,6 +11,7 @@ import (
 	"github.com/goccy/go-json"
 	"github.com/pkg/errors"
 
+	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/time"
@@ -61,7 +62,7 @@ func (a *accounts) fetchAndUpdateRelaysFromPolaris(ctx context.Context, userID s
     					SET 
     					    ion_connect_relays = $2,
     					    updated_at = $3
-    				WHERE users.ion_connect_relays IS NULL RETURNING *`, userID, relays, *now.Time, []string{a.cfg.Client})
+    				WHERE users.ion_connect_relays IS NULL RETURNING *`, userID, relays, *now.Time, []string{})
 		if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 			return nil, errors.Wrapf(err, "failed to persist ion relays for userID %v", userID)
 		}
@@ -121,7 +122,7 @@ func (a *accounts) GetUser(ctx context.Context, userID string) (*User, error) {
 	return usr, nil
 }
 
-func (a *accounts) upsertUsername(ctx context.Context, now *time.Time, body io.Reader) error {
+func (a *accounts) upsertUsernameFromRegistration(ctx context.Context, now *time.Time, body io.Reader) error {
 	respData, err := io.ReadAll(body)
 	if err != nil {
 		return errors.Wrapf(err, "failed to read delegated relying party body")
@@ -134,14 +135,38 @@ func (a *accounts) upsertUsername(ctx context.Context, now *time.Time, body io.R
 	if userInferface, hasUser := res["user"]; hasUser {
 		usr = userInferface.(map[string]any)
 	}
-	userID := usr["id"]
-	username := usr["name"]
-	_, err = storage.Exec(ctx, a.db, `INSERT INTO users(created_at, updated_at, id, username, clients) VALUES ($4,$4,$1,$2,$3) ON CONFLICT(id) DO UPDATE 
+	userID := usr["id"].(string)
+	username := usr["name"].(string)
+	return errors.Wrapf(a.insertUsername(ctx, now, userID, username), "failed to store username %v for user %v on registration", username, userID)
+}
+
+func (a *accounts) upsertUsernameFromLogin(ctx context.Context, now *time.Time, body io.Reader) error {
+	respData, err := io.ReadAll(body)
+	if err != nil {
+		return errors.Wrapf(err, "failed to read delegated relying party body")
+	}
+	var res map[string]any
+	if err = json.UnmarshalContext(ctx, respData, &res); err != nil {
+		return errors.Wrapf(err, "failed to parse json for %v", string(respData))
+	}
+	var token string
+	if tokenI, hasToken := res["token"]; hasToken {
+		token = tokenI.(string)
+	}
+	parsedToken, err := server.Auth(ctx).VerifyToken(ctx, token)
+	if err != nil {
+		log.Panic(errors.Wrapf(err, "we're unable to verify just issued token from 3rd party delegated rp, something changed? Token %v", token))
+	}
+	return errors.Wrapf(a.insertUsername(ctx, now, parsedToken.UserID(), parsedToken.Username()), "failed to store username %v for user %v on registration", parsedToken.Username(), parsedToken.UserID())
+}
+
+func (a *accounts) insertUsername(ctx context.Context, now *time.Time, userID, username string) error {
+	_, err := storage.Exec(ctx, a.db, `INSERT INTO users(created_at, updated_at, id, username, clients) VALUES ($4,$4,$1,$2,$3) ON CONFLICT(id) DO UPDATE 
     										SET 
     										    username = $2,
     										    updated_at = $4
-                                            WHERE users.username = '' OR users.username = users.id`, userID, username, []string{a.cfg.Client}, *now.Time)
-	return errors.Wrapf(err, "failed to update user with username in db %v %v", userID, username, []string{a.cfg.Client}, now.Time)
+                                            WHERE users.username = users.id`, userID, username, []string{}, *now.Time)
+	return errors.Wrapf(err, "failed to update user with username in db %v %v", userID, username, []string{}, now.Time)
 }
 
 func (u *User) MarshalJSON() ([]byte, error) {

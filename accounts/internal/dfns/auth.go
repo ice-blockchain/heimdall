@@ -18,6 +18,7 @@ import (
 )
 
 func NewDfnsTokenAuth(ctx context.Context, applicationYamlKey string) AuthClient {
+	var cfg config
 	cfg.loadCfg(applicationYamlKey)
 	cache := jwk.NewCache(ctx)
 	jwksFullUrl, err := url.JoinPath(cfg.DFNS.BaseURL, jwksUrl)
@@ -36,13 +37,13 @@ func NewDfnsTokenAuth(ctx context.Context, applicationYamlKey string) AuthClient
 		"failed to register jwks url %v", jwksFullUrl))
 	_, err = cache.Refresh(ctx, jwksFullUrl)
 	log.Panic(errors.Wrapf(err, "failed to fetch dfns key set from %v", jwksUrl))
-	return &dfnsAuth{dfnsPubKeys: cache}
+	return &dfnsAuth{dfnsPubKeys: cache, cfg: &cfg}
 }
 
 func (a *dfnsAuth) VerifyToken(ctx context.Context, tokenStr string) (server.Token, error) {
 	var claims jwt.MapClaims
 	token, err := jwt.ParseWithClaims(tokenStr, &claims, func(token *jwt.Token) (interface{}, error) {
-		jwksFullUrl, _ := url.JoinPath(cfg.DFNS.BaseURL, jwksUrl)
+		jwksFullUrl, _ := url.JoinPath(a.cfg.DFNS.BaseURL, jwksUrl)
 		keySet, err := a.dfnsPubKeys.Get(ctx, jwksFullUrl)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get cached dfns pub keys for %v", jwksUrl)
@@ -70,10 +71,10 @@ func (a *dfnsAuth) VerifyToken(ctx context.Context, tokenStr string) (server.Tok
 	if _, ok := token.Method.(*jwt.SigningMethodEd25519); !ok || token.Method.Alg() != jwt.SigningMethodEdDSA.Alg() {
 		return nil, errors.Errorf("unexpected signing method:%v", token.Header["alg"])
 	}
-	if iss, iErr := token.Claims.GetIssuer(); iErr != nil || (iss != cfg.DFNS.Auth.Issuer) {
+	if iss, iErr := token.Claims.GetIssuer(); iErr != nil || (iss != a.cfg.DFNS.Auth.Issuer) {
 		return nil, errors.Wrapf(ErrInvalidToken, "invalid issuer: %v", iss)
 	}
-	if sub, sErr := token.Claims.GetSubject(); cfg.DFNS.OrganizationID != "" && (sErr != nil || (sub != cfg.DFNS.OrganizationID)) {
+	if sub, sErr := token.Claims.GetSubject(); a.cfg.DFNS.OrganizationID != "" && (sErr != nil || (sub != a.cfg.DFNS.OrganizationID)) {
 		return nil, errors.Wrapf(ErrInvalidToken, "invalid organization: %v", sub)
 	}
 	meta, hasMeta := claims["https://custom/app_metadata"]

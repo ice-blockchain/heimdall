@@ -25,9 +25,10 @@ func New(applicationYamlKey string) EmailSender {
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	em := emailSender{
-		cfg:           &cfg,
-		emailClient:   email.New(applicationYamlKey),
-		fromRecipient: fromRecipient{cfg.FromEmailName, cfg.FromEmailAddress},
+		cfg:              &cfg,
+		emailClient:      email.New(applicationYamlKey),
+		FromEmailName:    cfg.FromEmailName,
+		FromEmailAddress: cfg.FromEmailAddress,
 	}
 	return &em
 }
@@ -85,7 +86,7 @@ func (t *emailTemplate) getBody(data any) string {
 	return bf.String()
 }
 
-func (a *emailSender) DeliverCode(ctx context.Context, code, language string, deliverTo []string) error {
+func (a *emailSender) DeliverCode(ctx context.Context, code, language, deliverTo string) error {
 	emailType := "2fa_recovery"
 	var tmpl *emailTemplate
 	tmpl, ok := allEmailTemplates[emailType][language]
@@ -96,17 +97,8 @@ func (a *emailSender) DeliverCode(ctx context.Context, code, language string, de
 		Email            string
 		ConfirmationCode string
 	}{
-		Email:            "{{.Email}}",
+		Email:            deliverTo,
 		ConfirmationCode: code,
-	}
-
-	participants := make([]email.Participant, 0, len(deliverTo))
-	for _, emailAddress := range deliverTo {
-		participants = append(participants, email.Participant{
-			Name:               "",
-			Email:              emailAddress,
-			SubstitutionFields: map[string]string{"{{.Email}}": emailAddress},
-		})
 	}
 
 	return errors.Wrapf(a.emailClient.Send(ctx, &email.Parcel{
@@ -116,8 +108,11 @@ func (a *emailSender) DeliverCode(ctx context.Context, code, language string, de
 		},
 		Subject: tmpl.getSubject(nil),
 		From: email.Participant{
-			Name:  a.fromRecipient.FromEmailName,
-			Email: a.fromRecipient.FromEmailAddress,
+			Name:  a.FromEmailName,
+			Email: a.FromEmailAddress,
 		},
-	}, participants...), "failed to send email with type:%v for user with emails:%v", emailType, deliverTo)
+	}, email.Participant{
+		Name:  "",
+		Email: deliverTo,
+	}), "failed to send email with type:%v for user with emails:%v", emailType, deliverTo)
 }

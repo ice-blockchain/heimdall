@@ -53,6 +53,12 @@ type (
 	}
 	Verify2FARequestResp struct {
 	}
+	RefreshTokenReq struct {
+		Username string `json:"username"`
+	}
+	RefreshTokenResp struct {
+		Token string `json:"token"`
+	}
 	WebhookData struct {
 		ID   string         `json:"id" allowUnauthorized:"true"`
 		Kind string         `json:"kind"`
@@ -63,12 +69,13 @@ type (
 )
 
 const (
-	applicationYamlKey         = "cmd/heimdall"
+	applicationYamlKey         = "cmd/heimdall-identity-io"
 	proxyTimeout               = 30 * time.Second
 	invalidPropertiesErrorCode = "INVALID_PROPERTIES"
 	twoFAAlreadySetupErrorCode = "2FA_ALREADY_SETUP"
 	twoFANoPendingCode         = "NO_PENDING_2FA"
 	twoFAInvalidCode           = "2FA_INVALID_CODE"
+	userNotFound               = "USER_NOT_FOUND"
 	twoFAExpiredCode           = "2FA_EXPIRED_CODE"
 	twoFARequired              = "2FA_REQUIRED"
 )
@@ -79,13 +86,7 @@ type (
 		cfg      *config
 	}
 	config struct {
-		Host                        string                        `yaml:"host"`
-		Version                     string                        `yaml:"version"`
-		ProxyToDelegatedRPEndpoints []*proxyToDelegatedRPEndpoint `yaml:"proxyToDelegatedRPEndpoints"`
-	}
-	proxyToDelegatedRPEndpoint struct {
-		Endpoint string `yaml:"endpoint"`
-		Method   string `yaml:"method"`
-		Tag      string `yaml:"tag"`
+		Host    string `yaml:"host"`
+		Version string `yaml:"version"`
 	}
 )

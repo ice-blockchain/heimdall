@@ -25,6 +25,7 @@ import (
 )
 
 func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey string) DfnsClient {
+	var cfg config
 	cfg.loadCfg(applicationYamlKey)
 	serviceAccountSigner := credentials.NewAsymmetricKeySigner(&credentials.AsymmetricKeySignerConfig{
 		PrivateKey: cfg.DFNS.ServiceAccountPrivateKey,
@@ -43,7 +44,7 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 		BaseURL:   cfg.DFNS.BaseURL,
 	}, nil)
 	log.Panic(errors.Wrapf(err, "failed to initialize dfns options for user"))
-	cl := &dfnsClient{serviceAccountClient: serviceClient, userClient: dfnsapiclient.CreateDfnsAPIClient(userOpts)}
+	cl := &dfnsClient{serviceAccountClient: serviceClient, userClient: dfnsapiclient.CreateDfnsAPIClient(userOpts), cfg: &cfg}
 	cl.mustInitProxy()
 	cl.mustSetupWebhookOrLoadSecret(ctx, db, &cfg)
 
@@ -72,14 +73,17 @@ func (c *dfnsClient) mustSetupWebhookOrLoadSecret(ctx context.Context, db *stora
 		}
 		break
 	}
-	if cfg.DFNS.WebhookURL != "" && len(c.mustListWebhooks(ctx)) == 0 {
-		c.webhookSecret = c.mustRegisterAllEventsWebhook(ctx)
-		log.Panic(c.storeWebhookSecret(whCtx, db, c.webhookSecret))
-	} else {
-		if c.webhookSecret, err = c.loadWebhookSecret(whCtx, db); err != nil {
-			log.Panic(errors.Wrapf(err, "failed to read stored webhook secret, must re-create webhook"))
+	if cfg.DFNS.WebhookURL != "" {
+		if len(c.mustListWebhooks(ctx)) == 0 {
+			c.webhookSecret = c.mustRegisterAllEventsWebhook(ctx)
+			log.Panic(c.storeWebhookSecret(whCtx, db, c.webhookSecret))
+		} else {
+			if c.webhookSecret, err = c.loadWebhookSecret(whCtx, db); err != nil {
+				log.Panic(errors.Wrapf(err, "failed to read stored webhook secret, must re-create webhook"))
+			}
 		}
 	}
+
 	_ = whLock.Unlock(whCtx)
 }
 
@@ -106,8 +110,8 @@ func (c *dfnsClient) loadWebhookSecret(ctx context.Context, db *storage.DB) (str
 }
 
 func (c *dfnsClient) mustInitProxy() {
-	remote, err := url.Parse(cfg.DFNS.BaseURL)
-	log.Panic(errors.Wrapf(err, "failed to parse dfns base url %v", cfg.DFNS.BaseURL))
+	remote, err := url.Parse(c.cfg.DFNS.BaseURL)
+	log.Panic(errors.Wrapf(err, "failed to parse dfns base url %v", c.cfg.DFNS.BaseURL))
 	c.serviceAccountProxy = httputil.NewSingleHostReverseProxy(remote)
 	c.userProxy = httputil.NewSingleHostReverseProxy(remote)
 	overwriteHostProxyDirector := func(req *http.Request) {
@@ -115,7 +119,7 @@ func (c *dfnsClient) mustInitProxy() {
 		req.Host = remote.Host
 		req.URL.Scheme = remote.Scheme
 		req.URL.Host = remote.Host
-		req.Header.Set(appIDHeader, cfg.DFNS.AppID)
+		req.Header.Set(appIDHeader, c.cfg.DFNS.AppID)
 	}
 	c.userProxy.Director = overwriteHostProxyDirector
 	c.serviceAccountProxy.Director = overwriteHostProxyDirector
@@ -133,14 +137,14 @@ func (c *dfnsClient) mustRegisterAllEventsWebhook(ctx context.Context) (whSecret
 		Status      string   `json:"status"`
 		Events      []string `json:"events"`
 	}{
-		Url:         cfg.DFNS.WebhookURL,
+		Url:         c.cfg.DFNS.WebhookURL,
 		Description: "All events webhook",
 		Status:      "Enabled",
 		Events:      []string{"*"},
 	})
 	log.Panic(errors.Wrapf(err, "failed to marshal webhook struct into json"))
 	header := http.Header{}
-	header.Set(appIDHeader, cfg.DFNS.AppID)
+	header.Set(appIDHeader, c.cfg.DFNS.AppID)
 	status, resp, err := c.doClientCall(ctx, c.serviceAccountClient, "POST", "/webhooks", http.Header{}, jData)
 	log.Panic(errors.Wrapf(err, "failed to register webhook"))
 	if status != http.StatusOK {
@@ -167,7 +171,7 @@ func (c *dfnsClient) mustListWebhooks(ctx context.Context) []webhook {
 	}
 	filteredItems := make([]webhook, 0, 1)
 	for _, w := range p.Items {
-		if w.Url == cfg.DFNS.WebhookURL && w.Status == "Enabled" {
+		if w.Url == c.cfg.DFNS.WebhookURL && w.Status == "Enabled" {
 			filteredItems = append(filteredItems, w)
 		}
 	}
@@ -208,9 +212,9 @@ func (c *dfnsClient) urlRequiresServiceAccountSignature(url string) bool {
 
 func (c *dfnsClient) doClientCall(ctx context.Context, httpClient *http.Client, method, relativeUrl string, headers http.Header, jsonData []byte) (int, []byte, error) {
 	headers.Set("Content-Type", "application/json")
-	fullUrl, err := url.JoinPath(cfg.DFNS.BaseURL, relativeUrl)
+	fullUrl, err := url.JoinPath(c.cfg.DFNS.BaseURL, relativeUrl)
 	if err != nil {
-		return 0, nil, errors.Wrapf(err, "failed to build url from %v %v", cfg.DFNS.BaseURL, relativeUrl)
+		return 0, nil, errors.Wrapf(err, "failed to build url from %v %v", c.cfg.DFNS.BaseURL, relativeUrl)
 	}
 	req, err := http.NewRequestWithContext(ctx, method, fullUrl, bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -278,7 +282,7 @@ func dfnsAuthHeader(ctx context.Context) string {
 
 func (c *dfnsClient) GetUser(ctx context.Context, userID string) (*User, error) {
 	headers := http.Header{}
-	headers.Set(appIDHeader, cfg.DFNS.AppID)
+	headers.Set(appIDHeader, c.cfg.DFNS.AppID)
 	uri := fmt.Sprintf("/auth/users/%v", userID)
 	status, body, err := c.clientCall(ctx, "GET", uri, headers, nil)
 	if status >= http.StatusBadRequest && err == nil {
