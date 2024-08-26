@@ -10,12 +10,14 @@ import (
 
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/server"
+	"github.com/ice-blockchain/wintr/terror"
 )
 
 func (s *service) setup2FARoutes(router gin.IRoutes) {
 	router.
-		POST("v1/users/:userId/2fa/:twoFAOption/verification-requests", server.RootHandler(s.Send2FARequest)).
-		PATCH("v1/users/:userId/2fa/:twoFAOption/verification-requests", server.RootHandler(s.Verify2FARequest))
+		PUT("v1/users/:userId/2fa/:twoFAOption/verification-requests", server.RootHandler(s.Send2FARequest)).
+		PATCH("v1/users/:userId/2fa/:twoFAOption/verification-requests", server.RootHandler(s.Verify2FARequest)).
+		DELETE("v1/users/:userId/2fa/:twoFAOption", server.RootHandler(s.Delete2FA))
 }
 
 // Send2FARequest godoc
@@ -34,7 +36,7 @@ func (s *service) setup2FARoutes(router gin.IRoutes) {
 //	@Failure		403				{object}	server.ErrorResponse	"if user already have 2FA set up, and it is requested for new email / phone"
 //	@Failure		500				{object}	server.ErrorResponse
 //	@Failure		504				{object}	server.ErrorResponse	"if request times out"
-//	@Router			/v1/users/{userId}/2fa/{twoFAOption}/verification-requests [POST].
+//	@Router			/v1/users/{userId}/2fa/{twoFAOption}/verification-requests [PUT].
 func (s *service) Send2FARequest(
 	ctx context.Context,
 	req *server.Request[Send2FARequestReq, Send2FARequestResp],
@@ -47,18 +49,99 @@ func (s *service) Send2FARequest(
 		return nil, server.UnprocessableEntity(err, invalidPropertiesErrorCode)
 	}
 	var authentificatorUri *string
-	authentificatorUri, err = s.accounts.Send2FA(ctx, req.Data.UserID, req.Data.TwoFAOption, channel, req.Data.Language)
+	authentificatorUri, err = s.accounts.Send2FA(ctx, req.Data.UserID, req.Data.TwoFAOption, channel, req.Data.Language, req.Data.TwoFAVerificationCodes)
 	if err != nil {
 		switch {
-		case errors.Is(err, accounts.Err2FAAlreadySetup):
-			return nil, server.ForbiddenWithCode(err, twoFAAlreadySetupErrorCode)
+		case errors.Is(err, accounts.Err2FARequired):
+			if tErr := terror.As(err); tErr != nil {
+				return nil, server.ForbiddenWithCode(err, twoFARequired, tErr.Data)
+			}
 		case errors.Is(err, accounts.Err2FADeliverToNotProvided):
 			return nil, server.BadRequest(err, invalidPropertiesErrorCode)
+		case errors.Is(err, accounts.Err2FAExpired):
+			return nil, server.BadRequest(err, twoFAExpiredCode)
+		case errors.Is(err, accounts.Err2FAInvalidCode):
+			return nil, server.BadRequest(err, twoFAInvalidCode)
+		case errors.Is(err, accounts.ErrNoPending2FA):
+			return nil, server.BadRequest(err, twoFAInvalidCode)
+		case errors.Is(err, accounts.ErrAuthentificatorRequirementsNotMet):
+			return nil, server.BadRequest(err, authentificatorReqNotMet)
 		default:
 			return nil, server.Unexpected(err)
 		}
 	}
 	return server.OK[Send2FARequestResp](&Send2FARequestResp{TOTPAuthentificatorURL: authentificatorUri}), nil
+}
+
+// Delete2FA godoc
+//
+//	@Schemes
+//	@Description	Confirms deletion of 2FA method
+//	@Tags			2FA
+//	@Produce		json
+//	@Param			Authorization	header	string			true	"Auth header"	default(Bearer <token>)
+//	@Param			userId			path	string			true	"ID of the user"
+//	@Param			twoFAOption		path	string			true	"type of 2fa (sms/email/totp_authentificator)"
+//	@Param			request			body	Delete2FAReq	true	"Request params containing email or phone number to set up 2FA"
+//	@Success		200				"OK - found and deleted"
+//	@Success		204				"OK - no such 2FA"
+//	@Failure		400				{object}	server.ErrorResponse "Wrong 2FA codes provided"
+//	@Failure		403				{object}	server.ErrorResponse "No 2FA codes provided to approve removal"
+//	@Failure		500				{object}	server.ErrorResponse
+//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
+//	@Router			/v1/users/{userId}/2fa/{twoFAOption} [DELETE].
+func (s *service) Delete2FA(
+	ctx context.Context,
+	req *server.Request[Delete2FAReq, any],
+) (successResp *server.Response[any], errorResp *server.ErrResponse[*server.ErrorResponse]) {
+	channel, err := req.Data.deleteOption()
+	if err != nil {
+		return nil, server.UnprocessableEntity(err, invalidPropertiesErrorCode)
+	}
+	err = s.accounts.Delete2FA(ctx, req.Data.UserID, req.Data.TwoFAVerificationCodes, req.Data.TwoFAOption, channel)
+	if err != nil {
+		switch {
+		case errors.Is(err, accounts.ErrNoPending2FA):
+			return server.NoContent(), nil
+		case errors.Is(err, accounts.Err2FARequired):
+			if tErr := terror.As(err); tErr != nil {
+				return nil, server.ForbiddenWithCode(err, twoFARequired, tErr.Data)
+			}
+		case errors.Is(err, accounts.Err2FADeliverToNotProvided):
+			return nil, server.BadRequest(err, invalidPropertiesErrorCode)
+		case errors.Is(err, accounts.Err2FAExpired):
+			return nil, server.BadRequest(err, twoFAExpiredCode)
+		case errors.Is(err, accounts.Err2FAInvalidCode):
+			return nil, server.BadRequest(err, twoFAInvalidCode)
+		case errors.Is(err, accounts.ErrAuthentificatorRequirementsNotMet):
+			return nil, server.BadRequest(err, authentificatorReqNotMet)
+		default:
+			return nil, server.Unexpected(err)
+		}
+	}
+	return server.OK[any](), nil
+}
+
+func (d *Delete2FAReq) deleteOption() (string, error) {
+	switch d.TwoFAOption {
+	case accounts.TwoFAOptionEmail:
+		if d.Email == nil {
+			return "", errors.Errorf("email for delete is not provided")
+		}
+		return *d.Email, nil
+	case accounts.TwoFAOptionSMS:
+		if d.PhoneNumber == nil {
+			return "", errors.Errorf("phone_number for delete is not provided")
+		}
+		return *d.PhoneNumber, nil
+	case accounts.TwoFAOptionTOTPAuthentificator:
+		if d.TotpIndex == nil {
+			return "", errors.Errorf("totpIndex for delete is not provided")
+		}
+		return *d.TotpIndex, nil
+	default:
+		return "", errors.Errorf("invalid 2faOption: %v", d.TwoFAOption)
+	}
 }
 
 func (s *Send2FARequestReq) deliveryChannel() (*string, error) {

@@ -122,8 +122,84 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/users/{userId}/2fa/{twoFAOption}": {
+            "delete": {
+                "description": "Confirms deletion of 2FA method",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "2FA"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003ctoken\u003e",
+                        "description": "Auth header",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID of the user",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "type of 2fa (sms/email/totp_authentificator)",
+                        "name": "twoFAOption",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Request params containing email or phone number to set up 2FA",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.Delete2FAReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK - found and deleted"
+                    },
+                    "204": {
+                        "description": "OK - no such 2FA"
+                    },
+                    "400": {
+                        "description": "Wrong 2FA codes provided",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "No 2FA codes provided to approve removal",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/users/{userId}/2fa/{twoFAOption}/verification-requests": {
-            "post": {
+            "put": {
                 "description": "Initiates sending of 2FA code to the user",
                 "produces": [
                     "application/json"
@@ -397,6 +473,26 @@ const docTemplate = `{
                 "TwoFAOptionTOTPAuthentificator"
             ]
         },
+        "main.Delete2FAReq": {
+            "type": "object",
+            "properties": {
+                "2FAVerificationCodes": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "email": {
+                    "type": "string"
+                },
+                "phoneNumber": {
+                    "type": "string"
+                },
+                "totpIndex": {
+                    "type": "string"
+                }
+            }
+        },
         "main.Relays": {
             "type": "object",
             "properties": {
@@ -422,6 +518,12 @@ const docTemplate = `{
         "main.Send2FARequestReq": {
             "type": "object",
             "properties": {
+                "2FAVerificationCodes": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "email": {
                     "type": "string"
                 },

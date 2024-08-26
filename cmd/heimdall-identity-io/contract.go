@@ -37,11 +37,20 @@ type (
 		IONConnectIndexers []string `json:"ionConnectIndexers"`
 	}
 	Send2FARequestReq struct {
-		UserID      string          `uri:"userId" required:"true" swaggerignore:"true"`
-		TwoFAOption TwoFAOptionEnum `uri:"twoFAOption" required:"true" swaggerignore:"true"`
-		Language    string          `header:"X-Language" swaggerignore:"true"`
-		Email       *string         `json:"email,omitempty"`
-		PhoneNumber *string         `json:"phoneNumber,omitempty"`
+		UserID                 string                     `uri:"userId" required:"true" swaggerignore:"true"`
+		TwoFAOption            TwoFAOptionEnum            `uri:"twoFAOption" required:"true" swaggerignore:"true"`
+		Language               string                     `header:"X-Language" swaggerignore:"true"`
+		Email                  *string                    `json:"email,omitempty"`
+		PhoneNumber            *string                    `json:"phoneNumber,omitempty"`
+		TwoFAVerificationCodes map[TwoFAOptionEnum]string `json:"2FAVerificationCodes"`
+	}
+	Delete2FAReq struct {
+		UserID                 string                     `uri:"userId" required:"true" swaggerignore:"true"`
+		TwoFAOption            TwoFAOptionEnum            `uri:"twoFAOption" required:"true" swaggerignore:"true"`
+		Email                  *string                    `json:"email,omitempty"`
+		PhoneNumber            *string                    `json:"phoneNumber,omitempty"`
+		TotpIndex              *string                    `json:"totpIndex,omitempty"`
+		TwoFAVerificationCodes map[TwoFAOptionEnum]string `json:"2FAVerificationCodes"`
 	}
 	Send2FARequestResp struct {
 		TOTPAuthentificatorURL *string `json:"TOTPAuthentificatorURL,omitempty"`
@@ -72,7 +81,7 @@ const (
 	applicationYamlKey         = "cmd/heimdall-identity-io"
 	proxyTimeout               = 30 * time.Second
 	invalidPropertiesErrorCode = "INVALID_PROPERTIES"
-	twoFAAlreadySetupErrorCode = "2FA_ALREADY_SETUP"
+	authentificatorReqNotMet   = "AUTHENTIFICATOR_REQ_NOT_MET"
 	twoFANoPendingCode         = "NO_PENDING_2FA"
 	twoFAInvalidCode           = "2FA_INVALID_CODE"
 	userNotFound               = "USER_NOT_FOUND"
