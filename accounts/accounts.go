@@ -4,6 +4,7 @@ package accounts
 
 import (
 	"context"
+	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -30,7 +31,7 @@ func New(ctx context.Context) Accounts {
 		shutdown:                   db.Close,
 		totpProvider:               totp.New(applicationYamlKey),
 		emailSender:                email.New(applicationYamlKey),
-		smsSender:                  nil, //sms.New(applicationYamlKey),
+		smsSender:                  sms.New(applicationYamlKey),
 		cfg:                        &cfg,
 		concurrentlyGeneratedCodes: make(map[TwoFAOptionEnum]*sync.Map),
 	}
