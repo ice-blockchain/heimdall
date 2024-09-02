@@ -4,13 +4,13 @@ package accounts
 
 import (
 	"context"
-	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
 	"sync"
 
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
+	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/totp"

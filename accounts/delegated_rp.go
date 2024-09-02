@@ -4,9 +4,9 @@ package accounts
 
 import (
 	"context"
-	"github.com/hashicorp/go-multierror"
 	"net/http"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/wintr/log"
