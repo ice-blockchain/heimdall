@@ -75,12 +75,6 @@ type (
 			Port     uint16 `yaml:"port"`
 		} `yaml:"httpServer"`
 		DefaultEndpointTimeout time.Duration `yaml:"defaultEndpointTimeout"`
-		AuthDfns               struct {
-			Issuer         string `yaml:"issuer" mapstructure:"issuer"`
-			OrganizationID string `yaml:"organizationId" mapstructure:"organizationId"`
-			AppID          string `yaml:"appId" mapstructure:"appId"`
-			BaseURL        string `yaml:"baseUrl" mapstructure:"baseUrl"`
-		} `yaml:"auth/dfns" mapstructure:"auth/dfns"`
 	}
 )
 

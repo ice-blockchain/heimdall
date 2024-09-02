@@ -116,7 +116,7 @@ type (
 		Code        string
 	}
 	config struct {
-		EmailExpiration stdlibtime.Duration `yaml:"emailExpiration"`
-		SMSExpiration   stdlibtime.Duration `yaml:"smsExpiration"`
+		EmailExpiration stdlibtime.Duration `yaml:"emailExpiration" mapstructure:"emailExpiration"`
+		SMSExpiration   stdlibtime.Duration `yaml:"smsExpiration" mapstructure:"smsExpiration"`
 	}
 )

@@ -29,7 +29,7 @@ func main() {
 	api.SwaggerInfo.Host = cfg.Host
 	api.SwaggerInfo.Version = cfg.Version
 	auth := accounts.NewDelegatedRPAuth(ctx)
-	server.New(&service{cfg: &cfg}, applicationYamlKey, "/accounts/").ListenAndServe(ctx, cancel, auth)
+	server.New(&service{cfg: &cfg}, applicationYamlKey, "/docs").ListenAndServe(ctx, cancel, auth)
 }
 
 func (s *service) RegisterRoutes(router *server.Router) {
