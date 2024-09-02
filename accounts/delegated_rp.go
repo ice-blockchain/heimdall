@@ -4,12 +4,12 @@ package accounts
 
 import (
 	"context"
+	"github.com/hashicorp/go-multierror"
 	"net/http"
 
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/wintr/log"
-	"github.com/ice-blockchain/wintr/terror"
 	"github.com/ice-blockchain/wintr/time"
 )
 
@@ -22,9 +22,6 @@ func (a *accounts) ProxyDelegatedRelyingParty(ctx context.Context, rw http.Respo
 	case completeLoginUrl, delegatedLoginUrl:
 		log.Error(errors.Wrapf(a.upsertUsernameFromLogin(ctx, now, respBody), "failed to store username for user on login (%v)", r.URL.Path))
 	}
-	if r.URL.Path == registrationUrl {
-		log.Error(errors.Wrapf(a.upsertUsernameFromRegistration(ctx, now, respBody), "failed to store username for user on registration"))
-	}
 }
 
 func (a *accounts) StartDelegatedRecovery(ctx context.Context, username, credentialID string, codes map[TwoFAOptionEnum]string) (*StartedDelegatedRecovery, error) {
@@ -32,46 +29,20 @@ func (a *accounts) StartDelegatedRecovery(ctx context.Context, username, credent
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get user 2FA state for username %v", username)
 	}
-	twoFARequired := make([]TwoFAOptionEnum, 0, len(AllTwoFAOptions))
-	for _, opt := range AllTwoFAOptions {
-		if err = checkIf2FARequired(usr, opt, codes); err != nil {
-			twoFARequired = append(twoFARequired, opt)
-		}
-	}
-	if len(twoFARequired) > 0 {
-		return nil, terror.New(Err2FARequired, map[string]any{
-			"options": twoFARequired,
-		})
+	if err = checkIfAll2FAProvided(usr, codes); err != nil {
+		return nil, err //nolint:wrapcheck // tErr.
 	}
 	var rollbackCodes map[TwoFAOptionEnum]string
-	if rollbackCodes, err = a.verify2FA(ctx, usr.ID, codes); err != nil {
+	if rollbackCodes, err = a.verifyAndRedeem2FA(ctx, usr.ID, codes); err != nil {
 		return nil, errors.Wrapf(err, "failed to verify 2FA codes")
 	}
 	var delegatedResp *StartedDelegatedRecovery
 	delegatedResp, err = a.delegatedRPClient.StartDelegatedRecovery(ctx, username, credentialID)
 	if err != nil {
-		log.Error(errors.Wrapf(a.rollbackRedeemed2FACodes(usr.ID, rollbackCodes), "failed to rollback used 2fa codes "))
-		return nil, errors.Wrapf(err, "failed to start delegated recovery for username %v", username)
+		return nil, multierror.Append(
+			errors.Wrapf(err, "failed to start delegated recovery for username %v", username),
+			errors.Wrapf(a.rollbackRedeemed2FACodes(usr.ID, rollbackCodes), "failed to rollback used 2fa codes for userID %v", usr.ID),
+		)
 	}
 	return delegatedResp, nil
-}
-
-func checkIf2FARequired(usr *user, opt TwoFAOptionEnum, codes map[TwoFAOptionEnum]string) error {
-	var field []string
-	switch opt {
-	case TwoFAOptionEmail:
-		field = usr.Email
-	case TwoFAOptionSMS:
-		field = usr.PhoneNumber
-	case TwoFAOptionTOTPAuthentificator:
-		field = usr.TotpAuthentificatorSecret
-	default:
-		log.Panic(errors.Errorf("unknown 2FA option %v", opt))
-	}
-	if len(field) > 0 {
-		if _, presented := codes[opt]; !presented {
-			return Err2FARequired
-		}
-	}
-	return nil
 }

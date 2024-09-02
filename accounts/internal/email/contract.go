@@ -12,7 +12,7 @@ import (
 
 type (
 	EmailSender interface {
-		DeliverCode(ctx context.Context, code, language string, emailAddresses string) error
+		DeliverCode(ctx context.Context, code, language string, emailAddress string) error
 	}
 )
 
