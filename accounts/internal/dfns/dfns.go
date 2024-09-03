@@ -161,7 +161,7 @@ func (c *dfnsClient) mustRegisterAllEventsWebhook(ctx context.Context) (whSecret
 }
 
 func (c *dfnsClient) mustListWebhooks(ctx context.Context) []webhook {
-	_, jWebhooks, err := c.doClientCall(ctx, c.serviceAccountClient, "GET", "/webhooks?limit=1", http.Header{}, nil)
+	_, jWebhooks, err := c.doClientCall(ctx, c.serviceAccountClient, "GET", "/webhooks", http.Header{}, nil)
 	if err != nil {
 		log.Panic(errors.Wrapf(err, "failed to list webhooks"))
 	}
@@ -224,6 +224,13 @@ func (c *dfnsClient) doClientCall(ctx context.Context, httpClient *http.Client, 
 
 	response, err := httpClient.Do(req)
 	if err != nil {
+		if dfnsErr := ParseErrAsDfnsInternalErr(err); dfnsErr != nil {
+			var delegatedParsedErr *DfnsInternalError
+			if errors.As(dfnsErr, &delegatedParsedErr) {
+				delegatedParsedErr.Context = nil
+				err = delegatedParsedErr
+			}
+		}
 		return 0, nil, errors.Wrapf(err, "failed to exec dfns request to %v %v", method, relativeUrl)
 	}
 	defer response.Body.Close()
