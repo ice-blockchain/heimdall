@@ -34,8 +34,17 @@ func ParseErrAsDfnsInternalErr(err error) error {
 		var dfnsErr DfnsInternalError
 		dfnsErr.raw = err.Error()
 		if jErr := json.Unmarshal([]byte(err.Error()), &dfnsErr); jErr != nil {
-			return errors.Wrapf(jErr, "dfns sdk compatibility issue: unable to parse dfnsapiclient.DfnsError with %v as json", err.Error())
+			return errors.Wrapf(jErr, "dfns sdk compatibility issue: unable to parse dfnsapiclient.DfnsError with as json")
 		}
+		if len(dfnsErr.Context) > 0 {
+			delete(dfnsErr.Context, "Headers")
+			b, sErr := json.Marshal(dfnsErr)
+			if sErr != nil {
+				return errors.Wrapf(sErr, "dfns sdk compatibility issue: unable to serialize dfnsapiclient.DfnsError")
+			}
+			dfnsErr.raw = string(b)
+		}
+
 		return &dfnsErr
 	}
 	return nil
