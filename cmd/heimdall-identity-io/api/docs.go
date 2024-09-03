@@ -122,7 +122,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/users/{userId}/2fa/{twoFAOption}": {
+        "/v1/users/{userId}/2fa/{twoFAOption}/values/{twoFAOptionValue}": {
             "delete": {
                 "description": "Confirms deletion of 2FA method",
                 "produces": [
@@ -155,13 +155,18 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Request params containing email or phone number to set up 2FA",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/main.Delete2FAReq"
-                        }
+                        "type": "string",
+                        "description": "the actual value of the twoFAOption",
+                        "name": "twoFAOptionValue",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "the code received via the value of the twoFAOption",
+                        "name": "twoFAOptionVerificationCode",
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -472,26 +477,6 @@ const docTemplate = `{
                 "TwoFAOptionEmail",
                 "TwoFAOptionTOTPAuthentificator"
             ]
-        },
-        "main.Delete2FAReq": {
-            "type": "object",
-            "properties": {
-                "2FAVerificationCodes": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "email": {
-                    "type": "string"
-                },
-                "phoneNumber": {
-                    "type": "string"
-                },
-                "totpIndex": {
-                    "type": "string"
-                }
-            }
         },
         "main.Relays": {
             "type": "object",

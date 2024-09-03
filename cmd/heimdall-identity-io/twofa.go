@@ -17,7 +17,7 @@ func (s *service) setup2FARoutes(router gin.IRoutes) {
 	router.
 		PUT("v1/users/:userId/2fa/:twoFAOption/verification-requests", server.RootHandler(s.Send2FARequest)).
 		PATCH("v1/users/:userId/2fa/:twoFAOption/verification-requests", server.RootHandler(s.Verify2FARequest)).
-		DELETE("v1/users/:userId/2fa/:twoFAOption", server.RootHandler(s.Delete2FA))
+		DELETE("v1/users/:userId/2fa/:twoFAOption/values/:twoFAOptionValue", server.RootHandler(s.Delete2FA))
 }
 
 // Send2FARequest godoc
@@ -79,26 +79,27 @@ func (s *service) Send2FARequest(
 //	@Description	Confirms deletion of 2FA method
 //	@Tags			2FA
 //	@Produce		json
-//	@Param			Authorization	header	string			true	"Auth header"	default(Bearer <token>)
-//	@Param			userId			path	string			true	"ID of the user"
-//	@Param			twoFAOption		path	string			true	"type of 2fa (sms/email/totp_authentificator)"
-//	@Param			request			body	Delete2FAReq	true	"Request params containing email or phone number to set up 2FA"
-//	@Success		200				"OK - found and deleted"
-//	@Success		204				"OK - no such 2FA"
-//	@Failure		400				{object}	server.ErrorResponse "Wrong 2FA codes provided"
-//	@Failure		403				{object}	server.ErrorResponse "No 2FA codes provided to approve removal"
-//	@Failure		500				{object}	server.ErrorResponse
-//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
-//	@Router			/v1/users/{userId}/2fa/{twoFAOption} [DELETE].
+//	@Param			Authorization				header	string	true	"Auth header"	default(Bearer <token>)
+//	@Param			userId						path	string	true	"ID of the user"
+//	@Param			twoFAOption					path	string	true	"type of 2fa (sms/email/totp_authentificator)"
+//	@Param			twoFAOptionValue			path	string	true	"the actual value of the twoFAOption"
+//	@Param			twoFAOptionVerificationCode	query	string	true	"the code received via the value of the twoFAOption"
+//	@Success		200							"OK - found and deleted"
+//	@Success		204							"OK - no such 2FA"
+//	@Failure		400							{object}	server.ErrorResponse	"Wrong 2FA codes provided"
+//	@Failure		403							{object}	server.ErrorResponse	"No 2FA codes provided to approve removal"
+//	@Failure		500							{object}	server.ErrorResponse
+//	@Failure		504							{object}	server.ErrorResponse	"if request times out"
+//	@Router			/v1/users/{userId}/2fa/{twoFAOption}/values/{twoFAOptionValue} [DELETE].
 func (s *service) Delete2FA(
 	ctx context.Context,
 	req *server.Request[Delete2FAReq, any],
 ) (successResp *server.Response[any], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	channel, err := req.Data.deleteOption()
+	channel, err := "", (error)(nil) /*req.Data.deleteOption()*/
 	if err != nil {
 		return nil, server.UnprocessableEntity(err, invalidPropertiesErrorCode)
 	}
-	err = s.accounts.Delete2FA(ctx, req.Data.UserID, req.Data.TwoFAVerificationCodes, req.Data.TwoFAOption, channel)
+	err = s.accounts.Delete2FA(ctx, req.Data.UserID, nil /*req.Data.TwoFAVerificationCodes*/, req.Data.TwoFAOption, channel)
 	if err != nil {
 		switch {
 		case errors.Is(err, accounts.ErrNoPending2FA):
@@ -122,27 +123,27 @@ func (s *service) Delete2FA(
 	return server.OK[any](), nil
 }
 
-func (d *Delete2FAReq) deleteOption() (string, error) {
-	switch d.TwoFAOption {
-	case accounts.TwoFAOptionEmail:
-		if d.Email == nil {
-			return "", errors.Errorf("email for delete is not provided")
-		}
-		return *d.Email, nil
-	case accounts.TwoFAOptionSMS:
-		if d.PhoneNumber == nil {
-			return "", errors.Errorf("phone_number for delete is not provided")
-		}
-		return *d.PhoneNumber, nil
-	case accounts.TwoFAOptionTOTPAuthentificator:
-		if d.TotpIndex == nil {
-			return "", errors.Errorf("totpIndex for delete is not provided")
-		}
-		return *d.TotpIndex, nil
-	default:
-		return "", errors.Errorf("invalid 2faOption: %v", d.TwoFAOption)
-	}
-}
+//func (d *Delete2FAReq) deleteOption() (string, error) {
+//	switch d.TwoFAOption {
+//	case accounts.TwoFAOptionEmail:
+//		if d.Email == nil {
+//			return "", errors.Errorf("email for delete is not provided")
+//		}
+//		return *d.Email, nil
+//	case accounts.TwoFAOptionSMS:
+//		if d.PhoneNumber == nil {
+//			return "", errors.Errorf("phone_number for delete is not provided")
+//		}
+//		return *d.PhoneNumber, nil
+//	case accounts.TwoFAOptionTOTPAuthentificator:
+//		if d.TotpIndex == nil {
+//			return "", errors.Errorf("totpIndex for delete is not provided")
+//		}
+//		return *d.TotpIndex, nil
+//	default:
+//		return "", errors.Errorf("invalid 2faOption: %v", d.TwoFAOption)
+//	}
+//}
 
 func (s *Send2FARequestReq) deliveryChannel() (*string, error) {
 	switch s.TwoFAOption {

@@ -11,19 +11,6 @@ definitions:
     - TwoFAOptionSMS
     - TwoFAOptionEmail
     - TwoFAOptionTOTPAuthentificator
-  main.Delete2FAReq:
-    properties:
-      2FAVerificationCodes:
-        additionalProperties:
-          type: string
-        type: object
-      email:
-        type: string
-      phoneNumber:
-        type: string
-      totpIndex:
-        type: string
-    type: object
   main.Relays:
     properties:
       ionConnectRelays:
@@ -194,7 +181,7 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Users
-  /v1/users/{userId}/2fa/{twoFAOption}:
+  /v1/users/{userId}/2fa/{twoFAOption}/values/{twoFAOptionValue}:
     delete:
       description: Confirms deletion of 2FA method
       parameters:
@@ -214,12 +201,16 @@ paths:
         name: twoFAOption
         required: true
         type: string
-      - description: Request params containing email or phone number to set up 2FA
-        in: body
-        name: request
+      - description: the actual value of the twoFAOption
+        in: path
+        name: twoFAOptionValue
         required: true
-        schema:
-          $ref: '#/definitions/main.Delete2FAReq'
+        type: string
+      - description: the code received via the value of the twoFAOption
+        in: query
+        name: twoFAOptionVerificationCode
+        required: true
+        type: string
       produces:
       - application/json
       responses:

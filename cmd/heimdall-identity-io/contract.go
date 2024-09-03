@@ -45,12 +45,10 @@ type (
 		TwoFAVerificationCodes map[TwoFAOptionEnum]string `json:"2FAVerificationCodes"`
 	}
 	Delete2FAReq struct {
-		UserID                 string                     `uri:"userId" required:"true" swaggerignore:"true"`
-		TwoFAOption            TwoFAOptionEnum            `uri:"twoFAOption" required:"true" swaggerignore:"true"`
-		Email                  *string                    `json:"email,omitempty"`
-		PhoneNumber            *string                    `json:"phoneNumber,omitempty"`
-		TotpIndex              *string                    `json:"totpIndex,omitempty"`
-		TwoFAVerificationCodes map[TwoFAOptionEnum]string `json:"2FAVerificationCodes"`
+		UserID                      string          `uri:"userId" required:"true" swaggerignore:"true"`
+		TwoFAOption                 TwoFAOptionEnum `uri:"twoFAOption" required:"true" swaggerignore:"true"`
+		TwoFAOptionValue            string          `uri:"twoFAOptionValue" required:"true" swaggerignore:"true"`
+		TwoFAOptionVerificationCode string          `form:"twoFAOptionVerificationCode" required:"true"`
 	}
 	Send2FARequestResp struct {
 		TOTPAuthentificatorURL *string `json:"TOTPAuthentificatorURL,omitempty"`
