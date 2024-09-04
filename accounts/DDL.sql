@@ -1,4 +1,8 @@
 -- SPDX-License-Identifier: ice License 1.0
+drop table twofa_codes;
+drop table users;
+drop type twofa_option;
+
 
 CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP NOT NULL,
@@ -8,11 +12,11 @@ CREATE TABLE IF NOT EXISTS users (
     clients                                TEXT[] NOT NULL,
     email                                  TEXT[],
     phone_number                           TEXT[],
-    totp_authenticator_secret            TEXT[],
+    totp_authenticator_secret              TEXT[],
     ion_connect_relays                     TEXT[],
     active_2fa_email                       smallint,
     active_2fa_phone_number                smallint,
-    active_2fa_totp_authenticator        smallint,
+    active_2fa_totp_authenticator          smallint,
     CONSTRAINT active_2fa_email_valid CHECK (active_2fa_email < cardinality(email)),
     CONSTRAINT active_2fa_phone_valid CHECK (active_2fa_phone_number < cardinality(phone_number)),
     CONSTRAINT active_2fa_totp_valid CHECK (users.active_2fa_totp_authenticator < cardinality(totp_authenticator_secret)),
