@@ -93,7 +93,7 @@ func (s *service) GetUser(
 		return nil, buildDelegatedErrorResponse(http.StatusForbidden, errors.Errorf("Is not authorized to query other user"), "")
 	}
 	ctx = context.WithValue(ctx, accounts.AuthorizationHeaderCtxValue, req.Data.Authorization)
-	ctx = context.WithValue(ctx, accounts.AppIDHeaderCtxValue, req.Data.AppID)
+	ctx = context.WithValue(ctx, accounts.AppIDHeaderCtxValue, req.Data.ClientID)
 	usr, err := s.accounts.GetUser(ctx, req.Data.UserID)
 	if err != nil {
 		switch {
