@@ -11,6 +11,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"strconv"
 	"sync"
 	stdlibtime "time"
 
@@ -212,8 +213,21 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 		if applicationID == "" {
 			applicationID = c.cfg.DFNS.AppID
 		}
-
 	}
+	if req.URL.Path == initLoginUrl {
+		errBody, err := c.updateInitLoginReqBodyWithOrgID(req)
+		if err != nil {
+			log.Error(errors.Wrapf(err, "failed to update init login req with org id"))
+			rw.WriteHeader(errBody.HTTPStatus)
+			errBody.HTTPStatus = 0
+			var resp []byte
+			resp, err = json.Marshal(errBody)
+			rw.Write(resp)
+
+			return bytes.NewBuffer(resp)
+		}
+	}
+
 	if c.urlRequiresServiceAccountSignature(req.URL.Path) {
 		cl := c.serviceAccountClient(applicationID)
 		pr := c.proxy("service", applicationID)
@@ -223,6 +237,32 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 		c.proxy("user", applicationID).ServeHTTP(&proxyResponseBody{ResponseWriter: rw, Body: respBody}, req)
 	}
 	return respBody
+}
+
+func (c *dfnsClient) updateInitLoginReqBodyWithOrgID(req *http.Request) (resp *DfnsInternalError, err error) {
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		return &DfnsInternalError{HTTPStatus: http.StatusBadRequest, Message: "failed to read body"},
+			errors.Wrapf(err, "failed to extend init login req with orgId: reading body")
+	}
+	defer req.Body.Close()
+	var content struct {
+		Username string `json:"username"`
+		OrgID    string `json:"orgId"`
+	}
+	if err = json.Unmarshal(body, &content); err != nil {
+		return &DfnsInternalError{HTTPStatus: http.StatusBadRequest, Message: "invalid json"}, errors.Wrapf(err, "invalid init login json")
+	}
+	content.OrgID = c.cfg.DFNS.OrganizationID
+	body, err = json.Marshal(content)
+	if err != nil {
+		return &DfnsInternalError{HTTPStatus: http.StatusInternalServerError, Message: "oops, error occured"}, errors.Wrapf(err, "failed to serialize %v")
+	}
+	req.Header.Set("Content-Length", strconv.Itoa(len(body)))
+	req.ContentLength = int64(len(body))
+	req.Body = io.NopCloser(bytes.NewReader(body))
+
+	return nil, nil //nolint:nilnil // .
 }
 
 func (p *proxyResponseBody) Write(b []byte) (int, error) {

@@ -74,7 +74,7 @@ func (a *dfnsAuth) VerifyToken(ctx context.Context, tokenStr string) (server.Tok
 	if iss, iErr := token.Claims.GetIssuer(); iErr != nil || (iss != a.cfg.DFNS.Auth.Issuer) {
 		return nil, errors.Wrapf(ErrInvalidToken, "invalid issuer: %v", iss)
 	}
-	if sub, sErr := token.Claims.GetSubject(); a.cfg.DFNS.OrganizationID != "" && (sErr != nil || (sub != a.cfg.DFNS.OrganizationID)) {
+	if sub, sErr := token.Claims.GetSubject(); sErr != nil || (sub != a.cfg.DFNS.OrganizationID) {
 		return nil, errors.Wrapf(ErrInvalidToken, "invalid organization: %v", sub)
 	}
 	meta, hasMeta := claims["https://custom/app_metadata"]

@@ -39,6 +39,7 @@ const (
 	clientIDHeader     = "X-Client-Id"
 	requestDeadline    = 25 * stdlibtime.Second
 	jwksUrl            = "/.well-known/jwks.json"
+	initLoginUrl       = "/auth/login/init"
 )
 
 var (
