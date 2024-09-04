@@ -55,6 +55,9 @@ func (a *accounts) verify2FA(ctx context.Context, now *time.Time, userID string,
 }
 
 func (a *accounts) rollbackRedeemed2FACodes(usrID string, codes map[TwoFAOptionEnum]string) error {
+	if len(codes) == 0 {
+		return nil
+	}
 	rollbackCtx, rollbackCancel := context.WithTimeout(context.Background(), 5*stdlibtime.Second)
 	defer rollbackCancel()
 	rollbackCaseClause, rbParams := buildRollbackClause(codes)
@@ -174,8 +177,8 @@ WITH upd AS (
 		   email = array_remove(%[3]v, NULL),
 		   phone_number = array_remove(%[4]v, NULL),
 		   totp_authenticator_secret = array_remove(%[5]v, NULL),
-           active_2fa_email = (CASE WHEN users.email = ARRAY[$4] THEN NULL WHEN (users.active_2fa_email + 1) = cardinality(users.email) AND users.email @> ARRAY[$4] THEN GREATEST(users.active_2fa_email-1,0)  WHEN (NOT (users.email @> ARRAY[collapsed.email]) and collapsed.email is not null) THEN 0 ELSE users.active_2fa_email END),
-           active_2fa_phone_number = (CASE WHEN users.phone_number = ARRAY[$4] THEN NULL WHEN (users.active_2fa_phone_number + 1) = cardinality(users.phone_number) AND users.phone_number @> ARRAY[$4] THEN GREATEST(users.active_2fa_phone_number-1,0)  WHEN (NOT(users.phone_number @> ARRAY[collapsed.phone_number]) and collapsed.phone_number is not null) THEN 0 ELSE users.active_2fa_phone_number END),
+           active_2fa_email = (CASE WHEN users.email = ARRAY[$4] THEN NULL WHEN (users.active_2fa_email + 1) = cardinality(users.email) AND users.email @> ARRAY[$4] THEN GREATEST(users.active_2fa_email-1,0)  WHEN (NOT (COALESCE(users.email,ARRAY[]::TEXT[]) @> ARRAY[collapsed.email]) and collapsed.email is not null) THEN 0 ELSE users.active_2fa_email END),
+           active_2fa_phone_number = (CASE WHEN users.phone_number = ARRAY[$4] THEN NULL WHEN (users.active_2fa_phone_number + 1) = cardinality(users.phone_number) AND users.phone_number @> ARRAY[$4] THEN GREATEST(users.active_2fa_phone_number-1,0)  WHEN (NOT(COALESCE(users.phone_number,ARRAY[]::TEXT[]) @> ARRAY[collapsed.phone_number]) and collapsed.phone_number is not null) THEN 0 ELSE users.active_2fa_phone_number END),
            active_2fa_totp_authenticator = (CASE WHEN users.totp_authenticator_secret = ARRAY[$4] THEN NULL WHEN (users.active_2fa_totp_authenticator + 1) = cardinality(users.totp_authenticator_secret) AND users.totp_authenticator_secret @> ARRAY[$4] THEN GREATEST(users.active_2fa_totp_authenticator-1,0)  WHEN NULLIF (collapsed.totp_authenticator_secret,users.id) IS NOT NULL THEN 0 ELSE users.active_2fa_totp_authenticator END)
 	FROM collapsed
 	WHERE users.id = $1
