@@ -43,7 +43,7 @@ const docTemplate = `{
                         "type": "string",
                         "default": "ap-",
                         "description": "App ID",
-                        "name": "X-DFNS-APPID",
+                        "name": "X-Client-ID",
                         "in": "header",
                         "required": true
                     }
@@ -111,7 +111,7 @@ const docTemplate = `{
                         "type": "string",
                         "default": "ap-",
                         "description": "App ID",
-                        "name": "X-DFNS-APPID",
+                        "name": "X-Client-ID",
                         "in": "header",
                         "required": true
                     }

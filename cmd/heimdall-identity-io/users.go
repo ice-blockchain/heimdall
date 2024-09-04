@@ -80,7 +80,7 @@ func (s *service) UserIndexers(
 //	@Produce		json
 //	@Param			userId			path		string	true	"ID of the user"
 //	@Param			Authorization	header		string	true	"Auth token from delegated RP"	default(Bearer <Add token here>)
-//	@Param			X-DFNS-APPID	header		string	true	"App ID"						default(ap-)
+//	@Param			X-Client-ID		header		string	true	"App ID"						default(ap-)
 //	@Success		200				{object}	User
 //	@Failure		500				{object}	delegatedErrorResponse
 //	@Failure		504				{object}	server.ErrorResponse	"if request times out"

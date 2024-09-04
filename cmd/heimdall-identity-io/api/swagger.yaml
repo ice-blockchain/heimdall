@@ -127,7 +127,7 @@ paths:
       - default: ap-
         description: App ID
         in: header
-        name: X-DFNS-APPID
+        name: X-Client-ID
         required: true
         type: string
       produces:
@@ -173,7 +173,7 @@ paths:
       - default: ap-
         description: App ID
         in: header
-        name: X-DFNS-APPID
+        name: X-Client-ID
         required: true
         type: string
       produces:
