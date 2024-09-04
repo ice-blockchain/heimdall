@@ -75,12 +75,13 @@ func (s *service) proxyToDelegatedRP(allowUnauthorized bool) func(*gin.Context) 
 //	@Description	Initiates recovery process with delegated RP
 //	@Tags			Recovery
 //	@Produce		json
-//	@Param			request	body		StartDelegatedRecoveryReq	true	"Request params"
-//	@Success		200		{object}	StartDelegatedRecoveryResp
-//	@Failure		400		{object}	server.ErrorResponse	"if invalid 2FA code is provided"
-//	@Failure		403		{object}	server.ErrorResponse	"if 2FA required"
-//	@Failure		500		{object}	server.ErrorResponse
-//	@Failure		504		{object}	server.ErrorResponse	"if request times out"
+//	@Param			request			body		StartDelegatedRecoveryReq	true	"Request params"
+//	@Param			X-DFNS-APPID	header		string						true	"App ID"	default(ap-)
+//	@Success		200				{object}	StartDelegatedRecoveryResp
+//	@Failure		400				{object}	server.ErrorResponse	"if invalid 2FA code is provided"
+//	@Failure		403				{object}	server.ErrorResponse	"if 2FA required"
+//	@Failure		500				{object}	server.ErrorResponse
+//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
 //	@Router			/auth/recover/user/delegated [POST].
 func (s *service) StartDelegatedRecovery(
 	ctx context.Context,
@@ -89,7 +90,7 @@ func (s *service) StartDelegatedRecovery(
 	if err := req.Data.validate(); err != nil {
 		return nil, buildDelegatedErrorResponse(http.StatusBadRequest, errors.Wrapf(err, "invalid 2fa option provided"), invalidPropertiesErrorCode)
 	}
-	resp, err := s.accounts.StartDelegatedRecovery(ctx, req.Data.Username, req.Data.CredentialID, req.Data.TwoFAVerificationCodes)
+	resp, err := s.accounts.StartDelegatedRecovery(withAppID(ctx, req.Data.AppID), req.Data.Username, req.Data.CredentialID, req.Data.TwoFAVerificationCodes)
 	if err != nil {
 		switch {
 		case errors.Is(err, accounts.ErrNoPending2FA):
@@ -115,6 +116,10 @@ func (s *service) StartDelegatedRecovery(
 		}
 	}
 	return server.OK[StartDelegatedRecoveryResp](resp), nil
+}
+
+func withAppID(ctx context.Context, appID string) context.Context {
+	return context.WithValue(ctx, accounts.AppIDHeaderCtxValue, appID)
 }
 
 func (r *StartDelegatedRecoveryReq) validate() error {

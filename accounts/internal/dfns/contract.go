@@ -7,8 +7,10 @@ import (
 	"io"
 	"net/http"
 	"net/http/httputil"
+	"sync"
 	stdlibtime "time"
 
+	"github.com/dfns/dfns-sdk-go/credentials"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/pkg/errors"
 
@@ -45,12 +47,15 @@ var (
 
 type (
 	dfnsClient struct {
-		serviceAccountClient *http.Client
-		userClient           *http.Client
-		cfg                  *config
-		serviceAccountProxy  *httputil.ReverseProxy
-		userProxy            *httputil.ReverseProxy
-		webhookSecret        string
+		cfg                   *config
+		serviceAccountSigner  *credentials.AsymmetricKeySigner
+		webhookSecret         string
+		userClients           map[string]*http.Client
+		serviceAccountClients map[string]*http.Client
+		userMx                sync.Mutex
+		serviceAccountMx      sync.Mutex
+		proxies               map[string]*httputil.ReverseProxy
+		proxyMx               sync.Mutex
 	}
 	config struct {
 		DFNS dfnsCfg `yaml:"delegated_relying_party" mapstructure:"delegated_relying_party"`

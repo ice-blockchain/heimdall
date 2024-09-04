@@ -38,6 +38,14 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/main.StartDelegatedRecoveryReq"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "default": "ap-",
+                        "description": "App ID",
+                        "name": "X-DFNS-APPID",
+                        "in": "header",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -96,6 +104,14 @@ const docTemplate = `{
                         "default": "Bearer \u003cAdd token here\u003e",
                         "description": "Auth token from delegated RP",
                         "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "ap-",
+                        "description": "App ID",
+                        "name": "X-DFNS-APPID",
                         "in": "header",
                         "required": true
                     }

@@ -80,6 +80,7 @@ func (s *service) UserIndexers(
 //	@Produce		json
 //	@Param			userId			path		string	true	"ID of the user"
 //	@Param			Authorization	header		string	true	"Auth token from delegated RP"	default(Bearer <Add token here>)
+//	@Param			X-DFNS-APPID	header		string	true	"App ID"						default(ap-)
 //	@Success		200				{object}	User
 //	@Failure		500				{object}	delegatedErrorResponse
 //	@Failure		504				{object}	server.ErrorResponse	"if request times out"
@@ -92,6 +93,7 @@ func (s *service) GetUser(
 		return nil, buildDelegatedErrorResponse(http.StatusForbidden, errors.Errorf("Is not authorized to query other user"), "")
 	}
 	ctx = context.WithValue(ctx, accounts.AuthorizationHeaderCtxValue, req.Data.Authorization)
+	ctx = context.WithValue(ctx, accounts.AppIDHeaderCtxValue, req.Data.AppID)
 	usr, err := s.accounts.GetUser(ctx, req.Data.UserID)
 	if err != nil {
 		switch {
