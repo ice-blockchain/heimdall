@@ -419,7 +419,7 @@ func (*config) mustLoadField(field *string, env, yamlVal string) {
 	}
 }
 
-func (c *dfnsClient) overwriteHostProxy(remote *url.URL, appID string) func(req *http.Request) {
+func (*dfnsClient) overwriteHostProxy(remote *url.URL, appID string) func(req *http.Request) {
 	return func(req *http.Request) {
 		req.RequestURI = ""
 		req.Host = remote.Host
@@ -428,22 +428,3 @@ func (c *dfnsClient) overwriteHostProxy(remote *url.URL, appID string) func(req 
 		req.Header.Set(appIDHeader, appID)
 	}
 }
-
-//func (c *dfnsClient) mustInitProxy() {
-//	remote, err := url.Parse(c.cfg.DFNS.BaseURL)
-//	log.Panic(errors.Wrapf(err, "failed to parse dfns base url %v", c.cfg.DFNS.BaseURL))
-//	c.serviceAccountProxy = httputil.NewSingleHostReverseProxy(remote)
-//	c.userProxy = httputil.NewSingleHostReverseProxy(remote)
-//	overwriteHostProxyDirector := func(req *http.Request) {
-//		req.RequestURI = ""
-//		req.Host = remote.Host
-//		req.URL.Scheme = remote.Scheme
-//		req.URL.Host = remote.Host
-//		req.Header.Set(appIDHeader, c.cfg.DFNS.AppID)
-//	}
-//	c.userProxy.Director = overwriteHostProxyDirector
-//	c.serviceAccountProxy.Director = overwriteHostProxyDirector
-//	c.serviceAccountProxy.ErrorHandler = passErrorInResponse
-//	c.userProxy.ErrorHandler = passErrorInResponse
-//	c.serviceAccountProxy.Transport = c.serviceAccountClient(c.cfg.DFNS.AppID).Transport
-//}
