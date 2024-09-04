@@ -5,12 +5,12 @@ definitions:
     enum:
     - sms
     - email
-    - totp_authentificator
+    - totp_authenticator
     type: string
     x-enum-varnames:
     - TwoFAOptionSMS
     - TwoFAOptionEmail
-    - TwoFAOptionTOTPAuthentificator
+    - TwoFAOptionTOTPAuthenticator
   main.Relays:
     properties:
       ionConnectRelays:
@@ -38,7 +38,7 @@ definitions:
     type: object
   main.Send2FARequestResp:
     properties:
-      TOTPAuthentificatorURL:
+      TOTPAuthenticatorURL:
         type: string
     type: object
   main.StartDelegatedRecoveryReq:
@@ -208,7 +208,7 @@ paths:
         name: userId
         required: true
         type: string
-      - description: type of 2fa (sms/email/totp_authentificator)
+      - description: type of 2fa (sms/email/totp_authenticator)
         in: path
         name: twoFAOption
         required: true
@@ -218,11 +218,22 @@ paths:
         name: twoFAOptionValue
         required: true
         type: string
-      - description: the code received via the value of the twoFAOption
+      - collectionFormat: multi
+        description: the code received via twoFAOptionVerificationValue
         in: query
+        items:
+          type: string
         name: twoFAOptionVerificationCode
         required: true
-        type: string
+        type: array
+      - collectionFormat: multi
+        description: the provider received the codes
+        in: query
+        items:
+          type: string
+        name: twoFAOptionVerificationValue
+        required: true
+        type: array
       produces:
       - application/json
       responses:
@@ -257,7 +268,7 @@ paths:
         name: userId
         required: true
         type: string
-      - description: type of 2fa (sms/email/totp_authentificator)
+      - description: type of 2fa (sms/email/totp_authenticator)
         in: path
         name: twoFAOption
         required: true
@@ -317,7 +328,7 @@ paths:
         name: userId
         required: true
         type: string
-      - description: type of 2fa (sms/email/totp_authentificator)
+      - description: type of 2fa (sms/email/totp_authenticator)
         in: path
         name: twoFAOption
         required: true

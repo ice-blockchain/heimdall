@@ -26,7 +26,7 @@ type (
 		ProxyDelegatedRelyingParty(ctx context.Context, rw http.ResponseWriter, r *http.Request)
 		Verify2FA(ctx context.Context, userID string, codes map[TwoFAOptionEnum]string) error
 		Delete2FA(ctx context.Context, userID string, codes map[TwoFAOptionEnum]string, twoFAToDel TwoFAOptionEnum, toDel string) error
-		Send2FA(ctx context.Context, userID string, channel TwoFAOptionEnum, deliverTo *string, language string, verificationUsingExisting2FA map[TwoFAOptionEnum]string) (authentificatorUri *string, err error)
+		Send2FA(ctx context.Context, userID string, channel TwoFAOptionEnum, deliverTo *string, language string, verificationUsingExisting2FA map[TwoFAOptionEnum]string) (authenticatorUri *string, err error)
 		StartDelegatedRecovery(ctx context.Context, username, credentialID string, codes map[TwoFAOptionEnum]string) (resp *StartedDelegatedRecovery, err error)
 		GetOrAssignIONConnectRelays(ctx context.Context, userID string, followees []string) (relays []string, err error)
 		GetIONConnectIndexerRelays(ctx context.Context, userID string) (indexers []string, err error)
@@ -48,30 +48,29 @@ type (
 )
 
 const (
-	TwoFAOptionSMS                 = TwoFAOptionEnum("sms")
-	TwoFAOptionEmail               = TwoFAOptionEnum("email")
-	TwoFAOptionTOTPAuthentificator = TwoFAOptionEnum("totp_authentificator")
-	AuthorizationHeaderCtxValue    = dfns.AuthHeaderCtxValue
-	AppIDHeaderCtxValue            = dfns.AppIDCtxValue
-	registrationUrl                = "/auth/registration/delegated"
-	completeLoginUrl               = "/auth/login"
-	delegatedLoginUrl              = "/auth/login/delegated"
+	TwoFAOptionSMS               = TwoFAOptionEnum("sms")
+	TwoFAOptionEmail             = TwoFAOptionEnum("email")
+	TwoFAOptionTOTPAuthenticator = TwoFAOptionEnum("totp_authenticator")
+	AuthorizationHeaderCtxValue  = dfns.AuthHeaderCtxValue
+	AppIDHeaderCtxValue          = dfns.AppIDCtxValue
+	registrationUrl              = "/auth/registration/delegated"
+	completeLoginUrl             = "/auth/login"
+	delegatedLoginUrl            = "/auth/login/delegated"
 )
 
 var (
 	AllTwoFAOptions = []TwoFAOptionEnum{
 		TwoFAOptionSMS,
 		TwoFAOptionEmail,
-		TwoFAOptionTOTPAuthentificator,
+		TwoFAOptionTOTPAuthenticator,
 	}
-	Err2FAAlreadySetup                   = errors.New("2FA already set up")
-	Err2FADeliverToNotProvided           = errors.New("no email or phone number provided for 2FA")
-	ErrNoPending2FA                      = errors.New("no pending 2FA request")
-	Err2FAExpired                        = errors.New("2FA request expired")
-	Err2FAInvalidCode                    = errors.New("invalid code")
-	Err2FARequired                       = errors.New("2FA required")
-	ErrAuthentificatorRequirementsNotMet = errors.New("authentificator requirements not met")
-	ErrUserNotFound                      = storage.ErrNotFound
+	Err2FADeliverToNotProvided         = errors.New("no email or phone number provided for 2FA")
+	ErrNoPending2FA                    = errors.New("no pending 2FA request")
+	Err2FAExpired                      = errors.New("2FA request expired")
+	Err2FAInvalidCode                  = errors.New("invalid code")
+	Err2FARequired                     = errors.New("2FA required")
+	ErrAuthenticatorRequirementsNotMet = errors.New("authenticator requirements not met")
+	ErrUserNotFound                    = storage.ErrNotFound
 )
 
 const (
@@ -95,18 +94,18 @@ type (
 		cfg                        *config
 	}
 	user struct {
-		CreatedAt                    *time.Time
-		UpdatedAt                    *time.Time
-		ID                           string
-		Username                     string
-		Email                        []string
-		PhoneNumber                  []string
-		TotpAuthentificatorSecret    []string
-		IONConnectRelays             []string
-		Clients                      []string
-		Active2FAEmail               *int `db:"active_2fa_email"`
-		Active2FAPhoneNumber         *int `db:"active_2fa_phone_number"`
-		Active2FATotpAuthentificator *int `db:"active_2fa_totp_authentificator"`
+		CreatedAt                  *time.Time
+		UpdatedAt                  *time.Time
+		ID                         string
+		Username                   string
+		Email                      []string
+		PhoneNumber                []string
+		TotpAuthenticatorSecret    []string
+		IONConnectRelays           []string
+		Clients                    []string
+		Active2FAEmail             *int `db:"active_2fa_email"`
+		Active2FAPhoneNumber       *int `db:"active_2fa_phone_number"`
+		Active2FATotpAuthenticator *int `db:"active_2fa_totp_authenticator"`
 	}
 	twoFACode struct {
 		CreatedAt   *time.Time

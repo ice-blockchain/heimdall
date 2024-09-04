@@ -47,13 +47,14 @@ type (
 		TwoFAVerificationCodes map[TwoFAOptionEnum]string `json:"2FAVerificationCodes"`
 	}
 	Delete2FAReq struct {
-		UserID                      string          `uri:"userId" required:"true" swaggerignore:"true"`
-		TwoFAOption                 TwoFAOptionEnum `uri:"twoFAOption" required:"true" swaggerignore:"true"`
-		TwoFAOptionValue            string          `uri:"twoFAOptionValue" required:"true" swaggerignore:"true"`
-		TwoFAOptionVerificationCode string          `form:"twoFAOptionVerificationCode" required:"true"`
+		UserID                       string            `uri:"userId" required:"true" swaggerignore:"true"`
+		TwoFAOption                  TwoFAOptionEnum   `uri:"twoFAOption" required:"true" swaggerignore:"true"`
+		TwoFAOptionValue             string            `uri:"twoFAOptionValue" required:"true" swaggerignore:"true"`
+		TwoFAOptionVerificationCode  []string          `form:"twoFAOptionVerificationCode" required:"true"`
+		TwoFAOptionVerificationValue []TwoFAOptionEnum `form:"twoFAOptionVerificationValue" required:"true"`
 	}
 	Send2FARequestResp struct {
-		TOTPAuthentificatorURL *string `json:"TOTPAuthentificatorURL,omitempty"`
+		TOTPAuthenticatorURL *string `json:"TOTPAuthenticatorURL,omitempty"`
 	}
 	Verify2FARequestReq struct {
 		UserID      string          `uri:"userId" required:"true" swaggerignore:"true"`
@@ -81,7 +82,7 @@ const (
 	applicationYamlKey         = "cmd/heimdall-identity-io"
 	proxyTimeout               = 30 * time.Second
 	invalidPropertiesErrorCode = "INVALID_PROPERTIES"
-	authentificatorReqNotMet   = "AUTHENTIFICATOR_REQ_NOT_MET"
+	authenticatorReqNotMet     = "authenticator_REQ_NOT_MET"
 	twoFANoPendingCode         = "NO_PENDING_2FA"
 	twoFAInvalidCode           = "2FA_INVALID_CODE"
 	userNotFound               = "USER_NOT_FOUND"
