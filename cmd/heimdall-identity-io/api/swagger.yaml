@@ -124,6 +124,12 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/main.StartDelegatedRecoveryReq'
+      - default: ap-
+        description: App ID
+        in: header
+        name: X-Client-ID
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -162,6 +168,12 @@ paths:
         description: Auth token from delegated RP
         in: header
         name: Authorization
+        required: true
+        type: string
+      - default: ap-
+        description: App ID
+        in: header
+        name: X-Client-ID
         required: true
         type: string
       produces:

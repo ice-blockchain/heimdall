@@ -52,6 +52,7 @@ const (
 	TwoFAOptionEmail               = TwoFAOptionEnum("email")
 	TwoFAOptionTOTPAuthentificator = TwoFAOptionEnum("totp_authentificator")
 	AuthorizationHeaderCtxValue    = dfns.AuthHeaderCtxValue
+	AppIDHeaderCtxValue            = dfns.AppIDCtxValue
 	registrationUrl                = "/auth/registration/delegated"
 	completeLoginUrl               = "/auth/login"
 	delegatedLoginUrl              = "/auth/login/delegated"

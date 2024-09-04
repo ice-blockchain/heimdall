@@ -11,6 +11,8 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"strconv"
+	"sync"
 	stdlibtime "time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -31,24 +33,52 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 		PrivateKey: cfg.DFNS.ServiceAccountPrivateKey,
 		CredID:     cfg.DFNS.ServiceAccountCredentialID,
 	})
-	opts, err := dfnsapiclient.NewDfnsAPIOptions(&dfnsapiclient.DfnsAPIConfig{
-		AppID:     cfg.DFNS.AppID,
-		AuthToken: &cfg.DFNS.ServiceKey,
-		BaseURL:   cfg.DFNS.BaseURL,
-	}, serviceAccountSigner)
-	log.Panic(errors.Wrapf(err, "failed to initialize dfns options with serviceAccount signer"))
-	serviceClient := dfnsapiclient.CreateDfnsAPIClient(opts)
-	userOpts, err := dfnsapiclient.NewDfnsAPIOptions(&dfnsapiclient.DfnsAPIConfig{
-		AppID:     cfg.DFNS.AppID,
-		AuthToken: &cfg.DFNS.ServiceKey,
-		BaseURL:   cfg.DFNS.BaseURL,
-	}, nil)
-	log.Panic(errors.Wrapf(err, "failed to initialize dfns options for user"))
-	cl := &dfnsClient{serviceAccountClient: serviceClient, userClient: dfnsapiclient.CreateDfnsAPIClient(userOpts), cfg: &cfg}
-	cl.mustInitProxy()
+	cl := &dfnsClient{
+		cfg:                   &cfg,
+		serviceAccountSigner:  serviceAccountSigner,
+		userClients:           make(map[string]*http.Client),
+		serviceAccountClients: make(map[string]*http.Client),
+		userMx:                sync.Mutex{},
+		serviceAccountMx:      sync.Mutex{},
+		proxies:               make(map[string]*httputil.ReverseProxy),
+		proxyMx:               sync.Mutex{},
+	}
 	cl.mustSetupWebhookOrLoadSecret(ctx, db, &cfg)
 
 	return cl
+}
+
+func (c *dfnsClient) serviceAccountClient(appID string) *http.Client {
+	c.serviceAccountMx.Lock()
+	defer c.serviceAccountMx.Unlock()
+	if client, ok := c.serviceAccountClients[appID]; ok {
+		return client
+	}
+	opts, err := dfnsapiclient.NewDfnsAPIOptions(&dfnsapiclient.DfnsAPIConfig{
+		AppID:     appID,
+		AuthToken: &c.cfg.DFNS.ServiceKey,
+		BaseURL:   c.cfg.DFNS.BaseURL,
+	}, c.serviceAccountSigner)
+	log.Panic(errors.Wrapf(err, "failed to initialize dfns options with serviceAccount signer"))
+	serviceClient := dfnsapiclient.CreateDfnsAPIClient(opts)
+	c.serviceAccountClients[appID] = serviceClient
+	return serviceClient
+}
+func (c *dfnsClient) userClient(appID string) *http.Client {
+	c.userMx.Lock()
+	defer c.userMx.Unlock()
+	if cl, found := c.userClients[appID]; found {
+		return cl
+	}
+	opts, err := dfnsapiclient.NewDfnsAPIOptions(&dfnsapiclient.DfnsAPIConfig{
+		AppID:     appID,
+		AuthToken: &c.cfg.DFNS.ServiceKey,
+		BaseURL:   c.cfg.DFNS.BaseURL,
+	}, nil)
+	log.Panic(errors.Wrapf(err, "failed to initialize dfns options for user client"))
+	uClient := dfnsapiclient.CreateDfnsAPIClient(opts)
+	c.userClients[appID] = uClient
+	return uClient
 }
 
 func (c *dfnsClient) mustSetupWebhookOrLoadSecret(ctx context.Context, db *storage.DB, cfg *config) {
@@ -109,24 +139,21 @@ func (c *dfnsClient) loadWebhookSecret(ctx context.Context, db *storage.DB) (str
 	return res[0].Value, nil
 }
 
-func (c *dfnsClient) mustInitProxy() {
+func (c *dfnsClient) proxy(typ, appID string) *httputil.ReverseProxy {
+	c.proxyMx.Lock()
+	defer c.proxyMx.Unlock()
+	if p, found := c.proxies[typ+appID]; found {
+		return p
+	}
 	remote, err := url.Parse(c.cfg.DFNS.BaseURL)
 	log.Panic(errors.Wrapf(err, "failed to parse dfns base url %v", c.cfg.DFNS.BaseURL))
-	c.serviceAccountProxy = httputil.NewSingleHostReverseProxy(remote)
-	c.userProxy = httputil.NewSingleHostReverseProxy(remote)
-	overwriteHostProxyDirector := func(req *http.Request) {
-		req.RequestURI = ""
-		req.Host = remote.Host
-		req.URL.Scheme = remote.Scheme
-		req.URL.Host = remote.Host
-		req.Header.Set(appIDHeader, c.cfg.DFNS.AppID)
-	}
-	c.userProxy.Director = overwriteHostProxyDirector
-	c.serviceAccountProxy.Director = overwriteHostProxyDirector
-	c.serviceAccountProxy.ErrorHandler = passErrorInResponse
-	c.userProxy.ErrorHandler = passErrorInResponse
-	c.serviceAccountProxy.Transport = c.serviceAccountClient.Transport
+	proxy := httputil.NewSingleHostReverseProxy(remote)
+	proxy.Director = c.overwriteHostProxy(remote, appID)
+	proxy.ErrorHandler = passErrorInResponse
+	c.proxies[typ+appID] = proxy
+	return proxy
 }
+
 func (c *dfnsClient) VerifyWebhookSecret(fromWebhook string) bool {
 	return c.webhookSecret != "" && c.webhookSecret == fromWebhook
 }
@@ -145,7 +172,7 @@ func (c *dfnsClient) mustRegisterAllEventsWebhook(ctx context.Context) (whSecret
 	log.Panic(errors.Wrapf(err, "failed to marshal webhook struct into json"))
 	header := http.Header{}
 	header.Set(appIDHeader, c.cfg.DFNS.AppID)
-	status, resp, err := c.doClientCall(ctx, c.serviceAccountClient, "POST", "/webhooks", http.Header{}, jData)
+	status, resp, err := c.doClientCall(ctx, c.serviceAccountClient(c.cfg.DFNS.AppID), "POST", "/webhooks", http.Header{}, jData)
 	log.Panic(errors.Wrapf(err, "failed to register webhook"))
 	if status != http.StatusOK {
 		log.Panic(errors.Errorf("failed to register webhook with status %v body %v", status, string(resp)))
@@ -161,7 +188,7 @@ func (c *dfnsClient) mustRegisterAllEventsWebhook(ctx context.Context) (whSecret
 }
 
 func (c *dfnsClient) mustListWebhooks(ctx context.Context) []webhook {
-	_, jWebhooks, err := c.doClientCall(ctx, c.serviceAccountClient, "GET", "/webhooks", http.Header{}, nil)
+	_, jWebhooks, err := c.doClientCall(ctx, c.serviceAccountClient(c.cfg.DFNS.AppID), "GET", "/webhooks", http.Header{}, nil)
 	if err != nil {
 		log.Panic(errors.Wrapf(err, "failed to list webhooks"))
 	}
@@ -180,12 +207,62 @@ func (c *dfnsClient) mustListWebhooks(ctx context.Context) []webhook {
 
 func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req *http.Request) io.Reader {
 	respBody := bytes.NewBuffer([]byte{})
+	applicationID := req.Header.Get(clientIDHeader)
+	if applicationID == "" {
+		applicationID = req.Header.Get(appIDHeader)
+		if applicationID == "" {
+			applicationID = c.cfg.DFNS.AppID
+		}
+	}
+	if req.URL.Path == initLoginUrl {
+		errBody, err := c.updateInitLoginReqBodyWithOrgID(req)
+		if err != nil {
+			log.Error(errors.Wrapf(err, "failed to update init login req with org id"))
+			rw.WriteHeader(errBody.HTTPStatus)
+			errBody.HTTPStatus = 0
+			var resp []byte
+			resp, err = json.Marshal(errBody)
+			rw.Write(resp)
+
+			return bytes.NewBuffer(resp)
+		}
+	}
+
 	if c.urlRequiresServiceAccountSignature(req.URL.Path) {
-		c.serviceAccountProxy.ServeHTTP(&proxyResponseBody{ResponseWriter: rw, Body: respBody}, req)
+		cl := c.serviceAccountClient(applicationID)
+		pr := c.proxy("service", applicationID)
+		pr.Transport = cl.Transport
+		pr.ServeHTTP(&proxyResponseBody{ResponseWriter: rw, Body: respBody}, req)
 	} else {
-		c.userProxy.ServeHTTP(&proxyResponseBody{ResponseWriter: rw, Body: respBody}, req)
+		c.proxy("user", applicationID).ServeHTTP(&proxyResponseBody{ResponseWriter: rw, Body: respBody}, req)
 	}
 	return respBody
+}
+
+func (c *dfnsClient) updateInitLoginReqBodyWithOrgID(req *http.Request) (resp *DfnsInternalError, err error) {
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		return &DfnsInternalError{HTTPStatus: http.StatusBadRequest, Message: "failed to read body"},
+			errors.Wrapf(err, "failed to extend init login req with orgId: reading body")
+	}
+	defer req.Body.Close()
+	var content struct {
+		Username string `json:"username"`
+		OrgID    string `json:"orgId"`
+	}
+	if err = json.Unmarshal(body, &content); err != nil {
+		return &DfnsInternalError{HTTPStatus: http.StatusBadRequest, Message: "invalid json"}, errors.Wrapf(err, "invalid init login json")
+	}
+	content.OrgID = c.cfg.DFNS.OrganizationID
+	body, err = json.Marshal(content)
+	if err != nil {
+		return &DfnsInternalError{HTTPStatus: http.StatusInternalServerError, Message: "oops, error occured"}, errors.Wrapf(err, "failed to serialize %v")
+	}
+	req.Header.Set("Content-Length", strconv.Itoa(len(body)))
+	req.ContentLength = int64(len(body))
+	req.Body = io.NopCloser(bytes.NewReader(body))
+
+	return nil, nil //nolint:nilnil // .
 }
 
 func (p *proxyResponseBody) Write(b []byte) (int, error) {
@@ -194,13 +271,17 @@ func (p *proxyResponseBody) Write(b []byte) (int, error) {
 }
 
 func (c *dfnsClient) clientCall(ctx context.Context, method, url string, headers http.Header, jsonData []byte) (int, []byte, error) {
+	appID := headers.Get(appIDHeader)
+	if appID == "" {
+		appID = c.cfg.DFNS.AppID
+	}
 	if c.urlRequiresServiceAccountSignature(url) {
 		return retry(ctx, func() (status int, body []byte, err error) {
-			return c.doClientCall(ctx, c.serviceAccountClient, method, url, headers, jsonData)
+			return c.doClientCall(ctx, c.serviceAccountClient(appID), method, url, headers, jsonData)
 		})
 	} else {
 		return retry(ctx, func() (status int, body []byte, err error) {
-			return c.doClientCall(ctx, c.userClient, method, url, headers, jsonData)
+			return c.doClientCall(ctx, c.userClient(appID), method, url, headers, jsonData)
 		})
 	}
 }
@@ -251,10 +332,12 @@ func (c *dfnsClient) StartDelegatedRecovery(ctx context.Context, username string
 		Username:     username,
 		CredentialID: credentialId,
 	}
+	header := http.Header{}
+	header.Set(appIDHeader, appID(ctx))
 	resp, err := dfnsCall[struct {
 		Username     string `json:"username"`
 		CredentialID string `json:"credentialId"`
-	}, StartedDelegatedRecovery](ctx, c, params, "POST", "/auth/recover/user/delegated", http.Header{})
+	}, StartedDelegatedRecovery](ctx, c, params, "POST", "/auth/recover/user/delegated", header)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to start delegated recovery for username %v credID %v", username, credentialId)
 	}
@@ -286,10 +369,13 @@ func dfnsCall[REQ any, RESP any](ctx context.Context, c *dfnsClient, params REQ,
 func dfnsAuthHeader(ctx context.Context) string {
 	return ctx.Value(AuthHeaderCtxValue).(string)
 }
+func appID(ctx context.Context) string {
+	return ctx.Value(AppIDCtxValue).(string)
+}
 
 func (c *dfnsClient) GetUser(ctx context.Context, userID string) (*User, error) {
 	headers := http.Header{}
-	headers.Set(appIDHeader, c.cfg.DFNS.AppID)
+	headers.Set(appIDHeader, appID(ctx))
 	uri := fmt.Sprintf("/auth/users/%v", userID)
 	status, body, err := c.clientCall(ctx, "GET", uri, headers, nil)
 	if status >= http.StatusBadRequest && err == nil {
@@ -374,5 +460,15 @@ func (*config) mustLoadField(field *string, env, yamlVal string) {
 				log.Panic(errors.Errorf("%v not set", env))
 			}
 		}
+	}
+}
+
+func (*dfnsClient) overwriteHostProxy(remote *url.URL, appID string) func(req *http.Request) {
+	return func(req *http.Request) {
+		req.RequestURI = ""
+		req.Host = remote.Host
+		req.URL.Scheme = remote.Scheme
+		req.URL.Host = remote.Host
+		req.Header.Set(appIDHeader, appID)
 	}
 }
