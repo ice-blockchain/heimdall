@@ -8,20 +8,20 @@ CREATE TABLE IF NOT EXISTS users (
     clients                                TEXT[] NOT NULL,
     email                                  TEXT[],
     phone_number                           TEXT[],
-    totp_authentificator_secret            TEXT[],
+    totp_authenticator_secret            TEXT[],
     ion_connect_relays                     TEXT[],
     active_2fa_email                       smallint,
     active_2fa_phone_number                smallint,
-    active_2fa_totp_authentificator        smallint,
+    active_2fa_totp_authenticator        smallint,
     CONSTRAINT active_2fa_email_valid CHECK (active_2fa_email < cardinality(email)),
     CONSTRAINT active_2fa_phone_valid CHECK (active_2fa_phone_number < cardinality(phone_number)),
-    CONSTRAINT active_2fa_totp_valid CHECK (users.active_2fa_totp_authentificator < cardinality(totp_authentificator_secret)),
+    CONSTRAINT active_2fa_totp_valid CHECK (users.active_2fa_totp_authenticator < cardinality(totp_authenticator_secret)),
     primary key(id)
 );
 
 DO $$ BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'twofa_option') THEN
-            CREATE TYPE twofa_option AS ENUM ('email', 'sms', 'totp_authentificator');
+            CREATE TYPE twofa_option AS ENUM ('email', 'sms', 'totp_authenticator');
         END IF;
 END$$;
 

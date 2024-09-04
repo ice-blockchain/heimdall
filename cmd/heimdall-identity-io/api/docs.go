@@ -165,7 +165,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "type of 2fa (sms/email/totp_authentificator)",
+                        "description": "type of 2fa (sms/email/totp_authenticator)",
                         "name": "twoFAOption",
                         "in": "path",
                         "required": true
@@ -178,9 +178,24 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "type": "string",
-                        "description": "the code received via the value of the twoFAOption",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
+                        "description": "the code received via twoFAOptionVerificationValue",
                         "name": "twoFAOptionVerificationCode",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
+                        "description": "the provider received the codes",
+                        "name": "twoFAOptionVerificationValue",
                         "in": "query",
                         "required": true
                     }
@@ -253,7 +268,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "type of 2fa (sms/email/totp_authentificator)",
+                        "description": "type of 2fa (sms/email/totp_authenticator)",
                         "name": "twoFAOption",
                         "in": "path",
                         "required": true
@@ -319,7 +334,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "type of 2fa (sms/email/totp_authentificator)",
+                        "description": "type of 2fa (sms/email/totp_authenticator)",
                         "name": "twoFAOption",
                         "in": "path",
                         "required": true
@@ -486,12 +501,12 @@ const docTemplate = `{
             "enum": [
                 "sms",
                 "email",
-                "totp_authentificator"
+                "totp_authenticator"
             ],
             "x-enum-varnames": [
                 "TwoFAOptionSMS",
                 "TwoFAOptionEmail",
-                "TwoFAOptionTOTPAuthentificator"
+                "TwoFAOptionTOTPAuthenticator"
             ]
         },
         "main.Relays": {
@@ -536,7 +551,7 @@ const docTemplate = `{
         "main.Send2FARequestResp": {
             "type": "object",
             "properties": {
-                "TOTPAuthentificatorURL": {
+                "TOTPAuthenticatorURL": {
                     "type": "string"
                 }
             }

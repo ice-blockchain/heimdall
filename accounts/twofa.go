@@ -85,7 +85,7 @@ func (c *twoFACode) invalidCode(a *accounts, now *time.Time, inputCode string) e
 	switch c.Option {
 	case TwoFAOptionEmail, TwoFAOptionSMS:
 		invalidCode = c.Code != inputCode
-	case TwoFAOptionTOTPAuthentificator:
+	case TwoFAOptionTOTPAuthenticator:
 		invalidCode = !(a.totpProvider.Verify(now, c.Code, inputCode))
 	}
 	if invalidCode {
@@ -98,14 +98,14 @@ func (c *twoFACode) invalidCode(a *accounts, now *time.Time, inputCode string) e
 func (a *accounts) updateUserWithConfirmed2FA(ctx context.Context, now *time.Time, userID string, codes map[TwoFAOptionEnum]*twoFACode) (codesToRollback map[TwoFAOptionEnum]string, err error) {
 	addEmailClause := "(case when users.email @> ARRAY[collapsed.email] then users.email else array_prepend(collapsed.email, users.email) end) "
 	addPhoneClause := "(case when users.phone_number @> ARRAY[collapsed.phone_number] then users.phone_number else array_prepend(collapsed.phone_number, users.phone_number) end)"
-	addTotpClause := "(case when users.totp_authentificator_secret @> ARRAY[collapsed.totp_authentificator_secret] then users.totp_authentificator_secret else array_prepend(collapsed.totp_authentificator_secret, users.totp_authentificator_secret) end)"
+	addTotpClause := "(case when users.totp_authenticator_secret @> ARRAY[collapsed.totp_authenticator_secret] then users.totp_authenticator_secret else array_prepend(collapsed.totp_authenticator_secret, users.totp_authenticator_secret) end)"
 	return a.updateUserWithConfirmedOrDeleted2FA(ctx, now, userID, codes, "", addEmailClause, addPhoneClause, addTotpClause)
 }
 
 func (a *accounts) updateUserWithDeleted2FA(ctx context.Context, now *time.Time, usr *user, confirmedRemovalByCodes map[TwoFAOptionEnum]*twoFACode, removableOption TwoFAOptionEnum, removable2FAValue string) (codesToRollback map[TwoFAOptionEnum]string, err error) {
 	removeEmailClause := "users.email"
 	removePhoneClause := "users.phone_number"
-	removeTotpClause := "users.totp_authentificator_secret"
+	removeTotpClause := "users.totp_authenticator_secret"
 	contains := false
 	switch removableOption {
 	case TwoFAOptionEmail:
@@ -114,18 +114,18 @@ func (a *accounts) updateUserWithDeleted2FA(ctx context.Context, now *time.Time,
 	case TwoFAOptionSMS:
 		removePhoneClause = "array_remove(users.phone_number, $4)"
 		contains = slices.Contains(usr.PhoneNumber, removable2FAValue)
-	case TwoFAOptionTOTPAuthentificator:
-		removeTotpClause = "array_remove(users.totp_authentificator_secret, $4)"
+	case TwoFAOptionTOTPAuthenticator:
+		removeTotpClause = "array_remove(users.totp_authenticator_secret, $4)"
 		var idx int
 		idx, err = strconv.Atoi(removable2FAValue)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to parse totpSecret index")
 		}
-		contains = len(usr.TotpAuthentificatorSecret) >= idx+1
+		contains = len(usr.TotpAuthenticatorSecret) >= idx+1
 		if !contains {
 			return nil, ErrNoPending2FA
 		}
-		removable2FAValue = usr.TotpAuthentificatorSecret[idx]
+		removable2FAValue = usr.TotpAuthenticatorSecret[idx]
 	}
 	if !contains {
 		return nil, ErrNoPending2FA
@@ -145,11 +145,11 @@ func (a *accounts) updateUserWithConfirmedOrDeleted2FA(
 		return map[TwoFAOptionEnum]string{}, nil
 	}
 	whereClause, extraParams := buildWhereClause(codes)
-	authentificatorCode := ""
-	if authentificator, hasAuthentificator := codes[TwoFAOptionTOTPAuthentificator]; hasAuthentificator {
-		authentificatorCode = authentificator.Code
+	authenticatorCode := ""
+	if authenticator, hasauthenticator := codes[TwoFAOptionTOTPAuthenticator]; hasauthenticator {
+		authenticatorCode = authenticator.Code
 	}
-	params := append([]any{userID, *now.Time, authentificatorCode, removal}, extraParams...)
+	params := append([]any{userID, *now.Time, authenticatorCode, removal}, extraParams...)
 	sql := fmt.Sprintf(`
 WITH upd AS (
     UPDATE twofa_codes SET
@@ -161,28 +161,28 @@ WITH upd AS (
             option,
             (CASE WHEN option = 'email' THEN deliver_to ELSE NULL END) as email,
             (CASE WHEN option = 'sms' THEN deliver_to ELSE NULL END) as phone_number,
-            (CASE WHEN option = '%[2]v' THEN $3 ELSE NULL END) as totp_authentificator_secret
+            (CASE WHEN option = '%[2]v' THEN $3 ELSE NULL END) as totp_authenticator_secret
 ), collapsed AS (
     select $1 as id,
            (array_agg(email) FILTER ( WHERE email is not null))[1] as email,
            (array_agg(phone_number) FILTER ( WHERE phone_number is not null))[1] as phone_number,
-           (array_agg(totp_authentificator_secret) FILTER ( WHERE totp_authentificator_secret is not null))[1] as totp_authentificator_secret
+           (array_agg(totp_authenticator_secret) FILTER ( WHERE totp_authenticator_secret is not null))[1] as totp_authenticator_secret
     from upd
 ), upd_users AS (
 	UPDATE users SET
            updated_at = $2,
 		   email = array_remove(%[3]v, NULL),
 		   phone_number = array_remove(%[4]v, NULL),
-		   totp_authentificator_secret = array_remove(%[5]v, NULL),
+		   totp_authenticator_secret = array_remove(%[5]v, NULL),
            active_2fa_email = (CASE WHEN users.email = ARRAY[$4] THEN NULL WHEN (users.active_2fa_email + 1) = cardinality(users.email) AND users.email @> ARRAY[$4] THEN GREATEST(users.active_2fa_email-1,0)  WHEN (NOT (users.email @> ARRAY[collapsed.email]) and collapsed.email is not null) THEN 0 ELSE users.active_2fa_email END),
            active_2fa_phone_number = (CASE WHEN users.phone_number = ARRAY[$4] THEN NULL WHEN (users.active_2fa_phone_number + 1) = cardinality(users.phone_number) AND users.phone_number @> ARRAY[$4] THEN GREATEST(users.active_2fa_phone_number-1,0)  WHEN (NOT(users.phone_number @> ARRAY[collapsed.phone_number]) and collapsed.phone_number is not null) THEN 0 ELSE users.active_2fa_phone_number END),
-           active_2fa_totp_authentificator = (CASE WHEN users.totp_authentificator_secret = ARRAY[$4] THEN NULL WHEN (users.active_2fa_totp_authentificator + 1) = cardinality(users.totp_authentificator_secret) AND users.totp_authentificator_secret @> ARRAY[$4] THEN GREATEST(users.active_2fa_totp_authentificator-1,0)  WHEN NULLIF (collapsed.totp_authentificator_secret,users.id) IS NOT NULL THEN 0 ELSE users.active_2fa_totp_authentificator END)
+           active_2fa_totp_authenticator = (CASE WHEN users.totp_authenticator_secret = ARRAY[$4] THEN NULL WHEN (users.active_2fa_totp_authenticator + 1) = cardinality(users.totp_authenticator_secret) AND users.totp_authenticator_secret @> ARRAY[$4] THEN GREATEST(users.active_2fa_totp_authenticator-1,0)  WHEN NULLIF (collapsed.totp_authenticator_secret,users.id) IS NOT NULL THEN 0 ELSE users.active_2fa_totp_authenticator END)
 	FROM collapsed
 	WHERE users.id = $1
 	returning users.id
 )
 SELECT upd.option as option from upd
-inner join upd_users on upd.user_id = upd_users.id;`, whereClause, TwoFAOptionTOTPAuthentificator, addOrRemoveEmailClause, addOrRemovePhoneClause, addOrRemoveTotpClause)
+inner join upd_users on upd.user_id = upd_users.id;`, whereClause, TwoFAOptionTOTPAuthenticator, addOrRemoveEmailClause, addOrRemovePhoneClause, addOrRemoveTotpClause)
 	res, err := storage.ExecMany[struct {
 		Option TwoFAOptionEnum `db:"option"`
 	}](ctx, a.db, sql, params...)
@@ -204,7 +204,7 @@ inner join upd_users on upd.user_id = upd_users.id;`, whereClause, TwoFAOptionTO
 				missing = append(missing, c)
 			}
 		}
-		if len(missing) > 0 && !(len(missing) == 1 && missing[0] == TwoFAOptionTOTPAuthentificator) {
+		if len(missing) > 0 && !(len(missing) == 1 && missing[0] == TwoFAOptionTOTPAuthenticator) {
 			log.Error(a.rollbackRedeemed2FACodes(userID, codesForRollback))
 			return nil, Err2FAInvalidCode
 		}
@@ -245,11 +245,11 @@ func (a *accounts) get2FACodes(ctx context.Context, userID string, inputCodes ma
     	user_id,
     	option,
     	deliver_to,
-    	(case WHEN option = '%[1]v' THEN COALESCE(NULLIF(twofa_codes.code,u.id), u.totp_authentificator_secret[(u.active_2fa_totp_authentificator + 1)]) ELSE twofa_codes.code END) as code,
+    	(case WHEN option = '%[1]v' THEN COALESCE(NULLIF(twofa_codes.code,u.id), u.totp_authenticator_secret[(u.active_2fa_totp_authenticator + 1)]) ELSE twofa_codes.code END) as code,
     	confirmed_at
     FROM twofa_codes 
     INNER JOIN users u on u.id = twofa_codes.user_id
-    WHERE twofa_codes.user_id = $1 and option = ANY($2)`, TwoFAOptionTOTPAuthentificator)
+    WHERE twofa_codes.user_id = $1 and option = ANY($2)`, TwoFAOptionTOTPAuthenticator)
 	codes, err := storage.Select[twoFACode](ctx, a.db, sql, userID, kinds)
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 		return nil, errors.Wrapf(err, "failed to select 2fa codes")
@@ -285,7 +285,7 @@ func (a *accounts) Send2FA(ctx context.Context, userID string, opt TwoFAOptionEn
 		}
 	}
 	var code string
-	if opt == TwoFAOptionTOTPAuthentificator {
+	if opt == TwoFAOptionTOTPAuthenticator {
 		code = a.generateAuthentifcatorSecret(opt, userID)
 	} else {
 		code = a.generateConfirmationCode(opt, userID)
@@ -305,14 +305,14 @@ func (a *accounts) Send2FA(ctx context.Context, userID string, opt TwoFAOptionEn
 
 	}
 
-	authentificatorUri, dErr := a.deliverCode(ctx, opt, code, language, deliverTo) // TODO: selection of active 2fa in
+	authenticatorUri, dErr := a.deliverCode(ctx, opt, code, language, deliverTo) // TODO: selection of active 2fa in
 	if dErr != nil {
 		return nil, multierror.Append(
 			errors.Wrapf(dErr, "failed to deliver 2fa code to user %v with %v:%v", userID, opt, deliverTo),
 			errors.Wrapf(a.rollbackRedeemed2FACodes(userID, codesForRollback), "[rollback] failed to rollback 2fa codes to approve modification for user %v", userID),
 		).ErrorOrNil()
 	}
-	return authentificatorUri, nil
+	return authenticatorUri, nil
 }
 
 func (a *accounts) generateConfirmationCode(opt TwoFAOptionEnum, userID string) string {
@@ -352,7 +352,7 @@ func (a *accounts) deliverCode(ctx context.Context, opt TwoFAOptionEnum, code, l
 		DeliverCode(ctx context.Context, code, language string, deliverTo string) error
 	}
 	switch opt {
-	case TwoFAOptionTOTPAuthentificator:
+	case TwoFAOptionTOTPAuthenticator:
 		uri := a.totpProvider.GenerateURI(code, deliverTo)
 		return &uri, nil
 	case TwoFAOptionEmail:
@@ -376,16 +376,16 @@ func (a *accounts) checkDeliveryChannelFor2FA(ctx context.Context, usr *user, op
 			existingDeliveryChannel = usr.Email[*usr.Active2FAEmail]
 		case opt == TwoFAOptionSMS && len(usr.PhoneNumber) > 0 && usr.Active2FAPhoneNumber != nil:
 			existingDeliveryChannel = usr.PhoneNumber[*usr.Active2FAPhoneNumber]
-		case opt == TwoFAOptionTOTPAuthentificator:
+		case opt == TwoFAOptionTOTPAuthenticator:
 			switch {
 			case len(usr.Email) > 0:
-				existingDeliveryChannel = fmt.Sprintf("%v-%v", usr.Username, len(usr.TotpAuthentificatorSecret)+1)
+				existingDeliveryChannel = fmt.Sprintf("%v-%v", usr.Username, len(usr.TotpAuthenticatorSecret)+1)
 			case len(usr.PhoneNumber) > 0:
-				existingDeliveryChannel = fmt.Sprintf("%v-%v", usr.Username, len(usr.TotpAuthentificatorSecret)+1)
+				existingDeliveryChannel = fmt.Sprintf("%v-%v", usr.Username, len(usr.TotpAuthenticatorSecret)+1)
 			default:
-				return "", ErrAuthentificatorRequirementsNotMet
+				return "", ErrAuthenticatorRequirementsNotMet
 			}
-			if len(usr.TotpAuthentificatorSecret) > 0 {
+			if len(usr.TotpAuthenticatorSecret) > 0 {
 				return existingDeliveryChannel, Err2FARequired
 			}
 		}
@@ -428,8 +428,8 @@ func (a *accounts) Delete2FA(ctx context.Context, userID string, inputCodes map[
 	if codes, err = a.verify2FA(ctx, now, userID, inputCodes); err != nil {
 		return errors.Wrapf(err, "falied to verify codes")
 	}
-	if err = a.canRemoveEmailOrPhoneDueToAuthentificatorSetup(channel, usr, delValue); err != nil {
-		return errors.Wrapf(err, "need to remove authentificator first")
+	if err = a.canRemoveEmailOrPhoneDueToauthenticatorSetup(channel, usr, delValue); err != nil {
+		return errors.Wrapf(err, "need to remove authenticator first")
 	}
 	_, err = a.updateUserWithDeleted2FA(ctx, now, usr, codes, channel, delValue)
 
@@ -461,9 +461,9 @@ func checkIf2FARequired(usr *user, opt TwoFAOptionEnum, codes map[TwoFAOptionEnu
 	case TwoFAOptionSMS:
 		field = usr.PhoneNumber
 		enabledIdx = usr.Active2FAPhoneNumber
-	case TwoFAOptionTOTPAuthentificator:
-		field = usr.TotpAuthentificatorSecret
-		enabledIdx = usr.Active2FATotpAuthentificator
+	case TwoFAOptionTOTPAuthenticator:
+		field = usr.TotpAuthenticatorSecret
+		enabledIdx = usr.Active2FATotpAuthenticator
 	default:
 		log.Panic(errors.Errorf("unknown 2FA option %v", opt))
 	}
@@ -475,15 +475,15 @@ func checkIf2FARequired(usr *user, opt TwoFAOptionEnum, codes map[TwoFAOptionEnu
 	return nil
 }
 
-func (a *accounts) canRemoveEmailOrPhoneDueToAuthentificatorSetup(channel TwoFAOptionEnum, usr *user, removal string) error {
-	if len(usr.TotpAuthentificatorSecret) == 0 {
+func (a *accounts) canRemoveEmailOrPhoneDueToauthenticatorSetup(channel TwoFAOptionEnum, usr *user, removal string) error {
+	if len(usr.TotpAuthenticatorSecret) == 0 {
 		return nil
 	}
 	if channel == TwoFAOptionEmail && len(usr.Email) == 1 && len(usr.PhoneNumber) == 0 && slices.Contains(usr.Email, removal) {
-		return ErrAuthentificatorRequirementsNotMet
+		return ErrAuthenticatorRequirementsNotMet
 	}
 	if channel == TwoFAOptionSMS && len(usr.PhoneNumber) == 1 && len(usr.Email) == 0 && slices.Contains(usr.PhoneNumber, removal) {
-		return ErrAuthentificatorRequirementsNotMet
+		return ErrAuthenticatorRequirementsNotMet
 	}
 	return nil
 }

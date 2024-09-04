@@ -118,8 +118,8 @@ func (a *accounts) GetUser(ctx context.Context, userID string) (*User, error) {
 			}
 			usr.PhoneNumber = dbUsr.PhoneNumber
 		}
-		if len(dbUsr.TotpAuthentificatorSecret) > 0 && dbUsr.Active2FATotpAuthentificator != nil {
-			twoFAOptions = append(twoFAOptions, TwoFAOptionTOTPAuthentificator)
+		if len(dbUsr.TotpAuthenticatorSecret) > 0 && dbUsr.Active2FATotpAuthenticator != nil {
+			twoFAOptions = append(twoFAOptions, TwoFAOptionTOTPAuthenticator)
 		}
 		usr.TwoFAOptions = twoFAOptions
 	}
