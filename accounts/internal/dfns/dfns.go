@@ -206,9 +206,13 @@ func (c *dfnsClient) mustListWebhooks(ctx context.Context) []webhook {
 
 func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req *http.Request) io.Reader {
 	respBody := bytes.NewBuffer([]byte{})
-	applicationID := req.Header.Get(appIDHeader)
+	applicationID := req.Header.Get(clientIDHeader)
 	if applicationID == "" {
-		applicationID = c.cfg.DFNS.AppID
+		applicationID = req.Header.Get(appIDHeader)
+		if applicationID == "" {
+			applicationID = c.cfg.DFNS.AppID
+		}
+
 	}
 	if c.urlRequiresServiceAccountSignature(req.URL.Path) {
 		cl := c.serviceAccountClient(applicationID)

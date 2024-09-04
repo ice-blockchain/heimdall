@@ -13,7 +13,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"github.com/quic-go/quic-go"
@@ -51,10 +50,6 @@ func (s *srv) setupRouter() {
 	} else {
 		gin.ForceConsoleColor()
 		s.router = gin.Default()
-		corscfg := cors.DefaultConfig()
-		corscfg.AllowAllOrigins = true
-		corscfg.AllowHeaders = append(corscfg.AllowHeaders, []string{"content-type", "x-dfns-appid"}...)
-		s.router.Use(cors.New(corscfg))
 	}
 	log.Info(fmt.Sprintf("GIN Mode: %v\n", gin.Mode()))
 	s.router.RemoteIPHeaders = []string{"cf-connecting-ip", "X-Real-IP", "X-Forwarded-For"}

@@ -35,7 +35,8 @@ type (
 const (
 	AuthHeaderCtxValue = "authHeaderCtxValue"
 	AppIDCtxValue      = "XDfnsAppIDCtxValue"
-	appIDHeader        = "x-dfns-appid"
+	appIDHeader        = "X-Dfns-Appid"
+	clientIDHeader     = "X-Client-Id"
 	requestDeadline    = 25 * stdlibtime.Second
 	jwksUrl            = "/.well-known/jwks.json"
 )

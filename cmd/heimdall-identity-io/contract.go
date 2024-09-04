@@ -12,7 +12,7 @@ type (
 	StartDelegatedRecoveryReq struct {
 		Username               string                     `json:"username" allowUnauthorized:"true"`
 		CredentialID           string                     `json:"credentialId" required:"true"`
-		AppID                  string                     `header:"x-dfns-appid" required:"true" swaggerignore:"true"`
+		AppID                  string                     `header:"X-Client-ID" required:"true" swaggerignore:"true"`
 		TwoFAVerificationCodes map[TwoFAOptionEnum]string `json:"2FAVerificationCodes"`
 	}
 	TwoFAOptionEnum            = accounts.TwoFAOptionEnum
@@ -20,7 +20,7 @@ type (
 	GetUserReq                 struct {
 		UserID        string `uri:"userId" required:"true" swaggerignore:"true"`
 		Authorization string `header:"Authorization" swaggerignore:"true"`
-		AppID         string `header:"x-dfns-appid" required:"true" swaggerignore:"true"`
+		AppID         string `header:"X-Client-ID" required:"true" swaggerignore:"true"`
 	}
 	User struct {
 		*accounts.User

@@ -76,7 +76,7 @@ func (s *service) proxyToDelegatedRP(allowUnauthorized bool) func(*gin.Context) 
 //	@Tags			Recovery
 //	@Produce		json
 //	@Param			request			body		StartDelegatedRecoveryReq	true	"Request params"
-//	@Param			X-DFNS-APPID	header		string						true	"App ID"	default(ap-)
+//	@Param			X-Client-ID  	header		string						true	"App ID"	default(ap-)
 //	@Success		200				{object}	StartDelegatedRecoveryResp
 //	@Failure		400				{object}	server.ErrorResponse	"if invalid 2FA code is provided"
 //	@Failure		403				{object}	server.ErrorResponse	"if 2FA required"
