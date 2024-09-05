@@ -1,8 +1,4 @@
 -- SPDX-License-Identifier: ice License 1.0
-drop table twofa_codes;
-drop table users;
-drop type twofa_option;
-
 
 CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP NOT NULL,
