@@ -65,8 +65,8 @@ func RootHandler[REQ, RESP any, ERR InternalErr[ERRSTR], ERRSTR any](handleReque
 		}
 		if success.Data != nil {
 			ginCtx.JSON(success.Code, success.Data)
-		} else if success.Raw != "" {
-			ginCtx.String(success.Code, success.Raw)
+		} else if success.Raw != nil {
+			ginCtx.Data(success.Code, success.ContentType, success.Raw)
 		} else {
 			ginCtx.Status(success.Code)
 		}

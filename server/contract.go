@@ -45,10 +45,11 @@ type (
 		*T
 	}
 	Response[RESP any] struct {
-		Data    *RESP
-		Raw     string
-		Headers map[string]string
-		Code    int
+		Data        *RESP
+		Raw         []byte
+		ContentType string
+		Headers     map[string]string
+		Code        int
 	}
 	ErrResponse[RESP any] struct {
 		Data    RESP

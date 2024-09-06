@@ -79,7 +79,7 @@ func (s *service) AppleAppSiteAssociation(
 		return nil, server.NotFound(errors.New("not found"), "NOT_FOUND")
 	}
 
-	return server.Raw(s.cfg.AppleAppSiteAssociation), nil
+	return server.Raw("application/json", []byte(s.cfg.AppleAppSiteAssociation)), nil
 }
 func (s *service) AssetLinks(
 	ctx context.Context,
@@ -89,7 +89,7 @@ func (s *service) AssetLinks(
 		return nil, server.NotFound(errors.New("not found"), "NOT_FOUND")
 	}
 
-	return server.Raw(s.cfg.AssetLinks), nil
+	return server.Raw("application/json", []byte(s.cfg.AssetLinks)), nil
 }
 
 // StartDelegatedRecovery godoc
