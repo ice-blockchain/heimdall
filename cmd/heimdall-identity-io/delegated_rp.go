@@ -53,7 +53,9 @@ func (s *service) setupDelegatedRPProxyRoutes(router *server.Router) {
 	router.
 		POST("auth/recover/user/delegated", server.RootHandler(s.StartDelegatedRecovery)).
 		POST("/auth/login/delegated", s.proxyToDelegatedRP(false)).
-		POST("/v1/webhooks/dfns/events", server.RootHandler(s.EventWebhookFromDelegatedRP))
+		POST("/v1/webhooks/dfns/events", server.RootHandler(s.EventWebhookFromDelegatedRP)).
+		GET("/.well-known/apple-app-site-association", server.RootHandler(s.AppleAppSiteAssociation)).
+		GET("/.well-known/assetlinks.json", server.RootHandler(s.AssetLinks))
 
 }
 
@@ -67,6 +69,27 @@ func (s *service) proxyToDelegatedRP(allowUnauthorized bool) func(*gin.Context) 
 		}
 		s.accounts.ProxyDelegatedRelyingParty(ctx, ginCtx.Writer, ginCtx.Request)
 	}
+}
+
+func (s *service) AppleAppSiteAssociation(
+	ctx context.Context,
+	req *server.Request[AppAssociationReq, string],
+) (successResp *server.Response[string], errorResp *server.ErrResponse[*server.ErrorResponse]) {
+	if s.cfg.AppleAppSiteAssociation == "" {
+		return nil, server.NotFound(errors.New("not found"), "NOT_FOUND")
+	}
+
+	return server.Raw(s.cfg.AppleAppSiteAssociation), nil
+}
+func (s *service) AssetLinks(
+	ctx context.Context,
+	req *server.Request[AppAssociationReq, string],
+) (successResp *server.Response[string], errorResp *server.ErrResponse[*server.ErrorResponse]) {
+	if s.cfg.AssetLinks == "" {
+		return nil, server.NotFound(errors.New("not found"), "NOT_FOUND")
+	}
+
+	return server.Raw(s.cfg.AssetLinks), nil
 }
 
 // StartDelegatedRecovery godoc

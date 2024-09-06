@@ -52,5 +52,6 @@ func (s *service) Close(ctx context.Context) error {
 
 func (s *service) CheckHealth(ctx context.Context) error {
 	log.Debug("checking health...", "package", "accounts")
+
 	return errors.Wrapf(s.accounts.HealthCheck(ctx), "accounts check failed")
 }

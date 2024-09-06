@@ -9,6 +9,9 @@ import (
 )
 
 type (
+	AppAssociationReq struct {
+		_ struct{} `json:"-" allowUnauthorized:"true"`
+	}
 	StartDelegatedRecoveryReq struct {
 		Username               string                     `json:"username" allowUnauthorized:"true"`
 		CredentialID           string                     `json:"credentialId" required:"true"`
@@ -96,7 +99,9 @@ type (
 		cfg      *config
 	}
 	config struct {
-		Host    string `yaml:"host"`
-		Version string `yaml:"version"`
+		Host                    string `yaml:"host"`
+		Version                 string `yaml:"version"`
+		AppleAppSiteAssociation string `yaml:"appleAppSiteAssociation"`
+		AssetLinks              string `yaml:"assetLinks"`
 	}
 )
