@@ -6,6 +6,25 @@ logger:
 cmd/heimdall-identity-io:
   host: localhost:8001
   version: local
+  assetLinks: '[]'
+  appleAppSiteAssociation: '{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "bogus",
+        "paths": [
+          "*"
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "bogus"
+    ]
+  }
+}'
   defaultEndpointTimeout: 30s
   httpServer:
     port: 8001

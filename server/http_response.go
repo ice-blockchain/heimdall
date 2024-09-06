@@ -153,6 +153,14 @@ func OK[RESP any](responses ...*RESP) *Response[RESP] {
 
 	return &Response[RESP]{Code: http.StatusOK, Data: resp}
 }
+func Raw(responses ...string) *Response[string] {
+	var resp string
+	if len(responses) == 1 {
+		resp = responses[0]
+	}
+
+	return &Response[string]{Code: http.StatusOK, Raw: resp}
+}
 
 func (e *ErrorResponse) Fail(err error) *ErrorResponse {
 	e.error = err

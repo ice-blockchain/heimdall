@@ -46,6 +46,7 @@ type (
 	}
 	Response[RESP any] struct {
 		Data    *RESP
+		Raw     string
 		Headers map[string]string
 		Code    int
 	}
