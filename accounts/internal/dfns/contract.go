@@ -33,14 +33,17 @@ type (
 )
 
 const (
-	AuthHeaderCtxValue           = "authHeaderCtxValue"
-	AppIDCtxValue                = "XDfnsAppIDCtxValue"
-	appIDHeader                  = "X-Dfns-Appid"
-	clientIDHeader               = "X-Client-Id"
-	requestDeadline              = 25 * stdlibtime.Second
-	jwksUrl                      = "/.well-known/jwks.json"
-	initLoginUrl                 = "/auth/login/init"
-	initDelegatedRegistrationUrl = "/auth/registration/delegated"
+	AuthHeaderCtxValue               = "authHeaderCtxValue"
+	AppIDCtxValue                    = "XDfnsAppIDCtxValue"
+	appIDHeader                      = "X-Dfns-Appid"
+	clientIDHeader                   = "X-Client-Id"
+	requestDeadline                  = 25 * stdlibtime.Second
+	jwksUrl                          = "/.well-known/jwks.json"
+	initLoginUrl                     = "/auth/login/init"
+	initDelegatedRegistrationUrl     = "/auth/registration/delegated"
+	completeDelegatedRegistrationUrl = "/auth/registration/enduser"
+
+	defaultWalletNetwork = "Ton"
 )
 
 var (
@@ -74,6 +77,9 @@ type (
 		Auth                       struct {
 			Issuer string `yaml:"issuer" mapstructure:"issuer"`
 		} `yaml:"auth" mapstructure:"auth"`
+		Wallet struct {
+			DefaultName string `yaml:"defaultName" mapstructure:"defaultName"`
+		} `yaml:"wallet" mapstructure:"wallet"`
 	}
 
 	webhook struct {

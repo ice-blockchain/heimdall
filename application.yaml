@@ -34,6 +34,8 @@ accounts:
   delegated_relying_party:
     auth:
       issuer: auth.dfns.ninja
+    wallet:
+      defaultName: main
     #baseUrl: https://bogus.example
     #webhookUrl:
     #appId: bogus

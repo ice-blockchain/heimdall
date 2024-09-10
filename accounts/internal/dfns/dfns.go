@@ -221,6 +221,8 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 		extendErrBody, extendErr = c.updateInitLoginReqBodyWithOrgID(req)
 	case initDelegatedRegistrationUrl:
 		extendErrBody, extendErr = c.updateRegisterReqBodyWithEndUser(req)
+	case completeDelegatedRegistrationUrl:
+		extendErrBody, extendErr = c.updateRegisterReqBodyWithWallets(req)
 	}
 	if extendErr != nil && extendErrBody != nil {
 		log.Error(errors.Wrapf(extendErr, "failed to update init login req with org id"))
@@ -287,6 +289,32 @@ func (c *dfnsClient) updateRegisterReqBodyWithEndUser(req *http.Request) (resp *
 		Kind  string `json:"kind"`
 	}) {
 		content.Kind = "EndUser"
+	})
+}
+func (c *dfnsClient) updateRegisterReqBodyWithWallets(req *http.Request) (resp *DfnsInternalError, err error) {
+	return extendRequestWith[struct {
+		FirstFactorCredential  map[string]any `json:"firstFactorCredential"`
+		SecondFactorCredential map[string]any `json:"secondFactorCredential,omitempty"`
+		RecoveryCredential     map[string]any `json:"recoveryCredential,omitempty"`
+		Wallets                []struct {
+			Network string `json:"network"`
+			Name    string `json:"name"`
+		} `json:"wallets"`
+	}](req, func(content *struct {
+		FirstFactorCredential  map[string]any `json:"firstFactorCredential"`
+		SecondFactorCredential map[string]any `json:"secondFactorCredential,omitempty"`
+		RecoveryCredential     map[string]any `json:"recoveryCredential,omitempty"`
+		Wallets                []struct {
+			Network string `json:"network"`
+			Name    string `json:"name"`
+		} `json:"wallets"`
+	}) {
+		if len(content.Wallets) == 0 {
+			content.Wallets = []struct {
+				Network string `json:"network"`
+				Name    string `json:"name"`
+			}{{Network: defaultWalletNetwork, Name: c.cfg.DFNS.Wallet.DefaultName}}
+		}
 	})
 }
 
@@ -471,6 +499,7 @@ func (cfg *config) loadCfg(applicationYamlKey string) {
 	}
 	cfg.DFNS.WebhookURL = yamlCfg.DFNS.WebhookURL
 	cfg.DFNS.Auth.Issuer = yamlCfg.DFNS.Auth.Issuer
+	cfg.DFNS.Wallet.DefaultName = yamlCfg.DFNS.Wallet.DefaultName
 }
 
 func (*config) mustLoadField(field *string, env, yamlVal string) {
