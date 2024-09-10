@@ -214,18 +214,23 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 			applicationID = c.cfg.DFNS.AppID
 		}
 	}
-	if req.URL.Path == initLoginUrl {
-		errBody, err := c.updateInitLoginReqBodyWithOrgID(req)
-		if err != nil {
-			log.Error(errors.Wrapf(err, "failed to update init login req with org id"))
-			rw.WriteHeader(errBody.HTTPStatus)
-			errBody.HTTPStatus = 0
-			var resp []byte
-			resp, err = json.Marshal(errBody)
-			rw.Write(resp)
+	var extendErr error
+	var extendErrBody *DfnsInternalError
+	switch req.URL.Path {
+	case initLoginUrl:
+		extendErrBody, extendErr = c.updateInitLoginReqBodyWithOrgID(req)
+	case initDelegatedRegistrationUrl:
+		extendErrBody, extendErr = c.updateRegisterReqBodyWithEndUser(req)
+	}
+	if extendErr != nil && extendErrBody != nil {
+		log.Error(errors.Wrapf(extendErr, "failed to update init login req with org id"))
+		rw.WriteHeader(extendErrBody.HTTPStatus)
+		extendErrBody.HTTPStatus = 0
+		var resp []byte
+		resp, extendErr = json.Marshal(extendErrBody)
+		rw.Write(resp)
 
-			return bytes.NewBuffer(resp)
-		}
+		return bytes.NewBuffer(resp)
 	}
 
 	if c.urlRequiresServiceAccountSignature(req.URL.Path) {
@@ -239,21 +244,18 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 	return respBody
 }
 
-func (c *dfnsClient) updateInitLoginReqBodyWithOrgID(req *http.Request) (resp *DfnsInternalError, err error) {
+func extendRequestWith[ReqBody any](req *http.Request, extendFn func(*ReqBody)) (resp *DfnsInternalError, err error) {
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		return &DfnsInternalError{HTTPStatus: http.StatusBadRequest, Message: "failed to read body"},
 			errors.Wrapf(err, "failed to extend init login req with orgId: reading body")
 	}
 	defer req.Body.Close()
-	var content struct {
-		Username string `json:"username"`
-		OrgID    string `json:"orgId"`
-	}
+	var content ReqBody
 	if err = json.Unmarshal(body, &content); err != nil {
-		return &DfnsInternalError{HTTPStatus: http.StatusBadRequest, Message: "invalid json"}, errors.Wrapf(err, "invalid init login json")
+		return &DfnsInternalError{HTTPStatus: http.StatusBadRequest, Message: "invalid json"}, errors.Wrapf(err, "invalid body json")
 	}
-	content.OrgID = c.cfg.DFNS.OrganizationID
+	extendFn(&content)
 	body, err = json.Marshal(content)
 	if err != nil {
 		return &DfnsInternalError{HTTPStatus: http.StatusInternalServerError, Message: "oops, error occured"}, errors.Wrapf(err, "failed to serialize %v")
@@ -263,6 +265,29 @@ func (c *dfnsClient) updateInitLoginReqBodyWithOrgID(req *http.Request) (resp *D
 	req.Body = io.NopCloser(bytes.NewReader(body))
 
 	return nil, nil //nolint:nilnil // .
+}
+
+func (c *dfnsClient) updateInitLoginReqBodyWithOrgID(req *http.Request) (resp *DfnsInternalError, err error) {
+	return extendRequestWith[struct {
+		Username string `json:"username"`
+		OrgID    string `json:"orgId"`
+	}](req, func(content *struct {
+		Username string `json:"username"`
+		OrgID    string `json:"orgId"`
+	}) {
+		content.OrgID = c.cfg.DFNS.OrganizationID
+	})
+}
+func (c *dfnsClient) updateRegisterReqBodyWithEndUser(req *http.Request) (resp *DfnsInternalError, err error) {
+	return extendRequestWith[struct {
+		Email string `json:"email"`
+		Kind  string `json:"kind"`
+	}](req, func(content *struct {
+		Email string `json:"email"`
+		Kind  string `json:"kind"`
+	}) {
+		content.Kind = "EndUser"
+	})
 }
 
 func (p *proxyResponseBody) Write(b []byte) (int, error) {
