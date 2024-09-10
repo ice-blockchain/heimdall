@@ -33,13 +33,14 @@ type (
 )
 
 const (
-	AuthHeaderCtxValue = "authHeaderCtxValue"
-	AppIDCtxValue      = "XDfnsAppIDCtxValue"
-	appIDHeader        = "X-Dfns-Appid"
-	clientIDHeader     = "X-Client-Id"
-	requestDeadline    = 25 * stdlibtime.Second
-	jwksUrl            = "/.well-known/jwks.json"
-	initLoginUrl       = "/auth/login/init"
+	AuthHeaderCtxValue           = "authHeaderCtxValue"
+	AppIDCtxValue                = "XDfnsAppIDCtxValue"
+	appIDHeader                  = "X-Dfns-Appid"
+	clientIDHeader               = "X-Client-Id"
+	requestDeadline              = 25 * stdlibtime.Second
+	jwksUrl                      = "/.well-known/jwks.json"
+	initLoginUrl                 = "/auth/login/init"
+	initDelegatedRegistrationUrl = "/auth/registration/delegated"
 )
 
 var (
