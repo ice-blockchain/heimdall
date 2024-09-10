@@ -313,7 +313,7 @@ func (c *dfnsClient) updateRegisterReqBodyWithWallets(req *http.Request) (resp *
 			content.Wallets = []struct {
 				Network string `json:"network"`
 				Name    string `json:"name"`
-			}{{Network: defaultWalletNetwork, Name: c.cfg.DFNS.Wallet.DefaultName}}
+			}{{Network: defaultWalletNetwork, Name: defaultWalletName}}
 		}
 	})
 }
@@ -499,7 +499,6 @@ func (cfg *config) loadCfg(applicationYamlKey string) {
 	}
 	cfg.DFNS.WebhookURL = yamlCfg.DFNS.WebhookURL
 	cfg.DFNS.Auth.Issuer = yamlCfg.DFNS.Auth.Issuer
-	cfg.DFNS.Wallet.DefaultName = yamlCfg.DFNS.Wallet.DefaultName
 }
 
 func (*config) mustLoadField(field *string, env, yamlVal string) {

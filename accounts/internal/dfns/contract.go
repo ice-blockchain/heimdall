@@ -44,6 +44,7 @@ const (
 	completeDelegatedRegistrationUrl = "/auth/registration/enduser"
 
 	defaultWalletNetwork = "Ton"
+	defaultWalletName    = "main"
 )
 
 var (
@@ -77,9 +78,6 @@ type (
 		Auth                       struct {
 			Issuer string `yaml:"issuer" mapstructure:"issuer"`
 		} `yaml:"auth" mapstructure:"auth"`
-		Wallet struct {
-			DefaultName string `yaml:"defaultName" mapstructure:"defaultName"`
-		} `yaml:"wallet" mapstructure:"wallet"`
 	}
 
 	webhook struct {
