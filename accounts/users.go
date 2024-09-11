@@ -139,6 +139,9 @@ func (a *accounts) upsertUsernameFromRegistration(ctx context.Context, now *time
 	if userInferface, hasUser := res["user"]; hasUser {
 		usr = userInferface.(map[string]any)
 	}
+	if len(usr) == 0 {
+		return nil
+	}
 	userID := usr["id"].(string)
 	username := usr["name"].(string)
 	return errors.Wrapf(a.insertUsername(ctx, now, userID, username), "failed to store username %v for user %v on registration", username, userID)
@@ -157,11 +160,16 @@ func (a *accounts) upsertUsernameFromLogin(ctx context.Context, now *time.Time, 
 	if tokenI, hasToken := res["token"]; hasToken {
 		token = tokenI.(string)
 	}
+	if token == "" { //nolint:gosec // .
+		return nil
+	}
 	parsedToken, err := server.Auth(ctx).VerifyToken(ctx, token)
 	if err != nil {
 		log.Panic(errors.Wrapf(err, "we're unable to verify just issued token from 3rd party delegated rp, something changed? Token %v", token))
 	}
-	return errors.Wrapf(a.insertUsername(ctx, now, parsedToken.UserID(), parsedToken.Username()), "failed to store username %v for user %v on registration", parsedToken.Username(), parsedToken.UserID())
+
+	return errors.Wrapf(a.insertUsername(ctx, now, parsedToken.UserID(), parsedToken.Username()),
+		"failed to store username %v for user %v on registration", parsedToken.Username(), parsedToken.UserID())
 }
 
 func (a *accounts) insertUsername(ctx context.Context, now *time.Time, userID, username string) error {
