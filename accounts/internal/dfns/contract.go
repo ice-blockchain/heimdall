@@ -103,6 +103,7 @@ type (
 	}
 	proxyResponseBody struct {
 		http.ResponseWriter
-		Body io.Writer
+		Body   io.Writer
+		Status int
 	}
 )

@@ -234,15 +234,20 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 
 		return bytes.NewBuffer(resp)
 	}
-
+	rb := &proxyResponseBody{ResponseWriter: rw, Body: respBody}
 	if c.urlRequiresServiceAccountSignature(req.URL.Path) {
 		cl := c.serviceAccountClient(applicationID)
 		pr := c.proxy("service", applicationID)
 		pr.Transport = cl.Transport
-		pr.ServeHTTP(&proxyResponseBody{ResponseWriter: rw, Body: respBody}, req)
+		pr.ServeHTTP(rb, req)
 	} else {
-		c.proxy("user", applicationID).ServeHTTP(&proxyResponseBody{ResponseWriter: rw, Body: respBody}, req)
+		c.proxy("user", applicationID).ServeHTTP(rb, req)
 	}
+	if rb.Status >= http.StatusBadRequest {
+		bodyData, _ := io.ReadAll(respBody)
+		log.Error(errors.Wrapf(buildDfnsError(rb.Status, req.Method, bodyData), "dfns req to %v %v ended up with %v", req.Method, req.URL.Path, rb.Status))
+	}
+
 	return respBody
 }
 
@@ -321,6 +326,10 @@ func (c *dfnsClient) updateRegisterReqBodyWithWallets(req *http.Request) (resp *
 func (p *proxyResponseBody) Write(b []byte) (int, error) {
 	_, _ = p.Body.Write(b)
 	return p.ResponseWriter.Write(b)
+}
+func (p *proxyResponseBody) WriteHeader(status int) {
+	p.Status = status
+	p.ResponseWriter.WriteHeader(status)
 }
 
 func (c *dfnsClient) clientCall(ctx context.Context, method, url string, headers http.Header, jsonData []byte) (int, []byte, error) {
