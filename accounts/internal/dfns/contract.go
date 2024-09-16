@@ -36,6 +36,8 @@ const (
 	AuthHeaderCtxValue               = "authHeaderCtxValue"
 	AppIDCtxValue                    = "XDfnsAppIDCtxValue"
 	appIDHeader                      = "X-Dfns-Appid"
+	userActionDfnsHeader             = "X-Dfns-Useraction"
+	userActionHeader                 = "X-Useraction"
 	clientIDHeader                   = "X-Client-Id"
 	requestDeadline                  = 25 * stdlibtime.Second
 	jwksUrl                          = "/.well-known/jwks.json"

@@ -214,6 +214,13 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 			applicationID = c.cfg.DFNS.AppID
 		}
 	}
+	userAction := req.Header.Get(userActionHeader)
+	if userAction == "" {
+		userAction = req.Header.Get(userActionDfnsHeader)
+	}
+	if userAction != "" {
+		req.Header.Set(userActionDfnsHeader, userAction)
+	}
 	var extendErr error
 	var extendErrBody *DfnsInternalError
 	switch req.URL.Path {
