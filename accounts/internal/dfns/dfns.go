@@ -237,7 +237,7 @@ func (c *dfnsClient) mustListWebhooks(ctx context.Context) []webhook {
 	return filteredItems
 }
 
-func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req *http.Request) io.Reader {
+func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req *http.Request) (status int, responseBody io.Reader) {
 	respBody := bytes.NewBuffer([]byte{})
 	applicationID := req.Header.Get(clientIDHeader)
 	if applicationID == "" {
@@ -273,7 +273,7 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 		resp, extendErr = json.Marshal(extendErrBody)
 		rw.Write(resp)
 
-		return bytes.NewBuffer(resp)
+		return extendErrBody.HTTPStatus, bytes.NewBuffer(resp)
 	}
 	rb := &proxyResponseBody{ResponseWriter: rw, Body: respBody}
 	if c.urlRequiresServiceAccountSignature(req.URL.Path) {
@@ -289,7 +289,7 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 		log.Error(errors.Wrapf(buildDfnsError(rb.Status, req.Method, bodyData), "dfns req to %v %v ended up with %v", req.Method, req.URL.Path, rb.Status))
 	}
 
-	return respBody
+	return rb.Status, respBody
 }
 
 func (c *dfnsClient) modifyResponse(r *http.Response) error {
@@ -471,7 +471,7 @@ func (c *dfnsClient) updateRegisterReqBodyWithWallets(req *http.Request) (resp *
 			content.Wallets = []struct {
 				Network string `json:"network"`
 				Name    string `json:"name"`
-			}{{Network: defaultWalletNetwork, Name: defaultWalletName}}
+			}{{Network: DefaultWalletNetwork, Name: DefaultWalletName}}
 		}
 		return nil
 	})

@@ -54,6 +54,7 @@ const (
 	AuthorizationHeaderCtxValue  = dfns.AuthHeaderCtxValue
 	AppIDHeaderCtxValue          = dfns.AppIDCtxValue
 	registrationUrl              = "/auth/registration/delegated"
+	completeRegistrationUrl      = "/auth/registration/enduser"
 	completeLoginUrl             = "/auth/login"
 	delegatedLoginUrl            = "/auth/login/delegated"
 )
@@ -71,6 +72,7 @@ var (
 	Err2FARequired                     = errors.New("2FA required")
 	ErrAuthenticatorRequirementsNotMet = errors.New("authenticator requirements not met")
 	ErrUserNotFound                    = storage.ErrNotFound
+	ErrInvalidFollowees                = errors.New("invalid followees")
 )
 
 const (
@@ -101,6 +103,7 @@ type (
 		Active2FATotpAuthenticator *int `db:"active_2fa_totp_authenticator"`
 		ID                         string
 		Username                   string
+		MasterPubKey               string `db:"master_pubkey"`
 		Email                      []string
 		PhoneNumber                []string
 		TotpAuthenticatorSecret    []string

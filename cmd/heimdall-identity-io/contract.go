@@ -91,6 +91,7 @@ const (
 	userNotFound               = "USER_NOT_FOUND"
 	twoFAExpiredCode           = "2FA_EXPIRED_CODE"
 	twoFARequired              = "2FA_REQUIRED"
+	invalidFollowees           = "INVALID_FOLLOWEES"
 )
 
 type (

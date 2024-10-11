@@ -23,7 +23,7 @@ type (
 		VerifyToken(ctx context.Context, token string) (server.Token, error)
 	}
 	DfnsClient interface {
-		ProxyCall(ctx context.Context, rw http.ResponseWriter, r *http.Request) (respBody io.Reader)
+		ProxyCall(ctx context.Context, rw http.ResponseWriter, r *http.Request) (status int, respBody io.Reader)
 		StartDelegatedRecovery(ctx context.Context, username string, credentialId string) (*StartedDelegatedRecovery, error)
 		GetUser(ctx context.Context, userID string) (*User, error)
 		VerifyWebhookSecret(fromWebhook string) bool
@@ -52,8 +52,8 @@ const (
 	completeDelegatedRegistrationUrl = "/auth/registration/enduser"
 	delegatedLoginUrl                = "/auth/login/delegated" // Refresh token actually.
 
-	defaultWalletNetwork = "Ton"
-	defaultWalletName    = "main"
+	DefaultWalletNetwork = "Ton"
+	DefaultWalletName    = "main"
 )
 
 var (
