@@ -3,9 +3,12 @@
 package accounts
 
 import (
+	"bytes"
 	"context"
+	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"math"
 	"math/big"
@@ -269,6 +272,7 @@ func (a *accounts) get2FACodes(ctx context.Context, userID string, inputCodes ma
 }
 
 func (a *accounts) Send2FA(ctx context.Context, userID string, opt TwoFAOptionEnum, optDeliverTo *string, language string, existing2FAVerificationForModify map[TwoFAOptionEnum]string) (*string, error) {
+	now := time.Now()
 	var codesForRollback map[TwoFAOptionEnum]string
 	usr, err := a.getUserByID(ctx, userID)
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
@@ -276,15 +280,20 @@ func (a *accounts) Send2FA(ctx context.Context, userID string, opt TwoFAOptionEn
 	}
 	deliverTo, err := a.checkDeliveryChannelFor2FA(ctx, usr, opt, optDeliverTo)
 	if err != nil {
-		if !errors.Is(err, Err2FARequired) {
+		if !(errors.Is(err, Err2FARequired) || errors.Is(err, errSignatureRequired)) {
 			return nil, errors.Wrapf(err, "failed to detect where to deviver 2fa")
 		}
-		if err = checkIfAll2FAProvided(usr, existing2FAVerificationForModify); err != nil {
-			return nil, err //nolint:wrapcheck // tErr.
+		if sErr := a.verifyUserSignature(userSignature(ctx), now, usr); sErr != nil {
+			return nil, errors.Wrapf(sErr, "invalid user signature on putting new 2fa")
 		}
-		codesForRollback, err = a.verifyAndRedeem2FA(ctx, userID, existing2FAVerificationForModify)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to verify existing 2fa for user %v", userID)
+		if errors.Is(err, Err2FARequired) {
+			if err = checkIfAll2FAProvided(usr, existing2FAVerificationForModify); err != nil {
+				return nil, err //nolint:wrapcheck // tErr.
+			}
+			codesForRollback, err = a.verifyAndRedeem2FA(ctx, userID, existing2FAVerificationForModify)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to verify existing 2fa for user %v", userID)
+			}
 		}
 	}
 	var code string
@@ -295,7 +304,7 @@ func (a *accounts) Send2FA(ctx context.Context, userID string, opt TwoFAOptionEn
 	}
 	defer a.concurrentlyGeneratedCodes[opt].Delete(userID)
 	if uErr := a.upsert2FACode(ctx, &twoFACode{
-		CreatedAt: time.Now(),
+		CreatedAt: now,
 		UserID:    userID,
 		Option:    opt,
 		DeliverTo: deliverTo,
@@ -402,7 +411,8 @@ func (a *accounts) checkDeliveryChannelFor2FA(ctx context.Context, usr *user, op
 	if newChannel == nil {
 		return "", Err2FADeliverToNotProvided
 	}
-	return *newChannel, nil
+
+	return *newChannel, errSignatureRequired
 
 }
 
@@ -419,14 +429,17 @@ func (a *accounts) upsert2FACode(ctx context.Context, codeInfo *twoFACode) error
 }
 
 func (a *accounts) Delete2FA(ctx context.Context, userID string, inputCodes map[TwoFAOptionEnum]string, channel TwoFAOptionEnum, delValue string) error {
+	now := time.Now()
 	usr, err := a.getUserByID(ctx, userID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to check existing user phone and email for userID %v", userID)
 	}
+	if err = a.verifyUserSignature(userSignature(ctx), now, usr); err != nil {
+		return errors.Wrap(err, "invalid user signature on deleting existing 2fa")
+	}
 	if err = checkIfAll2FAProvided(usr, inputCodes); err != nil {
 		return err
 	}
-	now := time.Now()
 	var codes map[TwoFAOptionEnum]*twoFACode
 	if codes, err = a.verify2FA(ctx, now, userID, inputCodes); err != nil {
 		return errors.Wrapf(err, "falied to verify codes")
@@ -488,5 +501,51 @@ func (a *accounts) canRemoveEmailOrPhoneDueToauthenticatorSetup(channel TwoFAOpt
 	if channel == TwoFAOptionSMS && len(usr.PhoneNumber) == 1 && len(usr.Email) == 0 && slices.Contains(usr.PhoneNumber, removal) {
 		return ErrAuthenticatorRequirementsNotMet
 	}
+	return nil
+}
+
+func userSignature(ctx context.Context) string {
+	val := ctx.Value(userSignatureCtxValueKey)
+	if val == nil {
+		return ""
+	}
+	return val.(string)
+}
+
+func (a *accounts) verifyUserSignature(b64 string, now *time.Time, usr *user) error {
+	// signature:createdAtTS:userID
+	signatureStringBytes, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		return errors.Wrapf(ErrInvalidUserSignature, "incorrect base64")
+	}
+	signatureEnd := bytes.IndexByte(signatureStringBytes, ':')
+	if signatureEnd == -1 {
+		return errors.Wrapf(ErrInvalidUserSignature, "incorrect signature, cant detect signature")
+	}
+	signature, err := base64.StdEncoding.DecodeString(string(signatureStringBytes[:signatureEnd]))
+	if err != nil {
+		return errors.Wrapf(ErrInvalidUserSignature, "incorrect signture is not base64 encoded")
+	}
+	createdAtEnd := bytes.IndexByte(signatureStringBytes[signatureEnd+1:], ':')
+	if createdAtEnd == -1 {
+		return errors.Wrapf(ErrInvalidUserSignature, "incorrect signature, cant detect createdAt")
+	}
+	createdAtUnix, err := strconv.ParseInt(string(signatureStringBytes[signatureEnd+1:signatureEnd+1+createdAtEnd]), 10, 64)
+	if err != nil {
+		return errors.Wrapf(ErrInvalidUserSignature, "incorrect signature, invalid createdAt %v", string(signatureStringBytes[:createdAtEnd]))
+	}
+	createdAt := stdlibtime.Unix(createdAtUnix, 0)
+	if createdAt.After(*now.Time) || now.Sub(createdAt) > a.cfg.UserSignatureExpiration {
+		return errors.Wrapf(ErrInvalidUserSignature, "expired createdAt")
+	}
+	signedData := []byte(fmt.Sprintf("%v:%v", createdAtUnix, usr.ID))
+	pubkey, err := hex.DecodeString(usr.MasterPubKey)
+	if err != nil {
+		return errors.Wrapf(ErrInvalidUserSignature, "user %v have invalid master pubkey", usr.ID)
+	}
+	if !ed25519.Verify(pubkey, signedData, signature) {
+		return ErrInvalidUserSignature
+	}
+
 	return nil
 }

@@ -73,16 +73,21 @@ var (
 	ErrAuthenticatorRequirementsNotMet = errors.New("authenticator requirements not met")
 	ErrUserNotFound                    = storage.ErrNotFound
 	ErrInvalidFollowees                = errors.New("invalid followees")
+	ErrInvalidUserSignature            = errors.New("invalid user signature")
 )
 
 const (
-	applicationYamlKey     = "accounts"
-	clientIPCtxValueKey    = "clientIPCtxValueKey"
-	confirmationCodeLength = 6
+	applicationYamlKey       = "accounts"
+	clientIPCtxValueKey      = "clientIPCtxValueKey"
+	userSignatureCtxValueKey = "userSignatureCtxValueKey"
+	confirmationCodeLength   = 6
 )
 
-//go:embed DDL.sql
-var ddl string
+var (
+	//go:embed DDL.sql
+	ddl                  string
+	errSignatureRequired = errors.New("signature is required")
+)
 
 type (
 	accounts struct {
@@ -119,7 +124,8 @@ type (
 		Code        string
 	}
 	config struct {
-		EmailExpiration stdlibtime.Duration `yaml:"emailExpiration" mapstructure:"emailExpiration"`
-		SMSExpiration   stdlibtime.Duration `yaml:"smsExpiration" mapstructure:"smsExpiration"`
+		EmailExpiration         stdlibtime.Duration `yaml:"emailExpiration" mapstructure:"emailExpiration"`
+		SMSExpiration           stdlibtime.Duration `yaml:"smsExpiration" mapstructure:"smsExpiration"`
+		UserSignatureExpiration stdlibtime.Duration `yaml:"userSignatureExpiration" mapstructure:"userSignatureExpiration"`
 	}
 )

@@ -48,8 +48,10 @@ type (
 		UserID                 string                     `uri:"userId" required:"true" swaggerignore:"true"`
 		TwoFAOption            TwoFAOptionEnum            `uri:"twoFAOption" required:"true" swaggerignore:"true"`
 		Language               string                     `header:"X-Language" swaggerignore:"true"`
+		UserSignature          string                     `header:"X-Useraction" swaggerignore:"true"`
 	}
 	Delete2FAReq struct {
+		UserSignature                string            `header:"X-Useraction" swaggerignore:"true"`
 		UserID                       string            `uri:"userId" required:"true" swaggerignore:"true"`
 		TwoFAOption                  TwoFAOptionEnum   `uri:"twoFAOption" required:"true" swaggerignore:"true"`
 		TwoFAOptionValue             string            `uri:"twoFAOptionValue" required:"true" swaggerignore:"true"`
@@ -84,14 +86,16 @@ type (
 const (
 	applicationYamlKey         = "cmd/heimdall-identity-io"
 	proxyTimeout               = 30 * time.Second
+	userSignatureCtxValueKey   = "userSignatureCtxValueKey"
 	invalidPropertiesErrorCode = "INVALID_PROPERTIES"
-	authenticatorReqNotMet     = "authenticator_REQ_NOT_MET"
+	authenticatorReqNotMet     = "AUTHENTICATOR_REQ_NOT_MET"
 	twoFANoPendingCode         = "NO_PENDING_2FA"
 	twoFAInvalidCode           = "2FA_INVALID_CODE"
 	userNotFound               = "USER_NOT_FOUND"
 	twoFAExpiredCode           = "2FA_EXPIRED_CODE"
 	twoFARequired              = "2FA_REQUIRED"
 	invalidFollowees           = "INVALID_FOLLOWEES"
+	invalidUserSignature       = "INVALID_SIGNATURE"
 )
 
 type (
