@@ -146,23 +146,24 @@ func (a *accounts) GetUser(ctx context.Context, userID string) (*User, error) {
 		}
 		twoFAOptions := make([]TwoFAOptionEnum, 0, len(AllTwoFAOptions))
 		if len(dbUsr.Email) > 0 {
-			if dbUsr.Active2FAEmail != nil {
+			if dbUsr.Active2FAEmail != nil && slices.Contains(dbUsr.Active2FAEmail, true) {
 				twoFAOptions = append(twoFAOptions, TwoFAOptionEmail)
 			}
 			usr.Email = dbUsr.Email
 
 		}
 		if len(dbUsr.PhoneNumber) > 0 {
-			if dbUsr.Active2FAPhoneNumber != nil {
+			if dbUsr.Active2FAPhoneNumber != nil && slices.Contains(dbUsr.Active2FAPhoneNumber, true) {
 				twoFAOptions = append(twoFAOptions, TwoFAOptionSMS)
 			}
 			usr.PhoneNumber = dbUsr.PhoneNumber
 		}
-		if len(dbUsr.TotpAuthenticatorSecret) > 0 && dbUsr.Active2FATotpAuthenticator != nil {
+		if len(dbUsr.TotpAuthenticatorSecret) > 0 && dbUsr.Active2FATotpAuthenticator != nil && slices.Contains(dbUsr.Active2FATotpAuthenticator, true) {
 			twoFAOptions = append(twoFAOptions, TwoFAOptionTOTPAuthenticator)
 		}
 		usr.TwoFAOptions = twoFAOptions
 	}
+
 	return usr, nil
 }
 

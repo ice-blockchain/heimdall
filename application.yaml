@@ -58,6 +58,7 @@ accounts:
   emailExpiration: 15m
   smsExpiration: 15m
   userSignatureExpiration: 1h
+  max2FACount: 2
   wintr/connectors/storage/v2:
     runDDL: true
     primaryURL: postgresql://root:pass@localhost:5437/heimdall

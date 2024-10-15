@@ -20,15 +20,15 @@ func (a *accounts) ProxyDelegatedRelyingParty(ctx context.Context, rw http.Respo
 
 }
 
-func (a *accounts) StartDelegatedRecovery(ctx context.Context, username, credentialID string, codes map[TwoFAOptionEnum]string) (*StartedDelegatedRecovery, error) {
+func (a *accounts) StartDelegatedRecovery(ctx context.Context, username, credentialID string, codes map[TwoFAOptionWithAddr]string) (*StartedDelegatedRecovery, error) {
 	usr, err := a.getUserByUsername(ctx, username)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get user 2FA state for username %v", username)
 	}
-	if err = checkIfAll2FAProvided(usr, codes); err != nil {
+	if err = a.checkIfEnough2FAProvided(usr, codes); err != nil {
 		return nil, err //nolint:wrapcheck // tErr.
 	}
-	var rollbackCodes map[TwoFAOptionEnum]string
+	var rollbackCodes map[TwoFAOptionWithAddr]string
 	if rollbackCodes, err = a.verifyAndRedeem2FA(ctx, usr.ID, codes); err != nil {
 		return nil, errors.Wrapf(err, "failed to verify 2FA codes")
 	}

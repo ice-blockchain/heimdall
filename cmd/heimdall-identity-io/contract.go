@@ -13,12 +13,13 @@ type (
 		_ struct{} `json:"-" allowUnauthorized:"true"`
 	}
 	StartDelegatedRecoveryReq struct {
-		TwoFAVerificationCodes map[TwoFAOptionEnum]string `json:"2FAVerificationCodes"`
+		TwoFAVerificationCodes map[TwoFAOptionWithAddr]string `json:"2FAVerificationCodes"`
 		Username               string                     `json:"username" allowUnauthorized:"true"`
 		CredentialID           string                     `json:"credentialId" required:"true"`
 		ClientID               string                     `header:"X-Client-ID" required:"true" swaggerignore:"true"`
 	}
 	TwoFAOptionEnum            = accounts.TwoFAOptionEnum
+	TwoFAOptionWithAddr        = accounts.TwoFAOptionWithAddr
 	StartDelegatedRecoveryResp = accounts.StartedDelegatedRecovery
 	GetUserReq                 struct {
 		UserID        string `uri:"userId" required:"true" swaggerignore:"true"`
@@ -44,35 +45,29 @@ type (
 	Send2FARequestReq struct {
 		Email                  *string                    `json:"email,omitempty"`
 		PhoneNumber            *string                    `json:"phoneNumber,omitempty"`
-		TwoFAVerificationCodes map[TwoFAOptionEnum]string `json:"2FAVerificationCodes"`
+		TwoFAVerificationCodes map[TwoFAOptionWithAddr]string `json:"2FAVerificationCodes"`
 		UserID                 string                     `uri:"userId" required:"true" swaggerignore:"true"`
 		TwoFAOption            TwoFAOptionEnum            `uri:"twoFAOption" required:"true" swaggerignore:"true"`
 		Language               string                     `header:"X-Language" swaggerignore:"true"`
 		UserSignature          string                     `header:"X-Useraction" swaggerignore:"true"`
 	}
 	Delete2FAReq struct {
-		UserSignature                string            `header:"X-Useraction" swaggerignore:"true"`
-		UserID                       string            `uri:"userId" required:"true" swaggerignore:"true"`
-		TwoFAOption                  TwoFAOptionEnum   `uri:"twoFAOption" required:"true" swaggerignore:"true"`
-		TwoFAOptionValue             string            `uri:"twoFAOptionValue" required:"true" swaggerignore:"true"`
-		TwoFAOptionVerificationCode  []string          `form:"twoFAOptionVerificationCode" required:"true"`
-		TwoFAOptionVerificationValue []TwoFAOptionEnum `form:"twoFAOptionVerificationValue" required:"true"`
+		UserSignature                string          `header:"X-Useraction" swaggerignore:"true"`
+		UserID                       string          `uri:"userId" required:"true" swaggerignore:"true"`
+		TwoFAOption                  TwoFAOptionEnum `uri:"twoFAOption" required:"true" swaggerignore:"true"`
+		TwoFAOptionValue             string          `uri:"twoFAOptionValue" required:"true" swaggerignore:"true"`
+		TwoFAOptionVerificationCode  []string        `form:"twoFAOptionVerificationCode" required:"true"`
+		TwoFAOptionVerificationValue []string        `form:"twoFAOptionVerificationValue" required:"true"`
 	}
 	Send2FARequestResp struct {
 		TOTPAuthenticatorURL *string `json:"TOTPAuthenticatorURL,omitempty"`
 	}
 	Verify2FARequestReq struct {
-		UserID      string          `uri:"userId" required:"true" swaggerignore:"true"`
-		TwoFAOption TwoFAOptionEnum `uri:"twoFAOption" required:"true" swaggerignore:"true"`
-		Code        string          `form:"code" required:"true" swaggerignore:"true"`
+		UserID      string              `uri:"userId" required:"true" swaggerignore:"true"`
+		TwoFAOption TwoFAOptionWithAddr `uri:"twoFAOption" required:"true" swaggerignore:"true"`
+		Code        string              `form:"code" required:"true" swaggerignore:"true"`
 	}
 	Verify2FARequestResp struct {
-	}
-	RefreshTokenReq struct {
-		Username string `json:"username"`
-	}
-	RefreshTokenResp struct {
-		Token string `json:"token"`
 	}
 	WebhookData struct {
 		Date *time.Time     `json:"date"`

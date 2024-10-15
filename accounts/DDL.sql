@@ -11,12 +11,12 @@ CREATE TABLE IF NOT EXISTS users (
     phone_number                           TEXT[],
     totp_authenticator_secret              TEXT[],
     ion_connect_relays                     TEXT[],
-    active_2fa_email                       smallint,
-    active_2fa_phone_number                smallint,
-    active_2fa_totp_authenticator          smallint,
-    CONSTRAINT active_2fa_email_valid CHECK (active_2fa_email < cardinality(email)),
-    CONSTRAINT active_2fa_phone_valid CHECK (active_2fa_phone_number < cardinality(phone_number)),
-    CONSTRAINT active_2fa_totp_valid CHECK (users.active_2fa_totp_authenticator < cardinality(totp_authenticator_secret)),
+    active_2fa_email                       boolean[], -- bitmask
+    active_2fa_phone_number                boolean[], -- bitmask
+    active_2fa_totp_authenticator          boolean[], -- bitmask
+    CONSTRAINT active_2fa_email_valid CHECK (cardinality(active_2fa_email) = cardinality(email)),
+    CONSTRAINT active_2fa_phone_valid CHECK (cardinality(active_2fa_phone_number) = cardinality(phone_number)),
+    CONSTRAINT active_2fa_totp_valid CHECK (cardinality(users.active_2fa_totp_authenticator) = cardinality(totp_authenticator_secret)),
     primary key(id)
 );
 ALTER TABLE users
@@ -35,10 +35,10 @@ CREATE TABLE IF NOT EXISTS twofa_codes (
     option twofa_option NOT NULL,
     deliver_to TEXT NOT NULL,
     code    TEXT NOT NULL,
-    primary key (user_id, option)
+    primary key (user_id, option, deliver_to)
 );
 
-CREATE INDEX IF NOT EXISTS twofa_codes_option_code ON twofa_codes (option, code);
+CREATE INDEX IF NOT EXISTS twofa_codes_option_code ON twofa_codes (option, deliver_to, code);
 
 CREATE TABLE IF NOT EXISTS global  (
        value TEXT NOT NULL,

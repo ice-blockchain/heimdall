@@ -24,17 +24,22 @@ type (
 	Accounts interface {
 		io.Closer
 		ProxyDelegatedRelyingParty(ctx context.Context, rw http.ResponseWriter, r *http.Request)
-		Verify2FA(ctx context.Context, userID string, codes map[TwoFAOptionEnum]string) error
-		Delete2FA(ctx context.Context, userID string, codes map[TwoFAOptionEnum]string, twoFAToDel TwoFAOptionEnum, toDel string) error
-		Send2FA(ctx context.Context, userID string, channel TwoFAOptionEnum, deliverTo *string, language string, verificationUsingExisting2FA map[TwoFAOptionEnum]string) (authenticatorUri *string, err error)
-		StartDelegatedRecovery(ctx context.Context, username, credentialID string, codes map[TwoFAOptionEnum]string) (resp *StartedDelegatedRecovery, err error)
+		Verify2FA(ctx context.Context, userID string, codes map[TwoFAOptionWithAddr]string) error
+		Delete2FA(ctx context.Context, userID string, codes map[TwoFAOptionWithAddr]string, twoFAToDel TwoFAOptionEnum, toDel string) error
+		Send2FA(ctx context.Context, userID string, channel TwoFAOptionEnum, deliverTo *string, language string, verificationUsingExisting2FA map[TwoFAOptionWithAddr]string) (authenticatorUri *string, err error)
+		StartDelegatedRecovery(ctx context.Context, username, credentialID string, codes map[TwoFAOptionWithAddr]string) (resp *StartedDelegatedRecovery, err error)
 		GetOrAssignIONConnectRelays(ctx context.Context, userID string, followees []string) (relays []string, err error)
 		GetIONConnectIndexerRelays(ctx context.Context, userID string) (indexers []string, err error)
 		GetUser(ctx context.Context, userID string) (usr *User, err error)
 		HealthCheck(ctx context.Context) error
 	}
 
-	TwoFAOptionEnum          = string
+	TwoFAOptionEnum     string
+	TwoFAOptionWithAddr struct {
+		opt  TwoFAOptionEnum
+		idx  int
+		addr string
+	} // email:someone@bogus.com, for the maps to separate codes for same channel
 	StartedDelegatedRecovery = dfns.StartedDelegatedRecovery
 	DelegatedRelyingPartyErr = dfns.DfnsInternalError
 	User                     struct {
@@ -103,9 +108,6 @@ type (
 	user struct {
 		CreatedAt                  *time.Time
 		UpdatedAt                  *time.Time
-		Active2FAEmail             *int `db:"active_2fa_email"`
-		Active2FAPhoneNumber       *int `db:"active_2fa_phone_number"`
-		Active2FATotpAuthenticator *int `db:"active_2fa_totp_authenticator"`
 		ID                         string
 		Username                   string
 		MasterPubKey               string `db:"master_pubkey"`
@@ -114,18 +116,23 @@ type (
 		TotpAuthenticatorSecret    []string
 		IONConnectRelays           []string
 		Clients                    []string
+		Active2FAEmail             []bool `db:"active_2fa_email"`
+		Active2FAPhoneNumber       []bool `db:"active_2fa_phone_number"`
+		Active2FATotpAuthenticator []bool `db:"active_2fa_totp_authenticator"`
 	}
 	twoFACode struct {
-		CreatedAt   *time.Time
-		ConfirmedAt *time.Time
-		UserID      string
-		Option      TwoFAOptionEnum
-		DeliverTo   string
-		Code        string
+		CreatedAt    *time.Time
+		ConfirmedAt  *time.Time
+		UserID       string
+		Option       TwoFAOptionEnum
+		DeliverToIdx *int `db:"deliver_to_idx"`
+		DeliverTo    string
+		Code         string
 	}
 	config struct {
 		EmailExpiration         stdlibtime.Duration `yaml:"emailExpiration" mapstructure:"emailExpiration"`
 		SMSExpiration           stdlibtime.Duration `yaml:"smsExpiration" mapstructure:"smsExpiration"`
 		UserSignatureExpiration stdlibtime.Duration `yaml:"userSignatureExpiration" mapstructure:"userSignatureExpiration"`
+		Max2FACount             int                 `yaml:"max2FACount" mapstructure:"max2FACount"`
 	}
 )

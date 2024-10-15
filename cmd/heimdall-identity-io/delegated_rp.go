@@ -147,15 +147,8 @@ func withAppID(ctx context.Context, appID string) context.Context {
 
 func (r *StartDelegatedRecoveryReq) validate() error {
 	for reqOpt := range r.TwoFAVerificationCodes {
-		ok := false
-		for _, opt := range accounts.AllTwoFAOptions {
-			if reqOpt == opt {
-				ok = true
-				break
-			}
-		}
-		if !ok {
-			return errors.Errorf("invalid 2fa option: %v", reqOpt)
+		if err := reqOpt.Validate(); err != nil {
+			return err
 		}
 	}
 	return nil
