@@ -55,16 +55,17 @@ func (a *accounts) verify2FA(ctx context.Context, now *time.Time, userID string,
 		if i >= inputLen {
 			break
 		}
+		t := twoFAOptionWithAddrFromCode(c)
 		for input, inputCode := range inputCodes {
-			if (inputCode == c.Code || c.Option == TwoFAOptionTOTPAuthenticator) && input.opt == c.Option {
+			if (inputCode == a.getCode(c, now, input.idx)) && input.opt == c.Option {
 				input.addr = c.DeliverTo
+				t.idx = input.idx
 				inputCodes[input] = inputCode
 			}
 		}
 		if vErr = c.expired(a, now); vErr != nil {
 			break
 		}
-		t := twoFAOptionWithAddrFromCode(c)
 		if vErr = c.invalidCode(a, now, inputCodes, t); vErr != nil {
 			faultCode = inputCodes[t]
 
@@ -114,25 +115,30 @@ func (c *twoFACode) invalidCode(a *accounts, now *time.Time, inputCodes map[TwoF
 		invalidCode = c.Code != inputCode
 	case TwoFAOptionTOTPAuthenticator:
 		secrets := strings.Split(c.Code, ":")
-		if len(secrets) == 1 {
-			invalidCode = !(a.totpProvider.Verify(now, secrets[0], inputCode))
-		} else {
-			valid := false
-			for _, s := range secrets {
-				valid = (a.totpProvider.Verify(now, s, inputCode))
-				if valid {
-					c.Code = s
-					break
-				}
-			}
-			invalidCode = !valid
+		if key.idx+1 >= len(secrets) {
+			return errors.Wrapf(Err2FAInvalidCode, "invalid index %v", key.idx)
 		}
+		invalidCode = !(a.totpProvider.Verify(now, secrets[key.idx], inputCode))
 	}
 	if invalidCode {
 		return Err2FAInvalidCode
 	}
 
 	return nil
+}
+
+func (a *accounts) getCode(c *twoFACode, now *time.Time, idx int) string {
+	switch c.Option {
+	case TwoFAOptionEmail, TwoFAOptionSMS:
+		return c.Code
+	case TwoFAOptionTOTPAuthenticator:
+		secrets := strings.Split(c.Code, ":")
+		if idx+1 >= len(secrets) {
+			return ""
+		}
+		return a.totpProvider.GenerateCode(now, secrets[idx])
+	}
+	return ""
 }
 
 func (a *accounts) updateUserWithConfirmed2FA(ctx context.Context, now *time.Time, userID string, codes []*twoFACode) (codesToRollback map[TwoFAOptionWithAddr]string, err error) {
@@ -528,8 +534,8 @@ func (a *accounts) checkDeliveryChannelFor2FA(ctx context.Context, usr *user, op
 }
 
 func (a *accounts) upsert2FACode(ctx context.Context, codeInfo *twoFACode) error {
-	sql := `INSERT INTO twofa_codes (created_at, user_id, option, deliver_to, code) VALUES ($1, $2, $3, $4, $5) 
-			ON CONFLICT (user_id, option, deliver_to) DO UPDATE SET 
+	sql := `INSERT INTO twofa_codes (created_at, user_id, option, deliver_to, code) VALUES ($1, $2, $3, $4, $5)
+			ON CONFLICT (user_id, option, deliver_to) DO UPDATE SET
                                             created_at = excluded.created_at,
                                             code = excluded.code
 			WHERE twofa_codes.code != excluded.code OR twofa_codes.deliver_to != excluded.deliver_to;`
@@ -631,8 +637,6 @@ func userSignature(ctx context.Context) string {
 }
 
 func (a *accounts) verifyUserSignature(b64 string, now *time.Time, usr *user) error {
-	// TODO:
-	return nil
 	// signature:createdAtTS:userID
 	signatureStringBytes, err := base64.StdEncoding.DecodeString(b64)
 	if err != nil {

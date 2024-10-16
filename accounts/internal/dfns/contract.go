@@ -52,7 +52,7 @@ const (
 	completeDelegatedRegistrationUrl = "/auth/registration/enduser"
 	delegatedLoginUrl                = "/auth/login/delegated" // Refresh token actually.
 
-	DefaultWalletNetwork = "KeyEdDSA"
+	DefaultWalletNetwork = "Ton"
 	DefaultWalletName    = "main"
 )
 
