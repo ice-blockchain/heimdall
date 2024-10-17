@@ -670,7 +670,6 @@ func userSignature(ctx context.Context) string {
 }
 
 func (a *accounts) verifyUserSignature(b64 string, now *time.Time, usr *user) error {
-	return nil
 	// signature:createdAtTS:userID
 	signatureStringBytes, err := base64.StdEncoding.DecodeString(b64)
 	if err != nil {
