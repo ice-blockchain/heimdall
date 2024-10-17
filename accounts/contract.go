@@ -79,6 +79,7 @@ var (
 	ErrUserNotFound                    = storage.ErrNotFound
 	ErrInvalidFollowees                = errors.New("invalid followees")
 	ErrInvalidUserSignature            = errors.New("invalid user signature")
+	ErrInvalidUsername                 = dfns.ErrInvalidUsername
 )
 
 const (

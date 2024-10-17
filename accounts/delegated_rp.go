@@ -6,6 +6,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/goccy/go-json"
 	"github.com/hashicorp/go-multierror"
@@ -18,9 +19,11 @@ func (a *accounts) ProxyDelegatedRelyingParty(ctx context.Context, rw http.Respo
 	a.delegatedRPClient.ProxyCall(ctx, rw, r)
 }
 
-}
-
 func (a *accounts) StartDelegatedRecovery(ctx context.Context, username, credentialID string, codes map[TwoFAOptionWithAddr]string) (*StartedDelegatedRecovery, error) {
+	username = strings.ToLower(username)
+	if !dfns.UsernameRegexp.MatchString(username) {
+		return nil, errors.Wrapf(dfns.ErrInvalidUsername, "username must match %v", dfns.UsernameRegexp.String())
+	}
 	usr, err := a.getUserByUsername(ctx, username)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get user 2FA state for username %v", username)

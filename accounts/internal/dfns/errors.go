@@ -17,7 +17,7 @@ type DfnsInternalError struct {
 	Context    map[string]interface{} `json:"context,omitempty"`
 	raw        string
 	Message    string `json:"message"`
-	HTTPStatus int    `json:"httpStatus"`
+	HTTPStatus int    `json:"httpStatus,omitempty"`
 }
 
 func ParseErrAsDfnsInternalErr(err error) error {

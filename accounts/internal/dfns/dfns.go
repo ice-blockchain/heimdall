@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	stdlibtime "time"
 
@@ -427,6 +428,9 @@ func (c *dfnsClient) updateRegisterReqBodyWithEndUser(req *http.Request) (resp *
 		Email string `json:"email"`
 		Kind  string `json:"kind"`
 	}) error {
+		if !UsernameRegexp.MatchString(content.Email) {
+			return errors.Wrapf(ErrInvalidUsername, "must match %v", UsernameRegexp.String())
+		}
 		content.Kind = "EndUser"
 		return nil
 	})

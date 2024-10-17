@@ -91,6 +91,7 @@ const (
 	twoFARequired              = "2FA_REQUIRED"
 	invalidFollowees           = "INVALID_FOLLOWEES"
 	invalidUserSignature       = "INVALID_SIGNATURE"
+	invalidUsername            = "INVALID_USERNAME"
 )
 
 type (

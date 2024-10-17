@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httputil"
+	"regexp"
 	"sync"
 	stdlibtime "time"
 
@@ -59,6 +60,8 @@ const (
 var (
 	ErrInvalidToken = server.ErrInvalidToken
 	ErrExpiredToken = server.ErrExpiredToken
+	ErrInvalidUsername = errors.New("invalid username")
+	UsernameRegexp     = regexp.MustCompile("^[a-z0-9._-]+$")
 )
 
 type (

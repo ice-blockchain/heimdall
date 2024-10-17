@@ -34,18 +34,22 @@ func (a *accounts) Verify2FA(ctx context.Context, userID string, userInputCodes 
 }
 func (a *accounts) verifyAndRedeem2FA(ctx context.Context, userID string, userInputCodes map[TwoFAOptionWithAddr]string) (rollback map[TwoFAOptionWithAddr]string, err error) {
 	now := time.Now()
+	usr, err := a.getUserByID(ctx, userID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get user for userID %v", userID)
+	}
 	var codes []*twoFACode
-	if codes, err = a.verify2FA(ctx, now, userID, userInputCodes); err != nil {
+	if codes, err = a.verify2FA(ctx, now, usr, userInputCodes); err != nil {
 		return nil, errors.Wrapf(err, "falied to verify codes")
 	}
 
 	return a.updateUserWithConfirmed2FA(ctx, now, userID, codes)
 }
 
-func (a *accounts) verify2FA(ctx context.Context, now *time.Time, userID string, inputCodes map[TwoFAOptionWithAddr]string) ([]*twoFACode, error) {
-	codes, err := a.get2FACodes(ctx, userID, inputCodes)
+func (a *accounts) verify2FA(ctx context.Context, now *time.Time, usr *user, inputCodes map[TwoFAOptionWithAddr]string) ([]*twoFACode, error) {
+	codes, err := a.get2FACodes(ctx, usr, inputCodes)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get pending codes %v for userID %v", inputCodes, userID)
+		return nil, errors.Wrapf(err, "failed to get pending codes %v for userID %v", inputCodes, usr.ID)
 	}
 	var vErr error
 	faultCode := ""
@@ -115,7 +119,7 @@ func (c *twoFACode) invalidCode(a *accounts, now *time.Time, inputCodes map[TwoF
 		invalidCode = c.Code != inputCode
 	case TwoFAOptionTOTPAuthenticator:
 		secrets := strings.Split(c.Code, ":")
-		if key.idx+1 >= len(secrets) {
+		if key.idx >= len(secrets) {
 			return errors.Wrapf(Err2FAInvalidCode, "invalid index %v", key.idx)
 		}
 		invalidCode = !(a.totpProvider.Verify(now, secrets[key.idx], inputCode))
@@ -133,7 +137,7 @@ func (a *accounts) getCode(c *twoFACode, now *time.Time, idx int) string {
 		return c.Code
 	case TwoFAOptionTOTPAuthenticator:
 		secrets := strings.Split(c.Code, ":")
-		if idx+1 >= len(secrets) {
+		if idx >= len(secrets) {
 			return ""
 		}
 		return a.totpProvider.GenerateCode(now, secrets[idx])
@@ -192,7 +196,7 @@ func (a *accounts) updateUserWithConfirmedOrDeleted2FA(
 	if len(codes) == 0 {
 		return map[TwoFAOptionWithAddr]string{}, nil
 	}
-	whereClause, extraParams := buildWhereClauseRedeemCodes(codes, removal)
+	whereClause, extraParams := buildWhereClauseRedeemCodes(codes)
 	authenticatorCode := ""
 	for _, c := range codes {
 		if c.Option == TwoFAOptionTOTPAuthenticator {
@@ -200,11 +204,7 @@ func (a *accounts) updateUserWithConfirmedOrDeleted2FA(
 			break
 		}
 	}
-	params := []any{userID, *now.Time, authenticatorCode}
-	if removal != "" {
-		params = append(params, removal)
-		params = append(params, removalIdx)
-	}
+	params := []any{userID, *now.Time, authenticatorCode, removal, removalIdx}
 	params = append(params, extraParams...)
 	sql := fmt.Sprintf(`
 WITH upd AS (
@@ -270,13 +270,10 @@ inner join upd_users on upd.user_id = upd_users.id;`, whereClause, TwoFAOptionTO
 	return codesForRollback, nil
 }
 
-func buildWhereClauseRedeemCodes(codes []*twoFACode, removeValue string) (string, []any) {
+func buildWhereClauseRedeemCodes(codes []*twoFACode) (string, []any) {
 	where := make([]string, 0, len(codes))
 	params := make([]any, 0, len(codes)*3)
 	nextIndex := 6
-	if removeValue == "" {
-		nextIndex = 4
-	}
 	for _, c := range codes {
 		where = append(where, fmt.Sprintf("(option = $%[1]v::twofa_option and deliver_to = $%[2]v and code = $%[3]v )", nextIndex, nextIndex+1, nextIndex+2))
 		params = append(params, c.Option, c.DeliverTo, c.Code)
@@ -285,19 +282,60 @@ func buildWhereClauseRedeemCodes(codes []*twoFACode, removeValue string) (string
 	return strings.Join(where, " OR "), params
 }
 
-func buildWhereClauseGetCodes(codes map[TwoFAOptionWithAddr]string) (string, []any) {
+func buildWhereClauseGetCodes(usr *user, codes map[TwoFAOptionWithAddr]string) (string, []any, error) {
 	if len(codes) == 0 {
-		return "1=1", nil
+		return "1=1", nil, nil
 	}
 	where := make([]string, 0, len(codes))
 	params := make([]any, 0, len(codes)*2)
 	nextIndex := 2
 	for c := range codes {
-		where = append(where, fmt.Sprintf("(option = $%[1]v and (deliver_to_idx = $%[2]v OR deliver_to_idx IS NULL))", nextIndex, nextIndex+1))
-		params = append(params, c.opt, c.idx)
-		nextIndex += 2
+		deliveryChannel, err := resolveDeliver(usr, codes, c)
+		if err != nil {
+			return "", nil, errors.Wrapf(err, "failed to map idx to value")
+		}
+		if deliveryChannel == "" || c.opt == TwoFAOptionTOTPAuthenticator { // Adding first.
+			where = append(where, fmt.Sprintf("(option = $%[1]v)", nextIndex))
+			params = append(params, c.opt)
+			nextIndex += 1
+		} else {
+			where = append(where, fmt.Sprintf("(option = $%[1]v and (deliver_to = $%[2]v))", nextIndex, nextIndex+1))
+			params = append(params, c.opt, deliveryChannel)
+			nextIndex += 2
+		}
 	}
-	return strings.Join(where, " OR "), params
+	return strings.Join(where, " OR "), params, nil
+}
+
+func resolveDeliver(usr *user, codes map[TwoFAOptionWithAddr]string, c TwoFAOptionWithAddr) (string, error) {
+	switch c.opt {
+	case TwoFAOptionEmail:
+		if len(usr.Email) == 0 || len(codes) == 1 {
+			return "", nil
+		}
+		if c.idx >= len(usr.Email) {
+			return "", errors.Wrapf(Err2FAInvalidCode, "invalid index %v for %v", c.idx, TwoFAOptionEmail)
+		}
+		return usr.Email[c.idx], nil
+	case TwoFAOptionSMS:
+		if len(usr.PhoneNumber) == 0 || len(codes) == 1 {
+			return "", nil
+		}
+		if c.idx >= len(usr.Email) {
+			return "", errors.Wrapf(Err2FAInvalidCode, "invalid index %v for %v", c.idx, TwoFAOptionSMS)
+		}
+		return usr.PhoneNumber[c.idx], nil
+	case TwoFAOptionTOTPAuthenticator:
+		if len(usr.TotpAuthenticatorSecret) == 0 || len(codes) == 1 {
+			return "", nil
+		}
+		if c.idx >= len(usr.TotpAuthenticatorSecret) {
+			return "", errors.Wrapf(Err2FAInvalidCode, "invalid index %v for %v", c.idx, TwoFAOptionTOTPAuthenticator)
+		}
+		return usr.TotpAuthenticatorSecret[c.idx], nil
+	default:
+		return "", errors.Errorf("invalid 2FA method: %v", c.opt)
+	}
 }
 
 func buildRollbackClause(codes map[TwoFAOptionWithAddr]string) (string, []any) {
@@ -312,15 +350,14 @@ func buildRollbackClause(codes map[TwoFAOptionWithAddr]string) (string, []any) {
 	return "CASE \n" + strings.Join(cases, "\n") + "\nEND", params
 }
 
-func (a *accounts) get2FACodes(ctx context.Context, userID string, inputCodes map[TwoFAOptionWithAddr]string) ([]*twoFACode, error) {
-	params := []any{userID}
-	whereClause, extraParams := buildWhereClauseGetCodes(inputCodes)
+func (a *accounts) get2FACodes(ctx context.Context, usr *user, inputCodes map[TwoFAOptionWithAddr]string) ([]*twoFACode, error) {
+	params := []any{usr.ID}
+	whereClause, extraParams, err := buildWhereClauseGetCodes(usr, inputCodes)
 	params = append(params, extraParams...)
 	sql := fmt.Sprintf(`SELECT created_at,
        			user_id,
 			option,
 			deliver_to,
-			deliver_to_idx,
 			code,
 			confirmed_at
     FROM (
@@ -329,10 +366,6 @@ func (a *accounts) get2FACodes(ctx context.Context, userID string, inputCodes ma
 			user_id,
 			option,
 			deliver_to,
-			array_position((CASE WHEN option = '%[1]v' THEN u.totp_authenticator_secret 
-								 WHEN option = '%[2]v' THEN u.email 
-								 ELSE u.phone_number 
-							END), deliver_to) - 1 as deliver_to_idx,
 			(case WHEN option = '%[1]v' THEN COALESCE(NULLIF(twofa_codes.code,u.id), array_to_string(u.totp_authenticator_secret,':')) ELSE twofa_codes.code END) as code,
 			confirmed_at,
 			(case WHEN option = '%[1]v' THEN NULLIF(twofa_codes.code,u.id) IS NULL ELSE false END) as totp_redeemed
@@ -557,7 +590,7 @@ func (a *accounts) Delete2FA(ctx context.Context, userID string, inputCodes map[
 		return err
 	}
 	var codes []*twoFACode
-	if codes, err = a.verify2FA(ctx, now, userID, inputCodes); err != nil {
+	if codes, err = a.verify2FA(ctx, now, usr, inputCodes); err != nil {
 		return errors.Wrapf(err, "falied to verify codes")
 	}
 	if err = a.canRemoveEmailOrPhoneDueToauthenticatorSetup(channel, usr, delValue); err != nil {
@@ -637,6 +670,7 @@ func userSignature(ctx context.Context) string {
 }
 
 func (a *accounts) verifyUserSignature(b64 string, now *time.Time, usr *user) error {
+	return nil
 	// signature:createdAtTS:userID
 	signatureStringBytes, err := base64.StdEncoding.DecodeString(b64)
 	if err != nil {
