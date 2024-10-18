@@ -125,7 +125,7 @@ type (
 	}
 	refreshToken struct {
 		*jwt.RegisteredClaims
-		UserId   string `json:"userID"`
+		UserId   string `json:"userId"`
 		UserName string `json:"username"`
 	}
 	refreshAuth struct {
