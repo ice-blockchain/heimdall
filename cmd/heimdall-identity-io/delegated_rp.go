@@ -19,8 +19,8 @@ import (
 type (
 	delegatedErrorResponse struct {
 		err   error          `json:"-"`
-		Error errMessage     `json:"error"`
 		Data  map[string]any `json:"data,omitempty"`
+		Error errMessage     `json:"error"`
 	}
 	errMessage struct {
 		Message string `json:"message"`
@@ -52,7 +52,7 @@ func (s *service) setupDelegatedRPProxyRoutes(router *server.Router) {
 	router.NoMethod(s.proxyToDelegatedRP(true))
 	router.
 		POST("auth/recover/user/delegated", server.RootHandler(s.StartDelegatedRecovery)).
-		POST("/auth/login/delegated", s.proxyToDelegatedRP(false)).
+		POST("/auth/login/delegated", s.proxyToDelegatedRP(true)).
 		POST("/v1/webhooks/dfns/events", server.RootHandler(s.EventWebhookFromDelegatedRP)).
 		GET("/.well-known/apple-app-site-association", server.RootHandler(s.AppleAppSiteAssociation)).
 		GET("/.well-known/assetlinks.json", server.RootHandler(s.AssetLinks))

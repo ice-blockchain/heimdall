@@ -14,10 +14,10 @@ import (
 )
 
 type DfnsInternalError struct {
+	Context    map[string]interface{} `json:"context,omitempty"`
 	raw        string
-	HTTPStatus int                    `json:"httpStatus"`        // HTTP status code
-	Message    string                 `json:"message"`           // Error message
-	Context    map[string]interface{} `json:"context,omitempty"` // Additional context
+	Message    string `json:"message"`
+	HTTPStatus int    `json:"httpStatus"`
 }
 
 func ParseErrAsDfnsInternalErr(err error) error {

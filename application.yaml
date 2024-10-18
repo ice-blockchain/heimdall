@@ -34,6 +34,10 @@ accounts:
   delegated_relying_party:
     auth:
       issuer: auth.dfns.ninja
+    refreshToken:
+      secret: bogus
+      issuer: ION/local
+      expirationTime: 24h
     #baseUrl: https://bogus.example
     #webhookUrl:
     #appId: bogus

@@ -21,9 +21,11 @@ import (
 	"github.com/goccy/go-json"
 	"github.com/pkg/errors"
 
+	"github.com/ice-blockchain/heimdall/server"
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
+	"github.com/ice-blockchain/wintr/time"
 )
 
 func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey string) DfnsClient {
@@ -42,10 +44,37 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 		serviceAccountMx:      sync.Mutex{},
 		proxies:               make(map[string]*httputil.ReverseProxy),
 		proxyMx:               sync.Mutex{},
+		refreshAuthIssuer:     NewRefreshAuth(applicationYamlKey),
+		callbacks:             make(map[string]func(ctx context.Context, now *time.Time, res map[string]any) error),
 	}
 	cl.mustSetupWebhookOrLoadSecret(ctx, db, &cfg)
+	cl.bodyModifiableCallbacks = map[string]func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error{
+		completeDelegatedRegistrationUrl: func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
+			userID, username := ExtractUser(res, "username")
 
+			return cl.extendResponseBodyWithRefreshToken(r, res, userID, username)
+		},
+		completeLoginUrl: func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
+			var token string
+			if tokenI, hasToken := res["token"]; hasToken {
+				token = tokenI.(string)
+			}
+			if token == "" { //nolint:gosec // .
+				return nil
+			}
+			decodedToken, err := server.Auth(r.Request.Context()).VerifyToken(r.Request.Context(), token)
+			if err != nil {
+				return errors.Wrap(err, "failed to verify token for just issued user")
+			}
+
+			return cl.extendResponseBodyWithRefreshToken(r, res, decodedToken.UserID(), decodedToken.Username())
+		},
+	}
 	return cl
+}
+
+func (c *dfnsClient) RegisterPostProxyCallback(url string, cb func(ctx context.Context, now *time.Time, res map[string]any) error) {
+	c.callbacks[url] = cb
 }
 
 func (c *dfnsClient) serviceAccountClient(appID string) *http.Client {
@@ -150,6 +179,7 @@ func (c *dfnsClient) proxy(typ, appID string) *httputil.ReverseProxy {
 	proxy := httputil.NewSingleHostReverseProxy(remote)
 	proxy.Director = c.overwriteHostProxy(remote, appID)
 	proxy.ErrorHandler = passErrorInResponse
+	proxy.ModifyResponse = c.modifyResponse
 	c.proxies[typ+appID] = proxy
 	return proxy
 }
@@ -230,6 +260,8 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 		extendErrBody, extendErr = c.updateRegisterReqBodyWithEndUser(req)
 	case completeDelegatedRegistrationUrl:
 		extendErrBody, extendErr = c.updateRegisterReqBodyWithWallets(req)
+	case delegatedLoginUrl:
+		extendErrBody, extendErr = c.exchangeRefreshTokenToUsername(req)
 	}
 	if extendErr != nil && extendErrBody != nil {
 		log.Error(errors.Wrapf(extendErr, "failed to update init login req with org id"))
@@ -258,7 +290,63 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 	return respBody
 }
 
-func extendRequestWith[ReqBody any](req *http.Request, extendFn func(*ReqBody)) (resp *DfnsInternalError, err error) {
+func (c *dfnsClient) modifyResponse(r *http.Response) error {
+	if r.StatusCode >= http.StatusOK && r.StatusCode < http.StatusBadRequest {
+		now := time.Now()
+		callback, hasCallback := c.callbacks[r.Request.URL.Path]
+		bodyModify, hasModify := c.bodyModifiableCallbacks[r.Request.URL.Path]
+		if hasCallback || hasModify {
+			data, res, err := DecodeBody(r.Body)
+			if err != nil {
+				return errors.Wrap(err, "failed to decode response body as json")
+			}
+			if callback != nil && hasCallback {
+				if err = callback(r.Request.Context(), now, res); err != nil {
+					return errors.Wrapf(err, "failed to store data in DB on %v", r.Request.URL.Path)
+				}
+			}
+			if bodyModify != nil && hasModify {
+				if err = bodyModify(r.Request.Context(), now, res, r); err != nil {
+					return errors.Wrapf(err, "failed to modify response data on %v", r.Request.URL.Path)
+				}
+			} else {
+				r.Body = io.NopCloser(bytes.NewBuffer(data))
+			}
+		}
+	}
+	return nil
+}
+
+func (c *dfnsClient) extendResponseBodyWithRefreshToken(r *http.Response, res map[string]any, userID, username string) (err error) {
+	var refresh string
+	refresh, err = c.refreshAuthIssuer.IssueRefreshToken(r.Request.Context(), time.Now(), userID, username)
+	if err != nil {
+		return errors.Wrapf(err, "failed to issue refresh token for %v %v", userID, username)
+	}
+	res["refreshToken"] = refresh
+	buf := bytes.NewBuffer(nil)
+	err = json.NewEncoder(buf).Encode(res)
+	if err != nil {
+		return errors.Wrapf(err, "failed to issue refresh token for %v %v", userID, username)
+	}
+	r.Body = io.NopCloser(buf)
+	r.Header["Content-Length"] = []string{fmt.Sprint(buf.Len())}
+	return nil
+}
+
+func DecodeBody(body io.Reader) (respData []byte, jsonData map[string]any, err error) {
+	respData, err = io.ReadAll(body)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "failed to read delegated relying party body")
+	}
+	var res map[string]any
+	if err = json.Unmarshal(respData, &res); err != nil {
+		return nil, nil, errors.Wrapf(err, "failed to parse json for %v", string(respData))
+	}
+	return respData, res, nil
+}
+
+func extendRequestWith[ReqBody any](req *http.Request, extendFn func(*ReqBody) error) (resp *DfnsInternalError, err error) {
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		return &DfnsInternalError{HTTPStatus: http.StatusBadRequest, Message: "failed to read body"},
@@ -269,7 +357,13 @@ func extendRequestWith[ReqBody any](req *http.Request, extendFn func(*ReqBody)) 
 	if err = json.Unmarshal(body, &content); err != nil {
 		return &DfnsInternalError{HTTPStatus: http.StatusBadRequest, Message: "invalid json"}, errors.Wrapf(err, "invalid body json")
 	}
-	extendFn(&content)
+	if err = extendFn(&content); err != nil {
+		var errWithStatus *DfnsInternalError
+		if errors.As(err, errWithStatus) {
+			return errWithStatus, err
+		}
+		return &DfnsInternalError{HTTPStatus: http.StatusBadRequest, Message: fmt.Sprintf("validation failed: %v", err.Error())}, errors.Wrapf(err, "validation failed")
+	}
 	body, err = json.Marshal(content)
 	if err != nil {
 		return &DfnsInternalError{HTTPStatus: http.StatusInternalServerError, Message: "oops, error occured"}, errors.Wrapf(err, "failed to serialize %v")
@@ -288,8 +382,9 @@ func (c *dfnsClient) updateInitLoginReqBodyWithOrgID(req *http.Request) (resp *D
 	}](req, func(content *struct {
 		Username string `json:"username"`
 		OrgID    string `json:"orgId"`
-	}) {
+	}) error {
 		content.OrgID = c.cfg.DFNS.OrganizationID
+		return nil
 	})
 }
 func (c *dfnsClient) updateRegisterReqBodyWithEndUser(req *http.Request) (resp *DfnsInternalError, err error) {
@@ -299,8 +394,27 @@ func (c *dfnsClient) updateRegisterReqBodyWithEndUser(req *http.Request) (resp *
 	}](req, func(content *struct {
 		Email string `json:"email"`
 		Kind  string `json:"kind"`
-	}) {
+	}) error {
 		content.Kind = "EndUser"
+		return nil
+	})
+}
+func (c *dfnsClient) exchangeRefreshTokenToUsername(req *http.Request) (*DfnsInternalError, error) {
+	return extendRequestWith[struct {
+		RefreshToken string `json:"refreshToken,omitempty"`
+		Username     string `json:"username"`
+	}](req, func(content *struct {
+		RefreshToken string `json:"refreshToken,omitempty"`
+		Username     string `json:"username"`
+	}) error {
+		t, err := c.refreshAuthIssuer.VerifyToken(req.Context(), content.RefreshToken)
+		if err != nil {
+			return &DfnsInternalError{HTTPStatus: 403, Message: "Invalid refresh token"}
+		}
+		content.Username = t.Username()
+		content.RefreshToken = ""
+
+		return nil
 	})
 }
 func (c *dfnsClient) updateRegisterReqBodyWithWallets(req *http.Request) (resp *DfnsInternalError, err error) {
@@ -320,13 +434,14 @@ func (c *dfnsClient) updateRegisterReqBodyWithWallets(req *http.Request) (resp *
 			Network string `json:"network"`
 			Name    string `json:"name"`
 		} `json:"wallets"`
-	}) {
+	}) error {
 		if len(content.Wallets) == 0 {
 			content.Wallets = []struct {
 				Network string `json:"network"`
 				Name    string `json:"name"`
 			}{{Network: defaultWalletNetwork, Name: defaultWalletName}}
 		}
+		return nil
 	})
 }
 
@@ -442,24 +557,6 @@ func appID(ctx context.Context) string {
 	return ctx.Value(AppIDCtxValue).(string)
 }
 
-func (c *dfnsClient) GetUser(ctx context.Context, userID string) (*User, error) {
-	headers := http.Header{}
-	headers.Set(appIDHeader, appID(ctx))
-	uri := fmt.Sprintf("/auth/users/%v", userID)
-	status, body, err := c.clientCall(ctx, "GET", uri, headers, nil)
-	if status >= http.StatusBadRequest && err == nil {
-		err = buildDfnsError(status, uri, body)
-	}
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get user %v from dfns", userID)
-	}
-	var usr User
-	if err = json.UnmarshalContext(ctx, body, &usr); err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal response %v for to User", string(body))
-	}
-	return &usr, nil
-}
-
 func retry(ctx context.Context, op func() (status int, body []byte, err error)) (status int, body []byte, err error) {
 	err = backoff.RetryNotify(
 		func() error {
@@ -515,6 +612,9 @@ func (cfg *config) loadCfg(applicationYamlKey string) {
 	}
 	cfg.DFNS.WebhookURL = yamlCfg.DFNS.WebhookURL
 	cfg.DFNS.Auth.Issuer = yamlCfg.DFNS.Auth.Issuer
+	cfg.DFNS.RefreshAuth.Issuer = yamlCfg.DFNS.RefreshAuth.Issuer
+	cfg.DFNS.RefreshAuth.Secret = yamlCfg.DFNS.RefreshAuth.Secret
+	cfg.DFNS.RefreshAuth.ExpirationTime = yamlCfg.DFNS.RefreshAuth.ExpirationTime
 }
 
 func (*config) mustLoadField(field *string, env, yamlVal string) {

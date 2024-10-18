@@ -11,8 +11,8 @@ import (
 	stdlibtime "time"
 
 	"github.com/dfns/dfns-sdk-go/credentials"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/wintr/time"
@@ -27,6 +27,11 @@ type (
 		StartDelegatedRecovery(ctx context.Context, username string, credentialId string) (*StartedDelegatedRecovery, error)
 		GetUser(ctx context.Context, userID string) (*User, error)
 		VerifyWebhookSecret(fromWebhook string) bool
+		RegisterPostProxyCallback(url string, cb func(ctx context.Context, now *time.Time, res map[string]any) error)
+	}
+	RefreshAuth interface {
+		AuthClient
+		IssueRefreshToken(ctx context.Context, now *time.Time, userID, username string) (string, error)
 	}
 	StartedDelegatedRecovery map[string]any
 	User                     map[string]any
@@ -42,29 +47,34 @@ const (
 	requestDeadline                  = 25 * stdlibtime.Second
 	jwksUrl                          = "/.well-known/jwks.json"
 	initLoginUrl                     = "/auth/login/init"
+	completeLoginUrl                 = "/auth/login"
 	initDelegatedRegistrationUrl     = "/auth/registration/delegated"
 	completeDelegatedRegistrationUrl = "/auth/registration/enduser"
+	delegatedLoginUrl                = "/auth/login/delegated" // Refresh token actually.
 
 	defaultWalletNetwork = "Ton"
 	defaultWalletName    = "main"
 )
 
 var (
-	ErrInvalidToken = errors.Errorf("invalid token")
-	ErrExpiredToken = errors.Errorf("expired token")
+	ErrInvalidToken = server.ErrInvalidToken
+	ErrExpiredToken = server.ErrExpiredToken
 )
 
 type (
 	dfnsClient struct {
-		cfg                   *config
-		serviceAccountSigner  *credentials.AsymmetricKeySigner
-		webhookSecret         string
-		userClients           map[string]*http.Client
-		serviceAccountClients map[string]*http.Client
-		userMx                sync.Mutex
-		serviceAccountMx      sync.Mutex
-		proxies               map[string]*httputil.ReverseProxy
-		proxyMx               sync.Mutex
+		refreshAuthIssuer       RefreshAuth
+		cfg                     *config
+		serviceAccountSigner    *credentials.AsymmetricKeySigner
+		userClients             map[string]*http.Client
+		serviceAccountClients   map[string]*http.Client
+		proxies                 map[string]*httputil.ReverseProxy
+		callbacks               map[string]func(ctx context.Context, now *time.Time, res map[string]any) error
+		bodyModifiableCallbacks map[string]func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error
+		webhookSecret           string
+		userMx                  sync.Mutex
+		serviceAccountMx        sync.Mutex
+		proxyMx                 sync.Mutex
 	}
 	config struct {
 		DFNS dfnsCfg `yaml:"delegated_relying_party" mapstructure:"delegated_relying_party"`
@@ -80,17 +90,22 @@ type (
 		Auth                       struct {
 			Issuer string `yaml:"issuer" mapstructure:"issuer"`
 		} `yaml:"auth" mapstructure:"auth"`
+		RefreshAuth struct {
+			Issuer         string              `yaml:"issuer" mapstructure:"issuer"`
+			Secret         string              `yaml:"secret" mapstructure:"secret"`
+			ExpirationTime stdlibtime.Duration `yaml:"expirationTime" mapstructure:"expirationTime"`
+		} `yaml:"refreshToken" mapstructure:"refreshToken"`
 	}
 
 	webhook struct {
-		Id          string     `json:"id"`
-		Url         string     `json:"url"`
-		Events      []string   `json:"events"`
-		Description string     `json:"description"`
-		Status      string     `json:"status"`
 		DateCreated *time.Time `json:"dateCreated"`
 		DateUpdated *time.Time `json:"dateUpdated"`
 		Secret      *string    `json:"secret"`
+		Id          string     `json:"id"`
+		Url         string     `json:"url"`
+		Description string     `json:"description"`
+		Status      string     `json:"status"`
+		Events      []string   `json:"events"`
 	}
 	page[T any] struct {
 		Items []T `json:"items"`
@@ -107,5 +122,14 @@ type (
 		http.ResponseWriter
 		Body   io.Writer
 		Status int
+	}
+	refreshToken struct {
+		*jwt.RegisteredClaims
+		UserId   string `json:"userId"`
+		UserName string `json:"username"`
+	}
+	refreshAuth struct {
+		cfg       *config
+		signToken func(token *jwt.Token) (string, error)
 	}
 )

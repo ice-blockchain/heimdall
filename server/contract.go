@@ -46,9 +46,9 @@ type (
 	}
 	Response[RESP any] struct {
 		Data        *RESP
-		Raw         []byte
-		ContentType string
 		Headers     map[string]string
+		ContentType string
+		Raw         []byte
 		Code        int
 	}
 	ErrResponse[RESP any] struct {

@@ -8,20 +8,10 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
-
-	"github.com/ice-blockchain/wintr/log"
-	"github.com/ice-blockchain/wintr/time"
 )
 
 func (a *accounts) ProxyDelegatedRelyingParty(ctx context.Context, rw http.ResponseWriter, r *http.Request) {
-	now := time.Now()
-	respBody := a.delegatedRPClient.ProxyCall(ctx, rw, r)
-	switch r.URL.Path {
-	case registrationUrl:
-		log.Error(errors.Wrapf(a.upsertUsernameFromRegistration(ctx, now, respBody), "failed to store username for user on registration"))
-	case completeLoginUrl, delegatedLoginUrl:
-		log.Error(errors.Wrapf(a.upsertUsernameFromLogin(ctx, now, respBody), "failed to store username for user on login (%v)", r.URL.Path))
-	}
+	a.delegatedRPClient.ProxyCall(ctx, rw, r)
 }
 
 func (a *accounts) StartDelegatedRecovery(ctx context.Context, username, credentialID string, codes map[TwoFAOptionEnum]string) (*StartedDelegatedRecovery, error) {

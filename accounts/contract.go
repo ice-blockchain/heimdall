@@ -96,6 +96,9 @@ type (
 	user struct {
 		CreatedAt                  *time.Time
 		UpdatedAt                  *time.Time
+		Active2FAEmail             *int `db:"active_2fa_email"`
+		Active2FAPhoneNumber       *int `db:"active_2fa_phone_number"`
+		Active2FATotpAuthenticator *int `db:"active_2fa_totp_authenticator"`
 		ID                         string
 		Username                   string
 		Email                      []string
@@ -103,9 +106,6 @@ type (
 		TotpAuthenticatorSecret    []string
 		IONConnectRelays           []string
 		Clients                    []string
-		Active2FAEmail             *int `db:"active_2fa_email"`
-		Active2FAPhoneNumber       *int `db:"active_2fa_phone_number"`
-		Active2FATotpAuthenticator *int `db:"active_2fa_totp_authenticator"`
 	}
 	twoFACode struct {
 		CreatedAt   *time.Time

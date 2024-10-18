@@ -26,7 +26,7 @@ func New(ctx context.Context) Accounts {
 
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
-	acc := accounts{delegatedRPClient: cl,
+	acc := accounts{
 		db:                         db,
 		shutdown:                   db.Close,
 		totpProvider:               totp.New(applicationYamlKey),
@@ -35,6 +35,10 @@ func New(ctx context.Context) Accounts {
 		cfg:                        &cfg,
 		concurrentlyGeneratedCodes: make(map[TwoFAOptionEnum]*sync.Map),
 	}
+	cl.RegisterPostProxyCallback(registrationUrl, acc.upsertUsernameFromRegistration)
+	cl.RegisterPostProxyCallback(completeLoginUrl, acc.upsertUsernameFromLogin)
+	cl.RegisterPostProxyCallback(delegatedLoginUrl, acc.upsertUsernameFromLogin)
+	acc.delegatedRPClient = cl
 	for _, opt := range AllTwoFAOptions {
 		acc.concurrentlyGeneratedCodes[opt] = &sync.Map{}
 	}

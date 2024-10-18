@@ -4,13 +4,13 @@ package accounts
 
 import (
 	"context"
-	"io"
 	"reflect"
 	"strings"
 
 	"github.com/goccy/go-json"
 	"github.com/pkg/errors"
 
+	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
@@ -126,36 +126,15 @@ func (a *accounts) GetUser(ctx context.Context, userID string) (*User, error) {
 	return usr, nil
 }
 
-func (a *accounts) upsertUsernameFromRegistration(ctx context.Context, now *time.Time, body io.Reader) error {
-	respData, err := io.ReadAll(body)
-	if err != nil {
-		return errors.Wrapf(err, "failed to read delegated relying party body")
-	}
-	var res map[string]any
-	if err = json.UnmarshalContext(ctx, respData, &res); err != nil {
-		return errors.Wrapf(err, "failed to parse json for %v", string(respData))
-	}
-	var usr map[string]any
-	if userInferface, hasUser := res["user"]; hasUser {
-		usr = userInferface.(map[string]any)
-	}
-	if len(usr) == 0 {
+func (a *accounts) upsertUsernameFromRegistration(ctx context.Context, now *time.Time, res map[string]any) error {
+	userID, username := dfns.ExtractUser(res, "name")
+	if userID == "" && username == "" {
 		return nil
 	}
-	userID := usr["id"].(string)
-	username := usr["name"].(string)
 	return errors.Wrapf(a.insertUsername(ctx, now, userID, username), "failed to store username %v for user %v on registration", username, userID)
 }
 
-func (a *accounts) upsertUsernameFromLogin(ctx context.Context, now *time.Time, body io.Reader) error {
-	respData, err := io.ReadAll(body)
-	if err != nil {
-		return errors.Wrapf(err, "failed to read delegated relying party body")
-	}
-	var res map[string]any
-	if err = json.UnmarshalContext(ctx, respData, &res); err != nil {
-		return errors.Wrapf(err, "failed to parse json for %v", string(respData))
-	}
+func (a *accounts) upsertUsernameFromLogin(ctx context.Context, now *time.Time, res map[string]any) error {
 	var token string
 	if tokenI, hasToken := res["token"]; hasToken {
 		token = tokenI.(string)
