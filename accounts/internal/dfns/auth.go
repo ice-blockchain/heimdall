@@ -15,6 +15,7 @@ import (
 
 	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/wintr/log"
+	"github.com/ice-blockchain/wintr/time"
 )
 
 func NewDfnsTokenAuth(ctx context.Context, applicationYamlKey string) AuthClient {
@@ -96,4 +97,71 @@ func (t *dfnsToken) Username() string {
 }
 func (t *dfnsToken) UserID() string {
 	return t.userID
+}
+
+func NewRefreshAuth(applicationYamlKey string) RefreshAuth {
+	var cfg config
+	cfg.loadCfg(applicationYamlKey)
+	if cfg.DFNS.RefreshAuth.ExpirationTime == 0 {
+		log.Panic(errors.New("expiration time for refreshToken not set"))
+	}
+	if cfg.DFNS.RefreshAuth.Secret == "" {
+		log.Panic(errors.New("secret for refreshToken not set"))
+	}
+	return &refreshAuth{
+		cfg: &cfg,
+		signToken: func(token *jwt.Token) (string, error) {
+			return token.SignedString([]byte(cfg.DFNS.RefreshAuth.Secret))
+		},
+	}
+}
+
+func (t *refreshToken) Username() string {
+	return t.UserName
+}
+func (t *refreshToken) UserID() string {
+	return t.UserId
+}
+
+func (a *refreshAuth) IssueRefreshToken(ctx context.Context, now *time.Time, userID, username string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshToken{
+		RegisteredClaims: &jwt.RegisteredClaims{
+			Issuer:    a.cfg.DFNS.RefreshAuth.Issuer,
+			Subject:   userID,
+			ExpiresAt: jwt.NewNumericDate(now.Add(a.cfg.DFNS.RefreshAuth.ExpirationTime)),
+			NotBefore: jwt.NewNumericDate(*now.Time),
+			IssuedAt:  jwt.NewNumericDate(*now.Time),
+		},
+		UserId:   userID,
+		UserName: username,
+	})
+	refresh, err := a.signToken(token)
+
+	return refresh, errors.Wrapf(err, "failed to generate refresh token for userID:%v, username:%v", userID, username)
+}
+
+func (a *refreshAuth) VerifyToken(ctx context.Context, token string) (server.Token, error) {
+	var res refreshToken
+	if _, err := jwt.ParseWithClaims(token, &res, a.verify()); err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) || errors.Is(err, jwt.ErrTokenNotValidYet) {
+			return nil, errors.Wrapf(server.ErrExpiredToken, "expired or not valid yet token")
+		}
+		return nil, errors.Wrapf(err, "invalid token:%v", token)
+	}
+	return &res, nil
+}
+
+func (a *refreshAuth) verify() func(token *jwt.Token) (any, error) {
+	return func(token *jwt.Token) (any, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok || token.Method.Alg() != jwt.SigningMethodHS256.Name {
+			return nil, errors.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		iss, err := token.Claims.GetIssuer()
+		invalidIssuer := (iss != a.cfg.DFNS.RefreshAuth.Issuer)
+		if err != nil || invalidIssuer {
+			return nil, errors.Wrapf(server.ErrInvalidToken, "invalid issuer:%v", iss)
+		}
+
+		return []byte(a.cfg.DFNS.RefreshAuth.Secret), nil
+	}
 }

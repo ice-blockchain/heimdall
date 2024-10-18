@@ -13,10 +13,10 @@ type (
 		_ struct{} `json:"-" allowUnauthorized:"true"`
 	}
 	StartDelegatedRecoveryReq struct {
+		TwoFAVerificationCodes map[TwoFAOptionEnum]string `json:"2FAVerificationCodes"`
 		Username               string                     `json:"username" allowUnauthorized:"true"`
 		CredentialID           string                     `json:"credentialId" required:"true"`
 		ClientID               string                     `header:"X-Client-ID" required:"true" swaggerignore:"true"`
-		TwoFAVerificationCodes map[TwoFAOptionEnum]string `json:"2FAVerificationCodes"`
 	}
 	TwoFAOptionEnum            = accounts.TwoFAOptionEnum
 	StartDelegatedRecoveryResp = accounts.StartedDelegatedRecovery
@@ -42,12 +42,12 @@ type (
 		IONConnectIndexers []string `json:"ionConnectIndexers"`
 	}
 	Send2FARequestReq struct {
-		UserID                 string                     `uri:"userId" required:"true" swaggerignore:"true"`
-		TwoFAOption            TwoFAOptionEnum            `uri:"twoFAOption" required:"true" swaggerignore:"true"`
-		Language               string                     `header:"X-Language" swaggerignore:"true"`
 		Email                  *string                    `json:"email,omitempty"`
 		PhoneNumber            *string                    `json:"phoneNumber,omitempty"`
 		TwoFAVerificationCodes map[TwoFAOptionEnum]string `json:"2FAVerificationCodes"`
+		UserID                 string                     `uri:"userId" required:"true" swaggerignore:"true"`
+		TwoFAOption            TwoFAOptionEnum            `uri:"twoFAOption" required:"true" swaggerignore:"true"`
+		Language               string                     `header:"X-Language" swaggerignore:"true"`
 	}
 	Delete2FAReq struct {
 		UserID                       string            `uri:"userId" required:"true" swaggerignore:"true"`
@@ -73,10 +73,10 @@ type (
 		Token string `json:"token"`
 	}
 	WebhookData struct {
-		ID   string         `json:"id" allowUnauthorized:"true"`
-		Kind string         `json:"kind"`
 		Date *time.Time     `json:"date"`
 		Data map[string]any `json:"data"`
+		ID   string         `json:"id" allowUnauthorized:"true"`
+		Kind string         `json:"kind"`
 	}
 	WebhookResp struct{}
 )
