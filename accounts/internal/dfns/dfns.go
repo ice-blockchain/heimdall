@@ -391,7 +391,7 @@ func extendRequestWith[ReqBody any](req *http.Request, extendFn func(*ReqBody) e
 	}
 	if err = extendFn(&content); err != nil {
 		var errWithStatus *DfnsInternalError
-		if errors.As(err, errWithStatus) {
+		if errors.As(err, &errWithStatus) {
 			return errWithStatus, err
 		}
 		return &DfnsInternalError{HTTPStatus: http.StatusBadRequest, Message: fmt.Sprintf("validation failed: %v", err.Error())}, errors.Wrapf(err, "validation failed")
