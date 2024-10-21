@@ -7,12 +7,14 @@ import (
 	"io"
 	"net/http"
 	"net/http/httputil"
+	"regexp"
 	"sync"
 	stdlibtime "time"
 
 	"github.com/dfns/dfns-sdk-go/credentials"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/wintr/time"
@@ -23,7 +25,7 @@ type (
 		VerifyToken(ctx context.Context, token string) (server.Token, error)
 	}
 	DfnsClient interface {
-		ProxyCall(ctx context.Context, rw http.ResponseWriter, r *http.Request) (respBody io.Reader)
+		ProxyCall(ctx context.Context, rw http.ResponseWriter, r *http.Request) (status int, respBody io.Reader)
 		StartDelegatedRecovery(ctx context.Context, username string, credentialId string) (*StartedDelegatedRecovery, error)
 		GetUser(ctx context.Context, userID string) (*User, error)
 		VerifyWebhookSecret(fromWebhook string) bool
@@ -57,8 +59,10 @@ const (
 )
 
 var (
-	ErrInvalidToken = server.ErrInvalidToken
-	ErrExpiredToken = server.ErrExpiredToken
+	ErrInvalidToken    = server.ErrInvalidToken
+	ErrExpiredToken    = server.ErrExpiredToken
+	ErrInvalidUsername = errors.New("invalid username")
+	UsernameRegexp     = regexp.MustCompile("^[a-z0-9._-]+$")
 )
 
 type (

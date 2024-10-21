@@ -39,6 +39,8 @@ func (s *service) GetOrAssignIONConnectRelays(
 	relays, err := s.accounts.GetOrAssignIONConnectRelays(ctx, req.Data.UserID, req.Data.FolloweeList)
 	if err != nil {
 		switch {
+		case errors.Is(err, accounts.ErrInvalidFollowees):
+			return nil, server.BadRequest(err, invalidFollowees)
 		default:
 			return nil, server.Unexpected(err)
 		}

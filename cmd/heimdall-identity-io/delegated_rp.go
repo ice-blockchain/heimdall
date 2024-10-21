@@ -118,6 +118,8 @@ func (s *service) StartDelegatedRecovery(
 		switch {
 		case errors.Is(err, accounts.ErrNoPending2FA):
 			return nil, buildDelegatedErrorResponse(http.StatusBadRequest, err, twoFANoPendingCode)
+		case errors.Is(err, accounts.ErrInvalidUsername):
+			return nil, buildDelegatedErrorResponse(http.StatusBadRequest, err, invalidUsername)
 		case errors.Is(err, accounts.Err2FAExpired):
 			return nil, buildDelegatedErrorResponse(http.StatusBadRequest, err, twoFAExpiredCode)
 		case errors.Is(err, accounts.Err2FAInvalidCode):
@@ -147,15 +149,8 @@ func withAppID(ctx context.Context, appID string) context.Context {
 
 func (r *StartDelegatedRecoveryReq) validate() error {
 	for reqOpt := range r.TwoFAVerificationCodes {
-		ok := false
-		for _, opt := range accounts.AllTwoFAOptions {
-			if reqOpt == opt {
-				ok = true
-				break
-			}
-		}
-		if !ok {
-			return errors.Errorf("invalid 2fa option: %v", reqOpt)
+		if err := reqOpt.Validate(); err != nil {
+			return err
 		}
 	}
 	return nil

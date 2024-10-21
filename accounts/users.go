@@ -4,7 +4,10 @@ package accounts
 
 import (
 	"context"
+	"crypto/ed25519"
+	"encoding/hex"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/goccy/go-json"
@@ -42,6 +45,10 @@ func (a *accounts) GetOrAssignIONConnectRelays(ctx context.Context, userID strin
 	if len(usr.IONConnectRelays) > 0 {
 		return usr.IONConnectRelays, nil
 	}
+	if err = a.validateFollowees(ctx, followees); err != nil {
+		return nil, errors.Wrapf(err, "failed to validate followees pubkeys")
+	}
+
 	return a.fetchAndUpdateRelaysFromPolaris(ctx, userID, followees)
 }
 func (a *accounts) GetIONConnectIndexerRelays(ctx context.Context, userID string) (indexers []string, err error) {
@@ -57,7 +64,7 @@ func (a *accounts) fetchAndUpdateRelaysFromPolaris(ctx context.Context, userID s
 		var usr *user
 		usr, err = storage.ExecOne[user](ctx, a.db, `
 					INSERT INTO 
-    					users (created_at, updated_at, id, ion_connect_relays, username, clients) VALUES ($3,$3,$1, $2, $1,$4) 
+    					users (created_at, updated_at, id, ion_connect_relays, username, clients, master_pubkey) VALUES ($3,$3,$1, $2, $1,$4, $1) 
     				ON CONFLICT(id) DO UPDATE 
     					SET 
     					    ion_connect_relays = $2,
@@ -79,10 +86,42 @@ func (a *accounts) fetchAndUpdateRelaysFromPolaris(ctx context.Context, userID s
 	return relays, nil
 }
 
+func (a *accounts) validateFollowees(ctx context.Context, followees []string) error {
+	failed := make([]string, 0, len(followees))
+	followees = slices.DeleteFunc(followees, func(f string) bool {
+		pubkey, err := hex.DecodeString(f)
+		if err != nil || len(pubkey) != ed25519.PublicKeySize {
+			failed = append(failed, f)
+
+			return true
+		}
+
+		return false
+	})
+	failedFollowees, err := storage.Select[struct {
+		Followee string `db:"followee"`
+	}](ctx, a.db, `SELECT f.followee FROM (SELECT unnest($1::TEXT[]) as followee) f
+            				LEFT JOIN users ON master_pubkey=f.followee
+						WHERE users.id IS NULL;`, followees)
+	if err != nil {
+		if storage.IsErr(err, storage.ErrNotFound) {
+			err = nil
+		}
+		return errors.Wrapf(err, "failed to validate followee list")
+	}
+	if len(failed) == 0 && len(failedFollowees) == 0 {
+		return nil
+	}
+	for _, f := range failedFollowees {
+		failed = append(failed, f.Followee)
+	}
+	return errors.Wrapf(ErrInvalidFollowees, "contains invalid followees: %v", failed)
+}
+
 func (a *accounts) fetchRelays(ctx context.Context, userID string, followeeList []string) (relays []string, err error) {
-	log.Info("Fetching relay from polaris for %v", clientIPAddress(ctx))
 	return []string{"ws://example1.com/", "wss://example2.com/", "ws://example3.com/ws"}, nil
 }
+
 func (a *accounts) fetchIONIndexers(ctx context.Context, userID string) (relays []string, err error) {
 	log.Info("Fetching indexers from polaris for %v", clientIPAddress(ctx))
 	return []string{"ws://indexer-example1.com/", "wss://indexer-example2.com/", "wss://indexer-example3.com/ws"}, nil
@@ -106,23 +145,24 @@ func (a *accounts) GetUser(ctx context.Context, userID string) (*User, error) {
 		}
 		twoFAOptions := make([]TwoFAOptionEnum, 0, len(AllTwoFAOptions))
 		if len(dbUsr.Email) > 0 {
-			if dbUsr.Active2FAEmail != nil {
+			if dbUsr.Active2FAEmail != nil && slices.Contains(dbUsr.Active2FAEmail, true) {
 				twoFAOptions = append(twoFAOptions, TwoFAOptionEmail)
 			}
 			usr.Email = dbUsr.Email
 
 		}
 		if len(dbUsr.PhoneNumber) > 0 {
-			if dbUsr.Active2FAPhoneNumber != nil {
+			if dbUsr.Active2FAPhoneNumber != nil && slices.Contains(dbUsr.Active2FAPhoneNumber, true) {
 				twoFAOptions = append(twoFAOptions, TwoFAOptionSMS)
 			}
 			usr.PhoneNumber = dbUsr.PhoneNumber
 		}
-		if len(dbUsr.TotpAuthenticatorSecret) > 0 && dbUsr.Active2FATotpAuthenticator != nil {
+		if len(dbUsr.TotpAuthenticatorSecret) > 0 && dbUsr.Active2FATotpAuthenticator != nil && slices.Contains(dbUsr.Active2FATotpAuthenticator, true) {
 			twoFAOptions = append(twoFAOptions, TwoFAOptionTOTPAuthenticator)
 		}
 		usr.TwoFAOptions = twoFAOptions
 	}
+
 	return usr, nil
 }
 
@@ -134,6 +174,20 @@ func (a *accounts) upsertUsernameFromRegistration(ctx context.Context, now *time
 	return errors.Wrapf(a.insertUsername(ctx, now, userID, username), "failed to store username %v for user %v on registration", username, userID)
 }
 
+func (a *accounts) upsertWalletPubKeyFromRegistration(ctx context.Context, now *time.Time, res map[string]any) error {
+	walletPubKey := dfns.ExtractWalletPubKey(res)
+	userID, username := dfns.ExtractUser(res, "username")
+	if userID == "" && username == "" {
+		return nil
+	}
+	pubkey, err := hex.DecodeString(walletPubKey)
+	if err != nil || len(pubkey) != ed25519.PublicKeySize {
+		log.Fatal("Wallet master key does not seems to be EdDSA/ed25519!")
+	}
+
+	return errors.Wrapf(a.insertUsernameWithPubKey(ctx, now, userID, username, walletPubKey),
+		"failed to store wallet pubkey for user %v on registration", userID)
+}
 func (a *accounts) upsertUsernameFromLogin(ctx context.Context, now *time.Time, res map[string]any) error {
 	var token string
 	if tokenI, hasToken := res["token"]; hasToken {
@@ -152,12 +206,22 @@ func (a *accounts) upsertUsernameFromLogin(ctx context.Context, now *time.Time, 
 }
 
 func (a *accounts) insertUsername(ctx context.Context, now *time.Time, userID, username string) error {
-	_, err := storage.Exec(ctx, a.db, `INSERT INTO users(created_at, updated_at, id, username, clients) VALUES ($4,$4,$1,$2,$3) ON CONFLICT(id) DO UPDATE 
-    										SET 
+	_, err := storage.Exec(ctx, a.db, `INSERT INTO users(created_at, updated_at, id, username, clients, master_pubkey) VALUES ($4,$4,$1,$2,$3, $1) 
+                                                ON CONFLICT(id) DO UPDATE SET 
     										    username = $2,
     										    updated_at = $4
                                             WHERE users.username = users.id`, userID, username, []string{}, *now.Time)
-	return errors.Wrapf(err, "failed to update user with username in db %v %v", userID, username, []string{}, now.Time)
+
+	return errors.Wrapf(err, "failed to update user with username in db %v %v", userID, username)
+}
+func (a *accounts) insertUsernameWithPubKey(ctx context.Context, now *time.Time, userID, username, walletPubkey string) error {
+	_, err := storage.Exec(ctx, a.db, `INSERT INTO users(created_at, updated_at, id, username, clients, master_pubkey) VALUES ($4,$4,$1,$2,$3, $5)
+                                            ON CONFLICT(id) DO UPDATE SET 
+    										    master_pubkey = $5,
+    										    updated_at = $4
+                                            WHERE users.master_pubkey = users.id`, userID, username, []string{}, *now.Time, walletPubkey)
+
+	return errors.Wrapf(err, "failed to update user with piubkey in db %v %v", userID, walletPubkey)
 }
 
 func (u *User) MarshalJSON() ([]byte, error) {
@@ -174,5 +238,6 @@ func (u *User) MarshalJSON() ([]byte, error) {
 			values[jsonTag] = rUserVal.FieldByName(field.Name).Interface()
 		}
 	}
+
 	return json.Marshal(values)
 }

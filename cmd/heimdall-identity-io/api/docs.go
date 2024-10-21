@@ -158,6 +158,13 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "User signature by master key",
+                        "name": "X-Useraction",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
                         "description": "ID of the user",
                         "name": "userId",
                         "in": "path",
@@ -249,6 +256,12 @@ const docTemplate = `{
                         "default": "en",
                         "description": "Language",
                         "name": "X-Language",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "User signature by master key",
+                        "name": "X-Useraction",
                         "in": "header"
                     },
                     {

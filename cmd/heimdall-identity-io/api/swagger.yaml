@@ -203,6 +203,11 @@ paths:
         name: Authorization
         required: true
         type: string
+      - description: User signature by master key
+        in: header
+        name: X-Useraction
+        required: true
+        type: string
       - description: ID of the user
         in: path
         name: userId
@@ -316,6 +321,10 @@ paths:
         description: Language
         in: header
         name: X-Language
+        type: string
+      - description: User signature by master key
+        in: header
+        name: X-Useraction
         type: string
       - default: Bearer <token>
         description: Auth header

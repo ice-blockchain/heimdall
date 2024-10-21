@@ -26,7 +26,8 @@ func (s *service) setup2FARoutes(router gin.IRoutes) {
 //	@Description	Initiates sending of 2FA code to the user
 //	@Tags			2FA
 //	@Produce		json
-//	@Param			X-Language		header		string				false	"Language"		default(en)
+//	@Param			X-Language		header		string				false	"Language"	default(en)
+//	@Param			X-Useraction	header		string				false	"User signature by master key"
 //	@Param			Authorization	header		string				true	"Auth header"	default(Bearer <token>)
 //	@Param			userId			path		string				true	"ID of the user"
 //	@Param			twoFAOption		path		string				true	"type of 2fa (sms/email/totp_authenticator)"
@@ -49,13 +50,15 @@ func (s *service) Send2FARequest(
 		return nil, server.UnprocessableEntity(err, invalidPropertiesErrorCode)
 	}
 	var authenticatorUri *string
-	authenticatorUri, err = s.accounts.Send2FA(ctx, req.Data.UserID, req.Data.TwoFAOption, channel, req.Data.Language, req.Data.TwoFAVerificationCodes)
+	authenticatorUri, err = s.accounts.Send2FA(withSignature(ctx, req.Data.UserSignature), req.Data.UserID, req.Data.TwoFAOption, channel, req.Data.Language, req.Data.TwoFAVerificationCodes)
 	if err != nil {
 		switch {
 		case errors.Is(err, accounts.Err2FARequired):
 			if tErr := terror.As(err); tErr != nil {
 				return nil, server.ForbiddenWithCode(err, twoFARequired, tErr.Data)
 			}
+		case errors.Is(err, accounts.ErrInvalidUserSignature):
+			return nil, server.ForbiddenWithCode(err, invalidUserSignature)
 		case errors.Is(err, accounts.Err2FADeliverToNotProvided):
 			return nil, server.BadRequest(err, invalidPropertiesErrorCode)
 		case errors.Is(err, accounts.Err2FAExpired):
@@ -79,7 +82,8 @@ func (s *service) Send2FARequest(
 //	@Description	Confirms deletion of 2FA method
 //	@Tags			2FA
 //	@Produce		json
-//	@Param			Authorization					header	string		true	"Auth header"	default(Bearer <token>)
+//	@Param			Authorization					header	string		true	"Auth header"	default(Bearer <token>)\
+//	@Param			X-Useraction					header	string		true	"User signature by master key"
 //	@Param			userId							path	string		true	"ID of the user"
 //	@Param			twoFAOption						path	string		true	"type of 2fa (sms/email/totp_authenticator)"
 //	@Param			twoFAOptionValue				path	string		true	"the actual value of the twoFAOption"
@@ -100,10 +104,12 @@ func (s *service) Delete2FA(
 	if err != nil {
 		return nil, server.UnprocessableEntity(err, invalidPropertiesErrorCode)
 	}
-	if err = s.accounts.Delete2FA(ctx, req.Data.UserID, verificationCodes, req.Data.TwoFAOption, req.Data.TwoFAOptionValue); err != nil {
+	if err = s.accounts.Delete2FA(withSignature(ctx, req.Data.UserSignature), req.Data.UserID, verificationCodes, req.Data.TwoFAOption, req.Data.TwoFAOptionValue); err != nil {
 		switch {
 		case errors.Is(err, accounts.ErrNoPending2FA):
 			return server.NoContent(), nil
+		case errors.Is(err, accounts.ErrInvalidUserSignature):
+			return nil, server.ForbiddenWithCode(err, invalidUserSignature)
 		case errors.Is(err, accounts.Err2FARequired):
 			if tErr := terror.As(err); tErr != nil {
 				return nil, server.ForbiddenWithCode(err, twoFARequired, tErr.Data)
@@ -123,15 +129,20 @@ func (s *service) Delete2FA(
 	return server.OK[any](), nil
 }
 
-func (d *Delete2FAReq) verificationCodes() (map[TwoFAOptionEnum]string, error) {
+func (d *Delete2FAReq) verificationCodes() (map[accounts.TwoFAOptionWithAddr]string, error) {
 	if len(d.TwoFAOptionVerificationValue) != len(d.TwoFAOptionVerificationCode) {
 		return nil, errors.Errorf("mismatched length of twoFAOptionVerificationCode (%v) and twoFAOptionVerificationValue (%v)",
 			len(d.TwoFAOptionVerificationCode), len(d.TwoFAOptionVerificationValue))
 	}
-	res := make(map[TwoFAOptionEnum]string, len(d.TwoFAOptionVerificationValue))
+	res := make(map[accounts.TwoFAOptionWithAddr]string, len(d.TwoFAOptionVerificationValue))
 	for i, twoFAProvider := range d.TwoFAOptionVerificationValue {
-		res[twoFAProvider] = d.TwoFAOptionVerificationCode[i]
+		var provider accounts.TwoFAOptionWithAddr
+		if err := provider.UnmarshalParam(twoFAProvider); err != nil {
+			return nil, errors.Wrapf(err, "failed to unmarshal TwoFAOptionVerificationValue")
+		}
+		res[provider] = d.TwoFAOptionVerificationCode[i]
 	}
+
 	return res, nil
 }
 
@@ -168,10 +179,10 @@ func (s *service) Verify2FARequest(
 	ctx context.Context,
 	req *server.Request[Verify2FARequestReq, Verify2FARequestResp],
 ) (successResp *server.Response[Verify2FARequestResp], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	if err := req.Data.validate(); err != nil {
+	if err := req.Data.TwoFAOption.Validate(); err != nil {
 		return nil, server.UnprocessableEntity(err, invalidPropertiesErrorCode)
 	}
-	if err := s.accounts.Verify2FA(ctx, req.Data.UserID, map[accounts.TwoFAOptionEnum]string{
+	if err := s.accounts.Verify2FA(ctx, req.Data.UserID, map[accounts.TwoFAOptionWithAddr]string{
 		req.Data.TwoFAOption: req.Data.Code,
 	}); err != nil {
 		switch {
@@ -188,11 +199,6 @@ func (s *service) Verify2FARequest(
 	return server.OK[Verify2FARequestResp](&Verify2FARequestResp{}), nil
 }
 
-func (r *Verify2FARequestReq) validate() error {
-	for _, opt := range accounts.AllTwoFAOptions {
-		if r.TwoFAOption == opt {
-			return nil
-		}
-	}
-	return errors.Errorf("invalid 2fa option: %v", r.TwoFAOption)
+func withSignature(ctx context.Context, signature string) context.Context {
+	return context.WithValue(ctx, userSignatureCtxValueKey, signature)
 }

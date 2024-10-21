@@ -237,7 +237,7 @@ func (c *dfnsClient) mustListWebhooks(ctx context.Context) []webhook {
 	return filteredItems
 }
 
-func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req *http.Request) io.Reader {
+func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req *http.Request) (status int, responseBody io.Reader) {
 	respBody := bytes.NewBuffer([]byte{})
 	applicationID := req.Header.Get(clientIDHeader)
 	if applicationID == "" {
@@ -273,7 +273,7 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 		resp, extendErr = json.Marshal(extendErrBody)
 		rw.Write(resp)
 
-		return bytes.NewBuffer(resp)
+		return extendErrBody.HTTPStatus, bytes.NewBuffer(resp)
 	}
 	rb := &proxyResponseBody{ResponseWriter: rw, Body: respBody}
 	if c.urlRequiresServiceAccountSignature(req.URL.Path) {
@@ -289,7 +289,7 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 		log.Error(errors.Wrapf(buildDfnsError(rb.Status, req.Method, bodyData), "dfns req to %v %v ended up with %v", req.Method, req.URL.Path, rb.Status))
 	}
 
-	return respBody
+	return rb.Status, respBody
 }
 
 func (c *dfnsClient) modifyResponse(r *http.Response) error {
@@ -391,7 +391,7 @@ func extendRequestWith[ReqBody any](req *http.Request, extendFn func(*ReqBody) e
 	}
 	if err = extendFn(&content); err != nil {
 		var errWithStatus *DfnsInternalError
-		if errors.As(err, errWithStatus) {
+		if errors.As(err, &errWithStatus) {
 			return errWithStatus, err
 		}
 		return &DfnsInternalError{HTTPStatus: http.StatusBadRequest, Message: fmt.Sprintf("validation failed: %v", err.Error())}, errors.Wrapf(err, "validation failed")
@@ -427,6 +427,9 @@ func (c *dfnsClient) updateRegisterReqBodyWithEndUser(req *http.Request) (resp *
 		Email string `json:"email"`
 		Kind  string `json:"kind"`
 	}) error {
+		if !UsernameRegexp.MatchString(content.Email) {
+			return errors.Wrapf(ErrInvalidUsername, "must match %v", UsernameRegexp.String())
+		}
 		content.Kind = "EndUser"
 		return nil
 	})
