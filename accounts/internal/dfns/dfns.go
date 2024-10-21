@@ -52,7 +52,9 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 		completeDelegatedRegistrationUrl: func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
 			userID, username := ExtractUser(res, "username")
 
-			return cl.extendResponseBodyWithRefreshToken(r, res, userID, username)
+			return cl.extendResponseBodyWith(r, res,
+				cl.extendRegistrationBodyWithRefreshToken(userID, username),
+			)
 		},
 		completeLoginUrl: func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
 			var token string
@@ -67,7 +69,7 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 				return errors.Wrap(err, "failed to verify token for just issued user")
 			}
 
-			return cl.extendResponseBodyWithRefreshToken(r, res, decodedToken.UserID(), decodedToken.Username())
+			return cl.extendResponseBodyWith(r, res, cl.extendResponseBodyWithRefreshToken(decodedToken.UserID(), decodedToken.Username()))
 		},
 	}
 	return cl
@@ -317,23 +319,53 @@ func (c *dfnsClient) modifyResponse(r *http.Response) error {
 	return nil
 }
 
-func (c *dfnsClient) extendResponseBodyWithRefreshToken(r *http.Response, res map[string]any, userID, username string) (err error) {
-	var refresh string
-	refresh, err = c.refreshAuthIssuer.IssueRefreshToken(r.Request.Context(), time.Now(), userID, username)
-	if err != nil {
-		return errors.Wrapf(err, "failed to issue refresh token for %v %v", userID, username)
+func (c *dfnsClient) extendResponseBodyWith(r *http.Response, res map[string]any, extendFns ...func(ctx context.Context, res map[string]any) error) (err error) {
+	for _, extend := range extendFns {
+		if err = extend(r.Request.Context(), res); err != nil {
+			return errors.Wrap(err, "failed to extend response body")
+		}
 	}
-	res["refreshToken"] = refresh
+
 	buf := bytes.NewBuffer(nil)
 	err = json.NewEncoder(buf).Encode(res)
 	if err != nil {
-		return errors.Wrapf(err, "failed to issue refresh token for %v %v", userID, username)
+		return errors.Wrapf(err, "failed to extend response body")
 	}
 	r.Body = io.NopCloser(buf)
 	r.Header["Content-Length"] = []string{fmt.Sprint(buf.Len())}
 	return nil
 }
 
+func (c *dfnsClient) extendResponseBodyWithRefreshToken(userID, username string) func(ctx context.Context, res map[string]any) error {
+	return func(ctx context.Context, res map[string]any) error {
+		refresh, err := c.refreshAuthIssuer.IssueRefreshToken(ctx, time.Now(), userID, username)
+		if err != nil {
+			return errors.Wrapf(err, "failed to issue refresh token for %v %v", userID, username)
+		}
+		res["refreshToken"] = refresh
+
+		return nil
+	}
+}
+func (c *dfnsClient) extendRegistrationBodyWithRefreshToken(userID, username string) func(ctx context.Context, res map[string]any) error {
+	return func(ctx context.Context, res map[string]any) error {
+		refresh, err := c.refreshAuthIssuer.IssueRefreshToken(ctx, time.Now(), userID, username)
+		if err != nil {
+			return errors.Wrapf(err, "failed to issue refresh token for %v %v", userID, username)
+		}
+		var auth map[string]any
+		authI, hasAuth := res["authentication"]
+		if !hasAuth {
+			auth = map[string]any{}
+		} else {
+			auth = authI.(map[string]any)
+		}
+		auth["refreshToken"] = refresh
+		res["authentication"] = auth
+
+		return nil
+	}
+}
 func DecodeBody(body io.Reader) (respData []byte, jsonData map[string]any, err error) {
 	respData, err = io.ReadAll(body)
 	if err != nil {
