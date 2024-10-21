@@ -32,6 +32,7 @@ type (
 		RegisterPostProxyCallback(url string, cb func(ctx context.Context, now *time.Time, res map[string]any) error)
 		ListWallets(ctx context.Context, userID string) ([]Wallet, error)
 		ListAssets(ctx context.Context, walletID string) (*Assets, error)
+		SecurePaymentConfirmation(ctx context.Context, userID, network, walletId string, body map[string]any) (tmplData any, err error)
 	}
 	RefreshAuth interface {
 		AuthClient
@@ -53,6 +54,7 @@ const (
 	AppIDCtxValue                    = "XDfnsAppIDCtxValue"
 	appIDHeader                      = "X-Dfns-Appid"
 	userActionDfnsHeader             = "X-Dfns-Useraction"
+	authDfnsHeader                   = "Authorization"
 	userActionHeader                 = "X-Useraction"
 	clientIDHeader                   = "X-Client-Id"
 	requestDeadline                  = 25 * stdlibtime.Second
@@ -62,8 +64,9 @@ const (
 	initDelegatedRegistrationUrl     = "/auth/registration/delegated"
 	completeDelegatedRegistrationUrl = "/auth/registration/enduser"
 	delegatedLoginUrl                = "/auth/login/delegated" // Refresh token actually.
+	initUserSignatureUrl             = "/auth/action/init"
 
-	defaultWalletNetwork = "Ton"
+	defaultWalletNetwork = "KeyEdDSA"
 	defaultWalletName    = "main"
 )
 
@@ -85,6 +88,7 @@ type (
 		callbacks               map[string]func(ctx context.Context, now *time.Time, res map[string]any) error
 		bodyModifiableCallbacks map[string]func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error
 		webhookSecret           string
+		webFE                   *application
 		userMx                  sync.Mutex
 		serviceAccountMx        sync.Mutex
 		proxyMx                 sync.Mutex
@@ -97,6 +101,7 @@ type (
 		ServiceAccountCredentialID string `yaml:"serviceAccountCredentialId" mapstructure:"serviceAccountCredentialId" json:"serviceAccountCredentialId"`
 		ServiceAccountPrivateKey   string `yaml:"serviceAccountPrivateKey" mapstructure:"serviceAccountPrivateKey" json:"serviceAccountPrivateKey"`
 		AppID                      string `yaml:"appId" mapstructure:"appId" json:"appId"`
+		WebFEAppID                 string `yaml:"webFEAppId" mapstructure:"webFEAppId" json:"webFEAppId"` // AppID of web FE, used in payments html
 		OrganizationID             string `yaml:"organizationId" mapstructure:"organizationId" json:"organizationId"`
 		BaseURL                    string `yaml:"baseUrl" mapstructure:"baseUrl" json:"baseUrl"`
 		WebhookURL                 string `yaml:"webhookUrl" mapstructure:"webhookUrl"`
@@ -119,6 +124,12 @@ type (
 		Description string     `json:"description"`
 		Status      string     `json:"status"`
 		Events      []string   `json:"events"`
+	}
+	application struct {
+		AppID          string `json:"appId"`
+		ExpectedRPId   string `json:"expectedRpId"`
+		ExpectedOrigin string `json:"expectedOrigin"`
+		IsActive       bool   `json:"isActive"`
 	}
 	page[T any] struct {
 		Items         []T     `json:"items"`
@@ -145,5 +156,16 @@ type (
 	refreshAuth struct {
 		cfg       *config
 		signToken func(token *jwt.Token) (string, error)
+	}
+	signatureChallenge = map[string]any
+	tx                 struct {
+		ReceiverAddress string
+		Sender          string
+		Amount          string
+		Network         *network
+	}
+	network struct {
+		Currency string
+		Icon     string
 	}
 )

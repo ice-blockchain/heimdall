@@ -3,6 +3,7 @@
 package main
 
 import (
+	"embed"
 	"time"
 
 	"github.com/ice-blockchain/heimdall/accounts"
@@ -135,3 +136,6 @@ type (
 		AssetLinks              string `yaml:"assetLinks"`
 	}
 )
+
+//go:embed templates/*.html
+var templates embed.FS

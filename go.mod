@@ -5,6 +5,7 @@ go 1.23
 require (
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/dfns/dfns-sdk-go v0.0.2-beta
+	github.com/gin-contrib/cors v1.7.2
 	github.com/gin-gonic/gin v1.10.0
 	github.com/goccy/go-json v0.10.3
 	github.com/goccy/go-reflect v1.2.0

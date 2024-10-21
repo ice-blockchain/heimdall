@@ -1,0 +1,113 @@
+<html>
+<head>
+    <script>
+        function createSPCPaymentRequest(spcData) {
+            if (!window.PaymentRequest) {
+                error('PaymentRequest API is not supported.');
+                return {canMakePayment:function (){return false}}
+            }
+            if (spcData === undefined || spcData.credentialIds === undefined) {
+                throw new Error('credentialIds must be set in the input spcData object.');
+            }
+            spcData.challenge = Uint8Array.from(atob(spcData.challenge), c => c.charCodeAt(0)).buffer
+            spcData.credentialIds = spcData.credentialIds.map(function(cr) {
+                return  fromBase64Url(cr)
+            })
+            // https://w3c.github.io/secure-payment-confirmation/#sctn-securepaymentconfirmationrequest-dictionary
+            if (spcData.instrument === undefined)
+                spcData.instrument = {};
+            if (spcData.instrument.displayName === undefined)
+                spcData.instrument.displayName = '{{.Tx.Sender}}';
+            if (spcData.instrument.icon === undefined)
+                spcData.instrument.icon = '{{.Tx.Network.Icon}}';
+            if (spcData.timeout === undefined)
+                spcData.timeout = 60000;
+            if (!('payeeName' in spcData) && !('payeeOrigin' in spcData))
+                spcData.payeeOrigin = window.location.origin;
+
+            const supportedInstruments = [{supportedMethods: 'secure-payment-confirmation', data: spcData}];
+            const details = {
+                total: {
+                    label: 'Total',
+                    amount: {
+                        currency: '{{.Tx.Network.Currency}}',
+                        value: '{{.Tx.Amount}}',
+                    },
+                },
+            };
+
+            return new PaymentRequest(supportedInstruments, details);
+        }
+        async function initPayment() {
+            challenge = {{.Challenge}}
+            const request = await createSPCPaymentRequest(challenge);
+
+            try {
+                const canMakePayment = await request.canMakePayment();
+                info(`canMakePayment result: ${canMakePayment}`);
+            } catch (err) {
+                error(`Error from canMakePayment: ${err.message}`);
+            }
+
+            const instrumentResponse = await request.show();
+            await instrumentResponse.complete('success')
+            info(JSON.stringify(instrumentResponse));
+            const initRes = await fetch(`{{.Origin}}/auth/action`, {
+                method: 'POST',
+                headers: {
+                    'content-type': 'application/json',
+                    'Authorization': '{{.Token}}', //TODO: seems insecure, but we need to submit result, or pass all the  credentialAssertion to app?
+                    'X-Client-id': '{{.AppID}}',
+                },
+                body: JSON.stringify({
+                    "challengeIdentifier": challenge.challengeIdentifier,
+                    "firstFactor":{
+                        "kind":"Fido2",
+                        "credentialAssertion":{
+                            "credId":instrumentResponse.details.id,
+                            "clientData": toBase64Url(instrumentResponse.details.response.clientDataJSON),
+                            "authenticatorData": toBase64Url(instrumentResponse.details.response.authenticatorData),
+                            "signature": toBase64Url(instrumentResponse.details.response.signature),
+                            "userHandle": toBase64Url(instrumentResponse.details.response.userHandle)
+                        }
+                    }
+                }),
+        })
+
+        }
+        function error(msg) {  // eslint-disable-line no-unused-vars
+            let element = document.createElement('pre');
+            element.innerHTML = msg;
+            element.className = 'error';
+            document.getElementById('msg').appendChild(element);
+        }
+        function info(msg) {
+            let element = document.createElement('pre');
+            element.innerHTML = msg;
+            element.className = 'info';
+            document.getElementById('msg').appendChild(element);
+        }
+        function pad (topad) {
+            const padLength = 4 - (topad.length % 4)
+            if (padLength < 4) {
+                topad += '='.repeat(padLength)
+            }
+            return topad
+        }
+        function fromBase64Url (encoded) {
+            encoded = pad(encoded).replace(/\-/g, '+').replace(/_/g, '/')
+            return Uint8Array.from(atob(encoded),c => c.charCodeAt(0)).buffer // base64
+        }
+        function toBase64(buffer) {
+            return btoa(String.fromCharCode.apply(null, new Uint8Array(buffer)))
+        }
+        function toBase64Url(buffer) {
+            return toBase64(buffer).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+        }
+    </script>
+</head>
+<body onload="initPayment()">
+<button onclick="initPayment()">pay</button>
+<div id = "msg" data-userID="{{.UserID}}"></div>
+</body>
+</html>

@@ -49,12 +49,14 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 		callbacks:             make(map[string]func(ctx context.Context, now *time.Time, res map[string]any) error),
 	}
 	cl.mustSetupWebhookOrLoadSecret(ctx, db, &cfg)
+	cl.mustLoadApplication(ctx, cfg.DFNS.WebFEAppID)
 	cl.bodyModifiableCallbacks = map[string]func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error{
 		completeDelegatedRegistrationUrl: func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
 			userID, username := ExtractUser(res, "username")
 
 			return cl.extendResponseBodyWith(r, res,
 				cl.extendRegistrationBodyWithRefreshToken(userID, username),
+				extendResponseBodyWithPaymentExtension(),
 			)
 		},
 		completeLoginUrl: func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
@@ -74,6 +76,22 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 		},
 	}
 	return cl
+}
+
+func extendResponseBodyWithPaymentExtension() func(ctx context.Context, res map[string]any) error {
+	return func(_ context.Context, res map[string]any) error {
+		var ext map[string]any
+		if extI, hasExt := res["extensions"]; !hasExt {
+			ext = make(map[string]any)
+		} else {
+			ext = extI.(map[string]any)
+		}
+		ext["payment"] = map[string]any{
+			"isPayment": true,
+		}
+		res["extensions"] = ext
+		return nil
+	}
 }
 
 func (c *dfnsClient) RegisterPostProxyCallback(url string, cb func(ctx context.Context, now *time.Time, res map[string]any) error) {
@@ -238,6 +256,21 @@ func (c *dfnsClient) mustListWebhooks(ctx context.Context) []webhook {
 	return filteredItems
 }
 
+func (c *dfnsClient) mustLoadApplication(ctx context.Context, applicationID string) {
+	_, jApplication, err := c.doClientCall(ctx, c.serviceAccountClient(c.cfg.DFNS.AppID), "GET", fmt.Sprintf("/auth/apps/%v", applicationID), http.Header{}, nil)
+	if err != nil {
+		log.Panic(errors.Wrapf(err, "failed to list webhooks"))
+	}
+	var a application
+	if err = json.UnmarshalContext(ctx, jApplication, &a); err != nil {
+		log.Panic(errors.Wrapf(err, "failed to unmarshal %v into %#v", string(jApplication), a))
+	}
+	if !a.IsActive {
+		log.Panic(errors.Errorf("webFEAppId %v is disabled", applicationID))
+	}
+	c.webFE = &a
+}
+
 func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req *http.Request) (status int, responseBody io.Reader) {
 	respBody := bytes.NewBuffer([]byte{})
 	applicationID := req.Header.Get(clientIDHeader)
@@ -294,12 +327,13 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 }
 
 func (c *dfnsClient) modifyResponse(r *http.Response) error {
+	r.Header.Del("Access-Control-Allow-Origin") // Duplicated hea
 	if r.StatusCode >= http.StatusOK && r.StatusCode < http.StatusBadRequest {
 		now := time.Now()
 		callback, hasCallback := c.callbacks[r.Request.URL.Path]
 		bodyModify, hasModify := c.bodyModifiableCallbacks[r.Request.URL.Path]
 		if hasCallback || hasModify {
-			data, res, err := DecodeBody(r.Body)
+			data, res, err := decodeBody(r.Body)
 			if err != nil {
 				return errors.Wrap(err, "failed to decode response body as json")
 			}
@@ -367,7 +401,7 @@ func (c *dfnsClient) extendRegistrationBodyWithRefreshToken(userID, username str
 		return nil
 	}
 }
-func DecodeBody(body io.Reader) (respData []byte, jsonData map[string]any, err error) {
+func decodeBody(body io.Reader) (respData []byte, jsonData map[string]any, err error) {
 	respData, err = io.ReadAll(body)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "failed to read delegated relying party body")
@@ -515,6 +549,10 @@ func (c *dfnsClient) doClientCall(ctx context.Context, httpClient *http.Client, 
 	if method != "GET" {
 		headers.Set("Content-Type", "application/json")
 	}
+	client := *httpClient
+	if relativeUrl == initUserSignatureUrl {
+		client.Transport = http.DefaultTransport
+	}
 	fullUrl, err := url.JoinPath(c.cfg.DFNS.BaseURL, relativeUrl)
 	if err != nil {
 		return 0, nil, errors.Wrapf(err, "failed to build url from %v %v", c.cfg.DFNS.BaseURL, relativeUrl)
@@ -528,7 +566,7 @@ func (c *dfnsClient) doClientCall(ctx context.Context, httpClient *http.Client, 
 		req.URL.RawQuery = string(jsonData)
 		req.Body = nil
 	}
-	response, err := httpClient.Do(req)
+	response, err := client.Do(req)
 	if err != nil {
 		if dfnsErr := ParseErrAsDfnsInternalErr(err); dfnsErr != nil {
 			var delegatedParsedErr *DfnsInternalError
@@ -639,6 +677,7 @@ func (cfg *config) loadCfg(applicationYamlKey string) {
 	appcfg.MustLoadFromKey(applicationYamlKey, &yamlCfg)
 	cfg.mustLoadField(&cfg.DFNS.BaseURL, "DFNS_BASE_URL", yamlCfg.DFNS.BaseURL)
 	cfg.mustLoadField(&cfg.DFNS.AppID, "DFNS_APP_ID", yamlCfg.DFNS.AppID)
+	cfg.mustLoadField(&cfg.DFNS.WebFEAppID, "DFNS_WEB_FE_APP_ID", yamlCfg.DFNS.WebFEAppID)
 	cfg.mustLoadField(&cfg.DFNS.ServiceKey, "DFNS_SERVICE_KEY", yamlCfg.DFNS.ServiceKey)
 	cfg.mustLoadField(&cfg.DFNS.ServiceAccountCredentialID, "DFNS_SERVICE_ACCOUNT_CREDENTIAL_ID", yamlCfg.DFNS.ServiceAccountCredentialID)
 	cfg.mustLoadField(&cfg.DFNS.OrganizationID, "DFNS_ORGANIZATION_ID", yamlCfg.DFNS.OrganizationID)
