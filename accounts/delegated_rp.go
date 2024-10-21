@@ -36,3 +36,7 @@ func (a *accounts) StartDelegatedRecovery(ctx context.Context, username, credent
 	}
 	return delegatedResp, nil
 }
+
+func (a *accounts) SecurePaymentConfirmation(ctx context.Context, userID, network, walletId string, body map[string]any) (tmplData any, err error) {
+	return a.delegatedRPClient.SecurePaymentConfirmation(ctx, userID, network, walletId, body)
+}
