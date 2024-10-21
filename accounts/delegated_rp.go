@@ -4,11 +4,9 @@ package accounts
 
 import (
 	"context"
-	"io"
 	"net/http"
 	"strings"
 
-	"github.com/goccy/go-json"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
@@ -44,57 +42,4 @@ func (a *accounts) StartDelegatedRecovery(ctx context.Context, username, credent
 		)
 	}
 	return delegatedResp, nil
-}
-
-func decodeBody(ctx context.Context, body io.Reader) (map[string]any, error) {
-	respData, err := io.ReadAll(body)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read delegated relying party body")
-	}
-	var res map[string]any
-	if err = json.UnmarshalContext(ctx, respData, &res); err != nil {
-		return nil, errors.Wrapf(err, "failed to parse json for %v", string(respData))
-	}
-	return res, nil
-}
-
-func extractWalletPubKey(res map[string]any) (walletPubKey string) {
-	if walletsI, hasWallets := res["wallets"]; hasWallets {
-		wallets := walletsI.([]any)
-		for _, walletI := range wallets {
-			if walletI != nil {
-				wallet := walletI.(map[string]any)
-				if nameI, hasName := wallet["name"]; hasName && nameI != nil {
-					if name, ok := nameI.(string); !ok || name != dfns.DefaultWalletName {
-						continue
-					}
-				}
-				if networkI, hasNetwork := wallet["network"]; hasNetwork && networkI != nil {
-					if network, ok := networkI.(string); !ok || network != dfns.DefaultWalletNetwork {
-						continue
-					}
-				}
-				if keyI, hasKey := wallet["signingKey"]; hasKey && keyI != nil {
-					key := keyI.(map[string]any)
-					if pubkey, hasPk := key["publicKey"]; hasPk {
-						walletPubKey = pubkey.(string)
-					}
-				}
-			}
-		}
-	}
-	return walletPubKey
-}
-
-func extractUser(res map[string]any, usernameField string) (userID, username string) {
-	var usr map[string]any
-	if userInferface, hasUser := res["user"]; hasUser {
-		usr = userInferface.(map[string]any)
-	}
-	if len(usr) == 0 {
-		return "", ""
-	}
-	userID = usr["id"].(string)
-	username = usr[usernameField].(string)
-	return
 }

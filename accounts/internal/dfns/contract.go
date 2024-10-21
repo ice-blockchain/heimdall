@@ -14,6 +14,7 @@ import (
 	"github.com/dfns/dfns-sdk-go/credentials"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/wintr/time"
@@ -53,13 +54,13 @@ const (
 	completeDelegatedRegistrationUrl = "/auth/registration/enduser"
 	delegatedLoginUrl                = "/auth/login/delegated" // Refresh token actually.
 
-	DefaultWalletNetwork = "Ton"
-	DefaultWalletName    = "main"
+	defaultWalletNetwork = "Ton"
+	defaultWalletName    = "main"
 )
 
 var (
-	ErrInvalidToken = server.ErrInvalidToken
-	ErrExpiredToken = server.ErrExpiredToken
+	ErrInvalidToken    = server.ErrInvalidToken
+	ErrExpiredToken    = server.ErrExpiredToken
 	ErrInvalidUsername = errors.New("invalid username")
 	UsernameRegexp     = regexp.MustCompile("^[a-z0-9._-]+$")
 )

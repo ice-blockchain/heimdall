@@ -14,9 +14,9 @@ type (
 	}
 	StartDelegatedRecoveryReq struct {
 		TwoFAVerificationCodes map[TwoFAOptionWithAddr]string `json:"2FAVerificationCodes"`
-		Username               string                     `json:"username" allowUnauthorized:"true"`
-		CredentialID           string                     `json:"credentialId" required:"true"`
-		ClientID               string                     `header:"X-Client-ID" required:"true" swaggerignore:"true"`
+		Username               string                         `json:"username" allowUnauthorized:"true"`
+		CredentialID           string                         `json:"credentialId" required:"true"`
+		ClientID               string                         `header:"X-Client-ID" required:"true" swaggerignore:"true"`
 	}
 	TwoFAOptionEnum            = accounts.TwoFAOptionEnum
 	TwoFAOptionWithAddr        = accounts.TwoFAOptionWithAddr
@@ -43,13 +43,13 @@ type (
 		IONConnectIndexers []string `json:"ionConnectIndexers"`
 	}
 	Send2FARequestReq struct {
-		Email                  *string                    `json:"email,omitempty"`
-		PhoneNumber            *string                    `json:"phoneNumber,omitempty"`
+		Email                  *string                        `json:"email,omitempty"`
+		PhoneNumber            *string                        `json:"phoneNumber,omitempty"`
 		TwoFAVerificationCodes map[TwoFAOptionWithAddr]string `json:"2FAVerificationCodes"`
-		UserID                 string                     `uri:"userId" required:"true" swaggerignore:"true"`
-		TwoFAOption            TwoFAOptionEnum            `uri:"twoFAOption" required:"true" swaggerignore:"true"`
-		Language               string                     `header:"X-Language" swaggerignore:"true"`
-		UserSignature          string                     `header:"X-Useraction" swaggerignore:"true"`
+		UserID                 string                         `uri:"userId" required:"true" swaggerignore:"true"`
+		TwoFAOption            TwoFAOptionEnum                `uri:"twoFAOption" required:"true" swaggerignore:"true"`
+		Language               string                         `header:"X-Language" swaggerignore:"true"`
+		UserSignature          string                         `header:"X-Useraction" swaggerignore:"true"`
 	}
 	Delete2FAReq struct {
 		UserSignature                string          `header:"X-Useraction" swaggerignore:"true"`

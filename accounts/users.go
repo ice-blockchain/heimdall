@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/hex"
-	"io"
 	"reflect"
 	"slices"
 	"strings"
@@ -177,7 +176,7 @@ func (a *accounts) upsertUsernameFromRegistration(ctx context.Context, now *time
 
 func (a *accounts) upsertWalletPubKeyFromRegistration(ctx context.Context, now *time.Time, res map[string]any) error {
 	walletPubKey := dfns.ExtractWalletPubKey(res)
-	userID, username := dfns.ExtractUser(res, "name")
+	userID, username := dfns.ExtractUser(res, "username")
 	if userID == "" && username == "" {
 		return nil
 	}

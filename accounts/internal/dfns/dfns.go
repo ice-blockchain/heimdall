@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	stdlibtime "time"
 
@@ -475,7 +474,7 @@ func (c *dfnsClient) updateRegisterReqBodyWithWallets(req *http.Request) (resp *
 			content.Wallets = []struct {
 				Network string `json:"network"`
 				Name    string `json:"name"`
-			}{{Network: DefaultWalletNetwork, Name: DefaultWalletName}}
+			}{{Network: defaultWalletNetwork, Name: defaultWalletName}}
 		}
 		return nil
 	})
