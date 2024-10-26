@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -58,7 +59,9 @@ func (s *service) setupDelegatedRPProxyRoutes(router *server.Router) {
 		POST("/v1/webhooks/dfns/events", server.RootHandler(s.EventWebhookFromDelegatedRP)).
 		GET("/.well-known/apple-app-site-association", server.RootHandler(s.AppleAppSiteAssociation)).
 		GET("/.well-known/assetlinks.json", server.RootHandler(s.AssetLinks)).
-		POST("/v1/users/:userId/:walletId/secure-payment-confirmations", s.securePaymentConfirmation())
+		POST("/v1/users/:userId/:walletId/secure-payment-confirmations", s.securePaymentConfirmation()).
+		// TODO: embed into roxy, but how to detect network
+		POST("/v1/users/:userId/:walletId/broadcast", server.RootHandler(s.Broadcast))
 
 }
 
@@ -98,7 +101,7 @@ func (s *service) securePaymentConfirmation() func(*gin.Context) {
 			ginCtx.JSON(http.StatusUnprocessableEntity, &delegatedErrorResponse{Error: errMessage{Message: invalidPropertiesErrorCode}})
 			return
 		}
-		network := body["network"].(string)
+		network := strings.ToLower(body["network"].(string))
 		delete(body, "network")
 		data, err := s.accounts.SecurePaymentConfirmation(ctx, ginCtx.Param("userId"), network, walletId, body)
 		if err != nil {
@@ -186,6 +189,9 @@ func (s *service) StartDelegatedRecovery(
 func withAppID(ctx context.Context, appID string) context.Context {
 	return context.WithValue(ctx, accounts.AppIDHeaderCtxValue, appID)
 }
+func withUserAction(ctx context.Context, userAction string) context.Context {
+	return context.WithValue(ctx, accounts.UserActionCtxValue, userAction)
+}
 func withAuth(ctx context.Context, auth string) context.Context {
 	return context.WithValue(ctx, accounts.AuthorizationHeaderCtxValue, auth)
 }
@@ -205,4 +211,22 @@ func (s *service) EventWebhookFromDelegatedRP(
 ) (successResp *server.Response[WebhookResp], errorResp *server.ErrResponse[*server.ErrorResponse]) {
 	log.Info(fmt.Sprintf("Webhook call for %v %+v", req.Data.Kind, req.Data.Data))
 	return server.OK[WebhookResp](&WebhookResp{}), nil
+}
+
+func (s *service) Broadcast(
+	ctx context.Context,
+	req *server.Request[Broadcast, accounts.BroadcastTxResponse],
+) (successResp *server.Response[accounts.BroadcastTxResponse], errorResp *server.ErrResponse[*server.ErrorResponse]) {
+	ctx = withAuth(ctx, req.Data.Authorization)
+	ctx = withAppID(ctx, req.Data.ClientID)
+	ctx = withUserAction(ctx, req.Data.UserAction)
+	b, err := s.accounts.Broadcast(ctx, req.Data.UserID, req.Data.WalletID, req.Data.Transaction)
+	if err != nil {
+		switch {
+		case errors.Is(err, accounts.ErrRaceCondition):
+			return nil, server.BadRequest(err, "RACE_CONDITION")
+		}
+		return nil, server.Unexpected(err)
+	}
+	return server.OK(b), nil
 }

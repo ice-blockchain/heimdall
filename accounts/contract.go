@@ -33,7 +33,8 @@ type (
 		GetOrAssignIONConnectRelays(ctx context.Context, userID string, followees []string) (relays []string, err error)
 		GetIONConnectIndexerRelays(ctx context.Context, userID string) (indexers []string, err error)
 		GetUser(ctx context.Context, userID string) (usr *User, err error)
-		SecurePaymentConfirmation(ctx context.Context, userID, network, walletId string, body map[string]any) (templateData any, err error)
+		SecurePaymentConfirmation(ctx context.Context, userID, network, walletID string, body map[string]any) (templateData any, err error)
+		Broadcast(ctx context.Context, userID, walletID, transaction string) (response *dfns.BroadcastTxResponse, err error)
 		HealthCheck(ctx context.Context) error
 	}
 	Wallets interface {
@@ -52,6 +53,7 @@ type (
 	} // email:someone@bogus.com, for the maps to separate codes for same channel
 	StartedDelegatedRecovery = dfns.StartedDelegatedRecovery
 	DelegatedRelyingPartyErr = dfns.DfnsInternalError
+	BroadcastTxResponse      = dfns.BroadcastTxResponse
 	User                     struct {
 		dfns.User
 		IONConnectRelays        []string          `json:"ionConnectRelays"`
@@ -96,6 +98,7 @@ const (
 	TwoFAOptionTOTPAuthenticator = TwoFAOptionEnum("totp_authenticator")
 	AuthorizationHeaderCtxValue  = dfns.AuthHeaderCtxValue
 	AppIDHeaderCtxValue          = dfns.AppIDCtxValue
+	UserActionCtxValue           = dfns.UserActionCtxValue
 	LoggedInUserIDCtxValue       = "LoggedInUserIDCtxValue"
 	registrationUrl              = "/auth/registration/delegated"
 	completeRegistrationUrl      = "/auth/registration/enduser"
@@ -123,6 +126,7 @@ var (
 	ErrInvalidUsername                 = dfns.ErrInvalidUsername
 	ErrNotChanged                      = errors.New("not changed")
 	ErrDeleteLast                      = errors.New("cannot delete last entry")
+	ErrRaceCondition                   = dfns.ErrRaceCondition
 )
 
 const (

@@ -103,6 +103,16 @@ type (
 		Kind string         `json:"kind"`
 	}
 	WebhookResp struct{}
+
+	Broadcast struct {
+		ClientID      string `header:"X-Client-ID" required:"true" swaggerignore:"true"`
+		UserAction    string `header:"X-UserAction" required:"true" swaggerignore:"true"`
+		Authorization string `header:"Authorization" swaggerignore:"true"`
+		UserID        string `uri:"userId" required:"true" swaggerignore:"true"`
+		WalletID      string `uri:"walletId" required:"true" swaggerignore:"true"`
+		Transaction   string `json:"transaction" required:"true"`
+		Kind          string `json:"kind" required:"false"`
+	}
 )
 
 const (

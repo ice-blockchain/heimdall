@@ -1,11 +1,16 @@
+// SPDX-License-Identifier: ice License 1.0
+
 package dfns
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
+	"net/http"
+	"strings"
+
 	"github.com/goccy/go-json"
 	"github.com/pkg/errors"
-	"net/http"
 )
 
 func (c *dfnsClient) requestUserActionChallenge(ctx context.Context, url string, method string, payload map[string]any) (*signatureChallenge, error) {
@@ -36,7 +41,14 @@ func (c *dfnsClient) SecurePaymentConfirmation(ctx context.Context, userID, netw
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to extract transaction details")
 	}
-	ch, err := c.requestUserActionChallenge(ctx, fmt.Sprintf("/wallets/%v/transactions/", walletId), "POST", body)
+	signedUrl := fmt.Sprintf("/wallets/%v/transactions", walletId)
+	if network == "ton" { // It does not support broadcasting, we issue signature instead and broadcast it from our BE.
+		signedUrl = fmt.Sprintf("/wallets/%v/signatures", walletId)
+		body["message"] = body["transaction"]
+		body["kind"] = "Message"
+		delete(body, "transaction")
+	}
+	ch, err := c.requestUserActionChallenge(ctx, signedUrl, "POST", body)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to request user action challenge for SPC over wallet %v", walletId)
 	}
@@ -45,7 +57,7 @@ func (c *dfnsClient) SecurePaymentConfirmation(ctx context.Context, userID, netw
 		return nil, errors.Wrapf(err, "failed to extend challenge with payment info")
 	}
 	return struct {
-		Tx        *tx
+		Tx        *transferTransaction
 		Challenge map[string]any
 		UserID    string
 		Token     string
@@ -57,11 +69,12 @@ func (c *dfnsClient) SecurePaymentConfirmation(ctx context.Context, userID, netw
 		UserID:    userID,
 		Token:     dfnsAuthHeader(ctx),
 		AppID:     c.webFE.AppID,
-		Origin:    c.webFE.ExpectedOrigin,
+		Origin:    "https://192.168.1.36:8001", //c.webFE.ExpectedOrigin,
 	}, nil
 }
 
-func (c *dfnsClient) extractTransaction(network, walletId string, broadcastBody map[string]any) (*tx, error) {
+func (c *dfnsClient) extractTransaction(network, walletId string, broadcastBody map[string]any) (*transferTransaction, error) {
+	network = strings.ToLower(network)
 	networkData, err := c.detectNetwork(walletId)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to detect network %v")
@@ -69,9 +82,9 @@ func (c *dfnsClient) extractTransaction(network, walletId string, broadcastBody 
 	value, hasValue := broadcastBody["value"]
 	to, hasTo := broadcastBody["to"]
 	if hasValue && hasTo { // Evm has them.
-		return &tx{
+		return &transferTransaction{
 			ReceiverAddress: to.(string),
-			Sender:          walletId, // TODO: extract addr from tx
+			Sender:          walletId, // TODO: extract addr from transferTransaction
 			Amount:          value.(string),
 			Network:         networkData,
 		}, nil
@@ -80,9 +93,21 @@ func (c *dfnsClient) extractTransaction(network, walletId string, broadcastBody 
 	if !hasEncodedTx {
 		return nil, errors.New("missing transaction details in body")
 	}
+	if strings.HasPrefix(encodedTx.(string), "0x") {
+		encodedTx = strings.TrimPrefix(encodedTx.(string), "0x")
+	}
+	encodedTxBytes, err := hex.DecodeString(encodedTx.(string))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to decode transaction")
+	}
 	switch network {
+	case "ton":
+		var transaction transferTransaction
+		_, err = parseTONTransaction(encodedTxBytes, &transaction)
+
+		return &transaction, errors.Wrap(err, "failed to parse transaction")
 	default:
-		return nil, errors.Errorf("unsupported network %v cannot decode tx %v", network, encodedTx)
+		return nil, errors.Errorf("unsupported network %v cannot decode transferTransaction %v", network, encodedTx)
 	}
 }
 
@@ -92,7 +117,7 @@ func (c *dfnsClient) detectNetwork(walletId string) (*network, error) {
 	return &network{Currency: "BNB", Icon: "https://static.bnbchain.org/home-ui/static/images/bnb-smart-chain/migrate.png"}, nil
 }
 
-func (c *dfnsClient) extendChallengeWithPaymentInfo(challenge signatureChallenge, transaction *tx) error {
+func (c *dfnsClient) extendChallengeWithPaymentInfo(challenge signatureChallenge, transaction *transferTransaction) error {
 	// https://w3c.github.io/secure-payment-confirmation/#authentication-example
 	challenge["payeeName"] = transaction.ReceiverAddress
 	challenge["payeeOrigin"] = c.webFE.ExpectedOrigin

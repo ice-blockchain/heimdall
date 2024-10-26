@@ -47,3 +47,12 @@ func (a *accounts) StartDelegatedRecovery(ctx context.Context, username, credent
 func (a *accounts) SecurePaymentConfirmation(ctx context.Context, userID, network, walletId string, body map[string]any) (tmplData any, err error) {
 	return a.delegatedRPClient.SecurePaymentConfirmation(ctx, userID, network, walletId, body)
 }
+
+// TODO: embed in proxy, but how to detect network??
+func (a *accounts) Broadcast(ctx context.Context, userID, walletId, txBody string) (response *BroadcastTxResponse, err error) {
+	usr, err := a.getUserByID(ctx, userID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get user by id %v", userID)
+	}
+	return a.delegatedRPClient.Broadcast(ctx, userID, walletId, usr.MasterPubKey, txBody)
+}

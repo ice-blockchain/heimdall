@@ -38,6 +38,44 @@
 
             return new PaymentRequest(supportedInstruments, details);
         }
+        async function initSimpleWebAuthn() {
+            challenge = {{.Challenge}}
+            const response = await navigator.credentials.get({
+                publicKey: {
+                    challenge: Uint8Array.from(atob(challenge.challenge), c => c.charCodeAt(0)).buffer,
+                    allowCredentials: challenge.allowCredentials.webauthn.map(({ id, type }) => ({
+                        id: fromBase64Url(id),
+                        type,
+                    })),
+                    rpId: challenge.rp.id,
+                    userVerification: challenge.userVerification,
+                    timeout: 60000,
+                },
+            })
+            const initRes = await fetch(`{{.Origin}}/auth/action`, {
+                method: 'POST',
+                headers: {
+                    'content-type': 'application/json',
+                    'Authorization': '{{.Token}}', //TODO: seems insecure, but we need to submit result, or pass all the  credentialAssertion to app?
+                    'X-Client-id': '{{.AppID}}',
+                },
+                body: JSON.stringify({
+                    "challengeIdentifier": challenge.challengeIdentifier,
+                    "firstFactor": {
+                        "kind": "Fido2",
+                        "credentialAssertion": {
+                            credId: response.id,
+                            clientData: toBase64Url(response.response.clientDataJSON),
+                            authenticatorData: toBase64Url(response.response.authenticatorData),
+                            signature: toBase64Url(response.response.signature),
+                            userHandle: response.response.userHandle ? toBase64Url(response.response.userHandle) : undefined,
+                        }
+                    }
+                }),
+            })
+            info(initRes.userAction)
+        }
+
         async function initPayment() {
             challenge = {{.Challenge}}
             const request = await createSPCPaymentRequest(challenge);
@@ -72,8 +110,8 @@
                         }
                     }
                 }),
-        })
-
+            })
+            info(initRes.userAction)
         }
         function error(msg) {  // eslint-disable-line no-unused-vars
             let element = document.createElement('pre');
@@ -108,6 +146,7 @@
 </head>
 <body onload="initPayment()">
 <button onclick="initPayment()">pay</button>
+<button onclick="initSimpleWebAuthn()">webauthn</button>
 <div id = "msg" data-userID="{{.UserID}}"></div>
 </body>
 </html>

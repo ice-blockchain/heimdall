@@ -47,6 +47,7 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 		proxyMx:               sync.Mutex{},
 		refreshAuthIssuer:     NewRefreshAuth(applicationYamlKey),
 		callbacks:             make(map[string]func(ctx context.Context, now *time.Time, res map[string]any) error),
+		tonApi:                mustInitTONClient(ctx, "https://ton-blockchain.github.io/testnet-global.config.json"),
 	}
 	cl.mustSetupWebhookOrLoadSecret(ctx, db, &cfg)
 	cl.mustLoadApplication(ctx, cfg.DFNS.WebFEAppID)
@@ -309,6 +310,7 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 
 		return extendErrBody.HTTPStatus, bytes.NewBuffer(resp)
 	}
+
 	rb := &proxyResponseBody{ResponseWriter: rw, Body: respBody}
 	if c.urlRequiresServiceAccountSignature(req.URL.Path) {
 		cl := c.serviceAccountClient(applicationID)
@@ -429,11 +431,11 @@ func extendRequestWith[ReqBody any](req *http.Request, extendFn func(*ReqBody) e
 		if errors.As(err, &errWithStatus) {
 			return errWithStatus, err
 		}
-		return &DfnsInternalError{HTTPStatus: http.StatusBadRequest, Message: fmt.Sprintf("validation failed: %v", err.Error())}, errors.Wrapf(err, "validation failed")
+		return &DfnsInternalError{HTTPStatus: http.StatusBadRequest, Message: fmt.Sprintf("validation failed: %v", err.Error())}, errors.Wrap(err, "validation failed")
 	}
 	body, err = json.Marshal(content)
 	if err != nil {
-		return &DfnsInternalError{HTTPStatus: http.StatusInternalServerError, Message: "oops, error occured"}, errors.Wrapf(err, "failed to serialize %v")
+		return &DfnsInternalError{HTTPStatus: http.StatusInternalServerError, Message: "oops, error occured"}, errors.Wrapf(err, "failed to serialize %v", content)
 	}
 	req.Header.Set("Content-Length", strconv.Itoa(len(body)))
 	req.ContentLength = int64(len(body))
@@ -550,7 +552,7 @@ func (c *dfnsClient) doClientCall(ctx context.Context, httpClient *http.Client, 
 		headers.Set("Content-Type", "application/json")
 	}
 	client := *httpClient
-	if relativeUrl == initUserSignatureUrl {
+	if relativeUrl == initUserSignatureUrl || headers.Get(userActionDfnsHeader) != "" {
 		client.Transport = http.DefaultTransport
 	}
 	fullUrl, err := url.JoinPath(c.cfg.DFNS.BaseURL, relativeUrl)
@@ -613,12 +615,12 @@ func dfnsCall[REQ any, RESP any](ctx context.Context, c *dfnsClient, params *REQ
 		var err error
 		postData, err = json.MarshalContext(ctx, params)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to serialize %#v to json")
+			return nil, errors.Wrapf(err, "failed to serialize %#v to json", params)
 		}
 	} else if params != nil && method == "GET" {
 		s, err := form.EncodeToString(params)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to serialize %#v to formdata")
+			return nil, errors.Wrapf(err, "failed to serialize %#v to formdata", params)
 		}
 		postData = []byte(s)
 	}
@@ -634,13 +636,16 @@ func dfnsCall[REQ any, RESP any](ctx context.Context, c *dfnsClient, params *REQ
 	}
 	var resp RESP
 	if err = json.UnmarshalContext(ctx, body, &resp); err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal response %v for call %v %v", string(body))
+		return nil, errors.Wrapf(err, "failed to unmarshal response %v for call %v %v", string(body), method, uri)
 	}
 	return &resp, nil
 }
 
 func dfnsAuthHeader(ctx context.Context) string {
 	return ctx.Value(AuthHeaderCtxValue).(string)
+}
+func dfnsUserActionHeader(ctx context.Context) string {
+	return ctx.Value(UserActionCtxValue).(string)
 }
 func appID(ctx context.Context) string {
 	return ctx.Value(AppIDCtxValue).(string)
@@ -688,11 +693,11 @@ func (cfg *config) loadCfg(applicationYamlKey string) {
 			cfg.DFNS.ServiceAccountPrivateKey = os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY")
 			if cfg.DFNS.ServiceAccountPrivateKey == "" {
 				pkFile, pkErr := os.Open(os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY_FILE"))
-				log.Panic(errors.Wrapf(pkErr, "failed to read dfns private key from file %v"), os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY_FILE"))
+				log.Panic(errors.Wrapf(pkErr, "failed to read dfns private key from file %v", os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY_FILE")))
 				defer pkFile.Close()
 				var pk []byte
 				pk, pkErr = io.ReadAll(pkFile)
-				log.Panic(errors.Wrapf(pkErr, "failed to read dfns private key from file %v"), os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY_FILE"))
+				log.Panic(errors.Wrapf(pkErr, "failed to read dfns private key from file %v", os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY_FILE")))
 				cfg.DFNS.ServiceAccountPrivateKey = string(pk)
 				if cfg.DFNS.ServiceAccountPrivateKey == "" {
 					log.Panic(errors.Errorf("dfns service account private key not set"))

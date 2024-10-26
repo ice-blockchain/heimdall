@@ -15,6 +15,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/pkg/errors"
+	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/wintr/time"
@@ -33,6 +35,7 @@ type (
 		ListWallets(ctx context.Context, userID string) ([]Wallet, error)
 		ListAssets(ctx context.Context, walletID string) (*Assets, error)
 		SecurePaymentConfirmation(ctx context.Context, userID, network, walletId string, body map[string]any) (tmplData any, err error)
+		Broadcast(ctx context.Context, userID, walletID, walletPubkey, txPayload string) (*BroadcastTxResponse, error)
 	}
 	RefreshAuth interface {
 		AuthClient
@@ -52,6 +55,7 @@ type (
 const (
 	AuthHeaderCtxValue               = "authHeaderCtxValue"
 	AppIDCtxValue                    = "XDfnsAppIDCtxValue"
+	UserActionCtxValue               = "XDfnsUserActionCtxValue"
 	appIDHeader                      = "X-Dfns-Appid"
 	userActionDfnsHeader             = "X-Dfns-Useraction"
 	authDfnsHeader                   = "Authorization"
@@ -65,8 +69,10 @@ const (
 	completeDelegatedRegistrationUrl = "/auth/registration/enduser"
 	delegatedLoginUrl                = "/auth/login/delegated" // Refresh token actually.
 	initUserSignatureUrl             = "/auth/action/init"
+	completeUserSignatureUrl         = "/auth/action"
+	broadcastTransactionUrl          = "/wallets/wa-[-A-z0-9]{28}/transactions"
 
-	defaultWalletNetwork = "KeyEdDSA"
+	defaultWalletNetwork = "Ton"
 	defaultWalletName    = "main"
 )
 
@@ -74,6 +80,7 @@ var (
 	ErrInvalidToken    = server.ErrInvalidToken
 	ErrExpiredToken    = server.ErrExpiredToken
 	ErrInvalidUsername = errors.New("invalid username")
+	ErrRaceCondition   = errors.New("race condition")
 	UsernameRegexp     = regexp.MustCompile("^[a-z0-9._-]+$")
 )
 
@@ -92,6 +99,7 @@ type (
 		userMx                  sync.Mutex
 		serviceAccountMx        sync.Mutex
 		proxyMx                 sync.Mutex
+		tonApi                  ton.APIClientWrapped
 	}
 	config struct {
 		DFNS dfnsCfg `yaml:"delegated_relying_party" mapstructure:"delegated_relying_party"`
@@ -158,7 +166,32 @@ type (
 		signToken func(token *jwt.Token) (string, error)
 	}
 	signatureChallenge = map[string]any
-	tx                 struct {
+	signatureResult    struct {
+		ID        string `json:"id"`
+		Signature struct {
+			R       string `json:"r"`
+			S       string `json:"s"`
+			Encoded string `json:"encoded"`
+		} `json:"signature"`
+	}
+	BroadcastTxResponse struct {
+		Id        string `json:"id"`
+		WalletId  string `json:"walletId"`
+		Network   string `json:"network"`
+		Requester struct {
+			UserId string `json:"userId"`
+			AppId  string `json:"appId"`
+		} `json:"requester"`
+		RequestBody struct {
+			Kind        string `json:"kind"`
+			Transaction string `json:"transaction"`
+		} `json:"requestBody"`
+		Status          string          `json:"status"`
+		TxHash          string          `json:"txHash"`
+		DateRequested   stdlibtime.Time `json:"dateRequested"`
+		DateBroadcasted stdlibtime.Time `json:"dateBroadcasted"`
+	}
+	transferTransaction struct {
 		ReceiverAddress string
 		Sender          string
 		Amount          string
@@ -168,4 +201,17 @@ type (
 		Currency string
 		Icon     string
 	}
+	tonTransactionInputV4R2 struct {
+		//_               tlb.Magic            `tlb:"#ec3c86d"`
+		WalletID        uint32               `tlb:"## 32"`
+		TTL             uint64               `tlb:"## 32"`
+		Seq             uint64               `tlb:"## 32"`
+		OpCode          uint8                `tlb:"## 8"`
+		Mode            uint8                `tlb:"## 8"`
+		InternalMessage *tlb.InternalMessage `tlb:"^"`
+	}
+)
+
+var (
+	broadcastTransactionUrlRegexp = regexp.MustCompile(broadcastTransactionUrl)
 )
