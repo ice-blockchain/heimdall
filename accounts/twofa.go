@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
@@ -404,7 +405,7 @@ func (a *accounts) Send2FA(ctx context.Context, userID string, opt TwoFAOptionEn
 	now := time.Now()
 	var codesForRollback map[TwoFAOptionWithAddr]string
 	usr, err := a.getUserByID(ctx, userID)
-	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
+	if err != nil {
 		return nil, errors.Wrapf(err, "failed to check existing user phone and email for userID %v", userID)
 	}
 	deliverTo, err := a.checkDeliveryChannelFor2FA(ctx, usr, opt, optDeliverTo)
@@ -670,7 +671,7 @@ func userSignature(ctx context.Context) string {
 }
 
 func (a *accounts) verifyUserSignature(b64 string, now *time.Time, usr *user) error {
-	// signature:createdAtTS:userID
+	// signature(hex):createdAtTS:userID
 	signatureStringBytes, err := base64.StdEncoding.DecodeString(b64)
 	if err != nil {
 		return errors.Wrapf(ErrInvalidUserSignature, "incorrect base64")
@@ -679,7 +680,7 @@ func (a *accounts) verifyUserSignature(b64 string, now *time.Time, usr *user) er
 	if signatureEnd == -1 {
 		return errors.Wrapf(ErrInvalidUserSignature, "incorrect signature, cant detect signature")
 	}
-	signature, err := base64.StdEncoding.DecodeString(string(signatureStringBytes[:signatureEnd]))
+	signature, err := hex.DecodeString(string(signatureStringBytes[:signatureEnd]))
 	if err != nil {
 		return errors.Wrapf(ErrInvalidUserSignature, "incorrect signture is not base64 encoded")
 	}
@@ -695,7 +696,12 @@ func (a *accounts) verifyUserSignature(b64 string, now *time.Time, usr *user) er
 	if createdAt.After(*now.Time) || now.Sub(createdAt) > a.cfg.UserSignatureExpiration {
 		return errors.Wrapf(ErrInvalidUserSignature, "expired createdAt")
 	}
-	signedData := []byte(fmt.Sprintf("%v:%v", createdAtUnix, usr.ID))
+	hash := sha256.New()
+	if _, err = fmt.Fprintf(hash, "%v:%v", createdAtUnix, usr.ID); err != nil {
+		return errors.Wrapf(err, "failed to build sha256 hash")
+	}
+	signedData := hash.Sum(nil)
+
 	pubkey, err := hex.DecodeString(usr.MasterPubKey)
 	if err != nil {
 		return errors.Wrapf(ErrInvalidUserSignature, "user %v have invalid master pubkey", usr.ID)

@@ -19,8 +19,13 @@ CREATE TABLE IF NOT EXISTS users (
     CONSTRAINT active_2fa_totp_valid CHECK (cardinality(users.active_2fa_totp_authenticator) = cardinality(totp_authenticator_secret)),
     primary key(id)
 );
-ALTER TABLE users
-    ADD COLUMN IF NOT EXISTS master_pubkey TEXT NOT NULL DEFAULT id UNIQUE;
+DO $$ BEGIN
+    ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS master_pubkey TEXT NOT NULL default '';
+    UPDATE users SET master_pubkey = id WHERE users.master_pubkey = '';
+    ALTER TABLE users
+        ADD UNIQUE (master_pubkey);
+END$$;
 
 DO $$ BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'twofa_option') THEN
