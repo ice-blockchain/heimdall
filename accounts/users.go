@@ -173,6 +173,30 @@ func (a *accounts) upsertUsernameFromRegistration(ctx context.Context, now *time
 	}
 	return errors.Wrapf(a.insertUsername(ctx, now, userID, username), "failed to store username %v for user %v on registration", username, userID)
 }
+func (a *accounts) upsertWalletPubKeyFromRegistrationAndRegisterWalletView(ctx context.Context, now *time.Time, res map[string]any) error {
+	userID, username := dfns.ExtractUser(res, "username")
+	if err := a.upsertWalletPubKeyFromRegistration(ctx, now, res); err != nil {
+		return errors.Wrapf(err, "failed to upsert users masterkey")
+	}
+	_, allCoins, _ := a.AllSupportedCoins(nil)
+	defaultCoins := make([]*WalletViewItem, 0, len(allCoins))
+	dedupl := map[string]struct{}{}
+	for _, coin := range allCoins {
+		if _, has := dedupl[coin.Coin]; !has {
+			defaultCoins = append(defaultCoins, &WalletViewItem{
+				Coin:     coin.Coin,
+				WalletID: nil,
+			})
+			dedupl[coin.Coin] = struct{}{}
+		}
+
+	}
+	if _, err := a.CreateWalletView(ctx, userID, username, defaultCoins); err != nil {
+		return errors.Wrapf(err, "failed to create default walletview for user %v", userID)
+	}
+
+	return nil
+}
 
 func (a *accounts) upsertWalletPubKeyFromRegistration(ctx context.Context, now *time.Time, res map[string]any) error {
 	walletPubKey := dfns.ExtractWalletPubKey(res)

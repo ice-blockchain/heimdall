@@ -1,6 +1,13 @@
 # SPDX-License-Identifier: ice License 1.0
 
 definitions:
+  accounts.AvailableCoin:
+    properties:
+      coin:
+        type: string
+      network:
+        type: string
+    type: object
   accounts.TwoFAOptionEnum:
     enum:
     - sms
@@ -11,6 +18,22 @@ definitions:
     - TwoFAOptionSMS
     - TwoFAOptionEmail
     - TwoFAOptionTOTPAuthenticator
+  accounts.WalletViewItem:
+    properties:
+      coin:
+        type: string
+      walletId:
+        type: string
+    type: object
+  main.AvailableCoins:
+    properties:
+      coins:
+        items:
+          $ref: '#/definitions/accounts.AvailableCoin'
+        type: array
+      version:
+        type: integer
+    type: object
   main.Relays:
     properties:
       ionConnectRelays:
@@ -79,6 +102,30 @@ definitions:
         type: array
     type: object
   main.Verify2FARequestResp:
+    type: object
+  main.WalletView:
+    properties:
+      createdAt:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/accounts.WalletViewItem'
+        type: array
+      name:
+        type: string
+      updatedAt:
+        type: string
+      userId:
+        type: string
+    type: object
+  main.WalletViewReq:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/accounts.WalletViewItem'
+        type: array
+      name:
+        type: string
     type: object
   main.delegatedErrorResponse:
     properties:
@@ -444,6 +491,204 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Users
+  /v1/users/{userId}/wallet-views:
+    get:
+      description: Lists all available wallet views for the user
+      parameters:
+      - description: ID of the user
+        in: path
+        name: userId
+        required: true
+        type: string
+      - default: Bearer <Add token here>
+        description: Auth token from delegated relying party
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.WalletView'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Wallets
+    post:
+      description: Creates a list of coin / [wallet] for user to see on main wallet
+        screen
+      parameters:
+      - description: ID of the user
+        in: path
+        name: userId
+        required: true
+        type: string
+      - default: Bearer <Add token here>
+        description: Auth token from delegated relying party
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Request params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.WalletViewReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.WalletView'
+        "400":
+          description: if validation of walletview failed
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "409":
+          description: if user already owns walletview with such name
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Wallets
+  /v1/users/{userId}/wallet-views/{walletViewName}:
+    delete:
+      description: Lists all available wallet views for the user
+      parameters:
+      - description: ID of the user
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: Name of wallet view
+        in: path
+        name: walletViewName
+        required: true
+        type: string
+      - default: Bearer <Add token here>
+        description: Auth token from delegated relying party
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK - found and deleted
+        "204":
+          description: No Content - already deleted
+        "400":
+          description: if trying to delete last wallet view
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Wallets
+    put:
+      description: Lists all available wallet views for the user
+      parameters:
+      - description: ID of the user
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: Name of wallet view
+        in: path
+        name: walletViewName
+        required: true
+        type: string
+      - default: Bearer <Add token here>
+        description: Auth token from delegated relying party
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Request params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.WalletViewReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Modified, updated view in response
+          schema:
+            $ref: '#/definitions/main.WalletView'
+        "404":
+          description: if no such view exists
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Wallets
+  /v1/wallet-configuration:
+    get:
+      description: Provides a list of all available coins
+      parameters:
+      - description: Version of configuration already presented on client
+        in: query
+        name: known_version
+        type: string
+      - default: Bearer <Add token here>
+        description: Auth token from delegated relying party
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.AvailableCoins'
+        "204":
+          description: if known_version have been provided before
+          schema:
+            $ref: '#/definitions/main.AvailableCoins'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Wallets
 schemes:
 - https
 swagger: "2.0"

@@ -36,6 +36,7 @@ func (s *service) RegisterRoutes(router *server.Router) {
 	s.setupDelegatedRPProxyRoutes(router)
 	s.setup2FARoutes(router)
 	s.setupUserRoutes(router)
+	s.setupWalletViewsRoutes(router)
 }
 
 func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {

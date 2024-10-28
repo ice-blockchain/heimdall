@@ -124,7 +124,7 @@ func (s *service) StartDelegatedRecovery(
 			return nil, buildDelegatedErrorResponse(http.StatusBadRequest, err, twoFAExpiredCode)
 		case errors.Is(err, accounts.Err2FAInvalidCode):
 			return nil, buildDelegatedErrorResponse(http.StatusBadRequest, err, twoFAInvalidCode)
-		case errors.Is(err, accounts.ErrUserNotFound):
+		case errors.Is(err, accounts.ErrNotFound):
 			return nil, buildDelegatedErrorResponse(http.StatusNotFound, err, userNotFound)
 		case errors.Is(err, accounts.Err2FARequired):
 			if tErr := terror.As(err); tErr != nil {

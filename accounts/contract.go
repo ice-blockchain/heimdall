@@ -23,6 +23,7 @@ import (
 type (
 	Accounts interface {
 		io.Closer
+		Wallets
 		ProxyDelegatedRelyingParty(ctx context.Context, rw http.ResponseWriter, r *http.Request)
 		Verify2FA(ctx context.Context, userID string, codes map[TwoFAOptionWithAddr]string) error
 		Delete2FA(ctx context.Context, userID string, codes map[TwoFAOptionWithAddr]string, twoFAToDel TwoFAOptionEnum, toDel string) error
@@ -33,7 +34,13 @@ type (
 		GetUser(ctx context.Context, userID string) (usr *User, err error)
 		HealthCheck(ctx context.Context) error
 	}
-
+	Wallets interface {
+		CreateWalletView(ctx context.Context, userID, name string, items []*WalletViewItem) (*WalletView, error)
+		AllSupportedCoins(knownVersion *int) (int, []*AvailableCoin, error)
+		GetWalletViews(ctx context.Context, userID string) ([]*WalletView, error)
+		DeleteWalletView(ctx context.Context, userID, name string) error
+		ModifyWalletView(ctx context.Context, userID, name, newName string, items []*WalletViewItem) (*WalletView, error)
+	}
 	TwoFAOptionEnum     string
 	TwoFAOptionWithAddr struct {
 		opt  TwoFAOptionEnum
@@ -50,6 +57,23 @@ type (
 		PhoneNumber             []string          `json:"phoneNumber,omitempty"`
 		TwoFAOptions            []TwoFAOptionEnum `json:"2faOptions"`
 	}
+	WalletView struct {
+		Name      string          `json:"name"`
+		Items     WalletViewItems `json:"items"`
+		CreatedAt *time.Time      `json:"createdAt"`
+		UpdatedAt *time.Time      `json:"updatedAt"`
+		UserID    string          `json:"userId"`
+	}
+
+	WalletViewItem struct {
+		Coin     string  `json:"coin"`
+		WalletID *string `json:"walletId"`
+	}
+	AvailableCoin struct {
+		Coin    string `json:"coin"`
+		Network string `json:"network"`
+	}
+	WalletViewItems []*WalletViewItem
 )
 
 const (
@@ -76,10 +100,13 @@ var (
 	Err2FAInvalidCode                  = errors.New("invalid code")
 	Err2FARequired                     = errors.New("2FA required")
 	ErrAuthenticatorRequirementsNotMet = errors.New("authenticator requirements not met")
-	ErrUserNotFound                    = storage.ErrNotFound
+	ErrNotFound                        = storage.ErrNotFound
+	ErrDuplicate                       = storage.ErrDuplicate
 	ErrInvalidFollowees                = errors.New("invalid followees")
 	ErrInvalidUserSignature            = errors.New("invalid user signature")
 	ErrInvalidUsername                 = dfns.ErrInvalidUsername
+	ErrNotChanged                      = errors.New("not changed")
+	ErrDeleteLast                      = errors.New("cannot delete last entry")
 )
 
 const (
@@ -122,18 +149,24 @@ type (
 		Active2FATotpAuthenticator []bool `db:"active_2fa_totp_authenticator"`
 	}
 	twoFACode struct {
-		CreatedAt    *time.Time
-		ConfirmedAt  *time.Time
-		UserID       string
-		Option       TwoFAOptionEnum
-		DeliverToIdx *int `db:"deliver_to_idx"`
-		DeliverTo    string
-		Code         string
+		CreatedAt   *time.Time
+		ConfirmedAt *time.Time
+		UserID      string
+		Option      TwoFAOptionEnum
+		DeliverTo   string
+		Code        string
 	}
 	config struct {
 		EmailExpiration         stdlibtime.Duration `yaml:"emailExpiration" mapstructure:"emailExpiration"`
 		SMSExpiration           stdlibtime.Duration `yaml:"smsExpiration" mapstructure:"smsExpiration"`
 		UserSignatureExpiration stdlibtime.Duration `yaml:"userSignatureExpiration" mapstructure:"userSignatureExpiration"`
 		Max2FACount             int                 `yaml:"max2FACount" mapstructure:"max2FACount"`
+		SupportedCoins          struct {
+			Version        int `yaml:"version" mapstructure:"version"`
+			SupportedCoins []struct {
+				Network string `yaml:"network" mapstructure:"network"`
+				Coin    string `yaml:"coin" mapstructure:"coin"`
+			} `yaml:"coins" mapstructure:"coins"`
+		} `yaml:"supportedCoins" mapstructure:"supportedCoins"`
 	}
 )
