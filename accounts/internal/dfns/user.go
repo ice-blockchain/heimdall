@@ -24,7 +24,7 @@ func ExtractUser(res map[string]any, usernameField string) (userID, username str
 	return
 }
 
-func ExtractWalletPubKey(res map[string]any) (walletID, walletPubKey string) {
+func ExtractMainWallet(res map[string]any) (walletID, walletPubKey string) {
 	if walletsI, hasWallets := res["wallets"]; hasWallets {
 		wallets := walletsI.([]any)
 		for _, walletI := range wallets {
@@ -53,6 +53,22 @@ func ExtractWalletPubKey(res map[string]any) (walletID, walletPubKey string) {
 		}
 	}
 	return walletID, walletPubKey
+}
+
+func ExtractWallet(wallet Wallet) (walletID, network, walletPubKey string) {
+	if idI, hasID := wallet["id"]; hasID && idI != nil {
+		walletID = idI.(string)
+	}
+	if networkI, hasNetwork := wallet["network"]; hasNetwork && networkI != nil {
+		network = networkI.(string)
+	}
+	if keyI, hasKey := wallet["signingKey"]; hasKey && keyI != nil {
+		key := keyI.(map[string]any)
+		if pubkey, hasPk := key["publicKey"]; hasPk {
+			walletPubKey = pubkey.(string)
+		}
+	}
+	return walletID, network, walletPubKey
 }
 
 func (c *dfnsClient) GetUser(ctx context.Context, userID string) (*User, error) {

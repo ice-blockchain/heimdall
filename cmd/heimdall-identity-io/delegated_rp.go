@@ -5,12 +5,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"html/template"
-	"net/http"
-	"strings"
-
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
+	"html/template"
+	"net/http"
 
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/server"
@@ -59,9 +57,9 @@ func (s *service) setupDelegatedRPProxyRoutes(router *server.Router) {
 		POST("/v1/webhooks/dfns/events", server.RootHandler(s.EventWebhookFromDelegatedRP)).
 		GET("/.well-known/apple-app-site-association", server.RootHandler(s.AppleAppSiteAssociation)).
 		GET("/.well-known/assetlinks.json", server.RootHandler(s.AssetLinks)).
-		POST("/v1/users/:userId/:walletId/secure-payment-confirmations", s.securePaymentConfirmation()).
-		// TODO: embed into roxy, but how to detect network
-		POST("/v1/users/:userId/:walletId/broadcast", server.RootHandler(s.Broadcast))
+		POST("/v1/users/:userId/:walletId/secure-payment-confirmations", s.securePaymentConfirmation())
+	// TODO: embed into roxy, but how to detect network
+	//POST("/v1/users/:userId/:walletId/broadcast", server.RootHandler(s.Broadcast))
 
 }
 
@@ -97,16 +95,16 @@ func (s *service) securePaymentConfirmation() func(*gin.Context) {
 			ginCtx.JSON(http.StatusUnprocessableEntity, &delegatedErrorResponse{Error: errMessage{Message: invalidPropertiesErrorCode}})
 			return
 		}
-		if _, hasNetwork := body["network"]; !hasNetwork {
-			ginCtx.JSON(http.StatusUnprocessableEntity, &delegatedErrorResponse{Error: errMessage{Message: invalidPropertiesErrorCode}})
-			return
-		}
-		network := strings.ToLower(body["network"].(string))
-		delete(body, "network")
-		data, err := s.accounts.SecurePaymentConfirmation(ctx, ginCtx.Param("userId"), network, walletId, body)
+		data, err := s.accounts.SecurePaymentConfirmation(ctx, ginCtx.Param("userId"), walletId, body)
 		if err != nil {
 			switch {
 			default:
+				if delegatedErr := accounts.ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
+					var delegatedParsedErr *accounts.DelegatedRelyingPartyErr
+					if errors.As(delegatedErr, &delegatedParsedErr) {
+						ginCtx.JSON(delegatedParsedErr.HTTPStatus, &delegatedParsedErr)
+					}
+				}
 				log.Error(errors.Wrapf(err, "failed to process secure payment confirmation %#v", body))
 				ginCtx.JSON(http.StatusInternalServerError, &delegatedErrorResponse{Error: errMessage{Message: "oops, error occured!"}})
 			}
@@ -213,20 +211,20 @@ func (s *service) EventWebhookFromDelegatedRP(
 	return server.OK[WebhookResp](&WebhookResp{}), nil
 }
 
-func (s *service) Broadcast(
-	ctx context.Context,
-	req *server.Request[Broadcast, accounts.BroadcastTxResponse],
-) (successResp *server.Response[accounts.BroadcastTxResponse], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	ctx = withAuth(ctx, req.Data.Authorization)
-	ctx = withAppID(ctx, req.Data.ClientID)
-	ctx = withUserAction(ctx, req.Data.UserAction)
-	b, err := s.accounts.Broadcast(ctx, req.Data.UserID, req.Data.WalletID, req.Data.Transaction)
-	if err != nil {
-		switch {
-		case errors.Is(err, accounts.ErrRaceCondition):
-			return nil, server.BadRequest(err, "RACE_CONDITION")
-		}
-		return nil, server.Unexpected(err)
-	}
-	return server.OK(b), nil
-}
+//func (s *service) Broadcast(
+//	ctx context.Context,
+//	req *server.Request[Broadcast, accounts.BroadcastTxResponse],
+//) (successResp *server.Response[accounts.BroadcastTxResponse], errorResp *server.ErrResponse[*server.ErrorResponse]) {
+//	ctx = withAuth(ctx, req.Data.Authorization)
+//	ctx = withAppID(ctx, req.Data.ClientID)
+//	ctx = withUserAction(ctx, req.Data.UserAction)
+//	b, err := s.accounts.Broadcast(ctx, req.Data.UserID, req.Data.WalletID, req.Data.Transaction)
+//	if err != nil {
+//		switch {
+//		case errors.Is(err, accounts.ErrRaceCondition):
+//			return nil, server.BadRequest(err, "RACE_CONDITION")
+//		}
+//		return nil, server.Unexpected(err)
+//	}
+//	return server.OK(b), nil
+//}

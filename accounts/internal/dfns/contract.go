@@ -4,6 +4,7 @@ package dfns
 
 import (
 	"context"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 	"io"
 	"net/http"
 	"net/http/httputil"
@@ -33,9 +34,9 @@ type (
 		VerifyWebhookSecret(fromWebhook string) bool
 		RegisterPostProxyCallback(url string, cb func(ctx context.Context, now *time.Time, res map[string]any) error)
 		ListWallets(ctx context.Context, userID string) ([]Wallet, error)
+		GetWallet(ctx context.Context, userID string) (*Wallet, error)
 		ListAssets(ctx context.Context, walletID string) (*Assets, error)
-		SecurePaymentConfirmation(ctx context.Context, userID, network, walletId string, body map[string]any) (tmplData any, err error)
-		Broadcast(ctx context.Context, userID, walletID, walletPubkey, txPayload string) (*BroadcastTxResponse, error)
+		SecurePaymentConfirmation(ctx context.Context, userID, network string, wallet Wallet, body map[string]any) (tmplData any, err error)
 	}
 	RefreshAuth interface {
 		AuthClient
@@ -168,6 +169,9 @@ type (
 	signatureChallenge = map[string]any
 	signatureResult    struct {
 		ID        string `json:"id"`
+		Requester struct {
+			UserID string `json:"userId"`
+		} `json:"requester"`
 		Signature struct {
 			R       string `json:"r"`
 			S       string `json:"s"`
@@ -202,7 +206,6 @@ type (
 		Icon     string
 	}
 	tonTransactionInputV4R2 struct {
-		//_               tlb.Magic            `tlb:"#ec3c86d"`
 		WalletID        uint32               `tlb:"## 32"`
 		TTL             uint64               `tlb:"## 32"`
 		Seq             uint64               `tlb:"## 32"`
@@ -210,8 +213,47 @@ type (
 		Mode            uint8                `tlb:"## 8"`
 		InternalMessage *tlb.InternalMessage `tlb:"^"`
 	}
+	tonTransactionInputV5 struct {
+		_                 tlb.Magic  `tlb:"#7369676e"`
+		WalletID          uint32     `tlb:"## 32"`
+		TTL               uint32     `tlb:"## 32"`
+		Seq               uint32     `tlb:"## 32"`
+		Actions           *v5actions `tlb:"^"`
+		W5ExtendedActions *cell.Cell `tlb:"maybe ."`
+	}
+	v5actions []v5action
+	v5action  struct {
+		_    tlb.Magic            `tlb:"#0ec3c86d"`
+		Mode uint8                `tlb:"## 8"`
+		Msg  *tlb.InternalMessage `tlb:"^"`
+	}
+	///extended *cell.Cell  `tlb:"^"`
+
+	//innerRequest struct {
+	//	OutActions     *actions `tlb:"."`
+	//	HasMoreActions bool     `tlb:"bool"`
+	//	//OtherActions   *actions `tlb:"^"`
+	//}
+	//actions struct {
+	//	Prefix          uint32               `tlb:"## 32"`
+	//	Mode            uint8                `tlb:"## 8"`
+	//	InternalMessage *tlb.InternalMessage `tlb:"^"`
+	//}
+	tonTx interface {
+		GetWalletID() uint32
+		//GetMode() uint8
+		//GetInternalMessage() *tlb.InternalMessage
+		GetSeq() uint64
+		EmbedSignature(signature, walletPubkey []byte, initialized bool) (*tlb.ExternalMessage, *cell.Cell, error)
+	}
 )
 
 var (
 	broadcastTransactionUrlRegexp = regexp.MustCompile(broadcastTransactionUrl)
+	manualBroadcastNetworks       = map[string]func(ctx context.Context, c *dfnsClient, walletID, walletPubKey, txPayload string) (*BroadcastTxResponse, error){
+		"ton": func(ctx context.Context, c *dfnsClient, walletID, walletPubKey, txPayload string) (*BroadcastTxResponse, error) {
+			return c.broadcastTONTransaction(ctx, walletID, walletPubKey, txPayload)
+		},
+	}
+	errNoSerialize = errors.New("no serialize")
 )

@@ -44,15 +44,11 @@ func (a *accounts) StartDelegatedRecovery(ctx context.Context, username, credent
 	return delegatedResp, nil
 }
 
-func (a *accounts) SecurePaymentConfirmation(ctx context.Context, userID, network, walletId string, body map[string]any) (tmplData any, err error) {
-	return a.delegatedRPClient.SecurePaymentConfirmation(ctx, userID, network, walletId, body)
-}
-
-// TODO: embed in proxy, but how to detect network??
-func (a *accounts) Broadcast(ctx context.Context, userID, walletId, txBody string) (response *BroadcastTxResponse, err error) {
-	usr, err := a.getUserByID(ctx, userID)
+func (a *accounts) SecurePaymentConfirmation(ctx context.Context, userID, walletId string, body map[string]any) (tmplData any, err error) {
+	wallet, err := a.delegatedRPClient.GetWallet(ctx, walletId)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get user by id %v", userID)
+		return nil, errors.Wrapf(err, "failed to get wallet %v, cannot init payment confirmation")
 	}
-	return a.delegatedRPClient.Broadcast(ctx, userID, walletId, usr.MasterPubKey, txBody)
+	_, network, _ := dfns.ExtractWallet(*wallet)
+	return a.delegatedRPClient.SecurePaymentConfirmation(ctx, userID, strings.ToLower(network), wallet, body)
 }

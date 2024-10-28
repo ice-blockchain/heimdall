@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	stdlibtime "time"
 
@@ -290,15 +291,20 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 	}
 	var extendErr error
 	var extendErrBody *DfnsInternalError
-	switch req.URL.Path {
-	case initLoginUrl:
+	switch {
+	case req.URL.Path == initLoginUrl:
 		extendErrBody, extendErr = c.updateInitLoginReqBodyWithOrgID(req)
-	case initDelegatedRegistrationUrl:
+	case req.URL.Path == initDelegatedRegistrationUrl:
 		extendErrBody, extendErr = c.updateRegisterReqBodyWithEndUser(req)
-	case completeDelegatedRegistrationUrl:
+	case req.URL.Path == completeDelegatedRegistrationUrl:
 		extendErrBody, extendErr = c.updateRegisterReqBodyWithWallets(req)
-	case delegatedLoginUrl:
+	case req.URL.Path == delegatedLoginUrl:
 		extendErrBody, extendErr = c.exchangeRefreshTokenToUsername(req)
+	case broadcastTransactionUrlRegexp.MatchString(req.URL.Path):
+		rb := &proxyResponseBody{ResponseWriter: rw, Body: respBody}
+		if extendErrBody, extendErr = c.checkIfNeedToBroadcastTX(req, rb, applicationID, userAction); extendErr == nil && extendErrBody == nil && respBody.Len() > 0 {
+			return http.StatusOK, respBody
+		}
 	}
 	if extendErr != nil && extendErrBody != nil {
 		log.Error(errors.Wrapf(extendErr, "failed to update init login req with org id"))
@@ -310,7 +316,6 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 
 		return extendErrBody.HTTPStatus, bytes.NewBuffer(resp)
 	}
-
 	rb := &proxyResponseBody{ResponseWriter: rw, Body: respBody}
 	if c.urlRequiresServiceAccountSignature(req.URL.Path) {
 		cl := c.serviceAccountClient(applicationID)
@@ -489,6 +494,47 @@ func (c *dfnsClient) exchangeRefreshTokenToUsername(req *http.Request) (*DfnsInt
 		return nil
 	})
 }
+
+func (c *dfnsClient) checkIfNeedToBroadcastTX(req *http.Request, rw http.ResponseWriter, clientID, userAction string) (*DfnsInternalError, error) {
+	ctx := context.WithValue(req.Context(), AuthHeaderCtxValue, req.Header.Get("Authorization"))
+	ctx = context.WithValue(ctx, AppIDCtxValue, clientID)
+	ctx = context.WithValue(ctx, UserActionCtxValue, userAction)
+	walletID := strings.ReplaceAll(strings.ReplaceAll(req.URL.Path, "/wallets/", ""), "/transactions", "")
+	wallet, err := c.GetWallet(req.Context(), walletID)
+	if err != nil {
+		log.Error(errors.Wrapf(err, "failed to get wallet with id %v", walletID))
+		return &DfnsInternalError{HTTPStatus: http.StatusInternalServerError, Message: "wallet not found"}, errors.Wrapf(err, "failed to get wallet with id %v", walletID)
+	}
+	_, walletNetwork, pubkey := ExtractWallet(*wallet)
+	broadcastFn, needBroadcast := manualBroadcastNetworks[strings.ToLower(walletNetwork)]
+	if !needBroadcast {
+		return nil, nil // Continue to normal proxy.
+	}
+	var transactionBody string
+	_, err = extendRequestWith[struct {
+		Transaction string `json:"transaction"`
+	}](req, func(content *struct {
+		Transaction string `json:"transaction"`
+	}) error {
+		transactionBody = content.Transaction
+		return errNoSerialize
+	})
+	if err != nil && !errors.Is(err, errNoSerialize) {
+		return &DfnsInternalError{HTTPStatus: http.StatusInternalServerError, Message: err.Error()}, err
+	}
+	resp, err := broadcastFn(ctx, c, walletID, pubkey, transactionBody)
+	if err != nil {
+		return &DfnsInternalError{HTTPStatus: http.StatusInternalServerError, Message: err.Error()}, errors.Wrapf(err, "failed to broadcast transaction")
+	}
+	data, err := json.Marshal(resp)
+	if err != nil {
+		return &DfnsInternalError{HTTPStatus: http.StatusInternalServerError, Message: err.Error()}, errors.Wrapf(err, "failed to serialize transaction response")
+	}
+	rw.WriteHeader(http.StatusOK)
+	rw.Write(data)
+	return nil, nil
+}
+
 func (c *dfnsClient) updateRegisterReqBodyWithWallets(req *http.Request) (resp *DfnsInternalError, err error) {
 	return extendRequestWith[struct {
 		FirstFactorCredential  map[string]any `json:"firstFactorCredential"`

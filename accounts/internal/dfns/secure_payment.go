@@ -27,7 +27,7 @@ func (c *dfnsClient) requestUserActionChallenge(ctx context.Context, url string,
 		UserActionHTTPMethod string `json:"userActionHttpMethod"`
 		UserActionHTTPPath   string `json:"userActionHttpPath"`
 		UserActionServerKind string `json:"userActionServerKind"`
-	}, signatureChallenge](ctx, c, struct {
+	}, signatureChallenge](ctx, c, &struct {
 		UserActionPayload    string `json:"userActionPayload"`
 		UserActionHTTPMethod string `json:"userActionHttpMethod"`
 		UserActionHTTPPath   string `json:"userActionHttpPath"`
@@ -36,8 +36,9 @@ func (c *dfnsClient) requestUserActionChallenge(ctx context.Context, url string,
 	return resp, errors.Wrapf(err, "failed to get user action challenge")
 }
 
-func (c *dfnsClient) SecurePaymentConfirmation(ctx context.Context, userID, network, walletId string, body map[string]any) (any, error) {
-	transaction, err := c.extractTransaction(network, walletId, body)
+func (c *dfnsClient) SecurePaymentConfirmation(ctx context.Context, userID, network string, wallet Wallet, body map[string]any) (any, error) {
+	walletId := wallet["id"].(string)
+	transaction, err := c.extractTransaction(network, wallet["name"].(string), body)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to extract transaction details")
 	}
@@ -73,9 +74,9 @@ func (c *dfnsClient) SecurePaymentConfirmation(ctx context.Context, userID, netw
 	}, nil
 }
 
-func (c *dfnsClient) extractTransaction(network, walletId string, broadcastBody map[string]any) (*transferTransaction, error) {
+func (c *dfnsClient) extractTransaction(network, walletName string, broadcastBody map[string]any) (*transferTransaction, error) {
 	network = strings.ToLower(network)
-	networkData, err := c.detectNetwork(walletId)
+	networkData, err := c.detectNetwork(network)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to detect network %v")
 	}
@@ -84,7 +85,7 @@ func (c *dfnsClient) extractTransaction(network, walletId string, broadcastBody 
 	if hasValue && hasTo { // Evm has them.
 		return &transferTransaction{
 			ReceiverAddress: to.(string),
-			Sender:          walletId, // TODO: extract addr from transferTransaction
+			Sender:          walletName,
 			Amount:          value.(string),
 			Network:         networkData,
 		}, nil
@@ -103,16 +104,38 @@ func (c *dfnsClient) extractTransaction(network, walletId string, broadcastBody 
 	switch network {
 	case "ton":
 		var transaction transferTransaction
-		_, err = parseTONTransaction(encodedTxBytes, &transaction)
-
-		return &transaction, errors.Wrap(err, "failed to parse transaction")
+		if _, err = parseTONTransaction(encodedTxBytes, &transaction); err != nil {
+			return nil, errors.Wrap(err, "failed to parse transaction")
+		}
+		transaction.Sender = walletName
+		return &transaction, nil
+	case "polygon", "ethereum", "bsc", "arbitrumone", "avalanchec", "fantomopera":
+		var transaction *transferTransaction
+		if transaction, err = parseEvmTransactionInput(encodedTxBytes); err != nil {
+			return nil, errors.Wrapf(err, "failed to parse transaction for EVM %v: %v", network, encodedTxBytes)
+		}
+		transaction.Sender = walletName
+		return transaction, nil
+	case "bitcoin":
+		var transaction *transferTransaction
+		if transaction, err = parseBitcoinTransactionInput(encodedTxBytes); err != nil {
+			return nil, errors.Wrapf(err, "failed to parse transaction for BTC %v: %v", network, encodedTxBytes)
+		}
+		transaction.Sender = walletName
+		return transaction, nil
 	default:
 		return nil, errors.Errorf("unsupported network %v cannot decode transferTransaction %v", network, encodedTx)
 	}
 }
 
-func (c *dfnsClient) detectNetwork(walletId string) (*network, error) {
-	// TODO: do we need to detect it by stored wallet?
+func parseEvmTransactionInput(txBytes []byte) (*transferTransaction, error) {
+	return nil, errors.Errorf("not impl")
+}
+func parseBitcoinTransactionInput(txBytes []byte) (*transferTransaction, error) {
+	return nil, errors.Errorf("not impl")
+}
+
+func (c *dfnsClient) detectNetwork(networkName string) (*network, error) {
 	// TODO: cdn
 	return &network{Currency: "BNB", Icon: "https://static.bnbchain.org/home-ui/static/images/bnb-smart-chain/migrate.png"}, nil
 }
