@@ -188,7 +188,7 @@ func (a *accounts) upsertWalletPubKeyFromRegistrationAndRegisterWalletView(ctx c
 	return nil
 }
 
-func (a *accounts) upsertWalletPubKeyFromRegistration(ctx context.Context, now *time.Time, res map[string]any, walletPubkey string) error {
+func (a *accounts) upsertWalletPubKeyFromRegistration(ctx context.Context, now *time.Time, res map[string]any, walletPubKey string) error {
 	userID, username := dfns.ExtractUser(res, "username")
 	if userID == "" && username == "" {
 		return nil

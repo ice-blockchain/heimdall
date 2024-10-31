@@ -15,7 +15,7 @@ import (
 
 func (s *service) setupWalletViewsRoutes(router gin.IRoutes) {
 	router.POST("/v1/users/:userId/wallet-views", server.RootHandler(s.CreateWalletView)).
-		GET("/v1/wallet-configuration", server.RootHandler(s.AllAvailableCoins)).
+		GET("/v1/wallet-configuration", server.RootHandler(s.GetWalletConfiguration)).
 		GET("/v1/users/:userId/wallet-views", server.RootHandler(s.GetWalletViews)).
 		PUT("/v1/users/:userId/wallet-views/:walletViewName", server.RootHandler(s.ModifyWalletView)).
 		DELETE("/v1/users/:userId/wallet-views/:walletViewName", server.RootHandler(s.DeleteWalletView))
@@ -92,7 +92,7 @@ func (s *service) validateWalletView(items []*accounts.WalletViewItem) error {
 	}
 	dedupl := map[string]struct{}{}
 	coins := map[string]struct{}{}
-	_, allCoins, _ := s.accounts.AllSupportedCoins(nil)
+	_, allCoins, _ := s.accounts.GetWalletConfiguration(nil)
 	for _, coin := range allCoins {
 		coins[coin.Coin] = struct{}{}
 	}
@@ -113,7 +113,7 @@ func (s *service) validateWalletView(items []*accounts.WalletViewItem) error {
 	return nil
 }
 
-// AllAvailableCoins godoc
+// GetWalletConfiguration godoc
 //
 //	@Schemes
 //	@Description	Provides a list of all available coins
@@ -125,11 +125,11 @@ func (s *service) validateWalletView(items []*accounts.WalletViewItem) error {
 //	@Success		204				{object}	WalletConfiguration		"if known_version have been provided before"
 //	@Failure		504				{object}	server.ErrorResponse	"if request times out"
 //	@Router			/v1/wallet-configuration [GET].
-func (s *service) AllAvailableCoins(
+func (s *service) GetWalletConfiguration(
 	_ context.Context,
-	req *server.Request[AllAvailableCoinsReq, WalletConfiguration],
+	req *server.Request[GetWalletConfigurationReq, WalletConfiguration],
 ) (successResp *server.Response[WalletConfiguration], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	version, items, err := s.accounts.AllSupportedCoins(req.Data.KnownVersion)
+	version, items, err := s.accounts.GetWalletConfiguration(req.Data.KnownVersion)
 	if err != nil {
 		switch {
 		case errors.Is(err, accounts.ErrNotChanged):

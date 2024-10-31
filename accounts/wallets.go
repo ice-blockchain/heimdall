@@ -51,19 +51,19 @@ func (a *accounts) GetWalletViews(ctx context.Context, userID string) ([]*Wallet
 	return views, nil
 }
 
-func (a *accounts) AllSupportedCoins(knownVersion *int) (int, []*AvailableCoin, error) {
-	if knownVersion != nil && *knownVersion >= a.cfg.SupportedCoins.Version {
-		return a.cfg.SupportedCoins.Version, nil, ErrNotChanged
+func (a *accounts) GetWalletConfiguration(knownVersion *int) (int, []*AvailableCoin, error) {
+	if knownVersion != nil && *knownVersion >= a.cfg.WalletConfiguration.Version {
+		return a.cfg.WalletConfiguration.Version, nil, ErrNotChanged
 	}
-	res := make([]*AvailableCoin, 0, len(a.cfg.SupportedCoins.SupportedCoins))
-	for _, coin := range a.cfg.SupportedCoins.SupportedCoins {
+	res := make([]*AvailableCoin, 0, len(a.cfg.WalletConfiguration.SupportedCoins))
+	for _, coin := range a.cfg.WalletConfiguration.SupportedCoins {
 		res = append(res, &AvailableCoin{
 			Coin:    coin.Coin,
 			Network: coin.Network,
 		})
 	}
 
-	return a.cfg.SupportedCoins.Version, res, nil
+	return a.cfg.WalletConfiguration.Version, res, nil
 }
 
 func buildInsert(items []*WalletViewItem, nextIndex int) (string, []any) {

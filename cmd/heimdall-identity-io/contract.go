@@ -47,7 +47,7 @@ type (
 		Name   string                     `json:"name" required:"true"`
 		Items  []*accounts.WalletViewItem `json:"items" required:"true"`
 	}
-	AllAvailableCoinsReq struct {
+	GetWalletConfigurationReq struct {
 		KnownVersion *int `form:"known_version" required:"false"`
 	}
 	WalletConfiguration struct {

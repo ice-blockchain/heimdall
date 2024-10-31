@@ -36,7 +36,7 @@ type (
 	}
 	Wallets interface {
 		CreateWalletView(ctx context.Context, userID, name string, items []*WalletViewItem) (*WalletView, error)
-		AllSupportedCoins(knownVersion *int) (int, []*AvailableCoin, error)
+		GetWalletConfiguration(knownVersion *int) (int, []*AvailableCoin, error)
 		GetWalletViews(ctx context.Context, userID string) ([]*WalletView, error)
 		DeleteWalletView(ctx context.Context, userID, name string) error
 		ModifyWalletView(ctx context.Context, userID, name, newName string, items []*WalletViewItem) (*WalletView, error)
@@ -162,12 +162,12 @@ type (
 		SMSExpiration           stdlibtime.Duration `yaml:"smsExpiration" mapstructure:"smsExpiration"`
 		UserSignatureExpiration stdlibtime.Duration `yaml:"userSignatureExpiration" mapstructure:"userSignatureExpiration"`
 		Max2FACount             int                 `yaml:"max2FACount" mapstructure:"max2FACount"`
-		SupportedCoins          struct {
+		WalletConfiguration     struct {
 			Version        int `yaml:"version" mapstructure:"version"`
 			SupportedCoins []struct {
 				Network string `yaml:"network" mapstructure:"network"`
 				Coin    string `yaml:"coin" mapstructure:"coin"`
 			} `yaml:"coins" mapstructure:"coins"`
-		} `yaml:"supportedCoins" mapstructure:"supportedCoins"`
+		} `yaml:"walletConfiguration" mapstructure:"walletConfiguration"`
 	}
 )

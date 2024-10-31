@@ -59,7 +59,7 @@ accounts:
   smsExpiration: 15m
   userSignatureExpiration: 1h
   max2FACount: 2
-  supportedCoins:
+  walletConfiguration:
     version: 1
     coins:
       - coin: TON
