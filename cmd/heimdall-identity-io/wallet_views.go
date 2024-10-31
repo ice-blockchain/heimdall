@@ -30,7 +30,7 @@ func (s *service) setupWalletViewsRoutes(router gin.IRoutes) {
 //	@Param			userId			path		string			true	"ID of the user"
 //	@Param			Authorization	header		string			true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
 //	@Param			request			body		WalletViewReq	true	"Request params"
-//	@Success		200				{object}	WalletView
+//	@Success		201				{object}	WalletView
 //	@Failure		500				{object}	server.ErrorResponse
 //	@Failure		400				{object}	server.ErrorResponse	"if validation of walletview failed"
 //	@Failure		409				{object}	server.ErrorResponse	"if user already owns walletview with such name"
@@ -121,31 +121,31 @@ func (s *service) validateWalletView(items []*accounts.WalletViewItem) error {
 //	@Produce		json
 //	@Param			known_version	query		string	false	"Version of configuration already presented on client"
 //	@Param			Authorization	header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
-//	@Success		200				{object}	AvailableCoins
-//	@Success		204				{object}	AvailableCoins			"if known_version have been provided before"
+//	@Success		200				{object}	WalletConfiguration
+//	@Success		204				{object}	WalletConfiguration		"if known_version have been provided before"
 //	@Failure		504				{object}	server.ErrorResponse	"if request times out"
 //	@Router			/v1/wallet-configuration [GET].
 func (s *service) AllAvailableCoins(
 	_ context.Context,
-	req *server.Request[AllAvailableCoinsReq, AvailableCoins],
-) (successResp *server.Response[AvailableCoins], errorResp *server.ErrResponse[*server.ErrorResponse]) {
+	req *server.Request[AllAvailableCoinsReq, WalletConfiguration],
+) (successResp *server.Response[WalletConfiguration], errorResp *server.ErrResponse[*server.ErrorResponse]) {
 	version, items, err := s.accounts.AllSupportedCoins(req.Data.KnownVersion)
 	if err != nil {
 		switch {
 		case errors.Is(err, accounts.ErrNotChanged):
-			return &server.Response[AvailableCoins]{Code: http.StatusNoContent}, nil
+			return &server.Response[WalletConfiguration]{Code: http.StatusNoContent}, nil
 		default:
 			return nil, server.Unexpected(err)
 		}
 	}
 
-	return server.OK[AvailableCoins](&AvailableCoins{Version: version, Coins: items}), nil
+	return server.OK[WalletConfiguration](&WalletConfiguration{Version: version, AvailableCoins: items}), nil
 }
 
 // DeleteWalletView godoc
 //
 //	@Schemes
-//	@Description	Lists all available wallet views for the user
+//	@Description	Deletes wallet view for provided userId and name
 //	@Tags			Wallets
 //	@Produce		json
 //	@Param			userId			path	string	true	"ID of the user"
@@ -154,7 +154,7 @@ func (s *service) AllAvailableCoins(
 //	@Success		200				"OK - found and deleted"
 //	@Success		204				"No Content - already deleted"
 //	@Failure		500				{object}	server.ErrorResponse
-//	@Failure		400				{object}	server.ErrorResponse	"if trying to delete last wallet view"
+//	@Failure		409				{object}	server.ErrorResponse	"if trying to delete last wallet view"
 //	@Failure		504				{object}	server.ErrorResponse	"if request times out"
 //	@Router			/v1/users/{userId}/wallet-views/{walletViewName} [DELETE].
 func (s *service) DeleteWalletView(
@@ -179,7 +179,7 @@ func (s *service) DeleteWalletView(
 // ModifyWalletView godoc
 //
 //	@Schemes
-//	@Description	Lists all available wallet views for the user
+//	@Description	Modifies wallet view referenced in url
 //	@Tags			Wallets
 //	@Produce		json
 //	@Param			userId			path		string			true	"ID of the user"

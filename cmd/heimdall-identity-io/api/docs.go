@@ -592,8 +592,8 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "201": {
+                        "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/main.WalletView"
                         }
@@ -627,7 +627,7 @@ const docTemplate = `{
         },
         "/v1/users/{userId}/wallet-views/{walletViewName}": {
             "put": {
-                "description": "Lists all available wallet views for the user",
+                "description": "Modifies wallet view referenced in url",
                 "produces": [
                     "application/json"
                 ],
@@ -695,7 +695,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Lists all available wallet views for the user",
+                "description": "Deletes wallet view for provided userId and name",
                 "produces": [
                     "application/json"
                 ],
@@ -733,7 +733,7 @@ const docTemplate = `{
                     "204": {
                         "description": "No Content - already deleted"
                     },
-                    "400": {
+                    "409": {
                         "description": "if trying to delete last wallet view",
                         "schema": {
                             "$ref": "#/definitions/server.ErrorResponse"
@@ -783,13 +783,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.AvailableCoins"
+                            "$ref": "#/definitions/main.WalletConfiguration"
                         }
                     },
                     "204": {
                         "description": "if known_version have been provided before",
                         "schema": {
-                            "$ref": "#/definitions/main.AvailableCoins"
+                            "$ref": "#/definitions/main.WalletConfiguration"
                         }
                     },
                     "504": {
@@ -835,20 +835,6 @@ const docTemplate = `{
                 },
                 "walletId": {
                     "type": "string"
-                }
-            }
-        },
-        "main.AvailableCoins": {
-            "type": "object",
-            "properties": {
-                "coins": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/accounts.AvailableCoin"
-                    }
-                },
-                "version": {
-                    "type": "integer"
                 }
             }
         },
@@ -957,6 +943,20 @@ const docTemplate = `{
         },
         "main.Verify2FARequestResp": {
             "type": "object"
+        },
+        "main.WalletConfiguration": {
+            "type": "object",
+            "properties": {
+                "availableCoins": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/accounts.AvailableCoin"
+                    }
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
         },
         "main.WalletView": {
             "type": "object",

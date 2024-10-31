@@ -50,9 +50,9 @@ type (
 	AllAvailableCoinsReq struct {
 		KnownVersion *int `form:"known_version" required:"false"`
 	}
-	AvailableCoins struct {
-		Version int                       `json:"version"`
-		Coins   []*accounts.AvailableCoin `json:"coins"`
+	WalletConfiguration struct {
+		Version        int                       `json:"version"`
+		AvailableCoins []*accounts.AvailableCoin `json:"availableCoins"`
 	}
 	WalletView        = accounts.WalletView
 	WalletViews       = []*WalletView

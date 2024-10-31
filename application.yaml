@@ -62,18 +62,16 @@ accounts:
   supportedCoins:
     version: 1
     coins:
-      - coin: ICE
-        network: ION
+      - coin: TON
+        network: Ton
       - coin: USDT
-        network: ION
-      - coin: USDC
-        network: ION
+        network: Ton
       - coin: USDT
-        network: ETH
+        network: Ethereum
       - coin: USDC
-        network: ETH
+        network: Ethereum
       - coin: ETH
-        network: ETH
+        network: Ethereum
 
   wintr/connectors/storage/v2:
     runDDL: true

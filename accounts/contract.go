@@ -86,6 +86,7 @@ const (
 	completeRegistrationUrl      = "/auth/registration/enduser"
 	completeLoginUrl             = "/auth/login"
 	delegatedLoginUrl            = "/auth/login/delegated"
+	defaultWalletViewCoin        = "TON"
 )
 
 var (

@@ -25,15 +25,6 @@ definitions:
       walletId:
         type: string
     type: object
-  main.AvailableCoins:
-    properties:
-      coins:
-        items:
-          $ref: '#/definitions/accounts.AvailableCoin'
-        type: array
-      version:
-        type: integer
-    type: object
   main.Relays:
     properties:
       ionConnectRelays:
@@ -102,6 +93,15 @@ definitions:
         type: array
     type: object
   main.Verify2FARequestResp:
+    type: object
+  main.WalletConfiguration:
+    properties:
+      availableCoins:
+        items:
+          $ref: '#/definitions/accounts.AvailableCoin'
+        type: array
+      version:
+        type: integer
     type: object
   main.WalletView:
     properties:
@@ -549,8 +549,8 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
+        "201":
+          description: Created
           schema:
             $ref: '#/definitions/main.WalletView'
         "400":
@@ -573,7 +573,7 @@ paths:
       - Wallets
   /v1/users/{userId}/wallet-views/{walletViewName}:
     delete:
-      description: Lists all available wallet views for the user
+      description: Deletes wallet view for provided userId and name
       parameters:
       - description: ID of the user
         in: path
@@ -598,7 +598,7 @@ paths:
           description: OK - found and deleted
         "204":
           description: No Content - already deleted
-        "400":
+        "409":
           description: if trying to delete last wallet view
           schema:
             $ref: '#/definitions/server.ErrorResponse'
@@ -613,7 +613,7 @@ paths:
       tags:
       - Wallets
     put:
-      description: Lists all available wallet views for the user
+      description: Modifies wallet view referenced in url
       parameters:
       - description: ID of the user
         in: path
@@ -678,11 +678,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.AvailableCoins'
+            $ref: '#/definitions/main.WalletConfiguration'
         "204":
           description: if known_version have been provided before
           schema:
-            $ref: '#/definitions/main.AvailableCoins'
+            $ref: '#/definitions/main.WalletConfiguration'
         "504":
           description: if request times out
           schema:
