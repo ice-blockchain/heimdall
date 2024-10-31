@@ -30,6 +30,8 @@ type (
 		GetUser(ctx context.Context, userID string) (*User, error)
 		VerifyWebhookSecret(fromWebhook string) bool
 		RegisterPostProxyCallback(url string, cb func(ctx context.Context, now *time.Time, res map[string]any) error)
+		ListWallets(ctx context.Context, userID string) ([]Wallet, error)
+		ListAssets(ctx context.Context, walletID string) (*Assets, error)
 	}
 	RefreshAuth interface {
 		AuthClient
@@ -37,6 +39,13 @@ type (
 	}
 	StartedDelegatedRecovery map[string]any
 	User                     map[string]any
+	Wallet                   map[string]any
+	Asset                    map[string]any
+	Assets                   struct {
+		Assets   []Asset `json:"assets"`
+		Network  string  `json:"network"`
+		WalletID string  `json:"walletId"`
+	}
 )
 
 const (
@@ -112,7 +121,8 @@ type (
 		Events      []string   `json:"events"`
 	}
 	page[T any] struct {
-		Items []T `json:"items"`
+		Items         []T     `json:"items"`
+		NextPageToken *string `json:"nextPageToken"`
 	}
 	dfnsAuth struct {
 		dfnsPubKeys *jwk.Cache

@@ -173,9 +173,22 @@ func (a *accounts) upsertUsernameFromRegistration(ctx context.Context, now *time
 	}
 	return errors.Wrapf(a.insertUsername(ctx, now, userID, username), "failed to store username %v for user %v on registration", username, userID)
 }
+func (a *accounts) upsertWalletPubKeyFromRegistrationAndRegisterWalletView(ctx context.Context, now *time.Time, res map[string]any) error {
+	userID, username := dfns.ExtractUser(res, "username")
+	walletID, walletPubKey := dfns.ExtractWalletPubKey(res)
+	if err := a.upsertWalletPubKeyFromRegistration(ctx, now, res, walletPubKey); err != nil {
+		return errors.Wrapf(err, "failed to upsert users masterkey")
+	}
+	if _, err := a.CreateWalletView(ctx, userID, username, []*WalletViewItem{
+		{WalletID: &walletID, Coin: defaultWalletViewCoin},
+	}); err != nil {
+		return errors.Wrapf(err, "failed to create default walletview for user %v", userID)
+	}
 
-func (a *accounts) upsertWalletPubKeyFromRegistration(ctx context.Context, now *time.Time, res map[string]any) error {
-	walletPubKey := dfns.ExtractWalletPubKey(res)
+	return nil
+}
+
+func (a *accounts) upsertWalletPubKeyFromRegistration(ctx context.Context, now *time.Time, res map[string]any, walletPubKey string) error {
 	userID, username := dfns.ExtractUser(res, "username")
 	if userID == "" && username == "" {
 		return nil

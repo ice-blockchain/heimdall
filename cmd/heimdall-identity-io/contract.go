@@ -42,6 +42,32 @@ type (
 	Indexers struct {
 		IONConnectIndexers []string `json:"ionConnectIndexers"`
 	}
+	WalletViewReq struct {
+		UserID string                     `uri:"userId" required:"true" swaggerignore:"true"`
+		Name   string                     `json:"name" required:"true"`
+		Items  []*accounts.WalletViewItem `json:"items" required:"true"`
+	}
+	GetWalletConfigurationReq struct {
+		KnownVersion *int `form:"known_version" required:"false"`
+	}
+	WalletConfiguration struct {
+		Version        int                       `json:"version"`
+		AvailableCoins []*accounts.AvailableCoin `json:"availableCoins"`
+	}
+	WalletView        = accounts.WalletView
+	WalletViews       = []*WalletView
+	GetWalletViewsReq struct {
+		UserID string `uri:"userId" required:"true" swaggerignore:"true"`
+	}
+	WalletViewReference struct {
+		UserID         string `uri:"userId" required:"true" swaggerignore:"true"`
+		WalletViewName string `uri:"walletViewName" required:"true" swaggerignore:"true"`
+	}
+	ModifyWalletViewReq struct {
+		Bogus string `json:"bogus" uri:"bogus" swaggerignore:"true"` // It's just for the router to register the body binder.
+		WalletViewReference
+		WalletViewReq
+	}
 	Send2FARequestReq struct {
 		Email                  *string                        `json:"email,omitempty"`
 		PhoneNumber            *string                        `json:"phoneNumber,omitempty"`
@@ -92,6 +118,9 @@ const (
 	invalidFollowees           = "INVALID_FOLLOWEES"
 	invalidUserSignature       = "INVALID_SIGNATURE"
 	invalidUsername            = "INVALID_USERNAME"
+	duplicate                  = "DUPLICATE"
+	lastEntry                  = "LAST_ENTRY"
+	notFound                   = "NOT_FOUND"
 )
 
 type (

@@ -59,6 +59,20 @@ accounts:
   smsExpiration: 15m
   userSignatureExpiration: 1h
   max2FACount: 2
+  walletConfiguration:
+    version: 1
+    coins:
+      - coin: TON
+        network: Ton
+      - coin: USDT
+        network: Ton
+      - coin: USDT
+        network: Ethereum
+      - coin: USDC
+        network: Ethereum
+      - coin: ETH
+        network: Ethereum
+
   wintr/connectors/storage/v2:
     runDDL: true
     primaryURL: postgresql://root:pass@localhost:5437/heimdall

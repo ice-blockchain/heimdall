@@ -764,10 +764,7 @@ func twoFAOptionWithAddr(opt TwoFAOptionEnum, addr string, idx int) TwoFAOptionW
 	return TwoFAOptionWithAddr{opt: opt, addr: addr, idx: idx}
 }
 func twoFAOptionWithAddrFromCode(c *twoFACode) TwoFAOptionWithAddr {
-	if c.DeliverToIdx == nil {
-		return TwoFAOptionWithAddr{opt: c.Option, addr: c.DeliverTo, idx: 0}
-	}
-	return TwoFAOptionWithAddr{opt: c.Option, addr: c.DeliverTo, idx: *c.DeliverToIdx}
+	return TwoFAOptionWithAddr{opt: c.Option, addr: c.DeliverTo, idx: 0}
 }
 
 func (t *TwoFAOptionWithAddr) Validate() error {

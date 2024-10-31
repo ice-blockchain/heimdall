@@ -38,7 +38,7 @@ func New(ctx context.Context) Accounts {
 	cl.RegisterPostProxyCallback(registrationUrl, acc.upsertUsernameFromRegistration)
 	cl.RegisterPostProxyCallback(completeLoginUrl, acc.upsertUsernameFromLogin)
 	cl.RegisterPostProxyCallback(delegatedLoginUrl, acc.upsertUsernameFromLogin)
-	cl.RegisterPostProxyCallback(completeRegistrationUrl, acc.upsertWalletPubKeyFromRegistration)
+	cl.RegisterPostProxyCallback(completeRegistrationUrl, acc.upsertWalletPubKeyFromRegistrationAndRegisterWalletView)
 	acc.delegatedRPClient = cl
 	for _, opt := range AllTwoFAOptions {
 		acc.concurrentlyGeneratedCodes[opt] = &sync.Map{}

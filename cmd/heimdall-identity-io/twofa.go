@@ -69,7 +69,7 @@ func (s *service) Send2FARequest(
 			return nil, server.BadRequest(err, twoFAInvalidCode)
 		case errors.Is(err, accounts.ErrAuthenticatorRequirementsNotMet):
 			return nil, server.BadRequest(err, authenticatorReqNotMet)
-		case errors.Is(err, accounts.ErrUserNotFound):
+		case errors.Is(err, accounts.ErrNotFound):
 			return nil, server.BadRequest(err, userNotFound)
 		default:
 			return nil, server.Unexpected(err)
