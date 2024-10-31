@@ -20,6 +20,7 @@ import (
 	"github.com/dfns/dfns-sdk-go/dfnsapiclient"
 	"github.com/goccy/go-json"
 	"github.com/pkg/errors"
+	"github.com/twilio/twilio-go/client/form"
 
 	"github.com/ice-blockchain/heimdall/server"
 	appcfg "github.com/ice-blockchain/wintr/config"
@@ -511,7 +512,9 @@ func (c *dfnsClient) urlRequiresServiceAccountSignature(url string) bool {
 }
 
 func (c *dfnsClient) doClientCall(ctx context.Context, httpClient *http.Client, method, relativeUrl string, headers http.Header, jsonData []byte) (int, []byte, error) {
-	headers.Set("Content-Type", "application/json")
+	if method != "GET" {
+		headers.Set("Content-Type", "application/json")
+	}
 	fullUrl, err := url.JoinPath(c.cfg.DFNS.BaseURL, relativeUrl)
 	if err != nil {
 		return 0, nil, errors.Wrapf(err, "failed to build url from %v %v", c.cfg.DFNS.BaseURL, relativeUrl)
@@ -521,7 +524,10 @@ func (c *dfnsClient) doClientCall(ctx context.Context, httpClient *http.Client, 
 		return 0, nil, errors.Wrapf(err, "failed to consturct dfns request to %v %v", method, relativeUrl)
 	}
 	req.Header = headers.Clone()
-
+	if method == "GET" {
+		req.URL.RawQuery = string(jsonData)
+		req.Body = nil
+	}
 	response, err := httpClient.Do(req)
 	if err != nil {
 		if dfnsErr := ParseErrAsDfnsInternalErr(err); dfnsErr != nil {
@@ -556,17 +562,27 @@ func (c *dfnsClient) StartDelegatedRecovery(ctx context.Context, username string
 	resp, err := dfnsCall[struct {
 		Username     string `json:"username"`
 		CredentialID string `json:"credentialId"`
-	}, StartedDelegatedRecovery](ctx, c, params, "POST", "/auth/recover/user/delegated", header)
+	}, StartedDelegatedRecovery](ctx, c, &params, "POST", "/auth/recover/user/delegated", header)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to start delegated recovery for username %v credID %v", username, credentialId)
 	}
 	return resp, nil
 }
 
-func dfnsCall[REQ any, RESP any](ctx context.Context, c *dfnsClient, params REQ, method, uri string, headers http.Header) (*RESP, error) {
-	postData, err := json.MarshalContext(ctx, params)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to serialize %#v to json")
+func dfnsCall[REQ any, RESP any](ctx context.Context, c *dfnsClient, params *REQ, method, uri string, headers http.Header) (*RESP, error) {
+	var postData []byte
+	if params != nil && method != "GET" {
+		var err error
+		postData, err = json.MarshalContext(ctx, params)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to serialize %#v to json")
+		}
+	} else if params != nil && method == "GET" {
+		s, err := form.EncodeToString(params)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to serialize %#v to formdata")
+		}
+		postData = []byte(s)
 	}
 	status, body, err := c.clientCall(ctx, method, uri, headers, postData)
 	if err != nil {

@@ -5,11 +5,13 @@ package accounts
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/goccy/go-json"
 	"github.com/pkg/errors"
 
+	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/time"
 )
@@ -49,6 +51,24 @@ func (a *accounts) GetWalletViews(ctx context.Context, userID string) ([]*Wallet
 	}
 
 	return views, nil
+}
+func (a *accounts) GetWalletView(ctx context.Context, userID, name string) (*WalletView, error) {
+	views, err := storage.Select[WalletView](ctx, a.db, `SELECT 
+    created_at, updated_at, name, user_id, array_to_json(items) as items
+    FROM wallet_views WHERE user_id = $1 AND name = $2`, userID, name)
+	if err != nil {
+		if storage.IsErr(err, storage.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+
+		return nil, errors.Wrapf(err, "failed to get wallet views for user %v", userID)
+	}
+	if len(views) == 0 {
+		return nil, ErrNotFound
+	}
+	views[0].Coins, err = a.fetchWalletInfoForCoins(ctx, userID, views[0].Items)
+
+	return views[0], nil
 }
 
 func (a *accounts) GetWalletConfiguration(knownVersion *int) (int, []*AvailableCoin, error) {
@@ -127,4 +147,75 @@ func (a *accounts) ModifyWalletView(ctx context.Context, userID, name, newName s
 	}
 
 	return view, nil
+}
+
+func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, items []*WalletViewItem) (map[string]*CoinAggregation, error) {
+	containsAllWallets := false
+	walletIDs := make([]string, 0, len(items))
+	groupedByCoin := make(map[string][]*WalletViewItem)
+	for _, i := range items {
+		if i.WalletID == nil {
+			containsAllWallets = true
+		} else {
+			walletIDs = append(walletIDs, *i.WalletID)
+		}
+		groupedByCoin[i.Coin] = append(groupedByCoin[i.Coin], i)
+	}
+	if containsAllWallets {
+		allWallets, err := a.delegatedRPClient.ListWallets(ctx, userID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to list all wallets for user %v", userID)
+		}
+		walletIDs = walletIDs[:0]
+		for _, wallet := range allWallets {
+			walletIDs = append(walletIDs, wallet["id"].(string))
+		}
+	}
+	coinGroups := make(map[string]*CoinAggregation)
+	for _, walletID := range walletIDs {
+		walletAssets, err := a.delegatedRPClient.ListAssets(ctx, walletID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to list assets for wallet %v", walletID)
+		}
+		assetsBySymbol := make(map[string]dfns.Asset)
+		for _, asset := range walletAssets.Assets {
+			symbolI, hasSymbol := asset["symbol"]
+			if hasSymbol {
+				symbol := symbolI.(string)
+				assetsBySymbol[symbol] = asset
+			}
+		}
+		for symbol, group := range groupedByCoin {
+			asset, hasAsset := assetsBySymbol[symbol]
+			if hasAsset {
+				for _, g := range group {
+					if g.WalletID == nil || *g.WalletID == walletID {
+						coin, hasCoin := coinGroups[symbol]
+						if !hasCoin {
+							coin = &CoinAggregation{
+								TotalBalance: new(big.Int),
+								Wallets:      make([]*CoinInWallet, 0),
+							}
+						}
+						assetVal := new(big.Int)
+						assetVal.SetString(asset["balance"].(string), 10)
+						coin.TotalBalance = coin.TotalBalance.Add(coin.TotalBalance, assetVal)
+						coin.Wallets = append(coin.Wallets, &CoinInWallet{
+							WalletID: walletAssets.WalletID,
+							Network:  walletAssets.Network,
+							Asset:    &asset,
+						})
+						coinGroups[symbol] = coin
+					}
+				}
+			} else if _, hasCoin := coinGroups[symbol]; !hasAsset && !hasCoin {
+				coinGroups[symbol] = &CoinAggregation{
+					TotalBalance: big.NewInt(0),
+					Wallets:      make([]*CoinInWallet, 0),
+				}
+			}
+		}
+	}
+
+	return coinGroups, nil
 }

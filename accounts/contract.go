@@ -6,6 +6,7 @@ import (
 	"context"
 	_ "embed"
 	"io"
+	"math/big"
 	"net/http"
 	"sync"
 	stdlibtime "time"
@@ -38,6 +39,7 @@ type (
 		CreateWalletView(ctx context.Context, userID, name string, items []*WalletViewItem) (*WalletView, error)
 		GetWalletConfiguration(knownVersion *int) (int, []*AvailableCoin, error)
 		GetWalletViews(ctx context.Context, userID string) ([]*WalletView, error)
+		GetWalletView(ctx context.Context, userID, name string) (*WalletView, error)
 		DeleteWalletView(ctx context.Context, userID, name string) error
 		ModifyWalletView(ctx context.Context, userID, name, newName string, items []*WalletViewItem) (*WalletView, error)
 	}
@@ -58,22 +60,32 @@ type (
 		TwoFAOptions            []TwoFAOptionEnum `json:"2faOptions"`
 	}
 	WalletView struct {
-		Name      string          `json:"name"`
-		Items     WalletViewItems `json:"items"`
-		CreatedAt *time.Time      `json:"createdAt"`
-		UpdatedAt *time.Time      `json:"updatedAt"`
-		UserID    string          `json:"userId"`
+		Name      string                      `json:"name"`
+		Items     WalletViewItems             `json:"items"`
+		Coins     map[string]*CoinAggregation `json:"coins,omitempty"`
+		CreatedAt *time.Time                  `json:"createdAt"`
+		UpdatedAt *time.Time                  `json:"updatedAt"`
+		UserID    string                      `json:"userId"`
 	}
 
 	WalletViewItem struct {
-		Coin     string  `json:"coin"`
 		WalletID *string `json:"walletId"`
+		Coin     string  `json:"coin"`
 	}
 	AvailableCoin struct {
 		Coin    string `json:"coin"`
 		Network string `json:"network"`
 	}
 	WalletViewItems []*WalletViewItem
+	CoinInWallet    struct {
+		Asset    *dfns.Asset `json:"asset"`
+		WalletID string      `json:"walletId"`
+		Network  string      `json:"network"`
+	}
+	CoinAggregation struct {
+		TotalBalance *big.Int        `json:"totalBalance"`
+		Wallets      []*CoinInWallet `json:"wallets"`
+	}
 )
 
 const (
