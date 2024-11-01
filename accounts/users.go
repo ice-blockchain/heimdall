@@ -21,7 +21,7 @@ import (
 )
 
 func (a *accounts) getUserByID(ctx context.Context, userID string) (*user, error) {
-	u, err := storage.Get[user](ctx, a.db, `SELECT * FROM users where id = $1`, userID)
+	u, err := storage.Get[user](ctx, a.db, `SELECT * FROM users where id = $1 or master_pubkey = $1`, userID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get user by ID %v", userID)
 	}
@@ -119,7 +119,7 @@ func (a *accounts) validateFollowees(ctx context.Context, followees []string) er
 }
 
 func (a *accounts) fetchRelays(ctx context.Context, userID string, followeeList []string) (relays []string, err error) {
-	return []string{"ws://example1.com/", "wss://example2.com/", "ws://example3.com/ws"}, nil
+	return a.cfg.MockRelays, nil
 }
 
 func (a *accounts) fetchIONIndexers(ctx context.Context, userID string) (relays []string, err error) {
@@ -127,40 +127,46 @@ func (a *accounts) fetchIONIndexers(ctx context.Context, userID string) (relays 
 	return []string{"ws://indexer-example1.com/", "wss://indexer-example2.com/", "wss://indexer-example3.com/ws"}, nil
 }
 
-func (a *accounts) GetUser(ctx context.Context, userID string) (*User, error) {
-	dbUsr, err := a.getUserByID(ctx, userID)
+func (a *accounts) GetUser(ctx context.Context, userIDOrMasterKey string) (*User, error) {
+	dbUsr, err := a.getUserByID(ctx, userIDOrMasterKey)
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
-		return nil, errors.Wrapf(err, "failed to read extra information about user %v", userID)
+		return nil, errors.Wrapf(err, "failed to read extra information about user %v", userIDOrMasterKey)
 	}
-	delegatedUsr, err := a.delegatedRPClient.GetUser(ctx, userID)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get user from delegated party for ID %v", userID)
+	var usr = &User{}
+	if dbUsr != nil && dbUsr.ID == loggedInUser(ctx) {
+		delegatedUsr, err := a.delegatedRPClient.GetUser(ctx, dbUsr.ID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get user from delegated party for ID %v", userIDOrMasterKey)
+		}
+		usr.User = *delegatedUsr
 	}
-	usr := &User{User: *delegatedUsr}
 	if dbUsr != nil {
 		usr.IONConnectRelays = dbUsr.IONConnectRelays
-		usr.IONConnectIndexerRelays, err = a.GetIONConnectIndexerRelays(ctx, userID)
+		usr.MasterPubKey = dbUsr.MasterPubKey
+		usr.IONConnectIndexerRelays, err = a.GetIONConnectIndexerRelays(ctx, userIDOrMasterKey)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to fetch indexers for userID %v", userID)
+			return nil, errors.Wrapf(err, "failed to fetch indexers for userID %v", userIDOrMasterKey)
 		}
-		twoFAOptions := make([]TwoFAOptionEnum, 0, len(AllTwoFAOptions))
-		if len(dbUsr.Email) > 0 {
-			if dbUsr.Active2FAEmail != nil && slices.Contains(dbUsr.Active2FAEmail, true) {
-				twoFAOptions = append(twoFAOptions, TwoFAOptionEmail)
-			}
-			usr.Email = dbUsr.Email
+		if dbUsr.ID == loggedInUser(ctx) {
+			twoFAOptions := make([]TwoFAOptionEnum, 0, len(AllTwoFAOptions))
+			if len(dbUsr.Email) > 0 {
+				if dbUsr.Active2FAEmail != nil && slices.Contains(dbUsr.Active2FAEmail, true) {
+					twoFAOptions = append(twoFAOptions, TwoFAOptionEmail)
+				}
+				usr.Email = dbUsr.Email
 
-		}
-		if len(dbUsr.PhoneNumber) > 0 {
-			if dbUsr.Active2FAPhoneNumber != nil && slices.Contains(dbUsr.Active2FAPhoneNumber, true) {
-				twoFAOptions = append(twoFAOptions, TwoFAOptionSMS)
 			}
-			usr.PhoneNumber = dbUsr.PhoneNumber
+			if len(dbUsr.PhoneNumber) > 0 {
+				if dbUsr.Active2FAPhoneNumber != nil && slices.Contains(dbUsr.Active2FAPhoneNumber, true) {
+					twoFAOptions = append(twoFAOptions, TwoFAOptionSMS)
+				}
+				usr.PhoneNumber = dbUsr.PhoneNumber
+			}
+			if len(dbUsr.TotpAuthenticatorSecret) > 0 && dbUsr.Active2FATotpAuthenticator != nil && slices.Contains(dbUsr.Active2FATotpAuthenticator, true) {
+				twoFAOptions = append(twoFAOptions, TwoFAOptionTOTPAuthenticator)
+			}
+			usr.TwoFAOptions = twoFAOptions
 		}
-		if len(dbUsr.TotpAuthenticatorSecret) > 0 && dbUsr.Active2FATotpAuthenticator != nil && slices.Contains(dbUsr.Active2FATotpAuthenticator, true) {
-			twoFAOptions = append(twoFAOptions, TwoFAOptionTOTPAuthenticator)
-		}
-		usr.TwoFAOptions = twoFAOptions
 	}
 
 	return usr, nil
@@ -238,19 +244,58 @@ func (a *accounts) insertUsernameWithPubKey(ctx context.Context, now *time.Time,
 }
 
 func (u *User) MarshalJSON() ([]byte, error) {
-	if u == nil || u.User == nil {
+	if u == nil {
 		return []byte("null"), nil
 	}
-	values := u.User
+	values := map[string]any{}
+	if u.User != nil {
+		values = u.User
+	}
 	rUser := reflect.TypeOf(u).Elem()
 	rUserVal := reflect.Indirect(reflect.ValueOf(u))
 	for i := range rUser.NumField() {
 		field := rUser.Field(i)
 		if jsonTag := field.Tag.Get("json"); jsonTag != "" && jsonTag != "-" {
-			jsonTag, _, _ = strings.Cut(jsonTag, ",")
-			values[jsonTag] = rUserVal.FieldByName(field.Name).Interface()
+			var opt string
+			jsonTag, opt, _ = strings.Cut(jsonTag, ",")
+			val := rUserVal.FieldByName(field.Name)
+			if opt == "omitempty" && isEmptyValue(val) {
+				continue
+			}
+			values[jsonTag] = val.Interface()
 		}
 	}
 
 	return json.Marshal(values)
+}
+
+func isEmptyValue(value reflect.Value) bool {
+	switch value.Kind() {
+	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
+		return value.Len() == 0
+	case reflect.Bool:
+		return !value.Bool()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return value.Int() == 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return value.Uint() == 0
+	case reflect.Float32, reflect.Float64:
+		return value.Float() == 0
+	case reflect.Interface, reflect.Ptr:
+		return value.IsNil()
+	case reflect.Struct:
+		return value.IsZero()
+	case reflect.Invalid, reflect.Complex64, reflect.Complex128, reflect.Chan, reflect.Func, reflect.UnsafePointer:
+		return false
+	default:
+		return value.IsZero()
+	}
+}
+
+func loggedInUser(ctx context.Context) string {
+	val := ctx.Value(LoggedInUserIDCtxValue)
+	if val == nil {
+		return ""
+	}
+	return val.(string)
 }

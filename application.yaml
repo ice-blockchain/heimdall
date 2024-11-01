@@ -59,6 +59,9 @@ accounts:
   smsExpiration: 15m
   userSignatureExpiration: 1h
   max2FACount: 2
+  mockRelays:
+    - wss://relay.nostr.band/
+    - wss://relay.nostr.band/
   walletConfiguration:
     version: 1
     coins:

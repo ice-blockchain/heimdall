@@ -110,6 +110,8 @@ definitions:
         items:
           type: string
         type: array
+      masterPubKey:
+        type: string
       phoneNumber:
         items:
           type: string
@@ -229,13 +231,13 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Recovery
-  /auth/users/{userId}:
+  /auth/users/{userIdOrMasterKey}:
     get:
       description: Initiates recovery process with delegated relying party
       parameters:
-      - description: ID of the user
+      - description: ID of the user or his master key (hex)
         in: path
-        name: userId
+        name: userIdOrMasterKey
         required: true
         type: string
       - default: Bearer <Add token here>
