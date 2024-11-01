@@ -16,7 +16,7 @@ import (
 func (s *service) setupUserRoutes(router gin.IRoutes) {
 	router.PATCH("v1/users/:userId/ion-connect-relays", server.RootHandler(s.GetOrAssignIONConnectRelays)).
 		GET("v1/users/:userId/ion-connect-indexers", server.RootHandler(s.UserIndexers)).
-		GET("auth/users/:userId", server.RootHandler(s.GetUser))
+		GET("auth/users/:userIdOrMasterKey", server.RootHandler(s.GetUser))
 }
 
 // GetOrAssignIONConnectRelays godoc
@@ -80,23 +80,22 @@ func (s *service) UserIndexers(
 //	@Description	Initiates recovery process with delegated relying party
 //	@Tags			Users
 //	@Produce		json
-//	@Param			userId			path		string	true	"ID of the user"
-//	@Param			Authorization	header		string	true	"Auth token from delegated RP"	default(Bearer <Add token here>)
-//	@Param			X-Client-ID		header		string	true	"App ID"						default(ap-)
-//	@Success		200				{object}	User
-//	@Failure		500				{object}	delegatedErrorResponse
-//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
-//	@Router			/auth/users/{userId} [GET].
+//	@Param			userIdOrMasterKey	path		string	true	"ID of the user or his master key (hex)"
+//	@Param			Authorization		header		string	true	"Auth token from delegated RP"	default(Bearer <Add token here>)
+//	@Param			X-Client-ID			header		string	true	"App ID"						default(ap-)
+//	@Success		200					{object}	User
+//	@Failure		500					{object}	delegatedErrorResponse
+//	@Failure		504					{object}	server.ErrorResponse	"if request times out"
+//	@Router			/auth/users/{userIdOrMasterKey} [GET].
 func (s *service) GetUser(
 	ctx context.Context,
 	req *server.Request[GetUserReq, User],
 ) (successResp *server.Response[User], errorResp *server.ErrResponse[*delegatedErrorResponse]) {
-	if req.AuthenticatedUser.UserID() != req.Data.UserID {
-		return nil, buildDelegatedErrorResponse(http.StatusForbidden, errors.Errorf("Is not authorized to query other user"), "")
-	}
 	ctx = context.WithValue(ctx, accounts.AuthorizationHeaderCtxValue, req.Data.Authorization)
 	ctx = context.WithValue(ctx, accounts.AppIDHeaderCtxValue, req.Data.ClientID)
-	usr, err := s.accounts.GetUser(ctx, req.Data.UserID)
+	ctx = context.WithValue(ctx, accounts.LoggedInUserIDCtxValue, req.AuthenticatedUser.UserID())
+
+	usr, err := s.accounts.GetUser(ctx, req.Data.UserIDOrMasterKey)
 	if err != nil {
 		switch {
 		default:

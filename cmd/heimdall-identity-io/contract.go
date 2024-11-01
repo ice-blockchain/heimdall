@@ -22,9 +22,9 @@ type (
 	TwoFAOptionWithAddr        = accounts.TwoFAOptionWithAddr
 	StartDelegatedRecoveryResp = accounts.StartedDelegatedRecovery
 	GetUserReq                 struct {
-		UserID        string `uri:"userId" required:"true" swaggerignore:"true"`
-		Authorization string `header:"Authorization" swaggerignore:"true"`
-		ClientID      string `header:"X-Client-ID" required:"true" swaggerignore:"true"`
+		UserIDOrMasterKey string `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
+		Authorization     string `header:"Authorization" swaggerignore:"true"`
+		ClientID          string `header:"X-Client-ID" required:"true" swaggerignore:"true"`
 	}
 	User struct {
 		*accounts.User

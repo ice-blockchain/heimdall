@@ -57,7 +57,8 @@ type (
 		IONConnectIndexerRelays []string          `json:"ionConnectIndexerRelays"`
 		Email                   []string          `json:"email,omitempty"`
 		PhoneNumber             []string          `json:"phoneNumber,omitempty"`
-		TwoFAOptions            []TwoFAOptionEnum `json:"2faOptions"`
+		TwoFAOptions            []TwoFAOptionEnum `json:"2faOptions,omitempty"`
+		MasterPubKey            string            `json:"masterPubKey"`
 	}
 	WalletView struct {
 		Name      string                      `json:"name"`
@@ -94,6 +95,7 @@ const (
 	TwoFAOptionTOTPAuthenticator = TwoFAOptionEnum("totp_authenticator")
 	AuthorizationHeaderCtxValue  = dfns.AuthHeaderCtxValue
 	AppIDHeaderCtxValue          = dfns.AppIDCtxValue
+	LoggedInUserIDCtxValue       = "LoggedInUserIDCtxValue"
 	registrationUrl              = "/auth/registration/delegated"
 	completeRegistrationUrl      = "/auth/registration/enduser"
 	completeLoginUrl             = "/auth/login"
@@ -181,5 +183,6 @@ type (
 				Coin    string `yaml:"coin" mapstructure:"coin"`
 			} `yaml:"coins" mapstructure:"coins"`
 		} `yaml:"walletConfiguration" mapstructure:"walletConfiguration"`
+		MockRelays []string `yaml:"mockRelays" mapstructure:"mockRelays"`
 	}
 )

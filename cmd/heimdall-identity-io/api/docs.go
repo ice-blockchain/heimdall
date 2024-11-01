@@ -82,7 +82,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/auth/users/{userId}": {
+        "/auth/users/{userIdOrMasterKey}": {
             "get": {
                 "description": "Initiates recovery process with delegated relying party",
                 "produces": [
@@ -94,8 +94,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "ID of the user",
-                        "name": "userId",
+                        "description": "ID of the user or his master key (hex)",
+                        "name": "userIdOrMasterKey",
                         "in": "path",
                         "required": true
                     },
@@ -1026,6 +1026,9 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "masterPubKey": {
+                    "type": "string"
                 },
                 "phoneNumber": {
                     "type": "array",
