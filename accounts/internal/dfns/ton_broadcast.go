@@ -7,12 +7,12 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"github.com/xssnick/tonutils-go/address"
 	"net/http"
 	"strings"
 	stdlibtime "time"
 
 	"github.com/pkg/errors"
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
@@ -40,8 +40,8 @@ func parseTONTransaction(encodedTx []byte, parsedPayment *transferTransaction) (
 				ReceiverAddress: (*txV5.Actions)[0].Msg.DestAddr().Bounce(false).String(),
 				Amount:          (*txV5.Actions)[0].Msg.Amount.String(),
 				Network: &network{
-					Currency: "TON",
-					Icon:     "https://ton.org/download/ton_symbol.png",
+					NativeToken: "TON",
+					Icon:        "https://ton.org/download/ton_symbol.png",
 				},
 			}
 		}
@@ -52,8 +52,8 @@ func parseTONTransaction(encodedTx []byte, parsedPayment *transferTransaction) (
 			ReceiverAddress: tx.InternalMessage.DestAddr().Bounce(false).String(),
 			Amount:          tx.InternalMessage.Amount.String(),
 			Network: &network{
-				Currency: "TON",
-				Icon:     "https://ton.org/download/ton_symbol.png",
+				NativeToken: "TON",
+				Icon:        "https://ton.org/download/ton_symbol.png",
 			},
 		}
 	}
@@ -96,19 +96,6 @@ func (c *dfnsClient) broadcastTONTransaction(ctx context.Context, walletID, wall
 	if signature.Signature.Encoded == "" {
 		signature.Signature.Encoded = strings.TrimPrefix(signature.Signature.R, "0x") + strings.TrimPrefix(signature.Signature.S, "0x")
 	}
-	//signature := &signatureResult{
-	//	ID: "",
-	//	Requester: struct {
-	//		UserID string `json:"userId"`
-	//	}{},
-	//	Signature: struct {
-	//		R       string `json:"r"`
-	//		S       string `json:"s"`
-	//		Encoded string `json:"encoded"`
-	//	}{
-	//		Encoded: "0x90fa6318b9821fbb915ba7e0fce7751791c149683307dfb529625a68e1f819130c0df2dbd3a50a9e5b7a23d846e416d8dcbee78a46712bc8d3b7afcd3154b404",
-	//	},
-	//}
 	txPayloadBytes, err := hex.DecodeString(txPayload)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to decode tx payload, invalid hex %v", txPayloadBytes)
@@ -135,51 +122,6 @@ func (c *dfnsClient) broadcastTONTransaction(ctx context.Context, walletID, wall
 	return buildDfnsBroadcastResp(ctx, signature.ID, signature.Requester.UserID, walletID, signedTxCell.Body.ToBOCWithFlags(false), tx.Hash), nil
 }
 
-//func (d *dfnsClient) embedSignature(ctx context.Context, txPayload, signature []byte, walletPubkey []byte) (*tlb.ExternalMessage, error) {
-//	decodedTx, err := parseTONTransaction(txPayload, nil)
-//	if err != nil {
-//		return nil, errors.Wrapf(err, "failed to decode tx payload, invalid tx body")
-//	}
-//	var ver wallet.VersionConfig
-//	switch decodedTx.(type) {
-//	case *tonTransactionInputV4R2:
-//		ver = wallet.V4R2
-//	case *tonTransactionInputV5:
-//		ver = wallet.ConfigV5R1Final{
-//			NetworkGlobalID: wallet.TestnetGlobalID,
-//			Workchain:       0,
-//		}
-//	}
-//	//addr, err := wallet.AddressFromPubKey(walletPubkey, ver, decodedTx.GetWalletID())
-//	//if err != nil {
-//	//	return nil, errors.Wrapf(err, "failed to build wallet addr from pub key %v", walletPubkey)
-//	//}
-//	w, err := wallet.FromSigner(d.tonApi, walletPubkey, ver, func(ctx context.Context, c *cell.Cell) ([]byte, error) {
-//		fmt.Println("SIGNABLE HASH:", hex.EncodeToString(c.Hash()))
-//		fmt.Println("ALL:", hex.EncodeToString(c.ToBOC()))
-//		return signature, nil
-//	})
-//	if err != nil {
-//		return nil, errors.Wrapf(err, "failed to initialize wallet from pub key %v %v", hex.EncodeToString(walletPubkey), ver)
-//	}
-//	//seqNo, err := d.reqSeqno(ctx, block, addr)
-//	//if err != nil {
-//	//	return nil, errors.Wrapf(err, "failed to get seqNo")
-//	//}
-//	//if seqNo <= decodedTx.Seq {
-//	//	return nil, errors.Wrapf(ErrRaceCondition, "invalid seqNo %v actual is %v", decodedTx.Seq, seqNo)
-//	//}
-//	//msg, err := decodedTx.embedSignature(signature, walletPubkey, addr, initialized)
-//	//if err != nil {
-//	//	return nil, errors.Wrapf(err, "failed to embed signature")
-//	//}
-//	fmt.Println(*decodedTx.GetInternalMessage())
-//	return w.BuildExternalMessageForMany(ctx, []*wallet.Message{&wallet.Message{
-//		Mode:            decodedTx.GetMode(),
-//		InternalMessage: decodedTx.GetInternalMessage(),
-//	}})
-//}
-
 func (d *dfnsClient) embedSignature(ctx context.Context, txPayload, signature []byte, walletPubkey []byte) (*tlb.ExternalMessage, error) {
 	decodedTx, err := parseTONTransaction(txPayload, nil)
 	if err != nil {
@@ -190,8 +132,12 @@ func (d *dfnsClient) embedSignature(ctx context.Context, txPayload, signature []
 	case *tonTransactionInputV4R2:
 		ver = wallet.V4R2
 	case *tonTransactionInputV5:
+		networkID := int32(wallet.MainnetGlobalID)
+		if d.cfg.DFNS.TestNet {
+			networkID = int32(wallet.TestnetGlobalID)
+		}
 		ver = wallet.ConfigV5R1Final{
-			NetworkGlobalID: wallet.TestnetGlobalID,
+			NetworkGlobalID: networkID,
 			Workchain:       0,
 		}
 	}
@@ -216,7 +162,11 @@ func (d *dfnsClient) embedSignature(ctx context.Context, txPayload, signature []
 	if seqNo > decodedTx.GetSeq() {
 		return nil, errors.Wrapf(ErrRaceCondition, "invalid seqNo %v actual is %v", decodedTx.GetSeq(), seqNo)
 	}
-	msg, _, err := decodedTx.EmbedSignature(signature, walletPubkey, initialized)
+	networkID := int32(wallet.MainnetGlobalID)
+	if d.cfg.DFNS.TestNet {
+		networkID = int32(wallet.TestnetGlobalID)
+	}
+	msg, _, err := decodedTx.EmbedSignature(signature, walletPubkey, initialized, networkID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to embed signature")
 	}
@@ -240,7 +190,7 @@ func (d *dfnsClient) reqSeqno(ctx context.Context, block *ton.BlockIDExt, addr *
 	return iSeq.Uint64(), nil
 }
 
-func (r *tonTransactionInputV4R2) EmbedSignature(signature, walletPubkey []byte, initialized bool) (*tlb.ExternalMessage, *cell.Cell, error) {
+func (r *tonTransactionInputV4R2) EmbedSignature(signature, walletPubkey []byte, initialized bool, networkID int32) (*tlb.ExternalMessage, *cell.Cell, error) {
 	addr, err := wallet.AddressFromPubKey(walletPubkey, wallet.V4R2, r.WalletID)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "failed to build wallet addr from pub key %v", walletPubkey)
@@ -271,7 +221,7 @@ func (r *tonTransactionInputV4R2) EmbedSignature(signature, walletPubkey []byte,
 		Body:      msg,
 	}, payload.EndCell(), nil
 }
-func (r *tonTransactionInputV5) EmbedSignature(signature, walletPubkey []byte, initialized bool) (*tlb.ExternalMessage, *cell.Cell, error) {
+func (r *tonTransactionInputV5) EmbedSignature(signature, walletPubkey []byte, initialized bool, networkID int32) (*tlb.ExternalMessage, *cell.Cell, error) {
 	addr, err := wallet.AddressFromPubKey(walletPubkey, wallet.ConfigV5R1Final{NetworkGlobalID: wallet.TestnetGlobalID}, 0)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "failed to build wallet addr from pub key %v", walletPubkey)
@@ -302,7 +252,7 @@ func (r *tonTransactionInputV5) EmbedSignature(signature, walletPubkey []byte, i
 	var init *tlb.StateInit
 	if !initialized {
 		init, err = wallet.GetStateInit(walletPubkey, wallet.ConfigV5R1Final{
-			NetworkGlobalID: wallet.TestnetGlobalID,
+			NetworkGlobalID: networkID,
 		}, 0)
 		if err != nil {
 			return nil, nil, errors.Wrapf(err, "failed to get init state")
@@ -342,39 +292,6 @@ func buildDfnsBroadcastResp(ctx context.Context, signatureID, userID, walletID s
 	}
 }
 
-//func (a *actions) LoadFromCell(loader *cell.Slice) error {
-//	if a == nil {
-//		a = new(actions)
-//	}
-//	prefix, err := loader.LoadUInt(8) // prefix
-//	if err != nil {
-//		return err
-//	}
-//	mode, err := loader.LoadUInt(8)
-//	if err != nil {
-//		return err
-//	}
-//	_, err = loader.LoadRef() // list
-//	if err != nil {
-//		return err
-//	}
-//	ref, err := loader.LoadRef()
-//	if err != nil {
-//		return err
-//	}
-//	var intMsg tlb.InternalMessage
-//	err = tlb.LoadFromCell(&intMsg, ref)
-//	if err != nil {
-//		return err
-//	}
-//	*a = actions{
-//		InternalMessage: &intMsg,
-//		Mode:            uint8(mode),
-//		Prefix:          uint32(prefix),
-//	}
-//	return nil
-//}
-
 func (a *v5actions) LoadFromCell(loader *cell.Slice) error {
 	if a == nil {
 		a = new(v5actions)
@@ -402,49 +319,15 @@ func (a *v5actions) LoadFromCell(loader *cell.Slice) error {
 	}
 }
 
-//func (extendedActions *W5ExtendedActions) LoadFromCell(loader *cell.Slice) error {
-//	var actions []W5ExtendedAction
-//	for {
-//		var action W5ExtendedAction
-//		if err := decoder.Unmarshal(c, &action); err != nil {
-//			return err
-//		}
-//		actions = append(actions, action)
-//		nextRef, err := c.NextRef()
-//		if err != nil {
-//			if errors.Is(err, boc.ErrNotEnoughRefs) {
-//				*extendedActions = actions
-//				return nil
-//			}
-//			return err
-//		}
-//		c = nextRef
-//	}
-//}
-
 func (t *tonTransactionInputV4R2) GetWalletID() uint32 {
 	return t.WalletID
 }
 func (t *tonTransactionInputV4R2) GetSeq() uint64 {
 	return uint64(t.Seq)
 }
-
-//
-//func (t *tonTransactionInputV4R2) GetMode() uint8 {
-//	return t.Mode
-//}
-
 func (t *tonTransactionInputV5) GetWalletID() uint32 {
 	return t.WalletID
 }
 func (t *tonTransactionInputV5) GetSeq() uint64 {
 	return uint64(t.Seq)
 }
-
-//func (t *tonTransactionInputV5) GetMode() uint8 {
-//	return (*t.Actions)[0].Mode
-//}
-//
-//func (t *tonTransactionInputV5) GetInternalMessage() *tlb.InternalMessage {
-//	return (*t.Actions)[0].Msg
-//}

@@ -4,7 +4,6 @@ package dfns
 
 import (
 	"context"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 	"io"
 	"net/http"
 	"net/http/httputil"
@@ -13,11 +12,13 @@ import (
 	stdlibtime "time"
 
 	"github.com/dfns/dfns-sdk-go/credentials"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/pkg/errors"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/wintr/time"
@@ -51,6 +52,23 @@ type (
 		Network  string  `json:"network"`
 		WalletID string  `json:"walletId"`
 	}
+	BroadcastTxResponse struct {
+		Id        string `json:"id"`
+		WalletId  string `json:"walletId"`
+		Network   string `json:"network"`
+		Requester struct {
+			UserId string `json:"userId"`
+			AppId  string `json:"appId"`
+		} `json:"requester"`
+		RequestBody struct {
+			Kind        string `json:"kind"`
+			Transaction string `json:"transaction"`
+		} `json:"requestBody"`
+		Status          string          `json:"status"`
+		TxHash          string          `json:"txHash"`
+		DateRequested   stdlibtime.Time `json:"dateRequested"`
+		DateBroadcasted stdlibtime.Time `json:"dateBroadcasted"`
+	}
 )
 
 const (
@@ -75,6 +93,8 @@ const (
 
 	defaultWalletNetwork = "Ton"
 	defaultWalletName    = "main"
+
+	erc20ABI = `[{"constant":true,"inputs":[{"name":"","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"from","type":"address"},{"indexed":true,"name":"to","type":"address"},{"indexed":false,"name":"value","type":"uint256"}],"name":"Transfer","type":"event"}]`
 )
 
 var (
@@ -101,6 +121,7 @@ type (
 		serviceAccountMx        sync.Mutex
 		proxyMx                 sync.Mutex
 		tonApi                  ton.APIClientWrapped
+		erc20ABI                abi.ABI
 	}
 	config struct {
 		DFNS dfnsCfg `yaml:"delegated_relying_party" mapstructure:"delegated_relying_party"`
@@ -122,6 +143,10 @@ type (
 			Secret         string              `yaml:"secret" mapstructure:"secret"`
 			ExpirationTime stdlibtime.Duration `yaml:"expirationTime" mapstructure:"expirationTime"`
 		} `yaml:"refreshToken" mapstructure:"refreshToken"`
+		TestNet bool `yaml:"testNet" mapstructure:"testNet"`
+		TON     struct {
+			GlobalConfigURL string `yaml:"global-config-url" mapstructure:"global-config-url"`
+		} `yaml:"ton" mapstructure:"ton"`
 	}
 
 	webhook struct {
@@ -178,32 +203,16 @@ type (
 			Encoded string `json:"encoded"`
 		} `json:"signature"`
 	}
-	BroadcastTxResponse struct {
-		Id        string `json:"id"`
-		WalletId  string `json:"walletId"`
-		Network   string `json:"network"`
-		Requester struct {
-			UserId string `json:"userId"`
-			AppId  string `json:"appId"`
-		} `json:"requester"`
-		RequestBody struct {
-			Kind        string `json:"kind"`
-			Transaction string `json:"transaction"`
-		} `json:"requestBody"`
-		Status          string          `json:"status"`
-		TxHash          string          `json:"txHash"`
-		DateRequested   stdlibtime.Time `json:"dateRequested"`
-		DateBroadcasted stdlibtime.Time `json:"dateBroadcasted"`
-	}
 	transferTransaction struct {
 		ReceiverAddress string
 		Sender          string
 		Amount          string
+		Token           string
 		Network         *network
 	}
 	network struct {
-		Currency string
-		Icon     string
+		NativeToken string
+		Icon        string
 	}
 	tonTransactionInputV4R2 struct {
 		WalletID        uint32               `tlb:"## 32"`
@@ -227,24 +236,10 @@ type (
 		Mode uint8                `tlb:"## 8"`
 		Msg  *tlb.InternalMessage `tlb:"^"`
 	}
-	///extended *cell.Cell  `tlb:"^"`
-
-	//innerRequest struct {
-	//	OutActions     *actions `tlb:"."`
-	//	HasMoreActions bool     `tlb:"bool"`
-	//	//OtherActions   *actions `tlb:"^"`
-	//}
-	//actions struct {
-	//	Prefix          uint32               `tlb:"## 32"`
-	//	Mode            uint8                `tlb:"## 8"`
-	//	InternalMessage *tlb.InternalMessage `tlb:"^"`
-	//}
 	tonTx interface {
 		GetWalletID() uint32
-		//GetMode() uint8
-		//GetInternalMessage() *tlb.InternalMessage
 		GetSeq() uint64
-		EmbedSignature(signature, walletPubkey []byte, initialized bool) (*tlb.ExternalMessage, *cell.Cell, error)
+		EmbedSignature(signature, walletPubkey []byte, initialized bool, networkID int32) (*tlb.ExternalMessage, *cell.Cell, error)
 	}
 )
 

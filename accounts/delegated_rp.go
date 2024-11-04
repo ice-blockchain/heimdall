@@ -50,5 +50,5 @@ func (a *accounts) SecurePaymentConfirmation(ctx context.Context, userID, wallet
 		return nil, errors.Wrapf(err, "failed to get wallet %v, cannot init payment confirmation")
 	}
 	_, network, _ := dfns.ExtractWallet(*wallet)
-	return a.delegatedRPClient.SecurePaymentConfirmation(ctx, userID, strings.ToLower(network), wallet, body)
+	return a.delegatedRPClient.SecurePaymentConfirmation(ctx, userID, strings.ToLower(network), *wallet, body)
 }

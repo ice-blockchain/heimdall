@@ -7,7 +7,6 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/hex"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 	"testing"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 func TestParseTX(t *testing.T) {
@@ -33,11 +33,11 @@ func TestParseTX(t *testing.T) {
 				Sender:          "",
 				Amount:          "0.1",
 				Network: &network{
-					Currency: "TON",
-					Icon:     "https://ton.org/download/ton_symbol.png",
+					NativeToken: "TON",
+					Icon:        "https://ton.org/download/ton_symbol.png",
 				},
 			}, payment, ver)
-			_, _, err = tx.EmbedSignature(bytes.Repeat([]byte{0}, 64), from, false)
+			_, _, err = tx.EmbedSignature(bytes.Repeat([]byte{0}, 64), from, false, wallet.TestnetGlobalID)
 			require.NoError(t, err)
 		}
 		txBuiltWithJS, err := hex.DecodeString("b5ee9c724101040100550001217369676e7369676effffffff7ffffffda001020a0ec3c86d0302030000006842005821edd291a0a1e86754777ab4de1f781e8ca9309b36ec35a9e45cf1834f4ccfa034edce0000000000000000000000000000bcb45537")
@@ -53,13 +53,31 @@ func TestParseTX(t *testing.T) {
 			Sender:          "",
 			Amount:          "0.111",
 			Network: &network{
-				Currency: "TON",
-				Icon:     "https://ton.org/download/ton_symbol.png",
+				NativeToken: "TON",
+				Icon:        "https://ton.org/download/ton_symbol.png",
 			},
 		}, payment)
-		_, signedPayload, err := tx.EmbedSignature(bytes.Repeat([]byte{0}, 64), from, false)
+		_, signedPayload, err := tx.EmbedSignature(bytes.Repeat([]byte{0}, 64), from, false, wallet.TestnetGlobalID)
 		require.NoError(t, err)
 		require.Equal(t, signedPayload.ToBOC(), txBuiltWithJS)
+	})
+	t.Run("BTC", func(t *testing.T) {
+		t.Parallel()
+		psbt := "70736274ff0100710200000001a10728f8d6f77062720bd8223a09967785b036940520aabd8fc831709c45ec9e0100000000ffffffff0201000000000000001600142052bbfb77494061875253ec00f53b3df885c0ecd73c000000000000160014066ebd69a63e8c69e84d888864880576529ed73d000000000001011f6e3d000000000000160014066ebd69a63e8c69e84d888864880576529ed73d000000"
+		psbtBytes, err := hex.DecodeString(psbt)
+		require.NoError(t, err)
+		btcTransfer, err := parseBitcoinTransactionInput(psbtBytes, true)
+		require.NoError(t, err)
+		require.Equal(t, &transferTransaction{
+			ReceiverAddress: "tb1qypfth7mhf9qxrp6j20kqpafm8hugts8vqd7pw7",
+			Sender:          "",
+			Amount:          "1",
+			Token:           "BTC",
+			Network: &network{
+				NativeToken: "BTC",
+				Icon:        "",
+			},
+		}, btcTransfer)
 	})
 }
 

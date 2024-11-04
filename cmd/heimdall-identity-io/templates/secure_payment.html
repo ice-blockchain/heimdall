@@ -1,3 +1,7 @@
+<!--
+ SPDX-License-Identifier: ice License 1.0
+-->
+
 <html>
 <head>
     <script>
@@ -30,7 +34,7 @@
                 total: {
                     label: 'Total',
                     amount: {
-                        currency: '{{.Tx.Network.Currency}}',
+                        currency: '{{.Tx.Token}}',
                         value: '{{.Tx.Amount}}',
                     },
                 },
@@ -56,7 +60,7 @@
                 method: 'POST',
                 headers: {
                     'content-type': 'application/json',
-                    'Authorization': '{{.Token}}', //TODO: seems insecure, but we need to submit result, or pass all the  credentialAssertion to app?
+                    'Authorization': '{{.Token}}',
                     'X-Client-id': '{{.AppID}}',
                 },
                 body: JSON.stringify({
@@ -94,7 +98,7 @@
                 method: 'POST',
                 headers: {
                     'content-type': 'application/json',
-                    'Authorization': '{{.Token}}', //TODO: seems insecure, but we need to submit result, or pass all the  credentialAssertion to app?
+                    'Authorization': '{{.Token}}',
                     'X-Client-id': '{{.AppID}}',
                 },
                 body: JSON.stringify({
@@ -147,6 +151,11 @@
 <body onload="initPayment()">
 <button onclick="initPayment()">pay</button>
 <button onclick="initSimpleWebAuthn()">webauthn</button>
+<table border="0">
+    <tr> <td>FROM:</td><td>{{.Tx.Sender}}</td></tr>
+    <tr> <td>TO:</td><td>{{.Tx.ReceiverAddress}}</td></tr>
+    <tr> <td>AMOUNT:</td><td>{{.Tx.Amount}} {{.Tx.Token}}</td></tr>
+</table>
 <div id = "msg" data-userID="{{.UserID}}"></div>
 </body>
 </html>

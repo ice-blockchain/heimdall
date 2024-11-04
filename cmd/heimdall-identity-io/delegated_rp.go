@@ -5,10 +5,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/pkg/errors"
 	"html/template"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/server"
@@ -58,9 +59,6 @@ func (s *service) setupDelegatedRPProxyRoutes(router *server.Router) {
 		GET("/.well-known/apple-app-site-association", server.RootHandler(s.AppleAppSiteAssociation)).
 		GET("/.well-known/assetlinks.json", server.RootHandler(s.AssetLinks)).
 		POST("/v1/users/:userId/:walletId/secure-payment-confirmations", s.securePaymentConfirmation())
-	// TODO: embed into roxy, but how to detect network
-	//POST("/v1/users/:userId/:walletId/broadcast", server.RootHandler(s.Broadcast))
-
 }
 
 func (s *service) proxyToDelegatedRP(allowUnauthorized bool) func(*gin.Context) {
@@ -210,21 +208,3 @@ func (s *service) EventWebhookFromDelegatedRP(
 	log.Info(fmt.Sprintf("Webhook call for %v %+v", req.Data.Kind, req.Data.Data))
 	return server.OK[WebhookResp](&WebhookResp{}), nil
 }
-
-//func (s *service) Broadcast(
-//	ctx context.Context,
-//	req *server.Request[Broadcast, accounts.BroadcastTxResponse],
-//) (successResp *server.Response[accounts.BroadcastTxResponse], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-//	ctx = withAuth(ctx, req.Data.Authorization)
-//	ctx = withAppID(ctx, req.Data.ClientID)
-//	ctx = withUserAction(ctx, req.Data.UserAction)
-//	b, err := s.accounts.Broadcast(ctx, req.Data.UserID, req.Data.WalletID, req.Data.Transaction)
-//	if err != nil {
-//		switch {
-//		case errors.Is(err, accounts.ErrRaceCondition):
-//			return nil, server.BadRequest(err, "RACE_CONDITION")
-//		}
-//		return nil, server.Unexpected(err)
-//	}
-//	return server.OK(b), nil
-//}

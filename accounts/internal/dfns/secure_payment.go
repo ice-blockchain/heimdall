@@ -3,12 +3,18 @@
 package dfns
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"net/http"
 	"strings"
 
+	"github.com/btcsuite/btcd/btcutil/psbt"
+	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/txscript"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/goccy/go-json"
 	"github.com/pkg/errors"
 )
@@ -38,7 +44,7 @@ func (c *dfnsClient) requestUserActionChallenge(ctx context.Context, url string,
 
 func (c *dfnsClient) SecurePaymentConfirmation(ctx context.Context, userID, network string, wallet Wallet, body map[string]any) (any, error) {
 	walletId := wallet["id"].(string)
-	transaction, err := c.extractTransaction(network, wallet["name"].(string), body)
+	transaction, err := c.extractTransaction(network, wallet["address"].(string), body)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to extract transaction details")
 	}
@@ -70,7 +76,7 @@ func (c *dfnsClient) SecurePaymentConfirmation(ctx context.Context, userID, netw
 		UserID:    userID,
 		Token:     dfnsAuthHeader(ctx),
 		AppID:     c.webFE.AppID,
-		Origin:    "https://192.168.1.36:8001", //c.webFE.ExpectedOrigin,
+		Origin:    c.webFE.ExpectedOrigin,
 	}, nil
 }
 
@@ -92,7 +98,11 @@ func (c *dfnsClient) extractTransaction(network, walletName string, broadcastBod
 	}
 	encodedTx, hasEncodedTx := broadcastBody["transaction"]
 	if !hasEncodedTx {
-		return nil, errors.New("missing transaction details in body")
+		psbt, hasPbst := broadcastBody["psbt"]
+		if !hasPbst {
+			return nil, errors.New("missing transaction details in body")
+		}
+		encodedTx = psbt.(string)
 	}
 	if strings.HasPrefix(encodedTx.(string), "0x") {
 		encodedTx = strings.TrimPrefix(encodedTx.(string), "0x")
@@ -102,23 +112,24 @@ func (c *dfnsClient) extractTransaction(network, walletName string, broadcastBod
 		return nil, errors.Wrap(err, "failed to decode transaction")
 	}
 	switch network {
-	case "ton":
+	case "ton", "tontestnet":
 		var transaction transferTransaction
 		if _, err = parseTONTransaction(encodedTxBytes, &transaction); err != nil {
 			return nil, errors.Wrap(err, "failed to parse transaction")
 		}
 		transaction.Sender = walletName
 		return &transaction, nil
-	case "polygon", "ethereum", "bsc", "arbitrumone", "avalanchec", "fantomopera":
+	case "polygon", "ethereum", "bsc", "arbitrumone", "avalanchec", "fantomopera", "optimism",
+		"ethereumsepolia", "arbitrumsepolia", "avalanchecfuji", "basesepolia", "bsctestnet", "fantomtestnet", "optimismsepolia", "polygonamoy":
 		var transaction *transferTransaction
-		if transaction, err = parseEvmTransactionInput(encodedTxBytes); err != nil {
+		if transaction, err = c.parseEvmTransactionInput(networkData, encodedTxBytes); err != nil {
 			return nil, errors.Wrapf(err, "failed to parse transaction for EVM %v: %v", network, encodedTxBytes)
 		}
 		transaction.Sender = walletName
 		return transaction, nil
-	case "bitcoin":
+	case "bitcoin", "bitcointestnet3":
 		var transaction *transferTransaction
-		if transaction, err = parseBitcoinTransactionInput(encodedTxBytes); err != nil {
+		if transaction, err = parseBitcoinTransactionInput(encodedTxBytes, c.cfg.DFNS.TestNet); err != nil {
 			return nil, errors.Wrapf(err, "failed to parse transaction for BTC %v: %v", network, encodedTxBytes)
 		}
 		transaction.Sender = walletName
@@ -128,16 +139,115 @@ func (c *dfnsClient) extractTransaction(network, walletName string, broadcastBod
 	}
 }
 
-func parseEvmTransactionInput(txBytes []byte) (*transferTransaction, error) {
-	return nil, errors.Errorf("not impl")
+func (c *dfnsClient) parseEvmTransactionInput(network *network, txBytes []byte) (*transferTransaction, error) {
+	var tx types.Transaction
+
+	if err := tx.UnmarshalBinary(txBytes); err != nil {
+		return nil, errors.Wrapf(err, "failed to unmarshal transaction %x", txBytes)
+	}
+	txDataBytes := tx.Data()
+	if len(txDataBytes) == 0 {
+		return &transferTransaction{
+			ReceiverAddress: tx.To().Hex(),
+			Sender:          "",
+			Amount:          tx.Value().String(),
+			Token:           network.NativeToken,
+			Network:         network,
+		}, nil
+	}
+	contractAddress := tx.To().Hex()
+	methodSigData := txDataBytes[:4]
+	inputsSigData := txDataBytes[4:]
+	method, err := c.erc20ABI.MethodById(methodSigData)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to find method %x in abi", methodSigData)
+	}
+	inputsMap := make(map[string]interface{})
+	if err = method.Inputs.UnpackIntoMap(inputsMap, inputsSigData); err != nil {
+		return nil, errors.Wrapf(err, "failed to parse transaction inputs for EVM contract %v: tx %x", contractAddress, txBytes)
+	} else {
+		fmt.Println(inputsMap)
+	}
+	return &transferTransaction{
+		ReceiverAddress: inputsMap["receiver"].(string),
+		Sender:          "",
+		Amount:          inputsMap["amount"].(string),
+		Token:           contractAddress,
+		Network:         network,
+	}, nil
 }
-func parseBitcoinTransactionInput(txBytes []byte) (*transferTransaction, error) {
-	return nil, errors.Errorf("not impl")
+func parseBitcoinTransactionInput(txBytes []byte, testnet bool) (*transferTransaction, error) {
+	buf := bytes.NewBuffer(txBytes)
+	networkCfg := &chaincfg.MainNetParams
+	if testnet {
+		networkCfg = &chaincfg.TestNet3Params
+	}
+	btcTx, err := psbt.NewFromRawBytes(buf, false)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse transaction %x", txBytes)
+	}
+	var senderAddr string
+	for _, in := range btcTx.Inputs {
+		script, err := txscript.ParsePkScript(in.WitnessUtxo.PkScript)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse wintess input sctipt %x for BTC transaction %x", in.WitnessScript, txBytes)
+		}
+		address, err := script.Address(networkCfg)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse address from script %x for BTC transaction %x", in.WitnessScript, txBytes)
+		}
+		senderAddr = address.String()
+	}
+	transactionValue := big.NewInt(0)
+	receiverAddr := ""
+	for _, output := range btcTx.UnsignedTx.TxOut {
+		script, err := txscript.ParsePkScript(output.PkScript)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse wintess script in output")
+		}
+		address, err := script.Address(networkCfg)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse address from script %x for BTC transaction %x", output.PkScript, txBytes)
+		}
+		if address.String() != senderAddr {
+			receiverAddr = address.String()
+			transactionValue = transactionValue.Add(transactionValue, big.NewInt(output.Value))
+		}
+	}
+	return &transferTransaction{
+		ReceiverAddress: receiverAddr,
+		Sender:          "",
+		Amount:          transactionValue.String(),
+		Token:           "BTC",
+		Network: &network{
+			NativeToken: "BTC",
+			Icon:        "",
+		},
+	}, nil
 }
 
 func (c *dfnsClient) detectNetwork(networkName string) (*network, error) {
-	// TODO: cdn
-	return &network{Currency: "BNB", Icon: "https://static.bnbchain.org/home-ui/static/images/bnb-smart-chain/migrate.png"}, nil
+	switch networkName {
+	case "bsctestnet", "bsc":
+		return &network{NativeToken: "BNB", Icon: ""}, nil
+	case "polygonamoy", "polygon":
+		return &network{NativeToken: "MATIC", Icon: ""}, nil
+	case "arbitrumsepolia", "arbitrumone":
+		return &network{NativeToken: "ARB", Icon: ""}, nil
+	case "avalanchec", "avalanchecfuji":
+		return &network{NativeToken: "AVAX", Icon: ""}, nil
+	case "fantomopera", "fantomtestnet":
+		return &network{NativeToken: "FTM", Icon: ""}, nil
+	case "ethereumsepolia", "ethereum":
+		return &network{NativeToken: "ETH", Icon: ""}, nil
+	case "optimism", "optimismsepolia":
+		return &network{NativeToken: "OP", Icon: ""}, nil
+	case "bitcointestnet3", "bitcoin":
+		return &network{NativeToken: "BTC", Icon: ""}, nil
+	default:
+		return nil, errors.Errorf("unsupported network name %v", networkName)
+	}
+
 }
 
 func (c *dfnsClient) extendChallengeWithPaymentInfo(challenge signatureChallenge, transaction *transferTransaction) error {

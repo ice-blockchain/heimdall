@@ -19,6 +19,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/dfns/dfns-sdk-go/credentials"
 	"github.com/dfns/dfns-sdk-go/dfnsapiclient"
+	ethabi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/goccy/go-json"
 	"github.com/pkg/errors"
 	"github.com/twilio/twilio-go/client/form"
@@ -48,7 +49,12 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 		proxyMx:               sync.Mutex{},
 		refreshAuthIssuer:     NewRefreshAuth(applicationYamlKey),
 		callbacks:             make(map[string]func(ctx context.Context, now *time.Time, res map[string]any) error),
-		tonApi:                mustInitTONClient(ctx, "https://ton-blockchain.github.io/testnet-global.config.json"),
+		tonApi:                mustInitTONClient(ctx, cfg.DFNS.TON.GlobalConfigURL),
+	}
+	var err error
+	cl.erc20ABI, err = ethabi.JSON(strings.NewReader(erc20ABI))
+	if err != nil {
+		log.Panic(errors.Wrap(err, "failed to parse ABI for ERC20"))
 	}
 	cl.mustSetupWebhookOrLoadSecret(ctx, db, &cfg)
 	cl.mustLoadApplication(ctx, cfg.DFNS.WebFEAppID)
@@ -756,6 +762,8 @@ func (cfg *config) loadCfg(applicationYamlKey string) {
 	cfg.DFNS.RefreshAuth.Issuer = yamlCfg.DFNS.RefreshAuth.Issuer
 	cfg.DFNS.RefreshAuth.Secret = yamlCfg.DFNS.RefreshAuth.Secret
 	cfg.DFNS.RefreshAuth.ExpirationTime = yamlCfg.DFNS.RefreshAuth.ExpirationTime
+	cfg.DFNS.TON.GlobalConfigURL = yamlCfg.DFNS.TON.GlobalConfigURL
+	cfg.DFNS.TestNet = yamlCfg.DFNS.TestNet
 }
 
 func (*config) mustLoadField(field *string, env, yamlVal string) {
