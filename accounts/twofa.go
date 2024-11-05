@@ -25,7 +25,6 @@ import (
 
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
-	"github.com/ice-blockchain/wintr/terror"
 	"github.com/ice-blockchain/wintr/time"
 )
 
@@ -48,7 +47,7 @@ func (a *accounts) verifyAndRedeem2FA(ctx context.Context, userID string, userIn
 }
 
 func (a *accounts) verify2FA(ctx context.Context, now *time.Time, usr *user, inputCodes map[TwoFAOptionWithAddr]string) ([]*twoFACode, error) {
-	codes, err := a.get2FACodes(ctx, usr, inputCodes)
+	codes, err := a.get2FACodes(ctx, usr, inputCodes, now)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get pending codes %v for userID %v", inputCodes, usr.ID)
 	}
@@ -351,7 +350,7 @@ func buildRollbackClause(codes map[TwoFAOptionWithAddr]string) (string, []any) {
 	return "CASE \n" + strings.Join(cases, "\n") + "\nEND", params
 }
 
-func (a *accounts) get2FACodes(ctx context.Context, usr *user, inputCodes map[TwoFAOptionWithAddr]string) ([]*twoFACode, error) {
+func (a *accounts) get2FACodes(ctx context.Context, usr *user, inputCodes map[TwoFAOptionWithAddr]string, now *time.Time) ([]*twoFACode, error) {
 	params := []any{usr.ID}
 	whereClause, extraParams, err := buildWhereClauseGetCodes(usr, inputCodes)
 	params = append(params, extraParams...)
@@ -393,7 +392,20 @@ func (a *accounts) get2FACodes(ctx context.Context, usr *user, inputCodes map[Tw
 				dbc -= 1
 			}
 		}
-		if i != dbc {
+		if dbc < i {
+			return nil, ErrNoPending2FA
+		}
+		codes = slices.DeleteFunc(codes, func(c *twoFACode) bool {
+			matches := false
+			for opt, ic := range inputCodes {
+				if opt.opt == c.Option && (ic == a.getCode(c, now, opt.idx)) {
+					matches = true
+				}
+			}
+
+			return !matches
+		})
+		if len(codes) == 0 {
 			return nil, ErrNoPending2FA
 		}
 	}
@@ -636,14 +648,7 @@ func (a *accounts) checkIfEnough2FAProvided(usr *user, codes map[TwoFAOptionWith
 		if len(enabledOptions) <= a.cfg.Max2FACount && presentedOptionsCount >= len(enabledOptions) {
 			return nil
 		}
-		remainingAvailableOpts := make([]TwoFAOptionWithAddr, 0, len(enabledOptions))
-		for o := range enabledOptions {
-			remainingAvailableOpts = append(remainingAvailableOpts, o)
-		}
-		err = terror.New(Err2FARequired, map[string]any{
-			"options": remainingAvailableOpts,
-			"n":       a.cfg.Max2FACount,
-		})
+		err = Err2FARequired
 	}
 
 	return err

@@ -13,7 +13,6 @@ import (
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/wintr/log"
-	"github.com/ice-blockchain/wintr/terror"
 )
 
 type (
@@ -127,9 +126,7 @@ func (s *service) StartDelegatedRecovery(
 		case errors.Is(err, accounts.ErrNotFound):
 			return nil, buildDelegatedErrorResponse(http.StatusNotFound, err, userNotFound)
 		case errors.Is(err, accounts.Err2FARequired):
-			if tErr := terror.As(err); tErr != nil {
-				return nil, buildDelegatedErrorResponse(http.StatusForbidden, err, twoFARequired, tErr.Data)
-			}
+			return nil, buildDelegatedErrorResponse(http.StatusForbidden, err, twoFARequired)
 		default:
 			if delegatedErr := accounts.ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
 				var delegatedParsedErr *accounts.DelegatedRelyingPartyErr
