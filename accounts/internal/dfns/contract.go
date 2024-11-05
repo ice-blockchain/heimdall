@@ -94,7 +94,9 @@ const (
 	defaultWalletNetwork = "Ton"
 	defaultWalletName    = "main"
 
-	erc20ABI = `[{"constant":true,"inputs":[{"name":"","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"from","type":"address"},{"indexed":true,"name":"to","type":"address"},{"indexed":false,"name":"value","type":"uint256"}],"name":"Transfer","type":"event"}]`
+	networkTON = "ton"
+	networkION = "ion"
+	erc20ABI   = `[{"constant":true,"inputs":[{"name":"","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"from","type":"address"},{"indexed":true,"name":"to","type":"address"},{"indexed":false,"name":"value","type":"uint256"}],"name":"Transfer","type":"event"}]`
 )
 
 var (
@@ -121,6 +123,7 @@ type (
 		serviceAccountMx        sync.Mutex
 		proxyMx                 sync.Mutex
 		tonApi                  ton.APIClientWrapped
+		ionApi                  ton.APIClientWrapped
 		erc20ABI                abi.ABI
 	}
 	config struct {
@@ -147,6 +150,9 @@ type (
 		TON     struct {
 			GlobalConfigURL string `yaml:"global-config-url" mapstructure:"global-config-url"`
 		} `yaml:"ton" mapstructure:"ton"`
+		ION struct {
+			GlobalConfigURL string `yaml:"global-config-url" mapstructure:"global-config-url"`
+		} `yaml:"ion" mapstructure:"ion"`
 	}
 
 	webhook struct {
@@ -246,8 +252,11 @@ type (
 var (
 	broadcastTransactionUrlRegexp = regexp.MustCompile(broadcastTransactionUrl)
 	manualBroadcastNetworks       = map[string]func(ctx context.Context, c *dfnsClient, walletID, walletPubKey, txPayload string) (*BroadcastTxResponse, error){
-		"ton": func(ctx context.Context, c *dfnsClient, walletID, walletPubKey, txPayload string) (*BroadcastTxResponse, error) {
-			return c.broadcastTONTransaction(ctx, walletID, walletPubKey, txPayload)
+		networkTON: func(ctx context.Context, c *dfnsClient, walletID, walletPubKey, txPayload string) (*BroadcastTxResponse, error) {
+			return c.broadcastTONTransaction(ctx, c.tonApi, networkTON, walletID, walletPubKey, txPayload)
+		},
+		networkION: func(ctx context.Context, c *dfnsClient, walletID, walletPubKey, txPayload string) (*BroadcastTxResponse, error) {
+			return c.broadcastTONTransaction(ctx, c.ionApi, networkION, walletID, walletPubKey, txPayload)
 		},
 	}
 	errNoSerialize = errors.New("no serialize")

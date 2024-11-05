@@ -22,7 +22,7 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
-func parseTONTransaction(encodedTx []byte, parsedPayment *transferTransaction) (tonTx, error) {
+func parseTONTransaction(encodedTx []byte, parsedPayment *transferTransaction, network *network) (tonTx, error) {
 	txCell, err := cell.FromBOC(encodedTx)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to parse cell from transaction bytes")
@@ -39,10 +39,7 @@ func parseTONTransaction(encodedTx []byte, parsedPayment *transferTransaction) (
 			*parsedPayment = transferTransaction{
 				ReceiverAddress: (*txV5.Actions)[0].Msg.DestAddr().Bounce(false).String(),
 				Amount:          (*txV5.Actions)[0].Msg.Amount.String(),
-				Network: &network{
-					NativeToken: "TON",
-					Icon:        "https://ton.org/download/ton_symbol.png",
-				},
+				Network:         network,
 			}
 		}
 		return &txV5, nil
@@ -51,10 +48,7 @@ func parseTONTransaction(encodedTx []byte, parsedPayment *transferTransaction) (
 		*parsedPayment = transferTransaction{
 			ReceiverAddress: tx.InternalMessage.DestAddr().Bounce(false).String(),
 			Amount:          tx.InternalMessage.Amount.String(),
-			Network: &network{
-				NativeToken: "TON",
-				Icon:        "https://ton.org/download/ton_symbol.png",
-			},
+			Network:         network,
 		}
 	}
 
@@ -88,7 +82,7 @@ func mustInitTONClient(ctx context.Context, configUrl string) ton.APIClientWrapp
 	return api
 }
 
-func (c *dfnsClient) broadcastTONTransaction(ctx context.Context, walletID, walletPubkey string, txPayload string) (*BroadcastTxResponse, error) {
+func (c *dfnsClient) broadcastTONTransaction(ctx context.Context, api ton.APIClientWrapped, network, walletID, walletPubkey string, txPayload string) (*BroadcastTxResponse, error) {
 	signature, err := c.issueUserSignatureForTransaction(ctx, walletID, txPayload)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to issue tx signature for manual tx broadcasting")
@@ -109,21 +103,21 @@ func (c *dfnsClient) broadcastTONTransaction(ctx context.Context, walletID, wall
 		return nil, errors.Wrapf(err, "failed to decode wallet pub key, invalid hex %v", walletPubkey)
 	}
 	var signedTxCell *tlb.ExternalMessage
-	signedTxCell, err = c.embedSignature(ctx, txPayloadBytes, signatureBytes, walletPubkeyBytes)
+	signedTxCell, err = c.embedSignature(ctx, api, txPayloadBytes, signatureBytes, walletPubkeyBytes)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to embed tx signature %v into tx %v", signature.Signature.Encoded, txPayload)
 	}
 
-	tx, _, _, err := c.tonApi.SendExternalMessageWaitTransaction(ctx, signedTxCell)
+	tx, _, _, err := api.SendExternalMessageWaitTransaction(ctx, signedTxCell)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to broadcast tx")
 	}
 
-	return buildDfnsBroadcastResp(ctx, signature.ID, signature.Requester.UserID, walletID, signedTxCell.Body.ToBOCWithFlags(false), tx.Hash), nil
+	return buildDfnsBroadcastResp(ctx, network, signature.ID, signature.Requester.UserID, walletID, signedTxCell.Body.ToBOCWithFlags(false), tx.Hash), nil
 }
 
-func (d *dfnsClient) embedSignature(ctx context.Context, txPayload, signature []byte, walletPubkey []byte) (*tlb.ExternalMessage, error) {
-	decodedTx, err := parseTONTransaction(txPayload, nil)
+func (d *dfnsClient) embedSignature(ctx context.Context, api ton.APIClientWrapped, txPayload, signature []byte, walletPubkey []byte) (*tlb.ExternalMessage, error) {
+	decodedTx, err := parseTONTransaction(txPayload, nil, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to decode tx payload, invalid tx body")
 	}
@@ -141,7 +135,7 @@ func (d *dfnsClient) embedSignature(ctx context.Context, txPayload, signature []
 			Workchain:       0,
 		}
 	}
-	block, err := d.tonApi.CurrentMasterchainInfo(ctx)
+	block, err := api.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get block")
 	}
@@ -149,13 +143,13 @@ func (d *dfnsClient) embedSignature(ctx context.Context, txPayload, signature []
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to build wallet addr from pub key %v", walletPubkey)
 	}
-	acc, err := d.tonApi.WaitForBlock(block.SeqNo).GetAccount(ctx, block, addr)
+	acc, err := api.WaitForBlock(block.SeqNo).GetAccount(ctx, block, addr)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get account state %v", addr.String())
 	}
 
 	initialized := acc.IsActive && acc.State.Status == tlb.AccountStatusActive
-	seqNo, err := d.reqSeqno(ctx, block, addr)
+	seqNo, err := d.reqSeqno(ctx, api, block, addr)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get seqNo")
 	}
@@ -174,18 +168,18 @@ func (d *dfnsClient) embedSignature(ctx context.Context, txPayload, signature []
 	return msg, nil
 }
 
-func (d *dfnsClient) reqSeqno(ctx context.Context, block *ton.BlockIDExt, addr *address.Address) (uint64, error) {
-	resp, err := d.tonApi.WaitForBlock(block.SeqNo).RunGetMethod(ctx, block, addr, "seqno")
+func (_ *dfnsClient) reqSeqno(ctx context.Context, api ton.APIClientWrapped, block *ton.BlockIDExt, addr *address.Address) (uint64, error) {
+	resp, err := api.WaitForBlock(block.SeqNo).RunGetMethod(ctx, block, addr, "seqno")
 	if err != nil {
 		if cErr, ok := err.(ton.ContractExecError); ok && cErr.Code == ton.ErrCodeContractNotInitialized {
 			return 0, nil
 		}
-		return 0, fmt.Errorf("get seqno err: %w", err)
+		return 0, errors.Wrapf(err, "get seqno err")
 	}
 
 	iSeq, err := resp.Int(0)
 	if err != nil {
-		return 0, fmt.Errorf("failed to parse seqno: %w", err)
+		return 0, errors.Wrapf(err, "failed to parse seqno")
 	}
 	return iSeq.Uint64(), nil
 }
@@ -237,7 +231,6 @@ func (r *tonTransactionInputV5) EmbedSignature(signature, walletPubkey []byte, i
 									MustStoreRef(outMsg)                    // message reference
 
 		list = cell.BeginCell().MustStoreRef(list).MustStoreBuilder(msg).EndCell()
-		fmt.Println(list.Dump(100))
 	}
 	act := cell.BeginCell().MustStoreUInt(1, 1).MustStoreRef(list).MustStoreUInt(0, 1)
 
@@ -247,8 +240,6 @@ func (r *tonTransactionInputV5) EmbedSignature(signature, walletPubkey []byte, i
 		MustStoreUInt(uint64(r.TTL), 32).      // validUntil
 		MustStoreUInt(uint64(r.Seq), 32).      // seq (block)
 		MustStoreBuilder(act)                  // Action list
-	fmt.Println("PL:", hex.EncodeToString(payload.EndCell().ToBOC()))
-	fmt.Println("PLHASH:", payload.EndCell().Dump(100))
 	var init *tlb.StateInit
 	if !initialized {
 		init, err = wallet.GetStateInit(walletPubkey, wallet.ConfigV5R1Final{
@@ -266,11 +257,11 @@ func (r *tonTransactionInputV5) EmbedSignature(signature, walletPubkey []byte, i
 	}, payload.EndCell(), nil
 }
 
-func buildDfnsBroadcastResp(ctx context.Context, signatureID, userID, walletID string, txBody, txHash []byte) *BroadcastTxResponse {
+func buildDfnsBroadcastResp(ctx context.Context, network, signatureID, userID, walletID string, txBody, txHash []byte) *BroadcastTxResponse {
 	return &BroadcastTxResponse{
 		Id:       signatureID,
 		WalletId: walletID,
-		Network:  "Ton",
+		Network:  network,
 		Requester: struct {
 			UserId string `json:"userId"`
 			AppId  string `json:"appId"`

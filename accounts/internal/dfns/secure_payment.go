@@ -49,7 +49,7 @@ func (c *dfnsClient) SecurePaymentConfirmation(ctx context.Context, userID, netw
 		return nil, errors.Wrapf(err, "failed to extract transaction details")
 	}
 	signedUrl := fmt.Sprintf("/wallets/%v/transactions", walletId)
-	if network == "ton" { // It does not support broadcasting, we issue signature instead and broadcast it from our BE.
+	if network == networkTON || network == networkION { // It does not support broadcasting, we issue signature instead and broadcast it from our BE.
 		signedUrl = fmt.Sprintf("/wallets/%v/signatures", walletId)
 		body["message"] = body["transaction"]
 		body["kind"] = "Message"
@@ -112,9 +112,9 @@ func (c *dfnsClient) extractTransaction(network, walletName string, broadcastBod
 		return nil, errors.Wrap(err, "failed to decode transaction")
 	}
 	switch network {
-	case "ton", "tontestnet":
+	case "ton", "tontestnet", "ion", "iontestnet":
 		var transaction transferTransaction
-		if _, err = parseTONTransaction(encodedTxBytes, &transaction); err != nil {
+		if _, err = parseTONTransaction(encodedTxBytes, &transaction, networkData); err != nil {
 			return nil, errors.Wrap(err, "failed to parse transaction")
 		}
 		transaction.Sender = walletName
@@ -165,8 +165,6 @@ func (c *dfnsClient) parseEvmTransactionInput(network *network, txBytes []byte) 
 	inputsMap := make(map[string]interface{})
 	if err = method.Inputs.UnpackIntoMap(inputsMap, inputsSigData); err != nil {
 		return nil, errors.Wrapf(err, "failed to parse transaction inputs for EVM contract %v: tx %x", contractAddress, txBytes)
-	} else {
-		fmt.Println(inputsMap)
 	}
 	return &transferTransaction{
 		ReceiverAddress: inputsMap["receiver"].(string),
@@ -244,6 +242,10 @@ func (c *dfnsClient) detectNetwork(networkName string) (*network, error) {
 		return &network{NativeToken: "OP", Icon: ""}, nil
 	case "bitcointestnet3", "bitcoin":
 		return &network{NativeToken: "BTC", Icon: ""}, nil
+	case networkTON, "tontestnet":
+		return &network{NativeToken: "TON", Icon: "https://ton.org/download/ton_symbol.png"}, nil
+	case networkION, "iontestnet":
+		return &network{NativeToken: "ICE", Icon: ""}, nil
 	default:
 		return nil, errors.Errorf("unsupported network name %v", networkName)
 	}

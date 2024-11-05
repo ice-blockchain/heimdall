@@ -58,7 +58,7 @@ func (s *service) setupDelegatedRPProxyRoutes(router *server.Router) {
 		POST("/v1/webhooks/dfns/events", server.RootHandler(s.EventWebhookFromDelegatedRP)).
 		GET("/.well-known/apple-app-site-association", server.RootHandler(s.AppleAppSiteAssociation)).
 		GET("/.well-known/assetlinks.json", server.RootHandler(s.AssetLinks)).
-		POST("/v1/users/:userId/:walletId/secure-payment-confirmations", s.securePaymentConfirmation())
+		POST("/v1/users/:userId/wallets/:walletId/secure-payment-confirmations", s.securePaymentConfirmation())
 }
 
 func (s *service) proxyToDelegatedRP(allowUnauthorized bool) func(*gin.Context) {
@@ -95,17 +95,15 @@ func (s *service) securePaymentConfirmation() func(*gin.Context) {
 		}
 		data, err := s.accounts.SecurePaymentConfirmation(ctx, ginCtx.Param("userId"), walletId, body)
 		if err != nil {
-			switch {
-			default:
-				if delegatedErr := accounts.ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
-					var delegatedParsedErr *accounts.DelegatedRelyingPartyErr
-					if errors.As(delegatedErr, &delegatedParsedErr) {
-						ginCtx.JSON(delegatedParsedErr.HTTPStatus, &delegatedParsedErr)
-					}
+			if delegatedErr := accounts.ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
+				var delegatedParsedErr *accounts.DelegatedRelyingPartyErr
+				if errors.As(delegatedErr, &delegatedParsedErr) {
+					ginCtx.JSON(delegatedParsedErr.HTTPStatus, &delegatedParsedErr)
+					return
 				}
-				log.Error(errors.Wrapf(err, "failed to process secure payment confirmation %#v", body))
-				ginCtx.JSON(http.StatusInternalServerError, &delegatedErrorResponse{Error: errMessage{Message: "oops, error occured!"}})
 			}
+			log.Error(errors.Wrapf(err, "failed to process secure payment confirmation %#v", body))
+			ginCtx.JSON(http.StatusInternalServerError, &delegatedErrorResponse{Error: errMessage{Message: "oops, error occured!"}})
 			return
 		}
 		ginCtx.HTML(http.StatusOK, "secure_payment.html", data)

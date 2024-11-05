@@ -47,8 +47,9 @@ func (a *accounts) StartDelegatedRecovery(ctx context.Context, username, credent
 func (a *accounts) SecurePaymentConfirmation(ctx context.Context, userID, walletId string, body map[string]any) (tmplData any, err error) {
 	wallet, err := a.delegatedRPClient.GetWallet(ctx, walletId)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get wallet %v, cannot init payment confirmation")
+		return nil, errors.Wrapf(err, "failed to get wallet %v, cannot init payment confirmation", walletId)
 	}
 	_, network, _ := dfns.ExtractWallet(*wallet)
+
 	return a.delegatedRPClient.SecurePaymentConfirmation(ctx, userID, strings.ToLower(network), *wallet, body)
 }

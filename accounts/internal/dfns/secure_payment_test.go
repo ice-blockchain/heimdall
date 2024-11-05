@@ -26,7 +26,10 @@ func TestParseTX(t *testing.T) {
 		for _, ver := range versions {
 			sampleTxBytes, from, to := buildTonTestTx(t, "0QBgUcFayL2fp5S7mEWxjAk6M1KiA1FiNnKPJzLQfLHFBm5k", "0.1", ver)
 			var payment transferTransaction
-			tx, err := parseTONTransaction(sampleTxBytes, &payment)
+			tx, err := parseTONTransaction(sampleTxBytes, &payment, &network{
+				NativeToken: "TON",
+				Icon:        "https://ton.org/download/ton_symbol.png",
+			})
 			require.NoError(t, err)
 			require.Equal(t, transferTransaction{
 				ReceiverAddress: to,
@@ -45,7 +48,10 @@ func TestParseTX(t *testing.T) {
 		from, err := hex.DecodeString("4eb5da0c1913e9aa672e5c898c8ade1bf12ec93e1264fb0255471003b6093d4e")
 		require.NoError(t, err)
 		var payment transferTransaction
-		tx, err := parseTONTransaction(txBuiltWithJS, &payment)
+		tx, err := parseTONTransaction(txBuiltWithJS, &payment, &network{
+			NativeToken: "TON",
+			Icon:        "https://ton.org/download/ton_symbol.png",
+		})
 		require.NoError(t, err)
 
 		require.Equal(t, transferTransaction{

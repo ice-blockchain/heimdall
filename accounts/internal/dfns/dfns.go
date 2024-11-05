@@ -50,6 +50,7 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 		refreshAuthIssuer:     NewRefreshAuth(applicationYamlKey),
 		callbacks:             make(map[string]func(ctx context.Context, now *time.Time, res map[string]any) error),
 		tonApi:                mustInitTONClient(ctx, cfg.DFNS.TON.GlobalConfigURL),
+		ionApi:                mustInitTONClient(ctx, cfg.DFNS.ION.GlobalConfigURL),
 	}
 	var err error
 	cl.erc20ABI, err = ethabi.JSON(strings.NewReader(erc20ABI))
