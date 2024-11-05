@@ -46,6 +46,7 @@ accounts:
     #baseUrl: https://bogus.example
     #webhookUrl:
     #appId: bogus
+    #webFEAppId: bogus
     #serviceKey: bogus-key
     #credentialPrivateKey: bogus
     #credentialId: bogus
