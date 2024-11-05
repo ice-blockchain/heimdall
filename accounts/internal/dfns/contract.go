@@ -219,6 +219,7 @@ type (
 	network struct {
 		NativeToken string
 		Icon        string
+		decimals    int
 	}
 	tonTransactionInputV4R2 struct {
 		WalletID        uint32               `tlb:"## 32"`

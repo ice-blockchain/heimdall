@@ -764,6 +764,7 @@ func (cfg *config) loadCfg(applicationYamlKey string) {
 	cfg.DFNS.RefreshAuth.Secret = yamlCfg.DFNS.RefreshAuth.Secret
 	cfg.DFNS.RefreshAuth.ExpirationTime = yamlCfg.DFNS.RefreshAuth.ExpirationTime
 	cfg.DFNS.TON.GlobalConfigURL = yamlCfg.DFNS.TON.GlobalConfigURL
+	cfg.DFNS.ION.GlobalConfigURL = yamlCfg.DFNS.ION.GlobalConfigURL
 	cfg.DFNS.TestNet = yamlCfg.DFNS.TestNet
 }
 

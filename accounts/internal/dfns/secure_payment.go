@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"math/big"
 	"net/http"
 	"strings"
@@ -118,6 +119,7 @@ func (c *dfnsClient) extractTransaction(network, walletName string, broadcastBod
 			return nil, errors.Wrap(err, "failed to parse transaction")
 		}
 		transaction.Sender = walletName
+		transaction.Amount = networkData.formatDecimals(&transaction)
 		return &transaction, nil
 	case "polygon", "ethereum", "bsc", "arbitrumone", "avalanchec", "fantomopera", "optimism",
 		"ethereumsepolia", "arbitrumsepolia", "avalanchecfuji", "basesepolia", "bsctestnet", "fantomtestnet", "optimismsepolia", "polygonamoy":
@@ -126,6 +128,7 @@ func (c *dfnsClient) extractTransaction(network, walletName string, broadcastBod
 			return nil, errors.Wrapf(err, "failed to parse transaction for EVM %v: %v", network, encodedTxBytes)
 		}
 		transaction.Sender = walletName
+		transaction.Amount = networkData.formatDecimals(transaction)
 		return transaction, nil
 	case "bitcoin", "bitcointestnet3":
 		var transaction *transferTransaction
@@ -133,6 +136,7 @@ func (c *dfnsClient) extractTransaction(network, walletName string, broadcastBod
 			return nil, errors.Wrapf(err, "failed to parse transaction for BTC %v: %v", network, encodedTxBytes)
 		}
 		transaction.Sender = walletName
+		transaction.Amount = networkData.formatDecimals(transaction)
 		return transaction, nil
 	default:
 		return nil, errors.Errorf("unsupported network %v cannot decode transferTransaction %v", network, encodedTx)
@@ -227,25 +231,25 @@ func parseBitcoinTransactionInput(txBytes []byte, testnet bool) (*transferTransa
 func (c *dfnsClient) detectNetwork(networkName string) (*network, error) {
 	switch networkName {
 	case "bsctestnet", "bsc":
-		return &network{NativeToken: "BNB", Icon: ""}, nil
+		return &network{NativeToken: "BNB", Icon: "", decimals: 18}, nil
 	case "polygonamoy", "polygon":
-		return &network{NativeToken: "MATIC", Icon: ""}, nil
+		return &network{NativeToken: "MATIC", Icon: "", decimals: 18}, nil
 	case "arbitrumsepolia", "arbitrumone":
-		return &network{NativeToken: "ARB", Icon: ""}, nil
+		return &network{NativeToken: "ARB", Icon: "", decimals: 18}, nil
 	case "avalanchec", "avalanchecfuji":
-		return &network{NativeToken: "AVAX", Icon: ""}, nil
+		return &network{NativeToken: "AVAX", Icon: "", decimals: 18}, nil
 	case "fantomopera", "fantomtestnet":
-		return &network{NativeToken: "FTM", Icon: ""}, nil
+		return &network{NativeToken: "FTM", Icon: "", decimals: 18}, nil
 	case "ethereumsepolia", "ethereum":
-		return &network{NativeToken: "ETH", Icon: ""}, nil
+		return &network{NativeToken: "ETH", Icon: "", decimals: 18}, nil
 	case "optimism", "optimismsepolia":
-		return &network{NativeToken: "OP", Icon: ""}, nil
+		return &network{NativeToken: "OP", Icon: "", decimals: 18}, nil
 	case "bitcointestnet3", "bitcoin":
-		return &network{NativeToken: "BTC", Icon: ""}, nil
+		return &network{NativeToken: "BTC", Icon: "", decimals: 8}, nil
 	case networkTON, "tontestnet":
-		return &network{NativeToken: "TON", Icon: "https://ton.org/download/ton_symbol.png"}, nil
+		return &network{NativeToken: "TON", Icon: "https://ton.org/download/ton_symbol.png", decimals: 9}, nil
 	case networkION, "iontestnet":
-		return &network{NativeToken: "ICE", Icon: ""}, nil
+		return &network{NativeToken: "ICE", Icon: "", decimals: 9}, nil
 	default:
 		return nil, errors.Errorf("unsupported network name %v", networkName)
 	}
@@ -284,4 +288,11 @@ func (c *dfnsClient) extendChallengeWithPaymentInfo(challenge signatureChallenge
 	}
 
 	return nil
+}
+func (n *network) formatDecimals(transaction *transferTransaction) string {
+	f, _, err := new(big.Float).Parse(transaction.Amount, 10)
+	if err != nil {
+		return transaction.Amount
+	}
+	return new(big.Float).Quo(f, big.NewFloat(math.Pow10(n.decimals))).String()
 }

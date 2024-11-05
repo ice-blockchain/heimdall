@@ -77,7 +77,7 @@
                     }
                 }),
             })
-            info(initRes.json().userAction)
+
         }
 
         async function initPayment() {
@@ -86,14 +86,15 @@
 
             try {
                 const canMakePayment = await request.canMakePayment();
-                info(`canMakePayment result: ${canMakePayment}`);
+                if !canMakePayment {
+                    initSimpleWebAuthn()
+                }
             } catch (err) {
                 error(`Error from canMakePayment: ${err.message}`);
             }
 
             const instrumentResponse = await request.show();
             await instrumentResponse.complete('success')
-            info(JSON.stringify(instrumentResponse));
             const initRes = await fetch(`{{.Origin}}/auth/action`, {
                 method: 'POST',
                 headers: {
@@ -115,7 +116,6 @@
                     }
                 }),
             })
-            info(initRes.userAction)
         }
         function error(msg) {  // eslint-disable-line no-unused-vars
             let element = document.createElement('pre');

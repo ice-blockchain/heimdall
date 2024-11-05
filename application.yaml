@@ -40,6 +40,8 @@ accounts:
       expirationTime: 24h
     ton:
       global-config-url: https://ton-blockchain.github.io/testnet-global.config.json
+    ion:
+      global-config-url: https://ton-blockchain.github.io/testnet-global.config.json
     testnet: true
     #baseUrl: https://bogus.example
     #webhookUrl:
