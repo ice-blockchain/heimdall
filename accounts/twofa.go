@@ -649,13 +649,8 @@ func (a *accounts) checkIfEnough2FAProvided(usr *user, codes map[TwoFAOptionWith
 		if len(enabledOptions) <= a.cfg.Max2FACount && presentedOptionsCount >= len(enabledOptions) {
 			return nil
 		}
-		remainingAvailableOpts := make([]TwoFAOptionWithAddr, 0, len(enabledOptions))
-		for o := range enabledOptions {
-			remainingAvailableOpts = append(remainingAvailableOpts, o)
-		}
 		err = terror.New(Err2FARequired, map[string]any{
-			"options": len(remainingAvailableOpts),
-			"n":       a.cfg.Max2FACount,
+			"n": a.cfg.Max2FACount,
 		})
 	}
 
