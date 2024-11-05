@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"html/template"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -47,6 +48,8 @@ func buildDelegatedErrorResponse(status int, err error, code string, data ...map
 }
 
 func (s *service) setupDelegatedRPProxyRoutes(router *server.Router) {
+	templ := template.Must(template.New("").ParseFS(templates, "templates/*.html"))
+	router.SetHTMLTemplate(templ)
 	router.NoRoute(s.proxyToDelegatedRP(true))
 	router.NoMethod(s.proxyToDelegatedRP(true))
 	router.
@@ -54,8 +57,8 @@ func (s *service) setupDelegatedRPProxyRoutes(router *server.Router) {
 		POST("/auth/login/delegated", s.proxyToDelegatedRP(true)).
 		POST("/v1/webhooks/dfns/events", server.RootHandler(s.EventWebhookFromDelegatedRP)).
 		GET("/.well-known/apple-app-site-association", server.RootHandler(s.AppleAppSiteAssociation)).
-		GET("/.well-known/assetlinks.json", server.RootHandler(s.AssetLinks))
-
+		GET("/.well-known/assetlinks.json", server.RootHandler(s.AssetLinks)).
+		POST("/v1/users/:userId/wallets/:walletId/secure-payment-confirmations", s.securePaymentConfirmation())
 }
 
 func (s *service) proxyToDelegatedRP(allowUnauthorized bool) func(*gin.Context) {
@@ -67,6 +70,43 @@ func (s *service) proxyToDelegatedRP(allowUnauthorized bool) func(*gin.Context) 
 			return
 		}
 		s.accounts.ProxyDelegatedRelyingParty(ctx, ginCtx.Writer, ginCtx.Request)
+	}
+}
+
+func (s *service) securePaymentConfirmation() func(*gin.Context) {
+	return func(ginCtx *gin.Context) {
+		ctx, cancel := context.WithTimeout(ginCtx.Request.Context(), proxyTimeout)
+		defer cancel()
+		if _, err := server.Authorize(ctx, ginCtx, false); err != nil {
+			ginCtx.JSON(err.Code, &delegatedErrorResponse{Error: errMessage{Message: err.Data.Code}, err: err.Data.InternalErr()})
+			return
+		}
+		var body map[string]any
+		if err := ginCtx.ShouldBindJSON(&body); err != nil {
+			ginCtx.JSON(http.StatusUnprocessableEntity, &delegatedErrorResponse{Error: errMessage{Message: invalidPropertiesErrorCode}})
+			return
+		}
+		ctx = withAppID(ctx, ginCtx.GetHeader("X-Client-ID"))
+		ctx = withAuth(ctx, ginCtx.GetHeader("Authorization"))
+		walletId := ginCtx.Param("walletId")
+		if walletId == "" {
+			ginCtx.JSON(http.StatusUnprocessableEntity, &delegatedErrorResponse{Error: errMessage{Message: invalidPropertiesErrorCode}})
+			return
+		}
+		data, err := s.accounts.SecurePaymentConfirmation(ctx, ginCtx.Param("userId"), walletId, body)
+		if err != nil {
+			if delegatedErr := accounts.ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
+				var delegatedParsedErr *accounts.DelegatedRelyingPartyErr
+				if errors.As(delegatedErr, &delegatedParsedErr) {
+					ginCtx.JSON(delegatedParsedErr.HTTPStatus, &delegatedParsedErr)
+					return
+				}
+			}
+			log.Error(errors.Wrapf(err, "failed to process secure payment confirmation %#v", body))
+			ginCtx.JSON(http.StatusInternalServerError, &delegatedErrorResponse{Error: errMessage{Message: "oops, error occured!"}})
+			return
+		}
+		ginCtx.HTML(http.StatusOK, "secure_payment.html", data)
 	}
 }
 
@@ -142,6 +182,12 @@ func (s *service) StartDelegatedRecovery(
 
 func withAppID(ctx context.Context, appID string) context.Context {
 	return context.WithValue(ctx, accounts.AppIDHeaderCtxValue, appID)
+}
+func withUserAction(ctx context.Context, userAction string) context.Context {
+	return context.WithValue(ctx, accounts.UserActionCtxValue, userAction)
+}
+func withAuth(ctx context.Context, auth string) context.Context {
+	return context.WithValue(ctx, accounts.AuthorizationHeaderCtxValue, auth)
 }
 
 func (r *StartDelegatedRecoveryReq) validate() error {

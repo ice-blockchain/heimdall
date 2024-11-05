@@ -181,7 +181,7 @@ func (a *accounts) upsertUsernameFromRegistration(ctx context.Context, now *time
 }
 func (a *accounts) upsertWalletPubKeyFromRegistrationAndRegisterWalletView(ctx context.Context, now *time.Time, res map[string]any) error {
 	userID, username := dfns.ExtractUser(res, "username")
-	walletID, walletPubKey := dfns.ExtractWalletPubKey(res)
+	walletID, walletPubKey := dfns.ExtractMainWallet(res)
 	if err := a.upsertWalletPubKeyFromRegistration(ctx, now, res, walletPubKey); err != nil {
 		return errors.Wrapf(err, "failed to upsert users masterkey")
 	}

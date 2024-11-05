@@ -12,12 +12,14 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	stdlibtime "time"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/dfns/dfns-sdk-go/credentials"
 	"github.com/dfns/dfns-sdk-go/dfnsapiclient"
+	ethabi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/goccy/go-json"
 	"github.com/pkg/errors"
 	"github.com/twilio/twilio-go/client/form"
@@ -47,14 +49,23 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 		proxyMx:               sync.Mutex{},
 		refreshAuthIssuer:     NewRefreshAuth(applicationYamlKey),
 		callbacks:             make(map[string]func(ctx context.Context, now *time.Time, res map[string]any) error),
+		tonApi:                mustInitTONClient(ctx, cfg.DFNS.TON.GlobalConfigURL),
+		ionApi:                mustInitTONClient(ctx, cfg.DFNS.ION.GlobalConfigURL),
+	}
+	var err error
+	cl.erc20ABI, err = ethabi.JSON(strings.NewReader(erc20ABI))
+	if err != nil {
+		log.Panic(errors.Wrap(err, "failed to parse ABI for ERC20"))
 	}
 	cl.mustSetupWebhookOrLoadSecret(ctx, db, &cfg)
+	cl.mustLoadApplication(ctx, cfg.DFNS.WebFEAppID)
 	cl.bodyModifiableCallbacks = map[string]func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error{
 		completeDelegatedRegistrationUrl: func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
 			userID, username := ExtractUser(res, "username")
 
 			return cl.extendResponseBodyWith(r, res,
 				cl.extendRegistrationBodyWithRefreshToken(userID, username),
+				extendResponseBodyWithPaymentExtension(),
 			)
 		},
 		completeLoginUrl: func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
@@ -74,6 +85,22 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 		},
 	}
 	return cl
+}
+
+func extendResponseBodyWithPaymentExtension() func(ctx context.Context, res map[string]any) error {
+	return func(_ context.Context, res map[string]any) error {
+		var ext map[string]any
+		if extI, hasExt := res["extensions"]; !hasExt {
+			ext = make(map[string]any)
+		} else {
+			ext = extI.(map[string]any)
+		}
+		ext["payment"] = map[string]any{
+			"isPayment": true,
+		}
+		res["extensions"] = ext
+		return nil
+	}
 }
 
 func (c *dfnsClient) RegisterPostProxyCallback(url string, cb func(ctx context.Context, now *time.Time, res map[string]any) error) {
@@ -238,6 +265,21 @@ func (c *dfnsClient) mustListWebhooks(ctx context.Context) []webhook {
 	return filteredItems
 }
 
+func (c *dfnsClient) mustLoadApplication(ctx context.Context, applicationID string) {
+	_, jApplication, err := c.doClientCall(ctx, c.serviceAccountClient(c.cfg.DFNS.AppID), "GET", fmt.Sprintf("/auth/apps/%v", applicationID), http.Header{}, nil)
+	if err != nil {
+		log.Panic(errors.Wrapf(err, "failed to list webhooks"))
+	}
+	var a application
+	if err = json.UnmarshalContext(ctx, jApplication, &a); err != nil {
+		log.Panic(errors.Wrapf(err, "failed to unmarshal %v into %#v", string(jApplication), a))
+	}
+	if !a.IsActive {
+		log.Panic(errors.Errorf("webFEAppId %v is disabled", applicationID))
+	}
+	c.webFE = &a
+}
+
 func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req *http.Request) (status int, responseBody io.Reader) {
 	respBody := bytes.NewBuffer([]byte{})
 	applicationID := req.Header.Get(clientIDHeader)
@@ -256,15 +298,20 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 	}
 	var extendErr error
 	var extendErrBody *DfnsInternalError
-	switch req.URL.Path {
-	case initLoginUrl:
+	switch {
+	case req.URL.Path == initLoginUrl:
 		extendErrBody, extendErr = c.updateInitLoginReqBodyWithOrgID(req)
-	case initDelegatedRegistrationUrl:
+	case req.URL.Path == initDelegatedRegistrationUrl:
 		extendErrBody, extendErr = c.updateRegisterReqBodyWithEndUser(req)
-	case completeDelegatedRegistrationUrl:
+	case req.URL.Path == completeDelegatedRegistrationUrl:
 		extendErrBody, extendErr = c.updateRegisterReqBodyWithWallets(req)
-	case delegatedLoginUrl:
+	case req.URL.Path == delegatedLoginUrl:
 		extendErrBody, extendErr = c.exchangeRefreshTokenToUsername(req)
+	case broadcastTransactionUrlRegexp.MatchString(req.URL.Path):
+		rb := &proxyResponseBody{ResponseWriter: rw, Body: respBody}
+		if extendErrBody, extendErr = c.checkIfNeedToBroadcastTX(req, rb, applicationID, userAction); extendErr == nil && extendErrBody == nil && respBody.Len() > 0 {
+			return http.StatusOK, respBody
+		}
 	}
 	if extendErr != nil && extendErrBody != nil {
 		log.Error(errors.Wrapf(extendErr, "failed to update init login req with org id"))
@@ -294,12 +341,13 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 }
 
 func (c *dfnsClient) modifyResponse(r *http.Response) error {
+	r.Header.Del("Access-Control-Allow-Origin") // Duplicated hea
 	if r.StatusCode >= http.StatusOK && r.StatusCode < http.StatusBadRequest {
 		now := time.Now()
 		callback, hasCallback := c.callbacks[r.Request.URL.Path]
 		bodyModify, hasModify := c.bodyModifiableCallbacks[r.Request.URL.Path]
 		if hasCallback || hasModify {
-			data, res, err := DecodeBody(r.Body)
+			data, res, err := decodeBody(r.Body)
 			if err != nil {
 				return errors.Wrap(err, "failed to decode response body as json")
 			}
@@ -367,7 +415,7 @@ func (c *dfnsClient) extendRegistrationBodyWithRefreshToken(userID, username str
 		return nil
 	}
 }
-func DecodeBody(body io.Reader) (respData []byte, jsonData map[string]any, err error) {
+func decodeBody(body io.Reader) (respData []byte, jsonData map[string]any, err error) {
 	respData, err = io.ReadAll(body)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "failed to read delegated relying party body")
@@ -395,11 +443,11 @@ func extendRequestWith[ReqBody any](req *http.Request, extendFn func(*ReqBody) e
 		if errors.As(err, &errWithStatus) {
 			return errWithStatus, err
 		}
-		return &DfnsInternalError{HTTPStatus: http.StatusBadRequest, Message: fmt.Sprintf("validation failed: %v", err.Error())}, errors.Wrapf(err, "validation failed")
+		return &DfnsInternalError{HTTPStatus: http.StatusBadRequest, Message: fmt.Sprintf("validation failed: %v", err.Error())}, errors.Wrap(err, "validation failed")
 	}
 	body, err = json.Marshal(content)
 	if err != nil {
-		return &DfnsInternalError{HTTPStatus: http.StatusInternalServerError, Message: "oops, error occured"}, errors.Wrapf(err, "failed to serialize %v")
+		return &DfnsInternalError{HTTPStatus: http.StatusInternalServerError, Message: "oops, error occured"}, errors.Wrapf(err, "failed to serialize %v", content)
 	}
 	req.Header.Set("Content-Length", strconv.Itoa(len(body)))
 	req.ContentLength = int64(len(body))
@@ -453,6 +501,47 @@ func (c *dfnsClient) exchangeRefreshTokenToUsername(req *http.Request) (*DfnsInt
 		return nil
 	})
 }
+
+func (c *dfnsClient) checkIfNeedToBroadcastTX(req *http.Request, rw http.ResponseWriter, clientID, userAction string) (*DfnsInternalError, error) {
+	ctx := context.WithValue(req.Context(), AuthHeaderCtxValue, req.Header.Get("Authorization"))
+	ctx = context.WithValue(ctx, AppIDCtxValue, clientID)
+	ctx = context.WithValue(ctx, UserActionCtxValue, userAction)
+	walletID := strings.ReplaceAll(strings.ReplaceAll(req.URL.Path, "/wallets/", ""), "/transactions", "")
+	wallet, err := c.GetWallet(req.Context(), walletID)
+	if err != nil {
+		log.Error(errors.Wrapf(err, "failed to get wallet with id %v", walletID))
+		return &DfnsInternalError{HTTPStatus: http.StatusInternalServerError, Message: "wallet not found"}, errors.Wrapf(err, "failed to get wallet with id %v", walletID)
+	}
+	_, walletNetwork, pubkey := ExtractWallet(*wallet)
+	broadcastFn, needBroadcast := manualBroadcastNetworks[strings.ToLower(walletNetwork)]
+	if !needBroadcast {
+		return nil, nil // Continue to normal proxy.
+	}
+	var transactionBody string
+	_, err = extendRequestWith[struct {
+		Transaction string `json:"transaction"`
+	}](req, func(content *struct {
+		Transaction string `json:"transaction"`
+	}) error {
+		transactionBody = content.Transaction
+		return errNoSerialize
+	})
+	if err != nil && !errors.Is(err, errNoSerialize) {
+		return &DfnsInternalError{HTTPStatus: http.StatusInternalServerError, Message: err.Error()}, err
+	}
+	resp, err := broadcastFn(ctx, c, walletID, pubkey, transactionBody)
+	if err != nil {
+		return &DfnsInternalError{HTTPStatus: http.StatusInternalServerError, Message: err.Error()}, errors.Wrapf(err, "failed to broadcast transaction")
+	}
+	data, err := json.Marshal(resp)
+	if err != nil {
+		return &DfnsInternalError{HTTPStatus: http.StatusInternalServerError, Message: err.Error()}, errors.Wrapf(err, "failed to serialize transaction response")
+	}
+	rw.WriteHeader(http.StatusOK)
+	rw.Write(data)
+	return nil, nil
+}
+
 func (c *dfnsClient) updateRegisterReqBodyWithWallets(req *http.Request) (resp *DfnsInternalError, err error) {
 	return extendRequestWith[struct {
 		FirstFactorCredential  map[string]any `json:"firstFactorCredential"`
@@ -515,6 +604,10 @@ func (c *dfnsClient) doClientCall(ctx context.Context, httpClient *http.Client, 
 	if method != "GET" {
 		headers.Set("Content-Type", "application/json")
 	}
+	client := *httpClient
+	if relativeUrl == initUserSignatureUrl || headers.Get(userActionDfnsHeader) != "" {
+		client.Transport = http.DefaultTransport
+	}
 	fullUrl, err := url.JoinPath(c.cfg.DFNS.BaseURL, relativeUrl)
 	if err != nil {
 		return 0, nil, errors.Wrapf(err, "failed to build url from %v %v", c.cfg.DFNS.BaseURL, relativeUrl)
@@ -528,7 +621,7 @@ func (c *dfnsClient) doClientCall(ctx context.Context, httpClient *http.Client, 
 		req.URL.RawQuery = string(jsonData)
 		req.Body = nil
 	}
-	response, err := httpClient.Do(req)
+	response, err := client.Do(req)
 	if err != nil {
 		if dfnsErr := ParseErrAsDfnsInternalErr(err); dfnsErr != nil {
 			var delegatedParsedErr *DfnsInternalError
@@ -575,12 +668,12 @@ func dfnsCall[REQ any, RESP any](ctx context.Context, c *dfnsClient, params *REQ
 		var err error
 		postData, err = json.MarshalContext(ctx, params)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to serialize %#v to json")
+			return nil, errors.Wrapf(err, "failed to serialize %#v to json", params)
 		}
 	} else if params != nil && method == "GET" {
 		s, err := form.EncodeToString(params)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to serialize %#v to formdata")
+			return nil, errors.Wrapf(err, "failed to serialize %#v to formdata", params)
 		}
 		postData = []byte(s)
 	}
@@ -596,13 +689,16 @@ func dfnsCall[REQ any, RESP any](ctx context.Context, c *dfnsClient, params *REQ
 	}
 	var resp RESP
 	if err = json.UnmarshalContext(ctx, body, &resp); err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal response %v for call %v %v", string(body))
+		return nil, errors.Wrapf(err, "failed to unmarshal response %v for call %v %v", string(body), method, uri)
 	}
 	return &resp, nil
 }
 
 func dfnsAuthHeader(ctx context.Context) string {
 	return ctx.Value(AuthHeaderCtxValue).(string)
+}
+func dfnsUserActionHeader(ctx context.Context) string {
+	return ctx.Value(UserActionCtxValue).(string)
 }
 func appID(ctx context.Context) string {
 	return ctx.Value(AppIDCtxValue).(string)
@@ -639,6 +735,7 @@ func (cfg *config) loadCfg(applicationYamlKey string) {
 	appcfg.MustLoadFromKey(applicationYamlKey, &yamlCfg)
 	cfg.mustLoadField(&cfg.DFNS.BaseURL, "DFNS_BASE_URL", yamlCfg.DFNS.BaseURL)
 	cfg.mustLoadField(&cfg.DFNS.AppID, "DFNS_APP_ID", yamlCfg.DFNS.AppID)
+	cfg.mustLoadField(&cfg.DFNS.WebFEAppID, "DFNS_WEB_FE_APP_ID", yamlCfg.DFNS.WebFEAppID)
 	cfg.mustLoadField(&cfg.DFNS.ServiceKey, "DFNS_SERVICE_KEY", yamlCfg.DFNS.ServiceKey)
 	cfg.mustLoadField(&cfg.DFNS.ServiceAccountCredentialID, "DFNS_SERVICE_ACCOUNT_CREDENTIAL_ID", yamlCfg.DFNS.ServiceAccountCredentialID)
 	cfg.mustLoadField(&cfg.DFNS.OrganizationID, "DFNS_ORGANIZATION_ID", yamlCfg.DFNS.OrganizationID)
@@ -649,11 +746,11 @@ func (cfg *config) loadCfg(applicationYamlKey string) {
 			cfg.DFNS.ServiceAccountPrivateKey = os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY")
 			if cfg.DFNS.ServiceAccountPrivateKey == "" {
 				pkFile, pkErr := os.Open(os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY_FILE"))
-				log.Panic(errors.Wrapf(pkErr, "failed to read dfns private key from file %v"), os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY_FILE"))
+				log.Panic(errors.Wrapf(pkErr, "failed to read dfns private key from file %v", os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY_FILE")))
 				defer pkFile.Close()
 				var pk []byte
 				pk, pkErr = io.ReadAll(pkFile)
-				log.Panic(errors.Wrapf(pkErr, "failed to read dfns private key from file %v"), os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY_FILE"))
+				log.Panic(errors.Wrapf(pkErr, "failed to read dfns private key from file %v", os.Getenv("DFNS_SERVICE_ACCOUNT_PRIVATE_KEY_FILE")))
 				cfg.DFNS.ServiceAccountPrivateKey = string(pk)
 				if cfg.DFNS.ServiceAccountPrivateKey == "" {
 					log.Panic(errors.Errorf("dfns service account private key not set"))
@@ -666,6 +763,9 @@ func (cfg *config) loadCfg(applicationYamlKey string) {
 	cfg.DFNS.RefreshAuth.Issuer = yamlCfg.DFNS.RefreshAuth.Issuer
 	cfg.DFNS.RefreshAuth.Secret = yamlCfg.DFNS.RefreshAuth.Secret
 	cfg.DFNS.RefreshAuth.ExpirationTime = yamlCfg.DFNS.RefreshAuth.ExpirationTime
+	cfg.DFNS.TON.GlobalConfigURL = yamlCfg.DFNS.TON.GlobalConfigURL
+	cfg.DFNS.ION.GlobalConfigURL = yamlCfg.DFNS.ION.GlobalConfigURL
+	cfg.DFNS.TestNet = yamlCfg.DFNS.TestNet
 }
 
 func (*config) mustLoadField(field *string, env, yamlVal string) {
