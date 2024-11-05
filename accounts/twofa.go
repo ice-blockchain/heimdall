@@ -25,7 +25,6 @@ import (
 
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
-	"github.com/ice-blockchain/wintr/terror"
 	"github.com/ice-blockchain/wintr/time"
 )
 
@@ -649,9 +648,7 @@ func (a *accounts) checkIfEnough2FAProvided(usr *user, codes map[TwoFAOptionWith
 		if len(enabledOptions) <= a.cfg.Max2FACount && presentedOptionsCount >= len(enabledOptions) {
 			return nil
 		}
-		err = terror.New(Err2FARequired, map[string]any{
-			"n": a.cfg.Max2FACount,
-		})
+		err = Err2FARequired
 	}
 
 	return err
