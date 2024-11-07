@@ -98,7 +98,7 @@ const (
 	AuthorizationHeaderCtxValue  = dfns.AuthHeaderCtxValue
 	AppIDHeaderCtxValue          = dfns.AppIDCtxValue
 	UserActionCtxValue           = dfns.UserActionCtxValue
-	LoggedInUserIDCtxValue       = "LoggedInUserIDCtxValue"
+	UserSignatureCtxValueKey     = "UserSignatureCtxValueKey"
 	registrationUrl              = "/auth/registration/delegated"
 	completeRegistrationUrl      = "/auth/registration/enduser"
 	completeLoginUrl             = "/auth/login"
@@ -129,10 +129,9 @@ var (
 )
 
 const (
-	applicationYamlKey       = "accounts"
-	clientIPCtxValueKey      = "clientIPCtxValueKey"
-	userSignatureCtxValueKey = "userSignatureCtxValueKey"
-	confirmationCodeLength   = 6
+	applicationYamlKey     = "accounts"
+	clientIPCtxValueKey    = "clientIPCtxValueKey"
+	confirmationCodeLength = 6
 )
 
 var (

@@ -406,9 +406,8 @@ paths:
         description: Auth header
         in: header
         name: Authorization
-        required: true
         type: string
-      - description: ID of the user
+      - description: ID of the user or username in case of sending codes for recovery
         in: path
         name: userId
         required: true

@@ -77,6 +77,7 @@ type (
 		TwoFAOption            TwoFAOptionEnum                `uri:"twoFAOption" required:"true" swaggerignore:"true"`
 		Language               string                         `header:"X-Language" swaggerignore:"true"`
 		UserSignature          string                         `header:"X-Useraction" swaggerignore:"true"`
+		Authorization          string                         `header:"Authorization" swaggerignore:"true" allowUnauthorized:"true"`
 	}
 	Delete2FAReq struct {
 		UserSignature                string          `header:"X-Useraction" swaggerignore:"true"`
@@ -108,7 +109,6 @@ type (
 const (
 	applicationYamlKey         = "cmd/heimdall-identity-io"
 	proxyTimeout               = 30 * time.Second
-	userSignatureCtxValueKey   = "userSignatureCtxValueKey"
 	invalidPropertiesErrorCode = "INVALID_PROPERTIES"
 	authenticatorReqNotMet     = "AUTHENTICATOR_REQ_NOT_MET"
 	twoFANoPendingCode         = "NO_PENDING_2FA"

@@ -27,8 +27,8 @@ func (s *service) setup2FARoutes(router gin.IRoutes) {
 //	@Produce		json
 //	@Param			X-Language		header		string				false	"Language"	default(en)
 //	@Param			X-Useraction	header		string				false	"User signature by master key"
-//	@Param			Authorization	header		string				true	"Auth header"	default(Bearer <token>)
-//	@Param			userId			path		string				true	"ID of the user"
+//	@Param			Authorization	header		string				false	"Auth header"	default(Bearer <token>)
+//	@Param			userId			path		string				true	"ID of the user or username in case of sending codes for recovery"
 //	@Param			twoFAOption		path		string				true	"type of 2fa (sms/email/totp_authenticator)"
 //	@Param			request			body		Send2FARequestReq	true	"Request params containing email or phone number to set up 2FA"
 //	@Success		200				{object}	Send2FARequestResp
@@ -49,13 +49,17 @@ func (s *service) Send2FARequest(
 		return nil, server.UnprocessableEntity(err, invalidPropertiesErrorCode)
 	}
 	var authenticatorUri *string
-	authenticatorUri, err = s.accounts.Send2FA(withSignature(ctx, req.Data.UserSignature), req.Data.UserID, req.Data.TwoFAOption, channel, req.Data.Language, req.Data.TwoFAVerificationCodes)
+	ctx = withSignature(ctx, req.Data.UserSignature)
+	ctx = withAuth(ctx, req.Data.Authorization)
+	authenticatorUri, err = s.accounts.Send2FA(ctx, req.Data.UserID, req.Data.TwoFAOption, channel, req.Data.Language, req.Data.TwoFAVerificationCodes)
 	if err != nil {
 		switch {
 		case errors.Is(err, accounts.Err2FARequired):
 			return nil, server.ForbiddenWithCode(err, twoFARequired)
 		case errors.Is(err, accounts.ErrInvalidUserSignature):
 			return nil, server.ForbiddenWithCode(err, invalidUserSignature)
+		case errors.Is(err, server.ErrInvalidToken):
+			return nil, server.Unauthorized(err)
 		case errors.Is(err, accounts.Err2FADeliverToNotProvided):
 			return nil, server.BadRequest(err, invalidPropertiesErrorCode)
 		case errors.Is(err, accounts.Err2FAExpired):
@@ -197,5 +201,5 @@ func (s *service) Verify2FARequest(
 }
 
 func withSignature(ctx context.Context, signature string) context.Context {
-	return context.WithValue(ctx, userSignatureCtxValueKey, signature)
+	return context.WithValue(ctx, accounts.UserSignatureCtxValueKey, signature)
 }

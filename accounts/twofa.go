@@ -23,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
+	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/time"
@@ -413,17 +414,28 @@ func (a *accounts) get2FACodes(ctx context.Context, usr *user, inputCodes map[Tw
 	return codes, nil
 }
 
-func (a *accounts) Send2FA(ctx context.Context, userID string, opt TwoFAOptionEnum, optDeliverTo *string, language string, existing2FAVerificationForModify map[TwoFAOptionWithAddr]string) (*string, error) {
+func (a *accounts) Send2FA(ctx context.Context, userIDOrUsername string, opt TwoFAOptionEnum, optDeliverTo *string, language string, existing2FAVerificationForModify map[TwoFAOptionWithAddr]string) (*string, error) {
 	now := time.Now()
 	var codesForRollback map[TwoFAOptionWithAddr]string
-	usr, err := a.getUserByID(ctx, userID)
+	var usr *user
+	var err error
+	if userSignature(ctx) == "" && authHeader(ctx) == "" {
+		username := strings.ToLower(userIDOrUsername)
+		usr, err = a.getUserByUsername(ctx, username)
+	} else {
+		usr, err = a.getUserByID(ctx, userIDOrUsername)
+	}
+
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to check existing user phone and email for userID %v", userID)
+		return nil, errors.Wrapf(err, "failed to check existing user phone and email for user %v", userIDOrUsername)
 	}
 	deliverTo, err := a.checkDeliveryChannelFor2FA(ctx, usr, opt, optDeliverTo)
 	if err != nil {
 		if !(errors.Is(err, Err2FARequired) || errors.Is(err, errSignatureRequired)) {
 			return nil, errors.Wrapf(err, "failed to detect where to deviver 2fa")
+		}
+		if server.LoggedInUser(ctx) == nil {
+			return nil, server.ErrInvalidToken
 		}
 		if sErr := a.verifyUserSignature(userSignature(ctx), now, usr); sErr != nil {
 			return nil, errors.Wrapf(sErr, "invalid user signature on putting new 2fa")
@@ -432,29 +444,29 @@ func (a *accounts) Send2FA(ctx context.Context, userID string, opt TwoFAOptionEn
 			if err = a.checkIfEnough2FAProvided(usr, existing2FAVerificationForModify); err != nil {
 				return nil, err //nolint:wrapcheck // tErr.
 			}
-			codesForRollback, err = a.verifyAndRedeem2FA(ctx, userID, existing2FAVerificationForModify)
+			codesForRollback, err = a.verifyAndRedeem2FA(ctx, usr.ID, existing2FAVerificationForModify)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to verify existing 2fa for user %v", userID)
+				return nil, errors.Wrapf(err, "failed to verify existing 2fa for user %v", usr.ID)
 			}
 		}
 	}
 	var code string
 	if opt == TwoFAOptionTOTPAuthenticator {
-		code = a.generateAuthentifcatorSecret(opt, userID)
+		code = a.generateAuthentifcatorSecret(opt, usr.ID)
 	} else {
-		code = a.generateConfirmationCode(opt, userID)
+		code = a.generateConfirmationCode(opt, usr.ID)
 	}
-	defer a.concurrentlyGeneratedCodes[opt].Delete(userID)
+	defer a.concurrentlyGeneratedCodes[opt].Delete(usr.ID)
 	if uErr := a.upsert2FACode(ctx, &twoFACode{
 		CreatedAt: now,
-		UserID:    userID,
+		UserID:    usr.ID,
 		Option:    opt,
 		DeliverTo: deliverTo,
 		Code:      code,
 	}); uErr != nil {
 		return nil, multierror.Append(
-			errors.Wrapf(uErr, "failed to upsert code for userID %v", userID),
-			errors.Wrapf(a.rollbackRedeemed2FACodes(userID, codesForRollback), "[rollback] failed to rollback 2fa codes to approve modification for user %v", userID),
+			errors.Wrapf(uErr, "failed to upsert code for userID %v", usr.ID),
+			errors.Wrapf(a.rollbackRedeemed2FACodes(usr.ID, codesForRollback), "[rollback] failed to rollback 2fa codes to approve modification for user %v", usr.ID),
 		).ErrorOrNil()
 
 	}
@@ -462,8 +474,8 @@ func (a *accounts) Send2FA(ctx context.Context, userID string, opt TwoFAOptionEn
 	authenticatorUri, dErr := a.deliverCode(ctx, opt, code, language, deliverTo)
 	if dErr != nil {
 		return nil, multierror.Append(
-			errors.Wrapf(dErr, "failed to deliver 2fa code to user %v with %v:%v", userID, opt, deliverTo),
-			errors.Wrapf(a.rollbackRedeemed2FACodes(userID, codesForRollback), "[rollback] failed to rollback 2fa codes to approve modification for user %v", userID),
+			errors.Wrapf(dErr, "failed to deliver 2fa code to user %v with %v:%v", usr.ID, opt, deliverTo),
+			errors.Wrapf(a.rollbackRedeemed2FACodes(usr.ID, codesForRollback), "[rollback] failed to rollback 2fa codes to approve modification for user %v", usr.ID),
 		).ErrorOrNil()
 	}
 	return authenticatorUri, nil
@@ -668,7 +680,14 @@ func (a *accounts) canRemoveEmailOrPhoneDueToauthenticatorSetup(channel TwoFAOpt
 }
 
 func userSignature(ctx context.Context) string {
-	val := ctx.Value(userSignatureCtxValueKey)
+	val := ctx.Value(UserSignatureCtxValueKey)
+	if val == nil {
+		return ""
+	}
+	return val.(string)
+}
+func authHeader(ctx context.Context) string {
+	val := ctx.Value(AuthorizationHeaderCtxValue)
 	if val == nil {
 		return ""
 	}

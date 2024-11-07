@@ -15,7 +15,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-	"github.com/goccy/go-reflect"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
@@ -52,7 +51,8 @@ func RootHandler[REQ, RESP any, ERR InternalErr[ERRSTR], ERRSTR any](handleReque
 
 			return
 		}
-		reqCtx := context.WithValue(ctx, clientIPCtxValueKey, ginCtx.ClientIP()) //nolint:staticcheck,revive // .
+		reqCtx := context.WithValue(ctx, requestingUserCtxValueKey, req.AuthenticatedUser) //nolint:staticcheck,revive // .
+		reqCtx = context.WithValue(reqCtx, clientIPCtxValueKey, ginCtx.ClientIP())         //nolint:staticcheck,revive // .
 		success, failure := handleRequest(reqCtx, req)
 		if failure != nil {
 			log.Error(errors.Wrap((failure.Data).InternalErr(), "endpoint failed"), fmt.Sprintf("%[1]T", req.Data), req, "Response", failure)
