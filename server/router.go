@@ -11,11 +11,11 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"reflect"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
+	"github.com/goccy/go-reflect"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
