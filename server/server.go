@@ -161,3 +161,11 @@ func (s *srv) shutDown() {
 func Auth(ctx context.Context) AuthClient {
 	return ctx.Value(authClientCtxValueKey).(AuthClient)
 }
+func LoggedInUser(ctx context.Context) Token {
+	val := ctx.Value(requestingUserCtxValueKey)
+	if val == nil {
+		return nil
+	}
+
+	return val.(Token)
+}

@@ -269,12 +269,11 @@ const docTemplate = `{
                         "default": "Bearer \u003ctoken\u003e",
                         "description": "Auth header",
                         "name": "Authorization",
-                        "in": "header",
-                        "required": true
+                        "in": "header"
                     },
                     {
                         "type": "string",
-                        "description": "ID of the user",
+                        "description": "ID of the user or username in case of sending codes for recovery",
                         "name": "userId",
                         "in": "path",
                         "required": true

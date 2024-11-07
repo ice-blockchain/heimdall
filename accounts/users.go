@@ -133,7 +133,7 @@ func (a *accounts) GetUser(ctx context.Context, userIDOrMasterKey string) (*User
 		return nil, errors.Wrapf(err, "failed to read extra information about user %v", userIDOrMasterKey)
 	}
 	var usr = &User{}
-	if dbUsr != nil && dbUsr.ID == loggedInUser(ctx) {
+	if dbUsr != nil && server.LoggedInUser(ctx) != nil && dbUsr.ID == server.LoggedInUser(ctx).UserID() {
 		delegatedUsr, err := a.delegatedRPClient.GetUser(ctx, dbUsr.ID)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get user from delegated party for ID %v", userIDOrMasterKey)
@@ -147,7 +147,7 @@ func (a *accounts) GetUser(ctx context.Context, userIDOrMasterKey string) (*User
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to fetch indexers for userID %v", userIDOrMasterKey)
 		}
-		if dbUsr.ID == loggedInUser(ctx) {
+		if server.LoggedInUser(ctx) != nil && dbUsr.ID == server.LoggedInUser(ctx).UserID() {
 			twoFAOptions := make([]TwoFAOptionEnum, 0, len(AllTwoFAOptions))
 			if len(dbUsr.Email) > 0 {
 				if dbUsr.Active2FAEmail != nil && slices.Contains(dbUsr.Active2FAEmail, true) {
@@ -290,12 +290,4 @@ func isEmptyValue(value reflect.Value) bool {
 	default:
 		return value.IsZero()
 	}
-}
-
-func loggedInUser(ctx context.Context) string {
-	val := ctx.Value(LoggedInUserIDCtxValue)
-	if val == nil {
-		return ""
-	}
-	return val.(string)
 }

@@ -98,8 +98,8 @@ const (
 )
 
 const (
-	requestingUserIDCtxValueKey = "requestingUserIDCtxValueKey"
-	clientIPCtxValueKey         = "clientIPCtxValueKey"
+	requestingUserCtxValueKey = "requestingUserCtxValueKey"
+	clientIPCtxValueKey       = "clientIPCtxValueKey"
 
 	authClientCtxValueKey = "authClientCtxValueKey"
 )

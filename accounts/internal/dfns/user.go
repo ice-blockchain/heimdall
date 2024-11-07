@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/goccy/go-json"
 	"github.com/pkg/errors"
@@ -20,7 +21,7 @@ func ExtractUser(res map[string]any, usernameField string) (userID, username str
 		return "", ""
 	}
 	userID = usr["id"].(string)
-	username = usr[usernameField].(string)
+	username = strings.ToLower(usr[usernameField].(string))
 	return
 }
 

@@ -93,7 +93,6 @@ func (s *service) GetUser(
 ) (successResp *server.Response[User], errorResp *server.ErrResponse[*delegatedErrorResponse]) {
 	ctx = context.WithValue(ctx, accounts.AuthorizationHeaderCtxValue, req.Data.Authorization)
 	ctx = context.WithValue(ctx, accounts.AppIDHeaderCtxValue, req.Data.ClientID)
-	ctx = context.WithValue(ctx, accounts.LoggedInUserIDCtxValue, req.AuthenticatedUser.UserID())
 
 	usr, err := s.accounts.GetUser(ctx, req.Data.UserIDOrMasterKey)
 	if err != nil {
