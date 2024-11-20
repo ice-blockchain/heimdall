@@ -33,7 +33,7 @@ type (
 		GetOrAssignIONConnectRelays(ctx context.Context, userID string, followees []string) (relays []string, err error)
 		GetIONConnectIndexerRelays(ctx context.Context, userID string) (indexers []string, err error)
 		GetUser(ctx context.Context, userID string) (usr *User, err error)
-		SecurePaymentConfirmation(ctx context.Context, userID, walletID string, body map[string]any) (templateData any, err error)
+		SecurePaymentConfirmation(ctx context.Context, userID, walletID string, body map[string]string) (templateData any, err error)
 		HealthCheck(ctx context.Context) error
 	}
 	Wallets interface {

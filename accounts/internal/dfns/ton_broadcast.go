@@ -39,6 +39,7 @@ func parseTONTransaction(encodedTx []byte, parsedPayment *transferTransaction, n
 			*parsedPayment = transferTransaction{
 				ReceiverAddress: (*txV5.Actions)[0].Msg.DestAddr().Bounce(false).String(),
 				Amount:          (*txV5.Actions)[0].Msg.Amount.String(),
+				Token:           network.NativeToken,
 				Network:         network,
 			}
 		}
@@ -48,6 +49,7 @@ func parseTONTransaction(encodedTx []byte, parsedPayment *transferTransaction, n
 		*parsedPayment = transferTransaction{
 			ReceiverAddress: tx.InternalMessage.DestAddr().Bounce(false).String(),
 			Amount:          tx.InternalMessage.Amount.String(),
+			Token:           network.NativeToken,
 			Network:         network,
 		}
 	}

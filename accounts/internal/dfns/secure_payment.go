@@ -20,7 +20,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (c *dfnsClient) requestUserActionChallenge(ctx context.Context, url string, method string, payload map[string]any) (*signatureChallenge, error) {
+func (c *dfnsClient) requestUserActionChallenge(ctx context.Context, url string, method string, payload map[string]string) (*signatureChallenge, error) {
 	header := http.Header{}
 	header.Set(appIDHeader, appID(ctx))
 	header.Set(authDfnsHeader, dfnsAuthHeader(ctx))
@@ -43,7 +43,7 @@ func (c *dfnsClient) requestUserActionChallenge(ctx context.Context, url string,
 	return resp, errors.Wrapf(err, "failed to get user action challenge")
 }
 
-func (c *dfnsClient) SecurePaymentConfirmation(ctx context.Context, userID, network string, wallet Wallet, body map[string]any) (any, error) {
+func (c *dfnsClient) SecurePaymentConfirmation(ctx context.Context, userID, network string, wallet Wallet, body map[string]string) (any, error) {
 	walletId := wallet["id"].(string)
 	transaction, err := c.extractTransaction(network, wallet["address"].(string), body)
 	if err != nil {
@@ -81,7 +81,7 @@ func (c *dfnsClient) SecurePaymentConfirmation(ctx context.Context, userID, netw
 	}, nil
 }
 
-func (c *dfnsClient) extractTransaction(network, walletName string, broadcastBody map[string]any) (*transferTransaction, error) {
+func (c *dfnsClient) extractTransaction(network, walletName string, broadcastBody map[string]string) (*transferTransaction, error) {
 	network = strings.ToLower(network)
 	networkData, err := c.detectNetwork(network)
 	if err != nil {
@@ -91,9 +91,9 @@ func (c *dfnsClient) extractTransaction(network, walletName string, broadcastBod
 	to, hasTo := broadcastBody["to"]
 	if hasValue && hasTo { // Evm has them.
 		return &transferTransaction{
-			ReceiverAddress: to.(string),
+			ReceiverAddress: to,
 			Sender:          walletName,
-			Amount:          value.(string),
+			Amount:          value,
 			Network:         networkData,
 		}, nil
 	}
@@ -103,12 +103,12 @@ func (c *dfnsClient) extractTransaction(network, walletName string, broadcastBod
 		if !hasPbst {
 			return nil, errors.New("missing transaction details in body")
 		}
-		encodedTx = psbt.(string)
+		encodedTx = psbt
 	}
-	if strings.HasPrefix(encodedTx.(string), "0x") {
-		encodedTx = strings.TrimPrefix(encodedTx.(string), "0x")
+	if strings.HasPrefix(encodedTx, "0x") {
+		encodedTx = strings.TrimPrefix(encodedTx, "0x")
 	}
-	encodedTxBytes, err := hex.DecodeString(encodedTx.(string))
+	encodedTxBytes, err := hex.DecodeString(encodedTx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to decode transaction")
 	}
@@ -294,5 +294,5 @@ func (n *network) formatDecimals(transaction *transferTransaction) string {
 	if err != nil {
 		return transaction.Amount
 	}
-	return new(big.Float).Quo(f, big.NewFloat(math.Pow10(n.decimals))).String()
+	return new(big.Float).Quo(f, big.NewFloat(math.Pow10(n.decimals))).Text('f', transaction.Network.decimals)
 }

@@ -37,7 +37,7 @@ type (
 		ListWallets(ctx context.Context, userID string) ([]Wallet, error)
 		GetWallet(ctx context.Context, userID string) (*Wallet, error)
 		ListAssets(ctx context.Context, walletID string) (*Assets, error)
-		SecurePaymentConfirmation(ctx context.Context, userID, network string, wallet Wallet, body map[string]any) (tmplData any, err error)
+		SecurePaymentConfirmation(ctx context.Context, userID, network string, wallet Wallet, body map[string]string) (tmplData any, err error)
 	}
 	RefreshAuth interface {
 		AuthClient
