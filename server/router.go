@@ -196,8 +196,14 @@ func tryToExtractUserFromDynamicJSON(req *http.Request) (userID string, username
 	return userID, username, nil
 }
 
-//nolint:gocyclo,revive,cyclop,gocognit // .
 func Authorize(ctx context.Context, ginCtx *gin.Context, allowUnauthorized bool) (authUser Token, errResp *ErrResponse[*ErrorResponse]) {
+	return AuthorizeWithCustomAuthStore(ctx, ginCtx, allowUnauthorized, func(ginCtx *gin.Context) string {
+		return strings.TrimPrefix(ginCtx.GetHeader("Authorization"), "Bearer ")
+	})
+}
+
+//nolint:gocyclo,revive,cyclop,gocognit // .
+func AuthorizeWithCustomAuthStore(ctx context.Context, ginCtx *gin.Context, allowUnauthorized bool, getAuth func(ginCtx *gin.Context) string) (authUser Token, errResp *ErrResponse[*ErrorResponse]) {
 	userID := strings.Trim(ginCtx.GetString("userId"), " ")
 	if userID == "" {
 		userID = strings.Trim(ginCtx.Param("userId"), " ")
@@ -215,7 +221,7 @@ func Authorize(ctx context.Context, ginCtx *gin.Context, allowUnauthorized bool)
 		}()
 	}
 
-	authToken := strings.TrimPrefix(ginCtx.GetHeader("Authorization"), "Bearer ")
+	authToken := getAuth(ginCtx)
 	token, err := Auth(ctx).VerifyToken(ctx, authToken)
 	if err != nil {
 		if errors.Is(err, auth.ErrForbidden) {

@@ -86,7 +86,7 @@
 
             try {
                 const canMakePayment = await request.canMakePayment();
-                if !canMakePayment {
+                if (!canMakePayment) {
                     initSimpleWebAuthn()
                 }
             } catch (err) {

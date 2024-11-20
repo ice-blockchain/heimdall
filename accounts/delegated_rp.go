@@ -44,7 +44,7 @@ func (a *accounts) StartDelegatedRecovery(ctx context.Context, username, credent
 	return delegatedResp, nil
 }
 
-func (a *accounts) SecurePaymentConfirmation(ctx context.Context, userID, walletId string, body map[string]any) (tmplData any, err error) {
+func (a *accounts) SecurePaymentConfirmation(ctx context.Context, userID, walletId string, body map[string]string) (tmplData any, err error) {
 	wallet, err := a.delegatedRPClient.GetWallet(ctx, walletId)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get wallet %v, cannot init payment confirmation", walletId)
