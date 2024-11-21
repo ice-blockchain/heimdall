@@ -56,6 +56,22 @@
                     timeout: 60000,
                 },
             })
+            fetchUserActionAndPassToApp({
+                "challengeIdentifier": challenge.challengeIdentifier,
+                "firstFactor": {
+                    "kind": "Fido2",
+                    "credentialAssertion": {
+                        credId: response.id,
+                        clientData: toBase64Url(response.response.clientDataJSON),
+                        authenticatorData: toBase64Url(response.response.authenticatorData),
+                        signature: toBase64Url(response.response.signature),
+                        userHandle: response.response.userHandle ? toBase64Url(response.response.userHandle) : undefined,
+                    }
+                }
+            })
+
+        }
+        async function fetchUserActionAndPassToApp(body) {
             const initRes = await fetch(`{{.Origin}}/auth/action`, {
                 method: 'POST',
                 headers: {
@@ -63,21 +79,27 @@
                     'Authorization': '{{.Token}}',
                     'X-Client-id': '{{.AppID}}',
                 },
-                body: JSON.stringify({
-                    "challengeIdentifier": challenge.challengeIdentifier,
-                    "firstFactor": {
-                        "kind": "Fido2",
-                        "credentialAssertion": {
-                            credId: response.id,
-                            clientData: toBase64Url(response.response.clientDataJSON),
-                            authenticatorData: toBase64Url(response.response.authenticatorData),
-                            signature: toBase64Url(response.response.signature),
-                            userHandle: response.response.userHandle ? toBase64Url(response.response.userHandle) : undefined,
-                        }
-                    }
-                }),
+                body: JSON.stringify(body),
             })
+            userActionToken = initRes.json().then((data) => {
+                if (!data['userAction']) {
+                    error(JSON.stringify(data))
+                    return
+                }
+                const params = new URL(document.location.toString()).searchParams
+                const callbackUrl = getParamByName(params, 'callbackUrl');
+                if (callbackUrl) {
+                    window.location.href = callbackUrl+"?"+(new URLSearchParams({"userAction":data['userAction']}).toString())
+                }
+            })
+        }
 
+        function getParamByName (params, name) {
+            const param = params.get(name);
+            if (param != null && param != 'undefined' && param != 'null' && param != '') {
+                return decodeURIComponent(param);
+            }
+            return null;
         }
 
         async function initPayment() {
@@ -95,26 +117,18 @@
 
             const instrumentResponse = await request.show();
             await instrumentResponse.complete('success')
-            const initRes = await fetch(`{{.Origin}}/auth/action`, {
-                method: 'POST',
-                headers: {
-                    'content-type': 'application/json',
-                    'Authorization': '{{.Token}}',
-                    'X-Client-id': '{{.AppID}}',
-                },
-                body: JSON.stringify({
-                    "challengeIdentifier": challenge.challengeIdentifier,
-                    "firstFactor":{
-                        "kind":"Fido2",
-                        "credentialAssertion":{
-                            "credId":instrumentResponse.details.id,
-                            "clientData": toBase64Url(instrumentResponse.details.response.clientDataJSON),
-                            "authenticatorData": toBase64Url(instrumentResponse.details.response.authenticatorData),
-                            "signature": toBase64Url(instrumentResponse.details.response.signature),
-                            "userHandle": toBase64Url(instrumentResponse.details.response.userHandle)
-                        }
+            await fetchUserActionAndPassToApp({
+                "challengeIdentifier": challenge.challengeIdentifier,
+                "firstFactor":{
+                    "kind":"Fido2",
+                    "credentialAssertion":{
+                        "credId":instrumentResponse.details.id,
+                        "clientData": toBase64Url(instrumentResponse.details.response.clientDataJSON),
+                        "authenticatorData": toBase64Url(instrumentResponse.details.response.authenticatorData),
+                        "signature": toBase64Url(instrumentResponse.details.response.signature),
+                        "userHandle": toBase64Url(instrumentResponse.details.response.userHandle)
                     }
-                }),
+                }
             })
         }
         function error(msg) {  // eslint-disable-line no-unused-vars

@@ -22,7 +22,7 @@ import (
 
 func (c *dfnsClient) requestUserActionChallenge(ctx context.Context, url string, method string, payload map[string]string) (*signatureChallenge, error) {
 	header := http.Header{}
-	header.Set(appIDHeader, appID(ctx))
+	header.Set(appIDHeader, c.webFE.AppID)
 	header.Set(authDfnsHeader, dfnsAuthHeader(ctx))
 	header.Set(userActionDfnsHeader, "false")
 	signablePayload, err := json.Marshal(payload)
