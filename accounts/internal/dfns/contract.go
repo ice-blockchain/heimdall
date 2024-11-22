@@ -94,9 +94,11 @@ const (
 	defaultWalletNetwork = "Ton"
 	defaultWalletName    = "main"
 
-	networkTON = "ton"
-	networkION = "ion"
-	erc20ABI   = `[{"constant":true,"inputs":[{"name":"","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"from","type":"address"},{"indexed":true,"name":"to","type":"address"},{"indexed":false,"name":"value","type":"uint256"}],"name":"Transfer","type":"event"}]`
+	networkTON        = "ton"
+	networkTONTestnet = "tontestnet"
+	networkION        = "ion"
+	networkIONTestnet = "iontestnet"
+	erc20ABI          = `[{"constant":true,"inputs":[{"name":"","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"from","type":"address"},{"indexed":true,"name":"to","type":"address"},{"indexed":false,"name":"value","type":"uint256"}],"name":"Transfer","type":"event"}]`
 )
 
 var (
@@ -255,6 +257,12 @@ var (
 	manualBroadcastNetworks       = map[string]func(ctx context.Context, c *dfnsClient, walletID, walletPubKey, txPayload string) (*BroadcastTxResponse, error){
 		networkTON: func(ctx context.Context, c *dfnsClient, walletID, walletPubKey, txPayload string) (*BroadcastTxResponse, error) {
 			return c.broadcastTONTransaction(ctx, c.tonApi, networkTON, walletID, walletPubKey, txPayload)
+		},
+		networkTONTestnet: func(ctx context.Context, c *dfnsClient, walletID, walletPubKey, txPayload string) (*BroadcastTxResponse, error) {
+			return c.broadcastTONTransaction(ctx, c.tonApi, networkTON, walletID, walletPubKey, txPayload)
+		},
+		networkIONTestnet: func(ctx context.Context, c *dfnsClient, walletID, walletPubKey, txPayload string) (*BroadcastTxResponse, error) {
+			return c.broadcastTONTransaction(ctx, c.ionApi, networkION, walletID, walletPubKey, txPayload)
 		},
 		networkION: func(ctx context.Context, c *dfnsClient, walletID, walletPubKey, txPayload string) (*BroadcastTxResponse, error) {
 			return c.broadcastTONTransaction(ctx, c.ionApi, networkION, walletID, walletPubKey, txPayload)
