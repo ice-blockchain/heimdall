@@ -53,9 +53,10 @@ func (c *dfnsClient) SecurePaymentConfirmation(ctx context.Context, userID, netw
 	signedUrl := fmt.Sprintf("/wallets/%v/transactions", walletId)
 	if network == networkTON || network == networkION || network == networkTONTestnet || network == networkIONTestnet { // It does not support broadcasting, we issue signature instead and broadcast it from our BE.
 		signedUrl = fmt.Sprintf("/wallets/%v/signatures", walletId)
-		body["message"] = body["transaction"]
-		body["kind"] = "Message"
-		delete(body, "transaction")
+		body = map[string]string{
+			"message": body["transaction"],
+			"kind":    "Message",
+		}
 	}
 	ch, err := c.requestUserActionChallenge(ctx, signedUrl, "POST", body)
 	if err != nil {
