@@ -94,6 +94,7 @@ func (s *service) securePaymentConfirmation() func(*gin.Context) {
 		ctx = withAuth(ctx, fmt.Sprintf("Bearer %v", auth))
 		delete(body, "clientID")
 		delete(body, "authorization")
+		delete(body, "callbackUrl")
 		walletId := ginCtx.Param("walletId")
 		if walletId == "" {
 			ginCtx.JSON(http.StatusUnprocessableEntity, &delegatedErrorResponse{Error: errMessage{Message: invalidPropertiesErrorCode}})
