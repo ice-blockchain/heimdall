@@ -307,6 +307,8 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 		extendErrBody, extendErr = c.updateRegisterReqBodyWithWallets(req)
 	case req.URL.Path == delegatedLoginUrl:
 		extendErrBody, extendErr = c.exchangeRefreshTokenToUsername(req)
+	case req.URL.Path == initUserSignatureUrl:
+		extendErrBody, extendErr = c.issueUserActionForSignatureIfManualBroadcastNeeded(req)
 	case broadcastTransactionUrlRegexp.MatchString(req.URL.Path):
 		rb := &proxyResponseBody{ResponseWriter: rw, Body: respBody}
 		if extendErrBody, extendErr = c.checkIfNeedToBroadcastTX(req, rb, applicationID, userAction); extendErr == nil && extendErrBody == nil && respBody.Len() > 0 {
@@ -499,6 +501,55 @@ func (c *dfnsClient) exchangeRefreshTokenToUsername(req *http.Request) (*DfnsInt
 		content.RefreshToken = ""
 
 		return nil
+	})
+}
+func (c *dfnsClient) issueUserActionForSignatureIfManualBroadcastNeeded(req *http.Request) (*DfnsInternalError, error) {
+	return extendRequestWith[struct {
+		UserActionPayload    string `json:"userActionPayload,omitempty"`
+		UserActionHttpMethod string `json:"userActionHttpMethod"`
+		UserActionHttpPath   string `json:"userActionHttpPath"`
+		UserActionServerKind string `json:"userActionServerKind"`
+	}](req, func(content *struct {
+		UserActionPayload    string `json:"userActionPayload,omitempty"`
+		UserActionHttpMethod string `json:"userActionHttpMethod"`
+		UserActionHttpPath   string `json:"userActionHttpPath"`
+		UserActionServerKind string `json:"userActionServerKind"`
+	}) error {
+		if walletIDs := broadcastTransactionUrlRegexp.FindStringSubmatch(content.UserActionHttpPath); walletIDs == nil {
+			return nil
+		} else {
+			if len(walletIDs) < 2 {
+				return errors.Errorf("failed to get extract walletID from url %v %v", content.UserActionHttpPath, walletIDs)
+			}
+			walletID := walletIDs[1]
+			wallet, err := c.GetWallet(req.Context(), walletID)
+			if err != nil {
+				return errors.Wrapf(err, "failed to get wallet requesting to broadcast tx from %v", walletID)
+			}
+			_, walletNetwork, _ := ExtractWallet(*wallet)
+			walletNetwork = strings.ToLower(walletNetwork)
+			if walletNetwork == networkION || walletNetwork == networkIONTestnet || walletNetwork == networkTONTestnet || walletNetwork == networkTON {
+				content.UserActionHttpPath = walletSignatureUrl(walletID)
+				var txInput struct {
+					Transaction string `json:"transaction"`
+				}
+				if err = json.Unmarshal([]byte(content.UserActionPayload), &txInput); err != nil {
+					return errors.Wrapf(err, "invalid json payload %v", content.UserActionPayload)
+				}
+				var updatedPayload []byte
+				if updatedPayload, err = json.Marshal(struct {
+					Kind    string `json:"kind"`
+					Message string `json:"message"`
+				}{
+					Kind:    "Message",
+					Message: txInput.Transaction,
+				}); err != nil {
+					return errors.Wrapf(err, "failed to serialize updated payload %v", content.UserActionPayload)
+				}
+				content.UserActionPayload = string(updatedPayload)
+			}
+			return nil
+		}
 	})
 }
 
