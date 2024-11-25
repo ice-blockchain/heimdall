@@ -68,9 +68,13 @@ func (c *dfnsClient) issueUserSignatureForTransaction(ctx context.Context, walle
 	}, signatureResult](ctx, c, &struct {
 		Kind    string `json:"kind"`
 		Message string `json:"message"`
-	}{Kind: "Message", Message: txPayload}, "POST", fmt.Sprintf("/wallets/%v/signatures", walletID), header)
+	}{Kind: "Message", Message: txPayload}, "POST", walletSignatureUrl(walletID), header)
 
 	return resp, errors.Wrapf(err, "failed to issue tx signature for manual ton broadcasting")
+}
+
+func walletSignatureUrl(walletID string) string {
+	return fmt.Sprintf("/wallets/%v/signatures", walletID)
 }
 
 func mustInitTONClient(ctx context.Context, configUrl string) ton.APIClientWrapped {

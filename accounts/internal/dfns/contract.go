@@ -89,7 +89,7 @@ const (
 	delegatedLoginUrl                = "/auth/login/delegated" // Refresh token actually.
 	initUserSignatureUrl             = "/auth/action/init"
 	completeUserSignatureUrl         = "/auth/action"
-	broadcastTransactionUrl          = "/wallets/wa-[-A-z0-9]{28}/transactions"
+	broadcastTransactionUrl          = "/wallets/(wa-[^/]+)/transactions"
 
 	defaultWalletNetwork = "Ton"
 	defaultWalletName    = "main"
