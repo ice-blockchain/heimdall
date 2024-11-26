@@ -10,7 +10,6 @@ import (
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
-	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/totp"
@@ -20,18 +19,19 @@ func NewDelegatedRPAuth(ctx context.Context) dfns.AuthClient {
 	return dfns.NewDfnsTokenAuth(ctx, applicationYamlKey)
 }
 
-func New(ctx context.Context) Accounts {
+func New(ctx context.Context, coinsRepo Coins) Accounts {
 	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
-	cl := dfns.NewDfnsClient(ctx, db, applicationYamlKey)
+	cl := dfns.NewDfnsClient(ctx, db, applicationYamlKey, coinsRepo)
 
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	acc := accounts{
 		db:                         db,
+		coinsRepo:                  coinsRepo,
 		shutdown:                   db.Close,
 		totpProvider:               totp.New(applicationYamlKey),
 		emailSender:                email.New(applicationYamlKey),
-		smsSender:                  sms.New(applicationYamlKey),
+		smsSender:                  nil, //sms.New(applicationYamlKey),
 		cfg:                        &cfg,
 		concurrentlyGeneratedCodes: make(map[TwoFAOptionEnum]*sync.Map),
 	}

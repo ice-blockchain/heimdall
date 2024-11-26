@@ -51,19 +51,20 @@ CREATE TABLE IF NOT EXISTS global  (
 );
 
 DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'wallet_view_item') THEN
-        CREATE TYPE wallet_view_item AS (
-                                            coin            TEXT,
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'coin_mapping') THEN
+        CREATE TYPE coin_mapping AS (
+                                            coinId          TEXT,
                                             walletId        TEXT
                                         );
     END IF;
 END$$;
 
 CREATE TABLE IF NOT EXISTS wallet_views (
-    created_at  TIMESTAMP NOT NULL,
-    updated_at  TIMESTAMP NOT NULL,
-    name        TEXT NOT NULL,
-    user_id     TEXT NOT NULL REFERENCES users(id),
-    items       wallet_view_item[],
+    created_at    TIMESTAMP NOT NULL,
+    updated_at    TIMESTAMP NOT NULL,
+    name          TEXT NOT NULL,
+    user_id       TEXT NOT NULL REFERENCES users(id),
+    symbol_groups TEXT[],
+    coins         coin_mapping[],
     primary key (user_id, name)
 )

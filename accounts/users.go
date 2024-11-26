@@ -188,9 +188,9 @@ func (a *accounts) upsertWalletPubKeyFromRegistrationAndRegisterWalletView(ctx c
 	if err := a.upsertWalletPubKeyFromRegistration(ctx, now, res, walletPubKey); err != nil {
 		return errors.Wrapf(err, "failed to upsert users masterkey")
 	}
-	if _, err := a.CreateWalletView(ctx, userID, username, []*WalletViewItem{
-		{WalletID: &walletID, Coin: defaultWalletViewCoin},
-	}); err != nil {
+	if _, err := a.CreateWalletView(ctx, userID, username, []*CoinMapping{
+		{WalletID: &walletID, CoinID: defaultWalletViewCoinID},
+	}, []string{defaultWalletViewCoinSymbolGroup}); err != nil {
 		return errors.Wrapf(err, "failed to create default walletview for user %v", userID)
 	}
 

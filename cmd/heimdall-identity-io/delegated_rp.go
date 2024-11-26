@@ -55,6 +55,7 @@ func (s *service) setupDelegatedRPProxyRoutes(router *server.Router) {
 	router.NoMethod(s.proxyToDelegatedRP(true))
 	router.
 		POST("auth/recover/user/delegated", server.RootHandler(s.StartDelegatedRecovery)).
+		GET("wallets/:walletId/nfts", server.RootHandler(s.GetNFTs)).
 		POST("/auth/login/delegated", s.proxyToDelegatedRP(true)).
 		POST("/v1/webhooks/dfns/events", server.RootHandler(s.EventWebhookFromDelegatedRP)).
 		GET("/.well-known/apple-app-site-association", server.RootHandler(s.AppleAppSiteAssociation)).
@@ -189,6 +190,44 @@ func (s *service) StartDelegatedRecovery(
 		}
 	}
 	return server.OK[StartDelegatedRecoveryResp](resp), nil
+}
+
+// GetNFTs godoc
+//
+//	@Schemes
+//	@Description	Gets NFTs from the wallet
+//	@Tags			Wallets
+//	@Produce		json
+//	@Param			request		body		StartDelegatedRecoveryReq	true	"Request params"
+//	@Param			X-Client-ID	header		string						true	"App ID"	default(ap-)
+//	@Success		200			{object}	StartDelegatedRecoveryResp
+//	@Failure		400			{object}	server.ErrorResponse	"if invalid 2FA code is provided"
+//	@Failure		403			{object}	server.ErrorResponse	"if 2FA required"
+//	@Failure		500			{object}	server.ErrorResponse
+//	@Failure		504			{object}	server.ErrorResponse	"if request times out"
+//	@Router			/wallets/:walletId/nfts [GET].
+func (s *service) GetNFTs(
+	ctx context.Context,
+	req *server.Request[GetNFTsReq, GetNFTsResp],
+) (successResp *server.Response[GetNFTsResp], errorResp *server.ErrResponse[*delegatedErrorResponse]) {
+	nfts, network, err := s.accounts.GetNFTs(ctx, req.Data.WalletID)
+	if err != nil {
+		switch {
+		default:
+			if delegatedErr := accounts.ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
+				var delegatedParsedErr *accounts.DelegatedRelyingPartyErr
+				if errors.As(delegatedErr, &delegatedParsedErr) {
+					return nil, buildDelegatedErrorResponse(delegatedParsedErr.HTTPStatus, err, delegatedParsedErr.Message)
+				}
+			}
+			return nil, buildDelegatedErrorResponse(http.StatusInternalServerError, err, "")
+		}
+	}
+	return server.OK[GetNFTsResp](&GetNFTsResp{
+		WalletID: req.Data.WalletID,
+		Network:  network,
+		NFTs:     nfts,
+	}), nil
 }
 
 func withAppID(ctx context.Context, appID string) context.Context {

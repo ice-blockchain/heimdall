@@ -25,11 +25,19 @@ cmd/heimdall-identity-io:
     ]
   }
 }'
-  defaultEndpointTimeout: 30s
+  defaultEndpointTimeout: 60s
   httpServer:
     port: 8001
     certPath: cmd/heimdall-identity-io/.testdata/localhost.crt
     keyPath: cmd/heimdall-identity-io/.testdata/localhost.key
+
+cmd/heimdall-coin-data-syncer:
+  version: local
+  httpServer:
+    port: 8888
+    certPath: cmd/heimdall-identity-io/.testdata/localhost.crt
+    keyPath: cmd/heimdall-identity-io/.testdata/localhost.key
+
 accounts:
   delegated_relying_party:
     auth:
@@ -67,20 +75,8 @@ accounts:
   max2FACount: 2
   mockRelays:
     - wss://relay.nostr.band/
-    - wss://relay.nostr.band/
-  walletConfiguration:
-    version: 1
-    coins:
-      - coin: TON
-        network: Ton
-      - coin: USDT
-        network: Ton
-      - coin: USDT
-        network: Ethereum
-      - coin: USDC
-        network: Ethereum
-      - coin: ETH
-        network: Ethereum
+    - wss://relay1.nostr.band/
+    - wss://relay3.nostr.band/
 
   wintr/connectors/storage/v2:
     runDDL: true
@@ -90,4 +86,38 @@ accounts:
       password: pass
     replicaURLs:
       - postgresql://root:pass@localhost:5437/heimdall
-
+coins:
+  fees:
+    ton:
+      slow:
+        maxPriorityFee: 225000003
+        maxFee: 225000091
+        waitTime: 100000
+      standard:
+        maxPriorityFee: 225000003
+        maxFee: 225000091
+        waitTime: 100000
+    bsc:
+      slow:
+        maxPriorityFee: 225000003
+        maxFee: 225000091
+        waitTime: 100000
+      fast:
+        maxPriorityFee: 225000003
+        maxFee: 225000091
+        waitTime: 1000
+  coin-gecko:
+    api-key: bogus
+    base-url: https://pro-api.coingecko.com
+  wintr/connectors/storage/v2:
+    runDDL: true
+    primaryURL: postgresql://root:pass@localhost:5437/heimdall
+    credentials:
+      user: root
+      password: pass
+    replicaURLs:
+      - postgresql://root:pass@localhost:5437/heimdall
+nfts:
+  coin-gecko:
+    api-key: bogus
+    base-url: https://pro-api.coingecko.com

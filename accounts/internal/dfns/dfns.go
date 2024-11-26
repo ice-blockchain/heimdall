@@ -16,6 +16,7 @@ import (
 	"sync"
 	stdlibtime "time"
 
+	"dario.cat/mergo"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/dfns/dfns-sdk-go/credentials"
 	"github.com/dfns/dfns-sdk-go/dfnsapiclient"
@@ -31,7 +32,7 @@ import (
 	"github.com/ice-blockchain/wintr/time"
 )
 
-func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey string) DfnsClient {
+func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey string, coinFeesProvider CoinFeesProvider) DfnsClient {
 	var cfg config
 	cfg.loadCfg(applicationYamlKey)
 	serviceAccountSigner := credentials.NewAsymmetricKeySigner(&credentials.AsymmetricKeySignerConfig{
@@ -51,6 +52,7 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 		callbacks:             make(map[string]func(ctx context.Context, now *time.Time, res map[string]any) error),
 		tonApi:                mustInitTONClient(ctx, cfg.DFNS.TON.GlobalConfigURL),
 		ionApi:                mustInitTONClient(ctx, cfg.DFNS.ION.GlobalConfigURL),
+		coinFeesProvider:      coinFeesProvider,
 	}
 	var err error
 	cl.erc20ABI, err = ethabi.JSON(strings.NewReader(erc20ABI))
@@ -60,7 +62,7 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 	cl.mustSetupWebhookOrLoadSecret(ctx, db, &cfg)
 	cl.mustLoadApplication(ctx, cfg.DFNS.WebFEAppID)
 	cl.bodyModifiableCallbacks = map[string]func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error{
-		completeDelegatedRegistrationUrl: func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
+		"200:" + completeDelegatedRegistrationUrl: func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
 			userID, username := ExtractUser(res, "username")
 
 			return cl.extendResponseBodyWith(r, res,
@@ -68,7 +70,7 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 				extendResponseBodyWithPaymentExtension(),
 			)
 		},
-		completeLoginUrl: func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
+		"200:" + completeLoginUrl: func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
 			var token string
 			if tokenI, hasToken := res["token"]; hasToken {
 				token = tokenI.(string)
@@ -83,8 +85,50 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 
 			return cl.extendResponseBodyWith(r, res, cl.extendResponseBodyWithRefreshToken(decodedToken.UserID(), decodedToken.Username()))
 		},
+		"200:" + networkFeesUrl: cl.extendFees(),
+		"400:" + networkFeesUrl: cl.extendFees(),
 	}
 	return cl
+}
+
+func (c *dfnsClient) extendFees() func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
+	return func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
+		requestedNetwork := r.Request.URL.Query().Get("network")
+		fees := c.coinFeesProvider.GetFees(requestedNetwork)
+		if r.StatusCode == 400 {
+			if fees == nil {
+				return nil
+			}
+			r.StatusCode = http.StatusOK
+			return c.extendResponseBodyWith(r, map[string]any{}, func(ctx context.Context, res map[string]any) error {
+				res["network"] = requestedNetwork
+				if fees.Fast != nil {
+					res["fast"] = fees.Fast
+				}
+				if fees.Slow != nil {
+					res["slow"] = fees.Slow
+				}
+				if fees.Standard != nil {
+					res["standard"] = fees.Standard
+				}
+				return nil
+			})
+		}
+		if fees != nil {
+			return c.extendResponseBodyWith(r, res, func(ctx context.Context, res map[string]any) error {
+				b, jerr := json.Marshal(fees)
+				if jerr != nil {
+					return errors.Wrapf(jerr, "failed to marshal %+v into body", fees)
+				}
+				var extendedFees map[string]any
+				if err := json.Unmarshal(b, &extendedFees); err != nil {
+					return errors.Wrapf(jerr, "failed to marshal %+v into body", fees)
+				}
+				return mergo.Map(&res, extendedFees)
+			})
+		}
+		return c.extendResponseBodyWith(r, res, func(ctx context.Context, res map[string]any) error { return nil })
+	}
 }
 
 func extendResponseBodyWithPaymentExtension() func(ctx context.Context, res map[string]any) error {
@@ -344,10 +388,11 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 
 func (c *dfnsClient) modifyResponse(r *http.Response) error {
 	r.Header.Del("Access-Control-Allow-Origin") // Duplicated hea
-	if r.StatusCode >= http.StatusOK && r.StatusCode < http.StatusBadRequest {
-		now := time.Now()
-		callback, hasCallback := c.callbacks[r.Request.URL.Path]
-		bodyModify, hasModify := c.bodyModifiableCallbacks[r.Request.URL.Path]
+	now := time.Now()
+	callback, hasCallback := c.callbacks[r.Request.URL.Path]
+	modifyKey := fmt.Sprintf("%v:%v", r.StatusCode, r.Request.URL.Path)
+	bodyModify, hasModify := c.bodyModifiableCallbacks[modifyKey]
+	if (r.StatusCode >= http.StatusOK && r.StatusCode < http.StatusBadRequest) || hasModify {
 		if hasCallback || hasModify {
 			data, res, err := decodeBody(r.Body)
 			if err != nil {

@@ -4,7 +4,6 @@ package main
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -15,9 +14,7 @@ import (
 
 func (s *service) setupWalletViewsRoutes(router gin.IRoutes) {
 	router.POST("/v1/users/:userId/wallet-views", server.RootHandler(s.CreateWalletView)).
-		GET("/v1/wallet-configuration", server.RootHandler(s.GetWalletConfiguration)).
 		GET("/v1/users/:userId/wallet-views", server.RootHandler(s.GetWalletViews)).
-		GET("/v1/users/:userId/wallet-views/:walletViewName", server.RootHandler(s.GetWalletView)).
 		PUT("/v1/users/:userId/wallet-views/:walletViewName", server.RootHandler(s.ModifyWalletView)).
 		DELETE("/v1/users/:userId/wallet-views/:walletViewName", server.RootHandler(s.DeleteWalletView))
 }
@@ -41,12 +38,12 @@ func (s *service) CreateWalletView(
 	ctx context.Context,
 	req *server.Request[WalletViewReq, WalletView],
 ) (successResp *server.Response[WalletView], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	err := s.validateWalletView(req.Data.Items)
+	err := s.validateWalletView(ctx, req.Data.Items)
 	if err != nil {
 		return nil, server.BadRequest(err, invalidPropertiesErrorCode)
 	}
 	var view *WalletView
-	view, err = s.accounts.CreateWalletView(ctx, req.Data.UserID, req.Data.Name, req.Data.Items)
+	view, err = s.accounts.CreateWalletView(ctx, req.Data.UserID, req.Data.Name, req.Data.Items, req.Data.SymbolGroups)
 	if err != nil {
 		switch {
 		case errors.Is(err, accounts.ErrDuplicate):
@@ -87,90 +84,31 @@ func (s *service) GetWalletViews(
 	return server.OK(&views), nil
 }
 
-// GetWalletView godoc
-//
-//	@Schemes
-//	@Description	Get wallet view with extended information about coins (grouped)
-//	@Tags			Wallets
-//	@Produce		json
-//	@Param			userId			path		string	true	"ID of the user"
-//	@Param			walletViewName	path	string	true	"Name of wallet view"
-//	@Param			Authorization	header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
-//	@Success		200				{object}	WalletView
-//	@Failure		500				{object}	server.ErrorResponse
-//	@Failure		404				{object}	server.ErrorResponse 	"if wallet view not found"
-//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
-//	@Router			/v1/users/{userId}/wallet-views/{walletViewName} [GET].
-func (s *service) GetWalletView(
-	ctx context.Context,
-	req *server.Request[WalletViewReference, WalletView],
-) (successResp *server.Response[WalletView], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	view, err := s.accounts.GetWalletView(ctx, req.Data.UserID, req.Data.WalletViewName)
-	if err != nil {
-		switch {
-		case errors.Is(err, accounts.ErrNotFound):
-			return nil, server.NotFound(err, notFound)
-		default:
-			return nil, server.Unexpected(err)
-		}
-	}
-	return server.OK(view), nil
-}
-
-func (s *service) validateWalletView(items []*accounts.WalletViewItem) error {
+func (s *service) validateWalletView(ctx context.Context, items []*accounts.CoinMapping) error {
 	if len(items) == 0 {
 		return errors.Errorf("invalid walletview, items cannot be empty")
 	}
 	dedupl := map[string]struct{}{}
 	coins := map[string]struct{}{}
-	_, allCoins, _ := s.accounts.GetWalletConfiguration(nil)
+	_, allCoins, _ := s.coins.GetVersionedCoins(ctx, nil)
 	for _, coin := range allCoins {
-		coins[coin.Coin] = struct{}{}
+		coins[coin.ID] = struct{}{}
 	}
 	for _, i := range items {
-		key := i.Coin
+		key := i.CoinID
 		if i.WalletID != nil {
 			key += "/" + *i.WalletID
 		}
 		if _, has := dedupl[key]; has {
 			return errors.Errorf("invalid walletview, %v is duplicated", key)
 		}
-		if _, validCoin := coins[i.Coin]; !validCoin {
-			return errors.Errorf("invalid walletview, %v is unsupported", i.Coin)
+		if _, validCoin := coins[i.CoinID]; !validCoin {
+			return errors.Errorf("invalid walletview, %v is unsupported", i.CoinID)
 		}
 		dedupl[key] = struct{}{}
 	}
 
 	return nil
-}
-
-// GetWalletConfiguration godoc
-//
-//	@Schemes
-//	@Description	Provides a list of all available coins
-//	@Tags			Wallets
-//	@Produce		json
-//	@Param			known_version	query		string	false	"Version of configuration already presented on client"
-//	@Param			Authorization	header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
-//	@Success		200				{object}	WalletConfiguration
-//	@Success		204				{object}	WalletConfiguration		"if known_version have been provided before"
-//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
-//	@Router			/v1/wallet-configuration [GET].
-func (s *service) GetWalletConfiguration(
-	_ context.Context,
-	req *server.Request[GetWalletConfigurationReq, WalletConfiguration],
-) (successResp *server.Response[WalletConfiguration], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	version, items, err := s.accounts.GetWalletConfiguration(req.Data.KnownVersion)
-	if err != nil {
-		switch {
-		case errors.Is(err, accounts.ErrNotChanged):
-			return &server.Response[WalletConfiguration]{Code: http.StatusNoContent}, nil
-		default:
-			return nil, server.Unexpected(err)
-		}
-	}
-
-	return server.OK[WalletConfiguration](&WalletConfiguration{Version: version, AvailableCoins: items}), nil
 }
 
 // DeleteWalletView godoc
@@ -226,12 +164,12 @@ func (s *service) ModifyWalletView(
 	ctx context.Context,
 	req *server.Request[ModifyWalletViewReq, WalletView],
 ) (successResp *server.Response[WalletView], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	err := s.validateWalletView(req.Data.Items)
+	err := s.validateWalletView(ctx, req.Data.Items)
 	if err != nil {
 		return nil, server.BadRequest(err, invalidPropertiesErrorCode)
 	}
 	view, err := s.accounts.ModifyWalletView(ctx, req.Data.WalletViewReference.UserID, req.Data.WalletViewReference.WalletViewName,
-		req.Data.WalletViewReq.Name, req.Data.Items)
+		req.Data.WalletViewReq.Name, req.Data.Items, req.Data.SymbolGroups)
 	if err != nil {
 		switch {
 		case errors.Is(err, accounts.ErrNotFound):

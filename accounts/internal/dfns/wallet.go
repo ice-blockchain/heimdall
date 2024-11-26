@@ -57,6 +57,16 @@ func (c *dfnsClient) ListAssets(ctx context.Context, walletID string) (*Assets, 
 	return resp, nil
 }
 
+func (c *dfnsClient) ListNFTs(ctx context.Context, walletID string) (*NFTs, error) {
+	header := http.Header{}
+	resp, err := dfnsCall[struct{}, NFTs](ctx, c, nil, "GET", fmt.Sprintf("/wallets/%v/nfts", walletID), header)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to list NFTs on wallet %v", walletID)
+	}
+
+	return resp, nil
+}
+
 func (c *dfnsClient) GetWallet(ctx context.Context, walletID string) (*Wallet, error) {
 	header := http.Header{}
 	resp, err := dfnsCall[struct{}, Wallet](ctx, c, nil, "GET", fmt.Sprintf("/wallets/%v", walletID), header)
