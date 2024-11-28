@@ -12,6 +12,7 @@ import (
 
 	"github.com/goccy/go-json"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/rand"
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/server"
@@ -119,12 +120,14 @@ func (a *accounts) validateFollowees(ctx context.Context, followees []string) er
 }
 
 func (a *accounts) fetchRelays(ctx context.Context, userID string, followeeList []string) (relays []string, err error) {
-	return a.cfg.MockRelays, nil
+	randomRelay := a.cfg.MockRelays[rand.Intn(len(a.cfg.MockRelays))]
+	return []string{randomRelay}, nil
 }
 
 func (a *accounts) fetchIONIndexers(ctx context.Context, userID string) (relays []string, err error) {
 	log.Info("Fetching indexers from polaris for %v", clientIPAddress(ctx))
-	return []string{"ws://indexer-example1.com/", "wss://indexer-example2.com/", "wss://indexer-example3.com/ws"}, nil
+	randomIndexer := a.cfg.MockRelays[rand.Intn(len(a.cfg.MockRelays))]
+	return []string{randomIndexer}, nil
 }
 
 func (a *accounts) GetUser(ctx context.Context, userIDOrMasterKey string) (*User, error) {
