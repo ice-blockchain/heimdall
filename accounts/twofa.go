@@ -26,6 +26,7 @@ import (
 	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
+	"github.com/ice-blockchain/wintr/terror"
 	"github.com/ice-blockchain/wintr/time"
 )
 
@@ -660,7 +661,9 @@ func (a *accounts) checkIfEnough2FAProvided(usr *user, codes map[TwoFAOptionWith
 		if len(enabledOptions) <= a.cfg.Max2FACount && presentedOptionsCount >= len(enabledOptions) {
 			return nil
 		}
-		err = Err2FARequired
+		err = terror.New(Err2FARequired, map[string]any{
+			"n": int(math.Min(float64(a.cfg.Max2FACount), float64(len(enabledOptions)))),
+		})
 	}
 
 	return err

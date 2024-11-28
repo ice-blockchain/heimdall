@@ -10,6 +10,7 @@ import (
 
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/server"
+	"github.com/ice-blockchain/wintr/terror"
 )
 
 func (s *service) setup2FARoutes(router gin.IRoutes) {
@@ -55,7 +56,9 @@ func (s *service) Send2FARequest(
 	if err != nil {
 		switch {
 		case errors.Is(err, accounts.Err2FARequired):
-			return nil, server.ForbiddenWithCode(err, twoFARequired)
+			if tErr := terror.As(err); tErr != nil {
+				return nil, server.ForbiddenWithCode(err, twoFARequired, tErr.Data)
+			}
 		case errors.Is(err, accounts.ErrInvalidUserSignature):
 			return nil, server.ForbiddenWithCode(err, invalidUserSignature)
 		case errors.Is(err, server.ErrInvalidToken):
@@ -114,7 +117,9 @@ func (s *service) Delete2FA(
 		case errors.Is(err, accounts.ErrInvalidUserSignature):
 			return nil, server.ForbiddenWithCode(err, invalidUserSignature)
 		case errors.Is(err, accounts.Err2FARequired):
-			return nil, server.ForbiddenWithCode(err, twoFARequired)
+			if tErr := terror.As(err); tErr != nil {
+				return nil, server.ForbiddenWithCode(err, twoFARequired, tErr.Data)
+			}
 		case errors.Is(err, accounts.Err2FADeliverToNotProvided):
 			return nil, server.BadRequest(err, invalidPropertiesErrorCode)
 		case errors.Is(err, accounts.Err2FAExpired):
