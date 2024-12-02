@@ -442,7 +442,7 @@ func (a *accounts) Send2FA(ctx context.Context, userIDOrUsername string, opt Two
 			return nil, errors.Wrapf(sErr, "invalid user signature on putting new 2fa")
 		}
 		if errors.Is(err, Err2FARequired) {
-			if err = a.checkIfEnough2FAProvided(usr, existing2FAVerificationForModify); err != nil {
+			if _, err = a.checkIfEnough2FAProvided(usr, existing2FAVerificationForModify); err != nil {
 				return nil, err //nolint:wrapcheck // tErr.
 			}
 			codesForRollback, err = a.verifyAndRedeem2FA(ctx, usr.ID, existing2FAVerificationForModify)
@@ -612,7 +612,7 @@ func (a *accounts) Delete2FA(ctx context.Context, userID string, inputCodes map[
 	if err = a.verifyUserSignature(userSignature(ctx), now, usr); err != nil {
 		return errors.Wrap(err, "invalid user signature on deleting existing 2fa")
 	}
-	if err = a.checkIfEnough2FAProvided(usr, inputCodes); err != nil {
+	if _, err = a.checkIfEnough2FAProvided(usr, inputCodes); err != nil {
 		return err
 	}
 	var codes []*twoFACode
@@ -627,7 +627,7 @@ func (a *accounts) Delete2FA(ctx context.Context, userID string, inputCodes map[
 	return errors.Wrapf(err, "failed to update user with 2fa removal %v %v %v", userID, channel, delValue)
 }
 
-func (a *accounts) checkIfEnough2FAProvided(usr *user, codes map[TwoFAOptionWithAddr]string) (err error) {
+func (a *accounts) checkIfEnough2FAProvided(usr *user, codes map[TwoFAOptionWithAddr]string) (enabled bool, err error) {
 	enabledOptions := map[TwoFAOptionWithAddr]bool{}
 	for _, o := range AllTwoFAOptions {
 		switch o {
@@ -659,14 +659,14 @@ func (a *accounts) checkIfEnough2FAProvided(usr *user, codes map[TwoFAOptionWith
 	}
 	if presentedOptionsCount < a.cfg.Max2FACount {
 		if len(enabledOptions) <= a.cfg.Max2FACount && presentedOptionsCount >= len(enabledOptions) {
-			return nil
+			return len(enabledOptions) > 0, nil
 		}
 		err = terror.New(Err2FARequired, map[string]any{
 			"n": int(math.Min(float64(a.cfg.Max2FACount), float64(len(enabledOptions)))),
 		})
 	}
 
-	return err
+	return len(enabledOptions) > 0, err
 }
 
 func (a *accounts) canRemoveEmailOrPhoneDueToauthenticatorSetup(channel TwoFAOptionEnum, usr *user, removal string) error {
