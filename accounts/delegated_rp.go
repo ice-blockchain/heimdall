@@ -26,12 +26,15 @@ func (a *accounts) StartDelegatedRecovery(ctx context.Context, username, credent
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get user 2FA state for username %v", username)
 	}
-	if err = a.checkIfEnough2FAProvided(usr, codes); err != nil {
+	var hasEnabled2FA bool
+	if hasEnabled2FA, err = a.checkIfEnough2FAProvided(usr, codes); err != nil {
 		return nil, err //nolint:wrapcheck // tErr.
 	}
 	var rollbackCodes map[TwoFAOptionWithAddr]string
-	if rollbackCodes, err = a.verifyAndRedeem2FA(ctx, usr.ID, codes); err != nil {
-		return nil, errors.Wrapf(err, "failed to verify 2FA codes")
+	if hasEnabled2FA {
+		if rollbackCodes, err = a.verifyAndRedeem2FA(ctx, usr.ID, codes); err != nil {
+			return nil, errors.Wrapf(err, "failed to verify 2FA codes")
+		}
 	}
 	var delegatedResp *StartedDelegatedRecovery
 	delegatedResp, err = a.delegatedRPClient.StartDelegatedRecovery(ctx, username, credentialID)
