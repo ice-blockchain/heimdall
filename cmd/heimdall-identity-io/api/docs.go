@@ -254,109 +254,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/users/:userId/coins/:symbolGroup": {
-            "get": {
-                "description": "Returns all the user coins with symbol and wallet info (balances, etc)",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Coins"
-                ],
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "symbolGroup to filter",
-                        "name": "symbolGroup",
-                        "in": "path"
-                    },
-                    {
-                        "type": "string",
-                        "description": "ID of the user",
-                        "name": "userId",
-                        "in": "path"
-                    },
-                    {
-                        "type": "string",
-                        "default": "Bearer \u003cAdd token here\u003e",
-                        "description": "Auth token from delegated relying party",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/main.Coin"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
-                        }
-                    },
-                    "504": {
-                        "description": "if request times out",
-                        "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/users/{userID}/coins": {
-            "get": {
-                "description": "Provides a list of coins updated since version",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Coins"
-                ],
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Version of configuration already presented on client",
-                        "name": "version",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "default": "Bearer \u003cAdd token here\u003e",
-                        "description": "Auth token from delegated relying party",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/main.VersionedCoins"
-                        }
-                    },
-                    "204": {
-                        "description": "if known_version have been provided before",
-                        "schema": {
-                            "$ref": "#/definitions/main.VersionedCoins"
-                        }
-                    },
-                    "504": {
-                        "description": "if request times out",
-                        "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/v1/users/{userId}/2fa/{twoFAOption}/values/{twoFAOptionValue}": {
             "delete": {
                 "description": "Confirms deletion of 2FA method",
@@ -620,6 +517,116 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/users/{userId}/coins": {
+            "get": {
+                "description": "Provides a list of coins updated since version",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Coins"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Version of configuration already presented on client",
+                        "name": "version",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID of the user",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cAdd token here\u003e",
+                        "description": "Auth token from delegated relying party",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.VersionedCoins"
+                        }
+                    },
+                    "204": {
+                        "description": "if known_version have been provided before",
+                        "schema": {
+                            "$ref": "#/definitions/main.VersionedCoins"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/users/{userId}/coins/{symbolGroup}": {
+            "get": {
+                "description": "Returns all the user coins with symbol and wallet info (balances, etc)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Coins"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "symbolGroup to filter",
+                        "name": "symbolGroup",
+                        "in": "path"
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID of the user",
+                        "name": "userId",
+                        "in": "path"
+                    },
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cAdd token here\u003e",
+                        "description": "Auth token from delegated relying party",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/main.Coin"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/users/{userId}/ion-connect-indexers": {
             "get": {
                 "description": "Returns indexers list for the user",
@@ -844,6 +851,65 @@ const docTemplate = `{
             }
         },
         "/v1/users/{userId}/wallet-views/{walletViewName}": {
+            "get": {
+                "description": "Get wallet view with extended information about coins (grouped)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Wallets"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID of the user",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Name of wallet view",
+                        "name": "walletViewName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cAdd token here\u003e",
+                        "description": "Auth token from delegated relying party",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.WalletView"
+                        }
+                    },
+                    "404": {
+                        "description": "if wallet view not found",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            },
             "put": {
                 "description": "Modifies wallet view referenced in url",
                 "produces": [
@@ -983,20 +1049,26 @@ const docTemplate = `{
                 ],
                 "parameters": [
                     {
-                        "description": "Request params",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/main.StartDelegatedRecoveryReq"
-                        }
-                    },
-                    {
                         "type": "string",
                         "default": "ap-",
                         "description": "App ID",
                         "name": "X-Client-ID",
                         "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cAdd token here\u003e",
+                        "description": "Auth token from delegated relying party",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID of the wallet",
+                        "name": "walletId",
+                        "in": "path",
                         "required": true
                     }
                 ],
@@ -1004,19 +1076,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.StartDelegatedRecoveryResp"
-                        }
-                    },
-                    "400": {
-                        "description": "if invalid 2FA code is provided",
-                        "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "if 2FA required",
-                        "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/main.GetNFTsResp"
                         }
                     },
                     "500": {
@@ -1036,6 +1096,34 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "accounts.CoinAggregation": {
+            "type": "object",
+            "properties": {
+                "totalBalance": {
+                    "$ref": "#/definitions/big.Int"
+                },
+                "wallets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/accounts.CoinInWallet"
+                    }
+                }
+            }
+        },
+        "accounts.CoinInWallet": {
+            "type": "object",
+            "properties": {
+                "asset": {
+                    "$ref": "#/definitions/dfns.Asset"
+                },
+                "network": {
+                    "type": "string"
+                },
+                "walletId": {
+                    "type": "string"
+                }
+            }
+        },
         "accounts.CoinMapping": {
             "type": "object",
             "properties": {
@@ -1060,9 +1148,18 @@ const docTemplate = `{
                 "TwoFAOptionTOTPAuthenticator"
             ]
         },
+        "big.Int": {
+            "type": "object"
+        },
         "coins.Coin": {
             "type": "object",
             "properties": {
+                "contractAddress": {
+                    "type": "string"
+                },
+                "decimals": {
+                    "type": "integer"
+                },
                 "iconURL": {
                     "type": "string"
                 },
@@ -1089,9 +1186,30 @@ const docTemplate = `{
                 }
             }
         },
+        "coins.NFT": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "dfns.Asset": {
+            "type": "object",
+            "additionalProperties": {}
+        },
         "main.Coin": {
             "type": "object",
             "properties": {
+                "contractAddress": {
+                    "type": "string"
+                },
+                "decimals": {
+                    "type": "integer"
+                },
                 "iconURL": {
                     "type": "string"
                 },
@@ -1115,6 +1233,23 @@ const docTemplate = `{
                 },
                 "syncFrequency": {
                     "$ref": "#/definitions/time.Duration"
+                }
+            }
+        },
+        "main.GetNFTsResp": {
+            "type": "object",
+            "properties": {
+                "network": {
+                    "type": "string"
+                },
+                "nfts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/coins.NFT"
+                    }
+                },
+                "walletId": {
+                    "type": "string"
                 }
             }
         },
@@ -1255,6 +1390,13 @@ const docTemplate = `{
         "main.WalletView": {
             "type": "object",
             "properties": {
+                "aggregation": {
+                    "description": "For GetWalletView, with total sum by symbol aggregation",
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/accounts.CoinAggregation"
+                    }
+                },
                 "coins": {
                     "type": "array",
                     "items": {

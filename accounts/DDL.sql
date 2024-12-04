@@ -67,4 +67,11 @@ CREATE TABLE IF NOT EXISTS wallet_views (
     symbol_groups TEXT[],
     coins         coin_mapping[],
     primary key (user_id, name)
-)
+);
+
+ALTER TABLE wallet_views
+    ADD COLUMN IF NOT EXISTS symbol_groups TEXT[];
+ALTER TABLE wallet_views
+    ADD COLUMN IF NOT EXISTS coins coin_mapping[];
+ALTER TABLE wallet_views
+    DROP COLUMN IF EXISTS items;

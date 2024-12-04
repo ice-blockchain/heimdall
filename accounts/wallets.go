@@ -5,6 +5,7 @@ package accounts
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/goccy/go-json"
@@ -52,6 +53,47 @@ func (a *accounts) GetWalletViews(ctx context.Context, userID string) ([]*Wallet
 	}
 
 	return views, nil
+}
+
+func (a *accounts) GetWalletView(ctx context.Context, userID, name string) (*WalletView, error) {
+	// Merge coinId from wallet_views.coins and coins entry and collapse to json array
+	views, err := storage.Select[WalletView](ctx, a.db, `
+		SELECT created_at, updated_at, name, user_id, symbol_groups,
+			   (SELECT json_agg(row_to_json(t.*)) from (
+				   WITH wallet_views_coinids as (
+					   (SELECT wallet_views.*, (unnest(wallet_views.coins)::coin_mapping).coinId, (unnest(wallet_views.coins)::coin_mapping).walletid
+					    from wallet_views WHERE user_id = $1 AND wallet_views.name = $2)
+				   )
+				   select wallet_views_coinids.walletid,wallet_views_coinids.coinid,
+						  coins.decimals,
+						  coins.version,
+						  coins.price_usd as priceUSD,
+						  coins.id,
+						  coins.network,
+						  coins.name,
+						  coins.contract_address as contractAddress,
+						  coins.symbol,
+						  coins.symbol_group as symbolGroup,
+						  coins.icon_url as iconURL
+				   from wallet_views_coinids
+				   join coins on wallet_views_coinids.coinid = coins.id) t
+			   ) 
+		as coins
+		from wallet_views WHERE user_id = $1 AND wallet_views.name = $2
+	group by created_at, updated_at, name, user_id, symbol_groups`, userID, name)
+	if err != nil {
+		if storage.IsErr(err, storage.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+
+		return nil, errors.Wrapf(err, "failed to get wallet views for user %v", userID)
+	}
+	if len(views) == 0 {
+		return nil, ErrNotFound
+	}
+	views[0].Aggregation, err = a.fetchWalletInfoForCoins(ctx, userID, views[0].Coins, views[0].SymbolGroups)
+
+	return views[0], nil
 }
 
 func buildInsert(items []*CoinMapping, nextIndex int) (string, []any) {
@@ -118,9 +160,80 @@ func (a *accounts) ModifyWalletView(ctx context.Context, userID, name, newName s
 	return view, nil
 }
 
+func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, coins []*CoinMapping, symbolGroups []string) (map[string]*CoinAggregation, error) {
+	containsAllWallets := false
+	walletIDs := make([]string, 0, len(coins))
+	groupedBySymbol := make(map[string][]*CoinMapping)
+	for _, i := range coins {
+		if i.WalletID == nil {
+			containsAllWallets = true
+		} else {
+			walletIDs = append(walletIDs, *i.WalletID)
+		}
+		groupedBySymbol[i.Coin.Symbol] = append(groupedBySymbol[i.Coin.Symbol], i)
+	}
+	if containsAllWallets {
+		allWallets, err := a.delegatedRPClient.ListWallets(ctx, userID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to list all wallets for user %v", userID)
+		}
+		walletIDs = walletIDs[:0]
+		for _, wallet := range allWallets {
+			walletIDs = append(walletIDs, wallet["id"].(string))
+		}
+	}
+	coinGroups := make(map[string]*CoinAggregation)
+	for _, walletID := range walletIDs {
+		walletAssets, err := a.delegatedRPClient.ListAssets(ctx, walletID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to list assets for wallet %v", walletID)
+		}
+		assetsBySymbol := make(map[string]dfns.Asset)
+		for _, asset := range walletAssets.Assets {
+			symbolI, hasSymbol := asset["symbol"]
+			if hasSymbol {
+				symbol := symbolI.(string)
+				assetsBySymbol[symbol] = asset
+			}
+		}
+		for symbol, group := range groupedBySymbol {
+			asset, hasAsset := assetsBySymbol[symbol]
+			if hasAsset {
+				for _, g := range group {
+					if g.WalletID == nil || *g.WalletID == walletID {
+						coin, hasCoin := coinGroups[symbol]
+						if !hasCoin {
+							coin = &CoinAggregation{
+								TotalBalance: new(big.Int),
+								Wallets:      make([]*CoinInWallet, 0),
+							}
+						}
+						assetVal := new(big.Int)
+						assetVal.SetString(asset["balance"].(string), 10)
+						coin.TotalBalance = coin.TotalBalance.Add(coin.TotalBalance, assetVal)
+						coin.Wallets = append(coin.Wallets, &CoinInWallet{
+							WalletID: walletAssets.WalletID,
+							Network:  walletAssets.Network,
+							Asset:    &asset,
+						})
+						coinGroups[symbol] = coin
+					}
+				}
+			} else if _, hasCoin := coinGroups[symbol]; !hasAsset && !hasCoin {
+				coinGroups[symbol] = &CoinAggregation{
+					TotalBalance: big.NewInt(0),
+					Wallets:      make([]*CoinInWallet, 0),
+				}
+			}
+		}
+	}
+
+	return coinGroups, nil
+}
+
 func (a *accounts) GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGroup string) ([]*CoinWithWalletInfo, error) {
 	views, err := storage.Select[WalletView](ctx, a.db, `SELECT 
-    created_at, updated_at, name, user_id, array_to_json(coins) as coins
+    created_at, updated_at, name, user_id, array_to_json(coins) as coins, symbol_groups
     FROM wallet_views WHERE user_id = $1 AND symbol_groups @> ARRAY[$2]`, userID, symbolGroup)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get wallet views for user %v", userID)
@@ -148,7 +261,7 @@ func (a *accounts) GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGrou
 	for _, c := range listCoins {
 		for _, wallet := range allWallets {
 			walletID := wallet["id"].(string)
-			walletNetwork := wallet["network"].(string)
+			walletNetwork, _ := coins.MapNetworkToCoinGecko(wallet["network"].(string))
 			if _, has := wallets[walletID]; (has || hasAllWallets) && c.Network == walletNetwork {
 				wallets[walletID] = wallet
 				coinsByNetwork[walletNetwork] = c
@@ -162,7 +275,8 @@ func (a *accounts) GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGrou
 			return nil, errors.Wrapf(err, "failed to list assets for wallet %v", walletID)
 		}
 		for _, asset := range walletAssets.Assets {
-			coin, hasCoin := coinsByNetwork[walletAssets.Network]
+			network, _ := coins.MapNetworkToCoinGecko(walletAssets.Network)
+			coin, hasCoin := coinsByNetwork[network]
 			if !hasCoin {
 				continue
 			}

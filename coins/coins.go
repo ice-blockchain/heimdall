@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	stdlibtime "time"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -79,14 +80,7 @@ func (c *coinsRepository) syncAllCoins(ctx context.Context) error {
 	if len(coinsList) == 0 {
 		return nil
 	}
-	m := map[string]*coingecko.Coin{}
-	for _, co := range coinsList {
-		if dupl, has := m[generateInternalID(co)]; has {
-			fmt.Printf("%+v %+v", dupl, co)
-		}
-		m[generateInternalID(co)] = co
-	}
-	_, paramsPerCoin := buildInsertBatchForCoins(now, []*coingecko.Coin{coinsList[0]})
+	_, paramsPerCoin := c.buildInsertBatchForCoins(now, []*coingecko.Coin{coinsList[0]})
 	var batches [][]*coingecko.Coin
 	total := len(coinsList)
 	if len(coinsList)*len(paramsPerCoin) >= 65535 {
@@ -102,29 +96,31 @@ func (c *coinsRepository) syncAllCoins(ctx context.Context) error {
 	for _, batch := range batches {
 		errGroup.Go(func() error {
 			log.Debug(fmt.Sprintf("Inserting %v coins of %v...", len(batch), total))
-			placeholders, params := buildInsertBatchForCoins(now, batch)
+			placeholders, params := c.buildInsertBatchForCoins(now, batch)
 			sql := fmt.Sprintf(`
-			INSERT INTO coins(created_at, updated_at, sync_frequency, decimals, version, id, network, name, symbol, symbol_group, contract_address, coingecko_coin_id) VALUES 		      %[1]v`,
+			INSERT INTO coins(created_at, updated_at, sync_frequency, decimals, version, id, network, name, symbol, symbol_group, contract_address, coingecko_coin_id, price_usd) VALUES 		      %[1]v`,
 				placeholders)
 			_, err = storage.Exec(ctx, c.db, sql, params...)
 			if err != nil {
 				return errors.Wrapf(err, "failed to sync all coins to db")
 			}
+			log.Debug(fmt.Sprintf("Inserted %v coins of %v...", len(batch), total))
+
 			return nil
 		})
 	}
 
 	return errGroup.Wait()
 }
-func buildInsertBatchForCoins(now *time.Time, coinsList []*coingecko.Coin) (sql string, params []any) {
+func (c *coinsRepository) buildInsertBatchForCoins(now *time.Time, coinsList []*coingecko.Coin) (sql string, params []any) {
 	params = []any{now}
 	placeholders := make([]string, 0, len(coinsList))
 	idx := 2
-	for _, c := range coinsList {
+	for _, coinItem := range coinsList {
 		decimals := 0
-		params = append(params, defaultSyncFrequency, decimals, generateInternalID(c), c.MappedNetwork(), c.Name, c.Symbol, c.SymbolGroup(), c.ContractAddress, c.ID)
-		placeholders = append(placeholders, fmt.Sprintf("($1,$1, $%[1]v::INTERVAL, $%[2]v, COALESCE((SELECT MAX(version) FROM coins),0), $%[3]v,$%[4]v, $%[5]v, $%[6]v, $%[7]v, $%[8]v, $%[9]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7, idx+8))
-		idx += 9
+		params = append(params, c.syncFrequency(coinItem.ID), decimals, generateInternalID(coinItem), coinItem.MappedNetwork(), coinItem.Name, coinItem.Symbol, coinItem.SymbolGroup(), coinItem.ContractAddress, coinItem.ID, coinItem.PriceUSD)
+		placeholders = append(placeholders, fmt.Sprintf("($1,$1, $%[1]v::INTERVAL, $%[2]v, COALESCE((SELECT MAX(version) FROM coins),0), $%[3]v,$%[4]v, $%[5]v, $%[6]v, $%[7]v, $%[8]v, $%[9]v, $%[10]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7, idx+8, idx+9))
+		idx += 10
 	}
 	return strings.Join(placeholders, ", "), params
 }
@@ -171,6 +167,7 @@ func (c *coinsRepository) Import(ctx context.Context, network, contractAddress s
 		IconURL:         existingCoin.IconUrl,
 		PriceUSD:        existingCoin.PriceUSD,
 		SyncFrequency:   existingCoin.SyncFrequency,
+		Decimals:        existingCoin.Decimals,
 	}, retErr
 }
 
@@ -216,7 +213,7 @@ func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *c
 	    symbol_group = excluded.symbol_group,
 	    icon_url = excluded.icon_url
 	RETURNING *
-`, now, defaultSyncFrequency, tok.Decimals, tok.PriceUSD, generateInternalID(tok),
+`, now, c.syncFrequency(tok.ID), tok.Decimals, tok.PriceUSD, generateInternalID(tok),
 		tok.ID, tok.Network, tok.Name, tok.ContractAddress, tok.Symbol, tok.SymbolGroup(), tok.IconUrl)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to upsert token data %+v", tok)
@@ -224,12 +221,12 @@ func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *c
 	return updated, nil
 }
 
-func (c *coinsRepository) GetVersionedCoins(ctx context.Context, knownVersion *int) (latestVersion uint64, coinDiff []*Coin, err error) {
+func (c *coinsRepository) GetVersionedCoins(ctx context.Context, userID string, knownVersion *int) (latestVersion uint64, coinDiff []*Coin, err error) {
 	version := initialVersion
 	if knownVersion != nil {
 		version = (*knownVersion + 1)
 	}
-	newCoins, err := storage.Select[coin](ctx, c.db, `SELECT * FROM coins WHERE version >= $1 and coingecko_coin_id != ''`, version)
+	newCoins, err := storage.Select[coin](ctx, c.db, `SELECT * FROM coins WHERE ($1 = '' OR id IN (SELECT (unnest(coins)::coin_mapping).coinId FROM wallet_views WHERE user_id = $1)) AND version >= $2`, userID, version)
 	if err != nil {
 		return 0, nil, errors.Wrapf(err, "failed to select coins by version %v", version)
 	}
@@ -249,6 +246,7 @@ func (c *coinsRepository) GetVersionedCoins(ctx context.Context, knownVersion *i
 			IconURL:         c.IconUrl,
 			PriceUSD:        c.PriceUSD,
 			SyncFrequency:   c.SyncFrequency,
+			Decimals:        c.Decimals,
 		})
 	}
 	return maxVersion, coinDiff, nil
@@ -268,8 +266,9 @@ func (c *coinsRepository) SyncCoins(ctx context.Context, symbolGroups []string) 
 			SymbolGroup:   coin.SymbolGroup,
 			PriceUSD:      coin.PriceUSD,
 			SyncFrequency: coin.SyncFrequency,
+			Decimals:      coin.Decimals,
 		}
-		needSync := now.Sub(*coin.UpdatedAt.Time) >= coin.SyncFrequency || (now.Sub(*coin.UpdatedAt.Time) >= defaultSyncFrequency && coin.PriceUSD == 0)
+		needSync := now.Sub(*coin.UpdatedAt.Time) >= coin.SyncFrequency || (now.Sub(*coin.UpdatedAt.Time) >= 24*stdlibtime.Hour && coin.PriceUSD == 0)
 		if needSync {
 			coinsToSync = append(coinsToSync, coin.ID)
 		}
@@ -312,7 +311,15 @@ func (c *coinsRepository) GetCoinsOfSymbolGroup(ctx context.Context, symbolGroup
 			IconURL:         c.IconUrl,
 			PriceUSD:        c.PriceUSD,
 			SyncFrequency:   c.SyncFrequency,
+			Decimals:        c.Decimals,
 		})
 	}
 	return res, nil
+}
+
+func (c *coinsRepository) syncFrequency(coinGeckoCoinID string) stdlibtime.Duration {
+	if freq, hasFreq := c.cfg.SyncFrequency[coinGeckoCoinID]; hasFreq {
+		return freq
+	}
+	return defaultSyncFrequency
 }

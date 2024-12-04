@@ -5,10 +5,12 @@ package coins
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 	stdlibtime "time"
 
 	"github.com/pkg/errors"
+	"github.com/rcrowley/go-metrics"
 
 	"github.com/ice-blockchain/heimdall/coins/internal/coingecko"
 	appcfg "github.com/ice-blockchain/wintr/config"
@@ -29,6 +31,13 @@ func MustStartSyncer(ctx context.Context, cancel context.CancelFunc) Sync {
 		cfg:             &cfg,
 		coinGeckoClient: coingecko.New(applicationYamlKey),
 	}
+
+	registry := metrics.NewRegistry()
+	log.Panic(errors.Wrapf(registry.Register("iteration", metrics.NewCustomTimer(metrics.NewHistogram(metrics.NewExpDecaySample(10_000, 0.015)), metrics.NewMeter())), "failed to register timer"))
+	log.Panic(errors.Wrapf(registry.Register("coin_gecko_calls", metrics.NewMeter()), "failed to register coingecko call meter"))
+	go metrics.LogScaled(registry, 10*stdlibtime.Minute, 1*stdlibtime.Millisecond, s)
+	s.metrics = registry
+
 	go s.sync(ctx)
 
 	return s
@@ -50,65 +59,91 @@ func (s *coinSync) HealthCheck(ctx context.Context) error {
 func (s *coinSync) sync(ctx context.Context) {
 	s.wg.Add(1)
 	defer s.wg.Done()
-	var consumedTime stdlibtime.Duration
 	syncCtx, cancel := context.WithTimeout(context.Background(), coinSyncIterationDuration)
-	consumedTime = s.syncCoinBatch(syncCtx)
+	s.syncCoinBatch(syncCtx)
 	cancel()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-stdlibtime.After(coinSyncIterationDuration - consumedTime):
-			syncCtx, cancel = context.WithTimeout(context.Background(), coinSyncIterationDuration)
-			consumedTime = s.syncCoinBatch(syncCtx)
-			cancel()
+	for ctx.Err() == nil {
+		iterations := s.metrics.Get("iteration").(metrics.Timer)
+		prevIterationTiming := iterations.Percentile(0.99)
+		if prevIterationTiming == 0 {
+			prevIterationTiming = 1
 		}
+		// We batch get tokens by network and by 30 entries (coingecko limitation), so its 1 call for coins and N for tokens per iteration, so 1+N total.
+		callsPerIteration := s.metrics.Get("coin_gecko_calls").(metrics.Meter).Rate1() / float64(iterations.Rate1())
+		if math.IsInf(callsPerIteration, 1) {
+			callsPerIteration = 1
+		}
+		targetIterations := targetCoinGeckoCallsPerMin / callsPerIteration
+		sleepTime := stdlibtime.Duration(coinSyncIterationDuration / stdlibtime.Duration(targetIterations))
+		start := time.Now()
+		syncCtx, cancel = context.WithTimeout(context.Background(), coinSyncIterationDuration)
+		s.syncCoinBatch(syncCtx)
+		cancel()
+
+		stdlibtime.Sleep(sleepTime - (time.Now().Sub(*start.Time)))
 	}
 }
 
-func (s *coinSync) syncCoinBatch(ctx context.Context) (consumed stdlibtime.Duration) {
+func (s *coinSync) syncCoinBatch(ctx context.Context) {
 	start := time.Now()
 	coinsToSync, err := s.fetchSyncableCoins(ctx)
 	if err != nil {
 		log.Error(errors.Wrapf(err, "failed to fetch syncable coins"))
-		return time.Now().Sub(*start.Time)
+		return
 	}
-	coinIDs := coinsToSync[""].CoinGeckoCoinIDs
-	delete(coinsToSync, "")
-	coinsData, err := s.coinGeckoClient.GetCoins(ctx, coinIDs)
-	if err != nil {
-		log.Error(errors.Wrapf(err, "failed to fetch market data from coin gecko for coins %#v", coinIDs))
-		return time.Now().Sub(*start.Time)
+	_, hasCoinsDataToSync := coinsToSync[""] // For coins no network
+	var coinsData []*coingecko.Coin
+	if hasCoinsDataToSync {
+		coinIDs := coinsToSync[""].CoinGeckoCoinIDs
+		delete(coinsToSync, "")
+		coinsData, err = s.coinGeckoClient.GetCoins(ctx, coinIDs)
+		if err != nil {
+			log.Error(errors.Wrapf(err, "failed to fetch market data from coin gecko for coins %#v", coinIDs))
+			return
+		}
+		s.metrics.Get("coin_gecko_calls").(metrics.Meter).Mark(1)
 	}
 	for network, tokensAddrs := range coinsToSync {
 		var batches [][]string
-		if len(tokensAddrs.ContractAddresses) > 30 {
-			for len(tokensAddrs.ContractAddresses) > 30 {
-				batches = append(batches, tokensAddrs.ContractAddresses[:30])
-				tokensAddrs.ContractAddresses = tokensAddrs.ContractAddresses[31:]
+		if len(tokensAddrs.ContractAddresses) > coingecko.MaxTokenAddrsInSingleCall {
+			for len(tokensAddrs.ContractAddresses) > coingecko.MaxTokenAddrsInSingleCall {
+				batches = append(batches, tokensAddrs.ContractAddresses[:coingecko.MaxTokenAddrsInSingleCall])
+				tokensAddrs.ContractAddresses = tokensAddrs.ContractAddresses[coingecko.MaxTokenAddrsInSingleCall+1:]
 			}
-			batches = append(batches, tokensAddrs.ContractAddresses)
+			if len(tokensAddrs.ContractAddresses) > 0 {
+				batches = append(batches, tokensAddrs.ContractAddresses)
+			}
 		} else {
 			batches = append(batches, tokensAddrs.ContractAddresses)
 		}
 		for _, b := range batches {
+			if len(b) == 0 {
+				continue
+			}
 			var tokensData []*coingecko.Coin
 			tokensData, err = s.coinGeckoClient.GetTokens(ctx, network, b)
 			if err != nil {
 				log.Error(errors.Wrapf(err, "failed to fetch market data from coin gecko for tokens on %v network: %#v", network, tokensAddrs))
-				return time.Now().Sub(*start.Time)
+				return
 			}
+			s.metrics.Get("coin_gecko_calls").(metrics.Meter).Mark(1)
 			coinsData = append(coinsData, tokensData...)
 		}
 	}
 	err = s.updateCoinsData(ctx, start, coinsData)
-	return time.Now().Sub(*start.Time)
+	if err != nil {
+		log.Error(errors.Wrapf(err, "failed to write updated data from coin market cap %#v", coinsData))
+		return
+	}
+	if len(coinsData) > 0 && len(coinsToSync) > 0 {
+		s.metrics.Get("iteration").(metrics.Timer).Update(time.Now().Sub(*start.Time))
+	}
 }
 
 func (s *coinSync) fetchSyncableCoins(ctx context.Context) (map[string]*coinToSync, error) {
 	coins, err := storage.Select[coinToSync](ctx, s.db,
 		fmt.Sprintf(`SELECT network, 
-       		 array_agg(t.coingecko_coin_id) FILTER ( WHERE t.contract_address = '' ) AS coin_ids,
+       		 array_agg(t.coingecko_coin_id) FILTER (WHERE t.contract_address = '') AS coin_ids,
        		 array_agg(t.contract_address) FILTER (WHERE t.contract_address != '')  AS contract_addresses
 			 FROM (
 				SELECT * FROM coins_sync_queue
@@ -182,8 +217,9 @@ func buildBatchUpdate(now *time.Time, coinsList []*coingecko.Coin) (sql string, 
 	params = make([]any, 0, len(coinsList)*10)
 	for _, c := range coinsList {
 		params = append(params, generateInternalID(c), c.Decimals, c.PriceUSD, c.ID, c.MappedNetwork(), c.Name, c.ContractAddress, c.Symbol, c.SymbolGroup(), c.IconUrl)
-		placeholders = append(placeholders, fmt.Sprintf("($%[1]v, $%[2]v::SMALLINT,$%[3]v::NUMERIC, $%[4]v, $%[5]v, $%[6]v, $%[7]v,              $%[8]v,  $%[9]v,          $%[10]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7, idx+8, idx+9, idx+10))
+		placeholders = append(placeholders, fmt.Sprintf(""+
+			"(                  $%[1]v,                $%[2]v::SMALLINT, $%[3]v::NUMERIC, $%[4]v, $%[5]v,         $%[6]v,  $%[7]v,              $%[8]v,  $%[9]v,          $%[10]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7, idx+8, idx+9))
 		idx += 10
 	}
-	return strings.Join(placeholders, ", "), params
+	return strings.Join(placeholders, ", \n"), params
 }

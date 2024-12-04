@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS coins (
 );
 
 CREATE INDEX IF NOT EXISTS coins_contract_address_idx ON coins (contract_address);
+CREATE INDEX IF NOT EXISTS coins_symbol_group_idx ON coins (symbol_group);
 
 CREATE TABLE IF NOT EXISTS coins_sync_queue (
                                                 created_at        TIMESTAMP NOT NULL,

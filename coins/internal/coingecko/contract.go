@@ -37,20 +37,12 @@ type (
 		Image           struct {
 			Thumb string `json:"thumb"`
 		} `json:"image"`
-		FloorPrice struct {
-			NativeCurrency float64 `json:"native_currency"`
-			Usd            float64 `json:"usd"`
-		} `json:"floor_price"`
-		Ath struct {
-			NativeCurrency float64 `json:"native_currency"`
-			Usd            float64 `json:"usd"`
-		} `json:"ath"`
 	}
 )
 
 var (
-	ErrNotFound       = errors.Errorf("not found")
-	ErrInvalidNetwork = errors.Errorf("invalid network")
+	ErrNotFound       = errors.New("not found")
+	ErrInvalidNetwork = errors.New("invalid network")
 	networksMapping   = map[string]string{
 		"algorand":          "algorand",
 		"algorandtestnet":   "algorand",
@@ -60,8 +52,8 @@ var (
 		"avalanchecfuji":    "avax",
 		"base":              "base",
 		"basesepolia":       "base",
-		"bitcoin":           "bitcoin-cash",
-		"bitcointestnet3":   "bitcoin-cash",
+		"bitcoin":           "bitcoin",
+		"bitcointestnet3":   "bitcoin",
 		"bsc":               "bsc",
 		"bsctestnet":        "bsc",
 		"cardano":           "cardano",
@@ -70,21 +62,14 @@ var (
 		"ethereumsepolia":   "eth",
 		"fantomopera":       "ftm",
 		"fantomtestnet":     "ftm",
-		"icp (aka dfinity)": "internet-computer",
-		"kaspa":             "kaspa",
+		"icp (aka dfinity)": "icp",
 		"kusama":            "kusama",
 		"westend":           "polkadot",
-		"ogy":               "",
-		"litecoin":          "",
 		"optimism":          "optimism",
 		"optimismsepolia":   "optimism",
 		"polkadot":          "polkadot",
 		"seipacific1":       "sei-network",
 		"seiatlantic2":      "sei-network",
-		"stellar":           "stellar",
-		"stellartestnet":    "stellar",
-		"tezos":             "tezos",
-		"tezosghostnet":     "tezos",
 		"solana":            "solana",
 		"solanadevnet":      "solana",
 		"polygon":           "polygon_pos",
@@ -95,11 +80,20 @@ var (
 		"tron":              "tron",
 		"xrpledger":         "xrp",
 		"xrpledgertestnet":  "xrp",
+		// Those networks below are not presented on /api/v3/onchain/networks on coingecko
+		// We cannot req tokens on them, it responds 404
+		//"ogy":               "",
+		//"litecoin":          "",
+		//"tezos":             "tezos",
+		//"tezosghostnet":     "tezos",
+		//"stellartestnet":    "stellar",
+		//"stellar":   	       "stellar",
+		//"kaspa":             "kaspa",
 	}
 	platformToNetworkMapping = map[string]string{
 		"ethereum":            "eth",
 		"base":                "base",
-		"bitcoin-cash":        "bitcoin-cash",
+		"bitcoin":             "bitcoin",
 		"binance-smart-chain": "bsc",
 		"polygon-pos":         "polygon_pos",
 		"avalanche":           "avax",
@@ -114,10 +108,11 @@ var (
 		"cardano":             "cardano",
 		"polkadot":            "polkadot",
 		"sei-network":         "sei-network",
-		"stellar":             "stellar",
-		"tezos":               "tezos",
-		"kasplex":             "kaspa",
-		"internet-computer":   "internet-computer",
+		"internet-computer":   "icp",
+		// Those networks below are not presented on /api/v3/onchain/networks on coingecko
+		// We cannot req tokens on them, it responds 404
+		//"tezos": "tezos",
+		//"kasplex":             "kaspa",
 	}
 	networkToPlatformMapping map[string]string
 )
@@ -152,31 +147,21 @@ type (
 		Id         string `json:"id"`
 		Type       string `json:"type"`
 		Attributes struct {
-			Address           string `json:"address"`
-			Name              string `json:"name"`
-			Symbol            string `json:"symbol"`
-			ImageUrl          string `json:"image_url"`
-			CoingeckoCoinId   string `json:"coingecko_coin_id"`
-			Decimals          int    `json:"decimals"`
-			TotalSupply       string `json:"total_supply"`
-			PriceUsd          string `json:"price_usd"`
-			FdvUsd            string `json:"fdv_usd"`
-			TotalReserveInUsd string `json:"total_reserve_in_usd"`
-			VolumeUsd         struct {
-				H24 string `json:"h24"`
-			} `json:"volume_usd"`
-			MarketCapUsd string `json:"market_cap_usd"`
+			Address         string `json:"address"`
+			Name            string `json:"name"`
+			Symbol          string `json:"symbol"`
+			ImageUrl        string `json:"image_url"`
+			CoingeckoCoinId string `json:"coingecko_coin_id"`
+			Decimals        int    `json:"decimals"`
+			PriceUsd        string `json:"price_usd"`
 		} `json:"attributes"`
-		Relationships struct {
-			TopPools struct {
-				Data []struct {
-					Id   string `json:"id"`
-					Type string `json:"type"`
-				} `json:"data"`
-			} `json:"top_pools"`
-		} `json:"relationships"`
 	}
 	page[T any] struct {
 		Data []T `json:"data"`
 	}
+)
+
+const (
+	maxCoinsPerPage           = 250
+	MaxTokenAddrsInSingleCall = 30
 )

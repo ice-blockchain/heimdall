@@ -11,5 +11,5 @@ type (
 )
 
 const (
-	applicationYamlKey = "cmd/heimdall-coin-data-syncer"
+	applicationYamlKey = "cmd/heimdall-asset-data-syncer"
 )

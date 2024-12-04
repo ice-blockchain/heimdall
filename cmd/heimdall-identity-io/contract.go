@@ -56,7 +56,8 @@ type (
 	}
 	Coin              = coins.Coin
 	GetVersionedCoins struct {
-		Version *int `form:"version" required:"false"`
+		UserID  string `uri:"userId" required:"true" swaggerignore:"true"`
+		Version *int   `form:"version" required:"false"`
 	}
 	VersionedCoins struct {
 		Version uint64        `json:"version"`

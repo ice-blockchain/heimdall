@@ -198,13 +198,12 @@ func (s *service) StartDelegatedRecovery(
 //	@Description	Gets NFTs from the wallet
 //	@Tags			Wallets
 //	@Produce		json
-//	@Param			request		body		StartDelegatedRecoveryReq	true	"Request params"
-//	@Param			X-Client-ID	header		string						true	"App ID"	default(ap-)
-//	@Success		200			{object}	StartDelegatedRecoveryResp
-//	@Failure		400			{object}	server.ErrorResponse	"if invalid 2FA code is provided"
-//	@Failure		403			{object}	server.ErrorResponse	"if 2FA required"
-//	@Failure		500			{object}	server.ErrorResponse
-//	@Failure		504			{object}	server.ErrorResponse	"if request times out"
+//	@Param			X-Client-ID		header		string	true	"App ID"									default(ap-)
+//	@Param			Authorization	header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
+//	@Param			walletId		path		string	true	"ID of the wallet"
+//	@Success		200				{object}	GetNFTsResp
+//	@Failure		500				{object}	server.ErrorResponse
+//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
 //	@Router			/wallets/:walletId/nfts [GET].
 func (s *service) GetNFTs(
 	ctx context.Context,
@@ -212,16 +211,13 @@ func (s *service) GetNFTs(
 ) (successResp *server.Response[GetNFTsResp], errorResp *server.ErrResponse[*delegatedErrorResponse]) {
 	nfts, network, err := s.accounts.GetNFTs(ctx, req.Data.WalletID)
 	if err != nil {
-		switch {
-		default:
-			if delegatedErr := accounts.ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
-				var delegatedParsedErr *accounts.DelegatedRelyingPartyErr
-				if errors.As(delegatedErr, &delegatedParsedErr) {
-					return nil, buildDelegatedErrorResponse(delegatedParsedErr.HTTPStatus, err, delegatedParsedErr.Message)
-				}
+		if delegatedErr := accounts.ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
+			var delegatedParsedErr *accounts.DelegatedRelyingPartyErr
+			if errors.As(delegatedErr, &delegatedParsedErr) {
+				return nil, buildDelegatedErrorResponse(delegatedParsedErr.HTTPStatus, err, delegatedParsedErr.Message)
 			}
-			return nil, buildDelegatedErrorResponse(http.StatusInternalServerError, err, "")
 		}
+		return nil, buildDelegatedErrorResponse(http.StatusInternalServerError, err, "")
 	}
 	return server.OK[GetNFTsResp](&GetNFTsResp{
 		WalletID: req.Data.WalletID,

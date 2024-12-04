@@ -31,7 +31,7 @@ cmd/heimdall-identity-io:
     certPath: cmd/heimdall-identity-io/.testdata/localhost.crt
     keyPath: cmd/heimdall-identity-io/.testdata/localhost.key
 
-cmd/heimdall-coin-data-syncer:
+cmd/heimdall-asset-data-syncer:
   version: local
   httpServer:
     port: 8888
@@ -87,6 +87,8 @@ accounts:
     replicaURLs:
       - postgresql://root:pass@localhost:5437/heimdall
 coins:
+  syncFrequency:
+    the-open-network: 10s
   fees:
     ton:
       slow:

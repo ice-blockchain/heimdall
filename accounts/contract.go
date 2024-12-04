@@ -41,6 +41,7 @@ type (
 	Wallets interface {
 		CreateWalletView(ctx context.Context, userID, name string, items []*CoinMapping, symbolGroups []string) (*WalletView, error)
 		GetWalletViews(ctx context.Context, userID string) ([]*WalletView, error)
+		GetWalletView(ctx context.Context, userID, name string) (*WalletView, error)
 		DeleteWalletView(ctx context.Context, userID, name string) error
 		ModifyWalletView(ctx context.Context, userID, name, newName string, items []*CoinMapping, symbolGroups []string) (*WalletView, error)
 		GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGroup string) ([]*CoinWithWalletInfo, error)
@@ -69,12 +70,14 @@ type (
 		MasterPubKey            string            `json:"masterPubKey"`
 	}
 	WalletView struct {
-		Name         string       `json:"name"`
-		Coins        CoinMappings `json:"coins"`
-		SymbolGroups []string     `json:"symbolGroups"`
-		CreatedAt    *time.Time   `json:"createdAt"`
-		UpdatedAt    *time.Time   `json:"updatedAt"`
-		UserID       string       `json:"userId"`
+		Name  string       `json:"name"`
+		Coins CoinMappings `json:"coins"`
+		// For GetWalletView, with total sum by symbol aggregation
+		Aggregation  map[string]*CoinAggregation `json:"aggregation,omitempty"`
+		SymbolGroups []string                    `json:"symbolGroups"`
+		CreatedAt    *time.Time                  `json:"createdAt"`
+		UpdatedAt    *time.Time                  `json:"updatedAt"`
+		UserID       string                      `json:"userId"`
 	}
 	CoinWithWalletInfo struct {
 		*coins.Coin
@@ -83,8 +86,9 @@ type (
 		Balance       string `json:"balance"`
 	}
 	CoinMapping struct {
-		WalletID *string `json:"walletId"`
-		CoinID   string  `json:"coinId"`
+		*coins.Coin `swaggerignore:"true"`
+		WalletID    *string `json:"walletId"`
+		CoinID      string  `json:"coinId"`
 	}
 	CoinMappings []*CoinMapping
 	CoinInWallet struct {

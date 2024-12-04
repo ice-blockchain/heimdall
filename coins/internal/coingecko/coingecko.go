@@ -26,6 +26,9 @@ func New(applicationYamlKey string) Client {
 	if cfg.CoinGecko.APIKey == "" {
 		log.Panic(errors.Errorf("coin gecko api key not set"))
 	}
+	if cfg.CoinGecko.BaseUrl == "" {
+		cfg.CoinGecko.BaseUrl = "https://pro-api.coingecko.com"
+	}
 	return &client{
 		cfg: &cfg,
 	}
@@ -43,37 +46,77 @@ func (c *client) ListCoins(ctx context.Context) ([]*Coin, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to list all coins")
 	}
-	res := make([]*Coin, 0, len(*coinList))
+	res := make(map[string][]*Coin)
+	coinsToSyncMarketData := []string{}
 	for _, coin := range *coinList {
 		if len(coin.Platforms) == 0 {
-			res = append(res, &Coin{
+			res[coin.ID] = append(res[coin.ID], &Coin{
 				ID:              coin.ID,
 				Symbol:          coin.Symbol,
 				Name:            coin.Name,
 				Network:         "",
 				ContractAddress: "",
 			})
+			coinsToSyncMarketData = append(coinsToSyncMarketData, coin.ID)
 			continue
 		}
+		coinsToSyncMarketData = append(coinsToSyncMarketData, coin.ID)
 		for platform, tokenAddr := range coin.Platforms {
 			if _, has := platformToNetworkMapping[platform]; !has {
 				continue
 			}
-			res = append(res, &Coin{
+			network := platformToNetworkMapping[platform]
+			res[coin.ID] = append(res[coin.ID], &Coin{
 				ID:              coin.ID,
 				Symbol:          coin.Symbol,
 				Name:            coin.Name,
-				Network:         platformToNetworkMapping[platform],
+				Network:         network,
 				ContractAddress: tokenAddr,
 			})
 		}
+	}
+	log.Debug(fmt.Sprintf("Initially got %v coins/tokens from coingecko, enhancing with market data...", len(res)))
+
+	return c.enhanceWithMarketData(ctx, res, coinsToSyncMarketData)
+}
+
+func (c *client) enhanceWithMarketData(ctx context.Context, coins map[string][]*Coin, coinIds []string) ([]*Coin, error) {
+	var batches [][]string
+	if len(coinIds) > maxCoinsPerPage {
+		for len(coinIds) > maxCoinsPerPage {
+			batches = append(batches, coinIds[:maxCoinsPerPage])
+			coinIds = coinIds[maxCoinsPerPage+1:]
+		}
+		if len(coinIds) > 0 {
+			batches = append(batches, coinIds)
+		}
+	} else {
+		batches = append(batches, coinIds)
+	}
+	for i, batch := range batches {
+		log.Debug(fmt.Sprintf("Fetching market data for coins %v/%v...", i+1, len(batches)))
+		coinsWithPrice, err := c.GetCoins(ctx, batch)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to fecth market data for coins %+v", batch)
+		}
+		for _, coin := range coinsWithPrice {
+			updCoins := coins[coin.ID]
+			for _, resCoin := range updCoins {
+				resCoin.PriceUSD = coin.PriceUSD
+			}
+			coins[coin.ID] = updCoins
+		}
+	}
+	res := []*Coin{}
+	for _, coin := range coins {
+		res = append(res, coin...)
 	}
 	return res, nil
 }
 
 func (c *client) GetCoins(ctx context.Context, coinIDs []string) ([]*Coin, error) {
 	coinsData, _, err := makeAPICall[[]coin](ctx, c, "/api/v3/coins/markets",
-		map[string]any{"ids": strings.Join(coinIDs, ","), "vs_currency": "USD"})
+		map[string]any{"ids": strings.Join(coinIDs, ","), "vs_currency": "USD", "per_page": maxCoinsPerPage})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get coins market data %v", strings.Join(coinIDs, ","))
 	}
@@ -97,11 +140,7 @@ func (c *client) GetTokens(ctx context.Context, network string, contractAddresse
 	res := make([]*Coin, 0, len(tokensData.Data))
 	for _, tok := range tokensData.Data {
 		var coinData *Coin
-		coinData, err = convertTokenData(network, tok)
-		if err != nil {
-			continue
-			//return nil, errors.Wrapf(err, "failed to parse multi token response for %+v", tok)
-		}
+		coinData = convertTokenData(network, tok)
 		res = append(res, coinData)
 	}
 	return res, nil
@@ -115,7 +154,7 @@ func (c *client) GetToken(ctx context.Context, network, tokenAddr string) (*Coin
 		}
 		return nil, errors.Wrapf(err, "failed to get token info for %v %v", network, tokenAddr)
 	}
-	return convertTokenData(network, tok.Data)
+	return convertTokenData(network, tok.Data), nil
 }
 
 func (c *client) GetNFT(ctx context.Context, network, contractAddr string) (*NFT, error) {
@@ -133,13 +172,14 @@ func (c *client) GetNFT(ctx context.Context, network, contractAddr string) (*NFT
 	return nft, nil
 }
 
-func convertTokenData(network string, tok tokenData) (*Coin, error) {
+func convertTokenData(network string, tok tokenData) *Coin {
 	price, err := strconv.ParseFloat(tok.Attributes.PriceUsd, 64)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failred to parse priceUsd: %v", tok.Attributes.PriceUsd)
+		log.Error(errors.Wrapf(err, "token response for %+v, using zero price", tok))
+		price = 0
 	}
 	return &Coin{
-		ID:              tok.Attributes.CoingeckoCoinId, // Data.ID?
+		ID:              tok.Attributes.CoingeckoCoinId,
 		Symbol:          tok.Attributes.Symbol,
 		Name:            tok.Attributes.Name,
 		Network:         network,
@@ -147,7 +187,7 @@ func convertTokenData(network string, tok tokenData) (*Coin, error) {
 		Decimals:        tok.Attributes.Decimals,
 		PriceUSD:        price,
 		IconUrl:         tok.Attributes.ImageUrl,
-	}, nil
+	}
 }
 
 func backoff(_ *req.Response, attempt int) stdlibtime.Duration {
@@ -175,9 +215,6 @@ func makeAPICall[RESP any](ctx context.Context, c *client, relativeUrl string, p
 	}
 	uri := urlObj.String()
 	header := "x-cg-pro-api-key"
-	if !strings.Contains(c.cfg.CoinGecko.BaseUrl, "pro") {
-		header = "x-cg-demo-api-key"
-	}
 	if resp, err := req.
 		SetContext(ctx).
 		SetRetryCount(3). //nolint:gomnd // .

@@ -1,6 +1,24 @@
 # SPDX-License-Identifier: ice License 1.0
 
 definitions:
+  accounts.CoinAggregation:
+    properties:
+      totalBalance:
+        $ref: '#/definitions/big.Int'
+      wallets:
+        items:
+          $ref: '#/definitions/accounts.CoinInWallet'
+        type: array
+    type: object
+  accounts.CoinInWallet:
+    properties:
+      asset:
+        $ref: '#/definitions/dfns.Asset'
+      network:
+        type: string
+      walletId:
+        type: string
+    type: object
   accounts.CoinMapping:
     properties:
       coinId:
@@ -18,8 +36,14 @@ definitions:
     - TwoFAOptionSMS
     - TwoFAOptionEmail
     - TwoFAOptionTOTPAuthenticator
+  big.Int:
+    type: object
   coins.Coin:
     properties:
+      contractAddress:
+        type: string
+      decimals:
+        type: integer
       iconURL:
         type: string
       id:
@@ -37,8 +61,22 @@ definitions:
       syncFrequency:
         $ref: '#/definitions/time.Duration'
     type: object
+  coins.NFT:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+    type: object
+  dfns.Asset:
+    additionalProperties: {}
+    type: object
   main.Coin:
     properties:
+      contractAddress:
+        type: string
+      decimals:
+        type: integer
       iconURL:
         type: string
       id:
@@ -55,6 +93,17 @@ definitions:
         type: string
       syncFrequency:
         $ref: '#/definitions/time.Duration'
+    type: object
+  main.GetNFTsResp:
+    properties:
+      network:
+        type: string
+      nfts:
+        items:
+          $ref: '#/definitions/coins.NFT'
+        type: array
+      walletId:
+        type: string
     type: object
   main.ImportCoinReq:
     properties:
@@ -145,6 +194,11 @@ definitions:
     type: object
   main.WalletView:
     properties:
+      aggregation:
+        additionalProperties:
+          $ref: '#/definitions/accounts.CoinAggregation'
+        description: For GetWalletView, with total sum by symbol aggregation
+        type: object
       coins:
         items:
           $ref: '#/definitions/accounts.CoinMapping'
@@ -385,75 +439,6 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Coins
-  /v1/users/:userId/coins/:symbolGroup:
-    get:
-      description: Returns all the user coins with symbol and wallet info (balances,
-        etc)
-      parameters:
-      - description: symbolGroup to filter
-        in: path
-        name: symbolGroup
-        type: string
-      - description: ID of the user
-        in: path
-        name: userId
-        type: string
-      - default: Bearer <Add token here>
-        description: Auth token from delegated relying party
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/main.Coin'
-            type: array
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/server.ErrorResponse'
-        "504":
-          description: if request times out
-          schema:
-            $ref: '#/definitions/server.ErrorResponse'
-      tags:
-      - Coins
-  /v1/users/{userID}/coins:
-    get:
-      description: Provides a list of coins updated since version
-      parameters:
-      - description: Version of configuration already presented on client
-        in: query
-        name: version
-        type: string
-      - default: Bearer <Add token here>
-        description: Auth token from delegated relying party
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.VersionedCoins'
-        "204":
-          description: if known_version have been provided before
-          schema:
-            $ref: '#/definitions/main.VersionedCoins'
-        "504":
-          description: if request times out
-          schema:
-            $ref: '#/definitions/server.ErrorResponse'
-      tags:
-      - Coins
   /v1/users/{userId}/2fa/{twoFAOption}/values/{twoFAOptionValue}:
     delete:
       description: Confirms deletion of 2FA method
@@ -634,6 +619,80 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - 2FA
+  /v1/users/{userId}/coins:
+    get:
+      description: Provides a list of coins updated since version
+      parameters:
+      - description: Version of configuration already presented on client
+        in: query
+        name: version
+        type: string
+      - description: ID of the user
+        in: path
+        name: userId
+        required: true
+        type: string
+      - default: Bearer <Add token here>
+        description: Auth token from delegated relying party
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.VersionedCoins'
+        "204":
+          description: if known_version have been provided before
+          schema:
+            $ref: '#/definitions/main.VersionedCoins'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Coins
+  /v1/users/{userId}/coins/{symbolGroup}:
+    get:
+      description: Returns all the user coins with symbol and wallet info (balances,
+        etc)
+      parameters:
+      - description: symbolGroup to filter
+        in: path
+        name: symbolGroup
+        type: string
+      - description: ID of the user
+        in: path
+        name: userId
+        type: string
+      - default: Bearer <Add token here>
+        description: Auth token from delegated relying party
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.Coin'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Coins
   /v1/users/{userId}/ion-connect-indexers:
     get:
       description: Returns indexers list for the user
@@ -825,6 +884,46 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Wallets
+    get:
+      description: Get wallet view with extended information about coins (grouped)
+      parameters:
+      - description: ID of the user
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: Name of wallet view
+        in: path
+        name: walletViewName
+        required: true
+        type: string
+      - default: Bearer <Add token here>
+        description: Auth token from delegated relying party
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.WalletView'
+        "404":
+          description: if wallet view not found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Wallets
     put:
       description: Modifies wallet view referenced in url
       parameters:
@@ -875,16 +974,21 @@ paths:
     get:
       description: Gets NFTs from the wallet
       parameters:
-      - description: Request params
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/main.StartDelegatedRecoveryReq'
       - default: ap-
         description: App ID
         in: header
         name: X-Client-ID
+        required: true
+        type: string
+      - default: Bearer <Add token here>
+        description: Auth token from delegated relying party
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: ID of the wallet
+        in: path
+        name: walletId
         required: true
         type: string
       produces:
@@ -893,15 +997,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.StartDelegatedRecoveryResp'
-        "400":
-          description: if invalid 2FA code is provided
-          schema:
-            $ref: '#/definitions/server.ErrorResponse'
-        "403":
-          description: if 2FA required
-          schema:
-            $ref: '#/definitions/server.ErrorResponse'
+            $ref: '#/definitions/main.GetNFTsResp'
         "500":
           description: Internal Server Error
           schema:

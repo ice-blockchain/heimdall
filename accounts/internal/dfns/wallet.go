@@ -49,7 +49,7 @@ func (c *dfnsClient) ListWallets(ctx context.Context, userID string) ([]Wallet, 
 
 func (c *dfnsClient) ListAssets(ctx context.Context, walletID string) (*Assets, error) {
 	header := http.Header{}
-	resp, err := dfnsCall[struct{}, Assets](ctx, c, nil, "GET", fmt.Sprintf("/wallets/%v/", walletID), header)
+	resp, err := dfnsCall[struct{}, Assets](ctx, c, nil, "GET", fmt.Sprintf("/wallets/%v/assets", walletID), header)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to list assets on wallet %v", walletID)
 	}

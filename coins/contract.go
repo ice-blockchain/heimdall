@@ -6,10 +6,12 @@ import (
 	"context"
 	_ "embed"
 	"io"
+	stdlog "log"
 	"sync"
 	stdlibtime "time"
 
 	"github.com/pkg/errors"
+	"github.com/rcrowley/go-metrics"
 
 	"github.com/ice-blockchain/heimdall/coins/internal/coingecko"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
@@ -22,7 +24,7 @@ type (
 		io.Closer
 		HealthCheck(ctx context.Context) error
 		Import(ctx context.Context, network, contractAddress string) (*Coin, error)
-		GetVersionedCoins(ctx context.Context, knownVersion *int) (latestVersion uint64, coinDiff []*Coin, err error)
+		GetVersionedCoins(ctx context.Context, userID string, knownVersion *int) (latestVersion uint64, coinDiff []*Coin, err error)
 		SyncCoins(ctx context.Context, symbolGroups []string) ([]*Coin, error)
 		GetCoinsOfSymbolGroup(ctx context.Context, symbolGroups []string) ([]*Coin, error)
 		GetFees(network string) *Fee
@@ -42,9 +44,10 @@ type (
 		Symbol          string              `json:"symbol"`
 		SymbolGroup     string              `json:"symbolGroup"`
 		Network         string              `json:"network"`
-		ContractAddress string              `json:"-"`
+		ContractAddress string              `json:"contractAddress"`
 		IconURL         string              `json:"iconURL"`
 		PriceUSD        float64             `json:"priceUSD"`
+		Decimals        uint8               `json:"decimals"`
 		SyncFrequency   stdlibtime.Duration `json:"syncFrequency"`
 	}
 	WalletNFT map[string]any
@@ -66,6 +69,7 @@ const (
 	initialVersion             = 0
 	coinSyncIterationDuration  = 1 * stdlibtime.Minute
 	coinSyncIterationBatchSize = 100
+	targetCoinGeckoCallsPerMin = 100
 )
 
 var (
@@ -88,9 +92,11 @@ type (
 		wg              sync.WaitGroup
 		cfg             *config
 		coinGeckoClient coingecko.Client
+		metrics         metrics.Registry
 	}
 	config struct {
-		Fees map[Network]Fee `yaml:"fees" mapstructure:"fees"`
+		Fees          map[Network]Fee                `yaml:"fees" mapstructure:"fees"`
+		SyncFrequency map[string]stdlibtime.Duration `yaml:"syncFrequency" mapstructure:"syncFrequency"`
 	}
 	Fee struct {
 		Slow     *FeeWithDuration `json:"slow" yaml:"slow"`
@@ -134,3 +140,7 @@ type (
 		IconUrl         string
 	}
 )
+
+func (s *coinSync) Printf(format string, args ...interface{}) {
+	stdlog.Printf(format, args...)
+}

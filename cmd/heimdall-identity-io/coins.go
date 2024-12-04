@@ -5,6 +5,8 @@ package main
 import (
 	"context"
 	"net/http"
+	"slices"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -44,7 +46,7 @@ func (s *service) ImportCoin(
 		return nil, server.BadRequest(err, invalidPropertiesErrorCode)
 	}
 	var coin *Coin
-	coin, err = s.coins.Import(ctx, mappedNetwork, req.Data.ContractAddress)
+	coin, err = s.coins.Import(ctx, mappedNetwork, strings.ToLower(req.Data.ContractAddress))
 	if err != nil {
 		switch {
 		case errors.Is(err, coins.ErrNotFound):
@@ -57,13 +59,23 @@ func (s *service) ImportCoin(
 	// Link new coin to user / populate user's wallet views with it.
 	walletViews, err := s.accounts.GetWalletViews(ctx, userID)
 	for _, wv := range walletViews {
-		wv.SymbolGroups = append(wv.SymbolGroups, coin.SymbolGroup)
-		wv.Coins = append(wv.Coins, &accounts.CoinMapping{
+		needUpdate := false
+		if !slices.Contains(wv.SymbolGroups, coin.SymbolGroup) {
+			wv.SymbolGroups = append(wv.SymbolGroups, coin.SymbolGroup)
+			needUpdate = true
+		}
+		newCoins := append(wv.Coins, &accounts.CoinMapping{
 			WalletID: nil,
 			CoinID:   coin.ID,
 		})
-		if _, err = s.accounts.ModifyWalletView(ctx, userID, wv.Name, wv.Name, wv.Coins, wv.SymbolGroups); err != nil {
-			return nil, server.Unexpected(err)
+		if err = s.validateWalletView(ctx, newCoins, false); err == nil {
+			wv.Coins = newCoins
+			needUpdate = true
+		}
+		if needUpdate {
+			if _, err = s.accounts.ModifyWalletView(ctx, userID, wv.Name, wv.Name, wv.Coins, wv.SymbolGroups); err != nil {
+				return nil, server.Unexpected(err)
+			}
 		}
 	}
 	return server.OK(coin), nil
@@ -76,16 +88,17 @@ func (s *service) ImportCoin(
 //	@Tags			Coins
 //	@Produce		json
 //	@Param			version			query		string	false	"Version of configuration already presented on client"
+//	@Param			userId			path		string	true	"ID of the user"
 //	@Param			Authorization	header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
 //	@Success		200				{object}	VersionedCoins
 //	@Success		204				{object}	VersionedCoins			"if known_version have been provided before"
 //	@Failure		504				{object}	server.ErrorResponse	"if request times out"
-//	@Router			/v1/users/{userID}/coins [GET].
+//	@Router			/v1/users/{userId}/coins [GET].
 func (s *service) GetVersionedCoins(
 	ctx context.Context,
 	req *server.Request[GetVersionedCoins, VersionedCoins],
 ) (successResp *server.Response[VersionedCoins], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	version, items, err := s.coins.GetVersionedCoins(ctx, req.Data.Version)
+	version, items, err := s.coins.GetVersionedCoins(ctx, req.Data.UserID, req.Data.Version)
 	if err != nil {
 		switch {
 		case errors.Is(err, coins.ErrNotChanged):
@@ -134,12 +147,12 @@ func (s *service) SyncCoins(
 //	@Success		200				{object}	[]Coin
 //	@Failure		500				{object}	server.ErrorResponse
 //	@Failure		504				{object}	server.ErrorResponse	"if request times out"
-//	@Router			/v1/users/:userId/coins/:symbolGroup [GET].
+//	@Router			/v1/users/{userId}/coins/{symbolGroup} [GET].
 func (s *service) GetCoinsOfSymbolGroup(
 	ctx context.Context,
 	req *server.Request[GetCoinsOfSymbolGroupReq, []*CoinWithWalletInfo],
 ) (successResp *server.Response[[]*CoinWithWalletInfo], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	items, err := s.accounts.GetCoinsOfSymbolGroup(ctx, req.Data.UserID, req.Data.SymbolGroup)
+	items, err := s.accounts.GetCoinsOfSymbolGroup(ctx, req.Data.UserID, strings.ToLower(req.Data.SymbolGroup))
 	if err != nil {
 		return nil, server.Unexpected(err)
 	}
