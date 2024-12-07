@@ -123,7 +123,7 @@ type (
 	GetNFTsReq  struct {
 		WalletID string `uri:"walletId"`
 	}
-	GetNFTsResp struct {
+	NFTCollection struct {
 		WalletID string       `json:"walletId"`
 		Network  string       `json:"network"`
 		NFTs     []*coins.NFT `json:"nfts"`

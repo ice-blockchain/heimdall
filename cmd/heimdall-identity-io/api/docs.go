@@ -1038,7 +1038,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/wallets/:walletId/nfts": {
+        "/wallets/{walletId}/nfts": {
             "get": {
                 "description": "Gets NFTs from the wallet",
                 "produces": [
@@ -1076,7 +1076,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.GetNFTsResp"
+                            "$ref": "#/definitions/main.NFTCollection"
                         }
                     },
                     "500": {
@@ -1236,7 +1236,18 @@ const docTemplate = `{
                 }
             }
         },
-        "main.GetNFTsResp": {
+        "main.ImportCoinReq": {
+            "type": "object",
+            "properties": {
+                "contractAddress": {
+                    "type": "string"
+                },
+                "network": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.NFTCollection": {
             "type": "object",
             "properties": {
                 "network": {
@@ -1249,17 +1260,6 @@ const docTemplate = `{
                     }
                 },
                 "walletId": {
-                    "type": "string"
-                }
-            }
-        },
-        "main.ImportCoinReq": {
-            "type": "object",
-            "properties": {
-                "contractAddress": {
-                    "type": "string"
-                },
-                "network": {
                     "type": "string"
                 }
             }

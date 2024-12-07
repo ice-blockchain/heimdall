@@ -94,7 +94,14 @@ definitions:
       syncFrequency:
         $ref: '#/definitions/time.Duration'
     type: object
-  main.GetNFTsResp:
+  main.ImportCoinReq:
+    properties:
+      contractAddress:
+        type: string
+      network:
+        type: string
+    type: object
+  main.NFTCollection:
     properties:
       network:
         type: string
@@ -103,13 +110,6 @@ definitions:
           $ref: '#/definitions/coins.NFT'
         type: array
       walletId:
-        type: string
-    type: object
-  main.ImportCoinReq:
-    properties:
-      contractAddress:
-        type: string
-      network:
         type: string
     type: object
   main.Relays:
@@ -970,7 +970,7 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Wallets
-  /wallets/:walletId/nfts:
+  /wallets/{walletId}/nfts:
     get:
       description: Gets NFTs from the wallet
       parameters:
@@ -997,7 +997,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.GetNFTsResp'
+            $ref: '#/definitions/main.NFTCollection'
         "500":
           description: Internal Server Error
           schema:

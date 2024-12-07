@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	stdlibtime "time"
@@ -24,7 +25,11 @@ func New(applicationYamlKey string) Client {
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	if cfg.CoinGecko.APIKey == "" {
-		log.Panic(errors.Errorf("coin gecko api key not set"))
+		cfg.CoinGecko.APIKey = os.Getenv("COIN_GECKO_API_KEY")
+		if cfg.CoinGecko.APIKey == "" {
+			log.Panic(errors.Errorf("coin gecko api key not set"))
+		}
+
 	}
 	if cfg.CoinGecko.BaseUrl == "" {
 		cfg.CoinGecko.BaseUrl = "https://pro-api.coingecko.com"

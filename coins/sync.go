@@ -5,6 +5,7 @@ package coins
 import (
 	"context"
 	"fmt"
+	stdlog "log"
 	"math"
 	"strings"
 	stdlibtime "time"
@@ -222,4 +223,8 @@ func buildBatchUpdate(now *time.Time, coinsList []*coingecko.Coin) (sql string, 
 		idx += 10
 	}
 	return strings.Join(placeholders, ", \n"), params
+}
+
+func (s *coinSync) Printf(format string, args ...interface{}) {
+	stdlog.Printf(format, args...)
 }

@@ -201,14 +201,14 @@ func (s *service) StartDelegatedRecovery(
 //	@Param			X-Client-ID		header		string	true	"App ID"									default(ap-)
 //	@Param			Authorization	header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
 //	@Param			walletId		path		string	true	"ID of the wallet"
-//	@Success		200				{object}	GetNFTsResp
+//	@Success		200				{object}	NFTCollection
 //	@Failure		500				{object}	server.ErrorResponse
 //	@Failure		504				{object}	server.ErrorResponse	"if request times out"
-//	@Router			/wallets/:walletId/nfts [GET].
+//	@Router			/wallets/{walletId}/nfts [GET].
 func (s *service) GetNFTs(
 	ctx context.Context,
-	req *server.Request[GetNFTsReq, GetNFTsResp],
-) (successResp *server.Response[GetNFTsResp], errorResp *server.ErrResponse[*delegatedErrorResponse]) {
+	req *server.Request[GetNFTsReq, NFTCollection],
+) (successResp *server.Response[NFTCollection], errorResp *server.ErrResponse[*delegatedErrorResponse]) {
 	nfts, network, err := s.accounts.GetNFTs(ctx, req.Data.WalletID)
 	if err != nil {
 		if delegatedErr := accounts.ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
@@ -219,7 +219,7 @@ func (s *service) GetNFTs(
 		}
 		return nil, buildDelegatedErrorResponse(http.StatusInternalServerError, err, "")
 	}
-	return server.OK[GetNFTsResp](&GetNFTsResp{
+	return server.OK[NFTCollection](&NFTCollection{
 		WalletID: req.Data.WalletID,
 		Network:  network,
 		NFTs:     nfts,

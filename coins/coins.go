@@ -321,5 +321,6 @@ func (c *coinsRepository) syncFrequency(coinGeckoCoinID string) stdlibtime.Durat
 	if freq, hasFreq := c.cfg.SyncFrequency[coinGeckoCoinID]; hasFreq {
 		return freq
 	}
-	return defaultSyncFrequency
+
+	return c.cfg.DefaultSyncFrequency
 }

@@ -6,7 +6,6 @@ import (
 	"context"
 	_ "embed"
 	"io"
-	stdlog "log"
 	"sync"
 	stdlibtime "time"
 
@@ -65,7 +64,6 @@ var (
 
 const (
 	applicationYamlKey         = "coins"
-	defaultSyncFrequency       = 24 * stdlibtime.Hour
 	initialVersion             = 0
 	coinSyncIterationDuration  = 1 * stdlibtime.Minute
 	coinSyncIterationBatchSize = 100
@@ -95,8 +93,9 @@ type (
 		metrics         metrics.Registry
 	}
 	config struct {
-		Fees          map[Network]Fee                `yaml:"fees" mapstructure:"fees"`
-		SyncFrequency map[string]stdlibtime.Duration `yaml:"syncFrequency" mapstructure:"syncFrequency"`
+		Fees                 map[Network]Fee                `yaml:"fees" mapstructure:"fees"`
+		SyncFrequency        map[string]stdlibtime.Duration `yaml:"syncFrequency" mapstructure:"syncFrequency"`
+		DefaultSyncFrequency stdlibtime.Duration            `yaml:"defaultSyncFrequency" mapstructure:"defaultSyncFrequency"`
 	}
 	Fee struct {
 		Slow     *FeeWithDuration `json:"slow" yaml:"slow"`
@@ -140,7 +139,3 @@ type (
 		IconUrl         string
 	}
 )
-
-func (s *coinSync) Printf(format string, args ...interface{}) {
-	stdlog.Printf(format, args...)
-}

@@ -87,6 +87,7 @@ accounts:
     replicaURLs:
       - postgresql://root:pass@localhost:5437/heimdall
 coins:
+  defaultSyncFrequency: 24h
   syncFrequency:
     the-open-network: 10s
   fees:
@@ -109,7 +110,7 @@ coins:
         maxFee: 225000091
         waitTime: 1000
   coin-gecko:
-    api-key: bogus
+    #api-key: bogus
     base-url: https://pro-api.coingecko.com
   wintr/connectors/storage/v2:
     runDDL: true
@@ -121,5 +122,5 @@ coins:
       - postgresql://root:pass@localhost:5437/heimdall
 nfts:
   coin-gecko:
-    api-key: bogus
+    #api-key: bogus
     base-url: https://pro-api.coingecko.com
