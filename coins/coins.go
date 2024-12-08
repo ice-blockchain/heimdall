@@ -98,7 +98,7 @@ func (c *coinsRepository) syncAllCoins(ctx context.Context) error {
 			log.Debug(fmt.Sprintf("Inserting %v coins of %v...", len(batch), total))
 			placeholders, params := c.buildInsertBatchForCoins(now, batch)
 			sql := fmt.Sprintf(`
-			INSERT INTO coins(created_at, updated_at, sync_frequency, decimals, version, id, network, name, symbol, symbol_group, contract_address, coingecko_coin_id, price_usd) VALUES 		      %[1]v`,
+			INSERT INTO coins(created_at, updated_at, data_updated_at, sync_frequency, decimals, version, id, network, name, symbol, symbol_group, contract_address, coingecko_coin_id, price_usd) VALUES 		      %[1]v`,
 				placeholders)
 			_, err = storage.Exec(ctx, c.db, sql, params...)
 			if err != nil {
@@ -118,14 +118,17 @@ func (c *coinsRepository) buildInsertBatchForCoins(now *time.Time, coinsList []*
 	idx := 2
 	for _, coinItem := range coinsList {
 		decimals := 0
-		params = append(params, c.syncFrequency(coinItem.ID), decimals, generateInternalID(coinItem), coinItem.MappedNetwork(), coinItem.Name, coinItem.Symbol, coinItem.SymbolGroup(), coinItem.ContractAddress, coinItem.ID, coinItem.PriceUSD)
-		placeholders = append(placeholders, fmt.Sprintf("($1,$1, $%[1]v::INTERVAL, $%[2]v, COALESCE((SELECT MAX(version) FROM coins),0), $%[3]v,$%[4]v, $%[5]v, $%[6]v, $%[7]v, $%[8]v, $%[9]v, $%[10]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7, idx+8, idx+9))
+		params = append(params, c.syncFrequency(coinItem.ID), decimals, generateInternalID(coinItem, nil), coinItem.MappedNetwork(), coinItem.Name, coinItem.Symbol, coinItem.SymbolGroup(), coinItem.ContractAddress, coinItem.ID, coinItem.PriceUSD)
+		placeholders = append(placeholders, fmt.Sprintf("($1,$1,$1, $%[1]v::INTERVAL, $%[2]v, COALESCE((SELECT MAX(version) FROM coins),0), $%[3]v,$%[4]v, $%[5]v, $%[6]v, $%[7]v, $%[8]v, $%[9]v, $%[10]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7, idx+8, idx+9))
 		idx += 10
 	}
 	return strings.Join(placeholders, ", "), params
 }
 
-func generateInternalID(c *coingecko.Coin) string {
+func generateInternalID(c *coingecko.Coin, mapping map[string]string) string {
+	if c.ID == "" && len(mapping) > 0 {
+		return mapping[c.Network+":"+c.ContractAddress]
+	}
 	hash := md5.Sum([]byte(c.Network + c.ContractAddress + c.ID))
 	id, _ := uuid.FromBytes(hash[:])
 	return id.String()
@@ -185,9 +188,9 @@ func MapNetworkToCoinGecko(network string) (string, error) {
 
 func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *coingecko.Coin) (*coin, error) {
 	updated, err := storage.ExecOne[coin](ctx, c.db, `
-	INSERT INTO coins (sync_frequency, created_at, updated_at, decimals, version,                             price_usd, id, coingecko_coin_id,
+	INSERT INTO coins (sync_frequency, created_at, updated_at, data_updated_at, decimals, version,                             price_usd, id, coingecko_coin_id,
 	                   network, name, contract_address, symbol, symbol_group, icon_url) VALUES (
-	                   $2,             $1,         $1,          $3,     (SELECT max(version) from coins),      $4,        $5,  $6,
+	                   $2,             $1,         $1,         $1,          $3,     (SELECT max(version) from coins),      $4,        $5,  $6,
 	                   $7,      $8,    $9,              $10,   $11,          $12                                                                         	
 	                   )
 	ON CONFLICT (id) DO UPDATE SET 
@@ -213,7 +216,7 @@ func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *c
 	    symbol_group = excluded.symbol_group,
 	    icon_url = excluded.icon_url
 	RETURNING *
-`, now, c.syncFrequency(tok.ID), tok.Decimals, tok.PriceUSD, generateInternalID(tok),
+`, now, c.syncFrequency(tok.ID), tok.Decimals, tok.PriceUSD, generateInternalID(tok, nil),
 		tok.ID, tok.Network, tok.Name, tok.ContractAddress, tok.Symbol, tok.SymbolGroup(), tok.IconUrl)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to upsert token data %+v", tok)

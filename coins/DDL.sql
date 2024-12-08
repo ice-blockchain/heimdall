@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS coins (
                                      sync_frequency    INTERVAL NOT NULL,
                                      created_at        TIMESTAMP NOT NULL,
                                      updated_at        TIMESTAMP NOT NULL,
+                                     data_updated_at   TIMESTAMP NOT NULL,
                                      decimals          SMALLINT NOT NULL,
                                      version           BIGINT NOT NULL,
                                      price_usd         NUMERIC NOT NULL DEFAULT 0,

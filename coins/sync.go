@@ -36,7 +36,7 @@ func MustStartSyncer(ctx context.Context, cancel context.CancelFunc) Sync {
 	registry := metrics.NewRegistry()
 	log.Panic(errors.Wrapf(registry.Register("iteration", metrics.NewCustomTimer(metrics.NewHistogram(metrics.NewExpDecaySample(10_000, 0.015)), metrics.NewMeter())), "failed to register timer"))
 	log.Panic(errors.Wrapf(registry.Register("coin_gecko_calls", metrics.NewMeter()), "failed to register coingecko call meter"))
-	go metrics.LogScaled(registry, 10*stdlibtime.Minute, 1*stdlibtime.Millisecond, s)
+	go metrics.LogScaled(registry, 10*stdlibtime.Second, 1*stdlibtime.Millisecond, s)
 	s.metrics = registry
 
 	go s.sync(ctx)
@@ -75,6 +75,9 @@ func (s *coinSync) sync(ctx context.Context) {
 			callsPerIteration = 1
 		}
 		targetIterations := targetCoinGeckoCallsPerMin / callsPerIteration
+		if targetIterations < 1 {
+			targetIterations = 1
+		}
 		sleepTime := stdlibtime.Duration(coinSyncIterationDuration / stdlibtime.Duration(targetIterations))
 		start := time.Now()
 		syncCtx, cancel = context.WithTimeout(context.Background(), coinSyncIterationDuration)
@@ -87,7 +90,7 @@ func (s *coinSync) sync(ctx context.Context) {
 
 func (s *coinSync) syncCoinBatch(ctx context.Context) {
 	start := time.Now()
-	coinsToSync, err := s.fetchSyncableCoins(ctx)
+	coinsToSync, err := s.fetchSyncableCoins(ctx, start)
 	if err != nil {
 		log.Error(errors.Wrapf(err, "failed to fetch syncable coins"))
 		return
@@ -104,34 +107,31 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 		}
 		s.metrics.Get("coin_gecko_calls").(metrics.Meter).Mark(1)
 	}
+	ids := map[string]string{}
 	for network, tokensAddrs := range coinsToSync {
-		var batches [][]string
-		if len(tokensAddrs.ContractAddresses) > coingecko.MaxTokenAddrsInSingleCall {
-			for len(tokensAddrs.ContractAddresses) > coingecko.MaxTokenAddrsInSingleCall {
-				batches = append(batches, tokensAddrs.ContractAddresses[:coingecko.MaxTokenAddrsInSingleCall])
-				tokensAddrs.ContractAddresses = tokensAddrs.ContractAddresses[coingecko.MaxTokenAddrsInSingleCall+1:]
-			}
-			if len(tokensAddrs.ContractAddresses) > 0 {
-				batches = append(batches, tokensAddrs.ContractAddresses)
-			}
+		var fn func(ctx context.Context, network string, contractAddresses []string) ([]*coingecko.Coin, error)
+		if tokensAddrs.SyncTokenFullData {
+			fn = s.getTokens(coingecko.MaxTokenAddrsGetTokenData, s.coinGeckoClient.GetTokens)
 		} else {
-			batches = append(batches, tokensAddrs.ContractAddresses)
+			fn = s.getTokens(coingecko.MaxTokenAddrsGetTokenPrices, s.coinGeckoClient.GetTokenPrices)
 		}
-		for _, b := range batches {
-			if len(b) == 0 {
-				continue
-			}
-			var tokensData []*coingecko.Coin
-			tokensData, err = s.coinGeckoClient.GetTokens(ctx, network, b)
-			if err != nil {
-				log.Error(errors.Wrapf(err, "failed to fetch market data from coin gecko for tokens on %v network: %#v", network, tokensAddrs))
-				return
-			}
-			s.metrics.Get("coin_gecko_calls").(metrics.Meter).Mark(1)
-			coinsData = append(coinsData, tokensData...)
+		contractAddrs := make([]string, 0, len(tokensAddrs.ContractAddresses))
+		for _, addr := range tokensAddrs.ContractAddresses {
+			spl := strings.Split(addr, ":")
+			id, contractAddr := spl[0], spl[1]
+			contractAddrs = append(contractAddrs, contractAddr)
+			ids[network+":"+contractAddr] = id
 		}
+		tokens, err := fn(ctx, network, contractAddrs)
+		if err != nil {
+			log.Error(errors.Wrapf(err, "failed to sync tokens data"))
+			return
+		}
+
+		coinsData = append(coinsData, tokens...)
 	}
-	err = s.updateCoinsData(ctx, start, coinsData)
+
+	err = s.updateCoinsData(ctx, start, coinsData, false, ids)
 	if err != nil {
 		log.Error(errors.Wrapf(err, "failed to write updated data from coin market cap %#v", coinsData))
 		return
@@ -141,17 +141,49 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 	}
 }
 
-func (s *coinSync) fetchSyncableCoins(ctx context.Context) (map[string]*coinToSync, error) {
+func (s *coinSync) getTokens(maxBatch int, callCoinGecko func(ctx context.Context, network string, contractAddresses []string) ([]*coingecko.Coin, error)) func(ctx context.Context, network string, contractAddresses []string) ([]*coingecko.Coin, error) {
+	return func(ctx context.Context, network string, contractAddresses []string) ([]*coingecko.Coin, error) {
+		res := make([]*coingecko.Coin, 0)
+		var batches [][]string
+		if len(contractAddresses) > maxBatch {
+			for len(contractAddresses) > maxBatch {
+				batches = append(batches, contractAddresses[:maxBatch])
+				contractAddresses = contractAddresses[maxBatch+1:]
+			}
+			if len(contractAddresses) > 0 {
+				batches = append(batches, contractAddresses)
+			}
+		} else {
+			batches = append(batches, contractAddresses)
+		}
+		for _, b := range batches {
+			if len(b) == 0 {
+				continue
+			}
+			tokensData, err := callCoinGecko(ctx, network, b)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to fetch info for tokens %#v", b)
+			}
+			s.metrics.Get("coin_gecko_calls").(metrics.Meter).Mark(1)
+			res = append(res, tokensData...)
+		}
+		return res, nil
+	}
+}
+
+func (s *coinSync) fetchSyncableCoins(ctx context.Context, now *time.Time) (map[string]*coinToSync, error) {
+	expiredDataAt := now.Add(-s.cfg.SyncTokensDataFrequency)
 	coins, err := storage.Select[coinToSync](ctx, s.db,
 		fmt.Sprintf(`SELECT network, 
        		 array_agg(t.coingecko_coin_id) FILTER (WHERE t.contract_address = '') AS coin_ids,
-       		 array_agg(t.contract_address) FILTER (WHERE t.contract_address != '')  AS contract_addresses
+       		 array_agg(t.id||':'||t.contract_address) FILTER (WHERE t.contract_address != '')  AS contract_addresses,
+       		 array_agg((t.data_updated_at < $1)) @> ARRAY[TRUE] as sync_token_full_data 
 			 FROM (
 				SELECT * FROM coins_sync_queue
 				INNER JOIN coins ON coins_sync_queue.coin_id = coins.id
 				ORDER BY coins_sync_queue.created_at ASC
 				LIMIT %v
-			 ) t GROUP BY network`, coinSyncIterationBatchSize),
+			 ) t GROUP BY network`, coinSyncIterationBatchSize), expiredDataAt,
 	)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to fetch coins to sync data")
@@ -163,9 +195,9 @@ func (s *coinSync) fetchSyncableCoins(ctx context.Context) (map[string]*coinToSy
 	return res, nil
 }
 
-func (s *coinSync) updateCoinsData(ctx context.Context, now *time.Time, coins []*coingecko.Coin) error {
+func (s *coinSync) updateCoinsData(ctx context.Context, now *time.Time, coins []*coingecko.Coin, updateFullDataTokens bool, mapping map[string]string) error {
 	params := []any{now}
-	placeholders, extraParams := buildBatchUpdate(now, coins)
+	placeholders, extraParams := buildBatchUpdate(now, coins, mapping)
 	if len(placeholders) == 0 {
 		return nil
 	}
@@ -173,27 +205,29 @@ func (s *coinSync) updateCoinsData(ctx context.Context, now *time.Time, coins []
 	sql := fmt.Sprintf(`WITH upd as (
 						UPDATE coins SET
 						 updated_at = $1,
-						 decimals = update_data.decimals,
-						 version = (CASE WHEN
-											 coins.decimals::SMALLINT != update_data.decimals::SMALLINT OR
+						 data_updated_at = CASE WHEN coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v) THEN $1 ELSE coins.data_updated_at END,
+						 version = (CASE 
+										  WHEN %[2]v and
+											 (coins.decimals::SMALLINT != update_data.decimals::SMALLINT OR
 											 coins.coingecko_coin_id != update_data.coingecko_coin_id OR
 											 coins.network != update_data.network OR
 											 coins.name != update_data.name OR
 											 coins.contract_address != update_data.contract_address OR
 											 coins.symbol != update_data.symbol OR
 											 coins.symbol_group != update_data.symbol_group OR
-											 coins.icon_url != update_data.icon_url
+											 coins.icon_url != update_data.icon_url)
 											 THEN coins.version + 1 ELSE coins.version END),
 						 price_usd = update_data.price_usd,
-						 coingecko_coin_id = update_data.coingecko_coin_id,
-						 network = update_data.network,
-						 name = update_data.name,
-						 contract_address = update_data.contract_address,
-						 symbol = update_data.symbol,
-						 symbol_group = update_data.symbol_group,
-						 icon_url = update_data.icon_url
+						 decimals = CASE WHEN coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v) THEN update_data.decimals ELSE coins.decimals END,
+						 coingecko_coin_id = CASE WHEN coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v) THEN update_data.coingecko_coin_id ELSE coins.coingecko_coin_id END,
+						 network = CASE WHEN coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v) THEN update_data.network ELSE coins.network END,
+						 name = CASE WHEN coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v) THEN update_data.name ELSE coins.name END,
+						 contract_address = CASE WHEN coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v) THEN update_data.contract_address ELSE coins.contract_address END,
+						 symbol = CASE WHEN coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v) THEN update_data.symbol ELSE coins.symbol END,
+						 symbol_group = CASE WHEN coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v) THEN update_data.symbol_group ELSE coins.symbol_group END,
+						 icon_url = CASE WHEN coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v) THEN update_data.icon_url ELSE coins.icon_url END
 			FROM (
-				VALUES %v
+				VALUES %[1]v
 			) as update_data (
 				id, decimals, price_usd, coingecko_coin_id, network,
 				name, contract_address, symbol, symbol_group, icon_url
@@ -201,7 +235,7 @@ func (s *coinSync) updateCoinsData(ctx context.Context, now *time.Time, coins []
 			WHERE coins.id = update_data.id
 			RETURNING coins.id
 		) DELETE FROM coins_sync_queue WHERE coin_id IN (SELECT id FROM upd)
-	`, placeholders)
+	`, placeholders, updateFullDataTokens)
 	rowsUpdated, err := storage.Exec(ctx, s.db, sql, params...)
 	if err != nil {
 		return errors.Wrap(err, "failed to update coins data in db from coingecko")
@@ -212,12 +246,12 @@ func (s *coinSync) updateCoinsData(ctx context.Context, now *time.Time, coins []
 	return errors.Wrap(err, "failed to update coins data in db from coingecko")
 }
 
-func buildBatchUpdate(now *time.Time, coinsList []*coingecko.Coin) (sql string, params []any) {
+func buildBatchUpdate(now *time.Time, coinsList []*coingecko.Coin, mapping map[string]string) (sql string, params []any) {
 	placeholders := make([]string, 0, len(coinsList))
 	idx := 2
 	params = make([]any, 0, len(coinsList)*10)
 	for _, c := range coinsList {
-		params = append(params, generateInternalID(c), c.Decimals, c.PriceUSD, c.ID, c.MappedNetwork(), c.Name, c.ContractAddress, c.Symbol, c.SymbolGroup(), c.IconUrl)
+		params = append(params, generateInternalID(c, mapping), c.Decimals, c.PriceUSD, c.ID, c.MappedNetwork(), c.Name, c.ContractAddress, c.Symbol, c.SymbolGroup(), c.IconUrl)
 		placeholders = append(placeholders, fmt.Sprintf(""+
 			"(                  $%[1]v,                $%[2]v::SMALLINT, $%[3]v::NUMERIC, $%[4]v, $%[5]v,         $%[6]v,  $%[7]v,              $%[8]v,  $%[9]v,          $%[10]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7, idx+8, idx+9))
 		idx += 10

@@ -87,7 +87,8 @@ accounts:
     replicaURLs:
       - postgresql://root:pass@localhost:5437/heimdall
 coins:
-  defaultSyncFrequency: 24h
+  defaultSyncFrequency: 12h
+  syncTokensDataFrequency: 24h
   syncFrequency:
     the-open-network: 10s
   fees:

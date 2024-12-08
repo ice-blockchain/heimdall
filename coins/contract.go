@@ -93,9 +93,10 @@ type (
 		metrics         metrics.Registry
 	}
 	config struct {
-		Fees                 map[Network]Fee                `yaml:"fees" mapstructure:"fees"`
-		SyncFrequency        map[string]stdlibtime.Duration `yaml:"syncFrequency" mapstructure:"syncFrequency"`
-		DefaultSyncFrequency stdlibtime.Duration            `yaml:"defaultSyncFrequency" mapstructure:"defaultSyncFrequency"`
+		Fees                    map[Network]Fee                `yaml:"fees" mapstructure:"fees"`
+		SyncFrequency           map[string]stdlibtime.Duration `yaml:"syncFrequency" mapstructure:"syncFrequency"`
+		DefaultSyncFrequency    stdlibtime.Duration            `yaml:"defaultSyncFrequency" mapstructure:"defaultSyncFrequency"`
+		SyncTokensDataFrequency stdlibtime.Duration            `yaml:"syncTokensDataFrequency" mapstructure:"syncTokensDataFrequency"`
 	}
 	Fee struct {
 		Slow     *FeeWithDuration `json:"slow" yaml:"slow"`
@@ -111,6 +112,7 @@ type (
 		SyncFrequency   stdlibtime.Duration
 		CreatedAt       *time.Time
 		UpdatedAt       *time.Time
+		DataUpdatedAt   *time.Time
 		Decimals        uint8
 		Version         uint64
 		PriceUSD        float64
@@ -127,6 +129,7 @@ type (
 		Network           string
 		ContractAddresses []string `db:"contract_addresses"`
 		CoinGeckoCoinIDs  []string `db:"coin_ids"`
+		SyncTokenFullData bool     `db:"sync_token_full_data"`
 	}
 	nft struct {
 		Network         string

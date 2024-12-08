@@ -150,6 +150,27 @@ func (c *client) GetTokens(ctx context.Context, network string, contractAddresse
 	}
 	return res, nil
 }
+func (c *client) GetTokenPrices(ctx context.Context, network string, contractAddresses []string) ([]*Coin, error) {
+	tokensData, _, err := makeAPICall[tokenPrices](ctx, c, fmt.Sprintf("/api/v3/onchain/simple/networks/%v/token_price/%v", network, strings.Join(contractAddresses, ",")), make(map[string]any))
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get tokens data on %v, %v", network, strings.Join(contractAddresses, ","))
+	}
+	res := make([]*Coin, 0, len(tokensData.Data.Attributes.TokenPrices))
+	for contractAddr, priceData := range tokensData.Data.Attributes.TokenPrices {
+		var price float64
+		price, err = strconv.ParseFloat(priceData, 64)
+		if err != nil {
+			log.Debug(fmt.Sprintf("%v", errors.Wrapf(err, "token response for %v in %v, using zero price", contractAddr, tokensData.Data.Attributes.TokenPrices)))
+			price = 0
+		}
+		res = append(res, &Coin{
+			Network:         network,
+			ContractAddress: contractAddr,
+			PriceUSD:        price,
+		})
+	}
+	return res, nil
+}
 
 func (c *client) GetToken(ctx context.Context, network, tokenAddr string) (*Coin, error) {
 	tok, status, err := makeAPICall[token](ctx, c, fmt.Sprintf("/api/v3/onchain/networks/%v/tokens/%v", network, tokenAddr), make(map[string]any))
@@ -180,7 +201,7 @@ func (c *client) GetNFT(ctx context.Context, network, contractAddr string) (*NFT
 func convertTokenData(network string, tok tokenData) *Coin {
 	price, err := strconv.ParseFloat(tok.Attributes.PriceUsd, 64)
 	if err != nil {
-		log.Error(errors.Wrapf(err, "token response for %+v, using zero price", tok))
+		log.Debug(fmt.Sprintf("%v", errors.Wrapf(err, "token response for %+v, using zero price", tok)))
 		price = 0
 	}
 	return &Coin{

@@ -13,6 +13,7 @@ type (
 		ListCoins(ctx context.Context) ([]*Coin, error)
 		GetToken(ctx context.Context, network, tokenAddr string) (*Coin, error)
 		GetTokens(ctx context.Context, network string, tokenAddr []string) ([]*Coin, error)
+		GetTokenPrices(ctx context.Context, network string, contractAddresses []string) ([]*Coin, error)
 		GetCoins(ctx context.Context, coinIDs []string) ([]*Coin, error)
 		GetNFT(ctx context.Context, network string, contractAddress string) (*NFT, error)
 	}
@@ -159,9 +160,19 @@ type (
 	page[T any] struct {
 		Data []T `json:"data"`
 	}
+	tokenPrices struct {
+		Data struct {
+			Id         string `json:"id"`
+			Type       string `json:"type"`
+			Attributes struct {
+				TokenPrices map[string]string `json:"token_prices"`
+			} `json:"attributes"`
+		} `json:"data"`
+	}
 )
 
 const (
-	maxCoinsPerPage           = 250
-	MaxTokenAddrsInSingleCall = 30
+	maxCoinsPerPage             = 250
+	MaxTokenAddrsGetTokenData   = 30
+	MaxTokenAddrsGetTokenPrices = 100
 )
