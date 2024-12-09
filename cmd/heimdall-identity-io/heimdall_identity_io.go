@@ -5,10 +5,12 @@ package main
 import (
 	"context"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/cmd/heimdall-identity-io/api"
+	"github.com/ice-blockchain/heimdall/coins"
 	"github.com/ice-blockchain/heimdall/server"
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/log"
@@ -37,10 +39,12 @@ func (s *service) RegisterRoutes(router *server.Router) {
 	s.setup2FARoutes(router)
 	s.setupUserRoutes(router)
 	s.setupWalletViewsRoutes(router)
+	s.setupCoinRoutes(router)
 }
 
 func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
-	s.accounts = accounts.New(ctx)
+	s.coins = coins.New(ctx)
+	s.accounts = accounts.New(ctx, s.coins)
 }
 
 func (s *service) Close(ctx context.Context) error {
@@ -48,11 +52,17 @@ func (s *service) Close(ctx context.Context) error {
 		return errors.Wrap(ctx.Err(), "could not close repository because context ended")
 	}
 
-	return errors.Wrapf(s.accounts.Close(), "failed to close accounts")
+	return multierror.Append(
+		errors.Wrap(s.accounts.Close(), "failed to close accounts"),
+		errors.Wrap(s.coins.Close(), "failed to close coins"),
+	).ErrorOrNil()
 }
 
 func (s *service) CheckHealth(ctx context.Context) error {
 	log.Debug("checking health...", "package", "accounts")
 
-	return errors.Wrapf(s.accounts.HealthCheck(ctx), "accounts check failed")
+	return multierror.Append(
+		errors.Wrapf(s.accounts.HealthCheck(ctx), "accounts check failed"),
+		errors.Wrapf(s.coins.HealthCheck(ctx), "coins check failed"),
+	).ErrorOrNil()
 }

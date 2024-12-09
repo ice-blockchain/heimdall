@@ -20,14 +20,15 @@ func NewDelegatedRPAuth(ctx context.Context) dfns.AuthClient {
 	return dfns.NewDfnsTokenAuth(ctx, applicationYamlKey)
 }
 
-func New(ctx context.Context) Accounts {
+func New(ctx context.Context, coinsRepo Coins) Accounts {
 	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
-	cl := dfns.NewDfnsClient(ctx, db, applicationYamlKey)
+	cl := dfns.NewDfnsClient(ctx, db, applicationYamlKey, coinsRepo)
 
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	acc := accounts{
 		db:                         db,
+		coinsRepo:                  coinsRepo,
 		shutdown:                   db.Close,
 		totpProvider:               totp.New(applicationYamlKey),
 		emailSender:                email.New(applicationYamlKey),

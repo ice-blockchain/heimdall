@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ice-blockchain/heimdall/accounts"
+	"github.com/ice-blockchain/heimdall/coins"
 )
 
 type (
@@ -44,20 +45,35 @@ type (
 		IONConnectIndexers []string `json:"ionConnectIndexers"`
 	}
 	WalletViewReq struct {
-		UserID string                     `uri:"userId" required:"true" swaggerignore:"true"`
-		Name   string                     `json:"name" required:"true"`
-		Items  []*accounts.WalletViewItem `json:"items" required:"true"`
+		UserID       string                  `uri:"userId" required:"true" swaggerignore:"true"`
+		Name         string                  `json:"name" required:"true"`
+		Items        []*accounts.CoinMapping `json:"items" required:"true"`
+		SymbolGroups []string                `json:"symbolGroups" required:"true"`
 	}
-	GetWalletConfigurationReq struct {
-		KnownVersion *int `form:"known_version" required:"false"`
+	ImportCoinReq struct {
+		Network         string `json:"network"`
+		ContractAddress string `json:"contractAddress"`
 	}
-	WalletConfiguration struct {
-		Version        int                       `json:"version"`
-		AvailableCoins []*accounts.AvailableCoin `json:"availableCoins"`
+	Coin              = coins.Coin
+	GetVersionedCoins struct {
+		UserID  string `uri:"userId" required:"true" swaggerignore:"true"`
+		Version *int   `form:"version" required:"false"`
 	}
-	WalletView        = accounts.WalletView
-	WalletViews       = []*WalletView
-	GetWalletViewsReq struct {
+	VersionedCoins struct {
+		Version uint64        `json:"version"`
+		Coins   []*coins.Coin `json:"coins"`
+	}
+	SyncCoinsReq struct {
+		SymbolGroup []string `form:"symbolGroup" required:"true"`
+	}
+	GetCoinsOfSymbolGroupReq struct {
+		UserID      string `uri:"userId" required:"true" swaggerignore:"true"`
+		SymbolGroup string `uri:"symbolGroup" required:"true" swaggerignore:"true"`
+	}
+	CoinWithWalletInfo = accounts.CoinWithWalletInfo
+	WalletView         = accounts.WalletView
+	WalletViews        = []*WalletView
+	GetWalletViewsReq  struct {
 		UserID string `uri:"userId" required:"true" swaggerignore:"true"`
 	}
 	WalletViewReference struct {
@@ -104,6 +120,14 @@ type (
 		Kind string         `json:"kind"`
 	}
 	WebhookResp struct{}
+	GetNFTsReq  struct {
+		WalletID string `uri:"walletId"`
+	}
+	NFTCollection struct {
+		WalletID string       `json:"walletId"`
+		Network  string       `json:"network"`
+		NFTs     []*coins.NFT `json:"nfts"`
+	}
 )
 
 const (
@@ -127,6 +151,7 @@ const (
 type (
 	service struct {
 		accounts accounts.Accounts
+		coins    coins.Coins
 		cfg      *config
 	}
 	config struct {

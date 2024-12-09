@@ -16,6 +16,7 @@ import (
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
 	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
+	"github.com/ice-blockchain/heimdall/coins"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/time"
 	"github.com/ice-blockchain/wintr/totp"
@@ -34,15 +35,21 @@ type (
 		GetIONConnectIndexerRelays(ctx context.Context, userID string) (indexers []string, err error)
 		GetUser(ctx context.Context, userID string) (usr *User, err error)
 		SecurePaymentConfirmation(ctx context.Context, userID, walletID string, body map[string]string) (templateData any, err error)
+		GetNFTs(ctx context.Context, walletID string) ([]*NFT, string, error)
 		HealthCheck(ctx context.Context) error
 	}
 	Wallets interface {
-		CreateWalletView(ctx context.Context, userID, name string, items []*WalletViewItem) (*WalletView, error)
-		GetWalletConfiguration(knownVersion *int) (int, []*AvailableCoin, error)
+		CreateWalletView(ctx context.Context, userID, name string, items []*CoinMapping, symbolGroups []string) (*WalletView, error)
 		GetWalletViews(ctx context.Context, userID string) ([]*WalletView, error)
 		GetWalletView(ctx context.Context, userID, name string) (*WalletView, error)
 		DeleteWalletView(ctx context.Context, userID, name string) error
-		ModifyWalletView(ctx context.Context, userID, name, newName string, items []*WalletViewItem) (*WalletView, error)
+		ModifyWalletView(ctx context.Context, userID, name, newName string, items []*CoinMapping, symbolGroups []string) (*WalletView, error)
+		GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGroup string) ([]*CoinWithWalletInfo, error)
+	}
+	Coins interface {
+		GetCoinsOfSymbolGroup(ctx context.Context, symbolGroups []string) ([]*coins.Coin, error)
+		GetFees(network string) *coins.Fee
+		ImportNFTs(ctx context.Context, network string, nft []coins.WalletNFT) ([]*NFT, error)
 	}
 	TwoFAOptionEnum     string
 	TwoFAOptionWithAddr struct {
@@ -63,24 +70,28 @@ type (
 		MasterPubKey            string            `json:"masterPubKey"`
 	}
 	WalletView struct {
-		Name      string                      `json:"name"`
-		Items     WalletViewItems             `json:"items"`
-		Coins     map[string]*CoinAggregation `json:"coins,omitempty"`
-		CreatedAt *time.Time                  `json:"createdAt"`
-		UpdatedAt *time.Time                  `json:"updatedAt"`
-		UserID    string                      `json:"userId"`
+		Name  string       `json:"name"`
+		Coins CoinMappings `json:"coins"`
+		// For GetWalletView, with total sum by symbol aggregation
+		Aggregation  map[string]*CoinAggregation `json:"aggregation,omitempty"`
+		SymbolGroups []string                    `json:"symbolGroups"`
+		CreatedAt    *time.Time                  `json:"createdAt"`
+		UpdatedAt    *time.Time                  `json:"updatedAt"`
+		UserID       string                      `json:"userId"`
 	}
-
-	WalletViewItem struct {
-		WalletID *string `json:"walletId"`
-		Coin     string  `json:"coin"`
+	CoinWithWalletInfo struct {
+		*coins.Coin
+		WalletID      string `json:"walletId"`
+		WalletAddress string `json:"walletAddress"`
+		Balance       string `json:"balance"`
 	}
-	AvailableCoin struct {
-		Coin    string `json:"coin"`
-		Network string `json:"network"`
+	CoinMapping struct {
+		*coins.Coin `swaggerignore:"true"`
+		WalletID    *string `json:"walletId"`
+		CoinID      string  `json:"coinId"`
 	}
-	WalletViewItems []*WalletViewItem
-	CoinInWallet    struct {
+	CoinMappings []*CoinMapping
+	CoinInWallet struct {
 		Asset    *dfns.Asset `json:"asset"`
 		WalletID string      `json:"walletId"`
 		Network  string      `json:"network"`
@@ -89,21 +100,23 @@ type (
 		TotalBalance *big.Int        `json:"totalBalance"`
 		Wallets      []*CoinInWallet `json:"wallets"`
 	}
+	NFT = coins.NFT
 )
 
 const (
-	TwoFAOptionSMS               = TwoFAOptionEnum("sms")
-	TwoFAOptionEmail             = TwoFAOptionEnum("email")
-	TwoFAOptionTOTPAuthenticator = TwoFAOptionEnum("totp_authenticator")
-	AuthorizationHeaderCtxValue  = dfns.AuthHeaderCtxValue
-	AppIDHeaderCtxValue          = dfns.AppIDCtxValue
-	UserActionCtxValue           = dfns.UserActionCtxValue
-	UserSignatureCtxValueKey     = "UserSignatureCtxValueKey"
-	registrationUrl              = "/auth/registration/delegated"
-	completeRegistrationUrl      = "/auth/registration/enduser"
-	completeLoginUrl             = "/auth/login"
-	delegatedLoginUrl            = "/auth/login/delegated"
-	defaultWalletViewCoin        = "TON"
+	TwoFAOptionSMS                   = TwoFAOptionEnum("sms")
+	TwoFAOptionEmail                 = TwoFAOptionEnum("email")
+	TwoFAOptionTOTPAuthenticator     = TwoFAOptionEnum("totp_authenticator")
+	AuthorizationHeaderCtxValue      = dfns.AuthHeaderCtxValue
+	AppIDHeaderCtxValue              = dfns.AppIDCtxValue
+	UserActionCtxValue               = dfns.UserActionCtxValue
+	UserSignatureCtxValueKey         = "UserSignatureCtxValueKey"
+	registrationUrl                  = "/auth/registration/delegated"
+	completeRegistrationUrl          = "/auth/registration/enduser"
+	completeLoginUrl                 = "/auth/login"
+	delegatedLoginUrl                = "/auth/login/delegated"
+	defaultWalletViewCoinID          = "07cef386-8ea8-91e4-9061-9caf3ec25fc0"
+	defaultWalletViewCoinSymbolGroup = "the-open-network"
 )
 
 var (
@@ -145,6 +158,7 @@ type (
 		delegatedRPClient          dfns.DfnsClient
 		totpProvider               totp.TOTP
 		db                         *storage.DB
+		coinsRepo                  Coins
 		shutdown                   func() error
 		emailSender                email.EmailSender
 		smsSender                  sms.SmsSender

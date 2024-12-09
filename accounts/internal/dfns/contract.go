@@ -20,6 +20,7 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/ice-blockchain/heimdall/coins"
 	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/wintr/time"
 )
@@ -27,6 +28,9 @@ import (
 type (
 	AuthClient interface {
 		VerifyToken(ctx context.Context, token string) (server.Token, error)
+	}
+	CoinFeesProvider interface {
+		GetFees(network string) *coins.Fee
 	}
 	DfnsClient interface {
 		ProxyCall(ctx context.Context, rw http.ResponseWriter, r *http.Request) (status int, respBody io.Reader)
@@ -37,6 +41,7 @@ type (
 		ListWallets(ctx context.Context, userID string) ([]Wallet, error)
 		GetWallet(ctx context.Context, userID string) (*Wallet, error)
 		ListAssets(ctx context.Context, walletID string) (*Assets, error)
+		ListNFTs(ctx context.Context, walletID string) (*NFTs, error)
 		SecurePaymentConfirmation(ctx context.Context, userID, network string, wallet Wallet, body map[string]string) (tmplData any, err error)
 	}
 	RefreshAuth interface {
@@ -47,10 +52,16 @@ type (
 	User                     map[string]any
 	Wallet                   map[string]any
 	Asset                    map[string]any
+	NFT                      = coins.WalletNFT
 	Assets                   struct {
 		Assets   []Asset `json:"assets"`
 		Network  string  `json:"network"`
 		WalletID string  `json:"walletId"`
+	}
+	NFTs struct {
+		NFTs     []NFT  `json:"nfts"`
+		Network  string `json:"network"`
+		WalletID string `json:"walletId"`
 	}
 	BroadcastTxResponse struct {
 		Id        string `json:"id"`
@@ -90,6 +101,7 @@ const (
 	initUserSignatureUrl             = "/auth/action/init"
 	completeUserSignatureUrl         = "/auth/action"
 	broadcastTransactionUrl          = "/wallets/(wa-[^/]+)/transactions"
+	networkFeesUrl                   = "/networks/fees"
 
 	defaultWalletNetwork = "Ton"
 	defaultWalletName    = "main"
@@ -127,6 +139,7 @@ type (
 		tonApi                  ton.APIClientWrapped
 		ionApi                  ton.APIClientWrapped
 		erc20ABI                abi.ABI
+		coinFeesProvider        CoinFeesProvider
 	}
 	config struct {
 		DFNS dfnsCfg `yaml:"delegated_relying_party" mapstructure:"delegated_relying_party"`
