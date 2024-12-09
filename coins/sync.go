@@ -145,7 +145,7 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 		log.Error(errors.Wrapf(err, "failed to write updated data from coin market cap for tokens prices %#v", tokensPriceData))
 		return
 	}
-	if len(coinsData) > 0 && len(tokensPriceData) > 0 {
+	if len(coinsData) > 0 || len(tokensPriceData) > 0 {
 		s.metrics.Get("iteration").(metrics.Timer).Update(time.Now().Sub(*start.Time))
 	}
 }
