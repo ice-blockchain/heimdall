@@ -108,6 +108,7 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 		s.metrics.Get("coin_gecko_calls").(metrics.Meter).Mark(1)
 	}
 	ids := map[string]string{}
+	tokensPriceData := []*coingecko.Coin{}
 	for network, tokensAddrs := range coinsToSync {
 		var fn func(ctx context.Context, network string, contractAddresses []string) ([]*coingecko.Coin, error)
 		if tokensAddrs.SyncTokenFullData {
@@ -127,16 +128,24 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 			log.Error(errors.Wrapf(err, "failed to sync tokens data"))
 			return
 		}
-
-		coinsData = append(coinsData, tokens...)
+		if tokensAddrs.SyncTokenFullData {
+			coinsData = append(coinsData, tokens...)
+		} else {
+			tokensPriceData = append(tokensPriceData, tokens...)
+		}
 	}
 
-	err = s.updateCoinsData(ctx, start, coinsData, false, ids)
+	err = s.updateCoinsData(ctx, start, coinsData, true, ids)
 	if err != nil {
-		log.Error(errors.Wrapf(err, "failed to write updated data from coin market cap %#v", coinsData))
+		log.Error(errors.Wrapf(err, "failed to write updated data from coin market cap for full data %#v", coinsData))
 		return
 	}
-	if len(coinsData) > 0 && len(coinsToSync) > 0 {
+	err = s.updateCoinsData(ctx, start, tokensPriceData, false, ids)
+	if err != nil {
+		log.Error(errors.Wrapf(err, "failed to write updated data from coin market cap for tokens prices %#v", tokensPriceData))
+		return
+	}
+	if len(coinsData) > 0 && len(tokensPriceData) > 0 {
 		s.metrics.Get("iteration").(metrics.Timer).Update(time.Now().Sub(*start.Time))
 	}
 }
