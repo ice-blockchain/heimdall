@@ -13,6 +13,7 @@ import (
 	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
+	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/totp"
 )
 
@@ -26,13 +27,28 @@ func New(ctx context.Context, coinsRepo Coins) Accounts {
 
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
+	var smsSender sms.SmsSender
+	func() {
+		defer func() {
+			if e := recover(); e != nil {
+				var development bool
+				appcfg.MustLoadFromKey("development", &development)
+				if !development {
+					log.Panic(e)
+				}
+				log.Error(errors.Errorf("%v", e))
+			}
+		}()
+		smsSender = sms.New(applicationYamlKey)
+	}()
+
 	acc := accounts{
 		db:                         db,
 		coinsRepo:                  coinsRepo,
 		shutdown:                   db.Close,
 		totpProvider:               totp.New(applicationYamlKey),
 		emailSender:                email.New(applicationYamlKey),
-		smsSender:                  sms.New(applicationYamlKey),
+		smsSender:                  smsSender,
 		cfg:                        &cfg,
 		concurrentlyGeneratedCodes: make(map[TwoFAOptionEnum]*sync.Map),
 	}
