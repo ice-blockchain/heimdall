@@ -224,6 +224,64 @@ func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *c
 	return updated, nil
 }
 
+func (c *coinsRepository) GetAllCoins(ctx context.Context) (uint64, []*SymbolGroupWithCoins, error) {
+	allCoins, err := storage.Select[coin](ctx, c.db, `SELECT 
+		'00:00:00'::INTERVAL as sync_frequency,
+		now() as created_at,
+		now() as updated_at,
+		now() as data_updated_at,
+		0 as decimals,
+		coalesce(max(version),0) as version,
+		0 as price_usd,
+		'' as id,
+		'' as coingecko_coin_id,
+		'' as network,
+		'' as name,
+		'' as contract_address,
+		'' as symbol,
+		'' as symbol_group,
+		'' as icon_url
+	FROM coins
+ 	UNION ALL (SELECT * FROM coins WHERE symbol_group != '');`)
+	if err != nil {
+		return 0, nil, errors.Wrapf(err, "failed to list all coins from db")
+	}
+	if len(allCoins) <= 1 {
+		if err = c.syncAllCoins(ctx); err != nil {
+			return 0, nil, errors.Wrapf(err, "empty coins on db, and failed to sync initial from coingecko")
+		}
+		allCoins, err = storage.Select[coin](ctx, c.db, `SELECT * FROM coins WHERE symbol_group != ''`)
+		if err != nil {
+			return 0, nil, errors.Wrapf(err, "failed to list all coins from db")
+		}
+	}
+	version := allCoins[0].Version
+	allCoins = allCoins[1:]
+	groups := map[string][]*Coin{}
+	for _, c := range allCoins {
+		groups[c.SymbolGroup] = append(groups[c.SymbolGroup], &Coin{
+			ID:              c.ID,
+			Name:            c.Name,
+			Symbol:          c.Symbol,
+			SymbolGroup:     c.SymbolGroup,
+			Network:         c.Network,
+			ContractAddress: c.ContractAddress,
+			IconURL:         c.IconUrl,
+			PriceUSD:        c.PriceUSD,
+			Decimals:        c.Decimals,
+			SyncFrequency:   c.SyncFrequency,
+		})
+	}
+	res := make([]*SymbolGroupWithCoins, 0, len(groups))
+	for symbolGroup, coins := range groups {
+		res = append(res, &SymbolGroupWithCoins{
+			SymbolGroup: symbolGroup,
+			Coins:       coins,
+		})
+	}
+	return version, res, nil
+}
+
 func (c *coinsRepository) GetVersionedCoins(ctx context.Context, userID string, knownVersion *int) (latestVersion uint64, coinDiff []*Coin, err error) {
 	version := initialVersion
 	if knownVersion != nil {
