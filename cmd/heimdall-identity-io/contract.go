@@ -50,12 +50,16 @@ type (
 		Items        []*accounts.CoinMapping `json:"items" required:"true"`
 		SymbolGroups []string                `json:"symbolGroups" required:"true"`
 	}
+	APIKey struct {
+		APIKey string `header:"X-API-Key" allowUnauthorized:"true"`
+	}
 	ImportCoinReq struct {
 		Network         string `json:"network"`
 		ContractAddress string `json:"contractAddress"`
 	}
-	Coin              = coins.Coin
-	GetVersionedCoins struct {
+	Coin                 = coins.Coin
+	SymbolGroupWithCoins = coins.SymbolGroupWithCoins
+	GetVersionedCoins    struct {
 		UserID  string `uri:"userId" required:"true" swaggerignore:"true"`
 		Version *int   `form:"version" required:"false"`
 	}
@@ -157,6 +161,7 @@ type (
 	config struct {
 		Host                    string `yaml:"host"`
 		Version                 string `yaml:"version"`
+		APIKey                  string `yaml:"api-key" mapstructure:"api-key"`
 		AppleAppSiteAssociation string `yaml:"appleAppSiteAssociation"`
 		AssetLinks              string `yaml:"assetLinks"`
 	}

@@ -23,6 +23,7 @@ type (
 		io.Closer
 		HealthCheck(ctx context.Context) error
 		Import(ctx context.Context, network, contractAddress string) (*Coin, error)
+		GetAllCoins(ctx context.Context) (uint64, []*SymbolGroupWithCoins, error)
 		GetVersionedCoins(ctx context.Context, userID string, knownVersion *int) (latestVersion uint64, coinDiff []*Coin, err error)
 		SyncCoins(ctx context.Context, symbolGroups []string) ([]*Coin, error)
 		GetCoinsOfSymbolGroup(ctx context.Context, symbolGroups []string) ([]*Coin, error)
@@ -54,6 +55,10 @@ type (
 		WalletNFT
 		Name        string `json:"name"`
 		Description string `json:"description"`
+	}
+	SymbolGroupWithCoins struct {
+		SymbolGroup string  `json:"symbol_group"`
+		Coins       []*Coin `json:"coins"`
 	}
 )
 

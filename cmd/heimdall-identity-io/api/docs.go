@@ -139,6 +139,54 @@ const docTemplate = `{
             }
         },
         "/v1/coins": {
+            "get": {
+                "description": "Provides information about all the coins",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Coins"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "bogus",
+                        "description": "API key",
+                        "name": "X-API-Key",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/main.SymbolGroupWithCoins"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "if invalid X-API-Key provided",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            },
             "post": {
                 "description": "Imports information about supported coin",
                 "produces": [
@@ -1331,6 +1379,20 @@ const docTemplate = `{
         "main.StartDelegatedRecoveryResp": {
             "type": "object",
             "additionalProperties": {}
+        },
+        "main.SymbolGroupWithCoins": {
+            "type": "object",
+            "properties": {
+                "coins": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/coins.Coin"
+                    }
+                },
+                "symbol_group": {
+                    "type": "string"
+                }
+            }
         },
         "main.User": {
             "type": "object",

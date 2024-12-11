@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"slices"
 	"strings"
@@ -18,6 +19,7 @@ import (
 
 func (s *service) setupCoinRoutes(router gin.IRoutes) {
 	router.POST("/v1/coins", server.RootHandler(s.ImportCoin))
+	router.GET("/v1/coins", server.RootHandler(s.GetAllCoins))
 	router.GET("/v1/users/:userId/coins", server.RootHandler(s.GetVersionedCoins))
 	router.PATCH("/v1/sync-coins", server.RootHandler(s.SyncCoins))
 	router.GET("/v1/users/:userId/coins/:symbolGroup", server.RootHandler(s.GetCoinsOfSymbolGroup))
@@ -79,6 +81,32 @@ func (s *service) ImportCoin(
 		}
 	}
 	return server.OK(coin), nil
+}
+
+// GetAllCoins godoc
+//
+//	@Schemes
+//	@Description	Provides information about all the coins
+//	@Tags			Coins
+//	@Produce		json
+//	@Param			X-API-Key	header		string	true	"API key"	default(bogus)
+//	@Success		200			{object}	[]SymbolGroupWithCoins
+//	@Failure		403			{object}	server.ErrorResponse	"if invalid X-API-Key provided"
+//	@Failure		500			{object}	server.ErrorResponse
+//	@Failure		504			{object}	server.ErrorResponse	"if request times out"
+//	@Router			/v1/coins [GET].
+func (s *service) GetAllCoins(
+	ctx context.Context,
+	req *server.Request[APIKey, []*SymbolGroupWithCoins],
+) (successResp *server.Response[[]*SymbolGroupWithCoins], errorResp *server.ErrResponse[*server.ErrorResponse]) {
+	if req.Data.APIKey != s.cfg.APIKey {
+		return nil, server.Forbidden(errors.Errorf("invalid api key %v", req.Data.APIKey))
+	}
+	latestVersion, allCoins, err := s.coins.GetAllCoins(ctx)
+	if err != nil {
+		return nil, server.Unexpected(err)
+	}
+	return &server.Response[[]*SymbolGroupWithCoins]{Code: http.StatusOK, Data: &allCoins, Headers: map[string]string{"X-Version": fmt.Sprintf("%v", latestVersion)}}, nil
 }
 
 // GetVersionedCoins godoc
