@@ -335,7 +335,7 @@ paths:
       - Recovery
   /auth/users/{userIdOrMasterKey}:
     get:
-      description: Initiates recovery process with delegated relying party
+      description: Returns current user state
       parameters:
       - description: ID of the user or his master key (hex)
         in: path
@@ -444,6 +444,31 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Coins
+  /v1/config/{configName}:
+    get:
+      parameters:
+      - description: Name of the configuration to read
+        in: path
+        name: configName
+        required: true
+        type: string
+      produces:
+      - plain/text
+      responses:
+        "200":
+          description: Configuration value
+          schema:
+            type: string
+        "404":
+          description: if invalid configName passed
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Config
   /v1/sync-coins:
     patch:
       description: Requests to sync / update coins from 3rdparty

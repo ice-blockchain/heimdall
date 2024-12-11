@@ -89,6 +89,9 @@ type (
 		WalletViewReference
 		WalletViewReq
 	}
+	GetConfig struct {
+		ConfigName string `uri:"configName" allowUnauthorized:"true"`
+	}
 	Send2FARequestReq struct {
 		Email                  *string                        `json:"email,omitempty"`
 		PhoneNumber            *string                        `json:"phoneNumber,omitempty"`
@@ -150,6 +153,12 @@ const (
 	duplicate                  = "DUPLICATE"
 	lastEntry                  = "LAST_ENTRY"
 	notFound                   = "NOT_FOUND"
+
+	configNameRequiredAndroidAppVersion = "required_android_app_version"
+	configNameRequiredIOSAppVersion     = "required_ios_app_version"
+	configNameRequiredMacOSAppVersion   = "required_macos_app_version"
+	configNameRequiredWindowsAppVersion = "required_windows_app_version"
+	configNameRequiredLinuxAppVersion   = "required_linux_app_version"
 )
 
 type (
@@ -164,8 +173,24 @@ type (
 		APIKey                  string `yaml:"api-key" mapstructure:"api-key"`
 		AppleAppSiteAssociation string `yaml:"appleAppSiteAssociation"`
 		AssetLinks              string `yaml:"assetLinks"`
+		RequiredAppVersions     struct {
+			Android string `yaml:"android" mapstructure:"android"`
+			IOS     string `yaml:"ios" mapstructure:"ios"`
+			MacOS   string `yaml:"macos" mapstructure:"macos"`
+			Windows string `yaml:"windows" mapstructure:"windows"`
+			Linux   string `yaml:"linux" mapstructure:"linux"`
+		} `yaml:"requiredAppVersions" mapstructure:"requiredAppVersions"`
 	}
 )
 
-//go:embed templates/*.html
-var templates embed.FS
+var (
+	//go:embed templates/*.html
+	templates           embed.FS
+	allValidConfigNames = map[string]func(cfg *config) string{
+		configNameRequiredAndroidAppVersion: func(cfg *config) string { return cfg.RequiredAppVersions.Android },
+		configNameRequiredIOSAppVersion:     func(cfg *config) string { return cfg.RequiredAppVersions.IOS },
+		configNameRequiredMacOSAppVersion:   func(cfg *config) string { return cfg.RequiredAppVersions.MacOS },
+		configNameRequiredWindowsAppVersion: func(cfg *config) string { return cfg.RequiredAppVersions.Windows },
+		configNameRequiredLinuxAppVersion:   func(cfg *config) string { return cfg.RequiredAppVersions.Linux },
+	}
+)

@@ -108,6 +108,7 @@ func (c *client) enhanceWithMarketData(ctx context.Context, coins map[string][]*
 			updCoins := coins[coin.ID]
 			for _, resCoin := range updCoins {
 				resCoin.PriceUSD = coin.PriceUSD
+				resCoin.IconUrl = coin.IconUrl
 			}
 			coins[coin.ID] = updCoins
 		}

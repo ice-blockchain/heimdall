@@ -84,7 +84,7 @@ const docTemplate = `{
         },
         "/auth/users/{userIdOrMasterKey}": {
             "get": {
-                "description": "Initiates recovery process with delegated relying party",
+                "description": "Returns current user state",
                 "produces": [
                     "application/json"
                 ],
@@ -235,6 +235,45 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/config/{configName}": {
+            "get": {
+                "produces": [
+                    "plain/text"
+                ],
+                "tags": [
+                    "Config"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Name of the configuration to read",
+                        "name": "configName",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Configuration value",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "if invalid configName passed",
                         "schema": {
                             "$ref": "#/definitions/server.ErrorResponse"
                         }
