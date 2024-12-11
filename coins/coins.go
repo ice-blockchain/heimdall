@@ -242,7 +242,7 @@ func (c *coinsRepository) GetAllCoins(ctx context.Context) (uint64, []*SymbolGro
 		'' as symbol_group,
 		'' as icon_url
 	FROM coins
- 	UNION ALL (SELECT * FROM coins WHERE symbol_group != '');`)
+ 	UNION ALL (SELECT * FROM coins WHERE coingecko_coin_id != '');`)
 	if err != nil {
 		return 0, nil, errors.Wrapf(err, "failed to list all coins from db")
 	}
