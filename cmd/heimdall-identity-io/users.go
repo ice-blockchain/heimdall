@@ -111,7 +111,7 @@ func (s *service) GetUser(
 	return server.OK[User](&User{User: usr}), nil
 }
 
-// GetConfigValue godoc
+// GetConfig godoc
 //
 //	@Schemes
 //	@Description
