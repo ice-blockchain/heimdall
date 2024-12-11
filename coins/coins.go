@@ -98,7 +98,7 @@ func (c *coinsRepository) syncAllCoins(ctx context.Context) error {
 			log.Debug(fmt.Sprintf("Inserting %v coins of %v...", len(batch), total))
 			placeholders, params := c.buildInsertBatchForCoins(now, batch)
 			sql := fmt.Sprintf(`
-			INSERT INTO coins(created_at, updated_at, data_updated_at, sync_frequency, decimals, version, id, network, name, symbol, symbol_group, contract_address, coingecko_coin_id, price_usd) VALUES 		      %[1]v`,
+			INSERT INTO coins(created_at, updated_at, data_updated_at, sync_frequency, decimals, version, id, network, name, symbol, symbol_group, contract_address, coingecko_coin_id, price_usd, icon_url) VALUES 		      %[1]v`,
 				placeholders)
 			_, err = storage.Exec(ctx, c.db, sql, params...)
 			if err != nil {
@@ -118,9 +118,9 @@ func (c *coinsRepository) buildInsertBatchForCoins(now *time.Time, coinsList []*
 	idx := 2
 	for _, coinItem := range coinsList {
 		decimals := 0
-		params = append(params, c.syncFrequency(coinItem.ID), decimals, generateInternalID(coinItem, nil), coinItem.MappedNetwork(), coinItem.Name, coinItem.Symbol, coinItem.SymbolGroup(), coinItem.ContractAddress, coinItem.ID, coinItem.PriceUSD)
-		placeholders = append(placeholders, fmt.Sprintf("($1,$1,$1, $%[1]v::INTERVAL, $%[2]v, COALESCE((SELECT MAX(version) FROM coins),0), $%[3]v,$%[4]v, $%[5]v, $%[6]v, $%[7]v, $%[8]v, $%[9]v, $%[10]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7, idx+8, idx+9))
-		idx += 10
+		params = append(params, c.syncFrequency(coinItem.ID), decimals, generateInternalID(coinItem, nil), coinItem.MappedNetwork(), coinItem.Name, coinItem.Symbol, coinItem.SymbolGroup(), coinItem.ContractAddress, coinItem.ID, coinItem.PriceUSD, coinItem.IconUrl)
+		placeholders = append(placeholders, fmt.Sprintf("($1,$1,$1, $%[1]v::INTERVAL, $%[2]v, COALESCE((SELECT MAX(version) FROM coins),0), $%[3]v,$%[4]v, $%[5]v, $%[6]v, $%[7]v, $%[8]v, $%[9]v, $%[10]v, $%[11]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7, idx+8, idx+9, idx+10))
+		idx += 11
 	}
 	return strings.Join(placeholders, ", "), params
 }

@@ -16,7 +16,8 @@ import (
 func (s *service) setupUserRoutes(router gin.IRoutes) {
 	router.PATCH("v1/users/:userId/ion-connect-relays", server.RootHandler(s.GetOrAssignIONConnectRelays)).
 		GET("v1/users/:userId/ion-connect-indexers", server.RootHandler(s.UserIndexers)).
-		GET("auth/users/:userIdOrMasterKey", server.RootHandler(s.GetUser))
+		GET("auth/users/:userIdOrMasterKey", server.RootHandler(s.GetUser)).
+		GET("v1/config/:configName", server.RootHandler(s.GetConfig))
 }
 
 // GetOrAssignIONConnectRelays godoc
@@ -77,7 +78,7 @@ func (s *service) UserIndexers(
 // GetUser godoc
 //
 //	@Schemes
-//	@Description	Initiates recovery process with delegated relying party
+//	@Description	Returns current user state
 //	@Tags			Users
 //	@Produce		json
 //	@Param			userIdOrMasterKey	path		string	true	"ID of the user or his master key (hex)"
@@ -108,4 +109,27 @@ func (s *service) GetUser(
 		}
 	}
 	return server.OK[User](&User{User: usr}), nil
+}
+
+// GetConfigValue godoc
+//
+//	@Schemes
+//	@Description
+//	@Tags		Config
+//	@Produce	plain/text
+//	@Param		configName	path		string					true	"Name of the configuration to read"
+//	@Success	200			{string}	string					"Configuration value"
+//	@Failure	404			{object}	server.ErrorResponse	"if invalid configName passed"
+//	@Failure	504			{object}	server.ErrorResponse	"if request times out"
+//	@Router		/v1/config/{configName} [GET].
+func (s *service) GetConfig(
+	ctx context.Context,
+	req *server.Request[GetConfig, string],
+) (successResp *server.Response[string], errorResp *server.ErrResponse[*server.ErrorResponse]) {
+	getConfig, validConfigName := allValidConfigNames[req.Data.ConfigName]
+	if !validConfigName {
+		return nil, server.NotFound(errors.Errorf("invalid configName %v", req.Data.ConfigName), notFound)
+	}
+
+	return server.Raw("text/plain", []byte(getConfig(s.cfg))), nil
 }
