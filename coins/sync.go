@@ -265,7 +265,7 @@ func (s *coinSync) updateCoinsData(ctx context.Context, now *time.Time, coins []
 											 coins.icon_url != update_data.icon_url)
 											 THEN coins.version + 1 ELSE coins.version END),
 						 price_usd = CASE WHEN update_data.price_usd = 0 and coins.price_usd !=0 THEN coins.price_usd ELSE update_data.price_usd END,
-						 decimals = CASE WHEN coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v) THEN update_data.decimals ELSE coins.decimals END,
+						 decimals = CASE WHEN (coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v)) AND update_data.decimals != 0 THEN update_data.decimals ELSE coins.decimals END,
 						 coingecko_coin_id = CASE WHEN coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v) THEN update_data.coingecko_coin_id ELSE coins.coingecko_coin_id END,
 						 name = CASE WHEN coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v) THEN update_data.name ELSE coins.name END,
 						 contract_address = CASE WHEN coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v) THEN update_data.contract_address ELSE coins.contract_address END,

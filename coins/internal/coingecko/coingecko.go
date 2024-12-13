@@ -82,6 +82,7 @@ func (c *client) ListCoins(ctx context.Context) ([]*Coin, error) {
 					Name:            coin.Name,
 					Network:         n,
 					ContractAddress: "",
+					Decimals:        platformToDecimalsMapping[networkToPlatformMapping[n]],
 				})
 			}
 			coinsToSyncMarketData = append(coinsToSyncMarketData, coin.ID)
@@ -103,6 +104,7 @@ func (c *client) ListCoins(ctx context.Context) ([]*Coin, error) {
 				Name:            coin.Name,
 				Network:         network,
 				ContractAddress: tokenAddr,
+				Decimals:        platformToDecimalsMapping[platform],
 			})
 			platformIdx += 1
 		}
@@ -199,6 +201,7 @@ func (c *client) GetCoins(ctx context.Context, coinIDs []string) ([]*Coin, error
 			Name:     coinData.Name,
 			PriceUSD: float64(coinData.CurrentPrice),
 			IconUrl:  coinData.Image,
+			Symbol:   coinData.Symbol,
 		})
 	}
 	return res, nil

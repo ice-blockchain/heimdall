@@ -30,7 +30,7 @@ func main() {
 
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	log.Info(fmt.Sprintf("starting version `%v`...", cfg.Version))
-	server.New(&service{}, applicationYamlKey, "").ListenAndServe(ctx, cancel, nil)
+	server.New(&service{}, applicationYamlKey, "").ListenAndServe(ctx, cancel, new(noAuth))
 }
 
 func (s *service) RegisterRoutes(router *server.Router) {
@@ -52,4 +52,8 @@ func (s *service) CheckHealth(ctx context.Context) error {
 	log.Debug("checking health...", "package", "coins")
 
 	return errors.Wrapf(s.coinSyncer.HealthCheck(ctx), "coins sync check failed")
+}
+
+func (n *noAuth) VerifyToken(ctx context.Context, token string) (server.Token, error) {
+	return nil, errors.Errorf("auth disabled")
 }

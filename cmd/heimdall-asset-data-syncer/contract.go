@@ -8,6 +8,7 @@ type (
 	service struct {
 		coinSyncer coins.Sync
 	}
+	noAuth struct{}
 )
 
 const (

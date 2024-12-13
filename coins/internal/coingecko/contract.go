@@ -117,6 +117,31 @@ var (
 	}
 	networkToPlatformMapping map[string]string
 
+	platformToDecimalsMapping = map[string]int{
+		"ethereum":            18,
+		"base":                18,
+		"bitcoin":             8,
+		"binance-smart-chain": 18,
+		"polygon-pos":         18,
+		"avalanche":           18,
+		"fantom":              18,
+		"arbitrum-one":        18,
+		"optimistic-ethereum": 18,
+		"solana":              9,
+		"kava":                6,
+		"kusama":              12,
+		"the-open-network":    9,
+		"tron":                18,
+		"cardano":             18,
+		"sei-network":         18,
+		"internet-computer":   18,
+		// Those networks below are not presented on /api/v3/onchain/networks on coingecko
+		// We cannot req tokens on them, it responds 404
+		//"tezos":               6,
+		//"kasplex":             8,
+		//"polkadot":            16,
+	}
+
 	platformToCoinMapping = map[string]string{
 		"bitcoin": "bitcoin",
 	}
