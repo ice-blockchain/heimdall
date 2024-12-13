@@ -36,6 +36,7 @@ func New(ctx context.Context) Coins {
 	if c.needToSyncAllCoins(ctx) {
 		log.Panic(errors.Wrapf(c.syncAllCoins(ctx), "failed to sync all coin gecko coins on startup"))
 	}
+
 	return &c
 }
 
@@ -117,19 +118,31 @@ func (c *coinsRepository) buildInsertBatchForCoins(now *time.Time, coinsList []*
 	placeholders := make([]string, 0, len(coinsList))
 	idx := 2
 	for _, coinItem := range coinsList {
-		decimals := 0
-		params = append(params, c.syncFrequency(coinItem.ID), decimals, generateInternalID(coinItem, nil), coinItem.MappedNetwork(), coinItem.Name, coinItem.Symbol, coinItem.SymbolGroup(), coinItem.ContractAddress, coinItem.ID, coinItem.PriceUSD, coinItem.IconUrl)
+		params = append(params, c.syncFrequency(coinItem.ID), coinItem.Decimals, generateInternalID(coinItem, nil), coinItem.MappedNetwork(), coinItem.Name, coinItem.Symbol, coinItem.SymbolGroup(), coinItem.ContractAddress, coinItem.ID, coinItem.PriceUSD, coinItem.IconUrl)
 		placeholders = append(placeholders, fmt.Sprintf("($1,$1,$1, $%[1]v::INTERVAL, $%[2]v, COALESCE((SELECT MAX(version) FROM coins),0), $%[3]v,$%[4]v, $%[5]v, $%[6]v, $%[7]v, $%[8]v, $%[9]v, $%[10]v, $%[11]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7, idx+8, idx+9, idx+10))
 		idx += 11
 	}
 	return strings.Join(placeholders, ", "), params
 }
 
-func generateInternalID(c *coingecko.Coin, mapping map[string]string) string {
-	if c.ID == "" && len(mapping) > 0 {
-		return mapping[c.Network+":"+c.ContractAddress]
+func generateInternalID(coin *coingecko.Coin, mapping map[string]string) string {
+	if coin.ID == "" && len(mapping) > 0 {
+		coin.ID = mapping[coin.Network+":"+coin.ContractAddress]
 	}
-	hash := md5.Sum([]byte(c.Network + c.ContractAddress + c.ID))
+	if coin.Network == "" && len(mapping) > 0 {
+		nw, hasNetwork := mapping[coin.ID]
+		if hasNetwork {
+			coin.Network = nw
+			spl := strings.Split(nw, ":")
+			if len(spl) == 2 {
+				coin.Network = spl[0]
+				if coin.ContractAddress == "" {
+					coin.ContractAddress = spl[1]
+				}
+			}
+		}
+	}
+	hash := md5.Sum([]byte(coin.Network + coin.ContractAddress + coin.ID))
 	id, _ := uuid.FromBytes(hash[:])
 	return id.String()
 }

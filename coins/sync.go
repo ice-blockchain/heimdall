@@ -72,7 +72,10 @@ func (s *coinSync) sync(ctx context.Context) {
 		// We batch get tokens by network and by 30 entries (coingecko limitation), so its 1 call for coins and N for tokens per iteration, so 1+N total.
 		callsPerIteration := s.metrics.Get("coin_gecko_calls").(metrics.Meter).Rate1() / float64(iterations.Rate1())
 		if math.IsInf(callsPerIteration, 1) {
-			callsPerIteration = 1
+			callsPerIteration = float64(s.metrics.Get("coin_gecko_calls").(metrics.Meter).Count())
+			if callsPerIteration < 1 {
+				callsPerIteration = 1
+			}
 		}
 		targetIterations := targetCoinGeckoCallsPerMin / callsPerIteration
 		if targetIterations < 1 {
@@ -95,21 +98,24 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 		log.Error(errors.Wrapf(err, "failed to fetch syncable coins"))
 		return
 	}
-	_, hasCoinsDataToSync := coinsToSync[""] // For coins no network
-	var coinsData []*coingecko.Coin
-	if hasCoinsDataToSync {
-		coinIDs := coinsToSync[""].CoinGeckoCoinIDs
-		delete(coinsToSync, "")
-		coinsData, err = s.coinGeckoClient.GetCoins(ctx, coinIDs)
-		if err != nil {
-			log.Error(errors.Wrapf(err, "failed to fetch market data from coin gecko for coins %#v", coinIDs))
-			return
+	coinIDs := make([]string, 0, len(coinsToSync))
+	networks := map[string]string{}
+	for _, c := range coinsToSync {
+		for _, cID := range c.CoinGeckoCoinIDs {
+			spl := strings.Split(cID, ":")
+			network, cgID := spl[0], spl[1]
+			coinIDs = append(coinIDs, cgID)
+			networks[cgID] = network
 		}
-		s.metrics.Get("coin_gecko_calls").(metrics.Meter).Mark(1)
 	}
+	var coinsData []*coingecko.Coin
+
 	ids := map[string]string{}
 	tokensPriceData := []*coingecko.Coin{}
 	for network, tokensAddrs := range coinsToSync {
+		if network == "" {
+			continue
+		}
 		var fn func(ctx context.Context, network string, contractAddresses []string) ([]*coingecko.Coin, error)
 		if tokensAddrs.SyncTokenFullData {
 			fn = s.getTokens(coingecko.MaxTokenAddrsGetTokenData, s.coinGeckoClient.GetTokens)
@@ -117,16 +123,32 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 			fn = s.getTokens(coingecko.MaxTokenAddrsGetTokenPrices, s.coinGeckoClient.GetTokenPrices)
 		}
 		contractAddrs := make([]string, 0, len(tokensAddrs.ContractAddresses))
+		notFetched := make(map[string]bool, len(tokensAddrs.ContractAddresses))
 		for _, addr := range tokensAddrs.ContractAddresses {
 			spl := strings.Split(addr, ":")
 			id, contractAddr := spl[0], spl[1]
+			if strings.Contains(contractAddr, "/") {
+				continue
+			}
 			contractAddrs = append(contractAddrs, contractAddr)
+			notFetched[contractAddr] = true
 			ids[network+":"+contractAddr] = id
 		}
 		tokens, err := fn(ctx, network, contractAddrs)
 		if err != nil {
 			log.Error(errors.Wrapf(err, "failed to sync tokens data"))
 			return
+		}
+		if len(tokens) < len(contractAddrs) && !tokensAddrs.SyncTokenFullData {
+			for _, tok := range tokens {
+				delete(notFetched, tok.ContractAddress)
+			}
+			for notFetchedContractAddr := range notFetched {
+				coinGeckoID := ids[network+":"+notFetchedContractAddr]
+				coinIDs = append(coinIDs, coinGeckoID)
+				networks[coinGeckoID] = network + ":" + notFetchedContractAddr
+				ids[coinGeckoID] = network + ":" + notFetchedContractAddr
+			}
 		}
 		if tokensAddrs.SyncTokenFullData {
 			coinsData = append(coinsData, tokens...)
@@ -135,7 +157,23 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 		}
 	}
 
-	err = s.updateCoinsData(ctx, start, coinsData, true, ids)
+	if len(coinIDs) > 0 {
+		var coinsAndMissedTokens []*coingecko.Coin
+		coinsAndMissedTokens, err = s.coinGeckoClient.GetCoins(ctx, coinIDs)
+		if err != nil {
+			log.Error(errors.Wrapf(err, "failed to fetch market data from coin gecko for coins %#v", coinIDs))
+			return
+		}
+		for _, c := range coinsAndMissedTokens {
+			if n, hasNetwork := networks[c.ID]; hasNetwork && strings.Contains(n, ":") {
+				tokensPriceData = append(tokensPriceData, c)
+			} else {
+				coinsData = append(coinsData, c)
+			}
+		}
+		s.metrics.Get("coin_gecko_calls").(metrics.Meter).Mark(1)
+	}
+	err = s.updateCoinsData(ctx, start, coinsData, true, networks)
 	if err != nil {
 		log.Error(errors.Wrapf(err, "failed to write updated data from coin market cap for full data %#v", coinsData))
 		return
@@ -184,8 +222,8 @@ func (s *coinSync) fetchSyncableCoins(ctx context.Context, now *time.Time) (map[
 	expiredDataAt := now.Add(-s.cfg.SyncTokensDataFrequency)
 	coins, err := storage.Select[coinToSync](ctx, s.db,
 		fmt.Sprintf(`SELECT network, 
-       		 array_agg(t.coingecko_coin_id) FILTER (WHERE t.contract_address = '') AS coin_ids,
-       		 array_agg(t.id||':'||t.contract_address) FILTER (WHERE t.contract_address != '')  AS contract_addresses,
+       		 array_agg(t.network||':'||t.coingecko_coin_id)  FILTER (WHERE t.contract_address = '') AS coin_ids,
+       		 array_agg(t.coingecko_coin_id||':'||t.contract_address) FILTER (WHERE t.contract_address != '')  AS contract_addresses,
        		 array_agg((t.data_updated_at < $1)) @> ARRAY[TRUE] as sync_token_full_data 
 			 FROM (
 				SELECT * FROM coins_sync_queue
@@ -206,7 +244,7 @@ func (s *coinSync) fetchSyncableCoins(ctx context.Context, now *time.Time) (map[
 
 func (s *coinSync) updateCoinsData(ctx context.Context, now *time.Time, coins []*coingecko.Coin, updateFullDataTokens bool, mapping map[string]string) error {
 	params := []any{now}
-	placeholders, extraParams := buildBatchUpdate(now, coins, mapping)
+	placeholders, extraParams := s.buildBatchUpdate(now, coins, mapping)
 	if len(placeholders) == 0 {
 		return nil
 	}
@@ -226,10 +264,9 @@ func (s *coinSync) updateCoinsData(ctx context.Context, now *time.Time, coins []
 											 coins.symbol_group != update_data.symbol_group OR
 											 coins.icon_url != update_data.icon_url)
 											 THEN coins.version + 1 ELSE coins.version END),
-						 price_usd = update_data.price_usd,
+						 price_usd = CASE WHEN update_data.price_usd = 0 and coins.price_usd !=0 THEN coins.price_usd ELSE update_data.price_usd END,
 						 decimals = CASE WHEN coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v) THEN update_data.decimals ELSE coins.decimals END,
 						 coingecko_coin_id = CASE WHEN coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v) THEN update_data.coingecko_coin_id ELSE coins.coingecko_coin_id END,
-						 network = CASE WHEN coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v) THEN update_data.network ELSE coins.network END,
 						 name = CASE WHEN coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v) THEN update_data.name ELSE coins.name END,
 						 contract_address = CASE WHEN coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v) THEN update_data.contract_address ELSE coins.contract_address END,
 						 symbol = CASE WHEN coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v) THEN update_data.symbol ELSE coins.symbol END,
@@ -255,12 +292,12 @@ func (s *coinSync) updateCoinsData(ctx context.Context, now *time.Time, coins []
 	return errors.Wrap(err, "failed to update coins data in db from coingecko")
 }
 
-func buildBatchUpdate(now *time.Time, coinsList []*coingecko.Coin, mapping map[string]string) (sql string, params []any) {
+func (s *coinSync) buildBatchUpdate(now *time.Time, coinsList []*coingecko.Coin, mapping map[string]string) (sql string, params []any) {
 	placeholders := make([]string, 0, len(coinsList))
 	idx := 2
 	params = make([]any, 0, len(coinsList)*10)
-	for _, c := range coinsList {
-		params = append(params, generateInternalID(c, mapping), c.Decimals, c.PriceUSD, c.ID, c.MappedNetwork(), c.Name, c.ContractAddress, c.Symbol, c.SymbolGroup(), c.IconUrl)
+	for _, coin := range coinsList {
+		params = append(params, generateInternalID(coin, mapping), coin.Decimals, coin.PriceUSD, coin.ID, coin.MappedNetwork(), coin.Name, coin.ContractAddress, coin.Symbol, coin.SymbolGroup(), coin.IconUrl)
 		placeholders = append(placeholders, fmt.Sprintf(""+
 			"(                  $%[1]v,                $%[2]v::SMALLINT, $%[3]v::NUMERIC, $%[4]v, $%[5]v,         $%[6]v,  $%[7]v,              $%[8]v,  $%[9]v,          $%[10]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7, idx+8, idx+9))
 		idx += 10
