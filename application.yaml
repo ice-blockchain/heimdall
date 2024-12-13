@@ -37,6 +37,7 @@ cmd/heimdall-identity-io:
 
 cmd/heimdall-asset-data-syncer:
   version: local
+  defaultEndpointTimeout: 60s
   httpServer:
     port: 8888
     certPath: cmd/heimdall-identity-io/.testdata/localhost.crt

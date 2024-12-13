@@ -65,10 +65,8 @@ var (
 		"fantomtestnet":     "ftm",
 		"icp (aka dfinity)": "icp",
 		"kusama":            "kusama",
-		"westend":           "polkadot",
 		"optimism":          "optimism",
 		"optimismsepolia":   "optimism",
-		"polkadot":          "polkadot",
 		"seipacific1":       "sei-network",
 		"seiatlantic2":      "sei-network",
 		"solana":            "solana",
@@ -90,6 +88,8 @@ var (
 		//"stellartestnet":    "stellar",
 		//"stellar":   	       "stellar",
 		//"kaspa":             "kaspa",
+		//"polkadot":          "polkadot",
+		//"westend":           "polkadot",
 	}
 	platformToNetworkMapping = map[string]string{
 		"ethereum":            "eth",
@@ -107,20 +107,50 @@ var (
 		"the-open-network":    "ton",
 		"tron":                "tron",
 		"cardano":             "cardano",
-		"polkadot":            "polkadot",
 		"sei-network":         "sei-network",
 		"internet-computer":   "icp",
 		// Those networks below are not presented on /api/v3/onchain/networks on coingecko
 		// We cannot req tokens on them, it responds 404
 		//"tezos": "tezos",
 		//"kasplex":             "kaspa",
+		//"polkadot":            "polkadot",
 	}
 	networkToPlatformMapping map[string]string
+
+	platformToDecimalsMapping = map[string]int{
+		"ethereum":            18,
+		"base":                18,
+		"bitcoin":             8,
+		"binance-smart-chain": 18,
+		"polygon-pos":         18,
+		"avalanche":           18,
+		"fantom":              18,
+		"arbitrum-one":        18,
+		"optimistic-ethereum": 18,
+		"solana":              9,
+		"kava":                6,
+		"kusama":              12,
+		"the-open-network":    9,
+		"tron":                18,
+		"cardano":             18,
+		"sei-network":         18,
+		"internet-computer":   18,
+		// Those networks below are not presented on /api/v3/onchain/networks on coingecko
+		// We cannot req tokens on them, it responds 404
+		//"tezos":               6,
+		//"kasplex":             8,
+		//"polkadot":            16,
+	}
+
+	platformToCoinMapping = map[string]string{
+		"bitcoin": "bitcoin",
+	}
 )
 
 type (
 	client struct {
-		cfg *config
+		cfg                  *config
+		nativeCoinsToNetwork map[string][]string
 	}
 	config struct {
 		CoinGecko struct {
@@ -168,6 +198,10 @@ type (
 				TokenPrices map[string]string `json:"token_prices"`
 			} `json:"attributes"`
 		} `json:"data"`
+	}
+	platform struct {
+		Id           string `json:"id"`
+		NativeCoinId string `json:"native_coin_id"`
 	}
 )
 

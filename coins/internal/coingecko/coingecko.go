@@ -53,22 +53,49 @@ func (c *client) ListCoins(ctx context.Context) ([]*Coin, error) {
 	}
 	res := make(map[string][]*Coin)
 	coinsToSyncMarketData := []string{}
+	tokenSyncDecimals := map[string][]string{}
+	platforms, err := c.getAllPlatforms(ctx)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get supported platforms")
+	}
+	nativeCoinsToNetwork := make(map[string][]string)
+	for pl, network := range platformToNetworkMapping {
+		if plat, has := platforms[pl]; !has {
+			if _, hasManualMapping := platformToCoinMapping[pl]; hasManualMapping {
+				nativeCoinsToNetwork[platformToCoinMapping[pl]] = append(nativeCoinsToNetwork[platformToCoinMapping[pl]], network)
+			}
+		} else {
+			nativeCoinsToNetwork[plat.NativeCoinId] = append(nativeCoinsToNetwork[plat.NativeCoinId], network)
+		}
+
+	}
 	for _, coin := range *coinList {
 		if len(coin.Platforms) == 0 {
-			res[coin.ID] = append(res[coin.ID], &Coin{
-				ID:              coin.ID,
-				Symbol:          coin.Symbol,
-				Name:            coin.Name,
-				Network:         "",
-				ContractAddress: "",
-			})
+			networks := nativeCoinsToNetwork[coin.ID]
+			if len(networks) == 0 {
+				continue
+			}
+			for _, n := range networks {
+				res[coin.ID] = append(res[coin.ID], &Coin{
+					ID:              coin.ID,
+					Symbol:          coin.Symbol,
+					Name:            coin.Name,
+					Network:         n,
+					ContractAddress: "",
+					Decimals:        platformToDecimalsMapping[networkToPlatformMapping[n]],
+				})
+			}
 			coinsToSyncMarketData = append(coinsToSyncMarketData, coin.ID)
 			continue
 		}
 		coinsToSyncMarketData = append(coinsToSyncMarketData, coin.ID)
+		platformIdx := 0
 		for platform, tokenAddr := range coin.Platforms {
 			if _, has := platformToNetworkMapping[platform]; !has {
 				continue
+			}
+			if platformIdx == 0 && tokenAddr != "" && !strings.Contains(tokenAddr, "/") {
+				tokenSyncDecimals[platformToNetworkMapping[platform]] = append(tokenSyncDecimals[platformToNetworkMapping[platform]], tokenAddr)
 			}
 			network := platformToNetworkMapping[platform]
 			res[coin.ID] = append(res[coin.ID], &Coin{
@@ -77,11 +104,15 @@ func (c *client) ListCoins(ctx context.Context) ([]*Coin, error) {
 				Name:            coin.Name,
 				Network:         network,
 				ContractAddress: tokenAddr,
+				Decimals:        platformToDecimalsMapping[platform],
 			})
+			platformIdx += 1
 		}
 	}
 	log.Debug(fmt.Sprintf("Initially got %v coins/tokens from coingecko, enhancing with market data...", len(res)))
-
+	if res, err = c.enhanceWithTokenData(ctx, res, tokenSyncDecimals); err != nil {
+		return nil, errors.Wrapf(err, "failed to get tokens data on initial sync")
+	}
 	return c.enhanceWithMarketData(ctx, res, coinsToSyncMarketData)
 }
 
@@ -102,7 +133,7 @@ func (c *client) enhanceWithMarketData(ctx context.Context, coins map[string][]*
 		log.Debug(fmt.Sprintf("Fetching market data for coins %v/%v...", i+1, len(batches)))
 		coinsWithPrice, err := c.GetCoins(ctx, batch)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to fecth market data for coins %+v", batch)
+			return nil, errors.Wrapf(err, "failed to fetchh market data for coins %+v", batch)
 		}
 		for _, coin := range coinsWithPrice {
 			updCoins := coins[coin.ID]
@@ -120,6 +151,43 @@ func (c *client) enhanceWithMarketData(ctx context.Context, coins map[string][]*
 	return res, nil
 }
 
+func (c *client) enhanceWithTokenData(ctx context.Context, coins map[string][]*Coin, tokenAddrsByNetwork map[string][]string) (map[string][]*Coin, error) {
+	networkIdx := 0
+	if len(tokenAddrsByNetwork) == 0 {
+		return map[string][]*Coin{}, nil
+	}
+	for network, tokenAddrs := range tokenAddrsByNetwork {
+		var batches [][]string
+		if len(tokenAddrs) > MaxTokenAddrsGetTokenData {
+			for len(tokenAddrs) > MaxTokenAddrsGetTokenData {
+				batches = append(batches, tokenAddrs[:MaxTokenAddrsGetTokenData])
+				tokenAddrs = tokenAddrs[MaxTokenAddrsGetTokenData+1:]
+			}
+			if len(tokenAddrs) > 0 {
+				batches = append(batches, tokenAddrs)
+			}
+		} else {
+			batches = append(batches, tokenAddrs)
+		}
+		for i, batch := range batches {
+			log.Debug(fmt.Sprintf("Fetching data for tokens on %v (%v/%v) %v/%v...", network, networkIdx, len(tokenAddrsByNetwork), i+1, len(batches)))
+			tokensData, err := c.GetTokens(ctx, network, batch)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to fetch data for tokens %v %+v", batch)
+			}
+			for _, coin := range tokensData {
+				updCoins := coins[coin.ID]
+				for _, resCoin := range updCoins {
+					resCoin.Decimals = coin.Decimals
+				}
+				coins[coin.ID] = updCoins
+			}
+		}
+		networkIdx += 1
+	}
+	return coins, nil
+}
+
 func (c *client) GetCoins(ctx context.Context, coinIDs []string) ([]*Coin, error) {
 	coinsData, _, err := makeAPICall[[]coin](ctx, c, "/api/v3/coins/markets",
 		map[string]any{"ids": strings.Join(coinIDs, ","), "vs_currency": "USD", "per_page": maxCoinsPerPage})
@@ -133,6 +201,7 @@ func (c *client) GetCoins(ctx context.Context, coinIDs []string) ([]*Coin, error
 			Name:     coinData.Name,
 			PriceUSD: float64(coinData.CurrentPrice),
 			IconUrl:  coinData.Image,
+			Symbol:   coinData.Symbol,
 		})
 	}
 	return res, nil
@@ -217,7 +286,22 @@ func convertTokenData(network string, tok tokenData) *Coin {
 	}
 }
 
-func backoff(_ *req.Response, attempt int) stdlibtime.Duration {
+func (c *client) getAllPlatforms(ctx context.Context) (map[string]*platform, error) {
+	platforms, _, err := makeAPICall[[]*platform](ctx, c, "/api/v3/asset_platforms", make(map[string]any))
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to fetch supported platforms")
+	}
+	res := map[string]*platform{}
+	for _, pl := range *platforms {
+		res[pl.Id] = pl
+	}
+	return res, nil
+}
+
+func backoff(resp *req.Response, attempt int) stdlibtime.Duration {
+	if resp != nil && resp.StatusCode == http.StatusTooManyRequests {
+		return 61 * stdlibtime.Second
+	}
 	switch {
 	case attempt <= 1:
 		return 100 * stdlibtime.Millisecond //nolint:gomnd // .
@@ -286,7 +370,6 @@ func (c *Coin) SymbolGroup() string {
 	return c.ID
 }
 func MapNetwork(network string) (string, error) {
-
 	if coingeckoNetwork, hasNetwork := networksMapping[strings.ToLower(network)]; !hasNetwork || coingeckoNetwork == "" {
 		return "", ErrInvalidNetwork
 	} else {
