@@ -1270,6 +1270,9 @@ const docTemplate = `{
                 },
                 "syncFrequency": {
                     "$ref": "#/definitions/time.Duration"
+                },
+                "version": {
+                    "type": "integer"
                 }
             }
         },
@@ -1320,6 +1323,9 @@ const docTemplate = `{
                 },
                 "syncFrequency": {
                     "$ref": "#/definitions/time.Duration"
+                },
+                "version": {
+                    "type": "integer"
                 }
             }
         },

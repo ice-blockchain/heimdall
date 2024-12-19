@@ -6,7 +6,9 @@ logger:
 cmd/heimdall-identity-io:
   host: localhost:8001
   version: local
-  api-key: bogus
+  api-key:
+   - bogus
+   - bogus2
   requiredAppVersions:
     android: 9.9.9
     ios: 9.9.9

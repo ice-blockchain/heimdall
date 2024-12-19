@@ -48,6 +48,7 @@ type (
 		IconURL         string              `json:"iconURL"`
 		PriceUSD        float64             `json:"priceUSD"`
 		Decimals        uint8               `json:"decimals"`
+		Version         *uint64             `json:"version,omitempty"`
 		SyncFrequency   stdlibtime.Duration `json:"syncFrequency"`
 	}
 	WalletNFT map[string]any

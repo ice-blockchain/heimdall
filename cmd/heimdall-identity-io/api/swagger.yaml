@@ -60,6 +60,8 @@ definitions:
         type: string
       syncFrequency:
         $ref: '#/definitions/time.Duration'
+      version:
+        type: integer
     type: object
   coins.NFT:
     properties:
@@ -93,6 +95,8 @@ definitions:
         type: string
       syncFrequency:
         $ref: '#/definitions/time.Duration'
+      version:
+        type: integer
     type: object
   main.ImportCoinReq:
     properties:

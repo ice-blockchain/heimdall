@@ -99,7 +99,7 @@ func (s *service) GetAllCoins(
 	ctx context.Context,
 	req *server.Request[APIKey, []*SymbolGroupWithCoins],
 ) (successResp *server.Response[[]*SymbolGroupWithCoins], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	if req.Data.APIKey != s.cfg.APIKey {
+	if !slices.Contains(s.cfg.APIKey, req.Data.APIKey) {
 		return nil, server.Forbidden(errors.Errorf("invalid api key %v", req.Data.APIKey))
 	}
 	latestVersion, allCoins, err := s.coins.GetAllCoins(ctx)
