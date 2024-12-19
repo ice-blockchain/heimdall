@@ -1263,6 +1263,9 @@
                 },
                 "syncFrequency": {
                     "$ref": "#/definitions/time.Duration"
+                },
+                "version": {
+                    "type": "integer"
                 }
             }
         },
@@ -1313,6 +1316,9 @@
                 },
                 "syncFrequency": {
                     "$ref": "#/definitions/time.Duration"
+                },
+                "version": {
+                    "type": "integer"
                 }
             }
         },
