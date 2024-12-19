@@ -283,6 +283,7 @@ func (c *coinsRepository) GetAllCoins(ctx context.Context) (uint64, []*SymbolGro
 			PriceUSD:        c.PriceUSD,
 			Decimals:        c.Decimals,
 			SyncFrequency:   c.SyncFrequency,
+			Version:         &c.Version,
 		})
 	}
 	res := make([]*SymbolGroupWithCoins, 0, len(groups))
@@ -321,6 +322,7 @@ func (c *coinsRepository) GetVersionedCoins(ctx context.Context, userID string, 
 			PriceUSD:        c.PriceUSD,
 			SyncFrequency:   c.SyncFrequency,
 			Decimals:        c.Decimals,
+			Version:         &c.Version,
 		})
 	}
 	return maxVersion, coinDiff, nil

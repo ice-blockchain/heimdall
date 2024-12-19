@@ -168,11 +168,11 @@ type (
 		cfg      *config
 	}
 	config struct {
-		Host                    string `yaml:"host"`
-		Version                 string `yaml:"version"`
-		APIKey                  string `yaml:"api-key" mapstructure:"api-key"`
-		AppleAppSiteAssociation string `yaml:"appleAppSiteAssociation"`
-		AssetLinks              string `yaml:"assetLinks"`
+		Host                    string   `yaml:"host"`
+		Version                 string   `yaml:"version"`
+		APIKey                  []string `yaml:"api-key" mapstructure:"api-key"`
+		AppleAppSiteAssociation string   `yaml:"appleAppSiteAssociation"`
+		AssetLinks              string   `yaml:"assetLinks"`
 		RequiredAppVersions     struct {
 			Android string `yaml:"android" mapstructure:"android"`
 			IOS     string `yaml:"ios" mapstructure:"ios"`
