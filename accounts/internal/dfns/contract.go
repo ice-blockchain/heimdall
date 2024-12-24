@@ -35,6 +35,7 @@ type (
 	DfnsClient interface {
 		ProxyCall(ctx context.Context, rw http.ResponseWriter, r *http.Request) (status int, respBody io.Reader)
 		StartDelegatedRecovery(ctx context.Context, username string, credentialId string) (*StartedDelegatedRecovery, error)
+		GetLoginChallenge(ctx context.Context, username string) (*LoginChallenge, error)
 		GetUser(ctx context.Context, userID string) (*User, error)
 		VerifyWebhookSecret(fromWebhook string) bool
 		RegisterPostProxyCallback(url string, cb func(ctx context.Context, now *time.Time, res map[string]any) error)
@@ -53,6 +54,7 @@ type (
 	Wallet                   map[string]any
 	Asset                    map[string]any
 	NFT                      = coins.WalletNFT
+	LoginChallenge           map[string]any
 	Assets                   struct {
 		Assets   []Asset `json:"assets"`
 		Network  string  `json:"network"`

@@ -20,6 +20,12 @@ type (
 		CredentialID           string                         `json:"credentialId" required:"true"`
 		ClientID               string                         `header:"X-Client-ID" required:"true" swaggerignore:"true"`
 	}
+	GetLoginChallenge struct {
+		TwoFAVerificationCodes map[TwoFAOptionWithAddr]string `json:"2FAVerificationCodes"`
+		Username               string                         `json:"username" allowUnauthorized:"true"`
+		ClientID               string                         `header:"X-Client-ID" required:"true" swaggerignore:"true"`
+	}
+	LoginChallenge             = accounts.LoginChallenge
 	TwoFAOptionEnum            = accounts.TwoFAOptionEnum
 	TwoFAOptionWithAddr        = accounts.TwoFAOptionWithAddr
 	StartDelegatedRecoveryResp = accounts.StartedDelegatedRecovery

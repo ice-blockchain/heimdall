@@ -651,6 +651,7 @@ func (a *accounts) checkIfEnough2FAProvided(usr *user, codes map[TwoFAOptionWith
 		}
 	}
 	presentedOptionsCount := 0
+	enabledCount := len(enabledOptions)
 	for o := range enabledOptions {
 		if _, presented := codes[o]; presented {
 			delete(enabledOptions, o)
@@ -659,14 +660,14 @@ func (a *accounts) checkIfEnough2FAProvided(usr *user, codes map[TwoFAOptionWith
 	}
 	if presentedOptionsCount < a.cfg.Max2FACount {
 		if len(enabledOptions) <= a.cfg.Max2FACount && presentedOptionsCount >= len(enabledOptions) {
-			return len(enabledOptions) > 0, nil
+			return enabledCount > 0, nil
 		}
 		err = terror.New(Err2FARequired, map[string]any{
 			"n": int(math.Min(float64(a.cfg.Max2FACount), float64(len(enabledOptions)))),
 		})
 	}
 
-	return len(enabledOptions) > 0, err
+	return enabledCount > 0, err
 }
 
 func (a *accounts) canRemoveEmailOrPhoneDueToauthenticatorSetup(channel TwoFAOptionEnum, usr *user, removal string) error {

@@ -31,6 +31,7 @@ type (
 		Delete2FA(ctx context.Context, userID string, codes map[TwoFAOptionWithAddr]string, twoFAToDel TwoFAOptionEnum, toDel string) error
 		Send2FA(ctx context.Context, userID string, channel TwoFAOptionEnum, deliverTo *string, language string, verificationUsingExisting2FA map[TwoFAOptionWithAddr]string) (authenticatorUri *string, err error)
 		StartDelegatedRecovery(ctx context.Context, username, credentialID string, codes map[TwoFAOptionWithAddr]string) (resp *StartedDelegatedRecovery, err error)
+		GetLoginChallenge(ctx context.Context, username string, codes map[TwoFAOptionWithAddr]string) (*LoginChallenge, error)
 		GetOrAssignIONConnectRelays(ctx context.Context, userID string, followees []string) (relays []string, err error)
 		GetIONConnectIndexerRelays(ctx context.Context, userID string) (indexers []string, err error)
 		GetUser(ctx context.Context, userID string) (usr *User, err error)
@@ -58,6 +59,7 @@ type (
 		addr string
 	} // email:someone@bogus.com, for the maps to separate codes for same channel
 	StartedDelegatedRecovery = dfns.StartedDelegatedRecovery
+	LoginChallenge           = dfns.LoginChallenge
 	DelegatedRelyingPartyErr = dfns.DfnsInternalError
 	BroadcastTxResponse      = dfns.BroadcastTxResponse
 	User                     struct {
