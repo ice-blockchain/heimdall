@@ -343,8 +343,6 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 	var extendErr error
 	var extendErrBody *DfnsInternalError
 	switch {
-	case req.URL.Path == initLoginUrl:
-		extendErrBody, extendErr = c.updateInitLoginReqBodyWithOrgID(req)
 	case req.URL.Path == initDelegatedRegistrationUrl:
 		extendErrBody, extendErr = c.updateRegisterReqBodyWithEndUser(req)
 	case req.URL.Path == completeDelegatedRegistrationUrl:
@@ -503,18 +501,6 @@ func extendRequestWith[ReqBody any](req *http.Request, extendFn func(*ReqBody) e
 	return nil, nil //nolint:nilnil // .
 }
 
-func (c *dfnsClient) updateInitLoginReqBodyWithOrgID(req *http.Request) (resp *DfnsInternalError, err error) {
-	return extendRequestWith[struct {
-		Username string `json:"username"`
-		OrgID    string `json:"orgId"`
-	}](req, func(content *struct {
-		Username string `json:"username"`
-		OrgID    string `json:"orgId"`
-	}) error {
-		content.OrgID = c.cfg.DFNS.OrganizationID
-		return nil
-	})
-}
 func (c *dfnsClient) updateRegisterReqBodyWithEndUser(req *http.Request) (resp *DfnsInternalError, err error) {
 	return extendRequestWith[struct {
 		Email string `json:"email"`
@@ -756,6 +742,48 @@ func (c *dfnsClient) StartDelegatedRecovery(ctx context.Context, username string
 		return nil, errors.Wrapf(err, "failed to start delegated recovery for username %v credID %v", username, credentialId)
 	}
 	return resp, nil
+}
+
+func (c *dfnsClient) GetLoginChallenge(ctx context.Context, username string) (*LoginChallenge, error) {
+	params := struct {
+		Username string `json:"username"`
+		OrgID    string `json:"orgId"`
+	}{
+		Username: username,
+		OrgID:    c.cfg.DFNS.OrganizationID,
+	}
+	header := http.Header{}
+	header.Set(appIDHeader, appID(ctx))
+	header.Set(userActionDfnsHeader, "false")
+	resp, err := dfnsCall[struct {
+		Username string `json:"username"`
+		OrgID    string `json:"orgId"`
+	}, LoginChallenge](ctx, c, &params, "POST", "/auth/login/init", header)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to start login flow for username %v", username)
+	}
+
+	return resp, nil
+}
+
+func (l *LoginChallenge) PasswordLogin() bool {
+	raw := map[string]any(*l)
+	allowedCredsI, hasAllowedCreds := raw["allowCredentials"]
+	if !hasAllowedCreds {
+		return false
+	}
+	allowedCreds := allowedCredsI.(map[string]any)
+	passwordLoginI, hasPasswordLogin := allowedCreds["passwordProtectedKey"]
+	if !hasPasswordLogin {
+		return false
+	}
+	passwordLogin := passwordLoginI.([]any)
+	webauthnI, hasWebauthn := allowedCreds["webauthn"]
+	if !hasWebauthn {
+		return len(passwordLogin) > 0
+	}
+	webauthn := webauthnI.([]any)
+	return len(passwordLogin) > 0 && len(webauthn) == 0
 }
 
 func dfnsCall[REQ any, RESP any](ctx context.Context, c *dfnsClient, params *REQ, method, uri string, headers http.Header) (*RESP, error) {

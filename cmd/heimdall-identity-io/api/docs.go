@@ -20,6 +20,68 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/auth/login/init": {
+            "post": {
+                "description": "Initiates  login flow",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Login"
+                ],
+                "parameters": [
+                    {
+                        "description": "Request params",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.GetLoginChallenge"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "default": "ap-",
+                        "description": "App ID",
+                        "name": "X-Client-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.LoginChallenge"
+                        }
+                    },
+                    "400": {
+                        "description": "if invalid 2FA code is provided",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "if 2FA required",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/recover/user/delegated": {
             "post": {
                 "description": "Initiates recovery process with delegated RP",
@@ -1329,6 +1391,20 @@ const docTemplate = `{
                 }
             }
         },
+        "main.GetLoginChallenge": {
+            "type": "object",
+            "properties": {
+                "2FAVerificationCodes": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
         "main.ImportCoinReq": {
             "type": "object",
             "properties": {
@@ -1339,6 +1415,10 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "main.LoginChallenge": {
+            "type": "object",
+            "additionalProperties": {}
         },
         "main.NFTCollection": {
             "type": "object",

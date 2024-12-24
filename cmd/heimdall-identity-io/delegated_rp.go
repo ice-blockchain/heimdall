@@ -60,7 +60,8 @@ func (s *service) setupDelegatedRPProxyRoutes(router *server.Router) {
 		POST("/v1/webhooks/dfns/events", server.RootHandler(s.EventWebhookFromDelegatedRP)).
 		GET("/.well-known/apple-app-site-association", server.RootHandler(s.AppleAppSiteAssociation)).
 		GET("/.well-known/assetlinks.json", server.RootHandler(s.AssetLinks)).
-		GET("/v1/users/:userId/wallets/:walletId/secure-payment-confirmations", s.securePaymentConfirmation())
+		GET("/v1/users/:userId/wallets/:walletId/secure-payment-confirmations", s.securePaymentConfirmation()).
+		POST("/auth/login/init", server.RootHandler(s.GetLoginChallenge))
 }
 
 func (s *service) proxyToDelegatedRP(allowUnauthorized bool) func(*gin.Context) {
@@ -192,6 +193,57 @@ func (s *service) StartDelegatedRecovery(
 	return server.OK[StartDelegatedRecoveryResp](resp), nil
 }
 
+// GetLoginChallenge godoc
+//
+//	@Schemes
+//	@Description	Initiates  login flow
+//	@Tags			Login
+//	@Produce		json
+//	@Param			request		body		GetLoginChallenge	true	"Request params"
+//	@Param			X-Client-ID	header		string				true	"App ID"	default(ap-)
+//	@Success		200			{object}	LoginChallenge
+//	@Failure		400			{object}	server.ErrorResponse	"if invalid 2FA code is provided"
+//	@Failure		403			{object}	server.ErrorResponse	"if 2FA required"
+//	@Failure		500			{object}	server.ErrorResponse
+//	@Failure		504			{object}	server.ErrorResponse	"if request times out"
+//	@Router			/auth/login/init [POST].
+func (s *service) GetLoginChallenge(
+	ctx context.Context,
+	req *server.Request[GetLoginChallenge, LoginChallenge],
+) (successResp *server.Response[LoginChallenge], errorResp *server.ErrResponse[*delegatedErrorResponse]) {
+	if err := req.Data.validate(); err != nil {
+		return nil, buildDelegatedErrorResponse(http.StatusBadRequest, errors.Wrapf(err, "invalid 2fa option provided"), invalidPropertiesErrorCode)
+	}
+	resp, err := s.accounts.GetLoginChallenge(withAppID(ctx, req.Data.ClientID), req.Data.Username, req.Data.TwoFAVerificationCodes)
+	if err != nil {
+		switch {
+		case errors.Is(err, accounts.ErrNoPending2FA):
+			return nil, buildDelegatedErrorResponse(http.StatusBadRequest, err, twoFANoPendingCode)
+		case errors.Is(err, accounts.ErrInvalidUsername):
+			return nil, buildDelegatedErrorResponse(http.StatusBadRequest, err, invalidUsername)
+		case errors.Is(err, accounts.Err2FAExpired):
+			return nil, buildDelegatedErrorResponse(http.StatusBadRequest, err, twoFAExpiredCode)
+		case errors.Is(err, accounts.Err2FAInvalidCode):
+			return nil, buildDelegatedErrorResponse(http.StatusBadRequest, err, twoFAInvalidCode)
+		case errors.Is(err, accounts.ErrNotFound):
+			return nil, buildDelegatedErrorResponse(http.StatusNotFound, err, userNotFound)
+		case errors.Is(err, accounts.Err2FARequired):
+			if tErr := terror.As(err); tErr != nil {
+				return nil, buildDelegatedErrorResponse(http.StatusForbidden, err, twoFARequired, tErr.Data)
+			}
+		default:
+			if delegatedErr := accounts.ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
+				var delegatedParsedErr *accounts.DelegatedRelyingPartyErr
+				if errors.As(delegatedErr, &delegatedParsedErr) {
+					return nil, buildDelegatedErrorResponse(delegatedParsedErr.HTTPStatus, err, delegatedParsedErr.Message)
+				}
+			}
+			return nil, buildDelegatedErrorResponse(http.StatusInternalServerError, err, "")
+		}
+	}
+	return server.OK[LoginChallenge](resp), nil
+}
+
 // GetNFTs godoc
 //
 //	@Schemes
@@ -237,6 +289,14 @@ func withAuth(ctx context.Context, auth string) context.Context {
 }
 
 func (r *StartDelegatedRecoveryReq) validate() error {
+	for reqOpt := range r.TwoFAVerificationCodes {
+		if err := reqOpt.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (r *GetLoginChallenge) validate() error {
 	for reqOpt := range r.TwoFAVerificationCodes {
 		if err := reqOpt.Validate(); err != nil {
 			return err

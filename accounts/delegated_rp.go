@@ -47,6 +47,34 @@ func (a *accounts) StartDelegatedRecovery(ctx context.Context, username, credent
 	return delegatedResp, nil
 }
 
+func (a *accounts) GetLoginChallenge(ctx context.Context, username string, codes map[TwoFAOptionWithAddr]string) (*LoginChallenge, error) {
+	username = strings.ToLower(username)
+	if !dfns.UsernameRegexp.MatchString(username) {
+		return nil, errors.Wrapf(dfns.ErrInvalidUsername, "username must match %v", dfns.UsernameRegexp.String())
+	}
+	loginChallenge, err := a.delegatedRPClient.GetLoginChallenge(ctx, username)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to initiate login for username %v", username)
+	}
+	if loginChallenge.PasswordLogin() {
+		var usr *user
+		usr, err = a.getUserByUsername(ctx, username)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get user 2FA state for username %v", username)
+		}
+		var hasEnabled2FA bool
+		if hasEnabled2FA, err = a.checkIfEnough2FAProvided(usr, codes); err != nil {
+			return nil, err //nolint:wrapcheck // tErr.
+		}
+		if hasEnabled2FA {
+			if _, err = a.verifyAndRedeem2FA(ctx, usr.ID, codes); err != nil {
+				return nil, errors.Wrapf(err, "failed to verify 2FA codes")
+			}
+		}
+	}
+	return loginChallenge, nil
+}
+
 func (a *accounts) SecurePaymentConfirmation(ctx context.Context, userID, walletId string, body map[string]string) (tmplData any, err error) {
 	wallet, err := a.delegatedRPClient.GetWallet(ctx, walletId)
 	if err != nil {
