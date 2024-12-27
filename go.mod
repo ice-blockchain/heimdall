@@ -22,7 +22,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ice-blockchain/wintr v1.154.0
-	github.com/imroc/req/v3 v3.49.0
+	github.com/imroc/req/v3 v3.49.1
 	github.com/lestrrat-go/jwx/v2 v2.1.3
 	github.com/pkg/errors v0.9.1
 	github.com/quic-go/quic-go v0.48.2

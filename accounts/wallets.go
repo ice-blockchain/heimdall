@@ -109,6 +109,10 @@ func buildInsert(items []*CoinMapping, nextIndex int) (string, []any) {
 }
 
 func (w *CoinMappings) Scan(value any) error {
+	if value == nil {
+		*w = CoinMappings([]*CoinMapping{})
+		return nil
+	}
 	return errors.Wrapf(json.Unmarshal([]byte((value.(string))), w), "failed to unmarshal value from db %v", value)
 }
 
