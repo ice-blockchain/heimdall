@@ -243,8 +243,8 @@ github.com/holiman/uint256 v1.3.2/go.mod h1:EOMSn4q6Nyt9P6efbI3bueV4e1b3dGlUCXei
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
 github.com/ice-blockchain/wintr v1.154.0 h1:yZSQtAEwGHTSmJ5pXjX0tpui1TNnG615QfpBkhY99a4=
 github.com/ice-blockchain/wintr v1.154.0/go.mod h1:DoUn66XJGzPzfCZTsHyMjfgj2aVLGvjqDSuKj2pa3KE=
-github.com/imroc/req/v3 v3.49.0 h1:5Rac2qvz7Dq0E3PeBo/c2szV3hagPQIGLoHtfBmYhu4=
-github.com/imroc/req/v3 v3.49.0/go.mod h1:XZf4t94DNJzcA0UOBlA68hmSrWsAyvN407ADdH4mzCA=
+github.com/imroc/req/v3 v3.49.1 h1:Nvwo02riiPEzh74ozFHeEJrtjakFxnoWNR3YZYuQm9U=
+github.com/imroc/req/v3 v3.49.1/go.mod h1:tsOk8K7zI6cU4xu/VWCZVtq9Djw9IWm4MslKzme5woU=
 github.com/jackc/pgpassfile v1.0.0 h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsIM=
 github.com/jackc/pgpassfile v1.0.0/go.mod h1:CEx0iS5ambNFdcRtxPj5JhEz+xB6uRky5eyVu/W2HEg=
 github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 h1:iCEnooe7UlwOQYpKFhBabPMi4aNAfoODPEFNiAnClxo=
