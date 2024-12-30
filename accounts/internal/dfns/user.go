@@ -31,27 +31,34 @@ func ExtractMainWallet(res map[string]any) (walletID, walletPubKey string) {
 		for _, walletI := range wallets {
 			if walletI != nil {
 				wallet := walletI.(map[string]any)
-				if nameI, hasName := wallet["name"]; hasName && nameI != nil {
-					if name, ok := nameI.(string); !ok || name != defaultWalletName {
-						continue
-					}
-				}
-				if networkI, hasNetwork := wallet["network"]; hasNetwork && networkI != nil {
-					if network, ok := networkI.(string); !ok || network != defaultWalletNetwork {
-						continue
-					}
-				}
-				if keyI, hasKey := wallet["signingKey"]; hasKey && keyI != nil {
-					key := keyI.(map[string]any)
-					if pubkey, hasPk := key["publicKey"]; hasPk {
-						walletPubKey = pubkey.(string)
-					}
-				}
-				if idI, hasID := wallet["id"]; hasID && idI != nil {
-					walletID = idI.(string)
+				if walletID, walletPubKey = CheckMainWallet(wallet); walletID == "" && walletPubKey == "" {
+					continue
 				}
 			}
 		}
+	}
+	return walletID, walletPubKey
+}
+
+func CheckMainWallet(wallet Wallet) (walletID, walletPubKey string) {
+	if nameI, hasName := wallet["name"]; hasName && nameI != nil {
+		if name, ok := nameI.(string); !ok || name != defaultWalletName {
+			return "", ""
+		}
+	}
+	if networkI, hasNetwork := wallet["network"]; hasNetwork && networkI != nil {
+		if network, ok := networkI.(string); !ok || network != defaultWalletNetwork {
+			return "", ""
+		}
+	}
+	if keyI, hasKey := wallet["signingKey"]; hasKey && keyI != nil {
+		key := keyI.(map[string]any)
+		if pubkey, hasPk := key["publicKey"]; hasPk {
+			walletPubKey = pubkey.(string)
+		}
+	}
+	if idI, hasID := wallet["id"]; hasID && idI != nil {
+		walletID = idI.(string)
 	}
 	return walletID, walletPubKey
 }

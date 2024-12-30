@@ -180,7 +180,7 @@ func (a *accounts) upsertUsernameFromRegistration(ctx context.Context, now *time
 	if userID == "" && username == "" {
 		return nil
 	}
-	return errors.Wrapf(a.insertUsername(ctx, now, userID, username), "failed to store username %v for user %v on registration", username, userID)
+	return errors.Wrapf(a.insertUsername(ctx, now, userID, username, userID), "failed to store username %v for user %v on registration", username, userID)
 }
 func (a *accounts) upsertWalletPubKeyFromRegistrationAndRegisterWalletView(ctx context.Context, now *time.Time, res map[string]any) error {
 	userID, username := dfns.ExtractUser(res, "username")
@@ -223,16 +223,28 @@ func (a *accounts) upsertUsernameFromLogin(ctx context.Context, now *time.Time, 
 		log.Panic(errors.Wrapf(err, "we're unable to verify just issued token from 3rd party delegated rp, something changed? Token %v", token))
 	}
 
-	return errors.Wrapf(a.insertUsername(ctx, now, parsedToken.UserID(), parsedToken.Username()),
+	wallets, err := a.delegatedRPClient.ListWallets(ctx, parsedToken.UserID())
+	if err != nil {
+		return errors.Wrapf(err, "failed to get wallets for user %v", parsedToken.UserID())
+	}
+	masterPubKey := parsedToken.UserID()
+	for _, wallet := range wallets {
+		if walletID, walletPubKey := dfns.CheckMainWallet(wallet); walletID != "" && walletPubKey != "" {
+			masterPubKey = walletPubKey
+		}
+	}
+
+	return errors.Wrapf(a.insertUsername(ctx, now, parsedToken.UserID(), parsedToken.Username(), masterPubKey),
 		"failed to store username %v for user %v on registration", parsedToken.Username(), parsedToken.UserID())
 }
 
-func (a *accounts) insertUsername(ctx context.Context, now *time.Time, userID, username string) error {
-	_, err := storage.Exec(ctx, a.db, `INSERT INTO users(created_at, updated_at, id, username, clients, master_pubkey) VALUES ($4,$4,$1,$2,$3, $1) 
+func (a *accounts) insertUsername(ctx context.Context, now *time.Time, userID, username, masterPubKey string) error {
+	_, err := storage.Exec(ctx, a.db, `INSERT INTO users(created_at, updated_at, id, username, clients, master_pubkey) VALUES ($4,$4,$1,$2,$3,$5) 
                                                 ON CONFLICT(id) DO UPDATE SET 
     										    username = $2,
-    										    updated_at = $4
-                                            WHERE users.username = users.id`, userID, username, []string{}, *now.Time)
+    										    updated_at = $4,
+												master_pubkey = $5
+                                            WHERE users.username = users.id OR users.master_pubkey = users.id`, userID, username, []string{}, *now.Time, masterPubKey)
 
 	return errors.Wrapf(err, "failed to update user with username in db %v %v", userID, username)
 }
