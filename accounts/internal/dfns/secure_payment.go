@@ -22,7 +22,7 @@ import (
 
 func (c *dfnsClient) requestUserActionChallenge(ctx context.Context, url string, method string, payload map[string]string) (*signatureChallenge, error) {
 	header := http.Header{}
-	header.Set(appIDHeader, c.webFE.AppID)
+	header.Set(appIDHeader, c.cfg.DFNS.WebFEAppID)
 	header.Set(authDfnsHeader, dfnsAuthHeader(ctx))
 	header.Set(userActionDfnsHeader, "false")
 	signablePayload, err := json.Marshal(payload)
@@ -78,8 +78,8 @@ func (c *dfnsClient) SecurePaymentConfirmation(ctx context.Context, userID, netw
 		Challenge: challenge,
 		UserID:    userID,
 		Token:     dfnsAuthHeader(ctx),
-		AppID:     c.webFE.AppID,
-		Origin:    c.webFE.ExpectedOrigin,
+		AppID:     c.cfg.DFNS.WebFEAppID,
+		Origin:    c.cfg.DFNS.AllowedApplications[c.cfg.DFNS.WebFEAppID].Origin,
 	}, nil
 }
 
@@ -260,8 +260,8 @@ func (c *dfnsClient) detectNetwork(networkName string) (*network, error) {
 func (c *dfnsClient) extendChallengeWithPaymentInfo(challenge signatureChallenge, transaction *transferTransaction) error {
 	// https://w3c.github.io/secure-payment-confirmation/#authentication-example
 	challenge["payeeName"] = transaction.ReceiverAddress
-	challenge["payeeOrigin"] = c.webFE.ExpectedOrigin
-	challenge["rpId"] = (challenge["rp"].(map[string]any))["id"].(string)
+	challenge["payeeOrigin"] = c.cfg.DFNS.AllowedApplications[c.cfg.DFNS.WebFEAppID].Origin
+	challenge["rpId"] = c.cfg.DFNS.AllowedApplications[c.cfg.DFNS.WebFEAppID].RPID
 	var instrument map[string]any
 	if instrumentI, hasInstrument := challenge["instrument"]; !hasInstrument {
 		instrument = make(map[string]any)

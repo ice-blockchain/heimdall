@@ -134,7 +134,6 @@ type (
 		callbacks               map[string]func(ctx context.Context, now *time.Time, res map[string]any) error
 		bodyModifiableCallbacks map[string]func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error
 		webhookSecret           string
-		webFE                   *application
 		userMx                  sync.Mutex
 		serviceAccountMx        sync.Mutex
 		proxyMx                 sync.Mutex
@@ -155,7 +154,12 @@ type (
 		OrganizationID             string `yaml:"organizationId" mapstructure:"organizationId" json:"organizationId"`
 		BaseURL                    string `yaml:"baseUrl" mapstructure:"baseUrl" json:"baseUrl"`
 		WebhookURL                 string `yaml:"webhookUrl" mapstructure:"webhookUrl"`
-		Auth                       struct {
+		AllowedApplications        map[string]struct {
+			RPID   string `yaml:"rpId" mapstructure:"rpId"`
+			Origin string `yaml:"origin" mapstructure:"origin"`
+			Name   string `yaml:"name" mapstructure:"name"`
+		} `yaml:"allowedApplications" mapstructure:"allowedApplications"`
+		Auth struct {
 			Issuer string `yaml:"issuer" mapstructure:"issuer"`
 		} `yaml:"auth" mapstructure:"auth"`
 		RefreshAuth struct {
@@ -181,12 +185,6 @@ type (
 		Description string     `json:"description"`
 		Status      string     `json:"status"`
 		Events      []string   `json:"events"`
-	}
-	application struct {
-		AppID          string `json:"appId"`
-		ExpectedRPId   string `json:"expectedRpId"`
-		ExpectedOrigin string `json:"expectedOrigin"`
-		IsActive       bool   `json:"isActive"`
 	}
 	page[T any] struct {
 		Items         []T     `json:"items"`
