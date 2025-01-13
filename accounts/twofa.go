@@ -167,6 +167,7 @@ func (a *accounts) updateUserWithDeleted2FA(ctx context.Context, now *time.Time,
 		contains = idx != -1
 	case TwoFAOptionSMS:
 		removePhoneClause = "array_remove(users.phone_number, $4)"
+		idx = slices.Index(usr.PhoneNumber, removable2FAValue)
 		contains = idx != -1
 	case TwoFAOptionTOTPAuthenticator:
 		removeTotpClause = "array_remove(users.totp_authenticator_secret, $4)"
@@ -555,7 +556,7 @@ func (a *accounts) checkDeliveryChannelFor2FA(ctx context.Context, usr *user, op
 			enabled, _ := enabled2FA(usr.Email, usr.Active2FAEmail)
 			existingDeliveryChannel = append(existingDeliveryChannel, enabled...)
 		case opt == TwoFAOptionSMS && len(usr.PhoneNumber) > 0 && usr.Active2FAPhoneNumber != nil:
-			enabled, _ := enabled2FA(usr.Email, usr.Active2FAEmail)
+			enabled, _ := enabled2FA(usr.PhoneNumber, usr.Active2FAPhoneNumber)
 			existingDeliveryChannel = append(existingDeliveryChannel, enabled...)
 		case opt == TwoFAOptionTOTPAuthenticator:
 			var totpName string
