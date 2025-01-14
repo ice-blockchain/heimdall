@@ -85,6 +85,7 @@ func (s *service) UserIndexers(
 //	@Param			Authorization		header		string	true	"Auth token from delegated RP"	default(Bearer <Add token here>)
 //	@Param			X-Client-ID			header		string	true	"App ID"						default(ap-)
 //	@Success		200					{object}	User
+//	@Failure		404					{object}	delegatedErrorResponse	"if user not found"
 //	@Failure		500					{object}	delegatedErrorResponse
 //	@Failure		504					{object}	server.ErrorResponse	"if request times out"
 //	@Router			/auth/users/{userIdOrMasterKey} [GET].
@@ -98,6 +99,8 @@ func (s *service) GetUser(
 	usr, err := s.accounts.GetUser(ctx, req.Data.UserIDOrMasterKey)
 	if err != nil {
 		switch {
+		case errors.Is(err, accounts.ErrNotFound):
+			return nil, buildDelegatedErrorResponse(http.StatusNotFound, err, "User not found")
 		default:
 			if delegatedErr := accounts.ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
 				var delegatedParsedErr *accounts.DelegatedRelyingPartyErr

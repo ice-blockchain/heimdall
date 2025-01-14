@@ -136,7 +136,7 @@ func (a *accounts) GetUser(ctx context.Context, userIDOrMasterKey string) (*User
 		return nil, errors.Wrapf(err, "failed to read extra information about user %v", userIDOrMasterKey)
 	}
 	var usr = &User{}
-	if dbUsr != nil && server.LoggedInUser(ctx) != nil && dbUsr.ID == server.LoggedInUser(ctx).UserID() {
+	if server.LoggedInUser(ctx) != nil && (dbUsr != nil && dbUsr.ID == server.LoggedInUser(ctx).UserID()) || userIDOrMasterKey == server.LoggedInUser(ctx).UserID() {
 		delegatedUsr, err := a.delegatedRPClient.GetUser(ctx, dbUsr.ID)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get user from delegated party for ID %v", userIDOrMasterKey)
@@ -171,7 +171,9 @@ func (a *accounts) GetUser(ctx context.Context, userIDOrMasterKey string) (*User
 			usr.TwoFAOptions = twoFAOptions
 		}
 	}
-
+	if usr.User == nil && dbUsr == nil {
+		return nil, ErrNotFound
+	}
 	return usr, nil
 }
 

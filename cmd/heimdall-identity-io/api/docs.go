@@ -185,6 +185,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/main.User"
                         }
                     },
+                    "404": {
+                        "description": "if user not found",
+                        "schema": {
+                            "$ref": "#/definitions/main.delegatedErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
