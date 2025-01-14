@@ -159,6 +159,7 @@ const (
 	duplicate                  = "DUPLICATE"
 	lastEntry                  = "LAST_ENTRY"
 	notFound                   = "NOT_FOUND"
+	twoFANotConfigured         = "2FA_NOT_CONFIGURED"
 
 	configNameRequiredAndroidAppVersion = "required_android_app_version"
 	configNameRequiredIOSAppVersion     = "required_ios_app_version"

@@ -64,7 +64,7 @@ func (s *service) Send2FARequest(
 		case errors.Is(err, server.ErrInvalidToken):
 			return nil, server.Unauthorized(err)
 		case errors.Is(err, accounts.Err2FADeliverToNotProvided):
-			return nil, server.BadRequest(err, invalidPropertiesErrorCode)
+			return nil, server.BadRequest(err, twoFANotConfigured)
 		case errors.Is(err, accounts.Err2FAExpired):
 			return nil, server.BadRequest(err, twoFAExpiredCode)
 		case errors.Is(err, accounts.Err2FAInvalidCode):
@@ -121,7 +121,7 @@ func (s *service) Delete2FA(
 				return nil, server.ForbiddenWithCode(err, twoFARequired, tErr.Data)
 			}
 		case errors.Is(err, accounts.Err2FADeliverToNotProvided):
-			return nil, server.BadRequest(err, invalidPropertiesErrorCode)
+			return nil, server.BadRequest(err, twoFANotConfigured)
 		case errors.Is(err, accounts.Err2FAExpired):
 			return nil, server.BadRequest(err, twoFAExpiredCode)
 		case errors.Is(err, accounts.Err2FAInvalidCode):
