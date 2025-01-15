@@ -63,11 +63,25 @@ CREATE TABLE IF NOT EXISTS wallet_views (
     created_at    TIMESTAMP NOT NULL,
     updated_at    TIMESTAMP NOT NULL,
     name          TEXT NOT NULL,
+    id            TEXT NOT NULL,
     user_id       TEXT NOT NULL REFERENCES users(id),
     symbol_groups TEXT[],
     coins         coin_mapping[],
-    primary key (user_id, name)
+    primary key (id)
 );
+
+CREATE INDEX IF NOT EXISTS wallet_views_user_id ON wallet_views (user_id);
+
+DO $$ BEGIN
+    ALTER TABLE wallet_views ADD COLUMN IF NOT EXISTS id TEXT DEFAULT '' NOT NULL,
+        DROP CONSTRAINT IF EXISTS wallet_views_pkey;
+    UPDATE wallet_views SET id = gen_random_uuid()
+    WHERE id = '';
+    if NOT exists (select constraint_name from information_schema.table_constraints where table_name = 'wallet_views' and constraint_type = 'PRIMARY KEY') then
+        ALTER TABLE wallet_views
+            ADD CONSTRAINT wallet_views_pkey PRIMARY KEY(id);
+    end if;
+END $$;
 
 ALTER TABLE wallet_views
     ADD COLUMN IF NOT EXISTS symbol_groups TEXT[];

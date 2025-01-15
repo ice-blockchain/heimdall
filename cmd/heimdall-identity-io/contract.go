@@ -87,8 +87,8 @@ type (
 		UserID string `uri:"userId" required:"true" swaggerignore:"true"`
 	}
 	WalletViewReference struct {
-		UserID         string `uri:"userId" required:"true" swaggerignore:"true"`
-		WalletViewName string `uri:"walletViewName" required:"true" swaggerignore:"true"`
+		UserID       string `uri:"userId" required:"true" swaggerignore:"true"`
+		WalletViewID string `uri:"walletViewId" required:"true" swaggerignore:"true"`
 	}
 	ModifyWalletViewReq struct {
 		Bogus string `json:"bogus" uri:"bogus" swaggerignore:"true"` // It's just for the router to register the body binder.

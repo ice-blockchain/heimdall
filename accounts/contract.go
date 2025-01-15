@@ -42,9 +42,9 @@ type (
 	Wallets interface {
 		CreateWalletView(ctx context.Context, userID, name string, items []*CoinMapping, symbolGroups []string) (*WalletView, error)
 		GetWalletViews(ctx context.Context, userID string) ([]*WalletView, error)
-		GetWalletView(ctx context.Context, userID, name string) (*WalletView, error)
-		DeleteWalletView(ctx context.Context, userID, name string) error
-		ModifyWalletView(ctx context.Context, userID, name, newName string, items []*CoinMapping, symbolGroups []string) (*WalletView, error)
+		GetWalletView(ctx context.Context, userID, id string) (*WalletView, error)
+		DeleteWalletView(ctx context.Context, userID, id string) error
+		ModifyWalletView(ctx context.Context, userID, id, newName string, items []*CoinMapping, symbolGroups []string) (*WalletView, error)
 		GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGroup string) ([]*CoinWithWalletInfo, error)
 	}
 	Coins interface {
@@ -80,6 +80,7 @@ type (
 		CreatedAt    *time.Time                  `json:"createdAt"`
 		UpdatedAt    *time.Time                  `json:"updatedAt"`
 		UserID       string                      `json:"userId"`
+		ID           string                      `json:"id"`
 	}
 	CoinWithWalletInfo struct {
 		*coins.Coin

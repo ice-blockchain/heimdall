@@ -230,6 +230,8 @@ definitions:
         type: array
       createdAt:
         type: string
+      id:
+        type: string
       name:
         type: string
       symbolGroups:
@@ -970,7 +972,7 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Wallets
-  /v1/users/{userId}/wallet-views/{walletViewName}:
+  /v1/users/{userId}/wallet-views/{walletViewId}:
     delete:
       description: Deletes wallet view for provided userId and name
       parameters:
@@ -979,9 +981,9 @@ paths:
         name: userId
         required: true
         type: string
-      - description: Name of wallet view
+      - description: ID of wallet view
         in: path
-        name: walletViewName
+        name: walletViewId
         required: true
         type: string
       - default: Bearer <Add token here>
@@ -1019,9 +1021,9 @@ paths:
         name: userId
         required: true
         type: string
-      - description: Name of wallet view
+      - description: ID of wallet view
         in: path
-        name: walletViewName
+        name: walletViewId
         required: true
         type: string
       - default: Bearer <Add token here>
@@ -1059,9 +1061,9 @@ paths:
         name: userId
         required: true
         type: string
-      - description: Name of wallet view
+      - description: ID of wallet view
         in: path
-        name: walletViewName
+        name: walletViewId
         required: true
         type: string
       - default: Bearer <Add token here>
