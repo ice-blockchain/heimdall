@@ -15,9 +15,9 @@ import (
 func (s *service) setupWalletViewsRoutes(router gin.IRoutes) {
 	router.POST("/v1/users/:userId/wallet-views", server.RootHandler(s.CreateWalletView)).
 		GET("/v1/users/:userId/wallet-views", server.RootHandler(s.GetWalletViews)).
-		GET("/v1/users/:userId/wallet-views/:walletViewName", server.RootHandler(s.GetWalletView)).
-		PUT("/v1/users/:userId/wallet-views/:walletViewName", server.RootHandler(s.ModifyWalletView)).
-		DELETE("/v1/users/:userId/wallet-views/:walletViewName", server.RootHandler(s.DeleteWalletView))
+		GET("/v1/users/:userId/wallet-views/:walletViewId", server.RootHandler(s.GetWalletView)).
+		PUT("/v1/users/:userId/wallet-views/:walletViewId", server.RootHandler(s.ModifyWalletView)).
+		DELETE("/v1/users/:userId/wallet-views/:walletViewId", server.RootHandler(s.DeleteWalletView))
 }
 
 // CreateWalletView godoc
@@ -66,18 +66,18 @@ func (s *service) CreateWalletView(
 //	@Tags			Wallets
 //	@Produce		json
 //	@Param			userId			path		string	true	"ID of the user"
-//	@Param			walletViewName	path	string	true	"Name of wallet view"
+//	@Param			walletViewId	path		string	true	"ID of wallet view"
 //	@Param			Authorization	header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
 //	@Success		200				{object}	WalletView
 //	@Failure		500				{object}	server.ErrorResponse
-//	@Failure		404				{object}	server.ErrorResponse 	"if wallet view not found"
+//	@Failure		404				{object}	server.ErrorResponse	"if wallet view not found"
 //	@Failure		504				{object}	server.ErrorResponse	"if request times out"
-//	@Router			/v1/users/{userId}/wallet-views/{walletViewName} [GET].
+//	@Router			/v1/users/{userId}/wallet-views/{walletViewId} [GET].
 func (s *service) GetWalletView(
 	ctx context.Context,
 	req *server.Request[WalletViewReference, WalletView],
 ) (successResp *server.Response[WalletView], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	view, err := s.accounts.GetWalletView(ctx, req.Data.UserID, req.Data.WalletViewName)
+	view, err := s.accounts.GetWalletView(ctx, req.Data.UserID, req.Data.WalletViewID)
 	if err != nil {
 		switch {
 		case errors.Is(err, accounts.ErrNotFound):
@@ -149,19 +149,19 @@ func (s *service) validateWalletView(ctx context.Context, items []*accounts.Coin
 //	@Tags			Wallets
 //	@Produce		json
 //	@Param			userId			path	string	true	"ID of the user"
-//	@Param			walletViewName	path	string	true	"Name of wallet view"
+//	@Param			walletViewId	path	string	true	"ID of wallet view"
 //	@Param			Authorization	header	string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
 //	@Success		200				"OK - found and deleted"
 //	@Success		204				"No Content - already deleted"
 //	@Failure		500				{object}	server.ErrorResponse
 //	@Failure		409				{object}	server.ErrorResponse	"if trying to delete last wallet view"
 //	@Failure		504				{object}	server.ErrorResponse	"if request times out"
-//	@Router			/v1/users/{userId}/wallet-views/{walletViewName} [DELETE].
+//	@Router			/v1/users/{userId}/wallet-views/{walletViewId} [DELETE].
 func (s *service) DeleteWalletView(
 	ctx context.Context,
 	req *server.Request[WalletViewReference, any],
 ) (successResp *server.Response[any], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	err := s.accounts.DeleteWalletView(ctx, req.Data.UserID, req.Data.WalletViewName)
+	err := s.accounts.DeleteWalletView(ctx, req.Data.UserID, req.Data.WalletViewID)
 	if err != nil {
 		switch {
 		case errors.Is(err, accounts.ErrNotChanged):
@@ -183,14 +183,14 @@ func (s *service) DeleteWalletView(
 //	@Tags			Wallets
 //	@Produce		json
 //	@Param			userId			path		string			true	"ID of the user"
-//	@Param			walletViewName	path		string			true	"Name of wallet view"
+//	@Param			walletViewId	path		string			true	"ID of wallet view"
 //	@Param			Authorization	header		string			true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
 //	@Param			request			body		WalletViewReq	true	"Request params"
 //	@Success		200				{object}	WalletView		"Modified, updated view in response"
 //	@Failure		500				{object}	server.ErrorResponse
 //	@Failure		404				{object}	server.ErrorResponse	"if no such view exists"
 //	@Failure		504				{object}	server.ErrorResponse	"if request times out"
-//	@Router			/v1/users/{userId}/wallet-views/{walletViewName} [PUT].
+//	@Router			/v1/users/{userId}/wallet-views/{walletViewId} [PUT].
 func (s *service) ModifyWalletView(
 	ctx context.Context,
 	req *server.Request[ModifyWalletViewReq, WalletView],
@@ -199,7 +199,7 @@ func (s *service) ModifyWalletView(
 	if err != nil {
 		return nil, server.BadRequest(err, invalidPropertiesErrorCode)
 	}
-	view, err := s.accounts.ModifyWalletView(ctx, req.Data.WalletViewReference.UserID, req.Data.WalletViewReference.WalletViewName,
+	view, err := s.accounts.ModifyWalletView(ctx, req.Data.WalletViewReference.UserID, req.Data.WalletViewReference.WalletViewID,
 		req.Data.WalletViewReq.Name, req.Data.Items, req.Data.SymbolGroups)
 	if err != nil {
 		switch {

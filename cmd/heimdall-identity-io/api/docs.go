@@ -712,10 +712,7 @@ const docTemplate = `{
                         }
                     },
                     "204": {
-                        "description": "if known_version have been provided before",
-                        "schema": {
-                            "$ref": "#/definitions/main.VersionedCoins"
-                        }
+                        "description": "if known_version have been provided before"
                     },
                     "504": {
                         "description": "if request times out",
@@ -1005,7 +1002,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/users/{userId}/wallet-views/{walletViewName}": {
+        "/v1/users/{userId}/wallet-views/{walletViewId}": {
             "get": {
                 "description": "Get wallet view with extended information about coins (grouped)",
                 "produces": [
@@ -1024,8 +1021,8 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Name of wallet view",
-                        "name": "walletViewName",
+                        "description": "ID of wallet view",
+                        "name": "walletViewId",
                         "in": "path",
                         "required": true
                     },
@@ -1083,8 +1080,8 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Name of wallet view",
-                        "name": "walletViewName",
+                        "description": "ID of wallet view",
+                        "name": "walletViewId",
                         "in": "path",
                         "required": true
                     },
@@ -1151,8 +1148,8 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Name of wallet view",
-                        "name": "walletViewName",
+                        "description": "ID of wallet view",
+                        "name": "walletViewId",
                         "in": "path",
                         "required": true
                     },
@@ -1597,6 +1594,9 @@ const docTemplate = `{
                     }
                 },
                 "createdAt": {
+                    "type": "string"
+                },
+                "id": {
                     "type": "string"
                 },
                 "name": {

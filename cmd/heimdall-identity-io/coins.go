@@ -119,7 +119,7 @@ func (s *service) GetAllCoins(
 //	@Param			userId			path		string	true	"ID of the user"
 //	@Param			Authorization	header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
 //	@Success		200				{object}	VersionedCoins
-//	@Success		204				{object}	VersionedCoins			"if known_version have been provided before"
+//	@Success		204				"if known_version have been provided before"
 //	@Failure		504				{object}	server.ErrorResponse	"if request times out"
 //	@Router			/v1/users/{userId}/coins [GET].
 func (s *service) GetVersionedCoins(

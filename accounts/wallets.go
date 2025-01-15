@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/goccy/go-json"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
@@ -18,16 +19,23 @@ import (
 )
 
 func (a *accounts) CreateWalletView(ctx context.Context, userID, name string, items []*CoinMapping, symbolGroups []string) (*WalletView, error) {
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 	now := time.Now()
-	params := []any{now, name, userID, symbolGroups}
-	rowsSql, extraParams := buildInsert(items, 4)
+	id := uuid.NewString()
+	params := []any{now, name, userID, symbolGroups, id}
+	rowsSql, extraParams := buildInsert(items, 5)
 	params = append(params, extraParams...)
-	rows, err := storage.Exec(ctx, a.db, fmt.Sprintf(`INSERT INTO wallet_views(created_at, updated_at, name,      user_id, symbol_groups, coins) 
-															VALUES  ($1,         $1,         $2,        $3,  $4,     array[%v]    );`, rowsSql),
+	rows, err := storage.Exec(ctx, a.db, fmt.Sprintf(`INSERT INTO wallet_views(created_at, updated_at, name,      user_id, symbol_groups, id,coins) 
+															VALUES  ($1,         $1,         $2,        $3,  $4, $5,     array[%v]    );`, rowsSql),
 		params...)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrRelationNotFound) {
 			return nil, ErrNotFound
+		}
+		if storage.IsErr(err, storage.ErrDuplicate) {
+			return a.CreateWalletView(ctx, userID, name, items, symbolGroups)
 		}
 		return nil, errors.Wrap(err, "failed to create wallet view")
 	}
@@ -36,6 +44,7 @@ func (a *accounts) CreateWalletView(ctx context.Context, userID, name string, it
 	}
 
 	return &WalletView{
+		ID:           id,
 		Name:         name,
 		Coins:        items,
 		CreatedAt:    now,
@@ -46,7 +55,7 @@ func (a *accounts) CreateWalletView(ctx context.Context, userID, name string, it
 }
 func (a *accounts) GetWalletViews(ctx context.Context, userID string) ([]*WalletView, error) {
 	views, err := storage.Select[WalletView](ctx, a.db, `SELECT 
-    created_at, updated_at, name, user_id, array_to_json(coins) as coins, symbol_groups
+    created_at, updated_at, name, user_id, array_to_json(coins) as coins, symbol_groups, id
     FROM wallet_views WHERE user_id = $1`, userID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get wallet views for user %v", userID)
@@ -55,10 +64,10 @@ func (a *accounts) GetWalletViews(ctx context.Context, userID string) ([]*Wallet
 	return views, nil
 }
 
-func (a *accounts) GetWalletView(ctx context.Context, userID, name string) (*WalletView, error) {
+func (a *accounts) GetWalletView(ctx context.Context, userID, id string) (*WalletView, error) {
 	// Merge coinId from wallet_views.coins and coins entry and collapse to json array
 	views, err := storage.Select[WalletView](ctx, a.db, `
-		SELECT created_at, updated_at, name, user_id, symbol_groups,
+		SELECT created_at, updated_at, name, user_id, symbol_groups, id,
 			   (SELECT json_agg(row_to_json(t.*)) from (
 				   WITH wallet_views_coinids as (
 					   (SELECT wallet_views.*, (unnest(wallet_views.coins)::coin_mapping).coinId, (unnest(wallet_views.coins)::coin_mapping).walletid
@@ -79,8 +88,8 @@ func (a *accounts) GetWalletView(ctx context.Context, userID, name string) (*Wal
 				   join coins on wallet_views_coinids.coinid = coins.id) t
 			   ) 
 		as coins
-		from wallet_views WHERE user_id = $1 AND wallet_views.name = $2
-	group by created_at, updated_at, name, user_id, symbol_groups`, userID, name)
+		from wallet_views WHERE user_id = $1 AND wallet_views.id = $2
+	group by created_at, updated_at, name, user_id, symbol_groups, id`, userID, id)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
 			return nil, ErrNotFound
@@ -116,24 +125,24 @@ func (w *CoinMappings) Scan(value any) error {
 	return errors.Wrapf(json.Unmarshal([]byte((value.(string))), w), "failed to unmarshal value from db %v", value)
 }
 
-func (a *accounts) DeleteWalletView(ctx context.Context, userID, name string) error {
+func (a *accounts) DeleteWalletView(ctx context.Context, userID, id string) error {
 	row, err := storage.ExecOne[struct {
 		Deleted bool `db:"deleted"`
 		HasMore bool `db:"has_more"`
 	}](ctx, a.db,
 		`WITH del AS (
-				DELETE FROM wallet_views WHERE user_id = $1 AND name = $2 AND EXISTS(SELECT 1 FROM wallet_views WHERE user_id = $1 AND name != $2) RETURNING name
+				DELETE FROM wallet_views WHERE user_id = $1 AND id = $2 AND EXISTS(SELECT 1 FROM wallet_views WHERE user_id = $1 AND id != $2) RETURNING id
 			)
-			SELECT del.name IS NOT NULL AS deleted, (wv.name is not null AND wv.name!=$2) AS has_more  FROM del RIGHT JOIN wallet_views wv 
+			SELECT del.id IS NOT NULL AS deleted, (wv.name is not null AND wv.id!=$2) AS has_more  FROM del RIGHT JOIN wallet_views wv 
 			ON wv.user_id = $1
 			WHERE wv.user_id = $1			
-LIMIT 1`, userID, name)
+LIMIT 1`, userID, id)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
 			return ErrNotChanged
 		}
 
-		return errors.Wrapf(err, "failed to delete wallet view %v for user %v", name, userID)
+		return errors.Wrapf(err, "failed to delete wallet view %v for user %v", id, userID)
 	}
 	if !row.Deleted && row.HasMore {
 		return ErrNotChanged
@@ -145,9 +154,9 @@ LIMIT 1`, userID, name)
 	return nil
 }
 
-func (a *accounts) ModifyWalletView(ctx context.Context, userID, name, newName string, items []*CoinMapping, symbolGroups []string) (*WalletView, error) {
+func (a *accounts) ModifyWalletView(ctx context.Context, userID, id, newName string, items []*CoinMapping, symbolGroups []string) (*WalletView, error) {
 	now := time.Now()
-	params := []any{userID, name, newName, now, symbolGroups}
+	params := []any{userID, id, newName, now, symbolGroups}
 	itemsSQL, extraParams := buildInsert(items, 5)
 	params = append(params, extraParams...)
 	view, err := storage.ExecOne[WalletView](ctx, a.db, fmt.Sprintf(`UPDATE wallet_views 
@@ -156,9 +165,9 @@ func (a *accounts) ModifyWalletView(ctx context.Context, userID, name, newName s
 		coins = array[%v],
 		updated_at = $4,
 	    symbol_groups = $5
-	WHERE user_id = $1 AND name = $2 RETURNING created_at, updated_at, name, user_id, array_to_json(coins) as coins, symbol_groups`, itemsSQL), params...)
+	WHERE user_id = $1 AND id = $2 RETURNING created_at, updated_at, name, user_id, array_to_json(coins) as coins, symbol_groups, id;`, itemsSQL), params...)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to modify wallet view %v for user %v", name, userID)
+		return nil, errors.Wrapf(err, "failed to modify wallet view %v for user %v", id, userID)
 	}
 
 	return view, nil
@@ -237,7 +246,7 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 
 func (a *accounts) GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGroup string) ([]*CoinWithWalletInfo, error) {
 	views, err := storage.Select[WalletView](ctx, a.db, `SELECT 
-    created_at, updated_at, name, user_id, array_to_json(coins) as coins, symbol_groups
+    created_at, updated_at, name, user_id, array_to_json(coins) as coins, symbol_groups, id
     FROM wallet_views WHERE user_id = $1 AND symbol_groups @> ARRAY[$2]`, userID, symbolGroup)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get wallet views for user %v", userID)
