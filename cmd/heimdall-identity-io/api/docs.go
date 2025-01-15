@@ -712,10 +712,7 @@ const docTemplate = `{
                         }
                     },
                     "204": {
-                        "description": "if known_version have been provided before",
-                        "schema": {
-                            "$ref": "#/definitions/main.VersionedCoins"
-                        }
+                        "description": "if known_version have been provided before"
                     },
                     "504": {
                         "description": "if request times out",

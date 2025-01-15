@@ -776,8 +776,6 @@ paths:
             $ref: '#/definitions/main.VersionedCoins'
         "204":
           description: if known_version have been provided before
-          schema:
-            $ref: '#/definitions/main.VersionedCoins'
         "504":
           description: if request times out
           schema:
