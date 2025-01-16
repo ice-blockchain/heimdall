@@ -58,6 +58,11 @@ accounts:
     ion:
       global-config-url: https://ton-blockchain.github.io/testnet-global.config.json
     testnet: true
+    allowedApplications:
+      ap-bogus:
+        name: Bogus
+        origin: https://bogus.com
+        rpId: bogus.com
     #baseUrl: https://bogus.example
     #webhookUrl:
     #appId: bogus

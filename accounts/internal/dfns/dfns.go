@@ -60,8 +60,25 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 		log.Panic(errors.Wrap(err, "failed to parse ABI for ERC20"))
 	}
 	cl.mustSetupWebhookOrLoadSecret(ctx, db, &cfg)
-	cl.mustLoadApplication(ctx, cfg.DFNS.WebFEAppID)
+	if _, hasWebFE := cl.cfg.DFNS.AllowedApplications[cl.cfg.DFNS.WebFEAppID]; !hasWebFE {
+		log.Panic(errors.Errorf("webFEAppId is not listed in allowed applications"))
+	}
 	cl.bodyModifiableCallbacks = map[string]func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error{
+		"200:" + initDelegatedRegistrationUrl: func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
+			return cl.extendResponseBodyWith(r, res,
+				cl.extendChallengeWithRP(),
+			)
+		},
+		"200:" + initLoginUrl: func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
+			return cl.extendResponseBodyWith(r, res,
+				cl.extendChallengeWithRP(),
+			)
+		},
+		"200:" + initUserSignatureUrl: func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
+			return cl.extendResponseBodyWith(r, res,
+				cl.extendChallengeWithRP(),
+			)
+		},
 		"200:" + completeDelegatedRegistrationUrl: func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
 			userID, username := ExtractUser(res, "username")
 
@@ -143,6 +160,22 @@ func extendResponseBodyWithPaymentExtension() func(ctx context.Context, res map[
 			"isPayment": true,
 		}
 		res["extensions"] = ext
+		return nil
+	}
+}
+
+func (c *dfnsClient) extendChallengeWithRP() func(ctx context.Context, res map[string]any) error {
+	return func(ctx context.Context, res map[string]any) error {
+		reqAppID := appID(ctx)
+		var rp map[string]any
+		if _, hasRP := res["rp"]; hasRP {
+			return nil
+		}
+		rp = map[string]any{
+			"id":   c.cfg.DFNS.AllowedApplications[reqAppID].RPID,
+			"name": c.cfg.DFNS.AllowedApplications[reqAppID].Name,
+		}
+		res["rp"] = rp
 		return nil
 	}
 }
@@ -309,21 +342,6 @@ func (c *dfnsClient) mustListWebhooks(ctx context.Context) []webhook {
 	return filteredItems
 }
 
-func (c *dfnsClient) mustLoadApplication(ctx context.Context, applicationID string) {
-	_, jApplication, err := c.doClientCall(ctx, c.serviceAccountClient(c.cfg.DFNS.AppID), "GET", fmt.Sprintf("/auth/apps/%v", applicationID), http.Header{}, nil)
-	if err != nil {
-		log.Panic(errors.Wrapf(err, "failed to list webhooks"))
-	}
-	var a application
-	if err = json.UnmarshalContext(ctx, jApplication, &a); err != nil {
-		log.Panic(errors.Wrapf(err, "failed to unmarshal %v into %#v", string(jApplication), a))
-	}
-	if !a.IsActive {
-		log.Panic(errors.Errorf("webFEAppId %v is disabled", applicationID))
-	}
-	c.webFE = &a
-}
-
 func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req *http.Request) (status int, responseBody io.Reader) {
 	respBody := bytes.NewBuffer([]byte{})
 	applicationID := req.Header.Get(clientIDHeader)
@@ -333,6 +351,7 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 			applicationID = c.cfg.DFNS.AppID
 		}
 	}
+	req = req.WithContext(context.WithValue(req.Context(), AppIDCtxValue, applicationID))
 	userAction := req.Header.Get(userActionHeader)
 	if userAction == "" {
 		userAction = req.Header.Get(userActionDfnsHeader)
@@ -741,6 +760,12 @@ func (c *dfnsClient) StartDelegatedRecovery(ctx context.Context, username string
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to start delegated recovery for username %v credID %v", username, credentialId)
 	}
+	m := map[string]any(*resp)
+	m["rp"] = map[string]any{
+		"name": c.cfg.DFNS.AllowedApplications[appID(ctx)].Name,
+		"id":   c.cfg.DFNS.AllowedApplications[appID(ctx)].RPID,
+	}
+	*resp = m
 	return resp, nil
 }
 
@@ -762,7 +787,12 @@ func (c *dfnsClient) GetLoginChallenge(ctx context.Context, username string) (*L
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to start login flow for username %v", username)
 	}
-
+	m := map[string]any(*resp)
+	m["rp"] = map[string]any{
+		"name": c.cfg.DFNS.AllowedApplications[appID(ctx)].Name,
+		"id":   c.cfg.DFNS.AllowedApplications[appID(ctx)].RPID,
+	}
+	*resp = m
 	return resp, nil
 }
 
@@ -890,6 +920,7 @@ func (cfg *config) loadCfg(applicationYamlKey string) {
 	cfg.DFNS.TON.GlobalConfigURL = yamlCfg.DFNS.TON.GlobalConfigURL
 	cfg.DFNS.ION.GlobalConfigURL = yamlCfg.DFNS.ION.GlobalConfigURL
 	cfg.DFNS.TestNet = yamlCfg.DFNS.TestNet
+	cfg.DFNS.AllowedApplications = yamlCfg.DFNS.AllowedApplications
 }
 
 func (*config) mustLoadField(field *string, env, yamlVal string) {
