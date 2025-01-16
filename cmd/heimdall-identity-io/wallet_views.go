@@ -116,9 +116,6 @@ func (s *service) GetWalletViews(
 }
 
 func (s *service) validateWalletView(ctx context.Context, items []*accounts.CoinMapping, verifyCoins bool) error {
-	if len(items) == 0 {
-		return errors.Errorf("invalid walletview, items cannot be empty")
-	}
 	dedupl := map[string]struct{}{}
 	coins := map[string]struct{}{}
 	_, allCoins, _ := s.coins.GetVersionedCoins(ctx, "", nil)

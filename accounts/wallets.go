@@ -28,7 +28,7 @@ func (a *accounts) CreateWalletView(ctx context.Context, userID, name string, it
 	rowsSql, extraParams := buildInsert(items, 5)
 	params = append(params, extraParams...)
 	rows, err := storage.Exec(ctx, a.db, fmt.Sprintf(`INSERT INTO wallet_views(created_at, updated_at, name,      user_id, symbol_groups, id,coins) 
-															VALUES  ($1,         $1,         $2,        $3,  $4, $5,     array[%v]    );`, rowsSql),
+															VALUES  ($1,         $1,         $2,        $3,  $4, $5,     array[%v]::coin_mapping[]   );`, rowsSql),
 		params...)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrRelationNotFound) {
@@ -162,7 +162,7 @@ func (a *accounts) ModifyWalletView(ctx context.Context, userID, id, newName str
 	view, err := storage.ExecOne[WalletView](ctx, a.db, fmt.Sprintf(`UPDATE wallet_views 
 	SET 
 	    name = $3,
-		coins = array[%v],
+		coins = array[%v]::coin_mapping[],
 		updated_at = $4,
 	    symbol_groups = $5
 	WHERE user_id = $1 AND id = $2 RETURNING created_at, updated_at, name, user_id, array_to_json(coins) as coins, symbol_groups, id;`, itemsSQL), params...)
