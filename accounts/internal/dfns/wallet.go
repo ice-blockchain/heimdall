@@ -76,3 +76,22 @@ func (c *dfnsClient) GetWallet(ctx context.Context, walletID string) (*Wallet, e
 
 	return resp, nil
 }
+
+func (c *dfnsClient) CreateWallet(ctx context.Context, network, name string) (*Wallet, error) {
+	header := http.Header{}
+	header.Add(authDfnsHeader, dfnsAuthHeader(ctx))
+	header.Add(userActionDfnsHeader, dfnsUserActionHeader(ctx))
+	header.Add(appIDHeader, appID(ctx))
+	resp, err := dfnsCall[struct {
+		Network string `json:"network"`
+		Name    string `json:"name"`
+	}, Wallet](ctx, c, &struct {
+		Network string `json:"network"`
+		Name    string `json:"name"`
+	}{Network: network, Name: name}, "POST", "/wallets", header)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to creare wallet %v in %v", name, network)
+	}
+
+	return resp, nil
+}

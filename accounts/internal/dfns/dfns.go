@@ -553,6 +553,39 @@ func (c *dfnsClient) exchangeRefreshTokenToUsername(req *http.Request) (*DfnsInt
 		return nil
 	})
 }
+
+func (c *dfnsClient) issueUserActionForWalletCreation(content *struct {
+	UserActionPayload    string `json:"userActionPayload,omitempty"`
+	UserActionHttpMethod string `json:"userActionHttpMethod"`
+	UserActionHttpPath   string `json:"userActionHttpPath"`
+	UserActionServerKind string `json:"userActionServerKind"`
+}) error {
+	if !(content.UserActionHttpMethod == "POST" && content.UserActionHttpPath == "/wallets") {
+		return nil
+	}
+	var input struct {
+		Network      string `json:"network"`
+		WalletViewID string `json:"walletViewId"`
+	}
+	var err error
+	if err = json.Unmarshal([]byte(content.UserActionPayload), &input); err != nil {
+		return errors.Wrapf(err, "invalid json payload %v", content.UserActionPayload)
+	}
+	var updatedPayload []byte
+	if updatedPayload, err = json.Marshal(struct {
+		Network string `json:"network"`
+		Name    string `json:"name"`
+	}{
+		Network: input.Network,
+		Name:    input.WalletViewID,
+	}); err != nil {
+		return errors.Wrapf(err, "failed to serialize updated payload %v", content.UserActionPayload)
+	}
+	content.UserActionPayload = string(updatedPayload)
+
+	return nil
+}
+
 func (c *dfnsClient) issueUserActionForSignatureIfManualBroadcastNeeded(req *http.Request) (*DfnsInternalError, error) {
 	return extendRequestWith[struct {
 		UserActionPayload    string `json:"userActionPayload,omitempty"`
@@ -566,7 +599,7 @@ func (c *dfnsClient) issueUserActionForSignatureIfManualBroadcastNeeded(req *htt
 		UserActionServerKind string `json:"userActionServerKind"`
 	}) error {
 		if walletIDs := broadcastTransactionUrlRegexp.FindStringSubmatch(content.UserActionHttpPath); walletIDs == nil {
-			return nil
+			return c.issueUserActionForWalletCreation(content)
 		} else {
 			if len(walletIDs) < 2 {
 				return errors.Errorf("failed to get extract walletID from url %v %v", content.UserActionHttpPath, walletIDs)

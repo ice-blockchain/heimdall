@@ -41,6 +41,7 @@ type (
 		RegisterPostProxyCallback(url string, cb func(ctx context.Context, now *time.Time, res map[string]any) error)
 		ListWallets(ctx context.Context, userID string) ([]Wallet, error)
 		GetWallet(ctx context.Context, userID string) (*Wallet, error)
+		CreateWallet(ctx context.Context, network, name string) (*Wallet, error)
 		ListAssets(ctx context.Context, walletID string) (*Assets, error)
 		ListNFTs(ctx context.Context, walletID string) (*NFTs, error)
 		SecurePaymentConfirmation(ctx context.Context, userID, network string, wallet Wallet, body map[string]string) (tmplData any, err error)

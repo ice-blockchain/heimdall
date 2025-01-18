@@ -65,6 +65,9 @@ func (a *accounts) GetWalletViews(ctx context.Context, userID string) ([]*Wallet
 }
 
 func (a *accounts) GetWalletView(ctx context.Context, userID, id string) (*WalletView, error) {
+	return a.getWalletView(ctx, userID, id, true)
+}
+func (a *accounts) getWalletView(ctx context.Context, userID, id string, buildCoinsAggregation bool) (*WalletView, error) {
 	// Merge coinId from wallet_views.coins and coins entry and collapse to json array
 	views, err := storage.Select[WalletView](ctx, a.db, `
 		SELECT created_at, updated_at, name, user_id, symbol_groups, id,
@@ -100,8 +103,9 @@ func (a *accounts) GetWalletView(ctx context.Context, userID, id string) (*Walle
 	if len(views) == 0 {
 		return nil, ErrNotFound
 	}
-	views[0].Aggregation, err = a.fetchWalletInfoForCoins(ctx, userID, views[0].Coins, views[0].SymbolGroups)
-
+	if buildCoinsAggregation {
+		views[0].Aggregation, err = a.fetchWalletInfoForCoins(ctx, userID, views[0].Coins, views[0].SymbolGroups)
+	}
 	return views[0], nil
 }
 
@@ -330,4 +334,37 @@ func (a *accounts) GetNFTs(ctx context.Context, walletID string) ([]*NFT, string
 		return nil, "", errors.Wrapf(err, "failed to import extra data for nfts")
 	}
 	return populatedNFTs, nfts.Network, nil
+}
+
+func (a *accounts) CreateWalletForWalletView(ctx context.Context, userID, network, walletViewID string) (*Wallet, error) {
+	walletView, err := a.getWalletView(ctx, userID, walletViewID, false)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get wallet view %v for wallet creation on %v", walletViewID, network)
+	}
+	targetCoins := []int{}
+	for i, item := range walletView.Coins {
+		if item.Coin == nil {
+			continue
+		}
+		if strings.EqualFold(network, item.Coin.Network) && item.WalletID == nil {
+			targetCoins = append(targetCoins, i)
+		}
+	}
+	if len(targetCoins) == 0 {
+		return nil, ErrWalletLinked
+	}
+	wallet, err := a.delegatedRPClient.CreateWallet(ctx, network, walletView.ID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create wallet %v on %v for user %v", walletView.ID, network, userID)
+	}
+	walletID := (*wallet)["id"].(string)
+	for _, idx := range targetCoins {
+		walletView.Coins[idx] = &CoinMapping{
+			WalletID: &walletID,
+			CoinID:   walletView.Coins[idx].CoinID,
+		}
+	}
+	_, err = a.ModifyWalletView(ctx, userID, walletViewID, walletView.Name, walletView.Coins, walletView.SymbolGroups)
+
+	return wallet, errors.Wrapf(err, "failed to modify walletview after wallet creation")
 }

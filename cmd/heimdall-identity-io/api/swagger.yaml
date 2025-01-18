@@ -98,6 +98,13 @@ definitions:
       version:
         type: integer
     type: object
+  main.CreateWalletReq:
+    properties:
+      network:
+        type: string
+      walletViewId:
+        type: string
+    type: object
   main.GetLoginChallenge:
     properties:
       2FAVerificationCodes:
@@ -216,6 +223,9 @@ definitions:
         type: array
       version:
         type: integer
+    type: object
+  main.Wallet:
+    additionalProperties: {}
     type: object
   main.WalletView:
     properties:
@@ -1087,6 +1097,57 @@ paths:
           description: if no such view exists
           schema:
             $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Wallets
+  /wallets:
+    post:
+      description: Creates wallet on 3rd-party
+      parameters:
+      - default: ap-
+        description: App ID
+        in: header
+        name: X-Client-ID
+        required: true
+        type: string
+      - default: Bearer <Add token here>
+        description: Auth token from delegated relying party
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - default: <Add token here>
+        description: User action token
+        in: header
+        name: X-Useraction
+        required: true
+        type: string
+      - default: ap-
+        description: App ID
+        in: header
+        name: X-Client-ID
+        required: true
+        type: string
+      - description: Request params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.CreateWalletReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.Wallet'
         "500":
           description: Internal Server Error
           schema:

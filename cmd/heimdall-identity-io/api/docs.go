@@ -1190,6 +1190,80 @@ const docTemplate = `{
                 }
             }
         },
+        "/wallets": {
+            "post": {
+                "description": "Creates wallet on 3rd-party",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Wallets"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "ap-",
+                        "description": "App ID",
+                        "name": "X-Client-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cAdd token here\u003e",
+                        "description": "Auth token from delegated relying party",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "\u003cAdd token here\u003e",
+                        "description": "User action token",
+                        "name": "X-Useraction",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "ap-",
+                        "description": "App ID",
+                        "name": "X-Client-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Request params",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.CreateWalletReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.Wallet"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/wallets/{walletId}/nfts": {
             "get": {
                 "description": "Gets NFTs from the wallet",
@@ -1394,6 +1468,17 @@ const docTemplate = `{
                 }
             }
         },
+        "main.CreateWalletReq": {
+            "type": "object",
+            "properties": {
+                "network": {
+                    "type": "string"
+                },
+                "walletViewId": {
+                    "type": "string"
+                }
+            }
+        },
         "main.GetLoginChallenge": {
             "type": "object",
             "properties": {
@@ -1576,6 +1661,10 @@ const docTemplate = `{
                     "type": "integer"
                 }
             }
+        },
+        "main.Wallet": {
+            "type": "object",
+            "additionalProperties": {}
         },
         "main.WalletView": {
             "type": "object",
