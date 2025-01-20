@@ -61,7 +61,8 @@ func (s *service) setupDelegatedRPProxyRoutes(router *server.Router) {
 		GET("/.well-known/apple-app-site-association", server.RootHandler(s.AppleAppSiteAssociation)).
 		GET("/.well-known/assetlinks.json", server.RootHandler(s.AssetLinks)).
 		GET("/v1/users/:userId/wallets/:walletId/secure-payment-confirmations", s.securePaymentConfirmation()).
-		POST("/auth/login/init", server.RootHandler(s.GetLoginChallenge))
+		POST("/auth/login/init", server.RootHandler(s.GetLoginChallenge)).
+		POST("/wallets", server.RootHandler(s.CreateWallet))
 }
 
 func (s *service) proxyToDelegatedRP(allowUnauthorized bool) func(*gin.Context) {
@@ -276,6 +277,44 @@ func (s *service) GetNFTs(
 		Network:  network,
 		NFTs:     nfts,
 	}), nil
+}
+
+// CreateWallet godoc
+//
+//	@Schemes
+//	@Description	Creates wallet on 3rd-party
+//	@Tags			Wallets
+//	@Produce		json
+//	@Param			Authorization	header		string			true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
+//	@Param			X-Useraction	header		string			true	"User action token"							default(<Add token here>)
+//	@Param			X-Client-ID		header		string			true	"App ID"									default(ap-)
+//	@Param			request			body		CreateWalletReq	true	"Request params"
+//	@Success		200				{object}	Wallet
+//	@Failure		409				{object}	delegatedErrorResponse	"if wallet already linked with walletview"
+//	@Failure		500				{object}	delegatedErrorResponse
+//	@Failure		504				{object}	delegatedErrorResponse	"if request times out"
+//	@Router			/wallets [POST].
+func (s *service) CreateWallet(
+	ctx context.Context,
+	req *server.Request[CreateWalletReq, Wallet],
+) (successResp *server.Response[Wallet], errorResp *server.ErrResponse[*delegatedErrorResponse]) {
+	ctx = withAppID(ctx, req.Data.ClientID)
+	ctx = withAuth(ctx, req.Data.Authorization)
+	ctx = withUserAction(ctx, req.Data.UserAction)
+	wallet, err := s.accounts.CreateWalletForWalletView(ctx, req.AuthenticatedUser.UserID(), req.Data.Network, req.Data.WalletViewID)
+	if err != nil {
+		if delegatedErr := accounts.ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
+			var delegatedParsedErr *accounts.DelegatedRelyingPartyErr
+			if errors.As(delegatedErr, &delegatedParsedErr) {
+				return nil, buildDelegatedErrorResponse(delegatedParsedErr.HTTPStatus, err, delegatedParsedErr.Message)
+			}
+		}
+		if errors.Is(err, accounts.ErrWalletLinked) {
+			return nil, buildDelegatedErrorResponse(http.StatusConflict, err, duplicate)
+		}
+		return nil, buildDelegatedErrorResponse(http.StatusInternalServerError, err, "")
+	}
+	return server.OK[Wallet](wallet), nil
 }
 
 func withAppID(ctx context.Context, appID string) context.Context {

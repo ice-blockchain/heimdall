@@ -46,6 +46,7 @@ type (
 		DeleteWalletView(ctx context.Context, userID, id string) error
 		ModifyWalletView(ctx context.Context, userID, id, newName string, items []*CoinMapping, symbolGroups []string) (*WalletView, error)
 		GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGroup string) ([]*CoinWithWalletInfo, error)
+		CreateWalletForWalletView(ctx context.Context, userID, network, walletViewID string) (*Wallet, error)
 	}
 	Coins interface {
 		GetCoinsOfSymbolGroup(ctx context.Context, symbolGroups []string) ([]*coins.Coin, error)
@@ -103,7 +104,8 @@ type (
 		TotalBalance *big.Int        `json:"totalBalance"`
 		Wallets      []*CoinInWallet `json:"wallets"`
 	}
-	NFT = coins.NFT
+	NFT    = coins.NFT
+	Wallet = dfns.Wallet
 )
 
 const (
@@ -142,6 +144,7 @@ var (
 	ErrNotChanged                      = errors.New("not changed")
 	ErrDeleteLast                      = errors.New("cannot delete last entry")
 	ErrRaceCondition                   = dfns.ErrRaceCondition
+	ErrWalletLinked                    = errors.New("wallet already linked to walletview")
 )
 
 const (

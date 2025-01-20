@@ -95,6 +95,14 @@ type (
 		WalletViewReference
 		WalletViewReq
 	}
+	CreateWalletReq struct {
+		Network       string `json:"network" required:"true"`
+		WalletViewID  string `json:"walletViewId" required:"true"`
+		ClientID      string `header:"X-Client-ID" required:"true" swaggerignore:"true"`
+		UserAction    string `header:"X-Useraction" required:"true" swaggerignore:"true"`
+		Authorization string `header:"Authorization" required:"true" swaggerignore:"true"`
+	}
+	Wallet    = accounts.Wallet
 	GetConfig struct {
 		ConfigName string `uri:"configName" allowUnauthorized:"true"`
 	}
