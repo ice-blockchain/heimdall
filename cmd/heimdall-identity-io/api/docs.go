@@ -1202,14 +1202,6 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "default": "ap-",
-                        "description": "App ID",
-                        "name": "X-Client-ID",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
                         "default": "Bearer \u003cAdd token here\u003e",
                         "description": "Auth token from delegated relying party",
                         "name": "Authorization",
@@ -1249,16 +1241,22 @@ const docTemplate = `{
                             "$ref": "#/definitions/main.Wallet"
                         }
                     },
+                    "409": {
+                        "description": "if wallet already linked with walletview",
+                        "schema": {
+                            "$ref": "#/definitions/main.delegatedErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/main.delegatedErrorResponse"
                         }
                     },
                     "504": {
                         "description": "if request times out",
                         "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
+                            "$ref": "#/definitions/main.delegatedErrorResponse"
                         }
                     }
                 }

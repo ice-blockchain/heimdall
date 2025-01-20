@@ -285,14 +285,14 @@ func (s *service) GetNFTs(
 //	@Description	Creates wallet on 3rd-party
 //	@Tags			Wallets
 //	@Produce		json
-//	@Param			X-Client-ID		header		string			true	"App ID"									default(ap-)
 //	@Param			Authorization	header		string			true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
 //	@Param			X-Useraction	header		string			true	"User action token"							default(<Add token here>)
 //	@Param			X-Client-ID		header		string			true	"App ID"									default(ap-)
 //	@Param			request			body		CreateWalletReq	true	"Request params"
 //	@Success		200				{object}	Wallet
-//	@Failure		500				{object}	server.ErrorResponse
-//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
+//	@Failure		409				{object}	delegatedErrorResponse	"if wallet already linked with walletview"
+//	@Failure		500				{object}	delegatedErrorResponse
+//	@Failure		504				{object}	delegatedErrorResponse	"if request times out"
 //	@Router			/wallets [POST].
 func (s *service) CreateWallet(
 	ctx context.Context,
