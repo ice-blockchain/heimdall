@@ -99,6 +99,7 @@ accounts:
     replicaURLs:
       - postgresql://root:pass@localhost:5437/heimdall
 coins:
+  testnet: true
   defaultSyncFrequency: 12h
   syncTokensDataFrequency: 24h
   syncFrequency:

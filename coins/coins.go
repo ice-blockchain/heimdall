@@ -118,7 +118,7 @@ func (c *coinsRepository) buildInsertBatchForCoins(now *time.Time, coinsList []*
 	placeholders := make([]string, 0, len(coinsList))
 	idx := 2
 	for _, coinItem := range coinsList {
-		params = append(params, c.syncFrequency(coinItem.ID), coinItem.Decimals, generateInternalID(coinItem, nil), coinItem.MappedNetwork(), coinItem.Name, coinItem.Symbol, coinItem.SymbolGroup(), coinItem.ContractAddress, coinItem.ID, coinItem.PriceUSD, coinItem.IconUrl)
+		params = append(params, c.syncFrequency(coinItem.ID), coinItem.Decimals, generateInternalID(coinItem, nil), coinItem.Network, coinItem.Name, coinItem.Symbol, coinItem.SymbolGroup(), coinItem.ContractAddress, coinItem.ID, coinItem.PriceUSD, coinItem.IconUrl)
 		placeholders = append(placeholders, fmt.Sprintf("($1,$1,$1, $%[1]v::INTERVAL, $%[2]v, COALESCE((SELECT MAX(version) FROM coins),0), $%[3]v,$%[4]v, $%[5]v, $%[6]v, $%[7]v, $%[8]v, $%[9]v, $%[10]v, $%[11]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7, idx+8, idx+9, idx+10))
 		idx += 11
 	}
@@ -198,6 +198,9 @@ func (c *coinsRepository) getCoinByContractAddress(ctx context.Context, contract
 func MapNetworkToCoinGecko(network string) (string, error) {
 	return coingecko.MapNetwork(network)
 }
+func MapNetworkFromCoinGecko(network string) (string, error) {
+	return coingecko.MapNetworkFromCoinGecko(network)
+}
 
 func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *coingecko.Coin) (*coin, error) {
 	updated, err := storage.ExecOne[coin](ctx, c.db, `
@@ -272,12 +275,17 @@ func (c *coinsRepository) GetAllCoins(ctx context.Context) (uint64, []*SymbolGro
 	allCoins = allCoins[1:]
 	groups := map[string][]*Coin{}
 	for _, c := range allCoins {
+		network, err := MapNetworkFromCoinGecko(c.Network)
+		if err != nil {
+			log.Error(errors.Wrapf(err, "failed to map network %v for coin %v", c.Network, &c))
+			continue
+		}
 		groups[c.SymbolGroup] = append(groups[c.SymbolGroup], &Coin{
 			ID:              c.ID,
 			Name:            c.Name,
 			Symbol:          c.Symbol,
 			SymbolGroup:     c.SymbolGroup,
-			Network:         c.Network,
+			Network:         network,
 			ContractAddress: c.ContractAddress,
 			IconURL:         c.IconUrl,
 			PriceUSD:        c.PriceUSD,
@@ -311,12 +319,16 @@ func (c *coinsRepository) GetVersionedCoins(ctx context.Context, userID string, 
 	maxVersion := newCoins[0].Version
 	for _, c := range newCoins {
 		maxVersion = uint64(math.Max(float64(maxVersion), float64(c.Version)))
+		network, err := MapNetworkFromCoinGecko(c.Network)
+		if err != nil {
+			log.Error(errors.Wrapf(err, "failed to get versioned coins due to unmapped network %v %v", c.Network, c))
+		}
 		coinDiff = append(coinDiff, &Coin{
 			ID:              c.ID,
 			Name:            c.Name,
 			Symbol:          c.Symbol,
 			SymbolGroup:     c.SymbolGroup,
-			Network:         c.Network,
+			Network:         network,
 			ContractAddress: c.ContractAddress,
 			IconURL:         c.IconUrl,
 			PriceUSD:        c.PriceUSD,
@@ -377,12 +389,17 @@ func (c *coinsRepository) GetCoinsOfSymbolGroup(ctx context.Context, symbolGroup
 	}
 	res := make([]*Coin, 0, len(coinsList))
 	for _, c := range coinsList {
+		network, err := MapNetworkFromCoinGecko(c.Network)
+		if err != nil {
+			log.Error(errors.Wrapf(err, "failed to get coins of symbol group due to unmapped network %v %v", c.Network, c))
+			continue
+		}
 		res = append(res, &Coin{
 			ID:              c.ID,
 			Name:            c.Name,
 			Symbol:          c.Symbol,
 			SymbolGroup:     c.SymbolGroup,
-			Network:         c.Network,
+			Network:         network,
 			ContractAddress: c.ContractAddress,
 			IconURL:         c.IconUrl,
 			PriceUSD:        c.PriceUSD,
