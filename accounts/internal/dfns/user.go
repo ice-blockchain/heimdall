@@ -47,7 +47,7 @@ func CheckMainWallet(wallet Wallet) (walletID, walletPubKey string) {
 		}
 	}
 	if networkI, hasNetwork := wallet["network"]; hasNetwork && networkI != nil {
-		if network, ok := networkI.(string); !ok || network != defaultWalletNetwork {
+		if network, ok := networkI.(string); !ok || (network != defaultWalletNetworkTestNet && network != defaultWalletNetworkMainNet) {
 			return "", ""
 		}
 	}
