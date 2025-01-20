@@ -71,7 +71,7 @@ func (a *accounts) GetWalletView(ctx context.Context, userID, id string) (*Walle
 			   (SELECT json_agg(row_to_json(t.*)) from (
 				   WITH wallet_views_coinids as (
 					   (SELECT wallet_views.*, (unnest(wallet_views.coins)::coin_mapping).coinId, (unnest(wallet_views.coins)::coin_mapping).walletid
-					    from wallet_views WHERE user_id = $1 AND wallet_views.name = $2)
+					    from wallet_views WHERE user_id = $1 AND wallet_views.id = $2)
 				   )
 				   select wallet_views_coinids.walletid,wallet_views_coinids.coinid,
 						  coins.decimals,
@@ -122,7 +122,21 @@ func (w *CoinMappings) Scan(value any) error {
 		*w = CoinMappings([]*CoinMapping{})
 		return nil
 	}
-	return errors.Wrapf(json.Unmarshal([]byte((value.(string))), w), "failed to unmarshal value from db %v", value)
+	err := json.Unmarshal([]byte((value.(string))), w)
+	if err == nil && w != nil && len(*w) > 0 {
+		for i, c := range *w {
+			if c.Coin != nil {
+				var network string
+				network, err = coins.MapNetworkFromCoinGecko(c.Coin.Network)
+				if err != nil {
+					err = errors.Wrapf(err, "failed to map network %v for coin %v", c.Coin.Network, *c.Coin)
+					break
+				}
+				(*w)[i].Coin.Network = network
+			}
+		}
+	}
+	return errors.Wrapf(err, "failed to unmarshal value from db %v", value)
 }
 
 func (a *accounts) DeleteWalletView(ctx context.Context, userID, id string) error {
@@ -274,7 +288,7 @@ func (a *accounts) GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGrou
 	for _, c := range listCoins {
 		for _, wallet := range allWallets {
 			walletID := wallet["id"].(string)
-			walletNetwork, _ := coins.MapNetworkToCoinGecko(wallet["network"].(string))
+			walletNetwork := strings.ToLower(wallet["network"].(string))
 			if _, has := wallets[walletID]; (has || hasAllWallets) && c.Network == walletNetwork {
 				wallets[walletID] = wallet
 				coinsByNetwork[walletNetwork] = c
@@ -288,8 +302,7 @@ func (a *accounts) GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGrou
 			return nil, errors.Wrapf(err, "failed to list assets for wallet %v", walletID)
 		}
 		for _, asset := range walletAssets.Assets {
-			network, _ := coins.MapNetworkToCoinGecko(walletAssets.Network)
-			coin, hasCoin := coinsByNetwork[network]
+			coin, hasCoin := coinsByNetwork[walletAssets.Network]
 			if !hasCoin {
 				continue
 			}

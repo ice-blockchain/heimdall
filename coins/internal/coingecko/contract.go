@@ -91,6 +91,32 @@ var (
 		//"polkadot":          "polkadot",
 		//"westend":           "polkadot",
 	}
+	reversedNetworkMapping map[string]string = map[string]string{}
+	testnetNetworks                          = []string{
+		"algorandtestnet",
+		"arbitrumsepolia",
+		"avalanchecfuji",
+		"basesepolia",
+		"bitcointestnet3",
+		"bsctestnet",
+		"cardanopreprod",
+		"ethereumsepolia",
+		"fantomtestnet",
+		"optimismsepolia",
+		"seiatlantic2",
+		"solanadevnet",
+		"polygonamoy",
+		"tontestnet",
+		"tronnile",
+		"xrpledgertestnet",
+		// Those networks below are not presented on /api/v3/onchain/networks on coingecko
+		// We cannot req tokens on them, it responds 404
+		//"ogy":               "",
+		//"litecoin":          "",
+		//"tezosghostnet":     "tezos",
+		//"stellartestnet":    "stellar",
+		//"westend":           "polkadot",
+	}
 	platformToNetworkMapping = map[string]string{
 		"ethereum":            "eth",
 		"base":                "base",
@@ -115,8 +141,7 @@ var (
 		//"kasplex":             "kaspa",
 		//"polkadot":            "polkadot",
 	}
-	networkToPlatformMapping map[string]string
-
+	networkToPlatformMapping  map[string]string
 	platformToDecimalsMapping = map[string]int{
 		"ethereum":            18,
 		"base":                18,
@@ -153,6 +178,7 @@ type (
 		nativeCoinsToNetwork map[string][]string
 	}
 	config struct {
+		TestNet   bool `yaml:"testnet" mapstructure:"testnet"`
 		CoinGecko struct {
 			APIKey  string `yaml:"api-key" mapstructure:"api-key"`
 			BaseUrl string `yaml:"base-url" mapstructure:"base-url"`

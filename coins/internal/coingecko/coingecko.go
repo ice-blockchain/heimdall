@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	stdlibtime "time"
@@ -33,6 +34,15 @@ func New(applicationYamlKey string) Client {
 	}
 	if cfg.CoinGecko.BaseUrl == "" {
 		cfg.CoinGecko.BaseUrl = "https://pro-api.coingecko.com"
+	}
+	if len(reversedNetworkMapping) == 0 {
+		for k, v := range networksMapping {
+			if slices.Contains(testnetNetworks, k) && cfg.TestNet {
+				reversedNetworkMapping[v] = k
+			} else if !cfg.TestNet && !slices.Contains(testnetNetworks, k) {
+				reversedNetworkMapping[v] = k
+			}
+		}
 	}
 	return &client{
 		cfg: &cfg,
@@ -359,9 +369,6 @@ func makeAPICall[RESP any](ctx context.Context, c *client, relativeUrl string, p
 	}
 }
 
-func (c *Coin) MappedNetwork() string {
-	return c.Network
-}
 func (c *Coin) SymbolGroup() string {
 	if c.ID == "" {
 		return c.ContractAddress
@@ -375,5 +382,11 @@ func MapNetwork(network string) (string, error) {
 	} else {
 		return coingeckoNetwork, nil
 	}
-
+}
+func MapNetworkFromCoinGecko(network string) (string, error) {
+	if mappedNetwork, hasNetwork := reversedNetworkMapping[strings.ToLower(network)]; !hasNetwork || mappedNetwork == "" {
+		return "", ErrInvalidNetwork
+	} else {
+		return mappedNetwork, nil
+	}
 }
