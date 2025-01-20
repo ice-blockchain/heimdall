@@ -96,8 +96,8 @@ type (
 		WalletViewReq
 	}
 	CreateWalletReq struct {
-		Network       string `json:"network"`
-		WalletViewID  string `json:"walletViewId"`
+		Network       string `json:"network" required:"true"`
+		WalletViewID  string `json:"walletViewId" required:"true"`
 		ClientID      string `header:"X-Client-ID" required:"true" swaggerignore:"true"`
 		UserAction    string `header:"X-Useraction" required:"true" swaggerignore:"true"`
 		Authorization string `header:"Authorization" required:"true" swaggerignore:"true"`
