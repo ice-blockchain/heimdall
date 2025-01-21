@@ -377,7 +377,8 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 		}
 	}
 	if extendErr != nil && extendErrBody != nil {
-		log.Error(errors.Wrapf(extendErr, "failed to update init login req with org id"))
+		log.Error(errors.Wrapf(extendErr, "failed to update request body during the proxying"))
+		rw.Header().Add("Content-Type", "application/json")
 		rw.WriteHeader(extendErrBody.HTTPStatus)
 		extendErrBody.HTTPStatus = 0
 		var resp []byte
@@ -671,6 +672,7 @@ func (c *dfnsClient) checkIfNeedToBroadcastTX(req *http.Request, rw http.Respons
 	if err != nil {
 		return &DfnsInternalError{HTTPStatus: http.StatusInternalServerError, Message: err.Error()}, errors.Wrapf(err, "failed to serialize transaction response")
 	}
+	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	rw.Write(data)
 	return nil, nil
