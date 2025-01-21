@@ -145,22 +145,32 @@ func (w *CoinMappings) Scan(value any) error {
 
 func (a *accounts) DeleteWalletView(ctx context.Context, userID, id string) error {
 	row, err := storage.ExecOne[struct {
-		Deleted bool `db:"deleted"`
-		HasMore bool `db:"has_more"`
+		Deleted        bool `db:"deleted"`
+		HasMore        bool `db:"has_more"`
+		RestrictedCoin bool `db:"restricted_coin"`
 	}](ctx, a.db,
-		`WITH del AS (
-				DELETE FROM wallet_views WHERE user_id = $1 AND id = $2 AND EXISTS(SELECT 1 FROM wallet_views WHERE user_id = $1 AND id != $2) RETURNING id
+		fmt.Sprintf(`WITH del AS (
+				DELETE FROM wallet_views WHERE 
+				user_id = $1 AND id = $2 AND
+				EXISTS(SELECT 1 FROM wallet_views WHERE user_id = $1 AND id != $2) AND
+                NOT EXISTS(SELECT 1 FROM unnest(wallet_views.coins) AS c  WHERE c.coinId = '%[1]v')  RETURNING id
 			)
-			SELECT del.id IS NOT NULL AS deleted, (wv.name is not null AND wv.id!=$2) AS has_more  FROM del RIGHT JOIN wallet_views wv 
+			SELECT del.id IS NOT NULL AS deleted,
+		            (wv.name is not null AND wv.id!=$2) AS has_more,
+					EXISTS(SELECT 1 FROM unnest(wv.coins) AS c WHERE c.coinId = '%[1]v') as restricted_coin
+			FROM del RIGHT JOIN wallet_views wv 
 			ON wv.user_id = $1
 			WHERE wv.user_id = $1			
-LIMIT 1`, userID, id)
+	LIMIT 1`, defaultWalletViewCoinID), userID, id)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
 			return ErrNotChanged
 		}
 
 		return errors.Wrapf(err, "failed to delete wallet view %v for user %v", id, userID)
+	}
+	if !row.Deleted && row.RestrictedCoin {
+		return ErrDeleteLast
 	}
 	if !row.Deleted && row.HasMore {
 		return ErrNotChanged
