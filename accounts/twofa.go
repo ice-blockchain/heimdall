@@ -324,7 +324,7 @@ func resolveDeliver(usr *user, codes map[TwoFAOptionWithAddr]string, c TwoFAOpti
 		if len(usr.PhoneNumber) == 0 || len(codes) == 1 {
 			return "", nil
 		}
-		if c.idx >= len(usr.Email) {
+		if c.idx >= len(usr.PhoneNumber) {
 			return "", errors.Wrapf(Err2FAInvalidCode, "invalid index %v for %v", c.idx, TwoFAOptionSMS)
 		}
 		return usr.PhoneNumber[c.idx], nil
@@ -356,6 +356,9 @@ func buildRollbackClause(codes map[TwoFAOptionWithAddr]string) (string, []any) {
 func (a *accounts) get2FACodes(ctx context.Context, usr *user, inputCodes map[TwoFAOptionWithAddr]string, now *time.Time) ([]*twoFACode, error) {
 	params := []any{usr.ID}
 	whereClause, extraParams, err := buildWhereClauseGetCodes(usr, inputCodes)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to build where for selecting 2fa codes: %v", inputCodes)
+	}
 	params = append(params, extraParams...)
 	sql := fmt.Sprintf(`SELECT created_at,
        			user_id,
