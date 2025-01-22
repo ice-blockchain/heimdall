@@ -105,6 +105,9 @@ func (a *accounts) getWalletView(ctx context.Context, userID, id string, buildCo
 	}
 	if buildCoinsAggregation {
 		views[0].Aggregation, err = a.fetchWalletInfoForCoins(ctx, userID, views[0].Coins, views[0].SymbolGroups)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to aggregate walletview coins with wallet data walletview id %v", views[0].ID)
+		}
 	}
 	return views[0], nil
 }
@@ -187,17 +190,45 @@ func (a *accounts) ModifyWalletView(ctx context.Context, userID, id, newName str
 	params := []any{userID, id, newName, now, symbolGroups}
 	itemsSQL, extraParams := buildInsert(items, 5)
 	params = append(params, extraParams...)
-	view, err := storage.ExecOne[WalletView](ctx, a.db, fmt.Sprintf(`UPDATE wallet_views 
-	SET 
-	    name = $3,
-		coins = array[%v]::coin_mapping[],
-		updated_at = $4,
-	    symbol_groups = $5
-	WHERE user_id = $1 AND id = $2 RETURNING created_at, updated_at, name, user_id, array_to_json(coins) as coins, symbol_groups, id;`, itemsSQL), params...)
+	view, err := storage.ExecOne[WalletView](ctx, a.db, fmt.Sprintf(`
+		WITH upd AS (
+			UPDATE wallet_views 
+				SET 
+					name = $3,
+					coins = array[%v]::coin_mapping[],
+					updated_at = $4,
+					symbol_groups = $5
+				WHERE user_id = $1 AND id = $2 RETURNING *
+		) SELECT
+		created_at, updated_at, name, user_id, symbol_groups, id,
+				   (SELECT json_agg(row_to_json(t.*)) from (
+					   WITH wallet_views_coinids as (
+						   (SELECT upd.*, (unnest(upd.coins)::coin_mapping).coinId, (unnest(upd.coins)::coin_mapping).walletid
+							from upd WHERE user_id = $1 AND upd.id = $2)
+					   )
+					   select wallet_views_coinids.walletid,wallet_views_coinids.coinid,
+							  coins.decimals,
+							  coins.version,
+							  coins.price_usd as priceUSD,
+							  coins.id,
+							  coins.network,
+							  coins.name,
+							  coins.contract_address as contractAddress,
+							  coins.symbol,
+							  coins.symbol_group as symbolGroup,
+							  coins.icon_url as iconURL
+					   from wallet_views_coinids
+					   join coins on wallet_views_coinids.coinid = coins.id) t
+				   ) 
+			as coins from upd;
+	`, itemsSQL), params...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to modify wallet view %v for user %v", id, userID)
 	}
-
+	view.Aggregation, err = a.fetchWalletInfoForCoins(ctx, userID, view.Coins, view.SymbolGroups)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to aggregate walletview coins with wallet data walletview id %v", view.ID)
+	}
 	return view, nil
 }
 
