@@ -417,3 +417,7 @@ func (c *coinsRepository) syncFrequency(coinGeckoCoinID string) stdlibtime.Durat
 
 	return c.cfg.DefaultSyncFrequency
 }
+
+func IsTestnet(network string) bool {
+	return coingecko.IsTestnet(network)
+}
