@@ -137,7 +137,7 @@ func (a *accounts) GetUser(ctx context.Context, userIDOrMasterKey string) (*User
 	}
 	var usr = &User{}
 	if server.LoggedInUser(ctx) != nil && (dbUsr != nil && dbUsr.ID == server.LoggedInUser(ctx).UserID()) || userIDOrMasterKey == server.LoggedInUser(ctx).UserID() {
-		delegatedUsr, err := a.delegatedRPClient.GetUser(ctx, dbUsr.ID)
+		delegatedUsr, err := a.delegatedRPClient.GetUser(ctx, server.LoggedInUser(ctx).UserID())
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get user from delegated party for ID %v", userIDOrMasterKey)
 		}
