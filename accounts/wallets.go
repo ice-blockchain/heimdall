@@ -239,8 +239,8 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 		symbol := strings.ToLower(i.Coin.Symbol)
 		if i.WalletID != nil {
 			walletIDs[*i.WalletID] = append(walletIDs[*i.WalletID], i)
+			groupedBySymbol[symbol] = append(groupedBySymbol[symbol], i)
 		}
-		groupedBySymbol[symbol] = append(groupedBySymbol[symbol], i)
 	}
 	coinGroups := make(map[string]*CoinAggregation)
 	for walletID, linkedSymbols := range walletIDs {
