@@ -112,7 +112,7 @@ func (s *service) Delete2FA(
 	}
 	if err = s.accounts.Delete2FA(withSignature(ctx, req.Data.UserSignature), req.Data.UserID, verificationCodes, req.Data.TwoFAOption, req.Data.TwoFAOptionValue); err != nil {
 		switch {
-		case errors.Is(err, accounts.ErrNoPending2FA):
+		case errors.Is(err, accounts.ErrNotFound):
 			return server.NoContent(), nil
 		case errors.Is(err, accounts.ErrInvalidUserSignature):
 			return nil, server.ForbiddenWithCode(err, invalidUserSignature)
@@ -122,6 +122,8 @@ func (s *service) Delete2FA(
 			}
 		case errors.Is(err, accounts.Err2FADeliverToNotProvided):
 			return nil, server.BadRequest(err, twoFANotConfigured)
+		case errors.Is(err, accounts.ErrNoPending2FA):
+			return nil, server.BadRequest(err, twoFAInvalidCode)
 		case errors.Is(err, accounts.Err2FAExpired):
 			return nil, server.BadRequest(err, twoFAExpiredCode)
 		case errors.Is(err, accounts.Err2FAInvalidCode):

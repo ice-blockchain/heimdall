@@ -177,12 +177,12 @@ func (a *accounts) updateUserWithDeleted2FA(ctx context.Context, now *time.Time,
 		}
 		contains = len(usr.TotpAuthenticatorSecret) >= idx+1
 		if !contains {
-			return nil, ErrNoPending2FA
+			return nil, ErrNotFound
 		}
 		removable2FAValue = usr.TotpAuthenticatorSecret[idx]
 	}
 	if !contains {
-		return nil, ErrNoPending2FA
+		return nil, ErrNotFound
 	}
 	return a.updateUserWithConfirmedOrDeleted2FA(ctx, now, usr.ID, confirmedRemovalByCodes, removable2FAValue, idx+1, removeEmailClause, removePhoneClause, removeTotpClause)
 }
