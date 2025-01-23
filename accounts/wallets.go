@@ -234,28 +234,30 @@ func (a *accounts) ModifyWalletView(ctx context.Context, userID, id, newName str
 
 func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, coins []*CoinMapping, symbolGroups []string) (map[string]*CoinAggregation, error) {
 	containsAllWallets := false
-	walletIDs := make([]string, 0, len(coins))
+	walletIDs := map[string][]*CoinMapping{}
 	groupedBySymbol := make(map[string][]*CoinMapping)
 	for _, i := range coins {
+		symbol := strings.ToLower(i.Coin.Symbol)
 		if i.WalletID == nil {
 			containsAllWallets = true
+			break
 		} else {
-			walletIDs = append(walletIDs, *i.WalletID)
+			walletIDs[*i.WalletID] = append(walletIDs[*i.WalletID], i)
 		}
-		groupedBySymbol[i.Coin.Symbol] = append(groupedBySymbol[i.Coin.Symbol], i)
+		groupedBySymbol[symbol] = append(groupedBySymbol[symbol], i)
 	}
 	if containsAllWallets {
 		allWallets, err := a.delegatedRPClient.ListWallets(ctx, userID)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to list all wallets for user %v", userID)
 		}
-		walletIDs = walletIDs[:0]
+		walletIDs = map[string][]*CoinMapping{}
 		for _, wallet := range allWallets {
-			walletIDs = append(walletIDs, wallet["id"].(string))
+			walletIDs[wallet["id"].(string)] = nil
 		}
 	}
 	coinGroups := make(map[string]*CoinAggregation)
-	for _, walletID := range walletIDs {
+	for walletID, linkedSymbols := range walletIDs {
 		walletAssets, err := a.delegatedRPClient.ListAssets(ctx, walletID)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to list assets for wallet %v", walletID)
@@ -263,8 +265,22 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 		assetsBySymbol := make(map[string]dfns.Asset)
 		for _, asset := range walletAssets.Assets {
 			symbolI, hasSymbol := asset["symbol"]
+			nativeCoin := asset["kind"] == "Native"
 			if hasSymbol {
-				symbol := symbolI.(string)
+				symbol := strings.ToLower(symbolI.(string))
+				// Testnet, i.e SepoliaETH, coin gecko dont provide testnet symbol
+				if _, validSymbol := groupedBySymbol[symbol]; nativeCoin && !validSymbol {
+					if len(linkedSymbols) == 1 {
+						groupedBySymbol[symbol] = append(groupedBySymbol[symbol], linkedSymbols[0])
+					} else {
+						for _, ls := range linkedSymbols {
+							if ls.ContractAddress == "" {
+								groupedBySymbol[symbol] = append(groupedBySymbol[symbol], linkedSymbols[0])
+								break
+							}
+						}
+					}
+				}
 				assetsBySymbol[symbol] = asset
 			}
 		}
@@ -347,12 +363,16 @@ func (a *accounts) GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGrou
 			return nil, errors.Wrapf(err, "failed to list assets for wallet %v", walletID)
 		}
 		for _, asset := range walletAssets.Assets {
-			coin, hasCoin := coinsByNetwork[walletAssets.Network]
+			coin, hasCoin := coinsByNetwork[strings.ToLower(walletAssets.Network)]
 			if !hasCoin {
 				continue
 			}
 			assetContract := asset["contract"]
-			if assetContract == coin.ContractAddress {
+			assetSymbol := asset["symbol"]
+			isNativeCoin := asset["kind"] == "Native"
+			if assetContract == coin.ContractAddress ||
+				(coins.IsTestnet(walletAssets.Network) && (assetSymbol == coin.Symbol)) ||
+				(coins.IsTestnet(walletAssets.Network) && isNativeCoin && coin.ContractAddress == "" && strings.EqualFold(walletAssets.Network, coin.Network)) {
 				res = append(res, &CoinWithWalletInfo{
 					Coin:          coin,
 					WalletID:      walletID,

@@ -390,3 +390,7 @@ func MapNetworkFromCoinGecko(network string) (string, error) {
 		return mappedNetwork, nil
 	}
 }
+
+func IsTestnet(network string) bool {
+	return slices.Contains(testnetNetworks, strings.ToLower(network))
+}
