@@ -233,27 +233,13 @@ func (a *accounts) ModifyWalletView(ctx context.Context, userID, id, newName str
 }
 
 func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, coins []*CoinMapping, symbolGroups []string) (map[string]*CoinAggregation, error) {
-	containsAllWallets := false
 	walletIDs := map[string][]*CoinMapping{}
 	groupedBySymbol := make(map[string][]*CoinMapping)
 	for _, i := range coins {
 		symbol := strings.ToLower(i.Coin.Symbol)
-		if i.WalletID == nil {
-			containsAllWallets = true
-			break
-		} else {
+		if i.WalletID != nil {
 			walletIDs[*i.WalletID] = append(walletIDs[*i.WalletID], i)
-		}
-		groupedBySymbol[symbol] = append(groupedBySymbol[symbol], i)
-	}
-	if containsAllWallets {
-		allWallets, err := a.delegatedRPClient.ListWallets(ctx, userID)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to list all wallets for user %v", userID)
-		}
-		walletIDs = map[string][]*CoinMapping{}
-		for _, wallet := range allWallets {
-			walletIDs[wallet["id"].(string)] = nil
+			groupedBySymbol[symbol] = append(groupedBySymbol[symbol], i)
 		}
 	}
 	coinGroups := make(map[string]*CoinAggregation)
@@ -272,10 +258,10 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 				if _, validSymbol := groupedBySymbol[symbol]; nativeCoin && !validSymbol {
 					if len(linkedSymbols) == 1 {
 						groupedBySymbol[symbol] = append(groupedBySymbol[symbol], linkedSymbols[0])
-					} else {
+					} else if len(linkedSymbols) > 0 {
 						for _, ls := range linkedSymbols {
 							if ls.ContractAddress == "" {
-								groupedBySymbol[symbol] = append(groupedBySymbol[symbol], linkedSymbols[0])
+								groupedBySymbol[symbol] = append(groupedBySymbol[symbol], ls)
 								break
 							}
 						}
