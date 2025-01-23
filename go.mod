@@ -19,7 +19,7 @@ require (
 	github.com/imroc/req/v3 v3.49.1
 	github.com/lestrrat-go/jwx/v2 v2.1.3
 	github.com/pkg/errors v0.9.1
-	github.com/quic-go/quic-go v0.48.2
+	github.com/quic-go/quic-go v0.49.0
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475
 	github.com/stretchr/testify v1.10.0
 	github.com/swaggo/files v1.0.1
