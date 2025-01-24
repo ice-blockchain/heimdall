@@ -11,6 +11,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -719,7 +720,7 @@ func (p *proxyResponseBody) WriteHeader(status int) {
 	p.ResponseWriter.WriteHeader(status)
 }
 
-func (c *dfnsClient) clientCall(ctx context.Context, method, url string, headers http.Header, jsonData []byte) (int, []byte, error) {
+func (c *dfnsClient) clientCall(ctx context.Context, method, url string, headers http.Header, jsonData []byte, noBackoffStatusCodes ...[]int) (int, []byte, error) {
 	appID := headers.Get(appIDHeader)
 	if appID == "" {
 		appID = c.cfg.DFNS.AppID
@@ -727,11 +728,11 @@ func (c *dfnsClient) clientCall(ctx context.Context, method, url string, headers
 	if c.urlRequiresServiceAccountSignature(url) {
 		return retry(ctx, func() (status int, body []byte, err error) {
 			return c.doClientCall(ctx, c.serviceAccountClient(appID), method, url, headers, jsonData)
-		})
+		}, noBackoffStatusCodes...)
 	} else {
 		return retry(ctx, func() (status int, body []byte, err error) {
 			return c.doClientCall(ctx, c.userClient(appID), method, url, headers, jsonData)
-		})
+		}, noBackoffStatusCodes...)
 	}
 }
 func (c *dfnsClient) urlRequiresServiceAccountSignature(url string) bool {
@@ -763,14 +764,16 @@ func (c *dfnsClient) doClientCall(ctx context.Context, httpClient *http.Client, 
 	}
 	response, err := client.Do(req)
 	if err != nil {
+		var status int
 		if dfnsErr := ParseErrAsDfnsInternalErr(err); dfnsErr != nil {
 			var delegatedParsedErr *DfnsInternalError
 			if errors.As(dfnsErr, &delegatedParsedErr) {
 				delegatedParsedErr.Context = nil
+				status = delegatedParsedErr.HTTPStatus
 				err = delegatedParsedErr
 			}
 		}
-		return 0, nil, errors.Wrapf(err, "failed to exec dfns request to %v %v", method, relativeUrl)
+		return status, nil, errors.Wrapf(err, "failed to exec dfns request to %v %v", method, relativeUrl)
 	}
 	defer response.Body.Close()
 	bodyData, err := io.ReadAll(response.Body)
@@ -795,7 +798,7 @@ func (c *dfnsClient) StartDelegatedRecovery(ctx context.Context, username string
 	resp, err := dfnsCall[struct {
 		Username     string `json:"username"`
 		CredentialID string `json:"credentialId"`
-	}, StartedDelegatedRecovery](ctx, c, &params, "POST", "/auth/recover/user/delegated", header)
+	}, StartedDelegatedRecovery](ctx, c, &params, "POST", "/auth/recover/user/delegated", header, []int{http.StatusNotFound})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to start delegated recovery for username %v credID %v", username, credentialId)
 	}
@@ -855,7 +858,7 @@ func (l *LoginChallenge) PasswordLogin() bool {
 	return len(passwordLogin) > 0 && len(webauthn) == 0
 }
 
-func dfnsCall[REQ any, RESP any](ctx context.Context, c *dfnsClient, params *REQ, method, uri string, headers http.Header) (*RESP, error) {
+func dfnsCall[REQ any, RESP any](ctx context.Context, c *dfnsClient, params *REQ, method, uri string, headers http.Header, noBackoffStatusCodes ...[]int) (*RESP, error) {
 	var postData []byte
 	if params != nil && method != "GET" {
 		var err error
@@ -870,7 +873,7 @@ func dfnsCall[REQ any, RESP any](ctx context.Context, c *dfnsClient, params *REQ
 		}
 		postData = []byte(s)
 	}
-	status, body, err := c.clientCall(ctx, method, uri, headers, postData)
+	status, body, err := c.clientCall(ctx, method, uri, headers, postData, noBackoffStatusCodes...)
 	if err != nil {
 		if dfnsErr := ParseErrAsDfnsInternalErr(err); dfnsErr != nil {
 			return nil, errors.Wrapf(dfnsErr, "failed to call %v %v", method, uri)
@@ -897,10 +900,13 @@ func appID(ctx context.Context) string {
 	return ctx.Value(AppIDCtxValue).(string)
 }
 
-func retry(ctx context.Context, op func() (status int, body []byte, err error)) (status int, body []byte, err error) {
+func retry(ctx context.Context, op func() (status int, body []byte, err error), noBackoffStatusCodes ...[]int) (status int, body []byte, err error) {
 	err = backoff.RetryNotify(
 		func() error {
 			status, body, err = op()
+			if len(noBackoffStatusCodes) > 0 && slices.ContainsFunc((noBackoffStatusCodes[0]), func(i int) bool { return i == status }) {
+				err = backoff.Permanent(err)
+			}
 			return err
 		},
 		backoff.WithContext(&backoff.ExponentialBackOff{
