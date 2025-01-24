@@ -26,23 +26,21 @@ func (a *accounts) StartDelegatedRecovery(ctx context.Context, username, credent
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get user 2FA state for username %v", username)
 	}
-	var hasEnabled2FA bool
-	if hasEnabled2FA, err = a.checkIfEnough2FAProvided(usr, codes); err != nil {
-		return nil, err //nolint:wrapcheck // tErr.
-	}
-	var rollbackCodes map[TwoFAOptionWithAddr]string
-	if hasEnabled2FA {
-		if rollbackCodes, err = a.verifyAndRedeem2FA(ctx, usr.ID, codes); err != nil {
-			return nil, errors.Wrapf(err, "failed to verify 2FA codes")
-		}
-	}
 	var delegatedResp *StartedDelegatedRecovery
 	delegatedResp, err = a.delegatedRPClient.StartDelegatedRecovery(ctx, username, credentialID)
 	if err != nil {
 		return nil, multierror.Append(
 			errors.Wrapf(err, "failed to start delegated recovery for username %v", username),
-			errors.Wrapf(a.rollbackRedeemed2FACodes(usr.ID, rollbackCodes), "failed to rollback used 2fa codes for userID %v", usr.ID),
 		)
+	}
+	var hasEnabled2FA bool
+	if hasEnabled2FA, err = a.checkIfEnough2FAProvided(usr, codes); err != nil {
+		return nil, err //nolint:wrapcheck // tErr.
+	}
+	if hasEnabled2FA {
+		if _, err = a.verifyAndRedeem2FA(ctx, usr.ID, codes); err != nil {
+			return nil, errors.Wrapf(err, "failed to verify 2FA codes")
+		}
 	}
 	return delegatedResp, nil
 }
