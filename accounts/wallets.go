@@ -27,8 +27,32 @@ func (a *accounts) CreateWalletView(ctx context.Context, userID, name string, it
 	params := []any{now, name, userID, symbolGroups, id}
 	rowsSql, extraParams := buildInsert(items, 5)
 	params = append(params, extraParams...)
-	rows, err := storage.Exec(ctx, a.db, fmt.Sprintf(`INSERT INTO wallet_views(created_at, updated_at, name,      user_id, symbol_groups, id,coins) 
-															VALUES  ($1,         $1,         $2,        $3,  $4, $5,     array[%v]::coin_mapping[]   );`, rowsSql),
+	view, err := storage.ExecOne[WalletView](ctx, a.db, fmt.Sprintf(`
+		WITH ins AS (
+			INSERT INTO wallet_views(created_at, updated_at, name,      user_id, symbol_groups, id,coins) 	
+			VALUES  ($1,         $1,         $2,        $3,  $4, $5,     array[%v]::coin_mapping[]   ) RETURNING * 
+		)
+		SELECT created_at, updated_at, name, user_id, symbol_groups, id,
+				   (SELECT json_agg(row_to_json(t.*)) from (
+					   WITH wallet_views_coinids as (
+						   (SELECT ins.*, (unnest(ins.coins)::coin_mapping).coinId, (unnest(ins.coins)::coin_mapping).walletid
+							from ins WHERE user_id = $3 AND ins.id = $5)
+					   )
+					   select wallet_views_coinids.walletid,wallet_views_coinids.coinid,
+							  coins.decimals,
+							  coins.version,
+							  coins.price_usd as priceUSD,
+							  coins.id,
+							  coins.network,
+							  coins.name,
+							  coins.contract_address as contractAddress,
+							  coins.symbol,
+							  coins.symbol_group as symbolGroup,
+							  coins.icon_url as iconURL
+					   from wallet_views_coinids
+					   join coins on wallet_views_coinids.coinid = coins.id) t
+				   ) 
+			as coins from ins;`, rowsSql),
 		params...)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrRelationNotFound) {
@@ -39,19 +63,20 @@ func (a *accounts) CreateWalletView(ctx context.Context, userID, name string, it
 		}
 		return nil, errors.Wrap(err, "failed to create wallet view")
 	}
-	if rows == 0 {
-		return nil, errors.Errorf("failed to create wallet view, unexpected rows count %v", rows)
+	hasWallets := false
+	for _, c := range items {
+		if c.WalletID != nil {
+			hasWallets = true
+		}
+	}
+	if hasWallets {
+		view.Aggregation, err = a.fetchWalletInfoForCoins(ctx, userID, view.Coins, view.SymbolGroups)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to aggregate walletview coins with wallet data walletview id %v on creation", view.ID)
+		}
 	}
 
-	return &WalletView{
-		ID:           id,
-		Name:         name,
-		Coins:        items,
-		CreatedAt:    now,
-		UpdatedAt:    now,
-		UserID:       userID,
-		SymbolGroups: symbolGroups,
-	}, nil
+	return view, nil
 }
 func (a *accounts) GetWalletViews(ctx context.Context, userID string) ([]*WalletView, error) {
 	views, err := storage.Select[WalletView](ctx, a.db, `SELECT 
