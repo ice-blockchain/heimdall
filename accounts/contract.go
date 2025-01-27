@@ -29,7 +29,7 @@ type (
 		ProxyDelegatedRelyingParty(ctx context.Context, rw http.ResponseWriter, r *http.Request)
 		Verify2FA(ctx context.Context, userID string, codes map[TwoFAOptionWithAddr]string) error
 		Delete2FA(ctx context.Context, userID string, codes map[TwoFAOptionWithAddr]string, twoFAToDel TwoFAOptionEnum, toDel string) error
-		Send2FA(ctx context.Context, userID string, channel TwoFAOptionEnum, deliverTo *string, language string, verificationUsingExisting2FA map[TwoFAOptionWithAddr]string) (authenticatorUri *string, err error)
+		Send2FA(ctx context.Context, userID string, channel TwoFAOptionEnum, deliverTo *string, language string, verificationUsingExisting2FA map[TwoFAOptionWithAddr]string, replaceOldValue *string) (authenticatorUri *string, err error)
 		StartDelegatedRecovery(ctx context.Context, username, credentialID string, codes map[TwoFAOptionWithAddr]string) (resp *StartedDelegatedRecovery, err error)
 		GetLoginChallenge(ctx context.Context, username string, codes map[TwoFAOptionWithAddr]string) (*LoginChallenge, error)
 		GetOrAssignIONConnectRelays(ctx context.Context, userID string, followees []string) (relays []string, err error)
@@ -188,12 +188,13 @@ type (
 		Active2FATotpAuthenticator []bool `db:"active_2fa_totp_authenticator"`
 	}
 	twoFACode struct {
-		CreatedAt   *time.Time
-		ConfirmedAt *time.Time
-		UserID      string
-		Option      TwoFAOptionEnum
-		DeliverTo   string
-		Code        string
+		CreatedAt       *time.Time
+		ConfirmedAt     *time.Time
+		UserID          string
+		Option          TwoFAOptionEnum
+		DeliverTo       string
+		ReplaceOldValue *string `db:"replace"`
+		Code            string
 	}
 	config struct {
 		EmailExpiration         stdlibtime.Duration `yaml:"emailExpiration" mapstructure:"emailExpiration"`

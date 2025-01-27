@@ -148,8 +148,8 @@ func (a *accounts) getCode(c *twoFACode, now *time.Time, idx int) string {
 }
 
 func (a *accounts) updateUserWithConfirmed2FA(ctx context.Context, now *time.Time, userID string, codes []*twoFACode) (codesToRollback map[TwoFAOptionWithAddr]string, err error) {
-	addEmailClause := "(case when users.email @> ARRAY[collapsed.email] then users.email else array_append(users.email,collapsed.email) end) "
-	addPhoneClause := "(case when users.phone_number @> ARRAY[collapsed.phone_number] then users.phone_number else array_append(users.phone_number,collapsed.phone_number) end)"
+	addEmailClause := "(case when users.email @> ARRAY[collapsed.email] then users.email WHEN collapsed.replace IS NOT NULL THEN array_append(array_remove(users.email, collapsed.replace),collapsed.email) else array_append(users.email,collapsed.email) end) "
+	addPhoneClause := "(case when users.phone_number @> ARRAY[collapsed.phone_number] then users.phone_number WHEN collapsed.replace IS NOT NULL THEN array_append(array_remove(users.phone_number, collapsed.replace), collapsed.phone_number) else array_append(users.phone_number,collapsed.phone_number) end)"
 	addTotpClause := "(case when users.totp_authenticator_secret @> ARRAY[collapsed.totp_authenticator_secret] then users.totp_authenticator_secret else array_append(users.totp_authenticator_secret,collapsed.totp_authenticator_secret) end)"
 	return a.updateUserWithConfirmedOrDeleted2FA(ctx, now, userID, codes, "", -1, addEmailClause, addPhoneClause, addTotpClause)
 }
@@ -219,6 +219,7 @@ WITH upd AS (
             user_id as user_id,
             option,
 			deliver_to,
+			replace,
             (CASE WHEN option = 'email' THEN deliver_to ELSE NULL END) as email,
             (CASE WHEN option = 'sms' THEN deliver_to ELSE NULL END) as phone_number,
             (CASE WHEN option = '%[2]v' THEN $3 ELSE NULL END) as totp_authenticator_secret
@@ -226,7 +227,8 @@ WITH upd AS (
     select $1 as id,
            (array_agg(email) FILTER ( WHERE email is not null))[1] as email,
            (array_agg(phone_number) FILTER ( WHERE phone_number is not null))[1] as phone_number,
-           (array_agg(totp_authenticator_secret) FILTER ( WHERE totp_authenticator_secret is not null))[1] as totp_authenticator_secret
+           (array_agg(totp_authenticator_secret) FILTER ( WHERE totp_authenticator_secret is not null))[1] as totp_authenticator_secret,
+           (array_agg(replace) FILTER ( WHERE replace is not null))[1] as replace
     from upd
 ), upd_users AS (
 	UPDATE users SET
@@ -234,8 +236,8 @@ WITH upd AS (
 		   email = array_remove(%[3]v, NULL),
 		   phone_number = array_remove(%[4]v, NULL),
 		   totp_authenticator_secret = array_remove(%[5]v, NULL),
-    	   active_2fa_email = CASE WHEN (NOT (COALESCE(users.email,ARRAY[]::TEXT[]) @> ARRAY[collapsed.email]) and collapsed.email is not null) THEN array_append(users.active_2fa_email, true) WHEN users.email @> ARRAY[$4] THEN users.active_2fa_email[1:$5-1]||users.active_2fa_email[$5+1:2147483647] ELSE users.active_2fa_email END ,
-           active_2fa_phone_number = CASE WHEN (NOT(COALESCE(users.phone_number,ARRAY[]::TEXT[]) @> ARRAY[collapsed.phone_number]) and collapsed.phone_number is not null) THEN array_append(users.active_2fa_phone_number, true) WHEN users.phone_number @> ARRAY[$4] THEN users.active_2fa_phone_number[1:$5-1]||users.active_2fa_phone_number[$5+1:2147483647] ELSE users.active_2fa_phone_number END,
+    	   active_2fa_email = CASE WHEN (NOT (COALESCE(users.email,ARRAY[]::TEXT[]) @> ARRAY[collapsed.email]) and collapsed.email is not null AND collapsed.replace IS NULL) THEN array_append(users.active_2fa_email, true) WHEN users.email @> ARRAY[$4] AND collapsed.replace IS NULL THEN users.active_2fa_email[1:$5-1]||users.active_2fa_email[$5+1:2147483647] ELSE users.active_2fa_email END ,
+           active_2fa_phone_number = CASE WHEN (NOT(COALESCE(users.phone_number,ARRAY[]::TEXT[]) @> ARRAY[collapsed.phone_number]) and collapsed.phone_number is not null AND collapsed.replace IS NULL) THEN array_append(users.active_2fa_phone_number, true) WHEN users.phone_number @> ARRAY[$4] AND collapsed.replace IS NULL THEN users.active_2fa_phone_number[1:$5-1]||users.active_2fa_phone_number[$5+1:2147483647] ELSE users.active_2fa_phone_number END,
            active_2fa_totp_authenticator = CASE WHEN NULLIF (collapsed.totp_authenticator_secret,users.id) IS NOT NULL THEN array_append(users.active_2fa_totp_authenticator, true) WHEN users.totp_authenticator_secret @> ARRAY[$4] THEN users.active_2fa_totp_authenticator[1:$5-1]||users.active_2fa_totp_authenticator[$5+1:2147483647]ELSE users.active_2fa_totp_authenticator END
 	FROM collapsed
 	WHERE users.id = $1
@@ -419,7 +421,7 @@ func (a *accounts) get2FACodes(ctx context.Context, usr *user, inputCodes map[Tw
 	return codes, nil
 }
 
-func (a *accounts) Send2FA(ctx context.Context, userIDOrUsername string, opt TwoFAOptionEnum, optDeliverTo *string, language string, existing2FAVerificationForModify map[TwoFAOptionWithAddr]string) (*string, error) {
+func (a *accounts) Send2FA(ctx context.Context, userIDOrUsername string, opt TwoFAOptionEnum, optDeliverTo *string, language string, existing2FAVerificationForModify map[TwoFAOptionWithAddr]string, replaceOldValue *string) (*string, error) {
 	now := time.Now()
 	var codesForRollback map[TwoFAOptionWithAddr]string
 	var usr *user
@@ -455,6 +457,12 @@ func (a *accounts) Send2FA(ctx context.Context, userIDOrUsername string, opt Two
 			}
 		}
 	}
+	if replaceOldValue != nil && *replaceOldValue == deliverTo {
+		replaceOldValue = nil
+	}
+	if err = validate2FAReplace(ctx, usr, opt, replaceOldValue, deliverTo); replaceOldValue != nil && err != nil {
+		return nil, errors.Wrapf(err, "invalid value for 2fa edit: %v", *replaceOldValue)
+	}
 	var code string
 	if opt == TwoFAOptionTOTPAuthenticator {
 		code = a.generateAuthentifcatorSecret(opt, usr.ID)
@@ -463,11 +471,12 @@ func (a *accounts) Send2FA(ctx context.Context, userIDOrUsername string, opt Two
 	}
 	defer a.concurrentlyGeneratedCodes[opt].Delete(usr.ID)
 	if uErr := a.upsert2FACode(ctx, &twoFACode{
-		CreatedAt: now,
-		UserID:    usr.ID,
-		Option:    opt,
-		DeliverTo: deliverTo,
-		Code:      code,
+		CreatedAt:       now,
+		UserID:          usr.ID,
+		Option:          opt,
+		DeliverTo:       deliverTo,
+		Code:            code,
+		ReplaceOldValue: replaceOldValue,
 	}); uErr != nil {
 		return nil, multierror.Append(
 			errors.Wrapf(uErr, "failed to upsert code for userID %v", usr.ID),
@@ -597,12 +606,13 @@ func (a *accounts) checkDeliveryChannelFor2FA(ctx context.Context, usr *user, op
 }
 
 func (a *accounts) upsert2FACode(ctx context.Context, codeInfo *twoFACode) error {
-	sql := `INSERT INTO twofa_codes (created_at, user_id, option, deliver_to, code) VALUES ($1, $2, $3, $4, $5)
+	sql := `INSERT INTO twofa_codes (created_at, user_id, option, deliver_to, code, replace) VALUES ($1, $2, $3, $4, $5, $6)
 			ON CONFLICT (user_id, option, deliver_to) DO UPDATE SET
                                             created_at = excluded.created_at,
+                                            replace = excluded.replace,
                                             code = excluded.code
-			WHERE twofa_codes.code != excluded.code OR twofa_codes.deliver_to != excluded.deliver_to;`
-	_, err := storage.Exec(ctx, a.db, sql, codeInfo.CreatedAt, codeInfo.UserID, codeInfo.Option, codeInfo.DeliverTo, codeInfo.Code)
+			WHERE twofa_codes.code != excluded.code OR twofa_codes.replace != excluded.replace;`
+	_, err := storage.Exec(ctx, a.db, sql, codeInfo.CreatedAt, codeInfo.UserID, codeInfo.Option, codeInfo.DeliverTo, codeInfo.Code, codeInfo.ReplaceOldValue)
 
 	return errors.Wrapf(err, "failed to upsert in-progress 2fa code info for userID %v %#v", codeInfo.UserID, codeInfo)
 }
@@ -742,6 +752,31 @@ func (a *accounts) verifyUserSignature(b64 string, now *time.Time, usr *user) er
 		return ErrInvalidUserSignature
 	}
 
+	return nil
+}
+
+func validate2FAReplace(ctx context.Context, usr *user, opt TwoFAOptionEnum, twoFAReplaceOldValue *string, deliverTo string) error {
+	if twoFAReplaceOldValue == nil {
+		return nil
+	}
+	if server.LoggedInUser(ctx) == nil {
+		return server.ErrInvalidToken
+	}
+	var items []string
+	switch {
+	case opt == TwoFAOptionEmail:
+		items = usr.Email
+	case opt == TwoFAOptionSMS:
+		items = usr.PhoneNumber
+	default:
+		return errors.Errorf("unsupported 2FA provider %v", opt)
+	}
+	if !slices.Contains(items, *twoFAReplaceOldValue) {
+		return ErrNotChanged
+	}
+	if slices.Contains(items, deliverTo) {
+		return ErrDuplicate
+	}
 	return nil
 }
 

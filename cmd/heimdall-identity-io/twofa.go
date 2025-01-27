@@ -52,7 +52,7 @@ func (s *service) Send2FARequest(
 	var authenticatorUri *string
 	ctx = withSignature(ctx, req.Data.UserSignature)
 	ctx = withAuth(ctx, req.Data.Authorization)
-	authenticatorUri, err = s.accounts.Send2FA(ctx, req.Data.UserID, req.Data.TwoFAOption, channel, req.Data.Language, req.Data.TwoFAVerificationCodes)
+	authenticatorUri, err = s.accounts.Send2FA(ctx, req.Data.UserID, req.Data.TwoFAOption, channel, req.Data.Language, req.Data.TwoFAVerificationCodes, req.Data.Replace)
 	if err != nil {
 		switch {
 		case errors.Is(err, accounts.Err2FARequired):
@@ -75,6 +75,10 @@ func (s *service) Send2FARequest(
 			return nil, server.BadRequest(err, authenticatorReqNotMet)
 		case errors.Is(err, accounts.ErrNotFound):
 			return nil, server.BadRequest(err, userNotFound)
+		case errors.Is(err, accounts.ErrNotChanged):
+			return nil, server.BadRequest(err, invalid2FAToTReplace)
+		case errors.Is(err, accounts.ErrDuplicate):
+			return nil, server.Conflict(err, invalid2FAToTReplace)
 		default:
 			return nil, server.Unexpected(err)
 		}
