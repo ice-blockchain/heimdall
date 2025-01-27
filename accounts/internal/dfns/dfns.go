@@ -697,16 +697,14 @@ func (c *dfnsClient) updateRegisterReqBodyWithWallets(req *http.Request) (resp *
 			Name    string `json:"name"`
 		} `json:"wallets"`
 	}) error {
-		if len(content.Wallets) == 0 {
-			walletNetwork := defaultWalletNetworkMainNet
-			if c.cfg.DFNS.TestNet {
-				walletNetwork = defaultWalletNetworkTestNet
-			}
-			content.Wallets = []struct {
-				Network string `json:"network"`
-				Name    string `json:"name"`
-			}{{Network: walletNetwork, Name: defaultWalletName}}
+		walletNetwork := defaultWalletNetworkMainNet
+		if c.cfg.DFNS.TestNet {
+			walletNetwork = defaultWalletNetworkTestNet
 		}
+		content.Wallets = []struct {
+			Network string `json:"network"`
+			Name    string `json:"name"`
+		}{{Network: walletNetwork, Name: defaultWalletName}}
 		return nil
 	})
 }

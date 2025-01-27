@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/hex"
+	"fmt"
 	"reflect"
 	"slices"
 	"strings"
@@ -206,7 +207,7 @@ func (a *accounts) upsertWalletPubKeyFromRegistration(ctx context.Context, now *
 	}
 	pubkey, err := hex.DecodeString(walletPubKey)
 	if err != nil || len(pubkey) != ed25519.PublicKeySize {
-		log.Fatal("Wallet master key does not seems to be EdDSA/ed25519!")
+		log.Fatal(fmt.Sprintf("Wallet master key does not seems to be EdDSA/ed25519: \"%v\"! User %v %v", walletPubKey, userID, username))
 	}
 
 	return errors.Wrapf(a.insertUsernameWithPubKey(ctx, now, userID, username, walletPubKey),
