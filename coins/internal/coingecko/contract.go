@@ -75,6 +75,8 @@ var (
 		"polygonamoy":       "polygon_pos",
 		"ton":               "ton",
 		"tontestnet":        "ton",
+		"ion":               "ion",
+		"iontestnet":        "ion",
 		"tronnile":          "tron",
 		"tron":              "tron",
 		"xrpledger":         "xrp",
@@ -107,6 +109,7 @@ var (
 		"solanadevnet",
 		"polygonamoy",
 		"tontestnet",
+		"iontestnet",
 		"tronnile",
 		"xrpledgertestnet",
 		// Those networks below are not presented on /api/v3/onchain/networks on coingecko
@@ -131,10 +134,11 @@ var (
 		"kava":                "kava",
 		"kusama":              "kusama",
 		"the-open-network":    "ton",
-		"tron":                "tron",
-		"cardano":             "cardano",
-		"sei-network":         "sei-network",
-		"internet-computer":   "icp",
+		// "ice-open-network":    "ion", // We need platform/network listing on coin gecko
+		"tron":              "tron",
+		"cardano":           "cardano",
+		"sei-network":       "sei-network",
+		"internet-computer": "icp",
 		// Those networks below are not presented on /api/v3/onchain/networks on coingecko
 		// We cannot req tokens on them, it responds 404
 		//"tezos": "tezos",
@@ -156,6 +160,7 @@ var (
 		"kava":                6,
 		"kusama":              12,
 		"the-open-network":    9,
+		"ice-open-network":    9,
 		"tron":                18,
 		"cardano":             18,
 		"sei-network":         18,
