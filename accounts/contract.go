@@ -99,6 +99,7 @@ type (
 		Asset    *dfns.Asset `json:"asset"`
 		WalletID string      `json:"walletId"`
 		Network  string      `json:"network"`
+		CoinID   string      `json:"coinId"`
 	}
 	CoinAggregation struct {
 		TotalBalance *big.Int        `json:"totalBalance"`
