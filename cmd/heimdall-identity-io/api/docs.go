@@ -1562,6 +1562,9 @@ const docTemplate = `{
                 },
                 "phoneNumber": {
                     "type": "string"
+                },
+                "replace": {
+                    "type": "string"
                 }
             }
         },

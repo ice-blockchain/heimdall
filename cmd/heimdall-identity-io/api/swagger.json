@@ -1555,6 +1555,9 @@
                 },
                 "phoneNumber": {
                     "type": "string"
+                },
+                "replace": {
+                    "type": "string"
                 }
             }
         },

@@ -109,6 +109,7 @@ type (
 	Send2FARequestReq struct {
 		Email                  *string                        `json:"email,omitempty"`
 		PhoneNumber            *string                        `json:"phoneNumber,omitempty"`
+		Replace                *string                        `json:"replace"`
 		TwoFAVerificationCodes map[TwoFAOptionWithAddr]string `json:"2FAVerificationCodes"`
 		UserID                 string                         `uri:"userId" required:"true" swaggerignore:"true"`
 		TwoFAOption            TwoFAOptionEnum                `uri:"twoFAOption" required:"true" swaggerignore:"true"`
@@ -168,6 +169,7 @@ const (
 	lastEntry                  = "LAST_ENTRY"
 	notFound                   = "NOT_FOUND"
 	twoFANotConfigured         = "2FA_NOT_CONFIGURED"
+	invalid2FAToTReplace       = "INVALID_2FA_REPLACE"
 
 	configNameRequiredAndroidAppVersion = "required_android_app_version"
 	configNameRequiredIOSAppVersion     = "required_ios_app_version"

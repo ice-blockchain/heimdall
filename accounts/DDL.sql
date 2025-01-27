@@ -40,8 +40,12 @@ CREATE TABLE IF NOT EXISTS twofa_codes (
     option twofa_option NOT NULL,
     deliver_to TEXT NOT NULL,
     code    TEXT NOT NULL,
+    replace TEXT,
     primary key (user_id, option, deliver_to)
 );
+
+ALTER TABLE twofa_codes
+    ADD COLUMN IF NOT EXISTS replace TEXT;
 
 CREATE INDEX IF NOT EXISTS twofa_codes_option_code ON twofa_codes (option, deliver_to, code);
 
