@@ -1340,6 +1340,9 @@ const docTemplate = `{
                 "asset": {
                     "$ref": "#/definitions/dfns.Asset"
                 },
+                "coinId": {
+                    "type": "string"
+                },
                 "network": {
                     "type": "string"
                 },

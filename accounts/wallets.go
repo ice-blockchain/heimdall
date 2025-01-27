@@ -288,6 +288,7 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 						coin.Wallets = append(coin.Wallets, &CoinInWallet{
 							WalletID: walletAssets.WalletID,
 							Network:  walletAssets.Network,
+							CoinID:   g.CoinID,
 							Asset:    &asset,
 						})
 						coinGroups[symbol] = coin
