@@ -45,6 +45,9 @@ func (a *accounts) GetOrAssignIONConnectRelays(ctx context.Context, userID strin
 		return nil, errors.Wrapf(err, "failed to check if user already have ion relays")
 	}
 	if len(usr.IONConnectRelays) > 0 {
+		for i := range usr.IONConnectRelays {
+			usr.IONConnectRelays[i] = enhanceRelayURL(usr.IONConnectRelays[i])
+		}
 		return usr.IONConnectRelays, nil
 	}
 	if err = a.validateFollowees(ctx, followees); err != nil {
@@ -122,13 +125,17 @@ func (a *accounts) validateFollowees(ctx context.Context, followees []string) er
 
 func (a *accounts) fetchRelays(ctx context.Context, userID string, followeeList []string) (relays []string, err error) {
 	randomRelay := a.cfg.MockRelays[rand.Intn(len(a.cfg.MockRelays))]
-	return []string{randomRelay}, nil
+	return []string{enhanceRelayURL(randomRelay)}, nil
 }
 
 func (a *accounts) fetchIONIndexers(ctx context.Context, userID string) (relays []string, err error) {
 	log.Info("Fetching indexers from polaris for %v", clientIPAddress(ctx))
 	randomIndexer := a.cfg.MockRelays[rand.Intn(len(a.cfg.MockRelays))]
-	return []string{randomIndexer}, nil
+	return []string{enhanceRelayURL(randomIndexer)}, nil
+}
+
+func enhanceRelayURL(url string) string {
+	return strings.TrimSuffix(url, "/")
 }
 
 func (a *accounts) GetUser(ctx context.Context, userIDOrMasterKey string) (*User, error) {
@@ -146,6 +153,9 @@ func (a *accounts) GetUser(ctx context.Context, userIDOrMasterKey string) (*User
 	}
 	if dbUsr != nil {
 		usr.IONConnectRelays = dbUsr.IONConnectRelays
+		for i := range usr.IONConnectRelays {
+			usr.IONConnectRelays[i] = enhanceRelayURL(usr.IONConnectRelays[i])
+		}
 		usr.MasterPubKey = dbUsr.MasterPubKey
 		usr.IONConnectIndexerRelays, err = a.GetIONConnectIndexerRelays(ctx, userIDOrMasterKey)
 		if err != nil {
