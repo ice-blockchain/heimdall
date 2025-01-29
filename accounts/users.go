@@ -135,10 +135,7 @@ func (a *accounts) fetchIONIndexers(ctx context.Context, userID string) (relays 
 }
 
 func enhanceRelayURL(url string) string {
-	if strings.HasSuffix(url, "/") {
-		return url
-	}
-	return url + "/"
+	return strings.TrimSuffix(url, "/")
 }
 
 func (a *accounts) GetUser(ctx context.Context, userIDOrMasterKey string) (*User, error) {
