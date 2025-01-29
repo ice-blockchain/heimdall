@@ -380,10 +380,10 @@ func (a *accounts) GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGrou
 				continue
 			}
 			assetContract := asset["contract"]
-			assetSymbol := asset["symbol"]
+			assetSymbol := asset["symbol"].(string)
 			isNativeCoin := asset["kind"] == "Native"
 			if assetContract == coin.ContractAddress ||
-				(coins.IsTestnet(walletAssets.Network) && (assetSymbol == coin.Symbol)) ||
+				(coins.IsTestnet(walletAssets.Network) && strings.EqualFold(assetSymbol, coin.Symbol)) ||
 				(coins.IsTestnet(walletAssets.Network) && isNativeCoin && coin.ContractAddress == "" && strings.EqualFold(walletAssets.Network, coin.Network)) {
 				res = append(res, &CoinWithWalletInfo{
 					Coin:          coin,
