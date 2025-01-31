@@ -19,18 +19,26 @@ import (
 )
 
 func (a *accounts) CreateWalletView(ctx context.Context, userID, name string, items []*CoinMapping, symbolGroups []string) (*WalletView, error) {
+	return a.createWalletView(ctx, userID, name, items, symbolGroups, false)
+}
+
+func (a *accounts) createWalletView(ctx context.Context, userID, name string, items []*CoinMapping, symbolGroups []string, main bool) (*WalletView, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
 	now := time.Now()
 	id := uuid.NewString()
+	if main {
+		id = userID
+	}
 	params := []any{now, name, userID, symbolGroups, id}
 	rowsSql, extraParams := buildInsert(items, 5)
 	params = append(params, extraParams...)
 	view, err := storage.ExecOne[WalletView](ctx, a.db, fmt.Sprintf(`
 		WITH ins AS (
 			INSERT INTO wallet_views(created_at, updated_at, name,      user_id, symbol_groups, id,coins) 	
-			VALUES  ($1,         $1,         $2,        $3,  $4, $5,     array[%v]::coin_mapping[]   ) RETURNING * 
+			VALUES  ($1,         $1,         $2,        $3,  $4, $5,     array[%v]::coin_mapping[]   )
+			RETURNING * 
 		)
 		SELECT created_at, updated_at, name, user_id, symbol_groups, id,
 				   (SELECT json_agg(row_to_json(t.*)) from (
@@ -59,7 +67,13 @@ func (a *accounts) CreateWalletView(ctx context.Context, userID, name string, it
 			return nil, ErrNotFound
 		}
 		if storage.IsErr(err, storage.ErrDuplicate) {
+			if main {
+				return a.GetWalletView(ctx, userID, id)
+			}
 			return a.CreateWalletView(ctx, userID, name, items, symbolGroups)
+		}
+		if storage.IsErr(err, storage.ErrNotFound) {
+			return a.GetWalletView(ctx, userID, id)
 		}
 		return nil, errors.Wrap(err, "failed to create wallet view")
 	}
@@ -85,7 +99,27 @@ func (a *accounts) GetWalletViews(ctx context.Context, userID string) ([]*Wallet
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get wallet views for user %v", userID)
 	}
-
+	if len(views) == 0 {
+		usr, err := a.getUserByID(ctx, userID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "user %v is missing default walletview and cannot create due to read user failure", userID)
+		}
+		wallets, err := a.delegatedRPClient.ListWallets(ctx, userID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get wallets for user %v to detect main", userID)
+		}
+		var mainWalletID string
+		for _, wallet := range wallets {
+			if walletID, walletPubKey := dfns.CheckMainWallet(wallet); walletID != "" && walletPubKey != "" {
+				mainWalletID = walletID
+			}
+		}
+		newView, err := a.createDefaultWalletView(ctx, userID, usr.Username, mainWalletID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "user %v is missing default walletview and cannot create", userID)
+		}
+		views = append(views, newView)
+	}
 	return views, nil
 }
 
