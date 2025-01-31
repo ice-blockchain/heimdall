@@ -75,7 +75,7 @@ func (s *service) ImportCoin(
 			needUpdate = true
 		}
 		if needUpdate {
-			if _, err = s.accounts.ModifyWalletView(ctx, userID, wv.Name, wv.Name, wv.Coins, wv.SymbolGroups); err != nil {
+			if _, err = s.accounts.ModifyWalletView(ctx, userID, wv.ID, wv.Name, wv.Coins, wv.SymbolGroups); err != nil {
 				return nil, server.Unexpected(err)
 			}
 		}
