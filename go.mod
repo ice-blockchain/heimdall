@@ -20,7 +20,7 @@ require (
 	github.com/ice-blockchain/wintr v1.154.0
 	github.com/imroc/req/v3 v3.49.1
 	github.com/lestrrat-go/jwx/v2 v2.1.3
-	github.com/nbd-wtf/go-nostr v0.0.0-00010101000000-000000000000
+	github.com/nbd-wtf/go-nostr v0.49.3-0.20250203133542-84465577885c
 	github.com/pkg/errors v0.9.1
 	github.com/quic-go/quic-go v0.49.0
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475
@@ -130,7 +130,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/puzpuzpuz/xsync/v3 v3.4.0 // indirect
+	github.com/puzpuzpuz/xsync/v3 v3.5.0 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/refraction-networking/utls v1.6.7 // indirect
 	github.com/rs/zerolog v1.33.0 // indirect
