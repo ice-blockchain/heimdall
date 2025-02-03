@@ -30,7 +30,9 @@ latestGoMinorVersion:
 	@echo $(call getLatestGoMinorVersion)
 
 updateGoModVersion:
-	go mod edit -go $(call getLatestGoMinorVersion)
+    #TODO Temporary hack to figure; remove it asap
+    go mod edit -go $(call getLatestGoPatchVersion)
+
 
 checkModVersion: updateGoModVersion
 	@if git status --porcelain | grep -q go.mod; then \
