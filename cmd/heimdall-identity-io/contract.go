@@ -34,6 +34,12 @@ type (
 		Authorization     string `header:"Authorization" swaggerignore:"true"`
 		ClientID          string `header:"X-Client-ID" required:"true" swaggerignore:"true"`
 	}
+	DeleteUserReq struct {
+		UserID        string `uri:"userId" required:"true" swaggerignore:"true"`
+		Authorization string `header:"Authorization" swaggerignore:"true"`
+		ClientID      string `header:"X-Client-ID" required:"true" swaggerignore:"true"`
+		UserSignature string `header:"X-Useraction" swaggerignore:"true"`
+	}
 	User struct {
 		*accounts.User
 	}

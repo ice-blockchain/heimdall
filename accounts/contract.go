@@ -37,6 +37,7 @@ type (
 		GetUser(ctx context.Context, userID string) (usr *User, err error)
 		SecurePaymentConfirmation(ctx context.Context, userID, walletID string, body map[string]string) (templateData any, err error)
 		GetNFTs(ctx context.Context, walletID string) ([]*NFT, string, error)
+		DeleteUser(ctx context.Context, userID string) error
 		HealthCheck(ctx context.Context) error
 	}
 	Wallets interface {

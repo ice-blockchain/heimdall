@@ -323,3 +323,32 @@ func isEmptyValue(value reflect.Value) bool {
 		return value.IsZero()
 	}
 }
+
+func (a *accounts) DeleteUser(ctx context.Context, userID string) error {
+	usr, err := a.getUserByID(ctx, userID)
+	if err != nil || usr == nil {
+		if usr == nil || errors.Is(err, ErrNotFound) {
+			return ErrNotChanged
+		}
+
+		return errors.Wrapf(err, "failed to delete user %v", userID)
+	}
+	now := time.Now()
+	if sErr := a.verifyUserSignature(userSignature(ctx), now, usr); sErr != nil {
+		return errors.Wrapf(sErr, "failed to delete user due to invalid signature")
+	}
+
+	return errors.Wrapf(a.deleteUser(ctx, userID), "failed to delete user")
+}
+
+func (a *accounts) deleteUser(ctx context.Context, userID string) error {
+	rows, err := storage.Exec(ctx, a.db, `DELETE FROM users WHERE id = $1`, userID)
+	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
+		return errors.Wrapf(err, "failed to delete user %v", userID)
+	}
+	if (err == nil && rows == 0) || storage.IsErr(err, storage.ErrNotFound) {
+		err = ErrNotChanged
+	}
+
+	return errors.Wrapf(err, "failed to delete user data %v", userID)
+}
