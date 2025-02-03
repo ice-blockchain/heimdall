@@ -1,6 +1,6 @@
 module github.com/ice-blockchain/heimdall
 
-go 1.23
+go 1.23.5
 
 replace github.com/nbd-wtf/go-nostr => github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250130171717-15e0674505b3
 
@@ -20,7 +20,7 @@ require (
 	github.com/ice-blockchain/wintr v1.154.0
 	github.com/imroc/req/v3 v3.49.1
 	github.com/lestrrat-go/jwx/v2 v2.1.3
-	github.com/nbd-wtf/go-nostr v0.49.3-0.20250203133542-84465577885c
+	github.com/nbd-wtf/go-nostr v0.49.1
 	github.com/pkg/errors v0.9.1
 	github.com/quic-go/quic-go v0.49.0
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475
