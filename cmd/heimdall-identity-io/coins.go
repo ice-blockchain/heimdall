@@ -12,7 +12,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 
-	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/coins"
 	"github.com/ice-blockchain/heimdall/server"
 )
@@ -57,29 +56,7 @@ func (s *service) ImportCoin(
 			return nil, server.Unexpected(err)
 		}
 	}
-	userID := req.AuthenticatedUser.UserID()
-	// Link new coin to user / populate user's wallet views with it.
-	walletViews, err := s.accounts.GetWalletViews(ctx, userID)
-	for _, wv := range walletViews {
-		needUpdate := false
-		if !slices.Contains(wv.SymbolGroups, coin.SymbolGroup) {
-			wv.SymbolGroups = append(wv.SymbolGroups, coin.SymbolGroup)
-			needUpdate = true
-		}
-		newCoins := append(wv.Coins, &accounts.CoinMapping{
-			WalletID: nil,
-			CoinID:   coin.ID,
-		})
-		if err = s.validateWalletView(ctx, newCoins, false); err == nil {
-			wv.Coins = newCoins
-			needUpdate = true
-		}
-		if needUpdate {
-			if _, err = s.accounts.ModifyWalletView(ctx, userID, wv.ID, wv.Name, wv.Coins, wv.SymbolGroups); err != nil {
-				return nil, server.Unexpected(err)
-			}
-		}
-	}
+
 	return server.OK(coin), nil
 }
 
