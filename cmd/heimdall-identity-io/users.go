@@ -17,6 +17,7 @@ func (s *service) setupUserRoutes(router gin.IRoutes) {
 	router.PATCH("v1/users/:userId/ion-connect-relays", server.RootHandler(s.GetOrAssignIONConnectRelays)).
 		GET("v1/users/:userId/ion-connect-indexers", server.RootHandler(s.UserIndexers)).
 		GET("auth/users/:userIdOrMasterKey", server.RootHandler(s.GetUser)).
+		DELETE("auth/users/:userId", server.RootHandler(s.DeleteUser)).
 		GET("v1/config/:configName", server.RootHandler(s.GetConfig))
 }
 
@@ -112,6 +113,45 @@ func (s *service) GetUser(
 		}
 	}
 	return server.OK[User](&User{User: usr}), nil
+}
+
+// DeleteUser godoc
+//
+//	@Schemes
+//	@Description	Deletes user account
+//	@Tags			Users
+//	@Produce		json
+//	@Param			userId			path	string	true	"ID of the user"
+//	@Param			Authorization	header	string	true	"Auth token from delegated RP"	default(Bearer <Add token here>)
+//	@Param			X-Client-ID		header	string	true	"App ID"						default(ap-)
+//	@Param			X-Useraction	header	string	true	"User's signature"				default(<signature>)
+//	@Success		200				"Found and deleted"
+//	@Failure		204				"Already deleted"
+//	@Failure		401				{object}	server.ErrorResponse	"if not authorized"
+//	@Failure		403				{object}	server.ErrorResponse	"not allowed"
+//	@Failure		500				{object}	server.ErrorResponse
+//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
+//	@Router			/auth/users/{userId} [DELETE].
+func (s *service) DeleteUser(
+	ctx context.Context,
+	req *server.Request[DeleteUserReq, any],
+) (successResp *server.Response[any], errorResp *server.ErrResponse[*server.ErrorResponse]) {
+	ctx = context.WithValue(ctx, accounts.AuthorizationHeaderCtxValue, req.Data.Authorization)
+	ctx = context.WithValue(ctx, accounts.AppIDHeaderCtxValue, req.Data.ClientID)
+	ctx = withSignature(ctx, req.Data.UserSignature)
+
+	err := s.accounts.DeleteUser(ctx, req.Data.UserID)
+	if err != nil {
+		switch {
+		case errors.Is(err, accounts.ErrNotChanged):
+			return server.NoContent(), nil
+		case errors.Is(err, accounts.ErrInvalidUserSignature):
+			return nil, server.ForbiddenWithCode(err, invalidUserSignature)
+		default:
+			return nil, server.Unexpected(err)
+		}
+	}
+	return server.OK[any](), nil
 }
 
 // GetConfig godoc

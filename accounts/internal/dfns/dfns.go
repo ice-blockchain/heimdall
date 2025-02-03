@@ -389,7 +389,7 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 		return extendErrBody.HTTPStatus, bytes.NewBuffer(resp)
 	}
 	rb := &proxyResponseBody{ResponseWriter: rw, Body: respBody}
-	if c.urlRequiresServiceAccountSignature(req.URL.Path) {
+	if c.urlRequiresServiceAccountSignature(req.URL.Path, req.Method) {
 		cl := c.serviceAccountClient(applicationID)
 		pr := c.proxy("service", applicationID)
 		pr.Transport = cl.Transport
@@ -723,7 +723,7 @@ func (c *dfnsClient) clientCall(ctx context.Context, method, url string, headers
 	if appID == "" {
 		appID = c.cfg.DFNS.AppID
 	}
-	if c.urlRequiresServiceAccountSignature(url) {
+	if c.urlRequiresServiceAccountSignature(url, method) {
 		return retry(ctx, func() (status int, body []byte, err error) {
 			return c.doClientCall(ctx, c.serviceAccountClient(appID), method, url, headers, jsonData)
 		}, noBackoffStatusCodes...)
@@ -733,10 +733,10 @@ func (c *dfnsClient) clientCall(ctx context.Context, method, url string, headers
 		}, noBackoffStatusCodes...)
 	}
 }
-func (c *dfnsClient) urlRequiresServiceAccountSignature(url string) bool {
-	return url == "/auth/registration/delegated" ||
-		url == "/auth/login/delegated" ||
-		url == "/auth/recover/user/delegated"
+func (c *dfnsClient) urlRequiresServiceAccountSignature(url string, method string) bool {
+	return url == "/auth/registration/delegated" && method == "POST" ||
+		url == "/auth/login/delegated" && method == "POST" ||
+		url == "/auth/recover/user/delegated" && method == "POST"
 }
 
 func (c *dfnsClient) doClientCall(ctx context.Context, httpClient *http.Client, method, relativeUrl string, headers http.Header, jsonData []byte) (int, []byte, error) {

@@ -30,7 +30,7 @@ latestGoMinorVersion:
 	@echo $(call getLatestGoMinorVersion)
 
 updateGoModVersion:
-	go mod edit -go $(call getLatestGoMinorVersion)
+	go mod edit -go $(call getLatestGoPatchVersion)
 
 checkModVersion: updateGoModVersion
 	@if git status --porcelain | grep -q go.mod; then \

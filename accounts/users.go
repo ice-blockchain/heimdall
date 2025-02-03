@@ -5,6 +5,8 @@ package accounts
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"reflect"
@@ -12,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/goccy/go-json"
+	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/rand"
 
@@ -322,4 +325,75 @@ func isEmptyValue(value reflect.Value) bool {
 	default:
 		return value.IsZero()
 	}
+}
+
+func (a *accounts) DeleteUser(ctx context.Context, userID string) error {
+	usr, err := a.getUserByID(ctx, userID)
+	if err != nil || usr == nil {
+		if usr == nil || errors.Is(err, ErrNotFound) {
+			return ErrNotChanged
+		}
+
+		return errors.Wrapf(err, "failed to delete user %v", userID)
+	}
+	now := time.Now()
+	if sErr := a.verifyUserSignatureFromIONConnect(userSignature(ctx), now, usr); sErr != nil {
+		return errors.Wrapf(sErr, "failed to delete user due to invalid signature")
+	}
+
+	return errors.Wrapf(a.deleteUser(ctx, userID), "failed to delete user")
+}
+
+func (a *accounts) deleteUser(ctx context.Context, userID string) error {
+	rows, err := storage.Exec(ctx, a.db, `DELETE FROM users WHERE id = $1`, userID)
+	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
+		return errors.Wrapf(err, "failed to delete user %v", userID)
+	}
+	if (err == nil && rows == 0) || storage.IsErr(err, storage.ErrNotFound) {
+		err = ErrNotChanged
+	}
+
+	return errors.Wrapf(err, "failed to delete user data %v", userID)
+}
+
+func (a *accounts) verifyUserSignatureFromIONConnect(signatureBase64 string, now *time.Time, usr *user) error {
+	bToken, err := base64.StdEncoding.DecodeString(signatureBase64)
+	if err != nil {
+		return errors.Wrapf(ErrInvalidUserSignature, "failed to unmarshal auth token: malformed base64: %q", signatureBase64)
+	}
+
+	var event nostr.Event
+	if err := event.UnmarshalJSON(bToken); err != nil {
+		return errors.Wrap(ErrInvalidUserSignature, "failed to unmarshal auth token: malformed event json")
+	}
+	hash := sha256.Sum256(event.Serialize())
+	if id := hex.EncodeToString(hash[:]); id != event.ID {
+		return errors.New("event id is invalid")
+	}
+	if !strings.HasPrefix(event.Sig, "eddsa/curve25519:") {
+		return errors.Wrapf(ErrInvalidUserSignature, "eddsa/curve25519 prefix missing, masterkey is ed25519")
+	}
+	event.Sig = strings.TrimPrefix(event.Sig, "eddsa/curve25519:")
+	sigBytes, err := hex.DecodeString(event.Sig)
+	if err != nil {
+		return errors.Wrapf(ErrInvalidUserSignature, "invalid hex in signature")
+	}
+	pk, err := hex.DecodeString(event.PubKey)
+	if err != nil {
+		return errors.Wrapf(ErrInvalidUserSignature, "invalid hex in pubkey")
+	}
+	if ok := ed25519.Verify(pk, hash[:], sigBytes); !ok {
+		return errors.Wrapf(ErrInvalidUserSignature, "invalid signature")
+	}
+	masterKey := event.PubKey
+	if usr.MasterPubKey != masterKey {
+		return errors.Wrapf(ErrInvalidUserSignature, "master key mismatch")
+	}
+	if now.Before(event.CreatedAt.Time()) || (now.After(event.CreatedAt.Time()) && now.Sub(event.CreatedAt.Time()) > a.cfg.UserSignatureExpiration) {
+		return errors.Wrapf(ErrInvalidUserSignature, "expired")
+	}
+	if event.Kind != nostr.KindDeletion {
+		return errors.Wrapf(ErrInvalidUserSignature, "kind mismatch")
+	}
+	return nil
 }

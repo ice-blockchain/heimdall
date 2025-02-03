@@ -36,7 +36,7 @@ END$$;
 CREATE TABLE IF NOT EXISTS twofa_codes (
     created_at timestamp NOT NULL,
     confirmed_at timestamp,
-    user_id TEXT NOT NULL REFERENCES users(id),
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     option twofa_option NOT NULL,
     deliver_to TEXT NOT NULL,
     code    TEXT NOT NULL,
@@ -48,6 +48,11 @@ ALTER TABLE twofa_codes
     ADD COLUMN IF NOT EXISTS replace TEXT;
 
 CREATE INDEX IF NOT EXISTS twofa_codes_option_code ON twofa_codes (option, deliver_to, code);
+
+    ALTER TABLE twofa_codes
+        DROP CONSTRAINT twofa_codes_user_id_fkey,
+        ADD CONSTRAINT twofa_codes_user_id_fkey
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
 
 CREATE TABLE IF NOT EXISTS global  (
        value TEXT NOT NULL,
@@ -68,7 +73,7 @@ CREATE TABLE IF NOT EXISTS wallet_views (
     updated_at    TIMESTAMP NOT NULL,
     name          TEXT NOT NULL,
     id            TEXT NOT NULL,
-    user_id       TEXT NOT NULL REFERENCES users(id),
+    user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     symbol_groups TEXT[],
     coins         coin_mapping[],
     primary key (id)
@@ -95,3 +100,7 @@ ALTER TABLE wallet_views
     ADD COLUMN IF NOT EXISTS coins coin_mapping[];
 ALTER TABLE wallet_views
     DROP COLUMN IF EXISTS items;
+ALTER TABLE wallet_views
+    DROP CONSTRAINT wallet_views_user_id_fkey,
+    ADD CONSTRAINT wallet_views_user_id_fkey
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
