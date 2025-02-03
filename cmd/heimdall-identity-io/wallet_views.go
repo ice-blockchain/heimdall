@@ -39,7 +39,7 @@ func (s *service) CreateWalletView(
 	ctx context.Context,
 	req *server.Request[WalletViewReq, WalletView],
 ) (successResp *server.Response[WalletView], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	err := s.validateWalletView(ctx, req.Data.Items, true)
+	err := s.validateWalletView(ctx, req.Data.Items, req.Data.SymbolGroups, true)
 	if err != nil {
 		return nil, server.BadRequest(err, invalidPropertiesErrorCode)
 	}
@@ -115,12 +115,14 @@ func (s *service) GetWalletViews(
 	return server.OK(&views), nil
 }
 
-func (s *service) validateWalletView(ctx context.Context, items []*accounts.CoinMapping, verifyCoins bool) error {
+func (s *service) validateWalletView(ctx context.Context, items []*accounts.CoinMapping, symbolGroups []string, verifyCoins bool) error {
 	dedupl := map[string]struct{}{}
 	coins := map[string]struct{}{}
-	_, allCoins, _ := s.coins.GetVersionedCoins(ctx, "", nil)
-	for _, coin := range allCoins {
-		coins[coin.ID] = struct{}{}
+	if verifyCoins {
+		_, allCoins, _ := s.coins.GetVersionedCoins(ctx, "", nil)
+		for _, coin := range allCoins {
+			coins[coin.ID] = struct{}{}
+		}
 	}
 	for _, i := range items {
 		key := i.CoinID
@@ -128,12 +130,19 @@ func (s *service) validateWalletView(ctx context.Context, items []*accounts.Coin
 			key += "/" + *i.WalletID
 		}
 		if _, has := dedupl[key]; has {
-			return errors.Errorf("invalid walletview, %v is duplicated", key)
+			return errors.Wrapf(accounts.ErrDuplicate, "invalid walletview, %v is duplicated", key)
 		}
 		if _, validCoin := coins[i.CoinID]; !validCoin && verifyCoins {
 			return errors.Errorf("invalid walletview, %v is unsupported", i.CoinID)
 		}
 		dedupl[key] = struct{}{}
+	}
+	deduplSG := map[string]struct{}{}
+	for _, sg := range symbolGroups {
+		if _, has := deduplSG[sg]; has {
+			return errors.Wrapf(accounts.ErrDuplicate, "invalid walletview, %v is duplicated", sg)
+		}
+		deduplSG[sg] = struct{}{}
 	}
 
 	return nil
@@ -192,8 +201,11 @@ func (s *service) ModifyWalletView(
 	ctx context.Context,
 	req *server.Request[ModifyWalletViewReq, WalletView],
 ) (successResp *server.Response[WalletView], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	err := s.validateWalletView(ctx, req.Data.Items, true)
+	err := s.validateWalletView(ctx, req.Data.Items, req.Data.SymbolGroups, true)
 	if err != nil {
+		if errors.Is(err, accounts.ErrDuplicate) {
+			return nil, server.Conflict(err, duplicate)
+		}
 		return nil, server.BadRequest(err, invalidPropertiesErrorCode)
 	}
 	view, err := s.accounts.ModifyWalletView(ctx, req.Data.WalletViewReference.UserID, req.Data.WalletViewReference.WalletViewID,
