@@ -60,6 +60,10 @@ func New(ctx context.Context, coinsRepo Coins) Accounts {
 	for _, opt := range AllTwoFAOptions {
 		acc.concurrentlyGeneratedCodes[opt] = &sync.Map{}
 	}
+	var err error
+	defaultCoins, err = coinsRepo.GetCoinsOfSymbolGroup(ctx, acc.cfg.DefaultCoinsInWalletView)
+	log.Panic(errors.Wrapf(err, "failed to load default coins list from db for list: %v", acc.cfg.DefaultCoinsInWalletView))
+
 	return &acc
 }
 

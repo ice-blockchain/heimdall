@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"slices"
 	"strings"
 
 	"github.com/goccy/go-json"
@@ -19,6 +20,32 @@ import (
 )
 
 func (a *accounts) CreateWalletView(ctx context.Context, userID, name string, items []*CoinMapping, symbolGroups []string) (*WalletView, error) {
+	missingDefaultCoins := []*coins.Coin{}
+	for _, def := range defaultCoins {
+		if !slices.ContainsFunc(items, func(mapping *CoinMapping) bool { return def.ID == mapping.CoinID }) {
+			missingDefaultCoins = append(missingDefaultCoins, def)
+		}
+	}
+	if len(missingDefaultCoins) > 0 {
+		wallets, err := a.delegatedRPClient.ListWallets(ctx, userID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get wallets to link default coins for user %v", userID)
+		}
+		for _, def := range missingDefaultCoins {
+			matchingItem := &CoinMapping{
+				WalletID: nil,
+				CoinID:   def.ID,
+			}
+			for _, wallet := range wallets {
+				if strings.EqualFold(wallet["network"].(string), def.Network) {
+					walletId := wallet["id"].(string)
+					matchingItem.WalletID = &walletId
+					break
+				}
+			}
+			items = append(items, matchingItem)
+		}
+	}
 	return a.createWalletView(ctx, userID, name, items, symbolGroups, false)
 }
 

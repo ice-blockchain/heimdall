@@ -212,9 +212,21 @@ func (a *accounts) upsertWalletPubKeyFromRegistrationAndRegisterWalletView(ctx c
 }
 
 func (a *accounts) createDefaultWalletView(ctx context.Context, userID, username, walletID string) (*WalletView, error) {
-	return a.createWalletView(ctx, userID, username, []*CoinMapping{
-		{WalletID: &walletID, CoinID: defaultWalletViewCoinID},
-	}, []string{defaultWalletViewCoinSymbolGroup}, true)
+	coins := []*CoinMapping{}
+	for _, c := range defaultCoins {
+		if c.SymbolGroup == defaultWalletViewCoinSymbolGroup {
+			coins = append(coins, &CoinMapping{
+				WalletID: &walletID,
+				CoinID:   c.ID,
+			})
+		} else {
+			coins = append(coins, &CoinMapping{
+				WalletID: nil,
+				CoinID:   c.ID,
+			})
+		}
+	}
+	return a.createWalletView(ctx, userID, username, coins, a.cfg.DefaultCoinsInWalletView, true)
 }
 
 func (a *accounts) upsertWalletPubKeyFromRegistration(ctx context.Context, now *time.Time, res map[string]any, walletPubKey string) error {
