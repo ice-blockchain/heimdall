@@ -49,6 +49,8 @@ var (
 		"algorandtestnet":   "algorand",
 		"arbitrumone":       "arbitrum",
 		"arbitrumsepolia":   "arbitrum",
+		"aptostetnet":       "aptos",
+		"aptos":             "aptos",
 		"avalanchec":        "avax",
 		"avalanchecfuji":    "avax",
 		"base":              "base",
@@ -59,6 +61,7 @@ var (
 		"bsctestnet":        "bsc",
 		"cardano":           "cardano",
 		"cardanopreprod":    "cardano",
+		"dogecoin":          "dogecoin",
 		"ethereum":          "eth",
 		"ethereumsepolia":   "eth",
 		"fantomopera":       "ftm",
@@ -81,22 +84,20 @@ var (
 		"tron":              "tron",
 		"xrpledger":         "xrp",
 		"xrpledgertestnet":  "xrp",
-		// Those networks below are not presented on /api/v3/onchain/networks on coingecko
-		// We cannot req tokens on them, it responds 404
-		//"ogy":               "",
-		//"litecoin":          "",
-		//"tezos":             "tezos",
-		//"tezosghostnet":     "tezos",
-		//"stellartestnet":    "stellar",
-		//"stellar":   	       "stellar",
-		//"kaspa":             "kaspa",
-		//"polkadot":          "polkadot",
-		//"westend":           "polkadot",
+		"litecoin":          "litecoin",
+		"tezos":             "tezos",
+		"tezosghostnet":     "tezos",
+		"stellartestnet":    "stellar",
+		"stellar":           "stellar",
+		"kaspa":             "kaspa",
+		"polkadot":          "polkadot",
+		"westend":           "polkadot",
 	}
 	reversedNetworkMapping map[string]string = map[string]string{}
 	testnetNetworks                          = []string{
 		"algorandtestnet",
 		"arbitrumsepolia",
+		"aptostetnet",
 		"avalanchecfuji",
 		"basesepolia",
 		"bitcointestnet3",
@@ -112,38 +113,39 @@ var (
 		"iontestnet",
 		"tronnile",
 		"xrpledgertestnet",
-		// Those networks below are not presented on /api/v3/onchain/networks on coingecko
-		// We cannot req tokens on them, it responds 404
-		//"ogy":               "",
-		//"litecoin":          "",
-		//"tezosghostnet":     "tezos",
-		//"stellartestnet":    "stellar",
-		//"westend":           "polkadot",
+		"tezosghostnet",
+		"stellartestnet",
+		"westend",
 	}
-	platformToNetworkMapping = map[string]string{
-		"ethereum":            "eth",
-		"base":                "base",
-		"bitcoin":             "bitcoin",
-		"binance-smart-chain": "bsc",
-		"polygon-pos":         "polygon_pos",
-		"avalanche":           "avax",
-		"fantom":              "ftm",
-		"arbitrum-one":        "arbitrum",
-		"optimistic-ethereum": "optimism",
-		"solana":              "solana",
-		"kava":                "kava",
-		"kusama":              "kusama",
-		"the-open-network":    "ton",
+	platformToNetworkMapping = map[string]platformNetwork{
+		"aptos":               platformNetwork{"aptos", false},
+		"ethereum":            platformNetwork{"eth", false},
+		"base":                platformNetwork{"base", false},
+		"bitcoin":             platformNetwork{"bitcoin", false},
+		"binance-smart-chain": platformNetwork{"bsc", false},
+		"polygon-pos":         platformNetwork{"polygon_pos", false},
+		"avalanche":           platformNetwork{"avax", false},
+		"fantom":              platformNetwork{"ftm", false},
+		"arbitrum-one":        platformNetwork{"arbitrum", false},
+		"optimistic-ethereum": platformNetwork{"optimism", false},
+		"solana":              platformNetwork{"solana", false},
+		"kava":                platformNetwork{"kava", false},
+		"kusama":              platformNetwork{"kusama", false},
+		"the-open-network":    platformNetwork{"ton", false},
 		// "ice-open-network":    "ion", // We need platform/network listing on coin gecko
-		"tron":              "tron",
-		"cardano":           "cardano",
-		"sei-network":       "sei-network",
-		"internet-computer": "icp",
-		// Those networks below are not presented on /api/v3/onchain/networks on coingecko
-		// We cannot req tokens on them, it responds 404
-		//"tezos": "tezos",
-		//"kasplex":             "kaspa",
-		//"polkadot":            "polkadot",
+		"tron":              platformNetwork{"tron", false},
+		"cardano":           platformNetwork{"cardano", false},
+		"sei-network":       platformNetwork{"sei-network", false},
+		"internet-computer": platformNetwork{"icp", false},
+		// Those networks below are not presented on /api/v3/onchain/networks on coingecko,
+		// so we skip tokens for them, only native coins
+		"tezos":    platformNetwork{"tezos", true},
+		"kasplex":  platformNetwork{"kaspa", true},
+		"polkadot": platformNetwork{"polkadot", true},
+		"stellar":  platformNetwork{"stellar", true},
+		"xrp":      platformNetwork{"xrp", true},
+		"litecoin": platformNetwork{"litecoin", true},
+		"algorand": platformNetwork{"algorand", true},
 	}
 	networkToPlatformMapping  map[string]string
 	platformToDecimalsMapping = map[string]int{
@@ -153,6 +155,9 @@ var (
 		"binance-smart-chain": 18,
 		"polygon-pos":         18,
 		"avalanche":           18,
+		"dogecoin":            8,
+		"litecoin":            8,
+		"algorand":            6,
 		"fantom":              18,
 		"arbitrum-one":        18,
 		"optimistic-ethereum": 18,
@@ -165,15 +170,18 @@ var (
 		"cardano":             18,
 		"sei-network":         18,
 		"internet-computer":   18,
-		// Those networks below are not presented on /api/v3/onchain/networks on coingecko
-		// We cannot req tokens on them, it responds 404
-		//"tezos":               6,
-		//"kasplex":             8,
-		//"polkadot":            16,
+		"xrp":                 6,
+		"tezos":               6,
+		"kasplex":             8,
+		"polkadot":            16,
 	}
 
 	platformToCoinMapping = map[string]string{
 		"bitcoin": "bitcoin",
+	}
+	extraCoinsToNetworkMapping = map[string]string{
+		"litecoin": "litecoin",
+		"dogecoin": "dogecoin",
 	}
 )
 
@@ -233,6 +241,10 @@ type (
 	platform struct {
 		Id           string `json:"id"`
 		NativeCoinId string `json:"native_coin_id"`
+	}
+	platformNetwork struct {
+		Network    string
+		SkipTokens bool
 	}
 )
 

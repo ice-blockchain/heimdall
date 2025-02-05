@@ -52,7 +52,7 @@ func New(applicationYamlKey string) Client {
 func init() {
 	networkToPlatformMapping = make(map[string]string)
 	for k, v := range platformToNetworkMapping {
-		networkToPlatformMapping[v] = k
+		networkToPlatformMapping[v.Network] = k
 	}
 }
 
@@ -72,12 +72,16 @@ func (c *client) ListCoins(ctx context.Context) ([]*Coin, error) {
 	for pl, network := range platformToNetworkMapping {
 		if plat, has := platforms[pl]; !has {
 			if _, hasManualMapping := platformToCoinMapping[pl]; hasManualMapping {
-				nativeCoinsToNetwork[platformToCoinMapping[pl]] = append(nativeCoinsToNetwork[platformToCoinMapping[pl]], network)
+				nativeCoinsToNetwork[platformToCoinMapping[pl]] = append(nativeCoinsToNetwork[platformToCoinMapping[pl]], network.Network)
 			}
 		} else {
-			nativeCoinsToNetwork[plat.NativeCoinId] = append(nativeCoinsToNetwork[plat.NativeCoinId], network)
+			nativeCoinsToNetwork[plat.NativeCoinId] = append(nativeCoinsToNetwork[plat.NativeCoinId], network.Network)
 		}
-
+	}
+	for c, n := range extraCoinsToNetworkMapping {
+		if _, has := nativeCoinsToNetwork[c]; !has {
+			nativeCoinsToNetwork[c] = []string{n}
+		}
 	}
 	for _, coin := range *coinList {
 		if len(coin.Platforms) == 0 {
@@ -101,18 +105,18 @@ func (c *client) ListCoins(ctx context.Context) ([]*Coin, error) {
 		coinsToSyncMarketData = append(coinsToSyncMarketData, coin.ID)
 		platformIdx := 0
 		for platform, tokenAddr := range coin.Platforms {
-			if _, has := platformToNetworkMapping[platform]; !has {
+			if network, has := platformToNetworkMapping[platform]; !has || network.SkipTokens {
 				continue
 			}
 			if platformIdx == 0 && tokenAddr != "" && !strings.Contains(tokenAddr, "/") {
-				tokenSyncDecimals[platformToNetworkMapping[platform]] = append(tokenSyncDecimals[platformToNetworkMapping[platform]], tokenAddr)
+				tokenSyncDecimals[platformToNetworkMapping[platform].Network] = append(tokenSyncDecimals[platformToNetworkMapping[platform].Network], tokenAddr)
 			}
 			network := platformToNetworkMapping[platform]
 			res[coin.ID] = append(res[coin.ID], &Coin{
 				ID:              coin.ID,
 				Symbol:          coin.Symbol,
 				Name:            coin.Name,
-				Network:         network,
+				Network:         network.Network,
 				ContractAddress: tokenAddr,
 				Decimals:        platformToDecimalsMapping[platform],
 			})

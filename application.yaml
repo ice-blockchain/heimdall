@@ -89,6 +89,30 @@ accounts:
     - wss://relay.nostr.band/
     - wss://relay1.nostr.band/
     - wss://relay3.nostr.band/
+  defaultCoinsInWalletView:
+    - ice
+    - binancecoin
+    - bitcoin
+    - ethereum
+    - solana
+    - the-open-network
+    - dogecoin
+    - litecoin
+    - stellar
+    - tron
+    - ripple
+    - tezos
+    - matic-network
+    - polkadot
+    - optimism
+    - cardano
+    - algorand
+    - kusama
+    - avalanche-2
+    - kaspa
+    - arbitrum
+    - sonic-2
+    - aptos
 
   wintr/connectors/storage/v2:
     runDDL: true

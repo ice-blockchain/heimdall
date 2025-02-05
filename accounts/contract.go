@@ -159,6 +159,7 @@ var (
 	//go:embed DDL.sql
 	ddl                  string
 	errSignatureRequired = errors.New("signature is required")
+	defaultCoins         []*coins.Coin
 )
 
 type (
@@ -198,17 +199,11 @@ type (
 		Code            string
 	}
 	config struct {
-		EmailExpiration         stdlibtime.Duration `yaml:"emailExpiration" mapstructure:"emailExpiration"`
-		SMSExpiration           stdlibtime.Duration `yaml:"smsExpiration" mapstructure:"smsExpiration"`
-		UserSignatureExpiration stdlibtime.Duration `yaml:"userSignatureExpiration" mapstructure:"userSignatureExpiration"`
-		Max2FACount             int                 `yaml:"max2FACount" mapstructure:"max2FACount"`
-		WalletConfiguration     struct {
-			Version        int `yaml:"version" mapstructure:"version"`
-			SupportedCoins []struct {
-				Network string `yaml:"network" mapstructure:"network"`
-				Coin    string `yaml:"coin" mapstructure:"coin"`
-			} `yaml:"coins" mapstructure:"coins"`
-		} `yaml:"walletConfiguration" mapstructure:"walletConfiguration"`
-		MockRelays []string `yaml:"mockRelays" mapstructure:"mockRelays"`
+		EmailExpiration          stdlibtime.Duration `yaml:"emailExpiration" mapstructure:"emailExpiration"`
+		SMSExpiration            stdlibtime.Duration `yaml:"smsExpiration" mapstructure:"smsExpiration"`
+		UserSignatureExpiration  stdlibtime.Duration `yaml:"userSignatureExpiration" mapstructure:"userSignatureExpiration"`
+		Max2FACount              int                 `yaml:"max2FACount" mapstructure:"max2FACount"`
+		DefaultCoinsInWalletView []string            `yaml:"defaultCoinsInWalletView" mapstructure:"defaultCoinsInWalletView"`
+		MockRelays               []string            `yaml:"mockRelays" mapstructure:"mockRelays"`
 	}
 )
