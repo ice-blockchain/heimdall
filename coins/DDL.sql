@@ -41,3 +41,7 @@ CREATE TABLE IF NOT EXISTS nfts (
                                     icon_url          TEXT NOT NULL,
                                     primary key(contract_address)
 );
+
+INSERT INTO coins (sync_frequency, created_at, updated_at, data_updated_at, decimals, version, price_usd, id, coingecko_coin_id, network, name, contract_address, symbol, symbol_group, icon_url)
+VALUES            ('%v', now(), now(), now(), 9, 0, %v, '7b471f92-ced2-38b0-e408-88e5d89e8045', 'ice', 'ion', 'Ice Open Network', '', 'ice', 'ice', 'https://coin-images.coingecko.com/coins/images/34674/large/ion-coingecko-200w.png?1714009819')
+ON CONFLICT DO NOTHING;

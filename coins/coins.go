@@ -22,17 +22,22 @@ import (
 )
 
 func New(ctx context.Context) Coins {
-	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
 
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	c := coinsRepository{
-		db:                 db,
 		cfg:                &cfg,
-		shutdown:           db.Close,
 		coinGeckoClient:    coingecko.New(applicationYamlKey),
 		nftCoinGeckoClient: coingecko.New("nfts"),
 	}
+	iceCoin, err := c.coinGeckoClient.GetCoins(ctx, []string{DefaultWalletViewCoinSymbolGroup})
+	log.Panic(errors.Wrapf(err, "failed to sync ice price from coin gecko on startup"))
+	if len(iceCoin) == 0 {
+		log.Panic(errors.New("ice coin not found on coin gecko"))
+	}
+	db := storage.MustConnect(ctx, fmt.Sprintf(ddl, c.syncFrequency(DefaultWalletViewCoinSymbolGroup), iceCoin[0].PriceUSD), applicationYamlKey)
+	c.db = db
+	c.shutdown = db.Close
 	if c.needToSyncAllCoins(ctx) {
 		log.Panic(errors.Wrapf(c.syncAllCoins(ctx), "failed to sync all coin gecko coins on startup"))
 	}
