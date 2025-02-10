@@ -63,6 +63,10 @@ type (
 	}
 )
 
+const (
+	DefaultWalletViewCoinSymbolGroup = "ice"
+)
+
 var (
 	ErrNotFound   = storage.ErrNotFound
 	ErrNotChanged = errors.New("not changed")

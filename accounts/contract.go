@@ -122,8 +122,8 @@ const (
 	completeRegistrationUrl          = "/auth/registration/enduser"
 	completeLoginUrl                 = "/auth/login"
 	delegatedLoginUrl                = "/auth/login/delegated"
-	defaultWalletViewCoinID          = "c43ae71d-d5f1-1fd1-4dfa-d01af1484655"
-	defaultWalletViewCoinSymbolGroup = "ice"
+	defaultWalletViewCoinID          = "7b471f92-ced2-38b0-e408-88e5d89e8045"
+	defaultWalletViewCoinSymbolGroup = coins.DefaultWalletViewCoinSymbolGroup
 )
 
 var (
