@@ -86,9 +86,9 @@ type (
 	}
 	CoinWithWalletInfo struct {
 		*coins.Coin
-		WalletID      string `json:"walletId"`
-		WalletAddress string `json:"walletAddress"`
-		Balance       string `json:"balance"`
+		WalletID      *string `json:"walletId"`
+		WalletAddress *string `json:"walletAddress"`
+		Balance       string  `json:"balance"`
 	}
 	CoinMapping struct {
 		*coins.Coin `swaggerignore:"true"`

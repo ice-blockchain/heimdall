@@ -419,17 +419,27 @@ func (a *accounts) GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGrou
 		return nil, errors.Wrapf(err, "failed to get coins of symbol group %v", symbolGroup)
 	}
 	coinsByNetwork := map[string]*coins.Coin{}
+	res := make([]*CoinWithWalletInfo, 0, len(listCoins))
 	for _, c := range listCoins {
+		walletMatched := false
 		for _, wallet := range allWallets {
 			walletID := wallet["id"].(string)
 			walletNetwork := strings.ToLower(wallet["network"].(string))
 			if _, has := wallets[walletID]; (has || hasAllWallets) && c.Network == walletNetwork {
 				wallets[walletID] = wallet
 				coinsByNetwork[walletNetwork] = c
+				walletMatched = true
 			}
 		}
+		if !walletMatched {
+			res = append(res, &CoinWithWalletInfo{
+				Coin:          c,
+				WalletID:      nil,
+				WalletAddress: nil,
+				Balance:       "0",
+			})
+		}
 	}
-	res := make([]*CoinWithWalletInfo, 0, len(coinsByNetwork))
 	for walletID, wallet := range wallets {
 		walletAssets, err := a.delegatedRPClient.ListAssets(ctx, walletID)
 		if err != nil {
@@ -446,15 +456,30 @@ func (a *accounts) GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGrou
 			if assetContract == coin.ContractAddress ||
 				(coins.IsTestnet(walletAssets.Network) && strings.EqualFold(assetSymbol, coin.Symbol)) ||
 				(coins.IsTestnet(walletAssets.Network) && isNativeCoin && coin.ContractAddress == "" && strings.EqualFold(walletAssets.Network, coin.Network)) {
+				walletAddr := wallet["address"].(string)
 				res = append(res, &CoinWithWalletInfo{
 					Coin:          coin,
-					WalletID:      walletID,
-					WalletAddress: wallet["address"].(string),
+					WalletID:      &walletID,
+					WalletAddress: &walletAddr,
 					Balance:       asset["balance"].(string),
 				})
 			}
 		}
 	}
+	slices.SortFunc(res, func(a, b *CoinWithWalletInfo) int {
+		balanceA := new(big.Int)
+		var ok bool
+		balanceA, ok = balanceA.SetString(a.Balance, 10)
+		if !ok {
+			return 0
+		}
+		balanceB := new(big.Int)
+		balanceB, ok = balanceB.SetString(b.Balance, 10)
+		if !ok {
+			return 0
+		}
+		return balanceA.Cmp(balanceB)
+	})
 	return res, nil
 }
 
