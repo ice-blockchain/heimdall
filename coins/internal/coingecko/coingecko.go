@@ -112,14 +112,16 @@ func (c *client) ListCoins(ctx context.Context) ([]*Coin, error) {
 				tokenSyncDecimals[platformToNetworkMapping[platform].Network] = append(tokenSyncDecimals[platformToNetworkMapping[platform].Network], tokenAddr)
 			}
 			network := platformToNetworkMapping[platform]
-			res[coin.ID] = append(res[coin.ID], &Coin{
-				ID:              coin.ID,
-				Symbol:          coin.Symbol,
-				Name:            coin.Name,
-				Network:         network.Network,
-				ContractAddress: tokenAddr,
-				Decimals:        platformToDecimalsMapping[platform],
-			})
+			if tokenAddr != "" {
+				res[coin.ID] = append(res[coin.ID], &Coin{
+					ID:              coin.ID,
+					Symbol:          coin.Symbol,
+					Name:            coin.Name,
+					Network:         network.Network,
+					ContractAddress: tokenAddr,
+					Decimals:        platformToDecimalsMapping[platform],
+				})
+			}
 			platformIdx += 1
 		}
 	}
