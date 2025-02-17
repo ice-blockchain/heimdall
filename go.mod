@@ -10,7 +10,7 @@ require (
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.10
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/dfns/dfns-sdk-go v0.0.2-beta
-	github.com/ethereum/go-ethereum v1.15.0
+	github.com/ethereum/go-ethereum v1.15.1
 	github.com/gin-gonic/gin v1.10.0
 	github.com/goccy/go-json v0.10.5
 	github.com/goccy/go-reflect v1.2.0
@@ -30,7 +30,7 @@ require (
 	github.com/swaggo/swag v1.16.4
 	github.com/twilio/twilio-go v1.23.12
 	github.com/xssnick/tonutils-go v1.11.0
-	golang.org/x/exp v0.0.0-20250210185358-939b2ce775ac
+	golang.org/x/exp v0.0.0-20250215185904-eff6e970281f
 	golang.org/x/sync v0.11.0
 )
 
@@ -45,7 +45,7 @@ require (
 	cloud.google.com/go/longrunning v0.6.4 // indirect
 	cloud.google.com/go/monitoring v1.24.0 // indirect
 	cloud.google.com/go/storage v1.50.0 // indirect
-	firebase.google.com/go/v4 v4.15.1 // indirect
+	firebase.google.com/go/v4 v4.15.2 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.26.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.50.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.50.0 // indirect
@@ -87,7 +87,7 @@ require (
 	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/go-playground/validator/v10 v10.24.0 // indirect
+	github.com/go-playground/validator/v10 v10.25.0 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
@@ -130,7 +130,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/puzpuzpuz/xsync/v3 v3.5.0 // indirect
+	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/refraction-networking/utls v1.6.7 // indirect
 	github.com/rs/zerolog v1.33.0 // indirect

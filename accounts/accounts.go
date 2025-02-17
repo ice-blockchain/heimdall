@@ -4,6 +4,7 @@ package accounts
 
 import (
 	"context"
+	"github.com/ice-blockchain/heimdall/coins"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -61,9 +62,12 @@ func New(ctx context.Context, coinsRepo Coins) Accounts {
 		acc.concurrentlyGeneratedCodes[opt] = &sync.Map{}
 	}
 	var err error
-	defaultCoins, err = coinsRepo.GetCoinsOfSymbolGroup(ctx, acc.cfg.DefaultCoinsInWalletView)
+	defCoinsList, err := coinsRepo.GetCoinsOfSymbolGroup(ctx, acc.cfg.DefaultCoinsInWalletView)
 	log.Panic(errors.Wrapf(err, "failed to load default coins list from db for list: %v", acc.cfg.DefaultCoinsInWalletView))
-
+	defaultCoins = make(map[string]*coins.Coin)
+	for _, dc := range defCoinsList {
+		defaultCoins[dc.SymbolGroup] = dc
+	}
 	return &acc
 }
 

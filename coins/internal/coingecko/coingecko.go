@@ -37,7 +37,7 @@ func New(applicationYamlKey string) Client {
 	}
 	if len(reversedNetworkMapping) == 0 {
 		for k, v := range networksMapping {
-			if slices.Contains(testnetNetworks, k) && cfg.TestNet {
+			if slices.Contains(testnetNetworks, strings.ToLower(k)) && cfg.TestNet {
 				reversedNetworkMapping[v] = k
 			} else if !cfg.TestNet && !slices.Contains(testnetNetworks, k) {
 				reversedNetworkMapping[v] = k
@@ -383,7 +383,7 @@ func (c *Coin) SymbolGroup() string {
 	return c.ID
 }
 func MapNetwork(network string) (string, error) {
-	if coingeckoNetwork, hasNetwork := networksMapping[strings.ToLower(network)]; !hasNetwork || coingeckoNetwork == "" {
+	if coingeckoNetwork, hasNetwork := networksMapping[network]; !hasNetwork || coingeckoNetwork == "" {
 		return "", ErrInvalidNetwork
 	} else {
 		return coingeckoNetwork, nil

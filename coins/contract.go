@@ -68,8 +68,9 @@ const (
 )
 
 var (
-	ErrNotFound   = storage.ErrNotFound
-	ErrNotChanged = errors.New("not changed")
+	ErrNotFound       = storage.ErrNotFound
+	ErrNotChanged     = errors.New("not changed")
+	ErrInvalidNetwork = coingecko.ErrInvalidNetwork
 )
 
 const (
