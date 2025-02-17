@@ -11,6 +11,7 @@ import (
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
 	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
+	"github.com/ice-blockchain/heimdall/coins"
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
@@ -61,9 +62,12 @@ func New(ctx context.Context, coinsRepo Coins) Accounts {
 		acc.concurrentlyGeneratedCodes[opt] = &sync.Map{}
 	}
 	var err error
-	defaultCoins, err = coinsRepo.GetCoinsOfSymbolGroup(ctx, acc.cfg.DefaultCoinsInWalletView)
+	defCoinsList, err := coinsRepo.GetCoinsOfSymbolGroup(ctx, acc.cfg.DefaultCoinsInWalletView)
 	log.Panic(errors.Wrapf(err, "failed to load default coins list from db for list: %v", acc.cfg.DefaultCoinsInWalletView))
-
+	defaultCoins = make(map[string]*coins.Coin)
+	for _, dc := range defCoinsList {
+		defaultCoins[dc.SymbolGroup] = dc
+	}
 	return &acc
 }
 

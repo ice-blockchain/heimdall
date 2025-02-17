@@ -213,7 +213,11 @@ func (a *accounts) upsertWalletPubKeyFromRegistrationAndRegisterWalletView(ctx c
 
 func (a *accounts) createDefaultWalletView(ctx context.Context, userID, username, walletID string) (*WalletView, error) {
 	coins := []*CoinMapping{}
-	for _, c := range defaultCoins {
+	for _, dc := range a.cfg.DefaultCoinsInWalletView {
+		c, has := defaultCoins[dc]
+		if !has {
+			continue
+		}
 		if c.SymbolGroup == defaultWalletViewCoinSymbolGroup && (strings.EqualFold(c.Network, dfns.DefaultWalletNetworkTestNet) || strings.EqualFold(c.Network, dfns.DefaultWalletNetworkMainNet)) {
 			coins = append(coins, &CoinMapping{
 				WalletID: &walletID,

@@ -159,7 +159,7 @@ var (
 	//go:embed DDL.sql
 	ddl                  string
 	errSignatureRequired = errors.New("signature is required")
-	defaultCoins         []*coins.Coin
+	defaultCoins         map[string]*coins.Coin
 )
 
 type (
