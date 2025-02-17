@@ -49,7 +49,7 @@ var (
 		"AlgorandTestnet":  "algorand",
 		"ArbitrumOne":      "arbitrum",
 		"ArbitrumSepolia":  "arbitrum",
-		"AptosTetnet":      "aptos",
+		"AptosTestnet":     "aptos",
 		"Aptos":            "aptos",
 		"AvalancheC":       "avax",
 		"AvalancheCFuji":   "avax",
@@ -97,7 +97,7 @@ var (
 	testnetNetworks                          = []string{
 		"algorandtestnet",
 		"arbitrumsepolia",
-		"aptostetnet",
+		"aptostestnet",
 		"avalanchecfuji",
 		"basesepolia",
 		"bitcointestnet3",
