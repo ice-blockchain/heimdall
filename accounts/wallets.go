@@ -22,12 +22,14 @@ import (
 func (a *accounts) CreateWalletView(ctx context.Context, userID, name string, items []*CoinMapping, symbolGroups []string) (*WalletView, error) {
 	missingDefaultCoins := []*coins.Coin{}
 	for _, dc := range a.cfg.DefaultCoinsInWalletView {
-		def, has := defaultCoins[dc]
+		defCoins, has := defaultCoins[dc]
 		if !has {
 			continue
 		}
-		if !slices.ContainsFunc(items, func(mapping *CoinMapping) bool { return def.ID == mapping.CoinID }) {
-			missingDefaultCoins = append(missingDefaultCoins, def)
+		for _, def := range defCoins {
+			if !slices.ContainsFunc(items, func(mapping *CoinMapping) bool { return def.ID == mapping.CoinID }) {
+				missingDefaultCoins = append(missingDefaultCoins, def)
+			}
 		}
 	}
 	if len(missingDefaultCoins) > 0 {
@@ -145,7 +147,18 @@ func (a *accounts) GetWalletViews(ctx context.Context, userID string) ([]*Wallet
 				mainWalletID = walletID
 			}
 		}
-		newView, err := a.createDefaultWalletView(ctx, userID, usr.Username, mainWalletID)
+		var linkDefaultWalletViewToTon bool
+		if mainWalletID == "" {
+			for _, wallet := range wallets {
+				if walletID, walletPubKey := dfns.CheckMainWallet(wallet, "Ton", "TonTestnet"); walletID != "" && walletPubKey != "" {
+					mainWalletID = walletID
+				}
+			}
+			if mainWalletID != "" {
+				linkDefaultWalletViewToTon = true
+			}
+		}
+		newView, err := a.createDefaultWalletView(ctx, userID, usr.Username, mainWalletID, linkDefaultWalletViewToTon)
 		if err != nil {
 			return nil, errors.Wrapf(err, "user %v is missing default walletview and cannot create", userID)
 		}

@@ -111,19 +111,20 @@ type (
 )
 
 const (
-	TwoFAOptionSMS                   = TwoFAOptionEnum("sms")
-	TwoFAOptionEmail                 = TwoFAOptionEnum("email")
-	TwoFAOptionTOTPAuthenticator     = TwoFAOptionEnum("totp_authenticator")
-	AuthorizationHeaderCtxValue      = dfns.AuthHeaderCtxValue
-	AppIDHeaderCtxValue              = dfns.AppIDCtxValue
-	UserActionCtxValue               = dfns.UserActionCtxValue
-	UserSignatureCtxValueKey         = "UserSignatureCtxValueKey"
-	registrationUrl                  = "/auth/registration/delegated"
-	completeRegistrationUrl          = "/auth/registration/enduser"
-	completeLoginUrl                 = "/auth/login"
-	delegatedLoginUrl                = "/auth/login/delegated"
-	defaultWalletViewCoinID          = "7b471f92-ced2-38b0-e408-88e5d89e8045"
-	defaultWalletViewCoinSymbolGroup = coins.DefaultWalletViewCoinSymbolGroup
+	TwoFAOptionSMS                                 = TwoFAOptionEnum("sms")
+	TwoFAOptionEmail                               = TwoFAOptionEnum("email")
+	TwoFAOptionTOTPAuthenticator                   = TwoFAOptionEnum("totp_authenticator")
+	AuthorizationHeaderCtxValue                    = dfns.AuthHeaderCtxValue
+	AppIDHeaderCtxValue                            = dfns.AppIDCtxValue
+	UserActionCtxValue                             = dfns.UserActionCtxValue
+	UserSignatureCtxValueKey                       = "UserSignatureCtxValueKey"
+	registrationUrl                                = "/auth/registration/delegated"
+	completeRegistrationUrl                        = "/auth/registration/enduser"
+	completeLoginUrl                               = "/auth/login"
+	delegatedLoginUrl                              = "/auth/login/delegated"
+	defaultWalletViewCoinID                        = "7b471f92-ced2-38b0-e408-88e5d89e8045"
+	defaultWalletViewCoinSymbolGroup               = coins.DefaultWalletViewCoinSymbolGroup
+	defaultWalletViewCoinSymbolGroupForOldAccounts = "the-open-network"
 )
 
 var (
@@ -159,7 +160,7 @@ var (
 	//go:embed DDL.sql
 	ddl                  string
 	errSignatureRequired = errors.New("signature is required")
-	defaultCoins         map[string]*coins.Coin
+	defaultCoins         map[string][]*coins.Coin
 )
 
 type (
