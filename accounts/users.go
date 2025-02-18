@@ -204,14 +204,14 @@ func (a *accounts) upsertWalletPubKeyFromRegistrationAndRegisterWalletView(ctx c
 	if err := a.upsertWalletPubKeyFromRegistration(ctx, now, res, walletPubKey); err != nil {
 		return errors.Wrapf(err, "failed to upsert users masterkey")
 	}
-	if _, err := a.createDefaultWalletView(ctx, userID, username, walletID); err != nil {
+	if _, err := a.createDefaultWalletView(ctx, userID, username, walletID, false); err != nil {
 		return errors.Wrapf(err, "failed to create default walletview for user %v", userID)
 	}
 
 	return nil
 }
 
-func (a *accounts) createDefaultWalletView(ctx context.Context, userID, username, walletID string) (*WalletView, error) {
+func (a *accounts) createDefaultWalletView(ctx context.Context, userID, username, walletID string, linkToTON bool) (*WalletView, error) {
 	coins := []*CoinMapping{}
 	for _, dc := range a.cfg.DefaultCoinsInWalletView {
 		defCoins, has := defaultCoins[dc]
@@ -219,7 +219,13 @@ func (a *accounts) createDefaultWalletView(ctx context.Context, userID, username
 			continue
 		}
 		for _, c := range defCoins {
-			if c.SymbolGroup == defaultWalletViewCoinSymbolGroup && (strings.EqualFold(c.Network, dfns.DefaultWalletNetworkTestNet) || strings.EqualFold(c.Network, dfns.DefaultWalletNetworkMainNet)) {
+			if !linkToTON && c.SymbolGroup == defaultWalletViewCoinSymbolGroup && (strings.EqualFold(c.Network, dfns.DefaultWalletNetworkTestNet) || strings.EqualFold(c.Network, dfns.DefaultWalletNetworkMainNet)) {
+				coins = append(coins, &CoinMapping{
+					WalletID: &walletID,
+					CoinID:   c.ID,
+				})
+				// old accounts with ton
+			} else if linkToTON && c.SymbolGroup == defaultWalletViewCoinSymbolGroupForOldAccounts && (strings.EqualFold(c.Network, dfns.DefaultWalletNetworkMainNetForOldAccounts) || strings.EqualFold(c.Network, dfns.DefaultWalletNetworkTestNetForOldAccounts)) {
 				coins = append(coins, &CoinMapping{
 					WalletID: &walletID,
 					CoinID:   c.ID,

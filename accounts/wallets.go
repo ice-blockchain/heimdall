@@ -147,7 +147,18 @@ func (a *accounts) GetWalletViews(ctx context.Context, userID string) ([]*Wallet
 				mainWalletID = walletID
 			}
 		}
-		newView, err := a.createDefaultWalletView(ctx, userID, usr.Username, mainWalletID)
+		var linkDefaultWalletViewToTon bool
+		if mainWalletID == "" {
+			for _, wallet := range wallets {
+				if walletID, walletPubKey := dfns.CheckMainWallet(wallet, "Ton", "TonTestnet"); walletID != "" && walletPubKey != "" {
+					mainWalletID = walletID
+				}
+			}
+			if mainWalletID != "" {
+				linkDefaultWalletViewToTon = true
+			}
+		}
+		newView, err := a.createDefaultWalletView(ctx, userID, usr.Username, mainWalletID, linkDefaultWalletViewToTon)
 		if err != nil {
 			return nil, errors.Wrapf(err, "user %v is missing default walletview and cannot create", userID)
 		}

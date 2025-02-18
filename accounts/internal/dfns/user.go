@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/goccy/go-json"
@@ -40,14 +41,17 @@ func ExtractMainWallet(res map[string]any) (walletID, walletPubKey string) {
 	return walletID, walletPubKey
 }
 
-func CheckMainWallet(wallet Wallet) (walletID, walletPubKey string) {
+func CheckMainWallet(wallet Wallet, networks ...string) (walletID, walletPubKey string) {
+	if len(networks) == 0 {
+		networks = []string{DefaultWalletNetworkTestNet, DefaultWalletNetworkMainNet}
+	}
 	if nameI, hasName := wallet["name"]; hasName && nameI != nil {
 		if name, ok := nameI.(string); !ok || name != defaultWalletName {
 			return "", ""
 		}
 	}
 	if networkI, hasNetwork := wallet["network"]; hasNetwork && networkI != nil {
-		if network, ok := networkI.(string); !ok || (network != DefaultWalletNetworkTestNet && network != DefaultWalletNetworkMainNet) {
+		if network, ok := networkI.(string); !ok || !slices.Contains(networks, network) {
 			return "", ""
 		}
 	}

@@ -106,9 +106,11 @@ const (
 	broadcastTransactionUrl          = "/wallets/(wa-[^/]+)/transactions"
 	networkFeesUrl                   = "/networks/fees"
 
-	DefaultWalletNetworkTestNet = "IonTestnet"
-	DefaultWalletNetworkMainNet = "Ion"
-	defaultWalletName           = "main"
+	DefaultWalletNetworkTestNet               = "IonTestnet"
+	DefaultWalletNetworkMainNet               = "Ion"
+	DefaultWalletNetworkMainNetForOldAccounts = "Ton"
+	DefaultWalletNetworkTestNetForOldAccounts = "TonTestnet"
+	defaultWalletName                         = "main"
 
 	networkTON        = "ton"
 	networkTONTestnet = "tontestnet"
