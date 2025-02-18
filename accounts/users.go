@@ -214,20 +214,22 @@ func (a *accounts) upsertWalletPubKeyFromRegistrationAndRegisterWalletView(ctx c
 func (a *accounts) createDefaultWalletView(ctx context.Context, userID, username, walletID string) (*WalletView, error) {
 	coins := []*CoinMapping{}
 	for _, dc := range a.cfg.DefaultCoinsInWalletView {
-		c, has := defaultCoins[dc]
+		defCoins, has := defaultCoins[dc]
 		if !has {
 			continue
 		}
-		if c.SymbolGroup == defaultWalletViewCoinSymbolGroup && (strings.EqualFold(c.Network, dfns.DefaultWalletNetworkTestNet) || strings.EqualFold(c.Network, dfns.DefaultWalletNetworkMainNet)) {
-			coins = append(coins, &CoinMapping{
-				WalletID: &walletID,
-				CoinID:   c.ID,
-			})
-		} else {
-			coins = append(coins, &CoinMapping{
-				WalletID: nil,
-				CoinID:   c.ID,
-			})
+		for _, c := range defCoins {
+			if c.SymbolGroup == defaultWalletViewCoinSymbolGroup && (strings.EqualFold(c.Network, dfns.DefaultWalletNetworkTestNet) || strings.EqualFold(c.Network, dfns.DefaultWalletNetworkMainNet)) {
+				coins = append(coins, &CoinMapping{
+					WalletID: &walletID,
+					CoinID:   c.ID,
+				})
+			} else {
+				coins = append(coins, &CoinMapping{
+					WalletID: nil,
+					CoinID:   c.ID,
+				})
+			}
 		}
 	}
 	return a.createWalletView(ctx, userID, username, coins, a.cfg.DefaultCoinsInWalletView, true)

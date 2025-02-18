@@ -22,12 +22,14 @@ import (
 func (a *accounts) CreateWalletView(ctx context.Context, userID, name string, items []*CoinMapping, symbolGroups []string) (*WalletView, error) {
 	missingDefaultCoins := []*coins.Coin{}
 	for _, dc := range a.cfg.DefaultCoinsInWalletView {
-		def, has := defaultCoins[dc]
+		defCoins, has := defaultCoins[dc]
 		if !has {
 			continue
 		}
-		if !slices.ContainsFunc(items, func(mapping *CoinMapping) bool { return def.ID == mapping.CoinID }) {
-			missingDefaultCoins = append(missingDefaultCoins, def)
+		for _, def := range defCoins {
+			if !slices.ContainsFunc(items, func(mapping *CoinMapping) bool { return def.ID == mapping.CoinID }) {
+				missingDefaultCoins = append(missingDefaultCoins, def)
+			}
 		}
 	}
 	if len(missingDefaultCoins) > 0 {
