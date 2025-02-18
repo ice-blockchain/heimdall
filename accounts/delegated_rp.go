@@ -4,6 +4,7 @@ package accounts
 
 import (
 	"context"
+	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"net/http"
 	"strings"
 
@@ -57,16 +58,18 @@ func (a *accounts) GetLoginChallenge(ctx context.Context, username string, codes
 	if loginChallenge.PasswordLogin() {
 		var usr *user
 		usr, err = a.getUserByUsername(ctx, username)
-		if err != nil {
+		if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 			return nil, errors.Wrapf(err, "failed to get user 2FA state for username %v", username)
 		}
-		var hasEnabled2FA bool
-		if hasEnabled2FA, err = a.checkIfEnough2FAProvided(usr, codes); err != nil {
-			return nil, err //nolint:wrapcheck // tErr.
-		}
-		if hasEnabled2FA {
-			if _, err = a.verifyAndRedeem2FA(ctx, usr.ID, codes); err != nil {
-				return nil, errors.Wrapf(err, "failed to verify 2FA codes")
+		if usr != nil {
+			var hasEnabled2FA bool
+			if hasEnabled2FA, err = a.checkIfEnough2FAProvided(usr, codes); err != nil {
+				return nil, err //nolint:wrapcheck // tErr.
+			}
+			if hasEnabled2FA {
+				if _, err = a.verifyAndRedeem2FA(ctx, usr.ID, codes); err != nil {
+					return nil, errors.Wrapf(err, "failed to verify 2FA codes")
+				}
 			}
 		}
 	}
