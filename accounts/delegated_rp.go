@@ -4,7 +4,6 @@ package accounts
 
 import (
 	"context"
-	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"net/http"
 	"strings"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
+	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
 func (a *accounts) ProxyDelegatedRelyingParty(ctx context.Context, rw http.ResponseWriter, r *http.Request) {
