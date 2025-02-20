@@ -19,6 +19,7 @@ import (
 func (s *service) setupCoinRoutes(router gin.IRoutes) {
 	router.POST("/v1/coins", server.RootHandler(s.ImportCoin))
 	router.GET("/v1/coins", server.RootHandler(s.GetAllCoins))
+	router.GET("/v1/networks", server.RootHandler(s.GetAllNetworks))
 	router.GET("/v1/users/:userId/coins", server.RootHandler(s.GetVersionedCoins))
 	router.PATCH("/v1/sync-coins", server.RootHandler(s.SyncCoins))
 	router.GET("/v1/users/:userId/coins/:symbolGroup", server.RootHandler(s.GetCoinsOfSymbolGroup))
@@ -86,6 +87,29 @@ func (s *service) GetAllCoins(
 	return &server.Response[[]*SymbolGroupWithCoins]{Code: http.StatusOK, Data: &allCoins, Headers: map[string]string{"X-Version": fmt.Sprintf("%v", latestVersion)}}, nil
 }
 
+// GetAllNetworks godoc
+//
+//	@Schemes
+//	@Description	Provides information about all the networks
+//	@Tags			Coins
+//	@Produce		json
+//	@Param			X-API-Key	header		string	true	"API key"	default(bogus)
+//	@Success		200			{object}	[]Network
+//	@Failure		403			{object}	server.ErrorResponse	"if invalid X-API-Key provided"
+//	@Failure		500			{object}	server.ErrorResponse	"if server fault"
+//	@Failure		504			{object}	server.ErrorResponse	"if request times out"
+//	@Router			/v1/networks [GET].
+func (s *service) GetAllNetworks(
+	_ context.Context,
+	req *server.Request[APIKey, []*Network],
+) (successResp *server.Response[[]*Network], errorResp *server.ErrResponse[*server.ErrorResponse]) {
+	if !slices.Contains(s.cfg.APIKey, req.Data.APIKey) {
+		return nil, server.Forbidden(errors.Errorf("invalid api key %v", req.Data.APIKey))
+	}
+	allNetworks := s.coins.GetAllNetworks()
+	return &server.Response[[]*Network]{Code: http.StatusOK, Data: &allNetworks}, nil
+}
+
 // GetVersionedCoins godoc
 //
 //	@Schemes
@@ -104,6 +128,7 @@ func (s *service) GetVersionedCoins(
 	req *server.Request[GetVersionedCoins, VersionedCoins],
 ) (successResp *server.Response[VersionedCoins], errorResp *server.ErrResponse[*server.ErrorResponse]) {
 	version, items, err := s.coins.GetVersionedCoins(ctx, req.Data.UserID, req.Data.Version)
+	networks := s.coins.GetAllNetworks()
 	if err != nil {
 		switch {
 		case errors.Is(err, coins.ErrNotChanged):
@@ -113,7 +138,7 @@ func (s *service) GetVersionedCoins(
 		}
 	}
 
-	return server.OK[VersionedCoins](&VersionedCoins{Version: version, Coins: items}), nil
+	return server.OK[VersionedCoins](&VersionedCoins{Version: version, Coins: items, Networks: networks}), nil
 }
 
 // SyncCoins godoc

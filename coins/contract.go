@@ -18,12 +18,14 @@ import (
 )
 
 type (
-	Network = string
-	Coins   interface {
+	NetworkName = string
+	Network     = coingecko.Network
+	Coins       interface {
 		io.Closer
 		HealthCheck(ctx context.Context) error
 		Import(ctx context.Context, network, contractAddress string) (*Coin, error)
 		GetAllCoins(ctx context.Context) (uint64, []*SymbolGroupWithCoins, error)
+		GetAllNetworks() []*Network
 		GetVersionedCoins(ctx context.Context, userID string, knownVersion *int) (latestVersion uint64, coinDiff []*Coin, err error)
 		SyncCoins(ctx context.Context, symbolGroups []string) ([]*Coin, error)
 		GetCoinsOfSymbolGroup(ctx context.Context, symbolGroups []string) ([]*Coin, error)
@@ -104,7 +106,7 @@ type (
 		metrics         metrics.Registry
 	}
 	config struct {
-		Fees                    map[Network]Fee                `yaml:"fees" mapstructure:"fees"`
+		Fees                    map[NetworkName]Fee            `yaml:"fees" mapstructure:"fees"`
 		SyncFrequency           map[string]stdlibtime.Duration `yaml:"syncFrequency" mapstructure:"syncFrequency"`
 		DefaultSyncFrequency    stdlibtime.Duration            `yaml:"defaultSyncFrequency" mapstructure:"defaultSyncFrequency"`
 		SyncTokensDataFrequency stdlibtime.Duration            `yaml:"syncTokensDataFrequency" mapstructure:"syncTokensDataFrequency"`

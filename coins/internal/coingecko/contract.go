@@ -17,13 +17,13 @@ type (
 		GetCoins(ctx context.Context, coinIDs []string) ([]*Coin, error)
 		GetNFT(ctx context.Context, network string, contractAddress string) (*NFT, error)
 	}
-	Network         = string
+	NetworkName     = string
 	ContractAddress = string
 	Coin            struct {
 		ID              string
 		Symbol          string
 		Name            string
-		Network         Network
+		Network         NetworkName
 		ContractAddress ContractAddress
 		Decimals        int
 		PriceUSD        float64
@@ -39,142 +39,25 @@ type (
 			Thumb string `json:"thumb"`
 		} `json:"image"`
 	}
+	Network struct {
+		ID                 string `json:"id"`
+		CoinGeckoNetworkID string `json:"-"`
+		CoinGeckoPlatform  string `json:"-"`
+		DisplayName        string `json:"displayName"`
+		IsTestnet          bool   `json:"isTestnet"`
+		Image              string `json:"image"`
+		ExplorerURL        string `json:"explorerUrl"`
+		DefaultDecimals    int    `json:"-"`
+		SkipSyncTokens     bool   `json:"-"`
+	}
 )
 
 var (
 	ErrNotFound       = errors.New("not found")
 	ErrInvalidNetwork = errors.New("invalid network")
-	networksMapping   = map[string]string{
-		"Algorand":         "algorand",
-		"AlgorandTestnet":  "algorand",
-		"ArbitrumOne":      "arbitrum",
-		"ArbitrumSepolia":  "arbitrum",
-		"AptosTestnet":     "aptos",
-		"Aptos":            "aptos",
-		"AvalancheC":       "avax",
-		"AvalancheCFuji":   "avax",
-		"Base":             "base",
-		"BaseSepolia":      "base",
-		"Bitcoin":          "bitcoin",
-		"BitcoinTestnet3":  "bitcoin",
-		"Bsc":              "bsc",
-		"BscTestnet":       "bsc",
-		"Cardano":          "cardano",
-		"CardanoPreprod":   "cardano",
-		"Dogecoin":         "dogecoin",
-		"Ethereum":         "eth",
-		"EthereumSepolia":  "eth",
-		"FantomOpera":      "ftm",
-		"FantomTestnet":    "ftm",
-		"ICP":              "icp",
-		"Kusama":           "kusama",
-		"Optimism":         "optimism",
-		"OptimismSepolia":  "optimism",
-		"SeiPacific1":      "sei-network",
-		"SeiAtlantic2":     "sei-network",
-		"Solana":           "solana",
-		"SolanaDevnet":     "solana",
-		"Polygon":          "polygon_pos",
-		"PolygonAmoy":      "polygon_pos",
-		"Ton":              "ton",
-		"TonTestnet":       "ton",
-		"Ion":              "ion",
-		"IonTestnet":       "ion",
-		"TronNile":         "tron",
-		"Tron":             "tron",
-		"XrpLedger":        "xrp",
-		"XrpLedgerTestnet": "xrp",
-		"Litecoin":         "litecoin",
-		"Tezos":            "tezos",
-		"TezosGhostnet":    "tezos",
-		"StellarTestnet":   "stellar",
-		"Stellar":          "stellar",
-		"Kaspa":            "kaspa",
-		"Polkadot":         "polkadot",
-		"Westend":          "polkadot",
-	}
-	reversedNetworkMapping map[string]string = map[string]string{}
-	testnetNetworks                          = []string{
-		"algorandtestnet",
-		"arbitrumsepolia",
-		"aptostestnet",
-		"avalanchecfuji",
-		"basesepolia",
-		"bitcointestnet3",
-		"bsctestnet",
-		"cardanopreprod",
-		"ethereumsepolia",
-		"fantomtestnet",
-		"optimismsepolia",
-		"seiatlantic2",
-		"solanadevnet",
-		"polygonamoy",
-		"tontestnet",
-		"iontestnet",
-		"tronnile",
-		"xrpledgertestnet",
-		"tezosghostnet",
-		"stellartestnet",
-		"westend",
-	}
-	platformToNetworkMapping = map[string]platformNetwork{
-		"aptos":               platformNetwork{"aptos", false},
-		"ethereum":            platformNetwork{"eth", false},
-		"base":                platformNetwork{"base", false},
-		"bitcoin":             platformNetwork{"bitcoin", false},
-		"binance-smart-chain": platformNetwork{"bsc", false},
-		"polygon-pos":         platformNetwork{"polygon_pos", false},
-		"avalanche":           platformNetwork{"avax", false},
-		"fantom":              platformNetwork{"ftm", false},
-		"arbitrum-one":        platformNetwork{"arbitrum", false},
-		"optimistic-ethereum": platformNetwork{"optimism", false},
-		"solana":              platformNetwork{"solana", false},
-		"kava":                platformNetwork{"kava", false},
-		"kusama":              platformNetwork{"kusama", false},
-		"the-open-network":    platformNetwork{"ton", false},
-		// "ice-open-network":    "ion", // We need platform/network listing on coin gecko
-		"tron":              platformNetwork{"tron", false},
-		"cardano":           platformNetwork{"cardano", false},
-		"sei-network":       platformNetwork{"sei-network", false},
-		"internet-computer": platformNetwork{"icp", false},
-		// Those networks below are not presented on /api/v3/onchain/networks on coingecko,
-		// so we skip tokens for them, only native coins
-		"tezos":    platformNetwork{"tezos", true},
-		"kasplex":  platformNetwork{"kaspa", true},
-		"polkadot": platformNetwork{"polkadot", true},
-		"stellar":  platformNetwork{"stellar", true},
-		"xrp":      platformNetwork{"xrp", true},
-		"litecoin": platformNetwork{"litecoin", true},
-		"algorand": platformNetwork{"algorand", true},
-	}
-	networkToPlatformMapping  map[string]string
-	platformToDecimalsMapping = map[string]int{
-		"ethereum":            18,
-		"base":                18,
-		"bitcoin":             8,
-		"binance-smart-chain": 18,
-		"polygon-pos":         18,
-		"avalanche":           18,
-		"dogecoin":            8,
-		"litecoin":            8,
-		"algorand":            6,
-		"fantom":              18,
-		"arbitrum-one":        18,
-		"optimistic-ethereum": 18,
-		"solana":              9,
-		"kava":                6,
-		"kusama":              12,
-		"the-open-network":    9,
-		"ice-open-network":    9,
-		"tron":                18,
-		"cardano":             18,
-		"sei-network":         18,
-		"internet-computer":   18,
-		"xrp":                 6,
-		"tezos":               6,
-		"kasplex":             8,
-		"polkadot":            16,
-	}
+
+	networkMappingFromCoinGecko map[string]string = map[string]string{}
+	platformToNetworkMapping                      = map[string]*Network{}
 
 	platformToCoinMapping = map[string]string{
 		"bitcoin": "bitcoin",
@@ -198,10 +81,10 @@ type (
 		} `yaml:"coin-gecko" mapstructure:"coin-gecko"`
 	}
 	coinWithPlatforms struct {
-		ID        string                      `json:"id"`
-		Symbol    string                      `json:"symbol"`
-		Name      string                      `json:"name"`
-		Platforms map[Network]ContractAddress `json:"platforms"`
+		ID        string                          `json:"id"`
+		Symbol    string                          `json:"symbol"`
+		Name      string                          `json:"name"`
+		Platforms map[NetworkName]ContractAddress `json:"platforms"`
 	}
 	coin struct {
 		ID           string  `json:"id"`

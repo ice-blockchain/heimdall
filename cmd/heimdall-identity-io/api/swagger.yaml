@@ -137,6 +137,19 @@ definitions:
       walletId:
         type: string
     type: object
+  main.Network:
+    properties:
+      displayName:
+        type: string
+      explorerUrl:
+        type: string
+      id:
+        type: string
+      image:
+        type: string
+      isTestnet:
+        type: boolean
+    type: object
   main.Relays:
     properties:
       ionConnectRelays:
@@ -224,6 +237,10 @@ definitions:
       coins:
         items:
           $ref: '#/definitions/coins.Coin'
+        type: array
+      networks:
+        items:
+          $ref: '#/definitions/main.Network'
         type: array
       version:
         type: integer
@@ -598,6 +615,39 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Config
+  /v1/networks:
+    get:
+      description: Provides information about all the networks
+      parameters:
+      - default: bogus
+        description: API key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.Network'
+            type: array
+        "403":
+          description: if invalid X-API-Key provided
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: if server fault
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Coins
   /v1/sync-coins:
     patch:
       description: Requests to sync / update coins from 3rdparty

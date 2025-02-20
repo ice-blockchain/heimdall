@@ -18,10 +18,6 @@ import (
 )
 
 func (c *coinsRepository) ImportNFTs(ctx context.Context, network string, NFTsInWallet []WalletNFT) (nfts []*NFT, err error) {
-	network, err = coingecko.MapNetwork(network)
-	if err != nil {
-		return nil, errors.Wrap(err, "invalid network")
-	}
 	addresses := make([]string, 0, len(NFTsInWallet))
 	for _, n := range NFTsInWallet {
 		addresses = append(addresses, n["contract"].(string))
