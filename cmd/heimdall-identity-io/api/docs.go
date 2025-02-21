@@ -431,6 +431,56 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/networks": {
+            "get": {
+                "description": "Provides information about all the networks",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Coins"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "bogus",
+                        "description": "API key",
+                        "name": "X-API-Key",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/main.Network"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "if invalid X-API-Key provided",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "if server fault",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/sync-coins": {
             "patch": {
                 "description": "Requests to sync / update coins from 3rdparty",
@@ -1602,6 +1652,26 @@ const docTemplate = `{
                 }
             }
         },
+        "main.Network": {
+            "type": "object",
+            "properties": {
+                "displayName": {
+                    "type": "string"
+                },
+                "explorerUrl": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "image": {
+                    "type": "string"
+                },
+                "isTestnet": {
+                    "type": "boolean"
+                }
+            }
+        },
         "main.Relays": {
             "type": "object",
             "properties": {
@@ -1735,6 +1805,12 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/coins.Coin"
+                    }
+                },
+                "networks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/main.Network"
                     }
                 },
                 "version": {

@@ -70,14 +70,16 @@ type (
 		ContractAddress string `json:"contractAddress"`
 	}
 	Coin                 = coins.Coin
+	Network              = coins.Network
 	SymbolGroupWithCoins = coins.SymbolGroupWithCoins
 	GetVersionedCoins    struct {
 		UserID  string `uri:"userId" required:"true" swaggerignore:"true"`
 		Version *int   `form:"version" required:"false"`
 	}
 	VersionedCoins struct {
-		Version uint64        `json:"version"`
-		Coins   []*coins.Coin `json:"coins"`
+		Version  uint64        `json:"version"`
+		Coins    []*coins.Coin `json:"coins"`
+		Networks []*Network    `json:"networks"`
 	}
 	SyncCoinsReq struct {
 		SymbolGroup []string `form:"symbolGroup" required:"true"`

@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"slices"
 	"strconv"
 	"strings"
 	stdlibtime "time"
@@ -35,24 +34,23 @@ func New(applicationYamlKey string) Client {
 	if cfg.CoinGecko.BaseUrl == "" {
 		cfg.CoinGecko.BaseUrl = "https://pro-api.coingecko.com"
 	}
-	if len(reversedNetworkMapping) == 0 {
-		for k, v := range networksMapping {
-			if slices.Contains(testnetNetworks, strings.ToLower(k)) && cfg.TestNet {
-				reversedNetworkMapping[v] = k
-			} else if !cfg.TestNet && !slices.Contains(testnetNetworks, k) {
-				reversedNetworkMapping[v] = k
+	if len(networkMappingFromCoinGecko) == 0 {
+		for k, v := range Networks {
+			if v.IsTestnet && cfg.TestNet {
+				networkMappingFromCoinGecko[strings.ToLower(v.CoinGeckoNetworkID)] = k
+				if _, hasPlatform := platformToNetworkMapping[v.CoinGeckoPlatform]; !hasPlatform {
+					platformToNetworkMapping[v.CoinGeckoPlatform] = v
+				}
+			} else if !cfg.TestNet && !v.IsTestnet {
+				networkMappingFromCoinGecko[strings.ToLower(v.CoinGeckoNetworkID)] = k
+				if _, hasPlatform := platformToNetworkMapping[v.CoinGeckoPlatform]; !hasPlatform {
+					platformToNetworkMapping[v.CoinGeckoPlatform] = v
+				}
 			}
 		}
 	}
 	return &client{
 		cfg: &cfg,
-	}
-}
-
-func init() {
-	networkToPlatformMapping = make(map[string]string)
-	for k, v := range platformToNetworkMapping {
-		networkToPlatformMapping[v.Network] = k
 	}
 }
 
@@ -72,10 +70,10 @@ func (c *client) ListCoins(ctx context.Context) ([]*Coin, error) {
 	for pl, network := range platformToNetworkMapping {
 		if plat, has := platforms[pl]; !has {
 			if _, hasManualMapping := platformToCoinMapping[pl]; hasManualMapping {
-				nativeCoinsToNetwork[platformToCoinMapping[pl]] = append(nativeCoinsToNetwork[platformToCoinMapping[pl]], network.Network)
+				nativeCoinsToNetwork[platformToCoinMapping[pl]] = append(nativeCoinsToNetwork[platformToCoinMapping[pl]], network.CoinGeckoNetworkID)
 			}
 		} else {
-			nativeCoinsToNetwork[plat.NativeCoinId] = append(nativeCoinsToNetwork[plat.NativeCoinId], network.Network)
+			nativeCoinsToNetwork[plat.NativeCoinId] = append(nativeCoinsToNetwork[plat.NativeCoinId], network.CoinGeckoNetworkID)
 		}
 	}
 	for c, n := range extraCoinsToNetworkMapping {
@@ -89,14 +87,18 @@ func (c *client) ListCoins(ctx context.Context) ([]*Coin, error) {
 			if len(networks) == 0 {
 				continue
 			}
-			for _, n := range networks {
+			for _, cgNetwork := range networks {
+				n := networkMappingFromCoinGecko[cgNetwork]
+				if n == "" && c.cfg.TestNet { // Coin has no testnet
+					continue
+				}
 				res[coin.ID] = append(res[coin.ID], &Coin{
 					ID:              coin.ID,
 					Symbol:          coin.Symbol,
 					Name:            coin.Name,
 					Network:         n,
 					ContractAddress: "",
-					Decimals:        platformToDecimalsMapping[networkToPlatformMapping[n]],
+					Decimals:        Networks[n].DefaultDecimals,
 				})
 			}
 			coinsToSyncMarketData = append(coinsToSyncMarketData, coin.ID)
@@ -105,21 +107,23 @@ func (c *client) ListCoins(ctx context.Context) ([]*Coin, error) {
 		coinsToSyncMarketData = append(coinsToSyncMarketData, coin.ID)
 		platformIdx := 0
 		for platform, tokenAddr := range coin.Platforms {
-			if network, has := platformToNetworkMapping[platform]; !has || network.SkipTokens {
+			if network, has := platformToNetworkMapping[platform]; !has || network.SkipSyncTokens {
 				continue
 			}
 			if platformIdx == 0 && tokenAddr != "" && !strings.Contains(tokenAddr, "/") {
-				tokenSyncDecimals[platformToNetworkMapping[platform].Network] = append(tokenSyncDecimals[platformToNetworkMapping[platform].Network], tokenAddr)
+				tokenSyncDecimals[platformToNetworkMapping[platform].CoinGeckoNetworkID] = append(tokenSyncDecimals[platformToNetworkMapping[platform].CoinGeckoNetworkID], tokenAddr)
 			}
 			network := platformToNetworkMapping[platform]
+			cgNetwork := platformToNetworkMapping[platform].CoinGeckoNetworkID
+			networkName := networkMappingFromCoinGecko[cgNetwork]
 			if tokenAddr != "" {
 				res[coin.ID] = append(res[coin.ID], &Coin{
 					ID:              coin.ID,
 					Symbol:          coin.Symbol,
 					Name:            coin.Name,
-					Network:         network.Network,
+					Network:         network.CoinGeckoNetworkID,
 					ContractAddress: tokenAddr,
-					Decimals:        platformToDecimalsMapping[platform],
+					Decimals:        Networks[networkName].DefaultDecimals,
 				})
 			}
 			platformIdx += 1
@@ -270,11 +274,11 @@ func (c *client) GetToken(ctx context.Context, network, tokenAddr string) (*Coin
 }
 
 func (c *client) GetNFT(ctx context.Context, network, contractAddr string) (*NFT, error) {
-	platform, has := networkToPlatformMapping[strings.ToLower(network)]
+	networkObj, has := Networks[strings.ToLower(network)]
 	if !has {
 		return nil, errors.Errorf("invalid network %v, cannot find plaftorm mapping", network)
 	}
-	nft, status, err := makeAPICall[NFT](ctx, c, fmt.Sprintf("/api/v3/nfts/%v/contract/%v", platform, contractAddr), make(map[string]any))
+	nft, status, err := makeAPICall[NFT](ctx, c, fmt.Sprintf("/api/v3/nfts/%v/contract/%v", networkObj.CoinGeckoPlatform, contractAddr), make(map[string]any))
 	if err != nil {
 		if status == http.StatusNotFound {
 			err = ErrNotFound
@@ -383,14 +387,14 @@ func (c *Coin) SymbolGroup() string {
 	return c.ID
 }
 func MapNetwork(network string) (string, error) {
-	if coingeckoNetwork, hasNetwork := networksMapping[network]; !hasNetwork || coingeckoNetwork == "" {
+	if coingeckoNetwork, hasNetwork := Networks[network]; !hasNetwork || coingeckoNetwork == nil {
 		return "", ErrInvalidNetwork
 	} else {
-		return coingeckoNetwork, nil
+		return coingeckoNetwork.CoinGeckoNetworkID, nil
 	}
 }
 func MapNetworkFromCoinGecko(network string) (string, error) {
-	if mappedNetwork, hasNetwork := reversedNetworkMapping[strings.ToLower(network)]; !hasNetwork || mappedNetwork == "" {
+	if mappedNetwork, hasNetwork := networkMappingFromCoinGecko[strings.ToLower(network)]; !hasNetwork || mappedNetwork == "" {
 		return "", ErrInvalidNetwork
 	} else {
 		return mappedNetwork, nil
@@ -398,5 +402,5 @@ func MapNetworkFromCoinGecko(network string) (string, error) {
 }
 
 func IsTestnet(network string) bool {
-	return slices.Contains(testnetNetworks, strings.ToLower(network))
+	return Networks[network].IsTestnet
 }

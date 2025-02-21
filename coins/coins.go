@@ -426,3 +426,11 @@ func (c *coinsRepository) syncFrequency(coinGeckoCoinID string) stdlibtime.Durat
 func IsTestnet(network string) bool {
 	return coingecko.IsTestnet(network)
 }
+
+func (c *coinsRepository) GetAllNetworks() []*Network {
+	networks := []*Network{}
+	for _, n := range coingecko.Networks {
+		networks = append(networks, n)
+	}
+	return networks
+}
