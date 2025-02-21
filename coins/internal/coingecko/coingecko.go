@@ -96,7 +96,7 @@ func (c *client) ListCoins(ctx context.Context) ([]*Coin, error) {
 					ID:              coin.ID,
 					Symbol:          coin.Symbol,
 					Name:            coin.Name,
-					Network:         n,
+					Network:         cgNetwork,
 					ContractAddress: "",
 					Decimals:        Networks[n].DefaultDecimals,
 				})
