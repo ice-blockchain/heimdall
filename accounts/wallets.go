@@ -346,6 +346,7 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 		}
 	}
 	coinGroups := make(map[string]*CoinAggregation)
+	testNetSymbols := make(map[string]bool)
 	for walletID, linkedSymbols := range walletIDs {
 		walletAssets, err := a.delegatedRPClient.ListAssets(ctx, walletID)
 		if err != nil {
@@ -358,14 +359,19 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 			if hasSymbol {
 				symbol := strings.ToLower(symbolI.(string))
 				// Testnet, i.e SepoliaETH, coin gecko dont provide testnet symbol
-				if _, validSymbol := groupedBySymbol[symbol]; nativeCoin && !validSymbol {
-					if len(linkedSymbols) == 1 {
-						groupedBySymbol[symbol] = append(groupedBySymbol[symbol], linkedSymbols[0])
-					} else if len(linkedSymbols) > 0 {
-						for _, ls := range linkedSymbols {
-							if ls.ContractAddress == "" {
-								groupedBySymbol[symbol] = append(groupedBySymbol[symbol], ls)
-								break
+				if nativeCoin {
+					_, testnetSymbol := testNetSymbols[symbol]
+					_, validSymbol := groupedBySymbol[symbol]
+					if !validSymbol || testnetSymbol {
+						testNetSymbols[symbol] = true
+						if len(linkedSymbols) == 1 && strings.EqualFold(walletAssets.Network, linkedSymbols[0].Network) {
+							groupedBySymbol[symbol] = append(groupedBySymbol[symbol], linkedSymbols[0])
+						} else if len(linkedSymbols) > 0 {
+							for _, ls := range linkedSymbols {
+								if ls.ContractAddress == "" && strings.EqualFold(walletAssets.Network, ls.Network) {
+									groupedBySymbol[symbol] = append(groupedBySymbol[symbol], ls)
+									break
+								}
 							}
 						}
 					}
