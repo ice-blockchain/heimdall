@@ -274,7 +274,7 @@ func (c *client) GetToken(ctx context.Context, network, tokenAddr string) (*Coin
 }
 
 func (c *client) GetNFT(ctx context.Context, network, contractAddr string) (*NFT, error) {
-	networkObj, has := Networks[strings.ToLower(network)]
+	networkObj, has := Networks[network]
 	if !has {
 		return nil, errors.Errorf("invalid network %v, cannot find plaftorm mapping", network)
 	}
@@ -283,7 +283,7 @@ func (c *client) GetNFT(ctx context.Context, network, contractAddr string) (*NFT
 		if status == http.StatusNotFound {
 			err = ErrNotFound
 		}
-		return nil, errors.Wrapf(err, "failed to get token info for %v %v", network, contractAddr)
+		return nil, errors.Wrapf(err, "failed to get nft info for %v %v", network, contractAddr)
 	}
 	return nft, nil
 }
