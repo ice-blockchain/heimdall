@@ -238,7 +238,7 @@ func (a *accounts) createDefaultWalletView(ctx context.Context, userID, username
 			}
 		}
 	}
-	return a.createWalletView(ctx, userID, username, coins, a.cfg.DefaultCoinsInWalletView, true)
+	return a.createWalletView(ctx, userID, defaultWalletViewName, coins, a.cfg.DefaultCoinsInWalletView, true)
 }
 
 func (a *accounts) upsertWalletPubKeyFromRegistration(ctx context.Context, now *time.Time, res map[string]any, walletPubKey string) error {
