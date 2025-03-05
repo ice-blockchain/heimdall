@@ -11,7 +11,7 @@ var Networks = map[string]*Network{
 		SkipSyncTokens:     true,
 		DisplayName:        "Algorand",
 		ExplorerURL:        "https://explorer.bitquery.io/algorand/tx/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/3/large/algorand_logo_mark_black.png?1706606710",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_algorand.svg",
 	},
 	"AlgorandTestnet": &Network{
 		ID:                 "AlgorandTestnet",
@@ -22,7 +22,7 @@ var Networks = map[string]*Network{
 		SkipSyncTokens:     true,
 		DisplayName:        "Algorand",
 		ExplorerURL:        "https://explorer.bitquery.io/algorand_testnet/tx/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/3/large/algorand_logo_mark_black.png?1706606710",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_algorand.svg",
 	},
 	"ArbitrumOne": &Network{
 		ID:                 "ArbitrumOne",
@@ -31,7 +31,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "Arbitrum One",
 		ExplorerURL:        "https://arbiscan.com/tx/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/33/large/AO_logomark.png?1706606717",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_arbitrumone.svg",
 	},
 	"ArbitrumSepolia": &Network{
 		ID:                 "ArbitrumSepolia",
@@ -41,7 +41,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "Arbitrum One",
 		ExplorerURL:        "https://sepolia.arbiscan.com/tx/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/33/large/AO_logomark.png?1706606717",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_arbitrumone.svg",
 	},
 	"AptosTestnet": &Network{
 		ID:                 "AptosTestnet",
@@ -51,7 +51,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "Aptos",
 		ExplorerURL:        "https://explorer.aptoslabs.com/txn/{txHash}?network=testnet",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/116/large/aptos_round.png?1706606789",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_aptos.svg",
 	},
 	"Aptos": &Network{
 		ID:                 "Aptos",
@@ -60,7 +60,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "Aptos",
 		ExplorerURL:        "https://explorer.aptoslabs.com/txn/{txHash}?network=mainnet",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/116/large/aptos_round.png?1706606789",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_aptos.svg",
 	},
 	"AvalancheC": &Network{
 		ID:                 "AvalancheC",
@@ -69,7 +69,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Avalanche",
 		DefaultDecimals:    18,
 		ExplorerURL:        "https://subnets.avax.network/c-chain/block/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/12/large/avalanche.png?1706606775",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_avalance.svg",
 	},
 	"AvalancheCFuji": &Network{
 		ID:                 "AvalancheCFuji",
@@ -79,7 +79,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Avalanche",
 		DefaultDecimals:    18,
 		ExplorerURL:        "https://subnets-test.avax.network/c-chain/block/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/12/large/avalanche.png?1706606775",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_avalance.svg",
 	},
 	"Base": &Network{
 		ID:                 "Base",
@@ -88,7 +88,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "Base",
 		ExplorerURL:        "https://basescan.com/tx/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/131/large/base-network.png?1720533039",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_base.svg",
 	},
 	"BaseSepolia": &Network{
 		ID:                 "BaseSepolia",
@@ -98,7 +98,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "Base",
 		ExplorerURL:        "https://sepolia.basescan.com/tx/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/131/large/base-network.png?1720533039",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_base.svg",
 	},
 	"Bitcoin": &Network{
 		ID:                 "Bitcoin",
@@ -107,7 +107,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Bitcoin",
 		DefaultDecimals:    9,
 		ExplorerURL:        "https://mempool.space/tx/{txHash}",
-		Image:              "https://assets.coingecko.com/coins/images/1/standard/bitcoin.png?1696501400",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_btc.svg",
 	},
 	"BitcoinTestnet3": &Network{
 		ID:                 "BitcoinTestnet3",
@@ -117,7 +117,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Bitcoin",
 		DefaultDecimals:    9,
 		ExplorerURL:        "https://mempool.space/testnet/tx/{txHash}",
-		Image:              "https://assets.coingecko.com/coins/images/1/standard/bitcoin.png?1696501400",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_btc.svg",
 	},
 	"Bsc": &Network{
 		ID:                 "Bsc",
@@ -126,7 +126,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "BSC",
 		ExplorerURL:        "https://bscscan.com/tx/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/1/large/bnb_smart_chain.png?1706606721",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_binance.svg",
 	},
 	"BscTestnet": &Network{
 		ID:                 "BscTestnet",
@@ -136,7 +136,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "BSC",
 		ExplorerURL:        "https://testnet.bscscan.com/tx/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/1/large/bnb_smart_chain.png?1706606721",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_binance.svg",
 	},
 	"Cardano": &Network{
 		ID:                 "Cardano",
@@ -145,7 +145,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "Cardano",
 		ExplorerURL:        "https://cardanoscan.io/transaction/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/22/large/cardano.jpg?1706606486",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_cardano.svg",
 	},
 	"CardanoPreprod": &Network{
 		ID:                 "CardanoPreprod",
@@ -155,7 +155,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "Cardano",
 		ExplorerURL:        "https://preprod.cardanoscan.io/transaction/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/22/large/cardano.jpg?1706606486",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_cardano.svg",
 	},
 	"Dogecoin": &Network{
 		ID:                 "Dogecoin",
@@ -164,7 +164,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    8,
 		DisplayName:        "Dogecoin",
 		SkipSyncTokens:     true,
-		Image:              "https://assets.coingecko.com/coins/images/5/standard/dogecoin.png?1696501409",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_dogecoin.svg",
 	},
 	"Ethereum": &Network{
 		ID:                 "Ethereum",
@@ -173,7 +173,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "Ethereum",
 		ExplorerURL:        "https://etherscan.io/tx/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/279/large/ethereum.png?1706606803",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_eth.svg",
 	},
 	"EthereumSepolia": &Network{
 		ID:                 "EthereumSepolia",
@@ -183,7 +183,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "Ethereum",
 		ExplorerURL:        "https://sepolia.etherscan.io/tx/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/279/large/ethereum.png?1706606803",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_eth.svg",
 	},
 	"FantomOpera": &Network{
 		ID:                 "FantomOpera",
@@ -192,7 +192,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "Fantom",
 		ExplorerURL:        "https://explorer.fantom.network/transactions/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/17/large/fantom.png?1706606773",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_fantom.svg",
 	},
 	"FantomTestnet": &Network{
 		ID:                 "FantomTestnet",
@@ -202,7 +202,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "Fantom",
 		ExplorerURL:        "https://explorer.testnet.fantom.network/transactions/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/17/large/fantom.png?1706606773",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_fantom.svg",
 	},
 	"ICP": &Network{
 		ID:                 "ICP",
@@ -211,7 +211,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "ICP",
 		ExplorerURL:        "https://www.icpexplorer.org/#/tx/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/165/large/01_ICP_Token_HEX_white__2x.png?1706606785",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_icp.svg",
 	},
 	"Kusama": &Network{
 		ID:                 "Kusama",
@@ -220,7 +220,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    12,
 		DisplayName:        "Kusama",
 		ExplorerURL:        "https://kusama.subscan.io/extrinsic/{txHash}",
-		Image:              "https://assets.coingecko.com/coins/images/9568/standard/m4zRhP5e_400x400.jpg?1696509648",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_kusama.svg",
 	},
 	"Optimism": &Network{
 		ID:                 "Optimism",
@@ -229,7 +229,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "Optimism",
 		ExplorerURL:        "https://optimistic.etherscan.io/tx/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/41/large/optimism.png?1706606778",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_optimism.svg",
 	},
 	"OptimismSepolia": &Network{
 		ID:                 "OptimismSepolia",
@@ -239,7 +239,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "Optimism",
 		ExplorerURL:        "https://sepolia-optimism.etherscan.io/tx/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/41/large/optimism.png?1706606778",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_optimism.svg",
 	},
 	"SeiPacific1": &Network{
 		ID:                 "SeiPacific1",
@@ -248,7 +248,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "Sei Network",
 		ExplorerURL:        "https://www.seiscan.app/pacific-1/txs/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/148/large/Sei_Logo_-_Transparent.png?1706606762",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_sei.svg",
 	},
 	"SeiAtlantic2": &Network{
 		ID:                 "SeiAtlantic2",
@@ -258,7 +258,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "Sei Network",
 		ExplorerURL:        "https://www.seiscan.app/atlantic-2/txs/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/148/large/Sei_Logo_-_Transparent.png?1706606762",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_sei.svg",
 	},
 	"Solana": &Network{
 		ID:                 "Solana",
@@ -267,7 +267,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    9,
 		DisplayName:        "Solana",
 		ExplorerURL:        "https://solscan.io/tx/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/5/large/solana.png?1706606708",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_solana.svg",
 	},
 	"SolanaDevnet": &Network{
 		ID:                 "SolanaDevnet",
@@ -277,7 +277,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    9,
 		DisplayName:        "Solana",
 		ExplorerURL:        "https://solscan.io/tx/{txHash}?cluster=devnet",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/5/large/solana.png?1706606708",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_solana.svg",
 	},
 	"Polygon": &Network{
 		ID:                 "Polygon",
@@ -286,7 +286,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "Polygon",
 		ExplorerURL:        "https://polygonscan.com/tx/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/15/large/polygon_pos.png?1706606645",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_matic.svg",
 	},
 	"PolygonAmoy": &Network{
 		ID:                 "PolygonAmoy",
@@ -296,7 +296,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "Polygon",
 		ExplorerURL:        "https://amoy.polygonscan.com/tx/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/15/large/polygon_pos.png?1706606645",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_matic.svg",
 	},
 	"Ton": &Network{
 		ID:                 "Ton",
@@ -305,7 +305,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    9,
 		DisplayName:        "TON",
 		ExplorerURL:        "https://tonscan.org/address/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/142/large/tonblockchain.jpeg?1706606805",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_ton.svg",
 	},
 	"TonTestnet": &Network{
 		ID:                 "TonTestnet",
@@ -315,7 +315,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    9,
 		DisplayName:        "TON",
 		ExplorerURL:        "https://testnet.tonscan.org/address/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/142/large/tonblockchain.jpeg?1706606805",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_ton.svg",
 	},
 	"Ion": &Network{
 		ID:                 "Ion",
@@ -325,7 +325,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    9,
 		DisplayName:        "ION",
 		ExplorerURL:        "https://explorer.ice.io/address/{txHash}",
-		Image:              "https://assets.coingecko.com/coins/images/34674/standard/ion-coingecko-200w.png?1714009819",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_ice.svg",
 	},
 	"IonTestnet": &Network{
 		ID:                 "IonTestnet",
@@ -336,7 +336,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    9,
 		DisplayName:        "ION",
 		ExplorerURL:        "https://explorer.testnet.ice.io/address/{txHash}",
-		Image:              "https://assets.coingecko.com/coins/images/34674/standard/ion-coingecko-200w.png?1714009819",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_ice.svg",
 	},
 	"TronNile": &Network{
 		ID:                 "TronNile",
@@ -346,7 +346,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "TRON",
 		ExplorerURL:        "https://nile.tronscan.org/#/transaction/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/1094/large/TRON_LOGO.png?1706606652",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_tron.svg",
 	},
 	"Tron": &Network{
 		ID:                 "Tron",
@@ -355,7 +355,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		DisplayName:        "TRON",
 		ExplorerURL:        "https://tronscan.org/#/transaction/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/1094/large/TRON_LOGO.png?1706606652",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_tron.svg",
 	},
 	"XrpLedger": &Network{
 		ID:                 "XrpLedger",
@@ -365,7 +365,7 @@ var Networks = map[string]*Network{
 		SkipSyncTokens:     true,
 		DisplayName:        "XRP Ledger",
 		ExplorerURL:        "https://xrpscan.com/tx/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/1094/large/TRON_LOGO.png?1706606652",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_xrp.svg",
 	},
 	"XrpLedgerTestnet": &Network{
 		ID:                 "XrpLedgerTestnet",
@@ -376,7 +376,7 @@ var Networks = map[string]*Network{
 		SkipSyncTokens:     true,
 		DisplayName:        "XRP Ledger",
 		ExplorerURL:        "https://testnet.xrpl.org/transactions/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/1094/large/TRON_LOGO.png?1706606652",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_xrp.svg",
 	},
 	"Litecoin": &Network{
 		ID:                 "Litecoin",
@@ -386,7 +386,7 @@ var Networks = map[string]*Network{
 		SkipSyncTokens:     true,
 		DisplayName:        "Litecoin",
 		ExplorerURL:        "https://blockchair.com/litecoin/transaction/{txHash}",
-		Image:              "https://assets.coingecko.com/coins/images/2/standard/litecoin.png?1696501400",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_ltc.svg",
 	},
 	"Tezos": &Network{
 		ID:                 "Tezos",
@@ -396,7 +396,7 @@ var Networks = map[string]*Network{
 		SkipSyncTokens:     true,
 		DisplayName:        "Tezos",
 		ExplorerURL:        "https://tzkt.io/{txHash}",
-		Image:              "https://assets.coingecko.com/coins/images/976/standard/Tezos-logo.png?1696502091",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_tezos.svg",
 	},
 	"TezosGhostnet": &Network{
 		ID:                 "TezosGhostnet",
@@ -407,7 +407,7 @@ var Networks = map[string]*Network{
 		SkipSyncTokens:     true,
 		DisplayName:        "Tezos",
 		ExplorerURL:        "https://ghostnet.tzkt.io/{txHash}",
-		Image:              "https://assets.coingecko.com/coins/images/976/standard/Tezos-logo.png?1696502091",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_tezos.svg",
 	},
 	"StellarTestnet": &Network{
 		ID:                 "StellarTestnet",
@@ -418,7 +418,7 @@ var Networks = map[string]*Network{
 		SkipSyncTokens:     true,
 		DisplayName:        "Stellar",
 		ExplorerURL:        "https://stellar.expert/explorer/testnet/tx/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/100/large/stellar.jpeg?1708492494",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_stellar.svg",
 	},
 	"Stellar": &Network{
 		ID:                 "Stellar",
@@ -428,7 +428,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Stellar",
 		SkipSyncTokens:     true,
 		ExplorerURL:        "https://stellar.expert/explorer/public/tx/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/100/large/stellar.jpeg?1708492494",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_stellar.svg",
 	},
 	"Kaspa": &Network{
 		ID:                 "Kaspa",
@@ -438,7 +438,7 @@ var Networks = map[string]*Network{
 		SkipSyncTokens:     true,
 		DisplayName:        "Kaspa",
 		ExplorerURL:        "https://explorer.kaspa.org/txs/{txHash}",
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/22172/large/kasplex-2.png?1727064572",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_kaspa.svg",
 	},
 	"Polkadot": &Network{
 		ID:                 "Polkadot",
@@ -448,7 +448,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Polkadot",
 		ExplorerURL:        "https://subscan.io/extrinsic/{txHash}",
 		SkipSyncTokens:     true,
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/12171/large/polkadot.jpeg?1706606400",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_polkadot.svg",
 	},
 	"Westend": &Network{
 		ID:                 "Westend",
@@ -459,6 +459,6 @@ var Networks = map[string]*Network{
 		DisplayName:        "Polkadot",
 		ExplorerURL:        "https://westend.subscan.io/extrinsic/{txHash}",
 		SkipSyncTokens:     true,
-		Image:              "https://coin-images.coingecko.com/asset_platforms/images/12171/large/polkadot.jpeg?1706606400",
+		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_polkadot.svg",
 	},
 }
