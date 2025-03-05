@@ -82,51 +82,49 @@ func (c *client) ListCoins(ctx context.Context) ([]*Coin, error) {
 		}
 	}
 	for _, coin := range *coinList {
-		if len(coin.Platforms) == 0 {
-			networks := nativeCoinsToNetwork[coin.ID]
-			if len(networks) == 0 {
-				continue
-			}
-			for _, cgNetwork := range networks {
-				n := networkMappingFromCoinGecko[cgNetwork]
-				if n == "" && c.cfg.TestNet { // Coin has no testnet
-					continue
-				}
-				res[coin.ID] = append(res[coin.ID], &Coin{
-					ID:              coin.ID,
-					Symbol:          coin.Symbol,
-					Name:            coin.Name,
-					Network:         cgNetwork,
-					ContractAddress: "",
-					Decimals:        Networks[n].DefaultDecimals,
-				})
-			}
-			coinsToSyncMarketData = append(coinsToSyncMarketData, coin.ID)
+		networks := nativeCoinsToNetwork[coin.ID]
+		if len(networks) == 0 && len(coin.Platforms) == 0 {
 			continue
 		}
-		coinsToSyncMarketData = append(coinsToSyncMarketData, coin.ID)
-		platformIdx := 0
-		for platform, tokenAddr := range coin.Platforms {
-			if network, has := platformToNetworkMapping[platform]; !has || network.SkipSyncTokens {
+		for _, cgNetwork := range networks {
+			n := networkMappingFromCoinGecko[cgNetwork]
+			if n == "" && c.cfg.TestNet { // Coin has no testnet
 				continue
 			}
-			if platformIdx == 0 && tokenAddr != "" && !strings.Contains(tokenAddr, "/") {
-				tokenSyncDecimals[platformToNetworkMapping[platform].CoinGeckoNetworkID] = append(tokenSyncDecimals[platformToNetworkMapping[platform].CoinGeckoNetworkID], tokenAddr)
+			res[coin.ID] = append(res[coin.ID], &Coin{
+				ID:              coin.ID,
+				Symbol:          coin.Symbol,
+				Name:            coin.Name,
+				Network:         cgNetwork,
+				ContractAddress: "",
+				Decimals:        Networks[n].DefaultDecimals,
+			})
+		}
+		coinsToSyncMarketData = append(coinsToSyncMarketData, coin.ID)
+		if len(coin.Platforms) > 0 {
+			platformIdx := 0
+			for platform, tokenAddr := range coin.Platforms {
+				if network, has := platformToNetworkMapping[platform]; !has || network.SkipSyncTokens {
+					continue
+				}
+				if platformIdx == 0 && tokenAddr != "" && !strings.Contains(tokenAddr, "/") {
+					tokenSyncDecimals[platformToNetworkMapping[platform].CoinGeckoNetworkID] = append(tokenSyncDecimals[platformToNetworkMapping[platform].CoinGeckoNetworkID], tokenAddr)
+				}
+				network := platformToNetworkMapping[platform]
+				cgNetwork := platformToNetworkMapping[platform].CoinGeckoNetworkID
+				networkName := networkMappingFromCoinGecko[cgNetwork]
+				if tokenAddr != "" {
+					res[coin.ID] = append(res[coin.ID], &Coin{
+						ID:              coin.ID,
+						Symbol:          coin.Symbol,
+						Name:            coin.Name,
+						Network:         network.CoinGeckoNetworkID,
+						ContractAddress: tokenAddr,
+						Decimals:        Networks[networkName].DefaultDecimals,
+					})
+				}
+				platformIdx += 1
 			}
-			network := platformToNetworkMapping[platform]
-			cgNetwork := platformToNetworkMapping[platform].CoinGeckoNetworkID
-			networkName := networkMappingFromCoinGecko[cgNetwork]
-			if tokenAddr != "" {
-				res[coin.ID] = append(res[coin.ID], &Coin{
-					ID:              coin.ID,
-					Symbol:          coin.Symbol,
-					Name:            coin.Name,
-					Network:         network.CoinGeckoNetworkID,
-					ContractAddress: tokenAddr,
-					Decimals:        Networks[networkName].DefaultDecimals,
-				})
-			}
-			platformIdx += 1
 		}
 	}
 	log.Debug(fmt.Sprintf("Initially got %v coins/tokens from coingecko, enhancing with market data...", len(res)))
