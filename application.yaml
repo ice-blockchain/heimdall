@@ -131,6 +131,32 @@ coins:
   fees:
     ton:
       slow:
+        maxPriorityFee: 325000003
+        maxFee: 325000091
+        waitTime: 100000
+      standard:
+        maxPriorityFee: 325000003
+        maxFee: 325000091
+        waitTime: 200000
+      fast:
+        maxPriorityFee: 325000003
+        maxFee: 325000091
+        waitTime: 200000
+    tontestnet:
+      slow:
+        maxPriorityFee: 325000003
+        maxFee: 325000091
+        waitTime: 100000
+      standard:
+        maxPriorityFee: 325000003
+        maxFee: 325000091
+        waitTime: 200000
+      fast:
+        maxPriorityFee: 325000003
+        maxFee: 325000091
+        waitTime: 200000
+    ion:
+      slow:
         maxPriorityFee: 225000003
         maxFee: 225000091
         waitTime: 100000
@@ -138,15 +164,151 @@ coins:
         maxPriorityFee: 225000003
         maxFee: 225000091
         waitTime: 100000
-    bsc:
+      fast:
+        maxPriorityFee: 225000003
+        maxFee: 225000091
+        waitTime: 100000
+    iontestnet:
       slow:
+        maxPriorityFee: 225000003
+        maxFee: 225000091
+        waitTime: 100000
+      standard:
         maxPriorityFee: 225000003
         maxFee: 225000091
         waitTime: 100000
       fast:
         maxPriorityFee: 225000003
         maxFee: 225000091
-        waitTime: 1000
+        waitTime: 100000
+    arbitrumone:
+      gasUsedMultiplier: 22000
+      slow:
+        waitTime: 400000
+      standard:
+        waitTime: 100000
+      fast:
+        waitTime: 4000
+    arbitrumsepolia:
+      gasUsedMultiplier: 22000
+      slow:
+        waitTime: 400000
+      standard:
+        waitTime: 100000
+      fast:
+        waitTime: 4000
+    avalanchec:
+      gasUsedMultiplier: 22000
+      slow:
+        waitTime: 400000
+      standard:
+        waitTime: 100000
+      fast:
+        waitTime: 4000
+    avalanchecfuji:
+      gasUsedMultiplier: 22000
+      slow:
+        waitTime: 400000
+      standard:
+        waitTime: 100000
+      fast:
+        waitTime: 4000
+    base:
+      gasUsedMultiplier: 22000
+      slow:
+        waitTime: 400000
+      standard:
+        waitTime: 100000
+      fast:
+        waitTime: 4000
+    basesepolia:
+      gasUsedMultiplier: 22000
+      slow:
+        waitTime: 400000
+      standard:
+        waitTime: 100000
+      fast:
+        waitTime: 4000
+    bsc:
+      gasUsedMultiplier: 22000
+      slow:
+        waitTime: 400000
+      standard:
+        waitTime: 100000
+      fast:
+        waitTime: 4000
+    bsctestnet:
+      gasUsedMultiplier: 22000
+      slow:
+        waitTime: 400000
+      standard:
+        waitTime: 100000
+      fast:
+        waitTime: 4000
+    ethereum:
+      gasUsedMultiplier: 22000
+      slow:
+        waitTime: 400000
+      standard:
+        waitTime: 100000
+      fast:
+        waitTime: 4000
+    ethereumsepolia:
+      gasUsedMultiplier: 22000
+      slow:
+        waitTime: 400000
+      standard:
+        waitTime: 100000
+      fast:
+        waitTime: 4000
+    fantomopera:
+      gasUsedMultiplier: 22000
+      slow:
+        waitTime: 400000
+      standard:
+        waitTime: 100000
+      fast:
+        waitTime: 4000
+    fantomtestnet:
+      gasUsedMultiplier: 22000
+      slow:
+        waitTime: 400000
+      standard:
+        waitTime: 100000
+      fast:
+        waitTime: 4000
+    optimism:
+      gasUsedMultiplier: 22000
+      slow:
+        waitTime: 400000
+      standard:
+        waitTime: 100000
+      fast:
+        waitTime: 4000
+    optimismsepolia:
+      gasUsedMultiplier: 22000
+      slow:
+        waitTime: 400000
+      standard:
+        waitTime: 100000
+      fast:
+        waitTime: 4000
+    polygon:
+      gasUsedMultiplier: 22000
+      slow:
+        waitTime: 400000
+      standard:
+        waitTime: 100000
+      fast:
+        waitTime: 4000
+    polygonamoy:
+      gasUsedMultiplier: 22000
+      slow:
+        waitTime: 400000
+      standard:
+        waitTime: 100000
+      fast:
+        waitTime: 4000
   coin-gecko:
     #api-key: bogus
     base-url: https://pro-api.coingecko.com

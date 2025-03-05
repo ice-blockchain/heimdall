@@ -112,14 +112,15 @@ type (
 		SyncTokensDataFrequency stdlibtime.Duration            `yaml:"syncTokensDataFrequency" mapstructure:"syncTokensDataFrequency"`
 	}
 	Fee struct {
-		Slow     *FeeWithDuration `json:"slow" yaml:"slow"`
-		Standard *FeeWithDuration `json:"standard" yaml:"standard"`
-		Fast     *FeeWithDuration `json:"fast" yaml:"fast"`
+		GasUsedMultiplier uint64           `json:"-" yaml:"gasUsedMultiplier"`
+		Slow              *FeeWithDuration `json:"slow" yaml:"slow"`
+		Standard          *FeeWithDuration `json:"standard" yaml:"standard"`
+		Fast              *FeeWithDuration `json:"fast" yaml:"fast"`
 	}
 	FeeWithDuration struct {
-		MaxPriorityFee int `json:"maxPriorityFee" yaml:"maxPriorityFee"`
-		MaxFee         int `json:"maxFee" yaml:"maxFee"`
-		WaitTime       int `json:"waitTime" yaml:"waitTime"`
+		MaxPriorityFee uint64 `json:"maxPriorityFeePerGas" yaml:"maxPriorityFee"`
+		MaxFee         uint64 `json:"maxFeePerGas" yaml:"maxFee"`
+		WaitTime       uint64 `json:"waitTime" yaml:"waitTime"`
 	}
 	coin struct {
 		SyncFrequency   stdlibtime.Duration

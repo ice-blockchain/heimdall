@@ -121,13 +121,22 @@ func (c *dfnsClient) extendFees() func(ctx context.Context, now *time.Time, res 
 			return c.extendResponseBodyWith(r, map[string]any{}, func(ctx context.Context, res map[string]any) error {
 				res["network"] = requestedNetwork
 				if fees.Fast != nil {
-					res["fast"] = fees.Fast
+					res["fast"] = multiplyFee(map[string]any{
+						"maxPriorityFeePerGas": strconv.FormatUint(fees.Fast.MaxPriorityFee, 10),
+						"maxFeePerGas":         strconv.FormatUint(fees.Fast.MaxFee, 10),
+					}, fees.GasUsedMultiplier)
 				}
 				if fees.Slow != nil {
-					res["slow"] = fees.Slow
+					res["slow"] = multiplyFee(map[string]any{
+						"maxPriorityFeePerGas": strconv.FormatUint(fees.Slow.MaxPriorityFee, 10),
+						"maxFeePerGas":         strconv.FormatUint(fees.Slow.MaxFee, 10),
+					}, fees.GasUsedMultiplier)
 				}
 				if fees.Standard != nil {
-					res["standard"] = fees.Standard
+					res["standard"] = multiplyFee(map[string]any{
+						"maxPriorityFeePerGas": strconv.FormatUint(fees.Standard.MaxPriorityFee, 10),
+						"maxFeePerGas":         strconv.FormatUint(fees.Standard.MaxFee, 10),
+					}, fees.GasUsedMultiplier)
 				}
 				return nil
 			})
@@ -142,11 +151,35 @@ func (c *dfnsClient) extendFees() func(ctx context.Context, now *time.Time, res 
 				if err := json.Unmarshal(b, &extendedFees); err != nil {
 					return errors.Wrapf(jerr, "failed to marshal %+v into body", fees)
 				}
+				if fees.GasUsedMultiplier != 0 {
+					res["fast"] = multiplyFee(res["fast"].(map[string]any), fees.GasUsedMultiplier)
+					res["standard"] = multiplyFee(res["standard"].(map[string]any), fees.GasUsedMultiplier)
+					res["slow"] = multiplyFee(res["slow"].(map[string]any), fees.GasUsedMultiplier)
+				}
 				return mergo.Map(&res, extendedFees)
 			})
 		}
 		return c.extendResponseBodyWith(r, res, func(ctx context.Context, res map[string]any) error { return nil })
 	}
+}
+
+func multiplyFee(feeBySpeed map[string]any, multiplier uint64) map[string]any {
+	if multiplier == 0 {
+		return feeBySpeed
+	}
+	maxPriorityFee, err := strconv.ParseUint(feeBySpeed["maxPriorityFeePerGas"].(string), 10, 64)
+	if err != nil {
+		log.Error(errors.Wrapf(err, "failed to parse fee response %v", feeBySpeed))
+		return feeBySpeed
+	}
+	maxFee, err := strconv.ParseUint(feeBySpeed["maxFeePerGas"].(string), 10, 64)
+	if err != nil {
+		log.Error(errors.Wrapf(err, "failed to parse fee response %v", feeBySpeed))
+		return feeBySpeed
+	}
+	feeBySpeed["maxPriorityFeePerGas"] = strconv.FormatUint(maxPriorityFee*multiplier, 10)
+	feeBySpeed["maxFeePerGas"] = strconv.FormatUint(maxFee*multiplier, 10)
+	return feeBySpeed
 }
 
 func extendResponseBodyWithPaymentExtension() func(ctx context.Context, res map[string]any) error {
