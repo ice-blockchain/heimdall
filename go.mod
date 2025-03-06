@@ -1,6 +1,6 @@
 module github.com/ice-blockchain/heimdall
 
-go 1.24.0
+go 1.24.1
 
 replace github.com/nbd-wtf/go-nostr => github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250130171717-15e0674505b3
 
