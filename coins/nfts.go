@@ -51,7 +51,6 @@ func (c *coinsRepository) populateNFTsWithCollectionInfo(NFTsInWallet []WalletNF
 	for _, wn := range NFTsInWallet {
 		contractAddress := wn["contract"].(string)
 		collection := nftCollections[contractAddress]
-		wn["tokenUri"] = collection.CollectionImageURI // Do not break FE with ipfs:// for now
 		res = append(res, &NFT{
 			WalletNFT:          wn,
 			Name:               collection.Name,
@@ -175,7 +174,7 @@ func buildNftsInsert(network string, nftsToImport []WalletNFT) (sql string, para
 	idx := 1
 	params = make([]any, 0, len(nftsToImport)*8)
 	for _, n := range nftsToImport {
-		params = append(params, network, "", "", n["kind"], n["contract"], n["symbol"], n["tokenUri"])
+		params = append(params, network, "", "", n["kind"], n["contract"], n["symbol"], "")
 		placeholders = append(placeholders, fmt.Sprintf("($%[1]v, $%[2]v,$%[3]v, $%[4]v, $%[5]v, $%[6]v, $%[7]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6))
 		idx += 7
 	}
