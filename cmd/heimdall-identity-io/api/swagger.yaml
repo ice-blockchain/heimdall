@@ -28,6 +28,19 @@ definitions:
       walletId:
         type: string
     type: object
+  accounts.NFT:
+    properties:
+      collectionImageUri:
+        type: string
+      description:
+        type: string
+      name:
+        type: string
+      network:
+        type: string
+      walletId:
+        type: string
+    type: object
   accounts.TwoFAOptionEnum:
     enum:
     - sms
@@ -67,9 +80,15 @@ definitions:
     type: object
   coins.NFT:
     properties:
+      collectionImageUri:
+        type: string
       description:
         type: string
       name:
+        type: string
+      network:
+        type: string
+      walletId:
         type: string
     type: object
   dfns.Asset:
@@ -265,6 +284,11 @@ definitions:
         type: string
       name:
         type: string
+      nfts:
+        description: For GetWalletView, all nfts from connected wallets
+        items:
+          $ref: '#/definitions/accounts.NFT'
+        type: array
       symbolGroups:
         items:
           type: string

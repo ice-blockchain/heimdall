@@ -77,12 +77,14 @@ type (
 		Name  string       `json:"name"`
 		Coins CoinMappings `json:"coins"`
 		// For GetWalletView, with total sum by symbol aggregation
-		Aggregation  map[string]*CoinAggregation `json:"aggregation,omitempty"`
-		SymbolGroups []string                    `json:"symbolGroups"`
-		CreatedAt    *time.Time                  `json:"createdAt"`
-		UpdatedAt    *time.Time                  `json:"updatedAt"`
-		UserID       string                      `json:"userId"`
-		ID           string                      `json:"id"`
+		Aggregation map[string]*CoinAggregation `json:"aggregation,omitempty"`
+		// For GetWalletView, all nfts from connected wallets
+		NFTs         []*NFT     `json:"nfts,omitempty"`
+		SymbolGroups []string   `json:"symbolGroups"`
+		CreatedAt    *time.Time `json:"createdAt"`
+		UpdatedAt    *time.Time `json:"updatedAt"`
+		UserID       string     `json:"userId"`
+		ID           string     `json:"id"`
 	}
 	CoinWithWalletInfo struct {
 		*coins.Coin

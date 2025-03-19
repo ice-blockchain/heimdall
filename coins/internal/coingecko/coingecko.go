@@ -283,6 +283,7 @@ func (c *client) GetNFT(ctx context.Context, network, contractAddr string) (*NFT
 		}
 		return nil, errors.Wrapf(err, "failed to get nft info for %v %v", network, contractAddr)
 	}
+
 	return nft, nil
 }
 
@@ -401,4 +402,14 @@ func MapNetworkFromCoinGecko(network string) (string, error) {
 
 func IsTestnet(network string) bool {
 	return Networks[network].IsTestnet
+}
+
+func (n *NFT) ImageUri() string {
+	if n.Image.Thumb != "" {
+		return n.Image.Thumb
+	}
+	if n.Image.Small2X != "" {
+		return n.Image.Small2X
+	}
+	return n.Image.Small
 }

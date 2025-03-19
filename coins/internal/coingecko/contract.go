@@ -36,7 +36,9 @@ type (
 		Symbol          string `json:"symbol"`
 		Description     string `json:"description"`
 		Image           struct {
-			Thumb string `json:"thumb"`
+			Thumb   string `json:"thumb"`
+			Small2X string `json:"small_2x"`
+			Small   string `json:"small"`
 		} `json:"image"`
 	}
 	Network struct {

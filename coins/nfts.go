@@ -22,12 +22,12 @@ func (c *coinsRepository) ImportNFTs(ctx context.Context, network string, NFTsIn
 	for _, n := range NFTsInWallet {
 		addresses = append(addresses, n["contract"].(string))
 	}
-	nfts, missing, err := c.getNFTs(ctx, network, addresses)
+	nftCollections, missing, err := c.getNFTCollections(ctx, network, addresses)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get local nfts")
 	}
 	if len(missing) == 0 {
-		return nfts, nil
+		return c.populateNFTsWithCollectionInfo(NFTsInWallet, nftCollections), nil
 	}
 	nftsToImport := make([]WalletNFT, 0, len(missing))
 	for _, n := range NFTsInWallet {
@@ -35,16 +35,36 @@ func (c *coinsRepository) ImportNFTs(ctx context.Context, network string, NFTsIn
 			nftsToImport = append(nftsToImport, n)
 		}
 	}
-	imported, err := c.importNFTs(ctx, network, nftsToImport, missing)
+	imported, err := c.importNFTCollections(ctx, network, nftsToImport, missing)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to import missing NFTs %v %+v", network, missing)
 	}
-	nfts = append(nfts, imported...)
-	return nfts, nil
+	for k, v := range imported {
+		nftCollections[k] = v
+	}
+
+	return c.populateNFTsWithCollectionInfo(NFTsInWallet, nftCollections), nil
 }
 
-func (c *coinsRepository) getNFTs(ctx context.Context, network string, contractAddresses []string) (res []*NFT, missing []string, err error) {
-	nfts, err := storage.Select[nft](ctx, c.db, `SELECT * FROM nfts WHERE network = $1 AND contract_address = ANY($2)`, network, contractAddresses)
+func (c *coinsRepository) populateNFTsWithCollectionInfo(NFTsInWallet []WalletNFT, nftCollections map[string]*NFT) []*NFT {
+	res := make([]*NFT, 0, len(NFTsInWallet))
+	for _, wn := range NFTsInWallet {
+		contractAddress := wn["contract"].(string)
+		collection := nftCollections[contractAddress]
+		wn["tokenUri"] = collection.CollectionImageURI // Do not break FE with ipfs:// for now
+		res = append(res, &NFT{
+			WalletNFT:          wn,
+			Name:               collection.Name,
+			Description:        collection.Description,
+			CollectionImageURI: collection.CollectionImageURI,
+		})
+	}
+
+	return res
+}
+
+func (c *coinsRepository) getNFTCollections(ctx context.Context, network string, contractAddresses []string) (res map[string]*NFT, missing []string, err error) {
+	nfts, err := storage.Select[nft](ctx, c.db, `SELECT * FROM nft_collections WHERE network = $1 AND contract_address = ANY($2)`, network, contractAddresses)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "failed to get local nfts for %v %+v", network, contractAddresses)
 	}
@@ -63,31 +83,25 @@ func (c *coinsRepository) getNFTs(ctx context.Context, network string, contractA
 			}
 		}
 	}
-	res = make([]*NFT, 0, len(nfts))
+	res = make(map[string]*NFT, len(nfts))
 	for _, r := range nfts {
-		res = append(res, &NFT{
-			WalletNFT: map[string]any{
-				"kind":     r.TokenStandard,
-				"contract": r.ContractAddress,
-				"symbol":   r.Symbol,
-				"tokenId":  r.TokenID,
-				"tokenUri": r.IconUrl,
-			},
-			Name:        r.Name,
-			Description: r.Description,
-		})
+		res[r.ContractAddress] = &NFT{
+			Name:               r.Name,
+			Description:        r.Description,
+			CollectionImageURI: r.IconUrl,
+		}
 	}
 	return res, missing, nil
 }
 
-func (c *coinsRepository) importNFTs(ctx context.Context, network string, nftsToImport []WalletNFT, contractAddresses []string) ([]*NFT, error) {
+func (c *coinsRepository) importNFTCollections(ctx context.Context, network string, nftsToImport []WalletNFT, contractAddresses []string) (map[string]*NFT, error) {
 	err := c.insertNFTs(ctx, network, nftsToImport)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to import nfts %+v", contractAddresses)
 	}
-	updatedNfts := make([]*NFT, 0, len(nftsToImport))
+	updatedNfts := make(map[string]*NFT, len(nftsToImport))
 	tErr := storage.DoInTransaction(ctx, c.db, func(conn storage.QueryExecer) error {
-		_, err := storage.ExecMany[nft](ctx, conn, `SELECT * from nfts where contract_address = ANY($1) FOR UPDATE`, contractAddresses)
+		_, err := storage.ExecMany[nft](ctx, conn, `SELECT * from nft_collections where contract_address = ANY($1) FOR UPDATE`, contractAddresses)
 		if err != nil {
 			return errors.Wrapf(err, "failed to select for update nfts %#v", contractAddresses)
 		}
@@ -112,7 +126,7 @@ func (c *coinsRepository) importNFTs(ctx context.Context, network string, nftsTo
 			nftsToUpdate = append(nftsToUpdate, nftItem)
 		}
 		var uErr error
-		updatedNfts, uErr = c.updateNFTs(ctx, nftsToUpdate)
+		updatedNfts, uErr = c.updateNFTCollections(ctx, conn, nftsToUpdate)
 		if uErr != nil {
 			return errors.Wrapf(uErr, "failed to update nft data in db with coin gecko data %#v", nftsToUpdate)
 		}
@@ -122,14 +136,14 @@ func (c *coinsRepository) importNFTs(ctx context.Context, network string, nftsTo
 }
 func (c *coinsRepository) insertNFTs(ctx context.Context, network string, nftsToImport []WalletNFT) error {
 	placeholders, params := buildNftsInsert(strings.ToLower(network), nftsToImport)
-	_, err := storage.Exec(ctx, c.db, fmt.Sprintf("INSERT INTO nfts(network, token_id, name, description, token_standard, contract_address, symbol, icon_url)  VALUES %v ON CONFLICT(contract_address) DO NOTHING;", placeholders), params...)
+	_, err := storage.Exec(ctx, c.db, fmt.Sprintf("INSERT INTO nft_collections(network, name, description, token_standard, contract_address, symbol, icon_url)  VALUES %v ON CONFLICT(contract_address) DO NOTHING;", placeholders), params...)
 	return errors.Wrapf(err, "failed to insert nfts (wallet data)")
 }
 
-func (c *coinsRepository) updateNFTs(ctx context.Context, nfts []*coingecko.NFT) ([]*NFT, error) {
+func (c *coinsRepository) updateNFTCollections(ctx context.Context, conn storage.QueryExecer, nfts []*coingecko.NFT) (map[string]*NFT, error) {
 	placeholders, params := buildNftsUpdate(nfts)
-	nftsUpdated, err := storage.ExecMany[nft](ctx, c.db, fmt.Sprintf(`
-			UPDATE nfts SET
+	nftsUpdated, err := storage.ExecMany[nft](ctx, conn, fmt.Sprintf(`
+			UPDATE nft_collections SET
 			             description = update_data.description,
 						 name = update_data.name,
 						 symbol = update_data.symbol,
@@ -139,25 +153,19 @@ func (c *coinsRepository) updateNFTs(ctx context.Context, nfts []*coingecko.NFT)
 			) as update_data (
 				contract_address, description, name, symbol, icon_url
 			)
-			WHERE nfts.contract_address = update_data.contract_address
-			RETURNING nfts.*
+			WHERE nft_collections.contract_address = update_data.contract_address
+			RETURNING nft_collections.*
 `, placeholders), params...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to update nft data in db with coin gecko data %#v", nfts)
 	}
-	res := make([]*NFT, 0, len(nftsUpdated))
+	res := make(map[string]*NFT, len(nftsUpdated))
 	for _, r := range nftsUpdated {
-		res = append(res, &NFT{
-			WalletNFT: map[string]any{
-				"kind":     r.TokenStandard,
-				"contract": r.ContractAddress,
-				"symbol":   r.Symbol,
-				"tokenId":  r.TokenID,
-				"tokenUri": r.IconUrl,
-			},
-			Name:        r.Name,
-			Description: r.Description,
-		})
+		res[r.ContractAddress] = &NFT{
+			Name:               r.Name,
+			Description:        r.Description,
+			CollectionImageURI: r.IconUrl,
+		}
 	}
 	return res, nil
 }
@@ -167,9 +175,9 @@ func buildNftsInsert(network string, nftsToImport []WalletNFT) (sql string, para
 	idx := 1
 	params = make([]any, 0, len(nftsToImport)*8)
 	for _, n := range nftsToImport {
-		params = append(params, network, n["tokenId"], "", "", n["kind"], n["contract"], n["symbol"], n["tokenUri"])
-		placeholders = append(placeholders, fmt.Sprintf("($%[1]v, $%[2]v,$%[3]v, $%[4]v, $%[5]v, $%[6]v, $%[7]v, $%[8]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7))
-		idx += 8
+		params = append(params, network, "", "", n["kind"], n["contract"], n["symbol"], n["tokenUri"])
+		placeholders = append(placeholders, fmt.Sprintf("($%[1]v, $%[2]v,$%[3]v, $%[4]v, $%[5]v, $%[6]v, $%[7]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6))
+		idx += 7
 	}
 	return strings.Join(placeholders, ", "), params
 }
@@ -178,7 +186,7 @@ func buildNftsUpdate(nftsToImport []*coingecko.NFT) (sql string, params []any) {
 	idx := 1
 	params = make([]any, 0, len(nftsToImport)*5)
 	for _, n := range nftsToImport {
-		params = append(params, n.ContractAddress, n.Description, n.Name, n.Symbol, n.Image.Thumb)
+		params = append(params, n.ContractAddress, n.Description, n.Name, n.Symbol, n.ImageUri())
 		placeholders = append(placeholders, fmt.Sprintf("($%[1]v, $%[2]v,$%[3]v, $%[4]v, $%[5]v)", idx, idx+1, idx+2, idx+3, idx+4))
 		idx += 5
 	}
