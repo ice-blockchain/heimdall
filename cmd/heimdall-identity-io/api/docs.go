@@ -1488,6 +1488,26 @@ const docTemplate = `{
                 }
             }
         },
+        "accounts.NFT": {
+            "type": "object",
+            "properties": {
+                "collectionImageUri": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "network": {
+                    "type": "string"
+                },
+                "walletId": {
+                    "type": "string"
+                }
+            }
+        },
         "accounts.TwoFAOptionEnum": {
             "type": "string",
             "enum": [
@@ -1545,10 +1565,19 @@ const docTemplate = `{
         "coins.NFT": {
             "type": "object",
             "properties": {
+                "collectionImageUri": {
+                    "type": "string"
+                },
                 "description": {
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "network": {
+                    "type": "string"
+                },
+                "walletId": {
                     "type": "string"
                 }
             }
@@ -1846,6 +1875,13 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "nfts": {
+                    "description": "For GetWalletView, all nfts from connected wallets",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/accounts.NFT"
+                    }
                 },
                 "symbolGroups": {
                     "type": "array",

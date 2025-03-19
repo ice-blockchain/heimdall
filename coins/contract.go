@@ -56,8 +56,11 @@ type (
 	WalletNFT map[string]any
 	NFT       struct {
 		WalletNFT
-		Name        string `json:"name"`
-		Description string `json:"description"`
+		Name               string `json:"name"`
+		Network            string `json:"network,omitempty"`
+		WalletID           string `json:"walletId,omitempty"`
+		Description        string `json:"description"`
+		CollectionImageURI string `json:"collectionImageUri"`
 	}
 	SymbolGroupWithCoins struct {
 		SymbolGroup string  `json:"symbol_group"`
