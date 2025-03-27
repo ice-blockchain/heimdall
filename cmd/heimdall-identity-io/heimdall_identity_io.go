@@ -4,7 +4,10 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
+	"github.com/goccy/go-json"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
@@ -32,6 +35,48 @@ func main() {
 	api.SwaggerInfo.Version = cfg.Version
 	auth := accounts.NewDelegatedRPAuth(ctx)
 	server.New(&service{cfg: &cfg}, applicationYamlKey, "/docs").ListenAndServe(ctx, cancel, auth)
+}
+
+func init() {
+	files, err := contentCategories.ReadDir("content-categories")
+	log.Panic(err)
+
+	contentCategoriesFiles := make(map[string][]map[string]string)
+	for _, entry := range files {
+		file, rErr := contentCategories.ReadFile(fmt.Sprintf("content-categories/%v", entry.Name()))
+		log.Panic(rErr)
+		var fileContent []map[string]string
+		log.Panic(json.Unmarshal(file, &fileContent))
+		contentCategoriesFiles[entry.Name()] = fileContent
+	}
+
+	type contentCategoryKey struct {
+		Key  string `json:"key"`
+		Name string `json:"name"`
+	}
+	contentCategoriesPerLanguage := make(map[string][]contentCategoryKey)
+	for contentCategoryType, content := range contentCategoriesFiles {
+		for _, languageVariant := range content {
+			var key string
+			for field, value := range languageVariant {
+				if field == "key" {
+					key = value
+					break
+				}
+			}
+			for field, value := range languageVariant {
+				if field != "key" {
+					cfgName := fmt.Sprintf("%v_%v", strings.Replace(contentCategoryType, ".json", "", 1), field)
+					contentCategoriesPerLanguage[cfgName] = append(contentCategoriesPerLanguage[cfgName], contentCategoryKey{Key: key, Name: value})
+				}
+			}
+		}
+	}
+	for k, v := range contentCategoriesPerLanguage {
+		allValidConfigNames[k] = func(_ *config) any {
+			return v
+		}
+	}
 }
 
 func (s *service) RegisterRoutes(router *server.Router) {

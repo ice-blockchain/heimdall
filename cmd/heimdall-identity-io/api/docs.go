@@ -395,7 +395,7 @@ const docTemplate = `{
         "/v1/config/{configName}": {
             "get": {
                 "produces": [
-                    "plain/text"
+                    "application/json"
                 ],
                 "tags": [
                     "Config"
@@ -412,9 +412,7 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "Configuration value",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "schema": {}
                     },
                     "404": {
                         "description": "if invalid configName passed",

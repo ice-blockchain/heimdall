@@ -210,12 +210,14 @@ type (
 
 var (
 	//go:embed templates/*.html
-	templates           embed.FS
-	allValidConfigNames = map[string]func(cfg *config) string{
-		configNameRequiredAndroidAppVersion: func(cfg *config) string { return cfg.RequiredAppVersions.Android },
-		configNameRequiredIOSAppVersion:     func(cfg *config) string { return cfg.RequiredAppVersions.IOS },
-		configNameRequiredMacOSAppVersion:   func(cfg *config) string { return cfg.RequiredAppVersions.MacOS },
-		configNameRequiredWindowsAppVersion: func(cfg *config) string { return cfg.RequiredAppVersions.Windows },
-		configNameRequiredLinuxAppVersion:   func(cfg *config) string { return cfg.RequiredAppVersions.Linux },
+	templates embed.FS
+	//go:embed content-categories/*.json
+	contentCategories   embed.FS
+	allValidConfigNames = map[string]func(cfg *config) any{
+		configNameRequiredAndroidAppVersion: func(cfg *config) any { return cfg.RequiredAppVersions.Android },
+		configNameRequiredIOSAppVersion:     func(cfg *config) any { return cfg.RequiredAppVersions.IOS },
+		configNameRequiredMacOSAppVersion:   func(cfg *config) any { return cfg.RequiredAppVersions.MacOS },
+		configNameRequiredWindowsAppVersion: func(cfg *config) any { return cfg.RequiredAppVersions.Windows },
+		configNameRequiredLinuxAppVersion:   func(cfg *config) any { return cfg.RequiredAppVersions.Linux },
 	}
 )

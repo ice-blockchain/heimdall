@@ -159,20 +159,21 @@ func (s *service) DeleteUser(
 //	@Schemes
 //	@Description
 //	@Tags		Config
-//	@Produce	plain/text
+//	@Produce	json
 //	@Param		configName	path		string					true	"Name of the configuration to read"
-//	@Success	200			{string}	string					"Configuration value"
+//	@Success	200			{object}	any						"Configuration value"
 //	@Failure	404			{object}	server.ErrorResponse	"if invalid configName passed"
 //	@Failure	504			{object}	server.ErrorResponse	"if request times out"
 //	@Router		/v1/config/{configName} [GET].
 func (s *service) GetConfig(
-	ctx context.Context,
-	req *server.Request[GetConfig, string],
-) (successResp *server.Response[string], errorResp *server.ErrResponse[*server.ErrorResponse]) {
+	_ context.Context,
+	req *server.Request[GetConfig, any],
+) (successResp *server.Response[any], errorResp *server.ErrResponse[*server.ErrorResponse]) {
 	getConfig, validConfigName := allValidConfigNames[req.Data.ConfigName]
 	if !validConfigName {
 		return nil, server.NotFound(errors.Errorf("invalid configName %v", req.Data.ConfigName), notFound)
 	}
+	resp := getConfig(s.cfg)
 
-	return server.Raw("text/plain", []byte(getConfig(s.cfg))), nil
+	return server.OK[any](&resp), nil
 }

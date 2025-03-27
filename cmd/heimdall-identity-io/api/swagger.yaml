@@ -623,12 +623,11 @@ paths:
         required: true
         type: string
       produces:
-      - plain/text
+      - application/json
       responses:
         "200":
           description: Configuration value
-          schema:
-            type: string
+          schema: {}
         "404":
           description: if invalid configName passed
           schema:
