@@ -34,21 +34,10 @@ func (a *accounts) CreateWalletView(ctx context.Context, userID, name string, it
 		}
 	}
 	if len(missingDefaultCoins) > 0 {
-		wallets, err := a.delegatedRPClient.ListWallets(ctx, userID)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get wallets to link default coins for user %v", userID)
-		}
 		for _, def := range missingDefaultCoins {
 			matchingItem := &CoinMapping{
 				WalletID: nil,
 				CoinID:   def.ID,
-			}
-			for _, wallet := range wallets {
-				if strings.EqualFold(wallet["network"].(string), def.Network) {
-					walletId := wallet["id"].(string)
-					matchingItem.WalletID = &walletId
-					break
-				}
 			}
 			items = append(items, matchingItem)
 		}
