@@ -82,7 +82,7 @@ type (
 		Networks []*Network    `json:"networks"`
 	}
 	SyncCoinsReq struct {
-		SymbolGroup []string `form:"symbolGroup" required:"true"`
+		SymbolGroup []string `form:"symbolGroup" formMultipart:"symbolGroup"  required:"true"`
 	}
 	GetCoinsOfSymbolGroupReq struct {
 		UserID      string `uri:"userId" required:"true" swaggerignore:"true"`
