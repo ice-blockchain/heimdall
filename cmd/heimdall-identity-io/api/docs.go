@@ -1696,6 +1696,9 @@ const docTemplate = `{
                 },
                 "isTestnet": {
                     "type": "boolean"
+                },
+                "tier": {
+                    "type": "integer"
                 }
             }
         },

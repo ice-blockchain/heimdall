@@ -51,6 +51,7 @@ type (
 		ExplorerURL        string `json:"explorerUrl"`
 		DefaultDecimals    int    `json:"-"`
 		SkipSyncTokens     bool   `json:"-"`
+		Tier               uint8  `json:"tier"`
 	}
 )
 

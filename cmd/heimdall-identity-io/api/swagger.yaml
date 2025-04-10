@@ -168,6 +168,8 @@ definitions:
         type: string
       isTestnet:
         type: boolean
+      tier:
+        type: integer
     type: object
   main.Relays:
     properties:
