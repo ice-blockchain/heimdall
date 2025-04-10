@@ -12,6 +12,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Algorand",
 		ExplorerURL:        "https://explorer.bitquery.io/algorand/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_algorand.svg",
+		Tier:               1,
 	},
 	"AlgorandTestnet": &Network{
 		ID:                 "AlgorandTestnet",
@@ -23,6 +24,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Algorand",
 		ExplorerURL:        "https://explorer.bitquery.io/algorand_testnet/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_algorand.svg",
+		Tier:               1,
 	},
 	"ArbitrumOne": &Network{
 		ID:                 "ArbitrumOne",
@@ -32,6 +34,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Arbitrum One",
 		ExplorerURL:        "https://arbiscan.com/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_arbitrumone.svg",
+		Tier:               1,
 	},
 	"ArbitrumSepolia": &Network{
 		ID:                 "ArbitrumSepolia",
@@ -42,6 +45,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Arbitrum One",
 		ExplorerURL:        "https://sepolia.arbiscan.com/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_arbitrumone.svg",
+		Tier:               1,
 	},
 	"AptosTestnet": &Network{
 		ID:                 "AptosTestnet",
@@ -52,6 +56,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Aptos",
 		ExplorerURL:        "https://explorer.aptoslabs.com/txn/{txHash}?network=testnet",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_aptos.svg",
+		Tier:               1,
 	},
 	"Aptos": &Network{
 		ID:                 "Aptos",
@@ -61,6 +66,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Aptos",
 		ExplorerURL:        "https://explorer.aptoslabs.com/txn/{txHash}?network=mainnet",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_aptos.svg",
+		Tier:               1,
 	},
 	"AvalancheC": &Network{
 		ID:                 "AvalancheC",
@@ -70,6 +76,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		ExplorerURL:        "https://subnets.avax.network/c-chain/block/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_avalance.svg",
+		Tier:               1,
 	},
 	"AvalancheCFuji": &Network{
 		ID:                 "AvalancheCFuji",
@@ -80,6 +87,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    18,
 		ExplorerURL:        "https://subnets-test.avax.network/c-chain/block/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_avalance.svg",
+		Tier:               1,
 	},
 	"Base": &Network{
 		ID:                 "Base",
@@ -89,6 +97,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Base",
 		ExplorerURL:        "https://basescan.com/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_base.svg",
+		Tier:               1,
 	},
 	"BaseSepolia": &Network{
 		ID:                 "BaseSepolia",
@@ -99,6 +108,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Base",
 		ExplorerURL:        "https://sepolia.basescan.com/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_base.svg",
+		Tier:               1,
 	},
 	"Bitcoin": &Network{
 		ID:                 "Bitcoin",
@@ -108,6 +118,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    9,
 		ExplorerURL:        "https://mempool.space/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_btc.svg",
+		Tier:               1,
 	},
 	"BitcoinTestnet3": &Network{
 		ID:                 "BitcoinTestnet3",
@@ -118,6 +129,7 @@ var Networks = map[string]*Network{
 		DefaultDecimals:    9,
 		ExplorerURL:        "https://mempool.space/testnet/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_btc.svg",
+		Tier:               1,
 	},
 	"Bsc": &Network{
 		ID:                 "Bsc",
@@ -127,6 +139,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "BSC",
 		ExplorerURL:        "https://bscscan.com/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_binance.svg",
+		Tier:               1,
 	},
 	"BscTestnet": &Network{
 		ID:                 "BscTestnet",
@@ -137,6 +150,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "BSC",
 		ExplorerURL:        "https://testnet.bscscan.com/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_binance.svg",
+		Tier:               1,
 	},
 	"Cardano": &Network{
 		ID:                 "Cardano",
@@ -146,6 +160,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Cardano",
 		ExplorerURL:        "https://cardanoscan.io/transaction/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_cardano.svg",
+		Tier:               2,
 	},
 	"CardanoPreprod": &Network{
 		ID:                 "CardanoPreprod",
@@ -156,6 +171,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Cardano",
 		ExplorerURL:        "https://preprod.cardanoscan.io/transaction/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_cardano.svg",
+		Tier:               2,
 	},
 	"Dogecoin": &Network{
 		ID:                 "Dogecoin",
@@ -165,6 +181,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Dogecoin",
 		SkipSyncTokens:     true,
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_dogecoin.svg",
+		Tier:               1,
 	},
 	"Ethereum": &Network{
 		ID:                 "Ethereum",
@@ -174,6 +191,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Ethereum",
 		ExplorerURL:        "https://etherscan.io/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_eth.svg",
+		Tier:               1,
 	},
 	"EthereumSepolia": &Network{
 		ID:                 "EthereumSepolia",
@@ -184,6 +202,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Ethereum",
 		ExplorerURL:        "https://sepolia.etherscan.io/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_eth.svg",
+		Tier:               1,
 	},
 	"FantomOpera": &Network{
 		ID:                 "FantomOpera",
@@ -193,6 +212,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Fantom",
 		ExplorerURL:        "https://explorer.fantom.network/transactions/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_fantom.svg",
+		Tier:               1,
 	},
 	"FantomTestnet": &Network{
 		ID:                 "FantomTestnet",
@@ -203,6 +223,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Fantom",
 		ExplorerURL:        "https://explorer.testnet.fantom.network/transactions/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_fantom.svg",
+		Tier:               1,
 	},
 	"ICP": &Network{
 		ID:                 "ICP",
@@ -212,6 +233,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "ICP",
 		ExplorerURL:        "https://www.icpexplorer.org/#/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_icp.svg",
+		Tier:               1,
 	},
 	"Kusama": &Network{
 		ID:                 "Kusama",
@@ -221,6 +243,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Kusama",
 		ExplorerURL:        "https://kusama.subscan.io/extrinsic/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_kusama.svg",
+		Tier:               2,
 	},
 	"Optimism": &Network{
 		ID:                 "Optimism",
@@ -230,6 +253,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Optimism",
 		ExplorerURL:        "https://optimistic.etherscan.io/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_optimism.svg",
+		Tier:               1,
 	},
 	"OptimismSepolia": &Network{
 		ID:                 "OptimismSepolia",
@@ -240,6 +264,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Optimism",
 		ExplorerURL:        "https://sepolia-optimism.etherscan.io/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_optimism.svg",
+		Tier:               1,
 	},
 	"SeiPacific1": &Network{
 		ID:                 "SeiPacific1",
@@ -249,6 +274,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Sei Network",
 		ExplorerURL:        "https://www.seiscan.app/pacific-1/txs/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_sei.svg",
+		Tier:               1,
 	},
 	"SeiAtlantic2": &Network{
 		ID:                 "SeiAtlantic2",
@@ -259,6 +285,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Sei Network",
 		ExplorerURL:        "https://www.seiscan.app/atlantic-2/txs/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_sei.svg",
+		Tier:               1,
 	},
 	"Solana": &Network{
 		ID:                 "Solana",
@@ -268,6 +295,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Solana",
 		ExplorerURL:        "https://solscan.io/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_solana.svg",
+		Tier:               1,
 	},
 	"SolanaDevnet": &Network{
 		ID:                 "SolanaDevnet",
@@ -278,6 +306,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Solana",
 		ExplorerURL:        "https://solscan.io/tx/{txHash}?cluster=devnet",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_solana.svg",
+		Tier:               1,
 	},
 	"Polygon": &Network{
 		ID:                 "Polygon",
@@ -287,6 +316,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Polygon",
 		ExplorerURL:        "https://polygonscan.com/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_matic.svg",
+		Tier:               1,
 	},
 	"PolygonAmoy": &Network{
 		ID:                 "PolygonAmoy",
@@ -297,6 +327,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Polygon",
 		ExplorerURL:        "https://amoy.polygonscan.com/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_matic.svg",
+		Tier:               1,
 	},
 	"Ton": &Network{
 		ID:                 "Ton",
@@ -306,6 +337,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "TON",
 		ExplorerURL:        "https://tonscan.org/address/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_ton.svg",
+		Tier:               1,
 	},
 	"TonTestnet": &Network{
 		ID:                 "TonTestnet",
@@ -316,6 +348,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "TON",
 		ExplorerURL:        "https://testnet.tonscan.org/address/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_ton.svg",
+		Tier:               1,
 	},
 	"Ion": &Network{
 		ID:                 "Ion",
@@ -326,6 +359,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "ION",
 		ExplorerURL:        "https://explorer.ice.io/address/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_ice.svg",
+		Tier:               1,
 	},
 	"IonTestnet": &Network{
 		ID:                 "IonTestnet",
@@ -337,6 +371,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "ION",
 		ExplorerURL:        "https://explorer.testnet.ice.io/address/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_ice.svg",
+		Tier:               1,
 	},
 	"TronNile": &Network{
 		ID:                 "TronNile",
@@ -347,6 +382,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "TRON",
 		ExplorerURL:        "https://nile.tronscan.org/#/transaction/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_tron.svg",
+		Tier:               1,
 	},
 	"Tron": &Network{
 		ID:                 "Tron",
@@ -356,6 +392,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "TRON",
 		ExplorerURL:        "https://tronscan.org/#/transaction/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_tron.svg",
+		Tier:               1,
 	},
 	"XrpLedger": &Network{
 		ID:                 "XrpLedger",
@@ -366,6 +403,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "XRP Ledger",
 		ExplorerURL:        "https://xrpscan.com/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_xrp.svg",
+		Tier:               2,
 	},
 	"XrpLedgerTestnet": &Network{
 		ID:                 "XrpLedgerTestnet",
@@ -377,6 +415,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "XRP Ledger",
 		ExplorerURL:        "https://testnet.xrpl.org/transactions/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_xrp.svg",
+		Tier:               2,
 	},
 	"Litecoin": &Network{
 		ID:                 "Litecoin",
@@ -387,6 +426,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Litecoin",
 		ExplorerURL:        "https://blockchair.com/litecoin/transaction/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_ltc.svg",
+		Tier:               1,
 	},
 	"Tezos": &Network{
 		ID:                 "Tezos",
@@ -397,6 +437,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Tezos",
 		ExplorerURL:        "https://tzkt.io/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_tezos.svg",
+		Tier:               2,
 	},
 	"TezosGhostnet": &Network{
 		ID:                 "TezosGhostnet",
@@ -408,6 +449,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Tezos",
 		ExplorerURL:        "https://ghostnet.tzkt.io/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_tezos.svg",
+		Tier:               2,
 	},
 	"StellarTestnet": &Network{
 		ID:                 "StellarTestnet",
@@ -419,6 +461,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Stellar",
 		ExplorerURL:        "https://stellar.expert/explorer/testnet/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_stellar.svg",
+		Tier:               1,
 	},
 	"Stellar": &Network{
 		ID:                 "Stellar",
@@ -429,6 +472,7 @@ var Networks = map[string]*Network{
 		SkipSyncTokens:     true,
 		ExplorerURL:        "https://stellar.expert/explorer/public/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_stellar.svg",
+		Tier:               1,
 	},
 	"Kaspa": &Network{
 		ID:                 "Kaspa",
@@ -439,6 +483,7 @@ var Networks = map[string]*Network{
 		DisplayName:        "Kaspa",
 		ExplorerURL:        "https://explorer.kaspa.org/txs/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_kaspa.svg",
+		Tier:               1,
 	},
 	"Polkadot": &Network{
 		ID:                 "Polkadot",
@@ -449,6 +494,7 @@ var Networks = map[string]*Network{
 		ExplorerURL:        "https://subscan.io/extrinsic/{txHash}",
 		SkipSyncTokens:     true,
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_polkadot.svg",
+		Tier:               2,
 	},
 	"Westend": &Network{
 		ID:                 "Westend",
@@ -460,5 +506,6 @@ var Networks = map[string]*Network{
 		ExplorerURL:        "https://westend.subscan.io/extrinsic/{txHash}",
 		SkipSyncTokens:     true,
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_polkadot.svg",
+		Tier:               2,
 	},
 }
