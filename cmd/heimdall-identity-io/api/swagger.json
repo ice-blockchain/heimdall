@@ -1689,6 +1689,9 @@
                 },
                 "isTestnet": {
                     "type": "boolean"
+                },
+                "tier": {
+                    "type": "integer"
                 }
             }
         },
