@@ -19,7 +19,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ice-blockchain/wintr v1.155.0
 	github.com/imroc/req/v3 v3.50.0
-	github.com/lestrrat-go/jwx/v2 v2.1.4
+	github.com/lestrrat-go/jwx/v2 v2.1.5
 	github.com/nbd-wtf/go-nostr v0.49.1
 	github.com/pkg/errors v0.9.1
 	github.com/quic-go/quic-go v0.50.1
