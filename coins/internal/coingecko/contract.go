@@ -63,7 +63,8 @@ var (
 	platformToNetworkMapping                      = map[string]*Network{}
 
 	platformToCoinMapping = map[string]string{
-		"bitcoin": "bitcoin",
+		"bitcoin":   "bitcoin",
+		"berachain": "berachain-bera",
 	}
 	extraCoinsToNetworkMapping = map[string]string{
 		"litecoin": "litecoin",
