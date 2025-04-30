@@ -27,6 +27,9 @@ func New(ctx context.Context, coinsRepo Coins) Accounts {
 	cl := dfns.NewDfnsClient(ctx, db, applicationYamlKey, coinsRepo)
 
 	var cfg config
+	if cfg.RelaysPerUser == 0 {
+		cfg.RelaysPerUser = 1
+	}
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	var smsSender sms.SmsSender
 	func() {

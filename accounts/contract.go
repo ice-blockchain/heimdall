@@ -209,5 +209,6 @@ type (
 		Max2FACount              int                 `yaml:"max2FACount" mapstructure:"max2FACount"`
 		DefaultCoinsInWalletView []string            `yaml:"defaultCoinsInWalletView" mapstructure:"defaultCoinsInWalletView"`
 		MockRelays               []string            `yaml:"mockRelays" mapstructure:"mockRelays"`
+		RelaysPerUser            uint8               `yaml:"relaysPerUser" mapstructure:"relaysPerUser"`
 	}
 )

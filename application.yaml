@@ -89,6 +89,7 @@ accounts:
     - wss://relay.nostr.band/
     - wss://relay1.nostr.band/
     - wss://relay3.nostr.band/
+  relaysPerUser: 1
   defaultCoinsInWalletView:
     - ice
     - binancecoin
