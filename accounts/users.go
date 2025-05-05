@@ -9,6 +9,8 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"math"
+	"math/rand"
 	"reflect"
 	"slices"
 	"strings"
@@ -16,7 +18,6 @@ import (
 	"github.com/goccy/go-json"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
-	"golang.org/x/exp/rand"
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/server"
@@ -127,8 +128,13 @@ func (a *accounts) validateFollowees(ctx context.Context, followees []string) er
 }
 
 func (a *accounts) fetchRelays(ctx context.Context, userID string, followeeList []string) (relays []string, err error) {
-	randomRelay := a.cfg.MockRelays[rand.Intn(len(a.cfg.MockRelays))]
-	return []string{enhanceRelayURL(randomRelay)}, nil
+	relaysCount := int(math.Min(float64(a.cfg.RelaysPerUser), float64(len(a.cfg.MockRelays))))
+	shuffled := append([]string{}, a.cfg.MockRelays...)
+	rand.Shuffle(len(shuffled), func(i, j int) {
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+	})
+
+	return shuffled[0:relaysCount], nil
 }
 
 func (a *accounts) fetchIONIndexers(ctx context.Context, userID string) (relays []string, err error) {
