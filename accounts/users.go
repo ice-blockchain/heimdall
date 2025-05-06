@@ -139,8 +139,7 @@ func (a *accounts) fetchRelays(ctx context.Context, userID string, followeeList 
 
 func (a *accounts) fetchIONIndexers(ctx context.Context, userID string) (relays []string, err error) {
 	log.Info("Fetching indexers from polaris for %v", clientIPAddress(ctx))
-	randomIndexer := a.cfg.MockRelays[rand.Intn(len(a.cfg.MockRelays))]
-	return []string{enhanceRelayURL(randomIndexer)}, nil
+	return []string{}, nil
 }
 
 func enhanceRelayURL(url string) string {
