@@ -48,7 +48,7 @@ func (a *accounts) StartDelegatedRecovery(ctx context.Context, username, credent
 
 func (a *accounts) GetLoginChallenge(ctx context.Context, username string, codes map[TwoFAOptionWithAddr]string) (*LoginChallenge, error) {
 	username = strings.ToLower(username)
-	if !dfns.UsernameRegexp.MatchString(username) {
+	if username != "" && !dfns.UsernameRegexp.MatchString(username) {
 		return nil, errors.Wrapf(dfns.ErrInvalidUsername, "username must match %v", dfns.UsernameRegexp.String())
 	}
 	loginChallenge, err := a.delegatedRPClient.GetLoginChallenge(ctx, username)
@@ -56,6 +56,9 @@ func (a *accounts) GetLoginChallenge(ctx context.Context, username string, codes
 		return nil, errors.Wrapf(err, "failed to initiate login for username %v", username)
 	}
 	if loginChallenge.PasswordLogin() {
+		if username == "" {
+			return nil, errors.Wrapf(ErrInvalidUsername, "password flow is unsupported without username, use passkey")
+		}
 		var usr *user
 		usr, err = a.getUserByUsername(ctx, username)
 		if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
