@@ -351,11 +351,12 @@ func (c *coinsRepository) SyncCoins(ctx context.Context, symbolGroups []string) 
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to select coins for symbol groups %#v", symbolGroups)
 	}
-	bySymbolGroup := make(map[string]*Coin)
+	bySymbolGroupAndNetwork := make(map[string]*Coin)
 	coinsToSync := make([]string, len(coinsList))
 	for _, coin := range coinsList {
-		bySymbolGroup[coin.SymbolGroup] = &Coin{
+		bySymbolGroupAndNetwork[coin.SymbolGroup+coin.Network] = &Coin{
 			Symbol:        coin.Symbol,
+			Network:       coin.Network,
 			SymbolGroup:   coin.SymbolGroup,
 			PriceUSD:      coin.PriceUSD,
 			SyncFrequency: coin.SyncFrequency,
@@ -371,8 +372,8 @@ func (c *coinsRepository) SyncCoins(ctx context.Context, symbolGroups []string) 
 			return nil, errors.Wrapf(err, "failed to request sync of outdated coins: %#v", coinsToSync)
 		}
 	}
-	res := make([]*Coin, 0, len(bySymbolGroup))
-	for _, coin := range bySymbolGroup {
+	res := make([]*Coin, 0, len(bySymbolGroupAndNetwork))
+	for _, coin := range bySymbolGroupAndNetwork {
 		res = append(res, coin)
 	}
 	return res, nil
