@@ -176,7 +176,7 @@ jobs:
     name: Test
     strategy:
       matrix:
-        package: [ "accounts", "server", "cmd/heimdall-identity-io", "cmd/heimdall-asset-data-syncer"]
+        package: [ "accounts", "server", "cmd/heimdall-identity-io", "cmd/heimdall-asset-data-syncer", "hashtag-statistics"]
     if: ${{ false  }}
 #    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push'  }}
     runs-on: ubuntu-latest
@@ -220,7 +220,7 @@ jobs:
     name: Benchmark
     strategy:
       matrix:
-        package: [ "accounts", "server", "cmd/heimdall-identity-io", "cmd/heimdall-asset-data-syncer"]
+        package: [ "accounts", "server", "cmd/heimdall-identity-io", "cmd/heimdall-asset-data-syncer", "hashtag-statistics"]
     if: ${{ false  }}
 #    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push'  }}
     runs-on: ubuntu-latest
