@@ -37,7 +37,7 @@ func (h *hashtagStatisticsRepository) Process(ctx context.Context, events []*mod
 		if event.Kind == nostr.KindTextNote {
 			address = event.ID
 		} else {
-			address = strconv.Itoa(event.Kind) + ":" + event.PubKey + ":" + event.Tags.GetD()
+			address = strconv.Itoa(event.Kind) + ":" + event.GetMasterPublicKey() + ":" + event.Tags.GetD()
 		}
 		hashtags := extractUniqueHashtags(event.Content)
 		args = append(args, address, event.GetMasterPublicKey(), hashtags)
@@ -49,20 +49,20 @@ func (h *hashtagStatisticsRepository) Process(ctx context.Context, events []*mod
 
 	stmt := fmt.Sprintf(`
 		WITH valid_events AS (
-			SELECT v.address, v.master_pubkey, v.tags
-			FROM (VALUES %s) AS v(address, master_pubkey, tags)
+			SELECT v.address, v.master_pubkey, v.hashtags
+			FROM (VALUES %s) AS v(address, master_pubkey, hashtags)
 			JOIN users u ON v.master_pubkey = u.master_pubkey
 		),
 		inserted_events AS (
 			INSERT INTO processed_hashtag_statistics_events (event_address, event_author_master_pubkey, hashtags) 
-				SELECT address, master_pubkey, tags FROM valid_events
+				SELECT address, master_pubkey, hashtags FROM valid_events
 			ON CONFLICT (event_address) DO NOTHING
 			RETURNING event_address, hashtags
 		)
 		INSERT INTO hashtag_statistics (hashtag, occurrences)
-			SELECT tag, COUNT(DISTINCT event_address)
-				FROM inserted_events, unnest(hashtags) AS tag
-			GROUP BY tag
+			SELECT hashtag, COUNT(event_address)
+				FROM inserted_events, unnest(hashtags) AS hashtag
+			GROUP BY hashtag
 		ON CONFLICT (hashtag) DO UPDATE 
 		SET occurrences = hashtag_statistics.occurrences + EXCLUDED.occurrences`, strings.Join(placeholders, ","))
 
