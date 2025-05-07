@@ -354,9 +354,14 @@ func (c *coinsRepository) SyncCoins(ctx context.Context, symbolGroups []string) 
 	bySymbolGroupAndNetwork := make(map[string]*Coin)
 	coinsToSync := make([]string, len(coinsList))
 	for _, coin := range coinsList {
+		network, err := MapNetworkFromCoinGecko(coin.Network)
+		if err != nil {
+			log.Error(errors.Wrapf(err, "failed to map network %v for coin %+v", coin.Network, coin))
+			continue
+		}
 		bySymbolGroupAndNetwork[coin.SymbolGroup+coin.Network] = &Coin{
 			Symbol:        coin.Symbol,
-			Network:       coin.Network,
+			Network:       network,
 			SymbolGroup:   coin.SymbolGroup,
 			PriceUSD:      coin.PriceUSD,
 			SyncFrequency: coin.SyncFrequency,
