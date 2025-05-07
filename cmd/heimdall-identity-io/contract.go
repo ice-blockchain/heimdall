@@ -8,6 +8,8 @@ import (
 
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/coins"
+	hashtagstatistics "github.com/ice-blockchain/heimdall/hashtag-statistics"
+	"github.com/ice-blockchain/subzero/model"
 )
 
 type (
@@ -46,6 +48,14 @@ type (
 	RelaysReq struct {
 		UserID       string   `uri:"userId" required:"true" swaggerignore:"true"`
 		FolloweeList []string `json:"followeeList"`
+	}
+	HashtagsEventsReq struct {
+		Events []*model.Event `json:"events" binding:"required,min=1,dive" allowUnauthorized:"true"`
+	}
+	GetTopHashtagsReq struct {
+		Authorization string `header:"Authorization" required:"true" swaggerignore:"true"`
+		Keyword       string `form:"keyword" required:"false"`
+		Limit         int    `form:"limit" required:"false"`
 	}
 	Relays struct {
 		IONConnectRelays []string `json:"ionConnectRelays"`
@@ -188,9 +198,10 @@ const (
 
 type (
 	service struct {
-		accounts accounts.Accounts
-		coins    coins.Coins
-		cfg      *config
+		accounts          accounts.Accounts
+		coins             coins.Coins
+		hashtagStatistics hashtagstatistics.HashtagStatistics
+		cfg               *config
 	}
 	config struct {
 		Host                    string   `yaml:"host"`

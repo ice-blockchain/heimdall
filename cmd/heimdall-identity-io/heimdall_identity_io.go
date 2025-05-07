@@ -14,6 +14,7 @@ import (
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/cmd/heimdall-identity-io/api"
 	"github.com/ice-blockchain/heimdall/coins"
+	hashtagstatistics "github.com/ice-blockchain/heimdall/hashtag-statistics"
 	"github.com/ice-blockchain/heimdall/server"
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/log"
@@ -85,11 +86,13 @@ func (s *service) RegisterRoutes(router *server.Router) {
 	s.setupUserRoutes(router)
 	s.setupWalletViewsRoutes(router)
 	s.setupCoinRoutes(router)
+	s.setupStatisticsRoutes(router)
 }
 
 func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	s.coins = coins.New(ctx)
 	s.accounts = accounts.New(ctx, s.coins)
+	s.hashtagStatistics = hashtagstatistics.New(ctx)
 }
 
 func (s *service) Close(ctx context.Context) error {
@@ -100,6 +103,7 @@ func (s *service) Close(ctx context.Context) error {
 	return multierror.Append(
 		errors.Wrap(s.accounts.Close(), "failed to close accounts"),
 		errors.Wrap(s.coins.Close(), "failed to close coins"),
+		errors.Wrap(s.hashtagStatistics.Close(), "failed to close hashtag statistics"),
 	).ErrorOrNil()
 }
 
@@ -109,5 +113,6 @@ func (s *service) CheckHealth(ctx context.Context) error {
 	return multierror.Append(
 		errors.Wrapf(s.accounts.HealthCheck(ctx), "accounts check failed"),
 		errors.Wrapf(s.coins.HealthCheck(ctx), "coins check failed"),
+		errors.Wrapf(s.hashtagStatistics.HealthCheck(ctx), "hashtag statistics check failed"),
 	).ErrorOrNil()
 }

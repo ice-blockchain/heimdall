@@ -135,6 +135,16 @@ definitions:
       username:
         type: string
     type: object
+  main.HashtagsEventsReq:
+    properties:
+      events:
+        items:
+          $ref: '#/definitions/model.Event'
+        minItems: 1
+        type: array
+    required:
+    - events
+    type: object
   main.ImportCoinReq:
     properties:
       contractAddress:
@@ -325,6 +335,27 @@ definitions:
     properties:
       message:
         type: string
+    type: object
+  model.Event:
+    properties:
+      content:
+        type: string
+      createdAt:
+        type: integer
+      id:
+        type: string
+      kind:
+        type: integer
+      pubKey:
+        type: string
+      sig:
+        type: string
+      tags:
+        items:
+          items:
+            type: string
+          type: array
+        type: array
     type: object
   server.ErrorResponse:
     properties:
@@ -673,6 +704,73 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Coins
+  /v1/statistics/hashtags:
+    get:
+      description: Returns top hashtags
+      parameters:
+      - description: 'Limit for the number of hashtags to return (default: 10)'
+        in: query
+        name: limit
+        type: integer
+      - description: Filter hashtags starting with this keyword
+        in: query
+        name: keyword
+        type: string
+      - default: Bearer <Add token here>
+        description: Auth token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Statistics
+    post:
+      consumes:
+      - application/json
+      description: Process hashtags from events
+      parameters:
+      - description: Events with hashtags
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.HashtagsEventsReq'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+        "400":
+          description: if invalid events provided
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Statistics
   /v1/sync-coins:
     patch:
       description: Requests to sync / update coins from 3rdparty
