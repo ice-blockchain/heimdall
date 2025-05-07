@@ -325,3 +325,12 @@ nfts:
   coin-gecko:
     #api-key: bogus
     base-url: https://pro-api.coingecko.com
+hashtagstatistics:
+  wintr/connectors/storage/v2:
+    runDDL: true
+    primaryURL: postgresql://root:pass@localhost:5437/heimdall
+    credentials:
+      user: root
+      password: pass
+    replicaURLs:
+      - postgresql://root:pass@localhost:5437/heimdall
