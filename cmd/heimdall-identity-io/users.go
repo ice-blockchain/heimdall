@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -181,6 +182,9 @@ func (s *service) GetConfig(
 	}
 	if vers > Version(0) && req.Data.Version != nil && vers <= *req.Data.Version {
 		return server.NoContent(), nil
+	}
+	if vers > Version(0) {
+		return &server.Response[any]{Code: http.StatusOK, Data: &resp, Headers: map[string]string{"X-Version": fmt.Sprint(vers)}}, nil
 	}
 
 	return server.OK[any](&resp), nil
