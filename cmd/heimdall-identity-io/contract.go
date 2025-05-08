@@ -13,6 +13,7 @@ import (
 )
 
 type (
+	Version           uint8
 	AppAssociationReq struct {
 		_ struct{} `json:"-" allowUnauthorized:"true"`
 	}
@@ -122,7 +123,8 @@ type (
 	}
 	Wallet    = accounts.Wallet
 	GetConfig struct {
-		ConfigName string `uri:"configName" allowUnauthorized:"true"`
+		Version    *Version `form:"version" allowUnauthorized:"true"`
+		ConfigName string   `uri:"configName" allowUnauthorized:"true"`
 	}
 	Send2FARequestReq struct {
 		Email                  *string                        `json:"email,omitempty"`
@@ -194,6 +196,7 @@ const (
 	configNameRequiredMacOSAppVersion   = "required_macos_app_version"
 	configNameRequiredWindowsAppVersion = "required_windows_app_version"
 	configNameRequiredLinuxAppVersion   = "required_linux_app_version"
+	configNameIONAppTranslations        = "ion-app_translations"
 )
 
 type (
@@ -223,12 +226,17 @@ var (
 	//go:embed templates/*.html
 	templates embed.FS
 	//go:embed content-categories/*.json
-	contentCategories   embed.FS
-	allValidConfigNames = map[string]func(cfg *config) any{
-		configNameRequiredAndroidAppVersion: func(cfg *config) any { return cfg.RequiredAppVersions.Android },
-		configNameRequiredIOSAppVersion:     func(cfg *config) any { return cfg.RequiredAppVersions.IOS },
-		configNameRequiredMacOSAppVersion:   func(cfg *config) any { return cfg.RequiredAppVersions.MacOS },
-		configNameRequiredWindowsAppVersion: func(cfg *config) any { return cfg.RequiredAppVersions.Windows },
-		configNameRequiredLinuxAppVersion:   func(cfg *config) any { return cfg.RequiredAppVersions.Linux },
+	contentCategories embed.FS
+	//go:embed translations/ion-app_v1.json
+	ionAppTranslations        string
+	ionAppTranslationsRawJSON map[string]any
+	allValidConfigNames       = map[string]func(cfg *config) (any, Version){
+		configNameRequiredAndroidAppVersion: func(cfg *config) (any, Version) { return cfg.RequiredAppVersions.Android, Version(0) },
+		configNameRequiredIOSAppVersion:     func(cfg *config) (any, Version) { return cfg.RequiredAppVersions.IOS, Version(0) },
+		configNameRequiredMacOSAppVersion:   func(cfg *config) (any, Version) { return cfg.RequiredAppVersions.MacOS, Version(0) },
+		configNameRequiredWindowsAppVersion: func(cfg *config) (any, Version) { return cfg.RequiredAppVersions.Windows, Version(0) },
+		configNameRequiredLinuxAppVersion:   func(cfg *config) (any, Version) { return cfg.RequiredAppVersions.Linux, Version(0) },
+		/*Always match the version in `ion-app_v1` with the version returned by the func.*/
+		configNameIONAppTranslations: func(cfg *config) (any, Version) { return ionAppTranslationsRawJSON, Version(1) },
 	}
 )

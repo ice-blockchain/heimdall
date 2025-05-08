@@ -400,12 +400,21 @@
                         "name": "configName",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "The version of that specific config, if applicable",
+                        "name": "version",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "Configuration value",
                         "schema": {}
+                    },
+                    "204": {
+                        "description": "OK, no content, meaning there isn't a newer version of that config"
                     },
                     "404": {
                         "description": "if invalid configName passed",

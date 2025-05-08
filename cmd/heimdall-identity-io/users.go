@@ -160,8 +160,10 @@ func (s *service) DeleteUser(
 //	@Description
 //	@Tags		Config
 //	@Produce	json
-//	@Param		configName	path		string					true	"Name of the configuration to read"
-//	@Success	200			{object}	any						"Configuration value"
+//	@Param		configName	path		string	true	"Name of the configuration to read"
+//	@Param		version		query		uint8	false	"The version of that specific config, if applicable"
+//	@Success	200			{object}	any		"Configuration value"
+//	@Success	204			"OK, no content, meaning there isn't a newer version of that config"
 //	@Failure	404			{object}	server.ErrorResponse	"if invalid configName passed"
 //	@Failure	504			{object}	server.ErrorResponse	"if request times out"
 //	@Router		/v1/config/{configName} [GET].
@@ -173,7 +175,13 @@ func (s *service) GetConfig(
 	if !validConfigName {
 		return nil, server.NotFound(errors.Errorf("invalid configName %v", req.Data.ConfigName), notFound)
 	}
-	resp := getConfig(s.cfg)
+	resp, vers := getConfig(s.cfg)
+	if vers > Version(0) && req.Data.Version == nil {
+		return nil, server.UnprocessableEntity(errors.Errorf("version required for %v", req.Data.ConfigName), invalidPropertiesErrorCode)
+	}
+	if vers > Version(0) && req.Data.Version != nil && vers <= *req.Data.Version {
+		return server.NoContent(), nil
+	}
 
 	return server.OK[any](&resp), nil
 }

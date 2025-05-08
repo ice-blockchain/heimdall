@@ -655,12 +655,19 @@ paths:
         name: configName
         required: true
         type: string
+      - description: The version of that specific config, if applicable
+        in: query
+        name: version
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: Configuration value
           schema: {}
+        "204":
+          description: OK, no content, meaning there isn't a newer version of that
+            config
         "404":
           description: if invalid configName passed
           schema:

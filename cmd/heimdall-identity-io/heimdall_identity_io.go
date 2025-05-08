@@ -74,10 +74,12 @@ func init() {
 		}
 	}
 	for k, v := range contentCategoriesPerLanguage {
-		allValidConfigNames[k] = func(_ *config) any {
-			return v
+		allValidConfigNames[k] = func(_ *config) (any, Version) {
+			return v, Version(0)
 		}
 	}
+
+	log.Panic(json.Unmarshal([]byte(ionAppTranslations), &ionAppTranslationsRawJSON))
 }
 
 func (s *service) RegisterRoutes(router *server.Router) {

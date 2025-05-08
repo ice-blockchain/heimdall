@@ -22,8 +22,8 @@ cloud.google.com/go/storage v1.53.0 h1:gg0ERZwL17pJ+Cz3cD2qS60w1WMDnwcm5YPAIQBHU
 cloud.google.com/go/storage v1.53.0/go.mod h1:7/eO2a/srr9ImZW9k5uufcNahT2+fPb8w5it1i5boaA=
 cloud.google.com/go/trace v1.11.6 h1:2O2zjPzqPYAHrn3OKl029qlqG6W8ZdYaOWRyr8NgMT4=
 cloud.google.com/go/trace v1.11.6/go.mod h1:GA855OeDEBiBMzcckLPE2kDunIpC72N+Pq8WFieFjnI=
-dario.cat/mergo v1.0.1 h1:Ra4+bf83h2ztPIQYNP99R6m+Y7KfnARDfID+a+vLl4s=
-dario.cat/mergo v1.0.1/go.mod h1:uNxQE+84aUszobStD9th8a29P2fMDhsBdgRYvZOxGmk=
+dario.cat/mergo v1.0.2 h1:85+piFYR1tMbRrLcDwR18y4UKJ3aH1Tbzi24VRW1TK8=
+dario.cat/mergo v1.0.2/go.mod h1:E/hbnu0NxMFBjpMIE34DRGLWqDy0g5FuKDhCb31ngxA=
 filippo.io/edwards25519 v1.1.0 h1:FNf4tywRC1HmFuKW5xopWpigGjJKiJSV0Cqo0cJWDaA=
 filippo.io/edwards25519 v1.1.0/go.mod h1:BxyFTGdWcka3PhytdK4V28tE5sGfRvvvRV7EaN4VDT4=
 firebase.google.com/go/v4 v4.15.2 h1:KJtV4rAfO2CVCp40hBfVk+mqUqg7+jQKx7yOgFDnXBg=
@@ -324,8 +324,8 @@ github.com/holiman/uint256 v1.3.2/go.mod h1:EOMSn4q6Nyt9P6efbI3bueV4e1b3dGlUCXei
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
 github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250503123812-e7621ca90490 h1:nA9sOYsr5patjslG4/eLpcpBq0TG99TprtiHjg98un0=
 github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250503123812-e7621ca90490/go.mod h1:6qEfUBoj8/Ak0Yr4VcMMQdu2qiVPBAvJXzrnVINVh9Q=
-github.com/ice-blockchain/subzero v1.175.0 h1:g4M/GMrMjHcoSsm9L0vz8HisQuYe2oOnMgTTVIuACdw=
-github.com/ice-blockchain/subzero v1.175.0/go.mod h1:LhsMsAHU5FD6cRBjG2OfKKy+Op5+9dCYD0Z12LY4iMw=
+github.com/ice-blockchain/subzero v1.177.0 h1:JVwu7/fABF2RcVmc20Okh1W/UQ/ivKzX7Gs5VmnFDyg=
+github.com/ice-blockchain/subzero v1.177.0/go.mod h1:EC7R2r7+HCxzv7mAURffdJec376bhZiMOczkC25vrIo=
 github.com/ice-blockchain/wintr v1.156.0 h1:RQVd/R8pPmePddsv0/3E/ofTH33sHEmRzhitm8kmUlI=
 github.com/ice-blockchain/wintr v1.156.0/go.mod h1:c1B4zlnGF0KXVx0NBM61LtTGjVBwekDvVF1L009zLuI=
 github.com/imroc/req/v3 v3.51.0 h1:GyJxJUrvTVkhGH3v5h2UC04hqU6P465kJQNa9QeyECg=
