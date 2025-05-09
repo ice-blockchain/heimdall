@@ -39,6 +39,11 @@ func main() {
 }
 
 func init() {
+	mountContentCategoriesConfig()
+	mountIONAppTranslationsConfig()
+}
+
+func mountContentCategoriesConfig() {
 	files, err := contentCategories.ReadDir("content-categories")
 	log.Panic(err)
 
@@ -78,8 +83,21 @@ func init() {
 			return v, Version(0)
 		}
 	}
+}
 
-	log.Panic(json.Unmarshal([]byte(ionAppTranslations), &ionAppTranslationsRawJSON))
+func mountIONAppTranslationsConfig() {
+	files, err := ionAppTranslations.ReadDir("translations/ion-app")
+	log.Panic(err)
+
+	for _, entry := range files {
+		file, rErr := ionAppTranslations.ReadFile(fmt.Sprintf("translations/ion-app/%v", Language(entry.Name())))
+		log.Panic(rErr)
+		var fileContent map[string]any
+		log.Panic(json.Unmarshal(file, &fileContent))
+		allValidConfigNames[fmt.Sprintf("%v_%v", configNameIONAppTranslations, strings.ReplaceAll(entry.Name(), ".json", ""))] = func(_ *config) (any, Version) {
+			return fileContent, Version(fileContent["_version"].(int))
+		}
+	}
 }
 
 func (s *service) RegisterRoutes(router *server.Router) {

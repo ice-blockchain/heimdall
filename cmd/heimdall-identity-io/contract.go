@@ -14,6 +14,7 @@ import (
 
 type (
 	Version           uint8
+	Language          string
 	AppAssociationReq struct {
 		_ struct{} `json:"-" allowUnauthorized:"true"`
 	}
@@ -227,16 +228,13 @@ var (
 	templates embed.FS
 	//go:embed content-categories/*.json
 	contentCategories embed.FS
-	//go:embed translations/ion-app_v1.json
-	ionAppTranslations        string
-	ionAppTranslationsRawJSON map[string]any
-	allValidConfigNames       = map[string]func(cfg *config) (any, Version){
+	//go:embed translations/ion-app/*.json
+	ionAppTranslations  embed.FS
+	allValidConfigNames = map[string]func(cfg *config) (any, Version){
 		configNameRequiredAndroidAppVersion: func(cfg *config) (any, Version) { return cfg.RequiredAppVersions.Android, Version(0) },
 		configNameRequiredIOSAppVersion:     func(cfg *config) (any, Version) { return cfg.RequiredAppVersions.IOS, Version(0) },
 		configNameRequiredMacOSAppVersion:   func(cfg *config) (any, Version) { return cfg.RequiredAppVersions.MacOS, Version(0) },
 		configNameRequiredWindowsAppVersion: func(cfg *config) (any, Version) { return cfg.RequiredAppVersions.Windows, Version(0) },
 		configNameRequiredLinuxAppVersion:   func(cfg *config) (any, Version) { return cfg.RequiredAppVersions.Linux, Version(0) },
-		/*Always match the version in `ion-app_v1` with the version returned by the func.*/
-		configNameIONAppTranslations: func(cfg *config) (any, Version) { return ionAppTranslationsRawJSON, Version(1) },
 	}
 )

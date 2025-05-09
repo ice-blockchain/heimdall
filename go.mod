@@ -17,7 +17,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/ice-blockchain/subzero v1.177.0
+	github.com/ice-blockchain/subzero v1.179.0
 	github.com/ice-blockchain/wintr v1.156.0
 	github.com/imroc/req/v3 v3.51.0
 	github.com/lestrrat-go/jwx/v2 v2.1.6
@@ -180,7 +180,7 @@ require (
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
 	github.com/puzpuzpuz/xsync/v4 v4.1.0 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
-	github.com/refraction-networking/utls v1.7.1 // indirect
+	github.com/refraction-networking/utls v1.7.2 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/rs/zerolog v1.34.0 // indirect
 	github.com/sagikazarmark/locafero v0.9.0 // indirect

@@ -1,0 +1,13 @@
+{
+  "_version": 1,
+  "bogus1": [
+    "omelette",
+    "du",
+    "fromage"
+  ],
+  "bogus2": [
+    {
+      "bogus3": 3
+    }
+  ]
+}
