@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/goccy/go-json"
@@ -95,7 +96,10 @@ func mountIONAppTranslationsConfig() {
 		var fileContent map[string]any
 		log.Panic(json.Unmarshal(file, &fileContent))
 		allValidConfigNames[fmt.Sprintf("%v_%v", configNameIONAppTranslations, strings.ReplaceAll(entry.Name(), ".json", ""))] = func(_ *config) (any, Version) {
-			return fileContent, Version(fileContent["_version"].(int))
+			version, err2 := strconv.Atoi(fmt.Sprint(fileContent["_version"]))
+			log.Panic(err2)
+
+			return fileContent, Version(version)
 		}
 	}
 }
