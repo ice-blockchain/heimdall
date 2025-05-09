@@ -2,11 +2,16 @@
 
 package main
 
-import "github.com/ice-blockchain/heimdall/coins"
+import (
+	"github.com/ice-blockchain/heimdall/accounts"
+	"github.com/ice-blockchain/heimdall/coins"
+)
 
 type (
 	service struct {
 		coinSyncer coins.Sync
+		accounts   accounts.Accounts
+		coins      coins.Coins
 	}
 	noAuth struct{}
 )

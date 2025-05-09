@@ -1,11 +1,18 @@
 -- SPDX-License-Identifier: ice License 1.0
 
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_class') THEN
+        CREATE TYPE user_class AS ENUM ('regular', 'premium', 'brand');
+    END IF;
+END$$;
+
 CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
     id                                     TEXT NOT NULL,
     username                               TEXT NOT NULL UNIQUE,
     master_pubkey                          TEXT NOT NULL UNIQUE,
+    class                                  user_class NOT NULL default 'regular',
     clients                                TEXT[] NOT NULL,
     email                                  TEXT[],
     phone_number                           TEXT[],
@@ -14,6 +21,7 @@ CREATE TABLE IF NOT EXISTS users (
     active_2fa_email                       boolean[], -- bitmask
     active_2fa_phone_number                boolean[], -- bitmask
     active_2fa_totp_authenticator          boolean[], -- bitmask
+    verified                               boolean NOT NULL DEFAULT false,
     CONSTRAINT active_2fa_email_valid CHECK (cardinality(active_2fa_email) = cardinality(email)),
     CONSTRAINT active_2fa_phone_valid CHECK (cardinality(active_2fa_phone_number) = cardinality(phone_number)),
     CONSTRAINT active_2fa_totp_valid CHECK (cardinality(users.active_2fa_totp_authenticator) = cardinality(totp_authenticator_secret)),
@@ -26,6 +34,9 @@ DO $$ BEGIN
     ALTER TABLE users
         ADD UNIQUE (master_pubkey);
 END$$;
+
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS class user_class NOT NULL default 'regular';
 
 DO $$ BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'twofa_option') THEN
@@ -104,3 +115,16 @@ ALTER TABLE wallet_views
     DROP CONSTRAINT wallet_views_user_id_fkey,
     ADD CONSTRAINT wallet_views_user_id_fkey
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+
+CREATE TABLE IF NOT EXISTS content_creators (
+    master_pubkey                           TEXT NOT NULL REFERENCES users(master_pubkey) ON DELETE CASCADE,
+    primary key(master_pubkey)
+);
+
+CREATE TABLE IF NOT EXISTS verified_users_sync_queue (
+    created_at                       TIMESTAMP NOT NULL,
+    user_id                          TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    primary key(user_id)
+);
+
+CREATE INDEX IF NOT EXISTS verified_users_sync_queue_created_at ON verified_users_sync_queue (created_at);

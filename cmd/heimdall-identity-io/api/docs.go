@@ -644,6 +644,108 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/users/get-content-creators": {
+            "post": {
+                "description": "Returns random content creators from the database",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Number of content creators to return",
+                        "name": "limit",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cAdd token here\u003e",
+                        "description": "Auth token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/main.LiteUser"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "if limit not provided",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/users/verified-badge/{masterPubkey}": {
+            "get": {
+                "description": "Checks if a user is verified and returns badge events if they are",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Master public key of the user",
+                        "name": "masterPubkey",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cAdd token here\u003e",
+                        "description": "Auth token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.VerifiedBadgeEvents"
+                        }
+                    },
+                    "204": {
+                        "description": "User is not verified"
+                    },
+                    "404": {
+                        "description": "if user not found",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/users/{userId}/2fa/{twoFAOption}/values/{twoFAOptionValue}": {
             "delete": {
                 "description": "Confirms deletion of 2FA method",
@@ -1790,6 +1892,14 @@ const docTemplate = `{
                 }
             }
         },
+        "main.LiteUser": {
+            "type": "object",
+            "properties": {
+                "masterPubKey": {
+                    "type": "string"
+                }
+            }
+        },
         "main.LoginChallenge": {
             "type": "object",
             "additionalProperties": {}
@@ -1953,6 +2063,17 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "type": "string"
+                    }
+                }
+            }
+        },
+        "main.VerifiedBadgeEvents": {
+            "type": "object",
+            "properties": {
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Event"
                     }
                 }
             }

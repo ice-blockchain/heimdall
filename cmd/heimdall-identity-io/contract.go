@@ -171,6 +171,19 @@ type (
 		Network  string       `json:"network"`
 		NFTs     []*coins.NFT `json:"nfts"`
 	}
+	GetContentCreatorsReq struct {
+		Authorization        string   `header:"Authorization" swaggerignore:"true"`
+		Limit                int      `form:"limit" required:"true"`
+		ExcludeMasterPubKeys []string `json:"excludeMasterPubKeys,omitempty"`
+	}
+	GetVerifiedBadgeReq struct {
+		Authorization string `header:"Authorization" swaggerignore:"true"`
+		MasterPubkey  string `uri:"masterPubkey" required:"true" swaggerignore:"true"`
+	}
+	VerifiedBadgeEvents struct {
+		Events []*model.Event `json:"events"`
+	}
+	LiteUser = accounts.LiteUser
 )
 
 const (

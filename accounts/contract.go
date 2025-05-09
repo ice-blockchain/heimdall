@@ -17,6 +17,7 @@ import (
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
 	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
 	"github.com/ice-blockchain/heimdall/coins"
+	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/time"
 	"github.com/ice-blockchain/wintr/totp"
@@ -38,6 +39,9 @@ type (
 		SecurePaymentConfirmation(ctx context.Context, userID, walletID string, body map[string]string) (templateData any, err error)
 		GetNFTs(ctx context.Context, walletID string) ([]*NFT, string, error)
 		DeleteUser(ctx context.Context, userID string) error
+		GetRandomContentCreators(ctx context.Context, limit int, excludeMasterPubKeys []string) ([]*LiteUser, error)
+		IsUserVerified(ctx context.Context, masterPubKey string) (bool, []*model.Event, error)
+		ProcessVerifiedUsersQueue(ctx context.Context) error
 		HealthCheck(ctx context.Context) error
 	}
 	Wallets interface {
@@ -108,8 +112,11 @@ type (
 		TotalBalance *big.Int        `json:"totalBalance"`
 		Wallets      []*CoinInWallet `json:"wallets"`
 	}
-	NFT    = coins.NFT
-	Wallet = dfns.Wallet
+	NFT      = coins.NFT
+	Wallet   = dfns.Wallet
+	LiteUser struct {
+		MasterPubKey string `json:"masterPubKey" db:"master_pubkey"`
+	}
 )
 
 const (
@@ -128,6 +135,12 @@ const (
 	defaultWalletViewCoinSymbolGroup               = coins.DefaultWalletViewCoinSymbolGroup
 	defaultWalletViewCoinSymbolGroupForOldAccounts = "the-open-network"
 	defaultWalletViewName                          = "ion.wallet"
+
+	verifiedBadgeDTag        = "verified"
+	verifiedBadgeName        = "Verified by ION Identity"
+	verifiedBadgeDescription = "Awarded to users that are verified by ION Identity"
+	verifiedBadgeImage       = "https://example.com/verified_1024x1024.webp"
+	verifiedBadgeThumbnail   = "https://example.com/verified_256x256.webp"
 )
 
 var (
@@ -177,6 +190,8 @@ type (
 		smsSender                  sms.SmsSender
 		concurrentlyGeneratedCodes map[TwoFAOptionEnum]*sync.Map
 		cfg                        *config
+		privateKey                 string
+		publicKey                  string
 	}
 	user struct {
 		CreatedAt                  *time.Time
@@ -192,6 +207,12 @@ type (
 		Active2FAEmail             []bool `db:"active_2fa_email"`
 		Active2FAPhoneNumber       []bool `db:"active_2fa_phone_number"`
 		Active2FATotpAuthenticator []bool `db:"active_2fa_totp_authenticator"`
+	}
+	verifiedUserQueueData struct {
+		UserID           string   `db:"user_id"`
+		MasterPubKey     string   `db:"master_pubkey"`
+		IONConnectRelays []string `db:"ion_connect_relays"`
+		Verified         bool     `db:"verified"`
 	}
 	twoFACode struct {
 		CreatedAt       *time.Time
@@ -209,6 +230,7 @@ type (
 		Max2FACount              int                 `yaml:"max2FACount" mapstructure:"max2FACount"`
 		DefaultCoinsInWalletView []string            `yaml:"defaultCoinsInWalletView" mapstructure:"defaultCoinsInWalletView"`
 		MockRelays               []string            `yaml:"mockRelays" mapstructure:"mockRelays"`
+		PrivateKey               string              `yaml:"privateKey" mapstructure:"privateKey"`
 		RelaysPerUser            uint8               `yaml:"relaysPerUser" mapstructure:"relaysPerUser"`
 	}
 )

@@ -19,7 +19,9 @@ func (s *service) setupUserRoutes(router gin.IRoutes) {
 		GET("v1/users/:userId/ion-connect-indexers", server.RootHandler(s.UserIndexers)).
 		GET("auth/users/:userIdOrMasterKey", server.RootHandler(s.GetUser)).
 		DELETE("auth/users/:userId", server.RootHandler(s.DeleteUser)).
-		GET("v1/config/:configName", server.RootHandler(s.GetConfig))
+		GET("v1/config/:configName", server.RootHandler(s.GetConfig)).
+		POST("v1/users/get-content-creators", server.RootHandler(s.GetContentCreators)).
+		GET("v1/users/verified-badge/:masterPubkey", server.RootHandler(s.GetVerifiedBadge))
 }
 
 // GetOrAssignIONConnectRelays godoc
@@ -188,4 +190,61 @@ func (s *service) GetConfig(
 	}
 
 	return server.OK[any](&resp), nil
+}
+
+// GetContentCreators godoc
+//
+//	@Schemes
+//	@Description	Returns random content creators from the database
+//	@Tags			Users
+//	@Produce		json
+//	@Param			limit				query		int		true	"Number of content creators to return"
+//	@Param			Authorization		header		string	true	"Auth token"	default(Bearer <Add token here>)
+//	@Success		200					{object}	[]LiteUser
+//	@Failure		400					{object}	server.ErrorResponse	"if limit not provided"
+//	@Failure		500					{object}	server.ErrorResponse
+//	@Router			/v1/users/get-content-creators [POST]
+func (s *service) GetContentCreators(
+	ctx context.Context,
+	req *server.Request[GetContentCreatorsReq, []*accounts.LiteUser],
+) (successResp *server.Response[[]*accounts.LiteUser], errorResp *server.ErrResponse[*server.ErrorResponse]) {
+	ctx = context.WithValue(ctx, accounts.AuthorizationHeaderCtxValue, req.Data.Authorization)
+	creators, err := s.accounts.GetRandomContentCreators(ctx, req.Data.Limit, req.Data.ExcludeMasterPubKeys)
+	if err != nil {
+		return nil, server.Unexpected(errors.Wrap(err, "failed to get random content creators"))
+	}
+
+	return server.OK(&creators), nil
+}
+
+// GetVerifiedBadge godoc
+//
+//	@Schemes
+//	@Description	Checks if a user is verified and returns badge events if they are
+//	@Tags			Users
+//	@Produce		json
+//	@Param			masterPubkey		path	string	true	"Master public key of the user"
+//	@Param			Authorization		header	string	true	"Auth token"	default(Bearer <Add token here>)
+//	@Success		200					{object}	VerifiedBadgeEvents
+//	@Success		204					"User is not verified"
+//	@Failure		404					{object}	server.ErrorResponse	"if user not found"
+//	@Failure		500					{object}	server.ErrorResponse
+//	@Router			/v1/users/verified-badge/{masterPubkey} [GET]
+func (s *service) GetVerifiedBadge(
+	ctx context.Context,
+	req *server.Request[GetVerifiedBadgeReq, VerifiedBadgeEvents],
+) (successResp *server.Response[VerifiedBadgeEvents], errorResp *server.ErrResponse[*server.ErrorResponse]) {
+	ctx = context.WithValue(ctx, accounts.AuthorizationHeaderCtxValue, req.Data.Authorization)
+	isVerified, events, err := s.accounts.IsUserVerified(ctx, req.Data.MasterPubkey)
+	if err != nil {
+		if errors.Is(err, accounts.ErrNotFound) {
+			return nil, server.NotFound(errors.Wrap(err, "failed to check verification status"), notFound)
+		}
+		return nil, server.Unexpected(errors.Wrap(err, "failed to check verification status"))
+	}
+	if !isVerified {
+		return &server.Response[VerifiedBadgeEvents]{Code: http.StatusNoContent}, nil
+	}
+
+	return server.OK(&VerifiedBadgeEvents{Events: events}), nil
 }
