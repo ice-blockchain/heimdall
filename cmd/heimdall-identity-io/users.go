@@ -198,11 +198,11 @@ func (s *service) GetConfig(
 //	@Description	Returns random content creators from the database
 //	@Tags			Users
 //	@Produce		json
-//	@Param			limit				query		int		true	"Number of content creators to return"
-//	@Param			Authorization		header		string	true	"Auth token"	default(Bearer <Add token here>)
-//	@Success		200					{object}	[]LiteUser
-//	@Failure		400					{object}	server.ErrorResponse	"if limit not provided"
-//	@Failure		500					{object}	server.ErrorResponse
+//	@Param			limit			query		int		true	"Number of content creators to return"
+//	@Param			Authorization	header		string	true	"Auth token"	default(Bearer <Add token here>)
+//	@Success		200				{object}	[]LiteUser
+//	@Failure		400				{object}	server.ErrorResponse	"if limit not provided"
+//	@Failure		500				{object}	server.ErrorResponse
 //	@Router			/v1/users/get-content-creators [POST]
 func (s *service) GetContentCreators(
 	ctx context.Context,
@@ -223,12 +223,12 @@ func (s *service) GetContentCreators(
 //	@Description	Checks if a user is verified and returns badge events if they are
 //	@Tags			Users
 //	@Produce		json
-//	@Param			masterPubkey		path	string	true	"Master public key of the user"
-//	@Param			Authorization		header	string	true	"Auth token"	default(Bearer <Add token here>)
-//	@Success		200					{object}	VerifiedBadgeEvents
-//	@Success		204					"User is not verified"
-//	@Failure		404					{object}	server.ErrorResponse	"if user not found"
-//	@Failure		500					{object}	server.ErrorResponse
+//	@Param			masterPubkey	path		string	true	"Master public key of the user"
+//	@Param			Authorization	header		string	true	"Auth token"	default(Bearer <Add token here>)
+//	@Success		200				{object}	VerifiedBadgeEvents
+//	@Success		204				"User is not verified"
+//	@Failure		404				{object}	server.ErrorResponse	"if user not found"
+//	@Failure		500				{object}	server.ErrorResponse
 //	@Router			/v1/users/verified-badge/{masterPubkey} [GET]
 func (s *service) GetVerifiedBadge(
 	ctx context.Context,
