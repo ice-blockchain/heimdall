@@ -1,13 +1,35 @@
 {
   "_version": 1,
-  "bogus1": [
-    "omelette",
-    "du",
-    "fromage"
-  ],
-  "bogus2": [
-    {
-      "bogus3": 3
+  "pushNotifications": {
+    "reply": {
+      "body": "Vous avez une nouvelle réponse de {{username}}"
+    },
+    "mention": {
+      "title": "Online+FR"
+    },
+    "like": {
+      "title": "Online+FR",
+      "body": "Vous avez un nouveau like de {{username}}"
+    },
+    "follower": {
+      "title": "Online+FR",
+      "body": "{{username}} vous suit"
+    },
+    "chatReaction": {
+      "title": "Online+FR",
+      "body": "Vous avez une nouvelle réaction"
+    },
+    "chatMessage": {
+      "title": "Online+FR",
+      "body": "Vous avez un nouveau message"
+    },
+    "paymentRequest": {
+      "title": "Online+FR",
+      "body": "Vous avez une nouvelle demande de paiement"
+    },
+    "paymentReceived": {
+      "title": "Online+FR",
+      "body": "Nouveau paiement reçu"
     }
-  ]
+  }
 }
