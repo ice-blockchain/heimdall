@@ -17,11 +17,11 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/ice-blockchain/subzero v1.179.0
+	github.com/ice-blockchain/subzero v1.187.0
 	github.com/ice-blockchain/wintr v1.156.0
 	github.com/imroc/req/v3 v3.51.0
 	github.com/lestrrat-go/jwx/v2 v2.1.6
-	github.com/nbd-wtf/go-nostr v0.51.10
+	github.com/nbd-wtf/go-nostr v0.51.11
 	github.com/pkg/errors v0.9.1
 	github.com/quic-go/quic-go v0.51.0
 	github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9
@@ -36,7 +36,7 @@ require (
 )
 
 require (
-	cel.dev/expr v0.23.1 // indirect
+	cel.dev/expr v0.24.0 // indirect
 	cloud.google.com/go v0.121.0 // indirect
 	cloud.google.com/go/auth v0.16.1 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
@@ -98,7 +98,7 @@ require (
 	github.com/docker/docker v28.1.1+incompatible // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
-	github.com/ebitengine/purego v0.8.2 // indirect
+	github.com/ebitengine/purego v0.9.0-alpha.4 // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.32.4 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
 	github.com/ethereum/c-kzg-4844/v2 v2.1.1 // indirect

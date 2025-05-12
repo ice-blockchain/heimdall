@@ -1,5 +1,5 @@
-cel.dev/expr v0.23.1 h1:K4KOtPCJQjVggkARsjG9RWXP6O4R73aHeJMa/dmCQQg=
-cel.dev/expr v0.23.1/go.mod h1:hLPLo1W4QUmuYdA72RBX06QTs6MXw941piREPl3Yfiw=
+cel.dev/expr v0.24.0 h1:56OvJKSH3hDGL0ml5uSxZmz3/3Pq4tJ+fb1unVLAFcY=
+cel.dev/expr v0.24.0/go.mod h1:hLPLo1W4QUmuYdA72RBX06QTs6MXw941piREPl3Yfiw=
 cloud.google.com/go v0.121.0 h1:pgfwva8nGw7vivjZiRfrmglGWiCJBP+0OmDpenG/Fwg=
 cloud.google.com/go v0.121.0/go.mod h1:rS7Kytwheu/y9buoDmu5EIpMMCI4Mb8ND4aeN4Vwj7Q=
 cloud.google.com/go/auth v0.16.1 h1:XrXauHMd30LhQYVRHLGvJiYeczweKQXZxsTbV9TiguU=
@@ -183,8 +183,8 @@ github.com/docker/go-connections v0.5.0 h1:USnMq7hx7gwdVZq1L49hLXaFtUdTADjXGp+uj
 github.com/docker/go-connections v0.5.0/go.mod h1:ov60Kzw0kKElRwhNs9UlUHAE/F9Fe6GLaXnqyDdmEXc=
 github.com/docker/go-units v0.5.0 h1:69rxXcBk27SvSaaxTtLh/8llcHD8vYHT7WSdRZ/jvr4=
 github.com/docker/go-units v0.5.0/go.mod h1:fgPhTUdO+D/Jk86RDLlptpiXQzgHJF7gydDDbaIK4Dk=
-github.com/ebitengine/purego v0.8.2 h1:jPPGWs2sZ1UgOSgD2bClL0MJIqu58nOmIcBuXr62z1I=
-github.com/ebitengine/purego v0.8.2/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
+github.com/ebitengine/purego v0.9.0-alpha.4 h1:TAXmGRY7c6NPWU9+TCaMd0MwJyz8HmSqRgXJmE7MsS0=
+github.com/ebitengine/purego v0.9.0-alpha.4/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
 github.com/envoyproxy/go-control-plane v0.13.4 h1:zEqyPVyku6IvWCFwux4x9RxkLOMUL+1vC9xUFv5l2/M=
 github.com/envoyproxy/go-control-plane v0.13.4/go.mod h1:kDfuBlDVsSj2MjrLEtRWtHlsWIFcGyB2RMO44Dc5GZA=
 github.com/envoyproxy/go-control-plane/envoy v1.32.4 h1:jb83lalDRZSpPWW2Z7Mck/8kXZ5CQAFYVjQcdVIr83A=
@@ -324,8 +324,8 @@ github.com/holiman/uint256 v1.3.2/go.mod h1:EOMSn4q6Nyt9P6efbI3bueV4e1b3dGlUCXei
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
 github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250503123812-e7621ca90490 h1:nA9sOYsr5patjslG4/eLpcpBq0TG99TprtiHjg98un0=
 github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250503123812-e7621ca90490/go.mod h1:6qEfUBoj8/Ak0Yr4VcMMQdu2qiVPBAvJXzrnVINVh9Q=
-github.com/ice-blockchain/subzero v1.179.0 h1:O5pgSLICCQePtGmvPQbrl1CyYCE88Y16fXi7J2+JbBQ=
-github.com/ice-blockchain/subzero v1.179.0/go.mod h1:wFZyXl1k2hQMuWoTDUdEQeN8HWToEnXdk2kZBC54yO8=
+github.com/ice-blockchain/subzero v1.187.0 h1:oeJw12hCR3LCIH4D7UcNn2tQ8W3r4ZyTKdIzMUY0dok=
+github.com/ice-blockchain/subzero v1.187.0/go.mod h1:qA9tJ40TC7rM9qoZj9TJWkMyOiU7tLJJdz4i0GT22Eg=
 github.com/ice-blockchain/wintr v1.156.0 h1:RQVd/R8pPmePddsv0/3E/ofTH33sHEmRzhitm8kmUlI=
 github.com/ice-blockchain/wintr v1.156.0/go.mod h1:c1B4zlnGF0KXVx0NBM61LtTGjVBwekDvVF1L009zLuI=
 github.com/imroc/req/v3 v3.51.0 h1:GyJxJUrvTVkhGH3v5h2UC04hqU6P465kJQNa9QeyECg=
