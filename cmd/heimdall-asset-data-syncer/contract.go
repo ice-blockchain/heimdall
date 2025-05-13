@@ -11,7 +11,6 @@ type (
 	service struct {
 		coinSyncer coins.Sync
 		accounts   accounts.Accounts
-		coins      coins.Coins
 	}
 	noAuth struct{}
 )

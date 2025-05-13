@@ -1,18 +1,11 @@
 -- SPDX-License-Identifier: ice License 1.0
 
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_class') THEN
-        CREATE TYPE user_class AS ENUM ('regular', 'premium', 'brand');
-    END IF;
-END$$;
-
 CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
     id                                     TEXT NOT NULL,
     username                               TEXT NOT NULL UNIQUE,
     master_pubkey                          TEXT NOT NULL UNIQUE,
-    class                                  user_class NOT NULL default 'regular',
     clients                                TEXT[] NOT NULL,
     email                                  TEXT[],
     phone_number                           TEXT[],
@@ -36,7 +29,7 @@ DO $$ BEGIN
 END$$;
 
 ALTER TABLE users
-    ADD COLUMN IF NOT EXISTS class user_class NOT NULL default 'regular';
+    ADD COLUMN IF NOT EXISTS verified boolean NOT NULL default false;
 
 DO $$ BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'twofa_option') THEN
@@ -122,7 +115,7 @@ CREATE TABLE IF NOT EXISTS content_creators (
 );
 
 CREATE TABLE IF NOT EXISTS verified_users_sync_queue (
-    created_at                       TIMESTAMP NOT NULL,
+    created_at                       TIMESTAMP NOT NULL DEFAULT now(),
     user_id                          TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     primary key(user_id)
 );

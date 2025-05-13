@@ -646,7 +646,7 @@ const docTemplate = `{
         },
         "/v1/users/get-content-creators": {
             "post": {
-                "description": "Returns random content creators from the database",
+                "description": "Returns content creators from the database",
                 "produces": [
                     "application/json"
                 ],
@@ -660,6 +660,14 @@ const docTemplate = `{
                         "name": "limit",
                         "in": "query",
                         "required": true
+                    },
+                    {
+                        "description": "Master public key of the users to exclude",
+                        "name": "excludeMasterPubKeys",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/main.GetContentCreatorsReq"
+                        }
                     },
                     {
                         "type": "string",
@@ -1849,6 +1857,20 @@ const docTemplate = `{
                 },
                 "walletViewId": {
                     "type": "string"
+                }
+            }
+        },
+        "main.GetContentCreatorsReq": {
+            "type": "object",
+            "properties": {
+                "excludeMasterPubKeys": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
                 }
             }
         },

@@ -49,6 +49,9 @@ func New(ctx context.Context, coinsRepo Coins) Accounts {
 	if cfg.PrivateKey == "" {
 		panic("private key is not set")
 	}
+	if cfg.CaCert == "" {
+		panic("ca cert is not set")
+	}
 	pubkey, err := model.GetPublicKey(cfg.PrivateKey)
 	if err != nil {
 		log.Error(errors.Wrap(err, "failed to get public key"))
@@ -74,11 +77,13 @@ func New(ctx context.Context, coinsRepo Coins) Accounts {
 	for _, opt := range AllTwoFAOptions {
 		acc.concurrentlyGeneratedCodes[opt] = &sync.Map{}
 	}
-	defCoinsList, err := coinsRepo.GetCoinsOfSymbolGroup(ctx, acc.cfg.DefaultCoinsInWalletView)
-	log.Panic(errors.Wrapf(err, "failed to load default coins list from db for list: %v", acc.cfg.DefaultCoinsInWalletView))
-	defaultCoins = make(map[string][]*coins.Coin)
-	for _, dc := range defCoinsList {
-		defaultCoins[dc.SymbolGroup] = append(defaultCoins[dc.SymbolGroup], dc)
+	if acc.coinsRepo != nil {
+		defCoinsList, err := coinsRepo.GetCoinsOfSymbolGroup(ctx, acc.cfg.DefaultCoinsInWalletView)
+		log.Panic(errors.Wrapf(err, "failed to load default coins list from db for list: %v", acc.cfg.DefaultCoinsInWalletView))
+		defaultCoins = make(map[string][]*coins.Coin)
+		for _, dc := range defCoinsList {
+			defaultCoins[dc.SymbolGroup] = append(defaultCoins[dc.SymbolGroup], dc)
+		}
 	}
 
 	return &acc

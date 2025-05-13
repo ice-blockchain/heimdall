@@ -71,16 +71,12 @@ func (a *accounts) GetIONConnectIndexerRelays(ctx context.Context, userID string
 	return a.fetchIONIndexers(ctx, userID)
 }
 
-func (a *accounts) GetRandomContentCreators(ctx context.Context, limit int, excludeMasterPubKeys []string) ([]*LiteUser, error) {
+func (a *accounts) GetContentCreators(ctx context.Context, limit uint64, excludeMasterPubKeys []string) ([]*LiteUser, error) {
 	excludeClause := ""
 	args := []any{}
 	if len(excludeMasterPubKeys) > 0 {
-		placeholders := make([]string, len(excludeMasterPubKeys))
-		for i, pubKey := range excludeMasterPubKeys {
-			placeholders[i] = "$" + strconv.Itoa(i+1)
-			args = append(args, pubKey)
-		}
-		excludeClause = "WHERE master_pubkey NOT IN (" + strings.Join(placeholders, ", ") + ")"
+		args = append(args, excludeMasterPubKeys)
+		excludeClause = "WHERE NOT master_pubkey = ANY($1)"
 	}
 	args = append(args, limit)
 	query := `SELECT master_pubkey 

@@ -195,23 +195,23 @@ func (s *service) GetConfig(
 // GetContentCreators godoc
 //
 //	@Schemes
-//	@Description	Returns random content creators from the database
+//	@Description	Returns content creators from the database
 //	@Tags			Users
 //	@Produce		json
-//	@Param			limit			query		int		true	"Number of content creators to return"
-//	@Param			Authorization	header		string	true	"Auth token"	default(Bearer <Add token here>)
-//	@Success		200				{object}	[]LiteUser
-//	@Failure		400				{object}	server.ErrorResponse	"if limit not provided"
-//	@Failure		500				{object}	server.ErrorResponse
+//	@Param			limit					query		uint64					true	"Number of content creators to return"
+//	@Param			excludeMasterPubKeys	body		GetContentCreatorsReq	false	"Master public key of the users to exclude"
+//	@Param			Authorization			header		string					true	"Auth token"	default(Bearer <Add token here>)
+//	@Success		200						{object}	[]LiteUser
+//	@Failure		400						{object}	server.ErrorResponse	"if limit not provided"
+//	@Failure		500						{object}	server.ErrorResponse
 //	@Router			/v1/users/get-content-creators [POST]
 func (s *service) GetContentCreators(
 	ctx context.Context,
 	req *server.Request[GetContentCreatorsReq, []*accounts.LiteUser],
 ) (successResp *server.Response[[]*accounts.LiteUser], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	ctx = context.WithValue(ctx, accounts.AuthorizationHeaderCtxValue, req.Data.Authorization)
-	creators, err := s.accounts.GetRandomContentCreators(ctx, req.Data.Limit, req.Data.ExcludeMasterPubKeys)
+	creators, err := s.accounts.GetContentCreators(ctx, req.Data.Limit, req.Data.ExcludeMasterPubKeys)
 	if err != nil {
-		return nil, server.Unexpected(errors.Wrap(err, "failed to get random content creators"))
+		return nil, server.Unexpected(errors.Wrap(err, "failed to get content creators"))
 	}
 
 	return server.OK(&creators), nil
@@ -234,7 +234,6 @@ func (s *service) GetVerifiedBadge(
 	ctx context.Context,
 	req *server.Request[GetVerifiedBadgeReq, VerifiedBadgeEvents],
 ) (successResp *server.Response[VerifiedBadgeEvents], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	ctx = context.WithValue(ctx, accounts.AuthorizationHeaderCtxValue, req.Data.Authorization)
 	isVerified, events, err := s.accounts.IsUserVerified(ctx, req.Data.MasterPubkey)
 	if err != nil {
 		if errors.Is(err, accounts.ErrNotFound) {

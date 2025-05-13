@@ -39,7 +39,7 @@ type (
 		SecurePaymentConfirmation(ctx context.Context, userID, walletID string, body map[string]string) (templateData any, err error)
 		GetNFTs(ctx context.Context, walletID string) ([]*NFT, string, error)
 		DeleteUser(ctx context.Context, userID string) error
-		GetRandomContentCreators(ctx context.Context, limit int, excludeMasterPubKeys []string) ([]*LiteUser, error)
+		GetContentCreators(ctx context.Context, limit uint64, excludeMasterPubKeys []string) ([]*LiteUser, error)
 		IsUserVerified(ctx context.Context, masterPubKey string) (bool, []*model.Event, error)
 		ProcessVerifiedUsersQueue(ctx context.Context) error
 		HealthCheck(ctx context.Context) error
@@ -139,8 +139,6 @@ const (
 	verifiedBadgeDTag        = "verified"
 	verifiedBadgeName        = "Verified by ION Identity"
 	verifiedBadgeDescription = "Awarded to users that are verified by ION Identity"
-	verifiedBadgeImage       = "https://example.com/verified_1024x1024.webp"
-	verifiedBadgeThumbnail   = "https://example.com/verified_256x256.webp"
 )
 
 var (
@@ -164,6 +162,13 @@ var (
 	ErrDeleteLast                      = errors.New("cannot delete last entry")
 	ErrRaceCondition                   = dfns.ErrRaceCondition
 	ErrWalletLinked                    = errors.New("wallet already linked to walletview")
+
+	verifiedBadgeImage = map[string]string{
+		"1024x1024": "https://example.com/verified_1024x1024.webp",
+	}
+	verifiedBadgeThumbnail = map[string]string{
+		"256x256": "https://example.com/verified_256x256.webp",
+	}
 )
 
 const (
@@ -209,10 +214,9 @@ type (
 		Active2FATotpAuthenticator []bool `db:"active_2fa_totp_authenticator"`
 	}
 	verifiedUserQueueData struct {
-		UserID           string   `db:"user_id"`
+		Username         string   `db:"username"`
 		MasterPubKey     string   `db:"master_pubkey"`
 		IONConnectRelays []string `db:"ion_connect_relays"`
-		Verified         bool     `db:"verified"`
 	}
 	twoFACode struct {
 		CreatedAt       *time.Time
@@ -232,5 +236,6 @@ type (
 		MockRelays               []string            `yaml:"mockRelays" mapstructure:"mockRelays"`
 		PrivateKey               string              `yaml:"privateKey" mapstructure:"privateKey"`
 		RelaysPerUser            uint8               `yaml:"relaysPerUser" mapstructure:"relaysPerUser"`
+		CaCert                   string              `yaml:"caCert" mapstructure:"caCert"`
 	}
 )

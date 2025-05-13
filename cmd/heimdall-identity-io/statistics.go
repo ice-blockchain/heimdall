@@ -10,7 +10,6 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
 
-	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/subzero/validation"
@@ -67,7 +66,6 @@ func (s *service) GetTopHashtags(
 	ctx context.Context,
 	req *server.Request[GetTopHashtagsReq, []string],
 ) (successResp *server.Response[[]string], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	ctx = context.WithValue(ctx, accounts.AuthorizationHeaderCtxValue, req.Data.Authorization)
 	limit := 10
 	if req.Data.Limit != 0 {
 		limit = req.Data.Limit

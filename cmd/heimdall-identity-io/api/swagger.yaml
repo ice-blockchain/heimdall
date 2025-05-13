@@ -130,6 +130,15 @@ definitions:
       walletViewId:
         type: string
     type: object
+  main.GetContentCreatorsReq:
+    properties:
+      excludeMasterPubKeys:
+        items:
+          type: string
+        type: array
+      limit:
+        type: integer
+    type: object
   main.GetLoginChallenge:
     properties:
       2FAVerificationCodes:
@@ -1361,13 +1370,18 @@ paths:
       - Wallets
   /v1/users/get-content-creators:
     post:
-      description: Returns random content creators from the database
+      description: Returns content creators from the database
       parameters:
       - description: Number of content creators to return
         in: query
         name: limit
         required: true
         type: integer
+      - description: Master public key of the users to exclude
+        in: body
+        name: excludeMasterPubKeys
+        schema:
+          $ref: '#/definitions/main.GetContentCreatorsReq'
       - default: Bearer <Add token here>
         description: Auth token
         in: header

@@ -4,16 +4,18 @@ package accounts
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"fmt"
 	"math/rand"
 	"strconv"
-	"time"
 
+	"github.com/google/uuid"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
-	"github.com/ice-blockchain/wintr/log"
 )
 
 func (a *accounts) IsUserVerified(ctx context.Context, masterPubKey string) (bool, []*model.Event, error) {
@@ -37,44 +39,30 @@ func (a *accounts) IsUserVerified(ctx context.Context, masterPubKey string) (boo
 }
 
 func (a *accounts) ProcessVerifiedUsersQueue(ctx context.Context) error {
-	for ctx.Err() == nil {
-		userData, err := a.getNextUserFromVerifiedUsersQueue(ctx)
-		if err != nil {
-			if errors.Is(err, storage.ErrNotFound) {
-				break
-			}
-
-			return errors.Wrap(err, "failed to get verified users batch")
-		}
-		if userData == nil {
-			break
-		}
-		if err := a.processVerifiedUser(ctx, userData); err != nil {
-			log.Error(errors.Wrapf(err, "failed to process verified user %s", userData.UserID))
-
-			return err
-		}
+	userData, err := a.getNextUserFromVerifiedUsersQueue(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to get verified users batch")
+	}
+	if userData == nil {
+		return nil
+	}
+	if err := a.processVerifiedUser(ctx, userData); err != nil {
+		return errors.Wrapf(err, "failed to process verified user %s", userData.MasterPubKey)
 	}
 
 	return nil
 }
 
 func (a *accounts) processVerifiedUser(ctx context.Context, userData *verifiedUserQueueData) error {
-	if !userData.Verified {
-		if err := a.removeUserFromQueue(ctx, userData.UserID); err != nil {
-			return errors.Wrap(err, "failed to remove unverified user from queue")
-		}
-		return nil
-	}
 	badgeDefinitionEvent, badgeAwardEvent, err := a.generateVerificationEvents(userData.MasterPubKey)
 	if err != nil {
 		return errors.Wrap(err, "failed to generate verification events")
 	}
-	ephemeralEvent, err := a.generateEphemeralVerificationEvent(badgeDefinitionEvent, badgeAwardEvent)
+	ephemeralEvent, err := a.generateEphemeralVerificationEvent(userData, badgeDefinitionEvent, badgeAwardEvent)
 	if err != nil {
 		return errors.Wrap(err, "failed to generate ephemeral verification event")
 	}
-	if err := a.markUserAsVerified(ctx, userData.UserID); err != nil {
+	if err := a.markUserAsVerified(ctx, userData.MasterPubKey); err != nil {
 		return errors.Wrap(err, "failed to mark user as verified")
 	}
 	if err := a.publishEvents(ctx, userData.IONConnectRelays, []*model.Event{badgeDefinitionEvent, badgeAwardEvent, ephemeralEvent}); err != nil {
@@ -87,10 +75,9 @@ func (a *accounts) processVerifiedUser(ctx context.Context, userData *verifiedUs
 func (a *accounts) getNextUserFromVerifiedUsersQueue(ctx context.Context) (*verifiedUserQueueData, error) {
 	query := `
 		SELECT 
-			q.user_id,
 			u.master_pubkey,
 			u.ion_connect_relays,
-			u.verified
+			u.username
 		FROM verified_users_sync_queue q
 		JOIN users u ON q.user_id = u.id
 		ORDER BY q.created_at 
@@ -104,94 +91,87 @@ func (a *accounts) getNextUserFromVerifiedUsersQueue(ctx context.Context) (*veri
 	return userData, nil
 }
 
-func (a *accounts) removeUserFromQueue(ctx context.Context, userID string) error {
-	_, err := storage.Exec(ctx, a.db, `DELETE FROM verified_users_sync_queue WHERE user_id = $1`, userID)
-	if err != nil {
-		return errors.Wrapf(err, "failed to remove user: %s from sync queue", userID)
-	}
-
-	return nil
-}
-
-func (a *accounts) markUserAsVerified(ctx context.Context, userID string) error {
+func (a *accounts) markUserAsVerified(ctx context.Context, masterPubKey string) error {
 	query := `
 		WITH updated AS (
 			UPDATE users SET verified = true 
-			WHERE id = $1
+			WHERE master_pubkey = $1
 			RETURNING id
 		)
-		DELETE FROM verified_users_sync_queue WHERE user_id = $1
+		DELETE FROM verified_users_sync_queue WHERE user_id = (SELECT id FROM updated)
 	`
-	_, err := storage.Exec(ctx, a.db, query, userID)
+	_, err := storage.Exec(ctx, a.db, query, masterPubKey)
 	if err != nil {
-		return errors.Wrapf(err, "failed to mark user: %s as verified", userID)
+		return errors.Wrapf(err, "failed to mark user: %s as verified", masterPubKey)
 	}
 
 	return nil
 }
 
 func (a *accounts) generateVerificationEvents(masterPubKey string) (badgeDefinitionEvent, badgeAwardEvent *model.Event, err error) {
-	nowTimestamp := nostr.Timestamp(time.Now().Unix())
-
-	badgeEvent := &model.Event{
+	now := nostr.Now()
+	dUuid, err := uuid.NewV7()
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to generate UUID")
+	}
+	badgeDefinitionEvent = &model.Event{
 		Event: nostr.Event{
-			PubKey:    a.publicKey,
-			CreatedAt: nowTimestamp,
+			CreatedAt: now,
 			Kind:      nostr.KindBadgeDefinition,
 			Tags: nostr.Tags{
-				{"b", a.publicKey},
-				{"d", verifiedBadgeDTag},
+				{"d", verifiedBadgeDTag + "-" + dUuid.String()},
 				{"name", verifiedBadgeName},
 				{"description", verifiedBadgeDescription},
-				{"image", verifiedBadgeImage, "1024x1024"},
-				{"thumb", verifiedBadgeThumbnail, "256x256"},
 			},
 		},
 	}
-	if err := badgeEvent.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
-		return nil, nil, errors.Wrap(err, "failed to sign badge event")
+	for key, image := range verifiedBadgeImage {
+		badgeDefinitionEvent.Event.Tags = append(badgeDefinitionEvent.Event.Tags, nostr.Tag{"image", image, key})
 	}
-	profileBadgeEvent := &model.Event{
+	for key, thumbnail := range verifiedBadgeThumbnail {
+		badgeDefinitionEvent.Event.Tags = append(badgeDefinitionEvent.Event.Tags, nostr.Tag{"thumb", thumbnail, key})
+	}
+	if err := badgeDefinitionEvent.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
+		return nil, nil, errors.Wrap(err, "failed to sign badge definition event")
+	}
+	badgeAwardEvent = &model.Event{
 		Event: nostr.Event{
-			PubKey:    a.publicKey,
-			CreatedAt: nowTimestamp,
+			CreatedAt: now,
 			Kind:      nostr.KindBadgeAward,
 			Tags: nostr.Tags{
-				{"a", strconv.Itoa(nostr.KindBadgeAward) + ":" + a.publicKey + ":" + verifiedBadgeDTag},
+				{"a", strconv.Itoa(nostr.KindBadgeDefinition) + ":" + a.publicKey + ":" + verifiedBadgeDTag},
 				{"p", masterPubKey},
-				{"b", a.publicKey},
 			},
 		},
 	}
-	if err := profileBadgeEvent.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
-		return nil, nil, errors.Wrap(err, "failed to sign profile badge event")
+	if err := badgeAwardEvent.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
+		return nil, nil, errors.Wrap(err, "failed to sign badge award event")
 	}
 
-	return badgeEvent, profileBadgeEvent, nil
+	return badgeDefinitionEvent, badgeAwardEvent, nil
 }
 
-func (a *accounts) generateEphemeralVerificationEvent(badgeDefinitionEvent, badgeAwardEvent *model.Event) (*model.Event, error) {
-	heimdalProfileMetadataEvt := &model.Event{
+func (a *accounts) generateEphemeralVerificationEvent(userData *verifiedUserQueueData, badgeDefinitionEvent, badgeAwardEvent *model.Event) (*model.Event, error) {
+	now := nostr.Now()
+	fmt.Printf("userData.Username: %s\n", userData.Username)
+	userProfileMetadataEvent := &model.Event{
 		Event: nostr.Event{
-			PubKey:    a.publicKey,
-			CreatedAt: nostr.Timestamp(time.Now().Unix()),
+			CreatedAt: now,
 			Kind:      nostr.KindProfileMetadata,
-			Content:   `{"name":"heimdall","display_name":"heimdall"}`,
+			Content:   `{"name":"` + userData.Username + `"}`,
 		},
 	}
-	if err := heimdalProfileMetadataEvt.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
-		return nil, errors.Wrap(err, "failed to sign heimdal profile metadata event")
+	if err := userProfileMetadataEvent.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
+		return nil, errors.Wrap(err, "failed to sign user profile metadata event")
 	}
 	event := &model.Event{
 		Event: nostr.Event{
-			PubKey:    a.publicKey,
-			CreatedAt: nostr.Timestamp(time.Now().Unix()),
+			CreatedAt: now,
 			Kind:      model.CustomIONKindEphemeralEmbeddding,
-			Content:   heimdalProfileMetadataEvt.String(),
+			Content:   userProfileMetadataEvent.String(),
 			Tags: nostr.Tags{
-				{"e", badgeDefinitionEvent.GetID()},
 				{"e", badgeAwardEvent.GetID()},
-				{"b", a.publicKey},
+				{"e", badgeDefinitionEvent.GetID()},
 			},
 		},
 	}
@@ -207,16 +187,60 @@ func (a *accounts) publishEvents(ctx context.Context, relays []string, events []
 	if relay == "" {
 		return nil
 	}
-	nostrRelay := nostr.NewRelay(ctx, relay)
-	if err := nostrRelay.Connect(ctx); err != nil {
+	tlsConfig, err := createTLSConfig(a.cfg.CaCert)
+	if err != nil {
+		return errors.Wrap(err, "failed to create TLS config")
+	}
+	nostrRelay, err := connectToRelay(ctx, relay, tlsConfig)
+	if err != nil {
 		return errors.Wrapf(err, "failed to connect to relay %s", relay)
 	}
 	defer nostrRelay.Close()
+	_ = nostrRelay.Publish(ctx, events[0].Event)
+	if err = nostrRelay.Auth(ctx, func(event *nostr.Event) error {
+		subZeroEvent := model.Event{Event: *event}
+		if err := subZeroEvent.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
+			return err
+		}
+		*event = subZeroEvent.Event
+
+		return nil
+	}); err != nil {
+		return errors.Wrapf(err, "failed to auth to relay %s", relay)
+	}
 	if err := nostrRelay.PublishMany(ctx, &events[0].Event, &events[1].Event, &events[2].Event); err != nil {
 		return errors.Wrapf(err, "failed to publish events: %s, %s, %s", events[0].Event.ID, events[1].Event.ID, events[2].Event.ID)
 	}
 
 	return nil
+}
+
+func createTLSConfig(caFile string) (*tls.Config, error) {
+	caCertPool := x509.NewCertPool()
+	if ok := caCertPool.AppendCertsFromPEM([]byte(caFile)); !ok {
+		return nil, errors.New("failed to append CA certificate to cert pool")
+	}
+	tlsConfig := &tls.Config{
+		RootCAs:    caCertPool,
+		MinVersion: tls.VersionTLS13,
+	}
+
+	return tlsConfig, nil
+}
+
+func connectToRelay(ctx context.Context, url string, conf *tls.Config) (*nostr.Relay, error) {
+	relay := nostr.NewRelay(ctx, url, nostr.WithSignatureChecker(func(e *nostr.Event) bool {
+		subzeroEvent := model.Event{Event: *e}
+		ok, _ := subzeroEvent.CheckSignature()
+
+		return ok
+	}))
+	err := relay.ConnectWithTLS(ctx, conf)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't connect to the relays")
+	}
+
+	return relay, nil
 }
 
 func getRandomRelay(relays []string) string {
