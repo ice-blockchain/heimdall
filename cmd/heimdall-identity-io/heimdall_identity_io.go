@@ -4,7 +4,9 @@ package main
 
 import (
 	"context"
+	"embed"
 	"fmt"
+	"io/fs"
 	"strconv"
 	"strings"
 
@@ -41,20 +43,14 @@ func main() {
 
 func init() {
 	mountContentCategoriesConfig()
-	mountIONAppTranslationsConfig()
+	mountTranslationsConfig()
 }
 
 func mountContentCategoriesConfig() {
-	files, err := contentCategories.ReadDir("content-categories")
-	log.Panic(err)
-
 	contentCategoriesFiles := make(map[string][]map[string]string)
-	for _, entry := range files {
-		file, rErr := contentCategories.ReadFile(fmt.Sprintf("content-categories/%v", entry.Name()))
-		log.Panic(rErr)
-		var fileContent []map[string]string
-		log.Panic(json.Unmarshal(file, &fileContent))
-		contentCategoriesFiles[entry.Name()] = fileContent
+	for _, usecase := range mustReadDir(contentCategories, "content-categories") {
+		usecasePath := fmt.Sprintf("content-categories/%v", usecase.Name())
+		contentCategoriesFiles[usecase.Name()] = mustReadJSONFile[[]map[string]string](contentCategories, usecasePath)
 	}
 
 	type contentCategoryKey struct {
@@ -86,22 +82,39 @@ func mountContentCategoriesConfig() {
 	}
 }
 
-func mountIONAppTranslationsConfig() {
-	files, err := ionAppTranslations.ReadDir("translations/ion-app")
-	log.Panic(err)
+func mountTranslationsConfig() {
+	for _, appName := range mustReadDir(translations, "translations") {
+		usecasePath := fmt.Sprintf("translations/%v", appName.Name())
+		for _, usecase := range mustReadDir(translations, usecasePath) {
+			jsonPath := fmt.Sprintf("translations/%v/%v", appName.Name(), usecase.Name())
+			for language, content := range mustReadJSONFile[map[string]map[string]any](translations, jsonPath) {
+				cfgKey := fmt.Sprintf("%v_%v_translations_%v", appName.Name(), strings.ReplaceAll(usecase.Name(), ".json", ""), language)
+				allValidConfigNames[cfgKey] = func(_ *config) (any, Version) {
+					version, err := strconv.Atoi(fmt.Sprint(content["_version"]))
+					log.Panic(err)
 
-	for _, entry := range files {
-		file, rErr := ionAppTranslations.ReadFile(fmt.Sprintf("translations/ion-app/%v", Language(entry.Name())))
-		log.Panic(rErr)
-		var fileContent map[string]any
-		log.Panic(json.Unmarshal(file, &fileContent))
-		allValidConfigNames[fmt.Sprintf("%v_%v", configNameIONAppTranslations, strings.ReplaceAll(entry.Name(), ".json", ""))] = func(_ *config) (any, Version) {
-			version, err2 := strconv.Atoi(fmt.Sprint(fileContent["_version"]))
-			log.Panic(err2)
-
-			return fileContent, Version(version)
+					return content, Version(version)
+				}
+			}
 		}
 	}
+}
+
+func mustReadDir(fs embed.FS, path string) []fs.DirEntry {
+	entries, err := fs.ReadDir(path)
+	log.Panic(err)
+
+	return entries
+}
+
+func mustReadJSONFile[T any](fs embed.FS, path string) T {
+	fileContents, err := fs.ReadFile(path)
+	log.Panic(err)
+
+	var t T
+	log.Panic(json.Unmarshal(fileContents, &t))
+
+	return t
 }
 
 func (s *service) RegisterRoutes(router *server.Router) {

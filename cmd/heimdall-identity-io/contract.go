@@ -197,7 +197,6 @@ const (
 	configNameRequiredMacOSAppVersion   = "required_macos_app_version"
 	configNameRequiredWindowsAppVersion = "required_windows_app_version"
 	configNameRequiredLinuxAppVersion   = "required_linux_app_version"
-	configNameIONAppTranslations        = "ion-app_translations"
 )
 
 type (
@@ -228,8 +227,8 @@ var (
 	templates embed.FS
 	//go:embed content-categories/*.json
 	contentCategories embed.FS
-	//go:embed translations/ion-app/*.json
-	ionAppTranslations  embed.FS
+	//go:embed translations/*/*.json
+	translations        embed.FS
 	allValidConfigNames = map[string]func(cfg *config) (any, Version){
 		configNameRequiredAndroidAppVersion: func(cfg *config) (any, Version) { return cfg.RequiredAppVersions.Android, Version(0) },
 		configNameRequiredIOSAppVersion:     func(cfg *config) (any, Version) { return cfg.RequiredAppVersions.IOS, Version(0) },

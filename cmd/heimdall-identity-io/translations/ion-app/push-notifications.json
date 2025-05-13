@@ -1,0 +1,113 @@
+{
+  "en": {
+    "_version": 1,
+    "reply": {
+      "title": "Online+",
+      "body": "You have a new reply from {{username}}"
+    },
+    "mention": {
+      "title": "Online+",
+      "body": "You have a new mention from {{username}}"
+    },
+    "repost": {
+      "title": "Online+",
+      "body": "You have a new repost from {{username}}"
+    },
+    "like": {
+      "title": "Online+",
+      "body": "You have a new like from {{username}}"
+    },
+    "follower": {
+      "title": "Online+",
+      "body": "{{username}} followed you"
+    },
+    "chatReaction": {
+      "title": "Online+",
+      "body": "You have a new reaction"
+    },
+    "chatMessage": {
+      "title": "Online+",
+      "body": "You have a new message"
+    },
+    "paymentRequest": {
+      "title": "Online+",
+      "body": "You have a new payment request"
+    },
+    "paymentReceived": {
+      "title": "Online+",
+      "body": "New payment received"
+    }
+  },
+  "es": {
+    "_version": 1,
+    "reply": {
+      "title": "Online+ES",
+      "body": "Tienes una nueva respuesta de {{username}}"
+    },
+    "mention": {
+      "title": "Online+ES",
+      "body": "Tienes una nueva mención de {{username}}"
+    },
+    "repost": {
+      "title": "Online+ES",
+      "body": "Tienes una nueva republicación de {{username}}"
+    },
+    "like": {
+      "title": "Online+ES",
+      "body": "Tienes un nuevo me gusta de {{username}}"
+    },
+    "follower": {
+      "title": "Online+ES",
+      "body": "{{username}} empezó a seguirte"
+    },
+    "chatReaction": {
+      "title": "Online+ES",
+      "body": "Tienes una nueva reacción"
+    },
+    "chatMessage": {
+      "title": "Online+ES",
+      "body": "Tienes un nuevo mensaje"
+    },
+    "paymentRequest": {
+      "title": "Online+ES",
+      "body": "Tienes una nueva solicitud de pago"
+    },
+    "paymentReceived": {
+      "title": "Online+ES",
+      "body": "Nuevo pago recibido"
+    }
+  },
+  "fr": {
+    "_version": 1,
+    "reply": {
+      "body": "Vous avez une nouvelle réponse de {{username}}"
+    },
+    "mention": {
+      "title": "Online+FR"
+    },
+    "like": {
+      "title": "Online+FR",
+      "body": "Vous avez un nouveau like de {{username}}"
+    },
+    "follower": {
+      "title": "Online+FR",
+      "body": "{{username}} vous suit"
+    },
+    "chatReaction": {
+      "title": "Online+FR",
+      "body": "Vous avez une nouvelle réaction"
+    },
+    "chatMessage": {
+      "title": "Online+FR",
+      "body": "Vous avez un nouveau message"
+    },
+    "paymentRequest": {
+      "title": "Online+FR",
+      "body": "Vous avez une nouvelle demande de paiement"
+    },
+    "paymentReceived": {
+      "title": "Online+FR",
+      "body": "Nouveau paiement reçu"
+    }
+  }
+}
