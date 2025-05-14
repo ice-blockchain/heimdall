@@ -15,9 +15,9 @@ import (
 
 func (s *service) setup2FARoutes(router gin.IRoutes) {
 	router.
-		PUT("v1/users/:userId/2fa/:twoFAOption/verification-requests", server.RootHandler(s.Send2FARequest)).
-		PATCH("v1/users/:userId/2fa/:twoFAOption/verification-requests", server.RootHandler(s.Verify2FARequest)).
-		DELETE("v1/users/:userId/2fa/:twoFAOption/values/:twoFAOptionValue", server.RootHandler(s.Delete2FA))
+		PUT("v1/users/:userIdOrMasterKey/2fa/:twoFAOption/verification-requests", server.RootHandler(s.Send2FARequest)).
+		PATCH("v1/users/:userIdOrMasterKey/2fa/:twoFAOption/verification-requests", server.RootHandler(s.Verify2FARequest)).
+		DELETE("v1/users/:userIdOrMasterKey/2fa/:twoFAOption/values/:twoFAOptionValue", server.RootHandler(s.Delete2FA))
 }
 
 // Send2FARequest godoc
@@ -26,18 +26,18 @@ func (s *service) setup2FARoutes(router gin.IRoutes) {
 //	@Description	Initiates sending of 2FA code to the user
 //	@Tags			2FA
 //	@Produce		json
-//	@Param			X-Language		header		string				false	"Language"	default(en)
-//	@Param			X-Useraction	header		string				false	"User signature by master key"
-//	@Param			Authorization	header		string				false	"Auth header"	default(Bearer <token>)
-//	@Param			userId			path		string				true	"ID of the user or username in case of sending codes for recovery"
-//	@Param			twoFAOption		path		string				true	"type of 2fa (sms/email/totp_authenticator)"
-//	@Param			request			body		Send2FARequestReq	true	"Request params containing email or phone number to set up 2FA"
-//	@Success		200				{object}	Send2FARequestResp
-//	@Failure		400				{object}	server.ErrorResponse	"if user's email / phone number is not provided"
-//	@Failure		403				{object}	server.ErrorResponse	"if user already have 2FA set up, and it is requested for new email / phone"
-//	@Failure		500				{object}	server.ErrorResponse
-//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
-//	@Router			/v1/users/{userId}/2fa/{twoFAOption}/verification-requests [PUT].
+//	@Param			X-Language			header		string				false	"Language"	default(en)
+//	@Param			X-Useraction		header		string				false	"User signature by master key"
+//	@Param			Authorization		header		string				false	"Auth header"	default(Bearer <token>)
+//	@Param			userIdOrMasterKey	path		string				true	"ID of the user or username in case of sending codes for recovery"
+//	@Param			twoFAOption			path		string				true	"type of 2fa (sms/email/totp_authenticator)"
+//	@Param			request				body		Send2FARequestReq	true	"Request params containing email or phone number to set up 2FA"
+//	@Success		200					{object}	Send2FARequestResp
+//	@Failure		400					{object}	server.ErrorResponse	"if user's email / phone number is not provided"
+//	@Failure		403					{object}	server.ErrorResponse	"if user already have 2FA set up, and it is requested for new email / phone"
+//	@Failure		500					{object}	server.ErrorResponse
+//	@Failure		504					{object}	server.ErrorResponse	"if request times out"
+//	@Router			/v1/users/{userIdOrMasterKey}/2fa/{twoFAOption}/verification-requests [PUT].
 func (s *service) Send2FARequest(
 	ctx context.Context,
 	req *server.Request[Send2FARequestReq, Send2FARequestResp],
@@ -52,7 +52,7 @@ func (s *service) Send2FARequest(
 	var authenticatorUri *string
 	ctx = withSignature(ctx, req.Data.UserSignature)
 	ctx = withAuth(ctx, req.Data.Authorization)
-	authenticatorUri, err = s.accounts.Send2FA(ctx, req.Data.UserID, req.Data.TwoFAOption, channel, req.Data.Language, req.Data.TwoFAVerificationCodes, req.Data.Replace)
+	authenticatorUri, err = s.accounts.Send2FA(ctx, req.Data.UserIDOrMasterKey, req.Data.TwoFAOption, channel, req.Data.Language, req.Data.TwoFAVerificationCodes, req.Data.Replace)
 	if err != nil {
 		switch {
 		case errors.Is(err, accounts.Err2FARequired):
@@ -94,7 +94,7 @@ func (s *service) Send2FARequest(
 //	@Produce		json
 //	@Param			Authorization					header	string		true	"Auth header"	default(Bearer <token>)\
 //	@Param			X-Useraction					header	string		true	"User signature by master key"
-//	@Param			userId							path	string		true	"ID of the user"
+//	@Param			userIdOrMasterKey				path	string		true	"ID of the user"
 //	@Param			twoFAOption						path	string		true	"type of 2fa (sms/email/totp_authenticator)"
 //	@Param			twoFAOptionValue				path	string		true	"the actual value of the twoFAOption"
 //	@Param			twoFAOptionVerificationCode		query	[]string	true	"the code received via twoFAOptionVerificationValue"
@@ -105,7 +105,7 @@ func (s *service) Send2FARequest(
 //	@Failure		403								{object}	server.ErrorResponse	"No 2FA codes provided to approve removal"
 //	@Failure		500								{object}	server.ErrorResponse
 //	@Failure		504								{object}	server.ErrorResponse	"if request times out"
-//	@Router			/v1/users/{userId}/2fa/{twoFAOption}/values/{twoFAOptionValue} [DELETE].
+//	@Router			/v1/users/{userIdOrMasterKey}/2fa/{twoFAOption}/values/{twoFAOptionValue} [DELETE].
 func (s *service) Delete2FA(
 	ctx context.Context,
 	req *server.Request[Delete2FAReq, any],
@@ -114,7 +114,7 @@ func (s *service) Delete2FA(
 	if err != nil {
 		return nil, server.UnprocessableEntity(err, invalidPropertiesErrorCode)
 	}
-	if err = s.accounts.Delete2FA(withSignature(ctx, req.Data.UserSignature), req.Data.UserID, verificationCodes, req.Data.TwoFAOption, req.Data.TwoFAOptionValue); err != nil {
+	if err = s.accounts.Delete2FA(withSignature(ctx, req.Data.UserSignature), req.Data.UserIDOrMasterKey, verificationCodes, req.Data.TwoFAOption, req.Data.TwoFAOptionValue); err != nil {
 		switch {
 		case errors.Is(err, accounts.ErrNotFound):
 			return server.NoContent(), nil
@@ -177,16 +177,16 @@ func (s *Send2FARequestReq) deliveryChannel() (*string, error) {
 //	@Description	Verifies 2FA code from the user
 //	@Tags			2FA
 //	@Produce		json
-//	@Param			userId			path		string	true	"ID of the user"
-//	@Param			twoFAOption		path		string	true	"type of 2fa (sms/email/totp_authenticator)"
-//	@Param			code			query		string	true	"code from second factor"
-//	@Param			Authorization	header		string	true	"Auth header"	default(Bearer <token>)
-//	@Success		200				{object}	Verify2FARequestResp
-//	@Failure		400				{object}	server.ErrorResponse	"if code is invalid or expired"
-//	@Failure		409				{object}	server.ErrorResponse	"if there is no pending 2FA verification"
-//	@Failure		500				{object}	server.ErrorResponse
-//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
-//	@Router			/v1/users/{userId}/2fa/{twoFAOption}/verification-requests [PATCH].
+//	@Param			userIdOrMasterKey	path		string	true	"ID of the user"
+//	@Param			twoFAOption			path		string	true	"type of 2fa (sms/email/totp_authenticator)"
+//	@Param			code				query		string	true	"code from second factor"
+//	@Param			Authorization		header		string	true	"Auth header"	default(Bearer <token>)
+//	@Success		200					{object}	Verify2FARequestResp
+//	@Failure		400					{object}	server.ErrorResponse	"if code is invalid or expired"
+//	@Failure		409					{object}	server.ErrorResponse	"if there is no pending 2FA verification"
+//	@Failure		500					{object}	server.ErrorResponse
+//	@Failure		504					{object}	server.ErrorResponse	"if request times out"
+//	@Router			/v1/users/{userIdOrMasterKey}/2fa/{twoFAOption}/verification-requests [PATCH].
 func (s *service) Verify2FARequest(
 	ctx context.Context,
 	req *server.Request[Verify2FARequestReq, Verify2FARequestResp],
@@ -194,7 +194,7 @@ func (s *service) Verify2FARequest(
 	if err := req.Data.TwoFAOption.Validate(); err != nil {
 		return nil, server.UnprocessableEntity(err, invalidPropertiesErrorCode)
 	}
-	if err := s.accounts.Verify2FA(ctx, req.Data.UserID, map[accounts.TwoFAOptionWithAddr]string{
+	if err := s.accounts.Verify2FA(ctx, req.Data.UserIDOrMasterKey, map[accounts.TwoFAOptionWithAddr]string{
 		req.Data.TwoFAOption: req.Data.Code,
 	}); err != nil {
 		switch {

@@ -41,7 +41,6 @@ type (
 		DeleteUser(ctx context.Context, userID string) error
 		GetContentCreators(ctx context.Context, limit uint64, excludeMasterPubKeys []string) ([]*LiteUser, error)
 		IsUserVerified(ctx context.Context, masterPubKey string) (bool, []*model.Event, error)
-		ProcessVerifiedUsersQueue(ctx context.Context) error
 		HealthCheck(ctx context.Context) error
 	}
 	Wallets interface {

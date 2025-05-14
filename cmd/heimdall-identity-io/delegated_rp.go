@@ -60,7 +60,7 @@ func (s *service) setupDelegatedRPProxyRoutes(router *server.Router) {
 		POST("/v1/webhooks/dfns/events", server.RootHandler(s.EventWebhookFromDelegatedRP)).
 		GET("/.well-known/apple-app-site-association", server.RootHandler(s.AppleAppSiteAssociation)).
 		GET("/.well-known/assetlinks.json", server.RootHandler(s.AssetLinks)).
-		GET("/v1/users/:userId/wallets/:walletId/secure-payment-confirmations", s.securePaymentConfirmation()).
+		GET("/v1/users/:userIdOrMasterKey/wallets/:walletId/secure-payment-confirmations", s.securePaymentConfirmation()).
 		POST("/auth/login/init", server.RootHandler(s.GetLoginChallenge)).
 		POST("/wallets", server.RootHandler(s.CreateWallet))
 }
@@ -104,7 +104,7 @@ func (s *service) securePaymentConfirmation() func(*gin.Context) {
 			ginCtx.JSON(http.StatusUnprocessableEntity, &delegatedErrorResponse{Error: errMessage{Message: invalidPropertiesErrorCode}})
 			return
 		}
-		data, err := s.accounts.SecurePaymentConfirmation(ctx, ginCtx.Param("userId"), walletId, body)
+		data, err := s.accounts.SecurePaymentConfirmation(ctx, ginCtx.Param("userIdOrMasterKey"), walletId, body)
 		if err != nil {
 			if delegatedErr := accounts.ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
 				var delegatedParsedErr *accounts.DelegatedRelyingPartyErr

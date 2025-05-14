@@ -703,58 +703,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/users/verified-badge/{masterPubkey}": {
-            "get": {
-                "description": "Checks if a user is verified and returns badge events if they are",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Users"
-                ],
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Master public key of the user",
-                        "name": "masterPubkey",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "default": "Bearer \u003cAdd token here\u003e",
-                        "description": "Auth token",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/main.VerifiedBadgeEvents"
-                        }
-                    },
-                    "204": {
-                        "description": "User is not verified"
-                    },
-                    "404": {
-                        "description": "if user not found",
-                        "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/users/{userId}/2fa/{twoFAOption}/values/{twoFAOptionValue}": {
+        "/v1/users/{userIdOrMasterKey}/2fa/{twoFAOption}/values/{twoFAOptionValue}": {
             "delete": {
                 "description": "Confirms deletion of 2FA method",
                 "produces": [
@@ -782,7 +731,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "ID of the user",
-                        "name": "userId",
+                        "name": "userIdOrMasterKey",
                         "in": "path",
                         "required": true
                     },
@@ -857,7 +806,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/users/{userId}/2fa/{twoFAOption}/verification-requests": {
+        "/v1/users/{userIdOrMasterKey}/2fa/{twoFAOption}/verification-requests": {
             "put": {
                 "description": "Initiates sending of 2FA code to the user",
                 "produces": [
@@ -890,7 +839,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "ID of the user or username in case of sending codes for recovery",
-                        "name": "userId",
+                        "name": "userIdOrMasterKey",
                         "in": "path",
                         "required": true
                     },
@@ -956,7 +905,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "ID of the user",
-                        "name": "userId",
+                        "name": "userIdOrMasterKey",
                         "in": "path",
                         "required": true
                     },
@@ -1017,7 +966,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/users/{userId}/coins": {
+        "/v1/users/{userIdOrMasterKey}/coins": {
             "get": {
                 "description": "Provides a list of coins updated since version",
                 "produces": [
@@ -1036,7 +985,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "ID of the user",
-                        "name": "userId",
+                        "name": "userIdOrMasterKey",
                         "in": "path",
                         "required": true
                     },
@@ -1068,7 +1017,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/users/{userId}/coins/{symbolGroup}": {
+        "/v1/users/{userIdOrMasterKey}/coins/{symbolGroup}": {
             "get": {
                 "description": "Returns all the user coins with symbol and wallet info (balances, etc)",
                 "produces": [
@@ -1087,7 +1036,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "ID of the user",
-                        "name": "userId",
+                        "name": "userIdOrMasterKey",
                         "in": "path"
                     },
                     {
@@ -1124,7 +1073,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/users/{userId}/ion-connect-indexers": {
+        "/v1/users/{userIdOrMasterKey}/ion-connect-indexers": {
             "get": {
                 "description": "Returns indexers list for the user",
                 "produces": [
@@ -1137,7 +1086,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "ID of the user",
-                        "name": "userId",
+                        "name": "userIdOrMasterKey",
                         "in": "path",
                         "required": true
                     },
@@ -1172,7 +1121,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/users/{userId}/ion-connect-relays": {
+        "/v1/users/{userIdOrMasterKey}/ion-connect-relays": {
             "patch": {
                 "description": "Assigns relay list for the user based on his followee list",
                 "produces": [
@@ -1185,7 +1134,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "ID of the user",
-                        "name": "userId",
+                        "name": "userIdOrMasterKey",
                         "in": "path",
                         "required": true
                     },
@@ -1229,7 +1178,58 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/users/{userId}/wallet-views": {
+        "/v1/users/{userIdOrMasterKey}/verified-badge": {
+            "get": {
+                "description": "Checks if a user is verified and returns badge events if they are",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Master public key of the user",
+                        "name": "userIdOrMasterKey",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cAdd token here\u003e",
+                        "description": "Auth token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.VerifiedBadgeEvents"
+                        }
+                    },
+                    "204": {
+                        "description": "User is not verified"
+                    },
+                    "404": {
+                        "description": "if user not found",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/users/{userIdOrMasterKey}/wallet-views": {
             "get": {
                 "description": "Lists all available wallet views for the user",
                 "produces": [
@@ -1242,7 +1242,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "ID of the user",
-                        "name": "userId",
+                        "name": "userIdOrMasterKey",
                         "in": "path",
                         "required": true
                     },
@@ -1291,7 +1291,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "ID of the user",
-                        "name": "userId",
+                        "name": "userIdOrMasterKey",
                         "in": "path",
                         "required": true
                     },
@@ -1347,7 +1347,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/users/{userId}/wallet-views/{walletViewId}": {
+        "/v1/users/{userIdOrMasterKey}/wallet-views/{walletViewId}": {
             "get": {
                 "description": "Get wallet view with extended information about coins (grouped)",
                 "produces": [
@@ -1360,7 +1360,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "ID of the user",
-                        "name": "userId",
+                        "name": "userIdOrMasterKey",
                         "in": "path",
                         "required": true
                     },
@@ -1419,7 +1419,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "ID of the user",
-                        "name": "userId",
+                        "name": "userIdOrMasterKey",
                         "in": "path",
                         "required": true
                     },
@@ -1487,7 +1487,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "ID of the user",
-                        "name": "userId",
+                        "name": "userIdOrMasterKey",
                         "in": "path",
                         "required": true
                     },

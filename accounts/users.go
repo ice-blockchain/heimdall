@@ -17,11 +17,13 @@ import (
 	"strings"
 
 	"github.com/goccy/go-json"
+	"github.com/google/uuid"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/server"
+	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/time"
@@ -456,4 +458,67 @@ func (a *accounts) verifyUserSignatureFromIONConnect(signatureBase64 string, now
 		return errors.Wrapf(ErrInvalidUserSignature, "kind mismatch")
 	}
 	return nil
+}
+
+func (a *accounts) IsUserVerified(ctx context.Context, masterPubKey string) (bool, []*model.Event, error) {
+	query := `SELECT verified FROM users WHERE master_pubkey = $1`
+	type result struct {
+		Verified bool `db:"verified"`
+	}
+	res, err := storage.Get[result](ctx, a.db, query, masterPubKey)
+	if err != nil {
+		return false, nil, errors.Wrap(err, "failed to check user verification status")
+	}
+	if !res.Verified {
+		return false, nil, nil
+	}
+	badgeDefinitionEvent, badgeAwardEvent, err := GenerateVerificationEvents(a.privateKey, a.publicKey, masterPubKey)
+	if err != nil {
+		return true, nil, err
+	}
+
+	return true, []*model.Event{badgeDefinitionEvent, badgeAwardEvent}, nil
+}
+
+func GenerateVerificationEvents(heimdallPrivateKey, heimdallPublicKey, masterPubKey string) (badgeDefinitionEvent, badgeAwardEvent *model.Event, err error) {
+	now := nostr.Now()
+	dUuid, err := uuid.NewV7()
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to generate UUID")
+	}
+	badgeDefinitionEvent = &model.Event{
+		Event: nostr.Event{
+			CreatedAt: now,
+			Kind:      nostr.KindBadgeDefinition,
+			Tags: nostr.Tags{
+				{"d", verifiedBadgeDTag + "-" + dUuid.String()},
+				{"name", verifiedBadgeName},
+				{"description", verifiedBadgeDescription},
+			},
+		},
+	}
+	for key, image := range verifiedBadgeImage {
+		badgeDefinitionEvent.Event.Tags = append(badgeDefinitionEvent.Event.Tags, nostr.Tag{"image", image, key})
+	}
+	for key, thumbnail := range verifiedBadgeThumbnail {
+		badgeDefinitionEvent.Event.Tags = append(badgeDefinitionEvent.Event.Tags, nostr.Tag{"thumb", thumbnail, key})
+	}
+	if err := badgeDefinitionEvent.SignWithAlg(heimdallPrivateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
+		return nil, nil, errors.Wrap(err, "failed to sign badge definition event")
+	}
+	badgeAwardEvent = &model.Event{
+		Event: nostr.Event{
+			CreatedAt: now,
+			Kind:      nostr.KindBadgeAward,
+			Tags: nostr.Tags{
+				{"a", strconv.Itoa(nostr.KindBadgeDefinition) + ":" + heimdallPublicKey + ":" + verifiedBadgeDTag},
+				{"p", masterPubKey},
+			},
+		},
+	}
+	if err := badgeAwardEvent.SignWithAlg(heimdallPrivateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
+		return nil, nil, errors.Wrap(err, "failed to sign badge award event")
+	}
+
+	return badgeDefinitionEvent, badgeAwardEvent, nil
 }
