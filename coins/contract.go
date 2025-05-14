@@ -51,6 +51,7 @@ type (
 		PriceUSD        float64             `json:"priceUSD"`
 		Decimals        uint8               `json:"decimals"`
 		Version         *uint64             `json:"version,omitempty"`
+		Native          bool                `json:"native"`
 		SyncFrequency   stdlibtime.Duration `json:"syncFrequency"`
 	}
 	WalletNFT map[string]any
@@ -141,6 +142,7 @@ type (
 		Symbol          string
 		SymbolGroup     string
 		IconUrl         string
+		Native          bool
 	}
 	coinToSync struct {
 		Network           string

@@ -79,7 +79,8 @@ func (a *accounts) createWalletView(ctx context.Context, userID, name string, it
 							  coins.contract_address as contractAddress,
 							  coins.symbol,
 							  coins.symbol_group as symbolGroup,
-							  coins.icon_url as iconURL
+							  coins.icon_url as iconURL,
+                              coins.native
 					   from wallet_views_coinids
 					   join coins on wallet_views_coinids.coinid = coins.id) t
 				   ) 
@@ -179,7 +180,8 @@ func (a *accounts) getWalletView(ctx context.Context, userID, id string, buildCo
 						  coins.contract_address as contractAddress,
 						  coins.symbol,
 						  coins.symbol_group as symbolGroup,
-						  coins.icon_url as iconURL
+						  coins.icon_url as iconURL,
+						  coins.native
 				   from wallet_views_coinids
 				   join coins on wallet_views_coinids.coinid = coins.id) t
 			   ) 
@@ -301,7 +303,8 @@ func (a *accounts) ModifyWalletView(ctx context.Context, userID, id, newName str
 							  coins.contract_address as contractAddress,
 							  coins.symbol,
 							  coins.symbol_group as symbolGroup,
-							  coins.icon_url as iconURL
+							  coins.icon_url as iconURL,
+							  coins.native
 					   from wallet_views_coinids
 					   join coins on wallet_views_coinids.coinid = coins.id) t
 				   ) 
@@ -351,7 +354,7 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 							groupedBySymbol[symbol] = append(groupedBySymbol[symbol], linkedSymbols[0])
 						} else if len(linkedSymbols) > 0 {
 							for _, ls := range linkedSymbols {
-								if ls.ContractAddress == "" && strings.EqualFold(walletAssets.Network, ls.Network) {
+								if ls.Native && strings.EqualFold(walletAssets.Network, ls.Network) {
 									groupedBySymbol[symbol] = append(groupedBySymbol[symbol], ls)
 									break
 								}

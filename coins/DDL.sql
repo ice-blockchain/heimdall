@@ -16,12 +16,15 @@ CREATE TABLE IF NOT EXISTS coins (
                                      symbol            TEXT NOT NULL,
                                      symbol_group      TEXT NOT NULL,
                                      icon_url          TEXT NOT NULL DEFAULT '',
+                                     native            BOOL NOT NULL DEFAULT FALSE,
                                      primary key(id)
 );
 
 CREATE INDEX IF NOT EXISTS coins_contract_address_idx ON coins (contract_address);
 CREATE INDEX IF NOT EXISTS coins_symbol_group_idx ON coins (symbol_group);
 CREATE INDEX IF NOT EXISTS coins_coingecko_coin_id_idx ON coins (coingecko_coin_id);
+
+ALTER TABLE coins ADD COLUMN IF NOT EXISTS native BOOL NOT NULL DEFAULT FALSE;
 
 CREATE TABLE IF NOT EXISTS coins_sync_queue (
                                                 created_at        TIMESTAMP NOT NULL,
@@ -43,6 +46,6 @@ CREATE TABLE IF NOT EXISTS nft_collections (
 
 ALTER TABLE nft_collections DROP COLUMN IF EXISTS token_id;
 
-INSERT INTO coins (sync_frequency, created_at, updated_at, data_updated_at, decimals, version, price_usd, id, coingecko_coin_id, network, name, contract_address, symbol, symbol_group, icon_url)
-VALUES            ('%v', now(), now(), now(), 9, 0, %v, '7b471f92-ced2-38b0-e408-88e5d89e8045', 'ice', 'ion', 'Ice Open Network', '', 'ice', 'ice', 'https://coin-images.coingecko.com/coins/images/34674/large/ion-coingecko-200w.png?1714009819')
+INSERT INTO coins (sync_frequency, created_at, updated_at, data_updated_at, decimals, version, price_usd, id, coingecko_coin_id, network, name, contract_address, symbol, symbol_group, icon_url, native)
+VALUES            ('%v', now(), now(), now(), 9, 0, %v, '7b471f92-ced2-38b0-e408-88e5d89e8045', 'ice', 'ion', 'Ice Open Network', '', 'ice', 'ice', 'https://coin-images.coingecko.com/coins/images/34674/large/ion-coingecko-200w.png?1714009819', true)
 ON CONFLICT DO NOTHING;

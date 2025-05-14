@@ -17,7 +17,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/ice-blockchain/subzero v1.187.0
+	github.com/ice-blockchain/subzero v1.191.0
 	github.com/ice-blockchain/wintr v1.156.0
 	github.com/imroc/req/v3 v3.51.0
 	github.com/lestrrat-go/jwx/v2 v2.1.6
@@ -30,17 +30,17 @@ require (
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.16.4
 	github.com/twilio/twilio-go v1.26.1
-	github.com/xssnick/tonutils-go v1.12.0
+	github.com/xssnick/tonutils-go v1.12.1-0.20250508133817-83128a4c7520
 	golang.org/x/exp v0.0.0-20250506013437-ce4c2cf36ca6
 	golang.org/x/sync v0.14.0
 )
 
 require (
 	cel.dev/expr v0.24.0 // indirect
-	cloud.google.com/go v0.121.0 // indirect
+	cloud.google.com/go v0.121.1 // indirect
 	cloud.google.com/go/auth v0.16.1 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
-	cloud.google.com/go/compute/metadata v0.6.0 // indirect
+	cloud.google.com/go/compute/metadata v0.7.0 // indirect
 	cloud.google.com/go/firestore v1.18.0 // indirect
 	cloud.google.com/go/iam v1.5.2 // indirect
 	cloud.google.com/go/longrunning v0.6.7 // indirect
@@ -132,7 +132,7 @@ require (
 	github.com/google/pprof v0.0.0-20250501235452-c0086092b71a // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
-	github.com/googleapis/gax-go/v2 v2.14.1 // indirect
+	github.com/googleapis/gax-go/v2 v2.14.2 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/holiman/uint256 v1.3.2 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -234,7 +234,7 @@ require (
 	golang.org/x/text v0.25.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
 	golang.org/x/tools v0.33.0 // indirect
-	google.golang.org/api v0.232.0 // indirect
+	google.golang.org/api v0.233.0 // indirect
 	google.golang.org/appengine/v2 v2.0.6 // indirect
 	google.golang.org/genproto v0.0.0-20250512202823-5a2f75b736a9 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250512202823-5a2f75b736a9 // indirect

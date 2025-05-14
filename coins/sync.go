@@ -21,18 +21,22 @@ import (
 )
 
 func MustStartSyncer(ctx context.Context, cancel context.CancelFunc) Sync {
-	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
-
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	s := &coinSync{
-		db:              db,
-		shutdown:        db.Close,
 		cancel:          cancel,
 		cfg:             &cfg,
 		coinGeckoClient: coingecko.New(applicationYamlKey),
 	}
 
+	iceCoin, err := s.coinGeckoClient.GetCoins(ctx, []string{DefaultWalletViewCoinSymbolGroup})
+	log.Panic(errors.Wrapf(err, "failed to sync ice price from coin gecko on startup"))
+	if len(iceCoin) == 0 {
+		log.Panic(errors.New("ice coin not found on coin gecko"))
+	}
+	db := storage.MustConnect(ctx, fmt.Sprintf(ddl, syncFrequency(s.cfg, DefaultWalletViewCoinSymbolGroup), iceCoin[0].PriceUSD), applicationYamlKey)
+	s.db = db
+	s.shutdown = db.Close
 	registry := metrics.NewRegistry()
 	log.Panic(errors.Wrapf(registry.Register("iteration", metrics.NewCustomTimer(metrics.NewHistogram(metrics.NewExpDecaySample(10_000, 0.015)), metrics.NewMeter())), "failed to register timer"))
 	log.Panic(errors.Wrapf(registry.Register("coin_gecko_calls", metrics.NewMeter()), "failed to register coingecko call meter"))
