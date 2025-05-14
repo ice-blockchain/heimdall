@@ -65,6 +65,8 @@ definitions:
         type: string
       name:
         type: string
+      native:
+        type: boolean
       network:
         type: string
       priceUSD:
@@ -106,6 +108,8 @@ definitions:
         type: string
       name:
         type: string
+      native:
+        type: boolean
       network:
         type: string
       priceUSD:

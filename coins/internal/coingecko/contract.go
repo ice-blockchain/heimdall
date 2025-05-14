@@ -27,6 +27,7 @@ type (
 		ContractAddress ContractAddress
 		Decimals        int
 		PriceUSD        float64
+		Native          bool
 		IconUrl         string
 	}
 	NFT struct {

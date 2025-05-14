@@ -1651,6 +1651,9 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "native": {
+                    "type": "boolean"
+                },
                 "network": {
                     "type": "string"
                 },
@@ -1712,6 +1715,9 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "native": {
+                    "type": "boolean"
                 },
                 "network": {
                     "type": "string"
