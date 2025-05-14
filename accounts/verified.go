@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: ice License 1.0
 
-package main
+package accounts
 
 import (
 	"context"
@@ -9,13 +9,12 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
 
-	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
-func (s *service) ProcessNextVerifiedUsersQueue(ctx context.Context) error {
-	return errors.Wrap(storage.DoInTransaction(ctx, s.db, func(conn storage.QueryExecer) error {
+func (a *accounts) ProcessNextVerifiedUsersQueue(ctx context.Context) error {
+	return errors.Wrap(storage.DoInTransaction(ctx, a.db, func(conn storage.QueryExecer) error {
 		query := `
 			WITH next_user AS (
 				SELECT q.user_id AS id, u.master_pubkey, u.ion_connect_relays, u.username
@@ -42,21 +41,20 @@ func (s *service) ProcessNextVerifiedUsersQueue(ctx context.Context) error {
 			}
 			return errors.Wrap(err, "failed to get and process verified user")
 		}
-		badgeDefinitionEvent, badgeAwardEvent, err := accounts.GenerateVerificationEvents(s.privateKey, s.publicKey, userData.MasterPubKey)
+		badgeDefinitionEvent, badgeAwardEvent, err := a.generateVerificationEvents(userData.MasterPubKey)
 		if err != nil {
 			return errors.Wrap(err, "failed to generate verification events")
 		}
-		ephemeralEvent, err := s.generateEphemeralVerificationEvent(userData, badgeDefinitionEvent, badgeAwardEvent)
+		ephemeralEvent, err := a.generateEphemeralVerificationEvent(userData, badgeDefinitionEvent, badgeAwardEvent)
 		if err != nil {
 			return errors.Wrap(err, "failed to generate ephemeral verification event")
 		}
-
-		return errors.Wrapf(s.publishEvents(ctx, userData.IONConnectRelays, []*model.Event{badgeDefinitionEvent, badgeAwardEvent, ephemeralEvent}),
+		return errors.Wrapf(a.publishEvents(ctx, userData.IONConnectRelays, []*model.Event{badgeDefinitionEvent, badgeAwardEvent, ephemeralEvent}),
 			"failed to process verified user: %s", userData.MasterPubKey)
 	}), "failed to process verified user")
 }
 
-func (s *service) generateEphemeralVerificationEvent(userData *verifiedUserQueueData, badgeDefinitionEvent, badgeAwardEvent *model.Event) (*model.Event, error) {
+func (a *accounts) generateEphemeralVerificationEvent(userData *verifiedUserQueueData, badgeDefinitionEvent, badgeAwardEvent *model.Event) (*model.Event, error) {
 	now := nostr.Now()
 	userProfileMetadataEvent := &model.Event{
 		Event: nostr.Event{
@@ -65,7 +63,7 @@ func (s *service) generateEphemeralVerificationEvent(userData *verifiedUserQueue
 			Content:   `{"name":"` + userData.Username + `"}`,
 		},
 	}
-	if err := userProfileMetadataEvent.SignWithAlg(s.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
+	if err := userProfileMetadataEvent.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
 		return nil, errors.Wrap(err, "failed to sign user profile metadata event")
 	}
 	event := &model.Event{
@@ -79,14 +77,14 @@ func (s *service) generateEphemeralVerificationEvent(userData *verifiedUserQueue
 			},
 		},
 	}
-	if err := event.SignWithAlg(s.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
+	if err := event.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
 		return nil, errors.Wrap(err, "failed to sign profile badge event")
 	}
 
 	return event, nil
 }
 
-func (s *service) publishEvents(ctx context.Context, relays []string, events []*model.Event) error {
+func (a *accounts) publishEvents(ctx context.Context, relays []string, events []*model.Event) error {
 	relay := getRandomRelay(relays)
 	if relay == "" {
 		return nil
@@ -104,7 +102,7 @@ func (s *service) publishEvents(ctx context.Context, relays []string, events []*
 	_ = nostrRelay.Publish(ctx, events[0].Event)
 	if err := nostrRelay.Auth(ctx, func(event *nostr.Event) error {
 		subZeroEvent := model.Event{Event: *event}
-		if err := subZeroEvent.SignWithAlg(s.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
+		if err := subZeroEvent.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
 			return err
 		}
 		*event = subZeroEvent.Event

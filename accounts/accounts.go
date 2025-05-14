@@ -84,6 +84,27 @@ func New(ctx context.Context, coinsRepo Coins) Accounts {
 	return &acc
 }
 
+func NewVerifiedQueueRepository(ctx context.Context) Accounts {
+	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
+	var cfg config
+	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
+	if cfg.PrivateKey == "" {
+		panic("[accounts] private key is not set")
+	}
+	pubkey, err := model.GetPublicKey(cfg.PrivateKey)
+	if err != nil {
+		log.Error(errors.Wrap(err, "failed to get public key"))
+	}
+	acc := accounts{
+		db:         db,
+		shutdown:   db.Close,
+		privateKey: cfg.PrivateKey,
+		publicKey:  pubkey,
+	}
+
+	return &acc
+}
+
 func (a *accounts) Close() error {
 	return errors.Wrapf(a.shutdown(), "failed to close accounts repository")
 }

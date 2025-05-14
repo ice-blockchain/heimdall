@@ -472,7 +472,7 @@ func (a *accounts) IsUserVerified(ctx context.Context, masterPubKey string) (boo
 	if !res.Verified {
 		return false, nil, nil
 	}
-	badgeDefinitionEvent, badgeAwardEvent, err := GenerateVerificationEvents(a.privateKey, a.publicKey, masterPubKey)
+	badgeDefinitionEvent, badgeAwardEvent, err := a.generateVerificationEvents(masterPubKey)
 	if err != nil {
 		return true, nil, err
 	}
@@ -480,7 +480,7 @@ func (a *accounts) IsUserVerified(ctx context.Context, masterPubKey string) (boo
 	return true, []*model.Event{badgeDefinitionEvent, badgeAwardEvent}, nil
 }
 
-func GenerateVerificationEvents(heimdallPrivateKey, heimdallPublicKey, masterPubKey string) (badgeDefinitionEvent, badgeAwardEvent *model.Event, err error) {
+func (a *accounts) generateVerificationEvents(masterPubKey string) (badgeDefinitionEvent, badgeAwardEvent *model.Event, err error) {
 	now := nostr.Now()
 	dUuid, err := uuid.NewV7()
 	if err != nil {
@@ -503,7 +503,7 @@ func GenerateVerificationEvents(heimdallPrivateKey, heimdallPublicKey, masterPub
 	for key, thumbnail := range verifiedBadgeThumbnail {
 		badgeDefinitionEvent.Event.Tags = append(badgeDefinitionEvent.Event.Tags, nostr.Tag{"thumb", thumbnail, key})
 	}
-	if err := badgeDefinitionEvent.SignWithAlg(heimdallPrivateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
+	if err := badgeDefinitionEvent.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
 		return nil, nil, errors.Wrap(err, "failed to sign badge definition event")
 	}
 	badgeAwardEvent = &model.Event{
@@ -511,12 +511,12 @@ func GenerateVerificationEvents(heimdallPrivateKey, heimdallPublicKey, masterPub
 			CreatedAt: now,
 			Kind:      nostr.KindBadgeAward,
 			Tags: nostr.Tags{
-				{"a", strconv.Itoa(nostr.KindBadgeDefinition) + ":" + heimdallPublicKey + ":" + verifiedBadgeDTag},
+				{"a", strconv.Itoa(nostr.KindBadgeDefinition) + ":" + a.publicKey + ":" + verifiedBadgeDTag},
 				{"p", masterPubKey},
 			},
 		},
 	}
-	if err := badgeAwardEvent.SignWithAlg(heimdallPrivateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
+	if err := badgeAwardEvent.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
 		return nil, nil, errors.Wrap(err, "failed to sign badge award event")
 	}
 
