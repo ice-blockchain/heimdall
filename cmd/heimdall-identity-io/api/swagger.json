@@ -1644,6 +1644,9 @@
                 "name": {
                     "type": "string"
                 },
+                "native": {
+                    "type": "boolean"
+                },
                 "network": {
                     "type": "string"
                 },
@@ -1705,6 +1708,9 @@
                 },
                 "name": {
                     "type": "string"
+                },
+                "native": {
+                    "type": "boolean"
                 },
                 "network": {
                     "type": "string"
