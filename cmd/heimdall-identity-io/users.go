@@ -234,6 +234,9 @@ func (s *service) GetVerifiedBadge(
 	ctx context.Context,
 	req *server.Request[GetVerifiedBadgeReq, VerifiedBadgeEvents],
 ) (successResp *server.Response[VerifiedBadgeEvents], errorResp *server.ErrResponse[*server.ErrorResponse]) {
+	if _, err := server.Auth(ctx).VerifyToken(ctx, req.Data.Authorization); err != nil {
+		return nil, server.Unauthorized(err)
+	}
 	isVerified, events, err := s.accounts.IsUserVerified(ctx, req.Data.UserIDOrMasterKey)
 	if err != nil {
 		if errors.Is(err, accounts.ErrNotFound) {

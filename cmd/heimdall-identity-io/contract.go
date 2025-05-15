@@ -177,7 +177,7 @@ type (
 		ExcludeMasterPubKeys []string `json:"excludeMasterPubKeys,omitempty"`
 	}
 	GetVerifiedBadgeReq struct {
-		Authorization     string `header:"Authorization" swaggerignore:"true"`
+		Authorization     string `header:"Authorization" swaggerignore:"true" allowUnauthorized:"true"`
 		UserIDOrMasterKey string `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
 	}
 	VerifiedBadgeEvents struct {
