@@ -34,7 +34,7 @@ func (a *verifiedUsersSync) ProcessNextVerifiedUsersQueue(ctx context.Context) e
 			WHERE id IN (SELECT id FROM next_user)
 			RETURNING master_pubkey, ion_connect_relays
 		`
-		userData, err := storage.ExecOne[verifiedUserQueueData](ctx, conn, query)
+		userData, err := storage.ExecOne[LiteUser](ctx, conn, query)
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
 				return nil

@@ -220,10 +220,6 @@ type (
 		Active2FATotpAuthenticator []bool `db:"active_2fa_totp_authenticator"`
 		Verified                   bool   `db:"verified"`
 	}
-	verifiedUserQueueData struct {
-		MasterPubKey     string   `db:"master_pubkey"`
-		IONConnectRelays []string `db:"ion_connect_relays"`
-	}
 	twoFACode struct {
 		CreatedAt       *time.Time
 		ConfirmedAt     *time.Time

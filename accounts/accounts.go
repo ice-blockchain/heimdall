@@ -82,7 +82,7 @@ func NewVerifiedQueueRepository(ctx context.Context) VerifiedUsersSync {
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	if cfg.PrivateKey == "" {
-		panic("[accounts] private key is not set")
+		panic("[verified-users-sync] private key is not set")
 	}
 
 	vSync := verifiedUsersSync{

@@ -13,9 +13,6 @@ type (
 		verifiedQueueRepository accounts.VerifiedUsersSync
 	}
 	noAuth struct{}
-	config struct {
-		Version string `yaml:"version"`
-	}
 )
 
 const (
