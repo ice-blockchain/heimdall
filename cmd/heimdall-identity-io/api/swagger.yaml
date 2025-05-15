@@ -167,6 +167,10 @@ definitions:
     type: object
   main.LiteUser:
     properties:
+      ionConnectRelays:
+        items:
+          type: string
+        type: array
       masterPubKey:
         type: string
     type: object

@@ -1917,6 +1917,12 @@ const docTemplate = `{
         "main.LiteUser": {
             "type": "object",
             "properties": {
+                "ionConnectRelays": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "masterPubKey": {
                     "type": "string"
                 }
