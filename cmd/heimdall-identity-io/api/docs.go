@@ -1868,9 +1868,6 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
-                },
-                "limit": {
-                    "type": "integer"
                 }
             }
         },

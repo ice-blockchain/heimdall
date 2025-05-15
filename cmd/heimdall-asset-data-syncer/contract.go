@@ -10,7 +10,7 @@ import (
 type (
 	service struct {
 		coinSyncer              coins.Sync
-		verifiedQueueRepository accounts.Accounts
+		verifiedQueueRepository accounts.VerifiedUsersSync
 	}
 	noAuth struct{}
 	config struct {

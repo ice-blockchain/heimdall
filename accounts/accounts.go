@@ -77,7 +77,7 @@ func New(ctx context.Context, coinsRepo Coins) Accounts {
 	return &acc
 }
 
-func NewVerifiedQueueRepository(ctx context.Context) Accounts {
+func NewVerifiedQueueRepository(ctx context.Context) VerifiedUsersSync {
 	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
@@ -85,20 +85,31 @@ func NewVerifiedQueueRepository(ctx context.Context) Accounts {
 		panic("[accounts] private key is not set")
 	}
 
-	acc := accounts{
+	vSync := verifiedUsersSync{
 		db:         db,
 		shutdown:   db.Close,
 		privateKey: cfg.PrivateKey,
 	}
 
-	return &acc
+	return &vSync
 }
 
 func (a *accounts) Close() error {
 	return errors.Wrapf(a.shutdown(), "failed to close accounts repository")
 }
 
+func (a *verifiedUsersSync) Close() error {
+	return errors.Wrapf(a.shutdown(), "failed to close verified users sync repository")
+}
+
 func (a *accounts) HealthCheck(ctx context.Context) error {
+	if err := a.db.Ping(ctx); err != nil {
+		return errors.Wrap(err, "[health-check] failed to ping DB")
+	}
+	return nil
+}
+
+func (a *verifiedUsersSync) HealthCheck(ctx context.Context) error {
 	if err := a.db.Ping(ctx); err != nil {
 		return errors.Wrap(err, "[health-check] failed to ping DB")
 	}

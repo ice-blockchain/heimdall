@@ -14,7 +14,7 @@ import (
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
-func (a *accounts) ProcessNextVerifiedUsersQueue(ctx context.Context) error {
+func (a *verifiedUsersSync) ProcessNextVerifiedUsersQueue(ctx context.Context) error {
 	return errors.Wrap(storage.DoInTransaction(ctx, a.db, func(conn storage.QueryExecer) error {
 		query := `
 			WITH next_user AS (
@@ -41,7 +41,7 @@ func (a *accounts) ProcessNextVerifiedUsersQueue(ctx context.Context) error {
 			}
 			return errors.Wrap(err, "failed to get and process verified user")
 		}
-		verificationEvents, err := a.generateVerificationEvents(userData.MasterPubKey)
+		verificationEvents, err := generateVerificationEvents(a.privateKey, userData.MasterPubKey)
 		if err != nil {
 			return errors.Wrap(err, "failed to generate verification events")
 		}
@@ -51,8 +51,8 @@ func (a *accounts) ProcessNextVerifiedUsersQueue(ctx context.Context) error {
 	}), "failed to process verified user")
 }
 
-func (a *accounts) generateVerificationEvents(masterPubKey string) (events []*model.Event, err error) {
-	heimdallPubKey, err := model.GetPublicKey(a.privateKey)
+func generateVerificationEvents(heimdallPrivateKey string, masterPubKey string) (events []*model.Event, err error) {
+	heimdallPubKey, err := model.GetPublicKey(heimdallPrivateKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get public key")
 	}
@@ -70,7 +70,7 @@ func (a *accounts) generateVerificationEvents(masterPubKey string) (events []*mo
 			},
 		},
 	}
-	if err := badgeDefinitionEvent.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
+	if err := badgeDefinitionEvent.SignWithAlg(heimdallPrivateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
 		return nil, errors.Wrap(err, "failed to sign badge definition event")
 	}
 	badgeAwardEvent := &model.Event{
@@ -83,14 +83,14 @@ func (a *accounts) generateVerificationEvents(masterPubKey string) (events []*mo
 			},
 		},
 	}
-	if err := badgeAwardEvent.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
+	if err := badgeAwardEvent.SignWithAlg(heimdallPrivateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
 		return nil, errors.Wrap(err, "failed to sign badge award event")
 	}
 
 	return []*model.Event{badgeDefinitionEvent, badgeAwardEvent}, nil
 }
 
-func (a *accounts) publishEvents(ctx context.Context, relays []string, events []*model.Event) error {
+func (a *verifiedUsersSync) publishEvents(ctx context.Context, relays []string, events []*model.Event) error {
 	relay := getRandomRelay(relays)
 	if relay == "" {
 		return nil

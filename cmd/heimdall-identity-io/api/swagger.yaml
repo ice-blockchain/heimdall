@@ -136,8 +136,6 @@ definitions:
         items:
           type: string
         type: array
-      limit:
-        type: integer
     type: object
   main.GetLoginChallenge:
     properties:

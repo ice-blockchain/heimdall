@@ -173,7 +173,7 @@ type (
 	}
 	GetContentCreatorsReq struct {
 		Authorization        string   `header:"Authorization" swaggerignore:"true"`
-		Limit                uint64   `form:"limit" required:"true"`
+		Limit                uint64   `form:"limit" required:"true" swaggerignore:"true"`
 		ExcludeMasterPubKeys []string `json:"excludeMasterPubKeys,omitempty"`
 	}
 	GetVerifiedBadgeReq struct {

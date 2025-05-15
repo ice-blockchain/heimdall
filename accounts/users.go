@@ -471,7 +471,7 @@ func (a *accounts) IsUserVerified(ctx context.Context, masterPubKey string) (boo
 	if !res.Verified {
 		return false, nil, nil
 	}
-	events, err := a.generateVerificationEvents(masterPubKey)
+	events, err := generateVerificationEvents(a.privateKey, masterPubKey)
 	if err != nil {
 		return true, nil, err
 	}

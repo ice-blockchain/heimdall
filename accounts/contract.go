@@ -42,6 +42,10 @@ type (
 		DeleteUser(ctx context.Context, userID string) error
 		GetContentCreators(ctx context.Context, limit uint64, excludeMasterPubKeys []string) ([]*LiteUser, error)
 		IsUserVerified(ctx context.Context, masterPubKey string) (bool, []*model.Event, error)
+		HealthCheck(ctx context.Context) error
+	}
+	VerifiedUsersSync interface {
+		io.Closer
 		ProcessNextVerifiedUsersQueue(ctx context.Context) error
 		HealthCheck(ctx context.Context) error
 	}
@@ -195,6 +199,11 @@ type (
 		cfg                        *config
 		privateKey                 string
 	}
+	verifiedUsersSync struct {
+		db         *storage.DB
+		shutdown   func() error
+		privateKey string
+	}
 	user struct {
 		CreatedAt                  *time.Time
 		UpdatedAt                  *time.Time
@@ -209,6 +218,7 @@ type (
 		Active2FAEmail             []bool `db:"active_2fa_email"`
 		Active2FAPhoneNumber       []bool `db:"active_2fa_phone_number"`
 		Active2FATotpAuthenticator []bool `db:"active_2fa_totp_authenticator"`
+		Verified                   bool   `db:"verified"`
 	}
 	verifiedUserQueueData struct {
 		MasterPubKey     string   `db:"master_pubkey"`
