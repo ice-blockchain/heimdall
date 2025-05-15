@@ -77,11 +77,13 @@ func (a *accounts) GetContentCreators(ctx context.Context, limit uint64, exclude
 	args := []any{}
 	if len(excludeMasterPubKeys) > 0 {
 		args = append(args, excludeMasterPubKeys)
-		excludeClause = "WHERE NOT master_pubkey = ANY($1)"
+		excludeClause = "WHERE NOT cc.master_pubkey = ANY($1)"
 	}
 	args = append(args, limit)
-	query := `SELECT master_pubkey 
-			  FROM content_creators ` + excludeClause + `
+	query := `SELECT cc.master_pubkey, u.ion_connect_relays
+			  FROM content_creators cc
+			  JOIN users u ON cc.master_pubkey = u.master_pubkey
+			  ` + excludeClause + `
 			  ORDER BY random()
 			  LIMIT $` + strconv.Itoa(len(args))
 

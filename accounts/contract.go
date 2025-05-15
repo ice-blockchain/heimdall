@@ -116,7 +116,8 @@ type (
 	NFT      = coins.NFT
 	Wallet   = dfns.Wallet
 	LiteUser struct {
-		MasterPubKey string `json:"masterPubKey" db:"master_pubkey"`
+		MasterPubKey     string   `json:"masterPubKey" db:"master_pubkey"`
+		IONConnectRelays []string `json:"ionConnectRelays" db:"ion_connect_relays"`
 	}
 )
 
