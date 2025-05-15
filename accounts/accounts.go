@@ -12,7 +12,6 @@ import (
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
 	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
 	"github.com/ice-blockchain/heimdall/coins"
-	"github.com/ice-blockchain/subzero/model"
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
@@ -49,11 +48,6 @@ func New(ctx context.Context, coinsRepo Coins) Accounts {
 	if cfg.PrivateKey == "" {
 		panic("[accounts] private key is not set")
 	}
-	pubkey, err := model.GetPublicKey(cfg.PrivateKey)
-	if err != nil {
-		log.Error(errors.Wrap(err, "failed to get public key"))
-	}
-
 	acc := accounts{
 		db:                         db,
 		coinsRepo:                  coinsRepo,
@@ -64,7 +58,6 @@ func New(ctx context.Context, coinsRepo Coins) Accounts {
 		cfg:                        &cfg,
 		concurrentlyGeneratedCodes: make(map[TwoFAOptionEnum]*sync.Map),
 		privateKey:                 cfg.PrivateKey,
-		publicKey:                  pubkey,
 	}
 	cl.RegisterPostProxyCallback(registrationUrl, acc.upsertUsernameFromRegistration)
 	cl.RegisterPostProxyCallback(completeLoginUrl, acc.upsertUsernameFromLogin)
@@ -91,15 +84,11 @@ func NewVerifiedQueueRepository(ctx context.Context) Accounts {
 	if cfg.PrivateKey == "" {
 		panic("[accounts] private key is not set")
 	}
-	pubkey, err := model.GetPublicKey(cfg.PrivateKey)
-	if err != nil {
-		log.Error(errors.Wrap(err, "failed to get public key"))
-	}
+
 	acc := accounts{
 		db:         db,
 		shutdown:   db.Close,
 		privateKey: cfg.PrivateKey,
-		publicKey:  pubkey,
 	}
 
 	return &acc

@@ -3,8 +3,6 @@
 package main
 
 import (
-	_ "embed"
-
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/coins"
 )

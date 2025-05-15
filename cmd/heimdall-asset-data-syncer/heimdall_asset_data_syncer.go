@@ -87,7 +87,6 @@ func (s *service) processVerifiedUsersQueue(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-time.After(100 * time.Millisecond):
-			fmt.Println("waiting for next verified user")
 		}
 	}
 }

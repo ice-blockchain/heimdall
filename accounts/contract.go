@@ -11,6 +11,7 @@ import (
 	"sync"
 	stdlibtime "time"
 
+	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
@@ -163,12 +164,8 @@ var (
 	ErrRaceCondition                   = dfns.ErrRaceCondition
 	ErrWalletLinked                    = errors.New("wallet already linked to walletview")
 
-	verifiedBadgeImage = map[string]string{
-		"1024x1024": "https://example.com/verified_1024x1024.webp",
-	}
-	verifiedBadgeThumbnail = map[string]string{
-		"256x256": "https://example.com/verified_256x256.webp",
-	}
+	verifiedBadgeImage1024X1024Tag   = nostr.Tag{"image", "https://example.com/verified_1024x1024.webp", "1024x1024"}
+	verifiedBadgeThumbnail256X256Tag = nostr.Tag{"thumb", "https://example.com/verified_256x256.webp", "256x256"}
 )
 
 const (
@@ -196,7 +193,6 @@ type (
 		concurrentlyGeneratedCodes map[TwoFAOptionEnum]*sync.Map
 		cfg                        *config
 		privateKey                 string
-		publicKey                  string
 	}
 	user struct {
 		CreatedAt                  *time.Time
@@ -214,7 +210,6 @@ type (
 		Active2FATotpAuthenticator []bool `db:"active_2fa_totp_authenticator"`
 	}
 	verifiedUserQueueData struct {
-		Username         string   `db:"username"`
 		MasterPubKey     string   `db:"master_pubkey"`
 		IONConnectRelays []string `db:"ion_connect_relays"`
 	}
@@ -236,6 +231,5 @@ type (
 		MockRelays               []string            `yaml:"mockRelays" mapstructure:"mockRelays"`
 		PrivateKey               string              `yaml:"privateKey" mapstructure:"privateKey"`
 		RelaysPerUser            uint8               `yaml:"relaysPerUser" mapstructure:"relaysPerUser"`
-		CaCert                   string              `yaml:"caCert" mapstructure:"caCert"`
 	}
 )

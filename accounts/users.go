@@ -17,7 +17,6 @@ import (
 	"strings"
 
 	"github.com/goccy/go-json"
-	"github.com/google/uuid"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
 
@@ -472,53 +471,10 @@ func (a *accounts) IsUserVerified(ctx context.Context, masterPubKey string) (boo
 	if !res.Verified {
 		return false, nil, nil
 	}
-	badgeDefinitionEvent, badgeAwardEvent, err := a.generateVerificationEvents(masterPubKey)
+	events, err := a.generateVerificationEvents(masterPubKey)
 	if err != nil {
 		return true, nil, err
 	}
 
-	return true, []*model.Event{badgeDefinitionEvent, badgeAwardEvent}, nil
-}
-
-func (a *accounts) generateVerificationEvents(masterPubKey string) (badgeDefinitionEvent, badgeAwardEvent *model.Event, err error) {
-	now := nostr.Now()
-	dUuid, err := uuid.NewV7()
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to generate UUID")
-	}
-	badgeDefinitionEvent = &model.Event{
-		Event: nostr.Event{
-			CreatedAt: now,
-			Kind:      nostr.KindBadgeDefinition,
-			Tags: nostr.Tags{
-				{"d", verifiedBadgeDTag + "-" + dUuid.String()},
-				{"name", verifiedBadgeName},
-				{"description", verifiedBadgeDescription},
-			},
-		},
-	}
-	for key, image := range verifiedBadgeImage {
-		badgeDefinitionEvent.Event.Tags = append(badgeDefinitionEvent.Event.Tags, nostr.Tag{"image", image, key})
-	}
-	for key, thumbnail := range verifiedBadgeThumbnail {
-		badgeDefinitionEvent.Event.Tags = append(badgeDefinitionEvent.Event.Tags, nostr.Tag{"thumb", thumbnail, key})
-	}
-	if err := badgeDefinitionEvent.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
-		return nil, nil, errors.Wrap(err, "failed to sign badge definition event")
-	}
-	badgeAwardEvent = &model.Event{
-		Event: nostr.Event{
-			CreatedAt: now,
-			Kind:      nostr.KindBadgeAward,
-			Tags: nostr.Tags{
-				{"a", strconv.Itoa(nostr.KindBadgeDefinition) + ":" + a.publicKey + ":" + verifiedBadgeDTag},
-				{"p", masterPubKey},
-			},
-		},
-	}
-	if err := badgeAwardEvent.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
-		return nil, nil, errors.Wrap(err, "failed to sign badge award event")
-	}
-
-	return badgeDefinitionEvent, badgeAwardEvent, nil
+	return true, events, nil
 }

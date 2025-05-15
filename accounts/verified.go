@@ -5,6 +5,7 @@ package accounts
 import (
 	"context"
 	"math/rand"
+	"strconv"
 
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
@@ -17,10 +18,9 @@ func (a *accounts) ProcessNextVerifiedUsersQueue(ctx context.Context) error {
 	return errors.Wrap(storage.DoInTransaction(ctx, a.db, func(conn storage.QueryExecer) error {
 		query := `
 			WITH next_user AS (
-				SELECT q.user_id AS id, u.master_pubkey, u.ion_connect_relays, u.username
+				SELECT q.user_id AS id
 				FROM verified_users_sync_queue q
-				JOIN users u ON q.user_id = u.id
-				WHERE u.verified = false
+				JOIN users u ON q.user_id = u.id AND u.verified = false
 				ORDER BY q.created_at 
 				LIMIT 1
 				FOR UPDATE
@@ -32,7 +32,7 @@ func (a *accounts) ProcessNextVerifiedUsersQueue(ctx context.Context) error {
 			UPDATE users 
 				SET verified = true 
 			WHERE id IN (SELECT id FROM next_user)
-			RETURNING master_pubkey, ion_connect_relays, username
+			RETURNING master_pubkey, ion_connect_relays
 		`
 		userData, err := storage.ExecOne[verifiedUserQueueData](ctx, conn, query)
 		if err != nil {
@@ -41,47 +41,53 @@ func (a *accounts) ProcessNextVerifiedUsersQueue(ctx context.Context) error {
 			}
 			return errors.Wrap(err, "failed to get and process verified user")
 		}
-		badgeDefinitionEvent, badgeAwardEvent, err := a.generateVerificationEvents(userData.MasterPubKey)
+		verificationEvents, err := a.generateVerificationEvents(userData.MasterPubKey)
 		if err != nil {
 			return errors.Wrap(err, "failed to generate verification events")
 		}
-		ephemeralEvent, err := a.generateEphemeralVerificationEvent(userData, badgeDefinitionEvent, badgeAwardEvent)
-		if err != nil {
-			return errors.Wrap(err, "failed to generate ephemeral verification event")
-		}
-		return errors.Wrapf(a.publishEvents(ctx, userData.IONConnectRelays, []*model.Event{badgeDefinitionEvent, badgeAwardEvent, ephemeralEvent}),
+
+		return errors.Wrapf(a.publishEvents(ctx, userData.IONConnectRelays, verificationEvents),
 			"failed to process verified user: %s", userData.MasterPubKey)
 	}), "failed to process verified user")
 }
 
-func (a *accounts) generateEphemeralVerificationEvent(userData *verifiedUserQueueData, badgeDefinitionEvent, badgeAwardEvent *model.Event) (*model.Event, error) {
+func (a *accounts) generateVerificationEvents(masterPubKey string) (events []*model.Event, err error) {
+	heimdallPubKey, err := model.GetPublicKey(a.privateKey)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get public key")
+	}
 	now := nostr.Now()
-	userProfileMetadataEvent := &model.Event{
+	badgeDefinitionEvent := &model.Event{
 		Event: nostr.Event{
 			CreatedAt: now,
-			Kind:      nostr.KindProfileMetadata,
-			Content:   `{"name":"` + userData.Username + `"}`,
-		},
-	}
-	if err := userProfileMetadataEvent.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
-		return nil, errors.Wrap(err, "failed to sign user profile metadata event")
-	}
-	event := &model.Event{
-		Event: nostr.Event{
-			CreatedAt: now,
-			Kind:      model.CustomIONKindEphemeralEmbeddding,
-			Content:   userProfileMetadataEvent.String(),
+			Kind:      nostr.KindBadgeDefinition,
 			Tags: nostr.Tags{
-				{"e", badgeAwardEvent.GetID()},
-				{"e", badgeDefinitionEvent.GetID()},
+				{"d", verifiedBadgeDTag},
+				{"name", verifiedBadgeName},
+				{"description", verifiedBadgeDescription},
+				verifiedBadgeImage1024X1024Tag,
+				verifiedBadgeThumbnail256X256Tag,
 			},
 		},
 	}
-	if err := event.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
-		return nil, errors.Wrap(err, "failed to sign profile badge event")
+	if err := badgeDefinitionEvent.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
+		return nil, errors.Wrap(err, "failed to sign badge definition event")
+	}
+	badgeAwardEvent := &model.Event{
+		Event: nostr.Event{
+			CreatedAt: now,
+			Kind:      nostr.KindBadgeAward,
+			Tags: nostr.Tags{
+				{"a", strconv.Itoa(nostr.KindBadgeDefinition) + ":" + heimdallPubKey + ":" + verifiedBadgeDTag},
+				{"p", masterPubKey},
+			},
+		},
+	}
+	if err := badgeAwardEvent.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
+		return nil, errors.Wrap(err, "failed to sign badge award event")
 	}
 
-	return event, nil
+	return []*model.Event{badgeDefinitionEvent, badgeAwardEvent}, nil
 }
 
 func (a *accounts) publishEvents(ctx context.Context, relays []string, events []*model.Event) error {
@@ -111,8 +117,8 @@ func (a *accounts) publishEvents(ctx context.Context, relays []string, events []
 	}); err != nil {
 		return errors.Wrapf(err, "failed to auth to relay %s", relay)
 	}
-	if err := nostrRelay.PublishMany(ctx, &events[0].Event, &events[1].Event, &events[2].Event); err != nil {
-		return errors.Wrapf(err, "failed to publish events: %s, %s, %s", events[0].Event.ID, events[1].Event.ID, events[2].Event.ID)
+	if err := nostrRelay.PublishMany(ctx, &events[0].Event, &events[1].Event); err != nil {
+		return errors.Wrapf(err, "failed to publish events: %s, %s", events[0].Event.ID, events[1].Event.ID)
 	}
 
 	return nil
