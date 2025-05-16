@@ -12,6 +12,7 @@ import (
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
 	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
 	"github.com/ice-blockchain/heimdall/coins"
+	"github.com/ice-blockchain/subzero/model"
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
@@ -118,4 +119,13 @@ func (a *verifiedUsersSync) HealthCheck(ctx context.Context) error {
 
 func ParseErrAsDelegatedInternalErr(err error) error {
 	return dfns.ParseErrAsDfnsInternalErr(err)
+}
+
+func (a *accounts) PublicKey() string {
+	pubKey, err := model.GetPublicKey(a.cfg.PrivateKey)
+	if err != nil {
+		panic(errors.Wrap(err, "failed to get public key from private key"))
+	}
+
+	return pubKey
 }

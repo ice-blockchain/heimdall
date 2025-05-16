@@ -130,6 +130,9 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	s.coins = coins.New(ctx)
 	s.accounts = accounts.New(ctx, s.coins)
 	s.hashtagStatistics = hashtagstatistics.New(ctx)
+
+	publicKey := s.accounts.PublicKey()
+	allValidConfigNames[configNameServicePubkeys] = func(_ *config) (any, Version) { return []string{publicKey}, Version(1) }
 }
 
 func (s *service) Close(ctx context.Context) error {

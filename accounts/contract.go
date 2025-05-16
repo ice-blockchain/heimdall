@@ -43,6 +43,7 @@ type (
 		GetContentCreators(ctx context.Context, limit uint64, excludeMasterPubKeys []string) ([]*LiteUser, error)
 		IsUserVerified(ctx context.Context, masterPubKey string) (bool, []*model.Event, error)
 		HealthCheck(ctx context.Context) error
+		PublicKey() string
 	}
 	VerifiedUsersSync interface {
 		io.Closer

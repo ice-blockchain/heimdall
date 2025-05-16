@@ -210,6 +210,7 @@ const (
 	configNameRequiredMacOSAppVersion   = "required_macos_app_version"
 	configNameRequiredWindowsAppVersion = "required_windows_app_version"
 	configNameRequiredLinuxAppVersion   = "required_linux_app_version"
+	configNameServicePubkeys            = "service_pubkeys"
 )
 
 type (
