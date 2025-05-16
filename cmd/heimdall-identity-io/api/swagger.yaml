@@ -71,6 +71,8 @@ definitions:
         type: string
       priceUSD:
         type: number
+      prioritized:
+        type: boolean
       symbol:
         type: string
       symbolGroup:
@@ -114,6 +116,8 @@ definitions:
         type: string
       priceUSD:
         type: number
+      prioritized:
+        type: boolean
       symbol:
         type: string
       symbolGroup:

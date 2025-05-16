@@ -1770,6 +1770,9 @@ const docTemplate = `{
                 "priceUSD": {
                     "type": "number"
                 },
+                "prioritized": {
+                    "type": "boolean"
+                },
                 "symbol": {
                     "type": "string"
                 },
@@ -1834,6 +1837,9 @@ const docTemplate = `{
                 },
                 "priceUSD": {
                     "type": "number"
+                },
+                "prioritized": {
+                    "type": "boolean"
                 },
                 "symbol": {
                     "type": "string"
