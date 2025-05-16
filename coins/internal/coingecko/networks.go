@@ -214,6 +214,7 @@ var Networks = map[string]*Network{
 		ExplorerURL:        "https://etherscan.io/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_eth.svg",
 		Tier:               1,
+		PrioritizedCoins:   []string{"ethereum"},
 	},
 	"EthereumSepolia": &Network{
 		ID:                 "EthereumSepolia",
@@ -225,6 +226,7 @@ var Networks = map[string]*Network{
 		ExplorerURL:        "https://sepolia.etherscan.io/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_eth.svg",
 		Tier:               1,
+		PrioritizedCoins:   []string{"ethereum"},
 	},
 	"FantomOpera": &Network{
 		ID:                 "FantomOpera",

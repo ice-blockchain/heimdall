@@ -229,12 +229,14 @@ func (w *CoinMappings) Scan(value any) error {
 		for i, c := range *w {
 			if c.Coin != nil {
 				var network string
-				network, err = coins.MapNetworkFromCoinGecko(c.Coin.Network)
+				var priority bool
+				network, priority, err = coins.MapNetworkFromCoinGecko(c.Coin.Network, c.Coin.SymbolGroup)
 				if err != nil {
 					err = errors.Wrapf(err, "failed to map network %v for coin %v", c.Coin.Network, *c.Coin)
 					break
 				}
 				(*w)[i].Coin.Network = network
+				(*w)[i].Coin.Prioritized = priority
 			}
 		}
 	}

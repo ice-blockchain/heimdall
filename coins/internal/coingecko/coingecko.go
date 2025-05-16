@@ -393,11 +393,11 @@ func MapNetwork(network string) (string, error) {
 		return coingeckoNetwork.CoinGeckoNetworkID, nil
 	}
 }
-func MapNetworkFromCoinGecko(network string) (string, error) {
+func MapNetworkFromCoinGecko(network string) (*Network, error) {
 	if mappedNetwork, hasNetwork := networkMappingFromCoinGecko[strings.ToLower(network)]; !hasNetwork || mappedNetwork == "" {
-		return "", ErrInvalidNetwork
+		return nil, ErrInvalidNetwork
 	} else {
-		return mappedNetwork, nil
+		return Networks[mappedNetwork], nil
 	}
 }
 
