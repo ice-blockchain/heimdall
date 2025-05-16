@@ -7,6 +7,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	stdlibtime "time"
 
@@ -204,8 +205,16 @@ func (c *coinsRepository) getCoinByContractAddress(ctx context.Context, contract
 func MapNetworkToCoinGecko(network string) (string, error) {
 	return coingecko.MapNetwork(network)
 }
-func MapNetworkFromCoinGecko(network string) (string, error) {
-	return coingecko.MapNetworkFromCoinGecko(network)
+func MapNetworkFromCoinGecko(cgNetwork, symbolGroup string) (mappedNetwork string, priority bool, err error) {
+	network, err := coingecko.MapNetworkFromCoinGecko(cgNetwork)
+	if err != nil {
+		return "", false, err
+	}
+	priority = false
+	if slices.Contains(network.PrioritizedCoins, symbolGroup) {
+		priority = true
+	}
+	return network.ID, priority, nil
 }
 
 func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *coingecko.Coin) (*coin, error) {
@@ -282,7 +291,7 @@ func (c *coinsRepository) GetAllCoins(ctx context.Context) (uint64, []*SymbolGro
 	allCoins = allCoins[1:]
 	groups := map[string][]*Coin{}
 	for _, c := range allCoins {
-		network, err := MapNetworkFromCoinGecko(c.Network)
+		network, priority, err := MapNetworkFromCoinGecko(c.Network, c.SymbolGroup)
 		if err != nil {
 			log.Error(errors.Wrapf(err, "failed to map network %v for coin %v", c.Network, &c))
 			continue
@@ -300,6 +309,7 @@ func (c *coinsRepository) GetAllCoins(ctx context.Context) (uint64, []*SymbolGro
 			SyncFrequency:   c.SyncFrequency,
 			Version:         &c.Version,
 			Native:          c.Native,
+			Prioritized:     priority,
 		})
 	}
 	res := make([]*SymbolGroupWithCoins, 0, len(groups))
@@ -327,7 +337,7 @@ func (c *coinsRepository) GetVersionedCoins(ctx context.Context, userID string, 
 	maxVersion := newCoins[0].Version
 	for _, c := range newCoins {
 		maxVersion = uint64(math.Max(float64(maxVersion), float64(c.Version)))
-		network, err := MapNetworkFromCoinGecko(c.Network)
+		network, priority, err := MapNetworkFromCoinGecko(c.Network, c.SymbolGroup)
 		if err != nil {
 			log.Error(errors.Wrapf(err, "failed to get versioned coins due to unmapped network %v %v", c.Network, c))
 		}
@@ -344,6 +354,7 @@ func (c *coinsRepository) GetVersionedCoins(ctx context.Context, userID string, 
 			Decimals:        c.Decimals,
 			Version:         &c.Version,
 			Native:          c.Native,
+			Prioritized:     priority,
 		})
 	}
 	return maxVersion, coinDiff, nil
@@ -358,7 +369,7 @@ func (c *coinsRepository) SyncCoins(ctx context.Context, symbolGroups []string) 
 	bySymbolGroupAndNetwork := make(map[string]*Coin)
 	coinsToSync := make([]string, len(coinsList))
 	for _, coin := range coinsList {
-		network, err := MapNetworkFromCoinGecko(coin.Network)
+		network, priority, err := MapNetworkFromCoinGecko(coin.Network, coin.SymbolGroup)
 		if err != nil {
 			log.Error(errors.Wrapf(err, "failed to map network %v for coin %+v", coin.Network, coin))
 			continue
@@ -371,6 +382,7 @@ func (c *coinsRepository) SyncCoins(ctx context.Context, symbolGroups []string) 
 			SyncFrequency: coin.SyncFrequency,
 			Decimals:      coin.Decimals,
 			Native:        coin.Native,
+			Prioritized:   priority,
 		}
 		needSync := now.Sub(*coin.UpdatedAt.Time) >= coin.SyncFrequency || (now.Sub(*coin.UpdatedAt.Time) >= 24*stdlibtime.Hour && coin.PriceUSD == 0)
 		if needSync {
@@ -405,7 +417,7 @@ func (c *coinsRepository) GetCoinsOfSymbolGroup(ctx context.Context, symbolGroup
 	}
 	res := make([]*Coin, 0, len(coinsList))
 	for _, c := range coinsList {
-		network, err := MapNetworkFromCoinGecko(c.Network)
+		network, priority, err := MapNetworkFromCoinGecko(c.Network, c.SymbolGroup)
 		if err != nil {
 			log.Error(errors.Wrapf(err, "failed to get coins of symbol group due to unmapped network %v %v", c.Network, c))
 			continue
@@ -422,6 +434,7 @@ func (c *coinsRepository) GetCoinsOfSymbolGroup(ctx context.Context, symbolGroup
 			SyncFrequency:   c.SyncFrequency,
 			Decimals:        c.Decimals,
 			Native:          c.Native,
+			Prioritized:     priority,
 		})
 	}
 	return res, nil

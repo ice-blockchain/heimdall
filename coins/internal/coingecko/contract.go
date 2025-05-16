@@ -43,16 +43,17 @@ type (
 		} `json:"image"`
 	}
 	Network struct {
-		ID                 string `json:"id"`
-		CoinGeckoNetworkID string `json:"-"`
-		CoinGeckoPlatform  string `json:"-"`
-		DisplayName        string `json:"displayName"`
-		IsTestnet          bool   `json:"isTestnet"`
-		Image              string `json:"image"`
-		ExplorerURL        string `json:"explorerUrl"`
-		DefaultDecimals    int    `json:"-"`
-		SkipSyncTokens     bool   `json:"-"`
-		Tier               uint8  `json:"tier"`
+		ID                 string   `json:"id"`
+		CoinGeckoNetworkID string   `json:"-"`
+		CoinGeckoPlatform  string   `json:"-"`
+		DisplayName        string   `json:"displayName"`
+		IsTestnet          bool     `json:"isTestnet"`
+		Image              string   `json:"image"`
+		ExplorerURL        string   `json:"explorerUrl"`
+		DefaultDecimals    int      `json:"-"`
+		SkipSyncTokens     bool     `json:"-"`
+		Tier               uint8    `json:"tier"`
+		PrioritizedCoins   []string `json:"-"`
 	}
 )
 

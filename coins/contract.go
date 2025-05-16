@@ -51,7 +51,8 @@ type (
 		PriceUSD        float64             `json:"priceUSD"`
 		Decimals        uint8               `json:"decimals"`
 		Version         *uint64             `json:"version,omitempty"`
-		Native          bool                `json:"native"`
+		Native          bool                `json:"native,omitempty"`
+		Prioritized     bool                `json:"prioritized,omitempty"`
 		SyncFrequency   stdlibtime.Duration `json:"syncFrequency"`
 	}
 	WalletNFT map[string]any
