@@ -64,6 +64,9 @@ type (
 		GetFees(network string) *coins.Fee
 		ImportNFTs(ctx context.Context, network string, nft []coins.WalletNFT) ([]*NFT, error)
 	}
+	Relays interface {
+		IONConnectRelaysForUser(ctx context.Context, userId string, followeesMasterKeys []string) ([]string, error)
+	}
 	TwoFAOptionEnum     string
 	TwoFAOptionWithAddr struct {
 		opt  TwoFAOptionEnum
@@ -193,6 +196,7 @@ type (
 		totpProvider               totp.TOTP
 		db                         *storage.DB
 		coinsRepo                  Coins
+		relaysRepo                 Relays
 		shutdown                   func() error
 		emailSender                email.EmailSender
 		smsSender                  sms.SmsSender

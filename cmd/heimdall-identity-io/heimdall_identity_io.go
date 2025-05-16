@@ -18,6 +18,7 @@ import (
 	"github.com/ice-blockchain/heimdall/cmd/heimdall-identity-io/api"
 	"github.com/ice-blockchain/heimdall/coins"
 	hashtagstatistics "github.com/ice-blockchain/heimdall/hashtag-statistics"
+	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
 	"github.com/ice-blockchain/heimdall/server"
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/log"
@@ -128,7 +129,8 @@ func (s *service) RegisterRoutes(router *server.Router) {
 
 func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	s.coins = coins.New(ctx)
-	s.accounts = accounts.New(ctx, s.coins)
+	s.relays = relaymanagement.NewRelays(ctx)
+	s.accounts = accounts.New(ctx, s.coins, s.relays)
 	s.hashtagStatistics = hashtagstatistics.New(ctx)
 
 	publicKey := s.accounts.PublicKey()

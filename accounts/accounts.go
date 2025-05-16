@@ -23,7 +23,7 @@ func NewDelegatedRPAuth(ctx context.Context) dfns.AuthClient {
 	return dfns.NewDfnsTokenAuth(ctx, applicationYamlKey)
 }
 
-func New(ctx context.Context, coinsRepo Coins) Accounts {
+func New(ctx context.Context, coinsRepo Coins, relays Relays) Accounts {
 	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
 	cl := dfns.NewDfnsClient(ctx, db, applicationYamlKey, coinsRepo)
 
@@ -59,6 +59,7 @@ func New(ctx context.Context, coinsRepo Coins) Accounts {
 		cfg:                        &cfg,
 		concurrentlyGeneratedCodes: make(map[TwoFAOptionEnum]*sync.Map),
 		privateKey:                 cfg.PrivateKey,
+		relaysRepo:                 relays,
 	}
 	cl.RegisterPostProxyCallback(registrationUrl, acc.upsertUsernameFromRegistration)
 	cl.RegisterPostProxyCallback(completeLoginUrl, acc.upsertUsernameFromLogin)
