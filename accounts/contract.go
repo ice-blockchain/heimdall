@@ -11,12 +11,14 @@ import (
 	"sync"
 	stdlibtime "time"
 
+	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
 	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
 	"github.com/ice-blockchain/heimdall/coins"
+	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/time"
 	"github.com/ice-blockchain/wintr/totp"
@@ -38,6 +40,13 @@ type (
 		SecurePaymentConfirmation(ctx context.Context, userID, walletID string, body map[string]string) (templateData any, err error)
 		GetNFTs(ctx context.Context, walletID string) ([]*NFT, string, error)
 		DeleteUser(ctx context.Context, userID string) error
+		GetContentCreators(ctx context.Context, limit uint64, excludeMasterPubKeys []string) ([]*LiteUser, error)
+		IsUserVerified(ctx context.Context, masterPubKey string) (bool, []*model.Event, error)
+		HealthCheck(ctx context.Context) error
+	}
+	VerifiedUsersSync interface {
+		io.Closer
+		ProcessNextVerifiedUsersQueue(ctx context.Context) error
 		HealthCheck(ctx context.Context) error
 	}
 	Wallets interface {
@@ -108,8 +117,12 @@ type (
 		TotalBalance *big.Int        `json:"totalBalance"`
 		Wallets      []*CoinInWallet `json:"wallets"`
 	}
-	NFT    = coins.NFT
-	Wallet = dfns.Wallet
+	NFT      = coins.NFT
+	Wallet   = dfns.Wallet
+	LiteUser struct {
+		MasterPubKey     string   `json:"masterPubKey" db:"master_pubkey"`
+		IONConnectRelays []string `json:"ionConnectRelays" db:"ion_connect_relays"`
+	}
 )
 
 const (
@@ -128,6 +141,10 @@ const (
 	defaultWalletViewCoinSymbolGroup               = coins.DefaultWalletViewCoinSymbolGroup
 	defaultWalletViewCoinSymbolGroupForOldAccounts = "the-open-network"
 	defaultWalletViewName                          = "ion.wallet"
+
+	verifiedBadgeDTag        = "verified"
+	verifiedBadgeName        = "Verified by ION Identity"
+	verifiedBadgeDescription = "Awarded to users that are verified by ION Identity"
 )
 
 var (
@@ -151,6 +168,9 @@ var (
 	ErrDeleteLast                      = errors.New("cannot delete last entry")
 	ErrRaceCondition                   = dfns.ErrRaceCondition
 	ErrWalletLinked                    = errors.New("wallet already linked to walletview")
+
+	verifiedBadgeImage1024X1024Tag   = nostr.Tag{"image", "https://example.com/verified_1024x1024.webp", "1024x1024"}
+	verifiedBadgeThumbnail256X256Tag = nostr.Tag{"thumb", "https://example.com/verified_256x256.webp", "256x256"}
 )
 
 const (
@@ -177,6 +197,12 @@ type (
 		smsSender                  sms.SmsSender
 		concurrentlyGeneratedCodes map[TwoFAOptionEnum]*sync.Map
 		cfg                        *config
+		privateKey                 string
+	}
+	verifiedUsersSync struct {
+		db         *storage.DB
+		shutdown   func() error
+		privateKey string
 	}
 	user struct {
 		CreatedAt                  *time.Time
@@ -192,6 +218,7 @@ type (
 		Active2FAEmail             []bool `db:"active_2fa_email"`
 		Active2FAPhoneNumber       []bool `db:"active_2fa_phone_number"`
 		Active2FATotpAuthenticator []bool `db:"active_2fa_totp_authenticator"`
+		Verified                   bool   `db:"verified"`
 	}
 	twoFACode struct {
 		CreatedAt       *time.Time
@@ -209,6 +236,7 @@ type (
 		Max2FACount              int                 `yaml:"max2FACount" mapstructure:"max2FACount"`
 		DefaultCoinsInWalletView []string            `yaml:"defaultCoinsInWalletView" mapstructure:"defaultCoinsInWalletView"`
 		MockRelays               []string            `yaml:"mockRelays" mapstructure:"mockRelays"`
+		PrivateKey               string              `yaml:"privateKey" mapstructure:"privateKey"`
 		RelaysPerUser            uint8               `yaml:"relaysPerUser" mapstructure:"relaysPerUser"`
 	}
 )

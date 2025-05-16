@@ -20,9 +20,9 @@ func (s *service) setupCoinRoutes(router gin.IRoutes) {
 	router.POST("/v1/coins", server.RootHandler(s.ImportCoin))
 	router.GET("/v1/coins", server.RootHandler(s.GetAllCoins))
 	router.GET("/v1/networks", server.RootHandler(s.GetAllNetworks))
-	router.GET("/v1/users/:userId/coins", server.RootHandler(s.GetVersionedCoins))
+	router.GET("/v1/users/:userIdOrMasterKey/coins", server.RootHandler(s.GetVersionedCoins))
 	router.PATCH("/v1/sync-coins", server.RootHandler(s.SyncCoins))
-	router.GET("/v1/users/:userId/coins/:symbolGroup", server.RootHandler(s.GetCoinsOfSymbolGroup))
+	router.GET("/v1/users/:userIdOrMasterKey/coins/:symbolGroup", server.RootHandler(s.GetCoinsOfSymbolGroup))
 }
 
 // ImportCoin godoc
@@ -116,18 +116,18 @@ func (s *service) GetAllNetworks(
 //	@Description	Provides a list of coins updated since version
 //	@Tags			Coins
 //	@Produce		json
-//	@Param			version			query		string	false	"Version of configuration already presented on client"
-//	@Param			userId			path		string	true	"ID of the user"
-//	@Param			Authorization	header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
-//	@Success		200				{object}	VersionedCoins
-//	@Success		204				"if known_version have been provided before"
-//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
-//	@Router			/v1/users/{userId}/coins [GET].
+//	@Param			version				query		string	false	"Version of configuration already presented on client"
+//	@Param			userIdOrMasterKey	path		string	true	"ID of the user"
+//	@Param			Authorization		header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
+//	@Success		200					{object}	VersionedCoins
+//	@Success		204					"if known_version have been provided before"
+//	@Failure		504					{object}	server.ErrorResponse	"if request times out"
+//	@Router			/v1/users/{userIdOrMasterKey}/coins [GET].
 func (s *service) GetVersionedCoins(
 	ctx context.Context,
 	req *server.Request[GetVersionedCoins, VersionedCoins],
 ) (successResp *server.Response[VersionedCoins], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	version, items, err := s.coins.GetVersionedCoins(ctx, req.Data.UserID, req.Data.Version)
+	version, items, err := s.coins.GetVersionedCoins(ctx, req.Data.UserIDOrMasterKey, req.Data.Version)
 	networks := s.coins.GetAllNetworks()
 	if err != nil {
 		switch {
@@ -171,18 +171,18 @@ func (s *service) SyncCoins(
 //	@Description	Returns all the user coins with symbol and wallet info (balances, etc)
 //	@Tags			Coins
 //	@Produce		json
-//	@Param			symbolGroup		path		string	false	"symbolGroup to filter"
-//	@Param			userId			path		string	false	"ID of the user"
-//	@Param			Authorization	header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
-//	@Success		200				{object}	[]Coin
-//	@Failure		500				{object}	server.ErrorResponse
-//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
-//	@Router			/v1/users/{userId}/coins/{symbolGroup} [GET].
+//	@Param			symbolGroup			path		string	false	"symbolGroup to filter"
+//	@Param			userIdOrMasterKey	path		string	false	"ID of the user"
+//	@Param			Authorization		header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
+//	@Success		200					{object}	[]Coin
+//	@Failure		500					{object}	server.ErrorResponse
+//	@Failure		504					{object}	server.ErrorResponse	"if request times out"
+//	@Router			/v1/users/{userIdOrMasterKey}/coins/{symbolGroup} [GET].
 func (s *service) GetCoinsOfSymbolGroup(
 	ctx context.Context,
 	req *server.Request[GetCoinsOfSymbolGroupReq, []*CoinWithWalletInfo],
 ) (successResp *server.Response[[]*CoinWithWalletInfo], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	items, err := s.accounts.GetCoinsOfSymbolGroup(ctx, req.Data.UserID, strings.ToLower(req.Data.SymbolGroup))
+	items, err := s.accounts.GetCoinsOfSymbolGroup(ctx, req.Data.UserIDOrMasterKey, strings.ToLower(req.Data.SymbolGroup))
 	if err != nil {
 		return nil, server.Unexpected(err)
 	}

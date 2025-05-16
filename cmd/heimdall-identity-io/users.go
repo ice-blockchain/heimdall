@@ -15,11 +15,13 @@ import (
 )
 
 func (s *service) setupUserRoutes(router gin.IRoutes) {
-	router.PATCH("v1/users/:userId/ion-connect-relays", server.RootHandler(s.GetOrAssignIONConnectRelays)).
-		GET("v1/users/:userId/ion-connect-indexers", server.RootHandler(s.UserIndexers)).
+	router.PATCH("v1/users/:userIdOrMasterKey/ion-connect-relays", server.RootHandler(s.GetOrAssignIONConnectRelays)).
+		GET("v1/users/:userIdOrMasterKey/ion-connect-indexers", server.RootHandler(s.UserIndexers)).
 		GET("auth/users/:userIdOrMasterKey", server.RootHandler(s.GetUser)).
 		DELETE("auth/users/:userId", server.RootHandler(s.DeleteUser)).
-		GET("v1/config/:configName", server.RootHandler(s.GetConfig))
+		GET("v1/config/:configName", server.RootHandler(s.GetConfig)).
+		POST("v1/users/get-content-creators", server.RootHandler(s.GetContentCreators)).
+		GET("v1/users/:userIdOrMasterKey/verified-badge", server.RootHandler(s.GetVerifiedBadge))
 }
 
 // GetOrAssignIONConnectRelays godoc
@@ -28,18 +30,18 @@ func (s *service) setupUserRoutes(router gin.IRoutes) {
 //	@Description	Assigns relay list for the user based on his followee list
 //	@Tags			Users
 //	@Produce		json
-//	@Param			userId			path		string		true	"ID of the user"
-//	@Param			Authorization	header		string		true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
-//	@Param			request			body		RelaysReq	true	"Request params"
-//	@Success		200				{object}	Relays
-//	@Failure		500				{object}	server.ErrorResponse
-//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
-//	@Router			/v1/users/{userId}/ion-connect-relays [PATCH].
+//	@Param			userIdOrMasterKey	path		string		true	"ID of the user"
+//	@Param			Authorization		header		string		true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
+//	@Param			request				body		RelaysReq	true	"Request params"
+//	@Success		200					{object}	Relays
+//	@Failure		500					{object}	server.ErrorResponse
+//	@Failure		504					{object}	server.ErrorResponse	"if request times out"
+//	@Router			/v1/users/{userIdOrMasterKey}/ion-connect-relays [PATCH].
 func (s *service) GetOrAssignIONConnectRelays(
 	ctx context.Context,
 	req *server.Request[RelaysReq, Relays],
 ) (successResp *server.Response[Relays], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	relays, err := s.accounts.GetOrAssignIONConnectRelays(ctx, req.Data.UserID, req.Data.FolloweeList)
+	relays, err := s.accounts.GetOrAssignIONConnectRelays(ctx, req.Data.UserIDOrMasterKey, req.Data.FolloweeList)
 	if err != nil {
 		switch {
 		case errors.Is(err, accounts.ErrInvalidFollowees):
@@ -57,17 +59,17 @@ func (s *service) GetOrAssignIONConnectRelays(
 //	@Description	Returns indexers list for the user
 //	@Tags			Users
 //	@Produce		json
-//	@Param			userId			path		string	true	"ID of the user"
-//	@Param			Authorization	header		string	true	"Auth token"	default(Bearer <Add token here>)
-//	@Success		200				{object}	Relays
-//	@Failure		500				{object}	server.ErrorResponse
-//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
-//	@Router			/v1/users/{userId}/ion-connect-indexers [GET].
+//	@Param			userIdOrMasterKey	path		string	true	"ID of the user"
+//	@Param			Authorization		header		string	true	"Auth token"	default(Bearer <Add token here>)
+//	@Success		200					{object}	Relays
+//	@Failure		500					{object}	server.ErrorResponse
+//	@Failure		504					{object}	server.ErrorResponse	"if request times out"
+//	@Router			/v1/users/{userIdOrMasterKey}/ion-connect-indexers [GET].
 func (s *service) UserIndexers(
 	ctx context.Context,
 	req *server.Request[IndexersReq, Indexers],
 ) (successResp *server.Response[Indexers], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	indexers, err := s.accounts.GetIONConnectIndexerRelays(ctx, req.Data.UserID)
+	indexers, err := s.accounts.GetIONConnectIndexerRelays(ctx, req.Data.UserIDOrMasterKey)
 	if err != nil {
 		switch {
 		default:
@@ -188,4 +190,63 @@ func (s *service) GetConfig(
 	}
 
 	return server.OK[any](&resp), nil
+}
+
+// GetContentCreators godoc
+//
+//	@Schemes
+//	@Description	Returns content creators from the database
+//	@Tags			Users
+//	@Produce		json
+//	@Param			limit					query		uint64					true	"Number of content creators to return"
+//	@Param			excludeMasterPubKeys	body		GetContentCreatorsReq	false	"Master public key of the users to exclude"
+//	@Param			Authorization			header		string					true	"Auth token"	default(Bearer <Add token here>)
+//	@Success		200						{object}	[]LiteUser
+//	@Failure		400						{object}	server.ErrorResponse	"if limit not provided"
+//	@Failure		500						{object}	server.ErrorResponse
+//	@Router			/v1/users/get-content-creators [POST]
+func (s *service) GetContentCreators(
+	ctx context.Context,
+	req *server.Request[GetContentCreatorsReq, []*accounts.LiteUser],
+) (successResp *server.Response[[]*accounts.LiteUser], errorResp *server.ErrResponse[*server.ErrorResponse]) {
+	creators, err := s.accounts.GetContentCreators(ctx, req.Data.Limit, req.Data.ExcludeMasterPubKeys)
+	if err != nil {
+		return nil, server.Unexpected(errors.Wrap(err, "failed to get content creators"))
+	}
+
+	return server.OK(&creators), nil
+}
+
+// GetVerifiedBadge godoc
+//
+//	@Schemes
+//	@Description	Checks if a user is verified and returns badge events if they are
+//	@Tags			Users
+//	@Produce		json
+//	@Param			userIdOrMasterKey	path		string	true	"Master public key of the user"
+//	@Param			Authorization		header		string	true	"Auth token"	default(Bearer <Add token here>)
+//	@Success		200					{object}	VerifiedBadgeEvents
+//	@Success		204					"User is not verified"
+//	@Failure		404					{object}	server.ErrorResponse	"if user not found"
+//	@Failure		500					{object}	server.ErrorResponse
+//	@Router			/v1/users/{userIdOrMasterKey}/verified-badge [GET]
+func (s *service) GetVerifiedBadge(
+	ctx context.Context,
+	req *server.Request[GetVerifiedBadgeReq, VerifiedBadgeEvents],
+) (successResp *server.Response[VerifiedBadgeEvents], errorResp *server.ErrResponse[*server.ErrorResponse]) {
+	if _, err := server.Auth(ctx).VerifyToken(ctx, req.Data.Authorization); err != nil {
+		return nil, server.Unauthorized(err)
+	}
+	isVerified, events, err := s.accounts.IsUserVerified(ctx, req.Data.UserIDOrMasterKey)
+	if err != nil {
+		if errors.Is(err, accounts.ErrNotFound) {
+			return nil, server.NotFound(errors.Wrap(err, "failed to check verification status"), notFound)
+		}
+		return nil, server.Unexpected(errors.Wrap(err, "failed to check verification status"))
+	}
+	if !isVerified {
+		return &server.Response[VerifiedBadgeEvents]{Code: http.StatusNoContent}, nil
+	}
+
+	return server.OK(&VerifiedBadgeEvents{Events: events}), nil
 }

@@ -13,6 +13,7 @@ import (
 	"math/rand"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/goccy/go-json"
@@ -21,6 +22,7 @@ import (
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/server"
+	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/time"
@@ -31,18 +33,23 @@ func (a *accounts) getUserByID(ctx context.Context, userID string) (*user, error
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get user by ID %v", userID)
 	}
+
 	return u, nil
 }
+
 func (a *accounts) getUserByUsername(ctx context.Context, username string) (*user, error) {
 	u, err := storage.Get[user](ctx, a.db, `SELECT * FROM users where username = $1`, username)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get user by username %v", username)
 	}
+
 	return u, nil
 }
+
 func clientIPAddress(ctx context.Context) string {
 	return ctx.Value(clientIPCtxValueKey).(string)
 }
+
 func (a *accounts) GetOrAssignIONConnectRelays(ctx context.Context, userID string, followees []string) (relays []string, err error) {
 	usr, err := a.getUserByID(ctx, userID)
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
@@ -60,8 +67,33 @@ func (a *accounts) GetOrAssignIONConnectRelays(ctx context.Context, userID strin
 
 	return a.fetchAndUpdateRelaysFromPolaris(ctx, userID, followees)
 }
+
 func (a *accounts) GetIONConnectIndexerRelays(ctx context.Context, userID string) (indexers []string, err error) {
 	return a.fetchIONIndexers(ctx, userID)
+}
+
+func (a *accounts) GetContentCreators(ctx context.Context, limit uint64, excludeMasterPubKeys []string) ([]*LiteUser, error) {
+	excludeClause := ""
+	args := []any{}
+	if len(excludeMasterPubKeys) > 0 {
+		args = append(args, excludeMasterPubKeys)
+		excludeClause = "WHERE NOT master_pubkey = ANY($1)"
+	}
+	args = append(args, limit)
+	query := `SELECT x.master_pubkey, u.ion_connect_relays
+			  FROM (SELECT master_pubkey FROM content_creators ` + excludeClause + ` 
+			  ORDER BY random() LIMIT $` + strconv.Itoa(len(args)) + `) x
+			  JOIN users u ON x.master_pubkey = u.master_pubkey`
+
+	results, err := storage.Select[LiteUser](ctx, a.db, query, args...)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get random content creators")
+	}
+	if len(results) == 0 {
+		return []*LiteUser{}, nil
+	}
+
+	return results, nil
 }
 
 func (a *accounts) fetchAndUpdateRelaysFromPolaris(ctx context.Context, userID string, followees []string) (relays []string, err error) {
@@ -425,4 +457,24 @@ func (a *accounts) verifyUserSignatureFromIONConnect(signatureBase64 string, now
 		return errors.Wrapf(ErrInvalidUserSignature, "kind mismatch")
 	}
 	return nil
+}
+
+func (a *accounts) IsUserVerified(ctx context.Context, masterPubKey string) (bool, []*model.Event, error) {
+	query := `SELECT verified FROM users WHERE master_pubkey = $1`
+	type result struct {
+		Verified bool `db:"verified"`
+	}
+	res, err := storage.Get[result](ctx, a.db, query, masterPubKey)
+	if err != nil {
+		return false, nil, errors.Wrap(err, "failed to check user verification status")
+	}
+	if !res.Verified {
+		return false, nil, nil
+	}
+	events, err := generateVerificationEvents(a.privateKey, masterPubKey)
+	if err != nil {
+		return true, nil, err
+	}
+
+	return true, events, nil
 }

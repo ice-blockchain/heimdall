@@ -45,7 +45,9 @@ func New(ctx context.Context, coinsRepo Coins) Accounts {
 		}()
 		smsSender = sms.New(applicationYamlKey)
 	}()
-
+	if cfg.PrivateKey == "" {
+		panic("[accounts] private key is not set")
+	}
 	acc := accounts{
 		db:                         db,
 		coinsRepo:                  coinsRepo,
@@ -55,6 +57,7 @@ func New(ctx context.Context, coinsRepo Coins) Accounts {
 		smsSender:                  smsSender,
 		cfg:                        &cfg,
 		concurrentlyGeneratedCodes: make(map[TwoFAOptionEnum]*sync.Map),
+		privateKey:                 cfg.PrivateKey,
 	}
 	cl.RegisterPostProxyCallback(registrationUrl, acc.upsertUsernameFromRegistration)
 	cl.RegisterPostProxyCallback(completeLoginUrl, acc.upsertUsernameFromLogin)
@@ -64,7 +67,6 @@ func New(ctx context.Context, coinsRepo Coins) Accounts {
 	for _, opt := range AllTwoFAOptions {
 		acc.concurrentlyGeneratedCodes[opt] = &sync.Map{}
 	}
-	var err error
 	defCoinsList, err := coinsRepo.GetCoinsOfSymbolGroup(ctx, acc.cfg.DefaultCoinsInWalletView)
 	log.Panic(errors.Wrapf(err, "failed to load default coins list from db for list: %v", acc.cfg.DefaultCoinsInWalletView))
 	defaultCoins = make(map[string][]*coins.Coin)
@@ -75,11 +77,39 @@ func New(ctx context.Context, coinsRepo Coins) Accounts {
 	return &acc
 }
 
+func NewVerifiedQueueRepository(ctx context.Context) VerifiedUsersSync {
+	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
+	var cfg config
+	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
+	if cfg.PrivateKey == "" {
+		panic("[verified-users-sync] private key is not set")
+	}
+
+	vSync := verifiedUsersSync{
+		db:         db,
+		shutdown:   db.Close,
+		privateKey: cfg.PrivateKey,
+	}
+
+	return &vSync
+}
+
 func (a *accounts) Close() error {
 	return errors.Wrapf(a.shutdown(), "failed to close accounts repository")
 }
 
+func (a *verifiedUsersSync) Close() error {
+	return errors.Wrapf(a.shutdown(), "failed to close verified users sync repository")
+}
+
 func (a *accounts) HealthCheck(ctx context.Context) error {
+	if err := a.db.Ping(ctx); err != nil {
+		return errors.Wrap(err, "[health-check] failed to ping DB")
+	}
+	return nil
+}
+
+func (a *verifiedUsersSync) HealthCheck(ctx context.Context) error {
 	if err := a.db.Ping(ctx); err != nil {
 		return errors.Wrap(err, "[health-check] failed to ping DB")
 	}

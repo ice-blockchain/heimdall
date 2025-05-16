@@ -48,8 +48,8 @@ type (
 		*accounts.User
 	}
 	RelaysReq struct {
-		UserID       string   `uri:"userId" required:"true" swaggerignore:"true"`
-		FolloweeList []string `json:"followeeList"`
+		UserIDOrMasterKey string   `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
+		FolloweeList      []string `json:"followeeList"`
 	}
 	HashtagsEventsReq struct {
 		Events []*model.Event `json:"events" binding:"required,min=1,dive" allowUnauthorized:"true"`
@@ -63,16 +63,16 @@ type (
 		IONConnectRelays []string `json:"ionConnectRelays"`
 	}
 	IndexersReq struct {
-		UserID string `uri:"userId" required:"true" swaggerignore:"true"`
+		UserIDOrMasterKey string `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
 	}
 	Indexers struct {
 		IONConnectIndexers []string `json:"ionConnectIndexers"`
 	}
 	WalletViewReq struct {
-		UserID       string                  `uri:"userId" required:"true" swaggerignore:"true"`
-		Name         string                  `json:"name" required:"true"`
-		Items        []*accounts.CoinMapping `json:"items" required:"true"`
-		SymbolGroups []string                `json:"symbolGroups" required:"true"`
+		UserIDOrMasterKey string                  `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
+		Name              string                  `json:"name" required:"true"`
+		Items             []*accounts.CoinMapping `json:"items" required:"true"`
+		SymbolGroups      []string                `json:"symbolGroups" required:"true"`
 	}
 	APIKey struct {
 		APIKey string `header:"X-API-Key" allowUnauthorized:"true"`
@@ -85,8 +85,8 @@ type (
 	Network              = coins.Network
 	SymbolGroupWithCoins = coins.SymbolGroupWithCoins
 	GetVersionedCoins    struct {
-		UserID  string `uri:"userId" required:"true" swaggerignore:"true"`
-		Version *int   `form:"version" required:"false"`
+		UserIDOrMasterKey string `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
+		Version           *int   `form:"version" required:"false"`
 	}
 	VersionedCoins struct {
 		Version  uint64        `json:"version"`
@@ -97,18 +97,18 @@ type (
 		SymbolGroup []string `form:"symbolGroup" required:"true"`
 	}
 	GetCoinsOfSymbolGroupReq struct {
-		UserID      string `uri:"userId" required:"true" swaggerignore:"true"`
-		SymbolGroup string `uri:"symbolGroup" required:"true" swaggerignore:"true"`
+		UserIDOrMasterKey string `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
+		SymbolGroup       string `uri:"symbolGroup" required:"true" swaggerignore:"true"`
 	}
 	CoinWithWalletInfo = accounts.CoinWithWalletInfo
 	WalletView         = accounts.WalletView
 	WalletViews        = []*WalletView
 	GetWalletViewsReq  struct {
-		UserID string `uri:"userId" required:"true" swaggerignore:"true"`
+		UserIDOrMasterKey string `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
 	}
 	WalletViewReference struct {
-		UserID       string `uri:"userId" required:"true" swaggerignore:"true"`
-		WalletViewID string `uri:"walletViewId" required:"true" swaggerignore:"true"`
+		UserIDOrMasterKey string `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
+		WalletViewID      string `uri:"walletViewId" required:"true" swaggerignore:"true"`
 	}
 	ModifyWalletViewReq struct {
 		Bogus string `json:"bogus" uri:"bogus" swaggerignore:"true"` // It's just for the router to register the body binder.
@@ -132,7 +132,7 @@ type (
 		PhoneNumber            *string                        `json:"phoneNumber,omitempty"`
 		Replace                *string                        `json:"replace"`
 		TwoFAVerificationCodes map[TwoFAOptionWithAddr]string `json:"2FAVerificationCodes"`
-		UserID                 string                         `uri:"userId" required:"true" swaggerignore:"true"`
+		UserIDOrMasterKey      string                         `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
 		TwoFAOption            TwoFAOptionEnum                `uri:"twoFAOption" required:"true" swaggerignore:"true"`
 		Language               string                         `header:"X-Language" swaggerignore:"true"`
 		UserSignature          string                         `header:"X-Useraction" swaggerignore:"true"`
@@ -140,7 +140,7 @@ type (
 	}
 	Delete2FAReq struct {
 		UserSignature                string          `header:"X-Useraction" swaggerignore:"true"`
-		UserID                       string          `uri:"userId" required:"true" swaggerignore:"true"`
+		UserIDOrMasterKey            string          `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
 		TwoFAOption                  TwoFAOptionEnum `uri:"twoFAOption" required:"true" swaggerignore:"true"`
 		TwoFAOptionValue             string          `uri:"twoFAOptionValue" required:"true" swaggerignore:"true"`
 		TwoFAOptionVerificationCode  []string        `form:"twoFAOptionVerificationCode" required:"true"`
@@ -150,9 +150,9 @@ type (
 		TOTPAuthenticatorURL *string `json:"TOTPAuthenticatorURL,omitempty"`
 	}
 	Verify2FARequestReq struct {
-		UserID      string              `uri:"userId" required:"true" swaggerignore:"true"`
-		TwoFAOption TwoFAOptionWithAddr `uri:"twoFAOption" required:"true" swaggerignore:"true"`
-		Code        string              `form:"code" required:"true" swaggerignore:"true"`
+		UserIDOrMasterKey string              `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
+		TwoFAOption       TwoFAOptionWithAddr `uri:"twoFAOption" required:"true" swaggerignore:"true"`
+		Code              string              `form:"code" required:"true" swaggerignore:"true"`
 	}
 	Verify2FARequestResp struct {
 	}
@@ -171,6 +171,19 @@ type (
 		Network  string       `json:"network"`
 		NFTs     []*coins.NFT `json:"nfts"`
 	}
+	GetContentCreatorsReq struct {
+		Authorization        string   `header:"Authorization" swaggerignore:"true"`
+		Limit                uint64   `form:"limit" required:"true" swaggerignore:"true"`
+		ExcludeMasterPubKeys []string `json:"excludeMasterPubKeys,omitempty"`
+	}
+	GetVerifiedBadgeReq struct {
+		Authorization     string `header:"Authorization" swaggerignore:"true" allowUnauthorized:"true"`
+		UserIDOrMasterKey string `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
+	}
+	VerifiedBadgeEvents struct {
+		Events []*model.Event `json:"events"`
+	}
+	LiteUser = accounts.LiteUser
 )
 
 const (

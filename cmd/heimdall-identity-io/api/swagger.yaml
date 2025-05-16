@@ -130,6 +130,13 @@ definitions:
       walletViewId:
         type: string
     type: object
+  main.GetContentCreatorsReq:
+    properties:
+      excludeMasterPubKeys:
+        items:
+          type: string
+        type: array
+    type: object
   main.GetLoginChallenge:
     properties:
       2FAVerificationCodes:
@@ -154,6 +161,15 @@ definitions:
       contractAddress:
         type: string
       network:
+        type: string
+    type: object
+  main.LiteUser:
+    properties:
+      ionConnectRelays:
+        items:
+          type: string
+        type: array
+      masterPubKey:
         type: string
     type: object
   main.LoginChallenge:
@@ -263,6 +279,13 @@ definitions:
       phoneNumber:
         items:
           type: string
+        type: array
+    type: object
+  main.VerifiedBadgeEvents:
+    properties:
+      events:
+        items:
+          $ref: '#/definitions/model.Event'
         type: array
     type: object
   main.Verify2FARequestResp:
@@ -818,7 +841,7 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Coins
-  /v1/users/{userId}/2fa/{twoFAOption}/values/{twoFAOptionValue}:
+  /v1/users/{userIdOrMasterKey}/2fa/{twoFAOption}/values/{twoFAOptionValue}:
     delete:
       description: Confirms deletion of 2FA method
       parameters:
@@ -835,7 +858,7 @@ paths:
         type: string
       - description: ID of the user
         in: path
-        name: userId
+        name: userIdOrMasterKey
         required: true
         type: string
       - description: type of 2fa (sms/email/totp_authenticator)
@@ -889,13 +912,13 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - 2FA
-  /v1/users/{userId}/2fa/{twoFAOption}/verification-requests:
+  /v1/users/{userIdOrMasterKey}/2fa/{twoFAOption}/verification-requests:
     patch:
       description: Verifies 2FA code from the user
       parameters:
       - description: ID of the user
         in: path
-        name: userId
+        name: userIdOrMasterKey
         required: true
         type: string
       - description: type of 2fa (sms/email/totp_authenticator)
@@ -958,7 +981,7 @@ paths:
         type: string
       - description: ID of the user or username in case of sending codes for recovery
         in: path
-        name: userId
+        name: userIdOrMasterKey
         required: true
         type: string
       - description: type of 2fa (sms/email/totp_authenticator)
@@ -998,7 +1021,7 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - 2FA
-  /v1/users/{userId}/coins:
+  /v1/users/{userIdOrMasterKey}/coins:
     get:
       description: Provides a list of coins updated since version
       parameters:
@@ -1008,7 +1031,7 @@ paths:
         type: string
       - description: ID of the user
         in: path
-        name: userId
+        name: userIdOrMasterKey
         required: true
         type: string
       - default: Bearer <Add token here>
@@ -1032,7 +1055,7 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Coins
-  /v1/users/{userId}/coins/{symbolGroup}:
+  /v1/users/{userIdOrMasterKey}/coins/{symbolGroup}:
     get:
       description: Returns all the user coins with symbol and wallet info (balances,
         etc)
@@ -1043,7 +1066,7 @@ paths:
         type: string
       - description: ID of the user
         in: path
-        name: userId
+        name: userIdOrMasterKey
         type: string
       - default: Bearer <Add token here>
         description: Auth token from delegated relying party
@@ -1070,13 +1093,13 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Coins
-  /v1/users/{userId}/ion-connect-indexers:
+  /v1/users/{userIdOrMasterKey}/ion-connect-indexers:
     get:
       description: Returns indexers list for the user
       parameters:
       - description: ID of the user
         in: path
-        name: userId
+        name: userIdOrMasterKey
         required: true
         type: string
       - default: Bearer <Add token here>
@@ -1102,13 +1125,13 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Users
-  /v1/users/{userId}/ion-connect-relays:
+  /v1/users/{userIdOrMasterKey}/ion-connect-relays:
     patch:
       description: Assigns relay list for the user based on his followee list
       parameters:
       - description: ID of the user
         in: path
-        name: userId
+        name: userIdOrMasterKey
         required: true
         type: string
       - default: Bearer <Add token here>
@@ -1140,13 +1163,47 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Users
-  /v1/users/{userId}/wallet-views:
+  /v1/users/{userIdOrMasterKey}/verified-badge:
+    get:
+      description: Checks if a user is verified and returns badge events if they are
+      parameters:
+      - description: Master public key of the user
+        in: path
+        name: userIdOrMasterKey
+        required: true
+        type: string
+      - default: Bearer <Add token here>
+        description: Auth token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.VerifiedBadgeEvents'
+        "204":
+          description: User is not verified
+        "404":
+          description: if user not found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Users
+  /v1/users/{userIdOrMasterKey}/wallet-views:
     get:
       description: Lists all available wallet views for the user
       parameters:
       - description: ID of the user
         in: path
-        name: userId
+        name: userIdOrMasterKey
         required: true
         type: string
       - default: Bearer <Add token here>
@@ -1180,7 +1237,7 @@ paths:
       parameters:
       - description: ID of the user
         in: path
-        name: userId
+        name: userIdOrMasterKey
         required: true
         type: string
       - default: Bearer <Add token here>
@@ -1220,13 +1277,13 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Wallets
-  /v1/users/{userId}/wallet-views/{walletViewId}:
+  /v1/users/{userIdOrMasterKey}/wallet-views/{walletViewId}:
     delete:
       description: Deletes wallet view for provided userId and name
       parameters:
       - description: ID of the user
         in: path
-        name: userId
+        name: userIdOrMasterKey
         required: true
         type: string
       - description: ID of wallet view
@@ -1266,7 +1323,7 @@ paths:
       parameters:
       - description: ID of the user
         in: path
-        name: userId
+        name: userIdOrMasterKey
         required: true
         type: string
       - description: ID of wallet view
@@ -1306,7 +1363,7 @@ paths:
       parameters:
       - description: ID of the user
         in: path
-        name: userId
+        name: userIdOrMasterKey
         required: true
         type: string
       - description: ID of wallet view
@@ -1347,6 +1404,45 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Wallets
+  /v1/users/get-content-creators:
+    post:
+      description: Returns content creators from the database
+      parameters:
+      - description: Number of content creators to return
+        in: query
+        name: limit
+        required: true
+        type: integer
+      - description: Master public key of the users to exclude
+        in: body
+        name: excludeMasterPubKeys
+        schema:
+          $ref: '#/definitions/main.GetContentCreatorsReq'
+      - default: Bearer <Add token here>
+        description: Auth token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.LiteUser'
+            type: array
+        "400":
+          description: if limit not provided
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Users
   /wallets:
     post:
       description: Creates wallet on 3rd-party
