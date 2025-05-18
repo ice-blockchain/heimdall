@@ -208,6 +208,11 @@ func (c *client) enhanceWithTokenData(ctx context.Context, coins map[string][]*C
 }
 
 func (c *client) GetCoins(ctx context.Context, coinIDs []string) ([]*Coin, error) {
+	for i, cID := range coinIDs {
+		if cID == "ion" {
+			coinIDs[i] = "ice"
+		}
+	}
 	coinsData, _, err := makeAPICall[[]coin](ctx, c, "/api/v3/coins/markets",
 		map[string]any{"ids": strings.Join(coinIDs, ","), "vs_currency": "USD", "per_page": maxCoinsPerPage})
 	if err != nil {
