@@ -138,8 +138,8 @@ const (
 	completeRegistrationUrl                        = "/auth/registration/enduser"
 	completeLoginUrl                               = "/auth/login"
 	delegatedLoginUrl                              = "/auth/login/delegated"
-	defaultWalletViewCoinID                        = "7b471f92-ced2-38b0-e408-88e5d89e8045"
-	defaultWalletViewCoinSymbolGroup               = coins.DefaultWalletViewCoinSymbolGroup
+	defaultWalletViewCoinID                        = coins.DefaultWalletViewCoinID
+	defaultWalletViewCoinSymbolGroup               = "ion" // TODO: update coins.DefaultWalletViewCoinSymbolGroup once ion updated on coin gecko
 	defaultWalletViewCoinSymbolGroupForOldAccounts = "the-open-network"
 	defaultWalletViewName                          = "ion.wallet"
 

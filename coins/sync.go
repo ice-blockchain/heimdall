@@ -110,6 +110,9 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 			network, cgID := spl[0], spl[1]
 			coinIDs = append(coinIDs, cgID)
 			networks[cgID] = network
+			if cgID == "ion" {
+				networks["ice"] = "ion"
+			}
 		}
 	}
 	var coinsData []*coingecko.Coin
@@ -301,7 +304,12 @@ func (s *coinSync) buildBatchUpdate(now *time.Time, coinsList []*coingecko.Coin,
 	idx := 2
 	params = make([]any, 0, len(coinsList)*10)
 	for _, coin := range coinsList {
-		params = append(params, generateInternalID(coin, mapping), coin.Decimals, coin.PriceUSD, coin.ID, coin.Network, coin.Name, coin.ContractAddress, coin.Symbol, coin.SymbolGroup(), coin.IconUrl)
+		id := generateInternalID(coin, mapping)
+		if id == DefaultWalletViewCoinID {
+			coin.Symbol = "ion"
+			coin.ID = "ion"
+		}
+		params = append(params, id, coin.Decimals, coin.PriceUSD, coin.ID, coin.Network, coin.Name, coin.ContractAddress, coin.Symbol, coin.SymbolGroup(), coin.IconUrl)
 		placeholders = append(placeholders, fmt.Sprintf(""+
 			"(                  $%[1]v,                $%[2]v::SMALLINT, $%[3]v::NUMERIC, $%[4]v, $%[5]v,         $%[6]v,  $%[7]v,              $%[8]v,  $%[9]v,          $%[10]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7, idx+8, idx+9))
 		idx += 10

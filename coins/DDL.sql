@@ -45,7 +45,18 @@ CREATE TABLE IF NOT EXISTS nft_collections (
 );
 
 ALTER TABLE nft_collections DROP COLUMN IF EXISTS token_id;
-
-INSERT INTO coins (sync_frequency, created_at, updated_at, data_updated_at, decimals, version, price_usd, id, coingecko_coin_id, network, name, contract_address, symbol, symbol_group, icon_url, native)
-VALUES            ('%v', now(), now(), now(), 9, 0, %v, '7b471f92-ced2-38b0-e408-88e5d89e8045', 'ice', 'ion', 'Ice Open Network', '', 'ice', 'ice', 'https://coin-images.coingecko.com/coins/images/34674/large/ion-coingecko-200w.png?1714009819', true)
-ON CONFLICT DO NOTHING;
+DO $$ BEGIN
+    if NOT exists (select 1 from coins where id = '7b471f92-ced2-38b0-e408-88e5d89e8045' and symbol = 'ion') then
+        INSERT INTO coins (sync_frequency, created_at, updated_at, data_updated_at, decimals, version, price_usd, id, coingecko_coin_id, network, name, contract_address, symbol, symbol_group, icon_url, native)
+        VALUES            ('%v', now(), now(), now(), 9, 0, %v, '7b471f92-ced2-38b0-e408-88e5d89e8045', 'ion', 'ion', 'Ice Open Network', '', 'ion', 'ion', 'https://coin-images.coingecko.com/coins/images/34674/large/ion-coingecko-200w.png?1714009819', true)
+        ON CONFLICT (id) DO UPDATE SET
+                                       name = 'Ice Open Network',
+                                       coingecko_coin_id = 'ion',
+                                       symbol = 'ion',
+                                       symbol_group = 'ion',
+                                       version = coins.version + 1;
+        UPDATE wallet_views
+        SET symbol_groups = array_replace(symbol_groups, 'ice', 'ion')
+        WHERE symbol_groups @> ARRAY['ice'];
+    end if;
+END$$;
