@@ -35,7 +35,7 @@ type (
 	StartDelegatedRecoveryResp = accounts.StartedDelegatedRecovery
 	GetUserReq                 struct {
 		UserIDOrMasterKey string `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
-		Authorization     string `header:"Authorization" swaggerignore:"true"`
+		Authorization     string `header:"Authorization" swaggerignore:"true" allowUnauthorized:"true"`
 		ClientID          string `header:"X-Client-ID" required:"true" swaggerignore:"true"`
 	}
 	DeleteUserReq struct {
