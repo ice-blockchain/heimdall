@@ -380,7 +380,11 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 							}
 						}
 						assetVal := new(big.Int)
-						assetVal.SetString(asset["balance"].(string), 10)
+						if strBalance, isStr := asset["balance"].(string); isStr {
+							assetVal.SetString(strBalance, 10)
+						} else if floatBalance, isFloat := asset["balance"].(float64); isFloat {
+							assetVal.SetInt64(int64(floatBalance))
+						}
 						coin.TotalBalance = coin.TotalBalance.Add(coin.TotalBalance, assetVal)
 						coin.Wallets = append(coin.Wallets, &CoinInWallet{
 							WalletID: walletAssets.WalletID,
