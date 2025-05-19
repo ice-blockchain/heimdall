@@ -209,7 +209,7 @@ func AuthorizeWithCustomAuthStore(ctx context.Context, ginCtx *gin.Context, allo
 		userID = strings.Trim(ginCtx.Param("userId"), " ")
 	}
 	if userID == "" {
-		userID = strings.Trim(ginCtx.Param("userIdOrMasterPubKey"), " ")
+		userID = strings.Trim(ginCtx.Param("userIdOrMasterKey"), " ")
 	}
 	username := strings.Trim(ginCtx.GetString("username"), " ")
 	if userID == "" && username == "" && !allowUnauthorized {
