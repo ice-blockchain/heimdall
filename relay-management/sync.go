@@ -4,7 +4,6 @@ package relaymanagement
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net/http"
 	"net/url"

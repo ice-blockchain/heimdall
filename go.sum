@@ -417,8 +417,8 @@ github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250503123812-e7621ca90490 h1:
 github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250503123812-e7621ca90490/go.mod h1:6qEfUBoj8/Ak0Yr4VcMMQdu2qiVPBAvJXzrnVINVh9Q=
 github.com/ice-blockchain/go/src v0.0.0-20240529122316-8d9458949bdd h1:SY8V7ujSDgEYEdtMk26DEaiq8qvCTEZ7XlojacrWZj4=
 github.com/ice-blockchain/go/src v0.0.0-20240529122316-8d9458949bdd/go.mod h1:pVzkmaIwkLaJ5cKPHPtuKyxaXiTsa/V7kbbgLmsr4Hw=
-github.com/ice-blockchain/subzero v1.205.1-0.20250520160754-064c12ed5192 h1:XJ4/Rs50KL2OqcJEcd0FvLd2JIcbnzvJT/CjQAY16C8=
-github.com/ice-blockchain/subzero v1.205.1-0.20250520160754-064c12ed5192/go.mod h1:gA6RJ3Y4HwyYQRWRpTihtxh2v01Z/Y99agaaLJGVgxI=
+github.com/ice-blockchain/subzero v1.207.1-0.20250521060846-ce5261402ec7 h1:Fm3RQMI4iNMJewoSaV3bylYMg/steQlcaO10MFKihEg=
+github.com/ice-blockchain/subzero v1.207.1-0.20250521060846-ce5261402ec7/go.mod h1:gA6RJ3Y4HwyYQRWRpTihtxh2v01Z/Y99agaaLJGVgxI=
 github.com/ice-blockchain/tonutils-storage v0.0.0-20250514104422-4322ed03ab7c h1:N2ftTRvoWgVYchpXPmhvYGCn5PsV7EQp1eeY7OYmSfw=
 github.com/ice-blockchain/tonutils-storage v0.0.0-20250514104422-4322ed03ab7c/go.mod h1:aEg5acw8rooLDbRLwrUyZhZYv0o5tw/25ZF5+HP8c1Y=
 github.com/ice-blockchain/wintr v1.156.0 h1:RQVd/R8pPmePddsv0/3E/ofTH33sHEmRzhitm8kmUlI=

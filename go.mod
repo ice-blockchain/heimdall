@@ -20,7 +20,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/ice-blockchain/subzero v1.205.1-0.20250520160754-064c12ed5192
+	github.com/ice-blockchain/subzero v1.207.1-0.20250521060846-ce5261402ec7
 	github.com/ice-blockchain/wintr v1.156.0
 	github.com/imroc/req/v3 v3.52.1
 	github.com/lestrrat-go/jwx/v2 v2.1.6
