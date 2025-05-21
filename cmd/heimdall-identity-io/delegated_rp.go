@@ -169,7 +169,7 @@ func (s *service) StartDelegatedRecovery(
 		switch {
 		case errors.Is(err, accounts.ErrNoPending2FA):
 			return nil, buildDelegatedErrorResponse(http.StatusBadRequest, err, twoFANoPendingCode)
-		case errors.Is(err, accounts.ErrInvalidUsername):
+		case errors.Is(err, accounts.ErrInvalidIdentityKey):
 			return nil, buildDelegatedErrorResponse(http.StatusBadRequest, err, invalidUsername)
 		case errors.Is(err, accounts.Err2FAExpired):
 			return nil, buildDelegatedErrorResponse(http.StatusBadRequest, err, twoFAExpiredCode)
@@ -220,7 +220,7 @@ func (s *service) GetLoginChallenge(
 		switch {
 		case errors.Is(err, accounts.ErrNoPending2FA):
 			return nil, buildDelegatedErrorResponse(http.StatusBadRequest, err, twoFANoPendingCode)
-		case errors.Is(err, accounts.ErrInvalidUsername):
+		case errors.Is(err, accounts.ErrInvalidIdentityKey):
 			return nil, buildDelegatedErrorResponse(http.StatusBadRequest, err, invalidUsername)
 		case errors.Is(err, accounts.Err2FAExpired):
 			return nil, buildDelegatedErrorResponse(http.StatusBadRequest, err, twoFAExpiredCode)

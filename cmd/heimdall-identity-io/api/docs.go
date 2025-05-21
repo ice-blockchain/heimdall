@@ -644,6 +644,60 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/user-social-profiles": {
+            "get": {
+                "description": "Searches for users by keyword",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SocialProfiles"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Keyword to search for",
+                        "name": "keyword",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Maximum number of results",
+                        "name": "limit",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of users matching the search query",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/accounts.LiteUser"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request format",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/users/get-content-creators": {
             "post": {
                 "description": "Returns content creators from the database",
@@ -696,6 +750,112 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/users/profiles/social/{masterPubkey}": {
+            "patch": {
+                "description": "Updates or creates a social profile for a user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SocialProfiles"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "User's master key",
+                        "name": "masterPubkey",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Data to update the profile",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.UpdateSocialProfileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated social profile",
+                        "schema": {
+                            "$ref": "#/definitions/accounts.SocialProfile"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid data format",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Username already exists",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/users/verify-username-availability": {
+            "get": {
+                "description": "Checks if the specified username is available",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SocialProfiles"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Username to check",
+                        "name": "username",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Username is available"
+                    },
+                    "400": {
+                        "description": "Invalid username format",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Username already exists",
                         "schema": {
                             "$ref": "#/definitions/server.ErrorResponse"
                         }
@@ -1768,6 +1928,20 @@ const docTemplate = `{
                 }
             }
         },
+        "accounts.LiteUser": {
+            "type": "object",
+            "properties": {
+                "ionConnectRelays": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "masterPubKey": {
+                    "type": "string"
+                }
+            }
+        },
         "accounts.NFT": {
             "type": "object",
             "properties": {
@@ -1785,6 +1959,26 @@ const docTemplate = `{
                 },
                 "walletId": {
                     "type": "string"
+                }
+            }
+        },
+        "accounts.SocialProfile": {
+            "type": "object",
+            "properties": {
+                "displayName": {
+                    "type": "string"
+                },
+                "referral": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "usernameProof": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Event"
+                    }
                 }
             }
         },
@@ -2117,6 +2311,20 @@ const docTemplate = `{
                     }
                 },
                 "symbol_group": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.UpdateSocialProfileRequest": {
+            "type": "object",
+            "properties": {
+                "displayName": {
+                    "type": "string"
+                },
+                "referral": {
+                    "type": "string"
+                },
+                "username": {
                     "type": "string"
                 }
             }

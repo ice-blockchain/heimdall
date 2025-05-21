@@ -32,6 +32,16 @@ ALTER TABLE users
     ADD COLUMN IF NOT EXISTS verified boolean NOT NULL default false;
 
 DO $$ BEGIN
+    IF EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'username'
+    ) THEN
+        ALTER TABLE users RENAME COLUMN username TO identity_key_name;
+    END IF;
+END$$;
+
+DO $$ BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'twofa_option') THEN
             CREATE TYPE twofa_option AS ENUM ('email', 'sms', 'totp_authenticator');
         END IF;
@@ -129,3 +139,16 @@ DO $$ BEGIN
         WHERE symbol_groups @> ARRAY['ice'];
     end if;
 END$$;
+
+CREATE TABLE IF NOT EXISTS social_profiles (
+    created_at             TIMESTAMP NOT NULL,
+    updated_at             TIMESTAMP NOT NULL,
+    master_pubkey          TEXT NOT NULL REFERENCES users(master_pubkey) ON DELETE CASCADE,
+    username               TEXT NOT NULL UNIQUE,
+    display_name           TEXT,
+    referral_master_pubkey TEXT REFERENCES users(master_pubkey) ON DELETE SET NULL,
+    lookup tsvector        NOT NULL DEFAULT to_tsvector('english', ''),
+    primary key(master_pubkey)
+);
+
+CREATE INDEX IF NOT EXISTS social_profiles_lookup ON social_profiles USING GIN (lookup);

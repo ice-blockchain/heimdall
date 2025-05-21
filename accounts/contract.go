@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/big"
 	"net/http"
+	"regexp"
 	"sync"
 	stdlibtime "time"
 
@@ -44,11 +45,17 @@ type (
 		IsUserVerified(ctx context.Context, masterPubKey string) (bool, []*model.Event, error)
 		HealthCheck(ctx context.Context) error
 		PublicKey() string
+		SocialProfiles
 	}
 	VerifiedUsersSync interface {
 		io.Closer
 		ProcessNextVerifiedUsersQueue(ctx context.Context) error
 		HealthCheck(ctx context.Context) error
+	}
+	SocialProfiles interface {
+		VerifyUsernameAvailability(ctx context.Context, username string) error
+		UpsertSocialProfile(ctx context.Context, masterPubkey, username, displayName string, referral string) (*SocialProfile, error)
+		SearchSocialProfiles(ctx context.Context, keyword string, limit uint64) ([]*LiteUser, error)
 	}
 	Wallets interface {
 		CreateWalletView(ctx context.Context, userID, name string, items []*CoinMapping, symbolGroups []string) (*WalletView, error)
@@ -85,6 +92,12 @@ type (
 		PhoneNumber             []string          `json:"phoneNumber,omitempty"`
 		TwoFAOptions            []TwoFAOptionEnum `json:"2faOptions,omitempty"`
 		MasterPubKey            string            `json:"masterPubKey"`
+	}
+	SocialProfile struct {
+		Username      string         `json:"username,omitempty"`
+		DisplayName   string         `json:"displayName,omitempty"`
+		Referral      string         `json:"referral,omitempty"`
+		UsernameProof []*model.Event `json:"usernameProof"`
 	}
 	WalletView struct {
 		Name  string       `json:"name"`
@@ -167,7 +180,8 @@ var (
 	ErrDuplicate                       = storage.ErrDuplicate
 	ErrInvalidFollowees                = errors.New("invalid followees")
 	ErrInvalidUserSignature            = errors.New("invalid user signature")
-	ErrInvalidUsername                 = dfns.ErrInvalidUsername
+	ErrInvalidIdentityKey              = dfns.ErrInvalidUsername
+	ErrInvalidUsername                 = errors.New("invalid username")
 	ErrNotChanged                      = errors.New("not changed")
 	ErrDeleteLast                      = errors.New("cannot delete last entry")
 	ErrRaceCondition                   = dfns.ErrRaceCondition
@@ -181,6 +195,8 @@ const (
 	applicationYamlKey     = "accounts"
 	clientIPCtxValueKey    = "clientIPCtxValueKey"
 	confirmationCodeLength = 6
+
+	usernameProofOfOwnershipBadgeName = "username_proof_of_ownership"
 )
 
 var (
@@ -188,6 +204,8 @@ var (
 	ddl                  string
 	errSignatureRequired = errors.New("signature is required")
 	defaultCoins         map[string][]*coins.Coin
+
+	usernameRegex = regexp.MustCompile(`^[a-zA-Z0-9.]{1,20}$`)
 )
 
 type (
@@ -213,7 +231,7 @@ type (
 		CreatedAt                  *time.Time
 		UpdatedAt                  *time.Time
 		ID                         string
-		Username                   string
+		IdentityKeyName            string `db:"identity_key_name"`
 		MasterPubKey               string `db:"master_pubkey"`
 		Email                      []string
 		PhoneNumber                []string
@@ -224,6 +242,14 @@ type (
 		Active2FAPhoneNumber       []bool `db:"active_2fa_phone_number"`
 		Active2FATotpAuthenticator []bool `db:"active_2fa_totp_authenticator"`
 		Verified                   bool   `db:"verified"`
+	}
+	socialProfile struct {
+		CreatedAt            *time.Time
+		UpdatedAt            *time.Time
+		MasterPubkey         string `db:"master_pubkey"`
+		Username             string `db:"username"`
+		DisplayName          string `db:"display_name"`
+		ReferralMasterPubkey string `db:"referral_master_pubkey"`
 	}
 	twoFACode struct {
 		CreatedAt       *time.Time
