@@ -80,7 +80,7 @@ func (a *accounts) GetContentCreators(ctx context.Context, limit uint64, exclude
 		excludeClause = "WHERE NOT master_pubkey = ANY($1)"
 	}
 	args = append(args, limit)
-	query := `SELECT x.master_pubkey, u.ion_connect_relays
+	query := `SELECT x.master_pubkey, COALESCE(u.ion_connect_relays, ARRAY[]::TEXT[]) as ion_connect_relays
 			  FROM (SELECT master_pubkey FROM content_creators ` + excludeClause + ` 
 			  ORDER BY random() LIMIT $` + strconv.Itoa(len(args)) + `) x
 			  JOIN users u ON x.master_pubkey = u.master_pubkey`
