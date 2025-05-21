@@ -35,7 +35,7 @@ func New(applicationYamlKey string) Client {
 		cfg.CoinGecko.BaseUrl = "https://pro-api.coingecko.com"
 	}
 	if len(networkMappingFromCoinGecko) == 0 {
-		for k, v := range Networks {
+		for k, v := range networks {
 			if v.IsTestnet && cfg.TestNet {
 				networkMappingFromCoinGecko[strings.ToLower(v.CoinGeckoNetworkID)] = k
 				if _, hasPlatform := platformToNetworkMapping[v.CoinGeckoPlatform]; !hasPlatform {
@@ -82,11 +82,11 @@ func (c *client) ListCoins(ctx context.Context) ([]*Coin, error) {
 		}
 	}
 	for _, coin := range *coinList {
-		networks := nativeCoinsToNetwork[coin.ID]
-		if len(networks) == 0 && len(coin.Platforms) == 0 {
+		networksForCoin := nativeCoinsToNetwork[coin.ID]
+		if len(networksForCoin) == 0 && len(coin.Platforms) == 0 {
 			continue
 		}
-		for _, cgNetwork := range networks {
+		for _, cgNetwork := range networksForCoin {
 			n := networkMappingFromCoinGecko[cgNetwork]
 			if n == "" && c.cfg.TestNet { // Coin has no testnet
 				continue
@@ -98,7 +98,7 @@ func (c *client) ListCoins(ctx context.Context) ([]*Coin, error) {
 				Network:         cgNetwork,
 				ContractAddress: "",
 				Native:          true,
-				Decimals:        Networks[n].DefaultDecimals,
+				Decimals:        networks[n].DefaultDecimals,
 			})
 		}
 		coinsToSyncMarketData = append(coinsToSyncMarketData, coin.ID)
@@ -121,7 +121,7 @@ func (c *client) ListCoins(ctx context.Context) ([]*Coin, error) {
 						Name:            coin.Name,
 						Network:         network.CoinGeckoNetworkID,
 						ContractAddress: tokenAddr,
-						Decimals:        Networks[networkName].DefaultDecimals,
+						Decimals:        networks[networkName].DefaultDecimals,
 					})
 				}
 				platformIdx += 1
@@ -220,13 +220,15 @@ func (c *client) GetCoins(ctx context.Context, coinIDs []string) ([]*Coin, error
 	}
 	res := make([]*Coin, 0, len(*coinsData))
 	for _, coinData := range *coinsData {
-		res = append(res, &Coin{
+		cgCoin := &Coin{
 			ID:       coinData.ID,
 			Name:     coinData.Name,
 			PriceUSD: float64(coinData.CurrentPrice),
 			IconUrl:  coinData.Image,
 			Symbol:   coinData.Symbol,
-		})
+		}
+		overwriteCoinWithStaticContent(cgCoin)
+		res = append(res, cgCoin)
 	}
 	return res, nil
 }
@@ -240,6 +242,7 @@ func (c *client) GetTokens(ctx context.Context, network string, contractAddresse
 	for _, tok := range tokensData.Data {
 		var coinData *Coin
 		coinData = convertTokenData(network, tok)
+		overwriteCoinWithStaticContent(coinData)
 		res = append(res, coinData)
 	}
 	return res, nil
@@ -278,7 +281,7 @@ func (c *client) GetToken(ctx context.Context, network, tokenAddr string) (*Coin
 }
 
 func (c *client) GetNFT(ctx context.Context, network, contractAddr string) (*NFT, error) {
-	networkObj, has := Networks[network]
+	networkObj, has := networks[network]
 	if !has {
 		return nil, errors.Errorf("invalid network %v, cannot find plaftorm mapping", network)
 	}
@@ -392,7 +395,7 @@ func (c *Coin) SymbolGroup() string {
 	return c.ID
 }
 func MapNetwork(network string) (string, error) {
-	if coingeckoNetwork, hasNetwork := Networks[network]; !hasNetwork || coingeckoNetwork == nil {
+	if coingeckoNetwork, hasNetwork := networks[network]; !hasNetwork || coingeckoNetwork == nil {
 		return "", ErrInvalidNetwork
 	} else {
 		return coingeckoNetwork.CoinGeckoNetworkID, nil
@@ -402,12 +405,12 @@ func MapNetworkFromCoinGecko(network string) (*Network, error) {
 	if mappedNetwork, hasNetwork := networkMappingFromCoinGecko[strings.ToLower(network)]; !hasNetwork || mappedNetwork == "" {
 		return nil, ErrInvalidNetwork
 	} else {
-		return Networks[mappedNetwork], nil
+		return networks[mappedNetwork], nil
 	}
 }
 
 func IsTestnet(network string) bool {
-	return Networks[network].IsTestnet
+	return networks[network].IsTestnet
 }
 
 func (n *NFT) ImageUri() string {
@@ -418,4 +421,31 @@ func (n *NFT) ImageUri() string {
 		return n.Image.Small2X
 	}
 	return n.Image.Small
+}
+
+func overwriteCoinWithStaticContent(c *Coin) {
+	if overwrite, hasOverwrite := coinOverwrites[c.ID]; hasOverwrite {
+		if overwrite.Name != "" {
+			c.Name = overwrite.Name
+		}
+		if overwrite.Symbol != "" {
+			c.Symbol = overwrite.Symbol
+		}
+		if overwrite.Decimals != 0 {
+			c.Decimals = overwrite.Decimals
+		}
+		if overwrite.IconUrl != "" {
+			c.IconUrl = overwrite.IconUrl
+		}
+	}
+}
+
+func (c *client) GetAllNetworks() []*Network {
+	filteredNetworks := []*Network{}
+	for _, n := range networks {
+		if c.cfg.TestNet == n.IsTestnet {
+			filteredNetworks = append(filteredNetworks, n)
+		}
+	}
+	return filteredNetworks
 }
