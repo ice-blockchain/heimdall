@@ -8,7 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	szhttp "github.com/ice-blockchain/subzero/server/http"
+	"github.com/ice-blockchain/subzero/server/http/nip11"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
@@ -50,7 +50,7 @@ type (
 	}
 	nip11Result struct {
 		url   string
-		nip11 *szhttp.RelayInformationDocument
+		nip11 *nip11.RelayInformationDocument
 		err   error
 	}
 )

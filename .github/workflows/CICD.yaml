@@ -59,8 +59,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
-      - name: Install libvips and ffmpeg for meta extraction
-        run: sudo apt-get update && sudo apt-get install -y libvips-dev ffmpeg
       - name: Check If We're Up to Date with Everything
         run: make checkModVersion checkIfAllDependenciesAreUpToDate
       - name: Slack Notification For Failure/Cancellation
@@ -160,8 +158,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
-      - name: Install libvips and ffmpeg for meta extraction
-        run: sudo apt-get update && sudo apt-get install -y libvips-dev ffmpeg
       - name: Build all
         run: make build-all@ci/cd
       - name: Slack Notification For Failure/Cancellation
@@ -198,8 +194,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
-      - name: Install libvips and ffmpeg for meta extraction
-        run: sudo apt-get update && sudo apt-get install -y libvips-dev ffmpeg
       - name: Test ${{ matrix.package }}
         env:
           SMS_CLIENT_USER: ${{ secrets.SMS_CLIENT_USER }}
@@ -244,8 +238,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
-      - name: Install libvips and ffmpeg for meta extraction
-        run: sudo apt-get update && sudo apt-get install -y libvips-dev ffmpeg
       - name: Benchmark ${{ matrix.package }}
         env:
           SMS_CLIENT_USER: ${{ secrets.SMS_CLIENT_USER }}
@@ -382,8 +374,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
-      - name: Install libvips and ffmpeg for meta extraction
-        run: sudo apt-get update && sudo apt-get install -y libvips-dev ffmpeg
       - name: Build Artefacts
         run: env GOOS=linux env GOARCH=amd64 make buildAllBinaries
       - name: Compute new Tag version
