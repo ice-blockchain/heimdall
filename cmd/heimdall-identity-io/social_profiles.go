@@ -24,9 +24,9 @@ func (s *service) setupSocialProfileRoutes(r *server.Router) {
 //	@Tags			SocialProfiles
 //	@Accept			json
 //	@Produce		json
-//	@Param			Authorization	header		string				true	"Authorization token"
-//	@Param			username		query		string				true	"Username to check"
-//	@Success		200				{object}	nil					"Username is available"
+//	@Param			Authorization	header		string					true	"Authorization token"
+//	@Param			username		query		string					true	"Username to check"
+//	@Success		200				{object}	nil						"Username is available"
 //	@Failure		400				{object}	server.ErrorResponse	"Invalid username format"
 //	@Failure		409				{object}	server.ErrorResponse	"Username already exists"
 //	@Router			/v1/users/verify-username-availability [GET]
@@ -54,8 +54,8 @@ func (s *service) VerifyUsernameAvailability(
 //	@Tags			SocialProfiles
 //	@Accept			json
 //	@Produce		json
-//	@Param			Authorization	header		string					true	"Authorization token"
-//	@Param			masterPubkey	path		string					true	"User's master key"
+//	@Param			Authorization	header		string						true	"Authorization token"
+//	@Param			masterPubkey	path		string						true	"User's master key"
 //	@Param			request			body		UpsertSocialProfileRequest	true	"Data to update the profile"
 //	@Success		200				{object}	accounts.SocialProfile		"Updated social profile"
 //	@Failure		400				{object}	server.ErrorResponse		"Invalid data format"
