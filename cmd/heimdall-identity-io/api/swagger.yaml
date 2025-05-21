@@ -282,7 +282,7 @@ definitions:
       symbol_group:
         type: string
     type: object
-  main.UpdateSocialProfileRequest:
+  main.UpsertSocialProfileRequest:
     properties:
       displayName:
         type: string
@@ -1576,7 +1576,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/main.UpdateSocialProfileRequest'
+          $ref: '#/definitions/main.UpsertSocialProfileRequest'
       produces:
       - application/json
       responses:

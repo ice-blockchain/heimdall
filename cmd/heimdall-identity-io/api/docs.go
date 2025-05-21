@@ -790,7 +790,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.UpdateSocialProfileRequest"
+                            "$ref": "#/definitions/main.UpsertSocialProfileRequest"
                         }
                     }
                 ],
@@ -2315,7 +2315,7 @@ const docTemplate = `{
                 }
             }
         },
-        "main.UpdateSocialProfileRequest": {
+        "main.UpsertSocialProfileRequest": {
             "type": "object",
             "properties": {
                 "displayName": {
