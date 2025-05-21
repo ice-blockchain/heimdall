@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts"
+	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
 	"github.com/ice-blockchain/heimdall/server"
 )
 
@@ -21,7 +22,8 @@ func (s *service) setupUserRoutes(router gin.IRoutes) {
 		DELETE("auth/users/:userId", server.RootHandler(s.DeleteUser)).
 		GET("v1/config/:configName", server.RootHandler(s.GetConfig)).
 		POST("v1/users/get-content-creators", server.RootHandler(s.GetContentCreators)).
-		GET("v1/users/:userIdOrMasterKey/verified-badge", server.RootHandler(s.GetVerifiedBadge))
+		GET("v1/users/:userIdOrMasterKey/verified-badge", server.RootHandler(s.GetVerifiedBadge)).
+		GET("v1/users/:userIdOrMasterKey/all-available-ion-connect-relays", server.RootHandler(s.GetAllIONConnectRelays))
 }
 
 // GetOrAssignIONConnectRelays godoc
@@ -49,6 +51,37 @@ func (s *service) GetOrAssignIONConnectRelays(
 		default:
 			return nil, server.Unexpected(err)
 		}
+	}
+	return server.OK(&Relays{IONConnectRelays: relays}), nil
+}
+
+// GetAllConnectRelays godoc
+//
+//	@Schemes
+//	@Description	Gets list of all available relays
+//	@Tags			Users
+//	@Produce		json
+//	@Param			userIdOrMasterKey	path		string	true	"ID of the user"
+//	@Param			Authorization		header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
+//	@Param			ion-connect-relay	query		string	true	"Current relay"
+//	@Success		200					{object}	Relays
+//	@Failure		422					{object}	server.ErrorResponse	"if unknown relay passed"
+//	@Failure		500					{object}	server.ErrorResponse
+//	@Failure		504					{object}	server.ErrorResponse	"if request times out"
+//	@Router			/v1/users/{userIdOrMasterKey}/all-available-ion-connect-relays [GET].
+func (s *service) GetAllIONConnectRelays(
+	ctx context.Context,
+	req *server.Request[AllRelaysReq, Relays],
+) (successResp *server.Response[Relays], errorResp *server.ErrResponse[*server.ErrorResponse]) {
+	relays, err := s.relays.GetAllIONConnectRelays(ctx, req.Data.IONConnectRelay)
+	if err != nil {
+		switch {
+		case errors.Is(err, relaymanagement.ErrNoRelays):
+			return nil, server.UnprocessableEntity(err, wrongRelay)
+		default:
+			return nil, server.Unexpected(err)
+		}
+
 	}
 	return server.OK(&Relays{IONConnectRelays: relays}), nil
 }

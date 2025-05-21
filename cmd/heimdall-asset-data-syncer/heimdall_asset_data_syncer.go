@@ -12,6 +12,7 @@ import (
 
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/coins"
+	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
 	"github.com/ice-blockchain/heimdall/server"
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
@@ -44,8 +45,10 @@ func (s *service) RegisterRoutes(router *server.Router) {
 func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	s.coinSyncer = coins.MustStartSyncer(ctx, cancel)
 	s.verifiedQueueRepository = accounts.NewVerifiedQueueRepository(ctx)
+	s.relayLivenessCheck = relaymanagement.NewRelaysSync(ctx)
 
 	go s.processVerifiedUsersQueue(ctx)
+	go s.processRelayLivenessCheck(ctx)
 }
 
 func (s *service) Close(ctx context.Context) error {
@@ -87,6 +90,24 @@ func (s *service) processVerifiedUsersQueue(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-time.After(100 * time.Millisecond):
+		}
+	}
+}
+
+func (s *service) processRelayLivenessCheck(ctx context.Context) {
+	for {
+		if err := s.relayLivenessCheck.CheckRelayStatus(ctx); err != nil {
+			if errors.Is(err, relaymanagement.ErrNoRelays) {
+				time.Sleep(1 * time.Minute)
+
+				continue
+			}
+			log.Error(errors.Wrap(err, "processing relay liveness check failed"))
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(1 * time.Minute):
 		}
 	}
 }

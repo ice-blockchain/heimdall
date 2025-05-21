@@ -9,6 +9,7 @@ import (
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/coins"
 	hashtagstatistics "github.com/ice-blockchain/heimdall/hashtag-statistics"
+	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
 	"github.com/ice-blockchain/subzero/model"
 )
 
@@ -50,6 +51,9 @@ type (
 	RelaysReq struct {
 		UserIDOrMasterKey string   `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
 		FolloweeList      []string `json:"followeeList"`
+	}
+	AllRelaysReq struct {
+		IONConnectRelay string `form:"ion-connect-relay" required:"true"`
 	}
 	HashtagsEventsReq struct {
 		Events []*model.Event `json:"events" binding:"required,min=1,dive" allowUnauthorized:"true"`
@@ -204,6 +208,7 @@ const (
 	notFound                   = "NOT_FOUND"
 	twoFANotConfigured         = "2FA_NOT_CONFIGURED"
 	invalid2FAToTReplace       = "INVALID_2FA_REPLACE"
+	wrongRelay                 = "WRONG_RELAY"
 
 	configNameRequiredAndroidAppVersion = "required_android_app_version"
 	configNameRequiredIOSAppVersion     = "required_ios_app_version"
@@ -217,6 +222,7 @@ type (
 	service struct {
 		accounts          accounts.Accounts
 		coins             coins.Coins
+		relays            relaymanagement.Relays
 		hashtagStatistics hashtagstatistics.HashtagStatistics
 		cfg               *config
 	}

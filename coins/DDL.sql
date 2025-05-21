@@ -55,8 +55,5 @@ DO $$ BEGIN
                                        symbol = 'ion',
                                        symbol_group = 'ion',
                                        version = coins.version + 1;
-        UPDATE wallet_views
-        SET symbol_groups = array_replace(symbol_groups, 'ice', 'ion')
-        WHERE symbol_groups @> ARRAY['ice'];
     end if;
 END$$;

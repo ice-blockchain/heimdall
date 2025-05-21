@@ -9,8 +9,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"math"
-	"math/rand"
 	"reflect"
 	"slices"
 	"strconv"
@@ -65,7 +63,7 @@ func (a *accounts) GetOrAssignIONConnectRelays(ctx context.Context, userID strin
 		return nil, errors.Wrapf(err, "failed to validate followees pubkeys")
 	}
 
-	return a.fetchAndUpdateRelaysFromPolaris(ctx, userID, followees)
+	return a.fetchAndUpdateRelays(ctx, userID, followees)
 }
 
 func (a *accounts) GetIONConnectIndexerRelays(ctx context.Context, userID string) (indexers []string, err error) {
@@ -96,10 +94,10 @@ func (a *accounts) GetContentCreators(ctx context.Context, limit uint64, exclude
 	return results, nil
 }
 
-func (a *accounts) fetchAndUpdateRelaysFromPolaris(ctx context.Context, userID string, followees []string) (relays []string, err error) {
+func (a *accounts) fetchAndUpdateRelays(ctx context.Context, userID string, followees []string) (relays []string, err error) {
 	now := time.Now()
-	if relays, err = a.fetchRelays(ctx, userID, followees); err != nil {
-		return nil, errors.Wrapf(err, "cannot fetch relay list from polaris")
+	if relays, err = a.relaysRepo.IONConnectRelaysForUser(ctx, userID); err != nil {
+		return nil, errors.Wrapf(err, "cannot fetch relay list from relays managenent for user %v", userID)
 	}
 	if len(relays) > 0 {
 		var usr *user
@@ -157,16 +155,6 @@ func (a *accounts) validateFollowees(ctx context.Context, followees []string) er
 		failed = append(failed, f.Followee)
 	}
 	return errors.Wrapf(ErrInvalidFollowees, "contains invalid followees: %v", failed)
-}
-
-func (a *accounts) fetchRelays(ctx context.Context, userID string, followeeList []string) (relays []string, err error) {
-	relaysCount := int(math.Min(float64(a.cfg.RelaysPerUser), float64(len(a.cfg.MockRelays))))
-	shuffled := append([]string{}, a.cfg.MockRelays...)
-	rand.Shuffle(len(shuffled), func(i, j int) {
-		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
-	})
-
-	return shuffled[0:relaysCount], nil
 }
 
 func (a *accounts) fetchIONIndexers(ctx context.Context, userID string) (relays []string, err error) {
