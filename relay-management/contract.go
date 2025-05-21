@@ -6,7 +6,6 @@ import (
 	"context"
 	_ "embed"
 
-	"github.com/alitto/pond/v2"
 	"github.com/pkg/errors"
 
 	szhttp "github.com/ice-blockchain/subzero/server/http"
@@ -16,7 +15,7 @@ import (
 type (
 	Relays interface {
 		GetAllIONConnectRelays(ctx context.Context, requestedRelay string) ([]string, error)
-		IONConnectRelaysForUser(ctx context.Context, userId string, followeeMasterKeys []string) ([]string, error)
+		IONConnectRelaysForUser(ctx context.Context, userId string) ([]string, error)
 	}
 	RelaysSyncer interface {
 		CheckRelayStatus(ctx context.Context) error
@@ -37,19 +36,13 @@ const (
 )
 
 type (
-	config struct {
-		Workers int `yaml:"workers"`
-	}
 	relaysRepository struct {
 		db       *storage.DB
 		shutdown func() error
-		cfg      *config
 	}
 	relaysSyncer struct {
-		db         *storage.DB
-		shutdown   func() error
-		cfg        *config
-		workerPool pond.ResultPool[nip11Result]
+		db       *storage.DB
+		shutdown func() error
 	}
 
 	ionConnectRelays struct {

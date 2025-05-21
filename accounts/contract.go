@@ -65,7 +65,7 @@ type (
 		ImportNFTs(ctx context.Context, network string, nft []coins.WalletNFT) ([]*NFT, error)
 	}
 	Relays interface {
-		IONConnectRelaysForUser(ctx context.Context, userId string, followeesMasterKeys []string) ([]string, error)
+		IONConnectRelaysForUser(ctx context.Context, userId string) ([]string, error)
 	}
 	TwoFAOptionEnum     string
 	TwoFAOptionWithAddr struct {

@@ -17,7 +17,6 @@ import (
 	"golang.org/x/net/http2"
 
 	szhttp "github.com/ice-blockchain/subzero/server/http"
-	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/time"
@@ -25,17 +24,16 @@ import (
 
 func init() {
 	req.DefaultClient().GetClient().Transport = &http2.Transport{}
+	req.DefaultClient().GetClient().Timeout = 30 * stdlibtime.Second
+	req.DefaultClient().SetJsonMarshal(json.Marshal)
+	req.DefaultClient().SetJsonUnmarshal(json.Unmarshal)
 }
 
 func NewRelaysSync(ctx context.Context) RelaysSyncer {
-	var cfg config
-	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
 	r := relaysSyncer{
-		cfg:        &cfg,
-		db:         db,
-		shutdown:   db.Close,
-		workerPool: pond.NewResultPool[nip11Result](cfg.Workers),
+		db:       db,
+		shutdown: db.Close,
 	}
 	return &r
 }
@@ -59,10 +57,11 @@ func (r *relaysSyncer) CheckRelayStatus(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to check relays status, failed to read from relay list from db")
 	}
-	group := r.workerPool.NewGroup()
+	workerPool := pond.NewResultPool[nip11Result](len(urls))
+	group := workerPool.NewGroup()
 	for _, relayUrl := range urls {
 		group.Submit(func() nip11Result {
-			reqCtx, reqCancel := context.WithTimeout(ctx, 15*stdlibtime.Second)
+			reqCtx, reqCancel := context.WithTimeout(ctx, 30*stdlibtime.Second)
 			defer reqCancel()
 			res, err := r.requestNIP11(reqCtx, relayUrl)
 			return nip11Result{url: relayUrl, nip11: res, err: err}

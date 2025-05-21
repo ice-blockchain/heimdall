@@ -96,7 +96,7 @@ func (a *accounts) GetContentCreators(ctx context.Context, limit uint64, exclude
 
 func (a *accounts) fetchAndUpdateRelays(ctx context.Context, userID string, followees []string) (relays []string, err error) {
 	now := time.Now()
-	if relays, err = a.relaysRepo.IONConnectRelaysForUser(ctx, userID, followees); err != nil {
+	if relays, err = a.relaysRepo.IONConnectRelaysForUser(ctx, userID); err != nil {
 		return nil, errors.Wrapf(err, "cannot fetch relay list from relays managenent for user %v", userID)
 	}
 	if len(relays) > 0 {
