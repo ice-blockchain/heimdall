@@ -192,13 +192,14 @@ type (
 		Authorization string `header:"Authorization" required:"true" swaggerignore:"true"`
 		Keyword       string `form:"keyword" required:"true" swaggerignore:"true"`
 		Limit         uint64 `form:"limit" required:"true" swaggerignore:"true"`
+		Type          string `form:"type" required:"true" swaggerignore:"true"`
 	}
 	UpsertSocialProfileRequest struct {
-		Authorization string `header:"Authorization" required:"true" swaggerignore:"true"`
-		MasterPubkey  string `uri:"masterPubkey" required:"true" swaggerignore:"true"`
-		Username      string `json:"username,omitempty"`
-		DisplayName   string `json:"displayName,omitempty"`
-		Referral      string `json:"referral,omitempty"`
+		Authorization     string `header:"Authorization" required:"true" swaggerignore:"true"`
+		UserIDOrMasterKey string `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
+		Username          string `json:"username,omitempty"`
+		DisplayName       string `json:"displayName,omitempty"`
+		Referral          string `json:"referral,omitempty"`
 	}
 	VerifyUsernameRequest struct {
 		Authorization string `header:"Authorization" required:"true" swaggerignore:"true"`

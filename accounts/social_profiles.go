@@ -31,103 +31,18 @@ func (a *accounts) VerifyUsernameAvailability(ctx context.Context, username stri
 }
 
 func (a *accounts) UpsertSocialProfile(ctx context.Context, masterPubkey, username, displayName, referralUsername string) (*SocialProfile, error) {
-	var (
-		profile              *socialProfile
-		proofEvents          []*model.Event
-		referralMasterPubKey = masterPubkey
-		changeUsernameFlow   bool
-	)
-	existingProfile, err := a.getSocialProfileByMasterPubkey(ctx, masterPubkey)
-	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
-		return nil, errors.Wrapf(err, "failed to get social profile for master pubkey %v", masterPubkey)
+	if username != "" && !isUsernameValid(username) {
+		return nil, errors.Wrapf(ErrInvalidUsername, "username %v is invalid", username)
 	}
-	changeUsernameFlow = existingProfile == nil || (username != "" && username != existingProfile.Username)
-	if changeUsernameFlow {
-		if err = a.VerifyUsernameAvailability(ctx, username); err != nil {
-			return nil, errors.Wrapf(err, "failed to verify username availability for username %v", username)
+	var result *SocialProfile
+	if err := storage.DoInTransaction(ctx, a.db, func(tx storage.QueryExecer) error {
+		existingProfile, err := storage.Get[socialProfile](ctx, tx, `SELECT username FROM social_profiles WHERE master_pubkey = $1`, masterPubkey)
+		if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
+			return errors.Wrapf(err, "failed to get profile info")
 		}
-	}
-	if referralUsername != "" {
-		referralProfile, err := a.getSocialProfileByUsername(ctx, referralUsername)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get referral user by username %v", referralUsername)
+		if existingProfile == nil && username == "" {
+			return errors.Wrap(ErrInvalidUsername, "username cannot be empty when creating a new profile")
 		}
-		if referralProfile != nil {
-			referralMasterPubKey = referralProfile.MasterPubkey
-		}
-	}
-	if existingProfile != nil {
-		if profile, err = a.updateSocialProfile(ctx, existingProfile, username, displayName, referralMasterPubKey); err != nil {
-			return nil, errors.Wrapf(err, "failed to update social profile for master pubkey %v", masterPubkey)
-		}
-	} else {
-		if profile, err = a.insertSocialProfile(ctx, masterPubkey, username, displayName, referralMasterPubKey); err != nil {
-			return nil, errors.Wrapf(err, "failed to insert social profile for master pubkey %v", masterPubkey)
-		}
-	}
-	if changeUsernameFlow {
-		proofEvents, err = a.generateUsernameProofEvents(masterPubkey, profile.Username)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to generate username proof events for master pubkey %v", masterPubkey)
-		}
-	}
-
-	return &SocialProfile{
-		Username:      profile.Username,
-		DisplayName:   profile.DisplayName,
-		Referral:      referralUsername,
-		UsernameProof: proofEvents,
-	}, nil
-}
-
-func (a *accounts) getSocialProfileByMasterPubkey(ctx context.Context, masterPubkey string) (*socialProfile, error) {
-	profile, err := storage.Get[socialProfile](ctx, a.db, `
-		SELECT created_at, updated_at, master_pubkey, username, display_name, referral_master_pubkey
-		FROM social_profiles
-		WHERE master_pubkey = $1`, masterPubkey)
-	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
-		return nil, errors.Wrapf(err, "failed to get social profile for master pubkey %v", masterPubkey)
-	}
-
-	return profile, nil
-}
-
-func (a *accounts) getSocialProfileByUsername(ctx context.Context, username string) (*socialProfile, error) {
-	profile, err := storage.Get[socialProfile](ctx, a.db, `
-		SELECT created_at, updated_at, master_pubkey, username, display_name, referral_master_pubkey
-		FROM social_profiles
-		WHERE username = $1`, username)
-	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
-		return nil, errors.Wrapf(err, "failed to get social profile for username %v", username)
-	}
-
-	return profile, nil
-}
-
-func (a *accounts) updateSocialProfile(ctx context.Context, existingProfile *socialProfile, username, displayName, referralMasterPubkey string) (*socialProfile, error) {
-	now := time.Now()
-	updateFields := make([]string, 0, 4)
-	args := []interface{}{now.Time, existingProfile.MasterPubkey}
-	argIndex := 3
-	needUpdateLookup := false
-	if username != "" && username != existingProfile.Username {
-		updateFields = append(updateFields, fmt.Sprintf("username = $%d", argIndex))
-		args = append(args, username)
-		argIndex++
-		needUpdateLookup = true
-	}
-	if displayName != "" && displayName != existingProfile.DisplayName {
-		updateFields = append(updateFields, fmt.Sprintf("display_name = $%d", argIndex))
-		args = append(args, displayName)
-		argIndex++
-		needUpdateLookup = true
-	}
-	if referralMasterPubkey != "" && referralMasterPubkey != existingProfile.ReferralMasterPubkey {
-		updateFields = append(updateFields, fmt.Sprintf("referral_master_pubkey = $%d", argIndex))
-		args = append(args, referralMasterPubkey)
-		argIndex++
-	}
-	if needUpdateLookup {
 		lookupText := make([]string, 0, 2)
 		if username != "" {
 			lookupText = append(lookupText, username)
@@ -135,61 +50,99 @@ func (a *accounts) updateSocialProfile(ctx context.Context, existingProfile *soc
 		if displayName != "" {
 			lookupText = append(lookupText, displayName)
 		}
-		if len(lookupText) > 0 {
-			updateFields = append(updateFields, fmt.Sprintf("lookup = to_tsvector('english', $%d)", argIndex))
-			args = append(args, lookup(strings.Join(lookupText, " ")))
-			argIndex++
+		lookupValue := strings.ToLower(strings.Join(lookupText, " "))
+		args := []interface{}{
+			masterPubkey,
+			username,
+			time.Now(),
+			referralUsername,
+			displayName,
+			lookupValue,
 		}
-	}
-	if len(updateFields) > 0 {
-		query := fmt.Sprintf(`UPDATE social_profiles
-									 SET updated_at = $1, 
-									 	%s 
-									 WHERE master_pubkey = $2
-									 RETURNING created_at, updated_at, master_pubkey, username, display_name`, strings.Join(updateFields, ", "))
-		updatedProfile, err := storage.ExecOne[socialProfile](ctx, a.db, query, args...)
+		query := `
+			MERGE INTO social_profiles AS target
+			USING (
+				SELECT 
+					$1::TEXT as master_pubkey, 
+					$2::TEXT as username,
+					CASE WHEN $4 != '' THEN 
+						(SELECT master_pubkey FROM social_profiles WHERE username = $4 LIMIT 1)
+					ELSE NULL END as referral_master_pubkey
+			) AS source
+			ON target.master_pubkey = source.master_pubkey
+			WHEN MATCHED THEN
+				UPDATE SET 
+					updated_at = $3,
+					username = CASE WHEN $2 != '' THEN $2 ELSE target.username END,
+					display_name = CASE WHEN $5 != '' THEN $5 ELSE target.display_name END,
+					referral_master_pubkey = CASE 
+						WHEN source.referral_master_pubkey IS NOT NULL THEN source.referral_master_pubkey
+						ELSE target.referral_master_pubkey 
+					END,
+					lookup = CASE 
+						WHEN ($2 != '' AND target.username != $2) OR ($5 != '' AND target.display_name != $5)
+						THEN $6 
+						ELSE target.lookup 
+					END
+			WHEN NOT MATCHED THEN
+				INSERT (created_at, updated_at, master_pubkey, username, display_name, referral_master_pubkey, lookup)
+				VALUES (
+					$3, $3, $1, $2, $5, 
+					COALESCE(source.referral_master_pubkey, $1), 
+					$6
+				)
+			RETURNING 
+				target.created_at, target.updated_at, target.master_pubkey, target.username, target.display_name, target.referral_master_pubkey,
+				$4 as referral_username
+		`
+		type resultProfile struct {
+			socialProfile
+			ReferralUsername string `db:"referral_username"`
+		}
+		profile, err := storage.ExecOne[resultProfile](ctx, tx, query, args...)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to update social profile")
+			return errors.Wrapf(err, "failed to upsert social profile with MERGE")
 		}
 
-		return updatedProfile, nil
+		var proofEvents []*model.Event
+		if existingProfile == nil || username != "" && existingProfile.Username != username {
+			var eventErr error
+			proofEvents, eventErr = a.generateUsernameProofEvents(masterPubkey, profile.Username)
+			if eventErr != nil {
+				return errors.Wrapf(eventErr, "failed to generate username proof events for master pubkey %v", masterPubkey)
+			}
+		}
+		result = &SocialProfile{
+			Username:      profile.Username,
+			DisplayName:   profile.DisplayName,
+			Referral:      profile.ReferralUsername,
+			UsernameProof: proofEvents,
+		}
+
+		return nil
+	}); err != nil {
+		return nil, errors.Wrapf(err, "failed to upsert social profile")
 	}
 
-	return existingProfile, nil
+	return result, nil
 }
 
-func (a *accounts) insertSocialProfile(ctx context.Context, masterPubkey, username, displayName, referralMasterPubkey string) (*socialProfile, error) {
-	now := time.Now()
-	lookupText := make([]string, 0, 2)
-	if username != "" {
-		lookupText = append(lookupText, username)
-	}
-	if displayName != "" {
-		lookupText = append(lookupText, displayName)
-	}
-	stmt := `INSERT INTO social_profiles (
-				created_at, updated_at, master_pubkey, username, display_name, referral_master_pubkey, lookup
-			) VALUES (
-				$1, $1, $2, $3, $4, $5, to_tsvector('english', $6)
-			) RETURNING created_at, updated_at, master_pubkey, username, display_name`
-	args := []interface{}{now.Time, masterPubkey, username, displayName, referralMasterPubkey, lookup(strings.Join(lookupText, " "))}
-
-	profile, err := storage.ExecOne[socialProfile](ctx, a.db, stmt, args...)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create social profile")
-	}
-
-	return profile, nil
-}
-
-func (a *accounts) SearchSocialProfiles(ctx context.Context, keyword string, limit uint64) ([]*LiteUser, error) {
-	profiles, err := storage.Select[LiteUser](ctx, a.db, `
+func (a *accounts) SearchSocialProfiles(ctx context.Context, tpe SearchType, keyword string, limit uint64) ([]*LiteUser, error) {
+	query := `
 		SELECT sp.master_pubkey, COALESCE(u.ion_connect_relays, ARRAY[]::text[]) as ion_connect_relays
 		FROM social_profiles sp
-		JOIN users u
-		ON sp.master_pubkey = u.master_pubkey
-		WHERE sp.lookup @@ $1::tsquery
-		LIMIT $2`, keyword, limit)
+		JOIN users u ON sp.master_pubkey = u.master_pubkey
+		WHERE sp.lookup ILIKE $1
+		LIMIT $2`
+
+	likePattern := keyword
+	switch tpe {
+	case SearchTypeStartsWith:
+		likePattern = keyword + "%"
+	case SearchTypeContains:
+		likePattern = "%" + keyword + "%"
+	}
+	profiles, err := storage.Select[LiteUser](ctx, a.db, query, likePattern, limit)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to search user profiles")
 	}
@@ -238,27 +191,4 @@ func (a *accounts) generateUsernameProofEvents(masterPubkey, username string) ([
 
 func isUsernameValid(username string) bool {
 	return usernameRegex.MatchString(username)
-}
-
-func lookup(username string) string {
-	return strings.ToLower(strings.Join(generateUsernameKeywords(username), " "))
-}
-
-func generateUsernameKeywords(username string) []string {
-	if username == "" {
-		return nil
-	}
-	keywordsMap := make(map[string]struct{})
-	for _, part := range append(strings.Split(username, "."), username) {
-		for i := range len(part) {
-			keywordsMap[part[:i+1]] = struct{}{}
-			keywordsMap[part[len(part)-1-i:]] = struct{}{}
-		}
-	}
-	keywords := make([]string, 0, len(keywordsMap))
-	for keyword := range keywordsMap {
-		keywords = append(keywords, keyword)
-	}
-
-	return keywords
 }

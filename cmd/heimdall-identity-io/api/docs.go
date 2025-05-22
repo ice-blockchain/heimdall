@@ -757,65 +757,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/users/profiles/social/{masterPubkey}": {
-            "patch": {
-                "description": "Updates or creates a social profile for a user",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "SocialProfiles"
-                ],
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Authorization token",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "User's master key",
-                        "name": "masterPubkey",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Data to update the profile",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/main.UpsertSocialProfileRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Updated social profile",
-                        "schema": {
-                            "$ref": "#/definitions/accounts.SocialProfile"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid data format",
-                        "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Username already exists",
-                        "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/v1/users/verify-username-availability": {
             "get": {
                 "description": "Checks if the specified username is available",
@@ -1392,6 +1333,65 @@ const docTemplate = `{
                     },
                     "504": {
                         "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/users/{userIdOrMasterKey}/profiles/social": {
+            "patch": {
+                "description": "Updates or creates a social profile for a user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SocialProfiles"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "User's master key",
+                        "name": "masterPubkey",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Data to update the profile",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.UpsertSocialProfileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated social profile",
+                        "schema": {
+                            "$ref": "#/definitions/accounts.SocialProfile"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid data format",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Username already exists",
                         "schema": {
                             "$ref": "#/definitions/server.ErrorResponse"
                         }

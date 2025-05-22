@@ -26,7 +26,8 @@ import (
 )
 
 type (
-	Accounts interface {
+	SearchType = string
+	Accounts   interface {
 		io.Closer
 		Wallets
 		ProxyDelegatedRelyingParty(ctx context.Context, rw http.ResponseWriter, r *http.Request)
@@ -55,7 +56,7 @@ type (
 	SocialProfiles interface {
 		VerifyUsernameAvailability(ctx context.Context, username string) error
 		UpsertSocialProfile(ctx context.Context, masterPubkey, username, displayName string, referral string) (*SocialProfile, error)
-		SearchSocialProfiles(ctx context.Context, keyword string, limit uint64) ([]*LiteUser, error)
+		SearchSocialProfiles(ctx context.Context, tpe SearchType, keyword string, limit uint64) ([]*LiteUser, error)
 	}
 	Wallets interface {
 		CreateWalletView(ctx context.Context, userID, name string, items []*CoinMapping, symbolGroups []string) (*WalletView, error)
@@ -162,6 +163,9 @@ const (
 	verifiedBadgeDTag        = "verified"
 	verifiedBadgeName        = "Verified by ION Identity"
 	verifiedBadgeDescription = "Awarded to users that are verified by ION Identity"
+
+	SearchTypeContains   SearchType = "contains"
+	SearchTypeStartsWith SearchType = "startsWith"
 )
 
 var (

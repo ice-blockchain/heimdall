@@ -14,7 +14,7 @@ import (
 
 func (s *service) setupSocialProfileRoutes(r *server.Router) {
 	r.GET("v1/users/verify-username-availability", server.RootHandler(s.VerifyUsernameAvailability))
-	r.PATCH("v1/users/profiles/social/:masterPubkey", server.RootHandler(s.UpsertSocialProfile))
+	r.PATCH("v1/users/:userIdOrMasterKey/profiles/social", server.RootHandler(s.UpsertSocialProfile))
 	r.GET("v1/user-social-profiles", server.RootHandler(s.SearchSocialProfiles))
 }
 
@@ -60,7 +60,7 @@ func (s *service) VerifyUsernameAvailability(
 //	@Success		200				{object}	accounts.SocialProfile		"Updated social profile"
 //	@Failure		400				{object}	server.ErrorResponse		"Invalid data format"
 //	@Failure		409				{object}	server.ErrorResponse		"Username already exists"
-//	@Router			/v1/users/profiles/social/{masterPubkey} [PATCH]
+//	@Router			/v1/users/{userIdOrMasterKey}/profiles/social [PATCH]
 func (s *service) UpsertSocialProfile(
 	ctx context.Context,
 	req *server.Request[UpsertSocialProfileRequest, accounts.SocialProfile],
@@ -68,7 +68,7 @@ func (s *service) UpsertSocialProfile(
 	if req.Data.Username == "" && req.Data.DisplayName == "" && req.Data.Referral == "" {
 		return nil, server.BadRequest(fmt.Errorf("at least one of username, displayName or referral must be provided"), invalidPropertiesErrorCode)
 	}
-	profile, err := s.accounts.UpsertSocialProfile(ctx, req.Data.MasterPubkey, req.Data.Username, req.Data.DisplayName, req.Data.Referral)
+	profile, err := s.accounts.UpsertSocialProfile(ctx, req.Data.UserIDOrMasterKey, req.Data.Username, req.Data.DisplayName, req.Data.Referral)
 	if err != nil {
 		switch {
 		case errors.Is(err, accounts.ErrInvalidUsername):
@@ -99,7 +99,10 @@ func (s *service) SearchSocialProfiles(
 	ctx context.Context,
 	req *server.Request[SearchUserProfilesRequest, []*accounts.LiteUser],
 ) (*server.Response[[]*accounts.LiteUser], *server.ErrResponse[*server.ErrorResponse]) {
-	userProfiles, err := s.accounts.SearchSocialProfiles(ctx, req.Data.Keyword, req.Data.Limit)
+	if req.Data.Type != accounts.SearchTypeContains && req.Data.Type != accounts.SearchTypeStartsWith {
+		return nil, server.BadRequest(fmt.Errorf("invalid search type: %s", req.Data.Type), invalidPropertiesErrorCode)
+	}
+	userProfiles, err := s.accounts.SearchSocialProfiles(ctx, accounts.SearchType(req.Data.Type), req.Data.Keyword, req.Data.Limit)
 	if err != nil {
 		return nil, server.Unexpected(err)
 	}

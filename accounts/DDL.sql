@@ -147,8 +147,9 @@ CREATE TABLE IF NOT EXISTS social_profiles (
     username               TEXT NOT NULL UNIQUE,
     display_name           TEXT,
     referral_master_pubkey TEXT REFERENCES users(master_pubkey) ON DELETE SET NULL,
-    lookup tsvector        NOT NULL DEFAULT to_tsvector('english', ''),
+    lookup TEXT NOT NULL DEFAULT '',
     primary key(master_pubkey)
 );
 
-CREATE INDEX IF NOT EXISTS social_profiles_lookup ON social_profiles USING GIN (lookup);
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX IF NOT EXISTS idx_social_profiles_lookup_trgm ON social_profiles USING gin (lookup gin_trgm_ops);
