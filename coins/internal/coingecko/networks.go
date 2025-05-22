@@ -2,7 +2,7 @@
 
 package coingecko
 
-var Networks = map[string]*Network{
+var networks = map[string]*Network{
 	"Algorand": &Network{
 		ID:                 "Algorand",
 		CoinGeckoNetworkID: "algorand",
@@ -513,7 +513,7 @@ var Networks = map[string]*Network{
 		ID:                 "Polkadot",
 		CoinGeckoNetworkID: "polkadot",
 		CoinGeckoPlatform:  "polkadot",
-		DefaultDecimals:    16,
+		DefaultDecimals:    12,
 		DisplayName:        "Polkadot",
 		ExplorerURL:        "https://subscan.io/extrinsic/{txHash}",
 		SkipSyncTokens:     true,
@@ -525,7 +525,7 @@ var Networks = map[string]*Network{
 		CoinGeckoNetworkID: "polkadot",
 		CoinGeckoPlatform:  "polkadot",
 		IsTestnet:          true,
-		DefaultDecimals:    16,
+		DefaultDecimals:    12,
 		DisplayName:        "Polkadot",
 		ExplorerURL:        "https://westend.subscan.io/extrinsic/{txHash}",
 		SkipSyncTokens:     true,

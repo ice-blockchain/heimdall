@@ -16,6 +16,7 @@ type (
 		GetTokenPrices(ctx context.Context, network string, contractAddresses []string) ([]*Coin, error)
 		GetCoins(ctx context.Context, coinIDs []string) ([]*Coin, error)
 		GetNFT(ctx context.Context, network string, contractAddress string) (*NFT, error)
+		GetAllNetworks() []*Network
 	}
 	NetworkName     = string
 	ContractAddress = string

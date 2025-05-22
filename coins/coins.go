@@ -453,9 +453,5 @@ func IsTestnet(network string) bool {
 }
 
 func (c *coinsRepository) GetAllNetworks() []*Network {
-	networks := []*Network{}
-	for _, n := range coingecko.Networks {
-		networks = append(networks, n)
-	}
-	return networks
+	return c.coinGeckoClient.GetAllNetworks()
 }
