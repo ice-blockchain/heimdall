@@ -424,7 +424,7 @@ func (n *NFT) ImageUri() string {
 }
 
 func overwriteCoinWithStaticContent(c *Coin) {
-	if overwrite, hasOverwrite := coinOverwrites[c.ID]; hasOverwrite {
+	if overwrite, hasOverwrite := coinOverwrites[strings.ToLower(c.Symbol)]; hasOverwrite {
 		if overwrite.Name != "" {
 			c.Name = overwrite.Name
 		}
