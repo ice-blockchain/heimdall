@@ -34,94 +34,107 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, masterPubkey, userna
 	if username != "" && !isUsernameValid(username) {
 		return nil, errors.Wrapf(ErrInvalidUsername, "username %v is invalid", username)
 	}
-	var result *SocialProfile
-	if err := storage.DoInTransaction(ctx, a.db, func(tx storage.QueryExecer) error {
-		existingProfile, err := storage.Get[socialProfile](ctx, tx, `SELECT username FROM social_profiles WHERE master_pubkey = $1`, masterPubkey)
-		if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
-			return errors.Wrapf(err, "failed to get profile info")
+	lookupText := make([]string, 0, 2)
+	if username != "" {
+		lookupText = append(lookupText, username)
+	}
+	if displayName != "" {
+		lookupText = append(lookupText, displayName)
+	}
+	lookupValue := strings.ToLower(strings.Join(lookupText, " "))
+
+	args := []interface{}{
+		masterPubkey,
+		username,
+		time.Now(),
+		referralUsername,
+		displayName,
+		lookupValue,
+	}
+
+	query := `
+		WITH upsert_data AS (
+			SELECT 
+				$1::TEXT AS master_pubkey, 
+				$2::TEXT AS username,
+				$3::TIMESTAMP AS current_time,
+				$5::TEXT AS display_name,
+				$6::TEXT AS lookup,
+				CASE WHEN $4 != '' THEN 
+					(SELECT master_pubkey FROM social_profiles WHERE username = $4 LIMIT 1)
+				ELSE NULL END AS referral_master_pubkey,
+				(SELECT username FROM social_profiles WHERE master_pubkey = $1 LIMIT 1) AS old_username,
+				EXISTS(SELECT 1 FROM social_profiles WHERE master_pubkey = $1) AS profile_exists
+		)
+		MERGE INTO social_profiles AS target
+		USING upsert_data AS source
+		ON target.master_pubkey = source.master_pubkey
+		WHEN MATCHED THEN
+			UPDATE SET 
+				updated_at = source.current_time,
+				username = CASE WHEN source.username != '' THEN source.username ELSE target.username END,
+				display_name = CASE WHEN source.display_name != '' THEN source.display_name ELSE target.display_name END,
+				referral_master_pubkey = CASE 
+					WHEN source.referral_master_pubkey IS NOT NULL THEN source.referral_master_pubkey
+					ELSE target.referral_master_pubkey 
+				END,
+				lookup = CASE 
+					WHEN (source.username != '' AND COALESCE(target.username, '') != source.username) 
+					     OR (source.display_name != '' AND COALESCE(target.display_name, '') != source.display_name)
+					THEN source.lookup
+					ELSE target.lookup 
+				END
+		WHEN NOT MATCHED AND source.username != '' THEN
+			INSERT (created_at, updated_at, master_pubkey, username, display_name, referral_master_pubkey, lookup)
+			VALUES (
+				source.current_time, 
+				source.current_time, 
+				source.master_pubkey, 
+				source.username, 
+				source.display_name, 
+				source.referral_master_pubkey, 
+				source.lookup
+			)
+		RETURNING 
+			target.created_at, 
+			target.updated_at, 
+			target.master_pubkey, 
+			target.username, 
+			target.display_name, 
+			target.referral_master_pubkey,
+			$4 as referral_username,
+			(SELECT COALESCE(old_username, '') FROM upsert_data) as old_username,
+			NOT (SELECT profile_exists FROM upsert_data) as is_new_profile
+	`
+	type resultProfile struct {
+		socialProfile
+		ReferralUsername string  `db:"referral_username"`
+		OldUsername      *string `db:"old_username"`
+		IsNewProfile     bool    `db:"is_new_profile"`
+	}
+	profile, err := storage.ExecOne[resultProfile](ctx, a.db, query, args...)
+	if err != nil {
+		if storage.IsErr(err, storage.ErrNotFound) {
+			return nil, errors.Wrap(ErrInvalidUsername, "username cannot be empty when creating a new profile")
 		}
-		if existingProfile == nil && username == "" {
-			return errors.Wrap(ErrInvalidUsername, "username cannot be empty when creating a new profile")
-		}
-		lookupText := make([]string, 0, 2)
-		if username != "" {
-			lookupText = append(lookupText, username)
-		}
-		if displayName != "" {
-			lookupText = append(lookupText, displayName)
-		}
-		lookupValue := strings.ToLower(strings.Join(lookupText, " "))
-		args := []interface{}{
-			masterPubkey,
-			username,
-			time.Now(),
-			referralUsername,
-			displayName,
-			lookupValue,
-		}
-		query := `
-			MERGE INTO social_profiles AS target
-			USING (
-				SELECT 
-					$1::TEXT as master_pubkey, 
-					$2::TEXT as username,
-					CASE WHEN $4 != '' THEN 
-						(SELECT master_pubkey FROM social_profiles WHERE username = $4 LIMIT 1)
-					ELSE NULL END as referral_master_pubkey
-			) AS source
-			ON target.master_pubkey = source.master_pubkey
-			WHEN MATCHED THEN
-				UPDATE SET 
-					updated_at = $3,
-					username = CASE WHEN $2 != '' THEN $2 ELSE target.username END,
-					display_name = CASE WHEN $5 != '' THEN $5 ELSE target.display_name END,
-					referral_master_pubkey = CASE 
-						WHEN source.referral_master_pubkey IS NOT NULL THEN source.referral_master_pubkey
-						ELSE target.referral_master_pubkey 
-					END,
-					lookup = CASE 
-						WHEN ($2 != '' AND target.username != $2) OR ($5 != '' AND target.display_name != $5)
-						THEN $6 
-						ELSE target.lookup 
-					END
-			WHEN NOT MATCHED THEN
-				INSERT (created_at, updated_at, master_pubkey, username, display_name, referral_master_pubkey, lookup)
-				VALUES (
-					$3, $3, $1, $2, $5, 
-					COALESCE(source.referral_master_pubkey, $1), 
-					$6
-				)
-			RETURNING 
-				target.created_at, target.updated_at, target.master_pubkey, target.username, target.display_name, target.referral_master_pubkey,
-				$4 as referral_username
-		`
-		type resultProfile struct {
-			socialProfile
-			ReferralUsername string `db:"referral_username"`
-		}
-		profile, err := storage.ExecOne[resultProfile](ctx, tx, query, args...)
+		return nil, errors.Wrapf(err, "failed to upsert social profile with")
+	}
+	var proofEvents []*model.Event
+	oldUsername := ""
+	if profile.OldUsername != nil {
+		oldUsername = *profile.OldUsername
+	}
+	if profile.IsNewProfile || (username != "" && oldUsername != username) {
+		proofEvents, err = a.generateUsernameProofEvents(masterPubkey, profile.Username)
 		if err != nil {
-			return errors.Wrapf(err, "failed to upsert social profile with MERGE")
+			return nil, errors.Wrapf(err, "failed to generate username proof events for master pubkey %v", masterPubkey)
 		}
-
-		var proofEvents []*model.Event
-		if existingProfile == nil || username != "" && existingProfile.Username != username {
-			var eventErr error
-			proofEvents, eventErr = a.generateUsernameProofEvents(masterPubkey, profile.Username)
-			if eventErr != nil {
-				return errors.Wrapf(eventErr, "failed to generate username proof events for master pubkey %v", masterPubkey)
-			}
-		}
-		result = &SocialProfile{
-			Username:      profile.Username,
-			DisplayName:   profile.DisplayName,
-			Referral:      profile.ReferralUsername,
-			UsernameProof: proofEvents,
-		}
-
-		return nil
-	}); err != nil {
-		return nil, errors.Wrapf(err, "failed to upsert social profile")
+	}
+	result := &SocialProfile{
+		Username:      profile.Username,
+		DisplayName:   profile.DisplayName,
+		Referral:      profile.ReferralUsername,
+		UsernameProof: proofEvents,
 	}
 
 	return result, nil

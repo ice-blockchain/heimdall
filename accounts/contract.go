@@ -250,10 +250,10 @@ type (
 	socialProfile struct {
 		CreatedAt            *time.Time
 		UpdatedAt            *time.Time
-		MasterPubkey         string `db:"master_pubkey"`
-		Username             string `db:"username"`
-		DisplayName          string `db:"display_name"`
-		ReferralMasterPubkey string `db:"referral_master_pubkey"`
+		MasterPubkey         string  `db:"master_pubkey"`
+		Username             string  `db:"username"`
+		DisplayName          string  `db:"display_name"`
+		ReferralMasterPubkey *string `db:"referral_master_pubkey"`
 	}
 	twoFACode struct {
 		CreatedAt       *time.Time
