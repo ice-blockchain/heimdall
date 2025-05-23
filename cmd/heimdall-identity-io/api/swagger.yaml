@@ -897,6 +897,11 @@ paths:
         name: limit
         required: true
         type: integer
+      - description: Search type (startsWith, contains)
+        in: query
+        name: type
+        required: true
+        type: string
       produces:
       - application/json
       responses:

@@ -92,6 +92,7 @@ func (s *service) UpsertSocialProfile(
 //	@Param			Authorization	header		string					true	"Authorization token"
 //	@Param			keyword			query		string					true	"Keyword to search for"
 //	@Param			limit			query		int						true	"Maximum number of results"
+//	@Param			type			query		string					true	"Search type (startsWith, contains)"
 //	@Success		200				{array}		accounts.LiteUser		"List of users matching the search query"
 //	@Failure		400				{object}	server.ErrorResponse	"Invalid request format"
 //	@Router			/v1/user-social-profiles [GET]
