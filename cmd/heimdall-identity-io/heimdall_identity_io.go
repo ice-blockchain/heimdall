@@ -125,6 +125,7 @@ func (s *service) RegisterRoutes(router *server.Router) {
 	s.setupWalletViewsRoutes(router)
 	s.setupCoinRoutes(router)
 	s.setupStatisticsRoutes(router)
+	s.setupSocialProfileRoutes(router)
 }
 
 func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {

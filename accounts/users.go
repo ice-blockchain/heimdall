@@ -35,10 +35,10 @@ func (a *accounts) getUserByID(ctx context.Context, userID string) (*user, error
 	return u, nil
 }
 
-func (a *accounts) getUserByUsername(ctx context.Context, username string) (*user, error) {
-	u, err := storage.Get[user](ctx, a.db, `SELECT * FROM users where username = $1`, username)
+func (a *accounts) getUserByIdentityKeyName(ctx context.Context, identityKeyName string) (*user, error) {
+	u, err := storage.Get[user](ctx, a.db, `SELECT * FROM users where identity_key_name = $1`, identityKeyName)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get user by username %v", username)
+		return nil, errors.Wrapf(err, "failed to get user by identity key name %v", identityKeyName)
 	}
 
 	return u, nil
@@ -103,7 +103,7 @@ func (a *accounts) fetchAndUpdateRelays(ctx context.Context, userID string, foll
 		var usr *user
 		usr, err = storage.ExecOne[user](ctx, a.db, `
 					INSERT INTO 
-    					users (created_at, updated_at, id, ion_connect_relays, username, clients, master_pubkey) VALUES ($3,$3,$1, $2, $1,$4, $1) 
+    					users (created_at, updated_at, id, ion_connect_relays, identity_key_name, clients, master_pubkey) VALUES ($3,$3,$1, $2, $1,$4, $1) 
     				ON CONFLICT(id) DO UPDATE 
     					SET 
     					    ion_connect_relays = $2,
@@ -221,7 +221,7 @@ func (a *accounts) upsertUsernameFromRegistration(ctx context.Context, now *time
 	if userID == "" && username == "" {
 		return nil
 	}
-	return errors.Wrapf(a.insertUsername(ctx, now, userID, username, userID), "failed to store username %v for user %v on registration", username, userID)
+	return errors.Wrapf(a.insertIdentityKeyName(ctx, now, userID, username, userID), "failed to store identity key name %v for user %v on registration", username, userID)
 }
 func (a *accounts) upsertWalletPubKeyFromRegistrationAndRegisterWalletView(ctx context.Context, now *time.Time, res map[string]any) error {
 	userID, username := dfns.ExtractUser(res, "username")
@@ -276,7 +276,7 @@ func (a *accounts) upsertWalletPubKeyFromRegistration(ctx context.Context, now *
 		log.Fatal(fmt.Sprintf("Wallet master key does not seems to be EdDSA/ed25519: \"%v\"! User %v %v", walletPubKey, userID, username))
 	}
 
-	return errors.Wrapf(a.insertUsernameWithPubKey(ctx, now, userID, username, walletPubKey),
+	return errors.Wrapf(a.insertIdentityKeyNameWithPubKey(ctx, now, userID, username, walletPubKey),
 		"failed to store wallet pubkey for user %v on registration", userID)
 }
 func (a *accounts) upsertUsernameFromLogin(ctx context.Context, now *time.Time, res map[string]any) error {
@@ -303,28 +303,28 @@ func (a *accounts) upsertUsernameFromLogin(ctx context.Context, now *time.Time, 
 		}
 	}
 
-	return errors.Wrapf(a.insertUsername(ctx, now, parsedToken.UserID(), parsedToken.Username(), masterPubKey),
-		"failed to store username %v for user %v on registration", parsedToken.Username(), parsedToken.UserID())
+	return errors.Wrapf(a.insertIdentityKeyName(ctx, now, parsedToken.UserID(), parsedToken.Username(), masterPubKey),
+		"failed to store identity key name %v for user %v on registration", parsedToken.Username(), parsedToken.UserID())
 }
 
-func (a *accounts) insertUsername(ctx context.Context, now *time.Time, userID, username, masterPubKey string) error {
-	_, err := storage.Exec(ctx, a.db, `INSERT INTO users(created_at, updated_at, id, username, clients, master_pubkey) VALUES ($4,$4,$1,$2,$3,$5) 
+func (a *accounts) insertIdentityKeyName(ctx context.Context, now *time.Time, userID, identityKeyName, masterPubKey string) error {
+	_, err := storage.Exec(ctx, a.db, `INSERT INTO users(created_at, updated_at, id, identity_key_name, clients, master_pubkey) VALUES ($4,$4,$1,$2,$3,$5) 
                                                 ON CONFLICT(id) DO UPDATE SET 
-    										    username = $2,
+    										    identity_key_name = $2,
     										    updated_at = $4,
 												master_pubkey = $5
-                                            WHERE users.username = users.id OR users.master_pubkey = users.id`, userID, username, []string{}, *now.Time, masterPubKey)
+                                            WHERE users.identity_key_name = users.id OR users.master_pubkey = users.id`, userID, identityKeyName, []string{}, *now.Time, masterPubKey)
 
-	return errors.Wrapf(err, "failed to update user with username in db %v %v", userID, username)
+	return errors.Wrapf(err, "failed to update user with identity key name in db %v %v", userID, identityKeyName)
 }
-func (a *accounts) insertUsernameWithPubKey(ctx context.Context, now *time.Time, userID, username, walletPubkey string) error {
-	_, err := storage.Exec(ctx, a.db, `INSERT INTO users(created_at, updated_at, id, username, clients, master_pubkey) VALUES ($4,$4,$1,$2,$3, $5)
+func (a *accounts) insertIdentityKeyNameWithPubKey(ctx context.Context, now *time.Time, userID, identityKeyName, walletPubkey string) error {
+	_, err := storage.Exec(ctx, a.db, `INSERT INTO users(created_at, updated_at, id, identity_key_name, clients, master_pubkey) VALUES ($4,$4,$1,$2,$3, $5)
                                             ON CONFLICT(id) DO UPDATE SET 
     										    master_pubkey = $5,
     										    updated_at = $4
-                                            WHERE users.master_pubkey = users.id`, userID, username, []string{}, *now.Time, walletPubkey)
+                                            WHERE users.master_pubkey = users.id`, userID, identityKeyName, []string{}, *now.Time, walletPubkey)
 
-	return errors.Wrapf(err, "failed to update user with piubkey in db %v %v", userID, walletPubkey)
+	return errors.Wrapf(err, "failed to update user with pubkey in db %v %v", userID, walletPubkey)
 }
 
 func (u *User) MarshalJSON() ([]byte, error) {

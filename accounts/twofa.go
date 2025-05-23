@@ -428,7 +428,7 @@ func (a *accounts) Send2FA(ctx context.Context, userIDOrUsername string, opt Two
 	var err error
 	if userSignature(ctx) == "" && authHeader(ctx) == "" {
 		username := strings.ToLower(userIDOrUsername)
-		usr, err = a.getUserByUsername(ctx, username)
+		usr, err = a.getUserByIdentityKeyName(ctx, username)
 	} else {
 		usr, err = a.getUserByID(ctx, userIDOrUsername)
 	}
@@ -574,9 +574,9 @@ func (a *accounts) checkDeliveryChannelFor2FA(ctx context.Context, usr *user, op
 			var totpName string
 			switch {
 			case len(usr.Email) > 0:
-				totpName = fmt.Sprintf("%v-%v", usr.Username, len(usr.TotpAuthenticatorSecret)+1)
+				totpName = fmt.Sprintf("%v-%v", usr.IdentityKeyName, len(usr.TotpAuthenticatorSecret)+1)
 			case len(usr.PhoneNumber) > 0:
-				totpName = fmt.Sprintf("%v-%v", usr.Username, len(usr.TotpAuthenticatorSecret)+1)
+				totpName = fmt.Sprintf("%v-%v", usr.IdentityKeyName, len(usr.TotpAuthenticatorSecret)+1)
 			default:
 				return "", ErrAuthenticatorRequirementsNotMet
 			}

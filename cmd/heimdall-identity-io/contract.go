@@ -187,7 +187,24 @@ type (
 	VerifiedBadgeEvents struct {
 		Events []*model.Event `json:"events"`
 	}
-	LiteUser = accounts.LiteUser
+	LiteUser                  = accounts.LiteUser
+	SearchUserProfilesRequest struct {
+		Authorization string `header:"Authorization" required:"true" swaggerignore:"true"`
+		Keyword       string `form:"keyword" required:"true" swaggerignore:"true"`
+		Limit         uint64 `form:"limit" required:"true" swaggerignore:"true"`
+		Type          string `form:"type" required:"true" swaggerignore:"true"`
+	}
+	UpsertSocialProfileRequest struct {
+		Authorization     string `header:"Authorization" required:"true" swaggerignore:"true"`
+		UserIDOrMasterKey string `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
+		Username          string `json:"username,omitempty"`
+		DisplayName       string `json:"displayName,omitempty"`
+		Referral          string `json:"referral,omitempty"`
+	}
+	VerifyUsernameRequest struct {
+		Authorization string `header:"Authorization" required:"true" swaggerignore:"true"`
+		Username      string `form:"username" required:"true"`
+	}
 )
 
 const (

@@ -149,7 +149,7 @@ func (a *accounts) GetWalletViews(ctx context.Context, userID string) ([]*Wallet
 				linkDefaultWalletViewToTon = true
 			}
 		}
-		newView, err := a.createDefaultWalletView(ctx, userID, usr.Username, mainWalletID, linkDefaultWalletViewToTon)
+		newView, err := a.createDefaultWalletView(ctx, userID, usr.IdentityKeyName, mainWalletID, linkDefaultWalletViewToTon)
 		if err != nil {
 			return nil, errors.Wrapf(err, "user %v is missing default walletview and cannot create", userID)
 		}

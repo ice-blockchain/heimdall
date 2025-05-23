@@ -23,7 +23,7 @@ func (a *accounts) StartDelegatedRecovery(ctx context.Context, username, credent
 	if !dfns.UsernameRegexp.MatchString(username) {
 		return nil, errors.Wrapf(dfns.ErrInvalidUsername, "username must match %v", dfns.UsernameRegexp.String())
 	}
-	usr, err := a.getUserByUsername(ctx, username)
+	usr, err := a.getUserByIdentityKeyName(ctx, username)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get user 2FA state for username %v", username)
 	}
@@ -57,10 +57,10 @@ func (a *accounts) GetLoginChallenge(ctx context.Context, username string, codes
 	}
 	if loginChallenge.PasswordLogin() {
 		if username == "" {
-			return nil, errors.Wrapf(ErrInvalidUsername, "password flow is unsupported without username, use passkey")
+			return nil, errors.Wrapf(ErrInvalidIdentityKey, "password flow is unsupported without username, use passkey")
 		}
 		var usr *user
-		usr, err = a.getUserByUsername(ctx, username)
+		usr, err = a.getUserByIdentityKeyName(ctx, username)
 		if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 			return nil, errors.Wrapf(err, "failed to get user 2FA state for username %v", username)
 		}
