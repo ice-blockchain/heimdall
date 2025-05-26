@@ -275,6 +275,20 @@ func (a *accounts) DeleteWalletView(ctx context.Context, userID, id string) erro
 }
 
 func (a *accounts) ModifyWalletView(ctx context.Context, userID, id, newName string, items []*CoinMapping, symbolGroups []string) (*WalletView, error) {
+	wv, err := a.getWalletView(ctx, userID, id, false)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get wallet view for modification")
+	}
+	walletForCoin := map[string]*string{}
+	for _, extCoin := range wv.Coins {
+		walletForCoin[extCoin.CoinID] = extCoin.WalletID
+	}
+	for i, newCoin := range items {
+		if existingWallet, haveExistingWallet := walletForCoin[newCoin.CoinID]; haveExistingWallet && newCoin.WalletID == nil {
+			newCoin.WalletID = existingWallet
+			items[i] = newCoin
+		}
+	}
 	now := time.Now()
 	params := []any{userID, id, newName, now, symbolGroups}
 	itemsSQL, extraParams := buildInsert(items, 5)
