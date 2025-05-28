@@ -18,9 +18,9 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/ice-blockchain/subzero v1.222.0
+	github.com/ice-blockchain/subzero v1.227.0
 	github.com/ice-blockchain/wintr v1.156.0
-	github.com/imroc/req/v3 v3.52.1
+	github.com/imroc/req/v3 v3.52.2
 	github.com/lestrrat-go/jwx/v2 v2.1.6
 	github.com/nbd-wtf/go-nostr v0.51.12
 	github.com/pkg/errors v0.9.1
@@ -211,7 +211,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.15 // indirect
 	github.com/tklauser/numcpus v0.10.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
-	github.com/ugorji/go/codec v1.2.12 // indirect
+	github.com/ugorji/go/codec v1.2.14 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/xlzd/gotp v0.1.0 // indirect

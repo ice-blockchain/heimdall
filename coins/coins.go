@@ -222,7 +222,7 @@ func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *c
 	INSERT INTO coins (sync_frequency, created_at, updated_at, data_updated_at, decimals, version,                             price_usd, id, coingecko_coin_id,
 	                   network, name, contract_address, symbol, symbol_group, icon_url, native) VALUES (
 	                   $2,             $1,         $1,         $1,          $3,     (SELECT max(version) from coins),      $4,        $5,  $6,
-	                   $7,      $8,    $9,              $10,   $11,          $12,   $13                                                                         	
+	                   $7,      $8,    $9,              $10,   $11,          $12,   false                                                                         	
 	                   )
 	ON CONFLICT (id) DO UPDATE SET 
 		sync_frequency = excluded.sync_frequency,
