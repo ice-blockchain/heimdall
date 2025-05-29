@@ -1370,7 +1370,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "User's master key",
-                        "name": "masterPubkey",
+                        "name": "userIdOrMasterKey",
                         "in": "path",
                         "required": true
                     },

@@ -55,7 +55,7 @@ type (
 	}
 	SocialProfiles interface {
 		VerifyUsernameAvailability(ctx context.Context, username string) error
-		UpsertSocialProfile(ctx context.Context, masterPubkey, username, displayName string, referral string) (*SocialProfile, error)
+		UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, username, displayName string, referral string, loggedInUserUserID string) (*SocialProfile, error)
 		SearchSocialProfiles(ctx context.Context, tpe SearchType, keyword string, limit uint64) ([]*LiteUser, error)
 	}
 	Wallets interface {
@@ -190,6 +190,7 @@ var (
 	ErrDeleteLast                      = errors.New("cannot delete last entry")
 	ErrRaceCondition                   = dfns.ErrRaceCondition
 	ErrWalletLinked                    = errors.New("wallet already linked to walletview")
+	ErrUnauthorized                    = errors.New("unauthorized")
 
 	verifiedBadgeImage1024X1024Tag   = nostr.Tag{"image", "https://example.com/verified_1024x1024.webp", "1024x1024"}
 	verifiedBadgeThumbnail256X256Tag = nostr.Tag{"thumb", "https://example.com/verified_256x256.webp", "256x256"}
