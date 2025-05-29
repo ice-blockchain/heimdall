@@ -68,7 +68,10 @@ func (s *service) UpsertSocialProfile(
 	if req.Data.Username == "" && req.Data.DisplayName == "" && req.Data.Referral == "" {
 		return nil, server.BadRequest(fmt.Errorf("at least one of username, displayName or referral must be provided"), invalidPropertiesErrorCode)
 	}
-	profile, err := s.accounts.UpsertSocialProfile(ctx, req.Data.UserIDOrMasterKey, req.Data.Username, req.Data.DisplayName, req.Data.Referral, server.LoggedInUser(ctx))
+	if server.LoggedInUser(ctx) == nil {
+		return nil, server.Unauthorized(server.ErrInvalidToken)
+	}
+	profile, err := s.accounts.UpsertSocialProfile(ctx, req.Data.UserIDOrMasterKey, req.Data.Username, req.Data.DisplayName, req.Data.Referral, server.LoggedInUser(ctx).UserID())
 	if err != nil {
 		switch {
 		case errors.Is(err, accounts.ErrUnauthorized):

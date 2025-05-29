@@ -10,7 +10,6 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
 
-	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/time"
@@ -31,12 +30,12 @@ func (a *accounts) VerifyUsernameAvailability(ctx context.Context, username stri
 	return nil
 }
 
-func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, username, displayName, referralUsername string, loggedInUser server.Token) (*SocialProfile, error) {
+func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, username, displayName, referralUsername, loggedInUserUserID string) (*SocialProfile, error) {
 	dbUsr, err := a.getUserByID(ctx, userIDOrMasterKey)
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 		return nil, errors.Wrapf(err, "failed to read extra information about user %v", userIDOrMasterKey)
 	}
-	if dbUsr == nil || loggedInUser == nil || dbUsr.ID != loggedInUser.UserID() {
+	if dbUsr == nil || dbUsr.ID != loggedInUserUserID {
 		return nil, ErrUnauthorized
 	}
 	if username != "" && !isUsernameValid(username) {
