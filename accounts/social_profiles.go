@@ -10,6 +10,7 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
 
+	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/time"
@@ -30,7 +31,15 @@ func (a *accounts) VerifyUsernameAvailability(ctx context.Context, username stri
 	return nil
 }
 
-func (a *accounts) UpsertSocialProfile(ctx context.Context, masterPubkey, username, displayName, referralUsername string) (*SocialProfile, error) {
+func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, username, displayName, referralUsername string) (*SocialProfile, error) {
+	dbUsr, err := a.getUserByID(ctx, userIDOrMasterKey)
+	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
+		return nil, errors.Wrapf(err, "failed to read extra information about user %v", userIDOrMasterKey)
+	}
+	loggedInUser := server.LoggedInUser(ctx)
+	if dbUsr == nil || loggedInUser == nil || dbUsr.ID != loggedInUser.UserID() {
+		return nil, ErrUnauthorized
+	}
 	if username != "" && !isUsernameValid(username) {
 		return nil, errors.Wrapf(ErrInvalidUsername, "username %v is invalid", username)
 	}
@@ -44,7 +53,7 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, masterPubkey, userna
 	lookupValue := strings.ToLower(strings.Join(lookupText, " "))
 
 	args := []interface{}{
-		masterPubkey,
+		userIDOrMasterKey,
 		username,
 		time.Now(),
 		referralUsername,
@@ -55,7 +64,7 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, masterPubkey, userna
 	query := `
 		WITH upsert_data AS (
 			SELECT 
-				$1::TEXT AS master_pubkey, 
+				COALESCE((SELECT master_pubkey FROM users WHERE id = $1), $1) AS master_pubkey,
 				$2::TEXT AS username,
 				$3::TIMESTAMP AS current_time,
 				$5::TEXT AS display_name,
@@ -63,8 +72,9 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, masterPubkey, userna
 				CASE WHEN $4 != '' THEN 
 					(SELECT master_pubkey FROM social_profiles WHERE username = $4 LIMIT 1)
 				ELSE NULL END AS referral_master_pubkey,
-				(SELECT username FROM social_profiles WHERE master_pubkey = $1 LIMIT 1) AS old_username,
-				EXISTS(SELECT 1 FROM social_profiles WHERE master_pubkey = $1) AS profile_exists
+				(SELECT username FROM social_profiles WHERE master_pubkey = COALESCE(
+					(SELECT master_pubkey FROM users WHERE id = $1), $1
+				) LIMIT 1) AS old_username
 		)
 		MERGE INTO social_profiles AS target
 		USING upsert_data AS source
@@ -98,13 +108,13 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, masterPubkey, userna
 		RETURNING 
 			target.created_at, 
 			target.updated_at, 
-			target.master_pubkey, 
+			(SELECT master_pubkey FROM upsert_data) as master_pubkey, 
 			target.username, 
 			target.display_name, 
 			target.referral_master_pubkey,
 			$4 as referral_username,
 			(SELECT COALESCE(old_username, '') FROM upsert_data) as old_username,
-			NOT (SELECT profile_exists FROM upsert_data) as is_new_profile
+			NOT (SELECT old_username IS NOT NULL FROM upsert_data) as is_new_profile
 	`
 	type resultProfile struct {
 		socialProfile
@@ -125,9 +135,9 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, masterPubkey, userna
 		oldUsername = *profile.OldUsername
 	}
 	if profile.IsNewProfile || (username != "" && oldUsername != username) {
-		proofEvents, err = a.generateUsernameProofEvents(masterPubkey, profile.Username)
+		proofEvents, err = a.generateUsernameProofEvents(profile.MasterPubkey, profile.Username)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to generate username proof events for master pubkey %v", masterPubkey)
+			return nil, errors.Wrapf(err, "failed to generate username proof events for master pubkey %v", profile.MasterPubkey)
 		}
 	}
 	result := &SocialProfile{

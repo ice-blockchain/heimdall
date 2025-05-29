@@ -195,7 +195,7 @@ type (
 		Type          string `form:"type" required:"true" swaggerignore:"true"`
 	}
 	UpsertSocialProfileRequest struct {
-		Authorization     string `header:"Authorization" required:"true" swaggerignore:"true"`
+		Authorization     string `header:"Authorization" required:"true" swaggerignore:"true" allowUnauthorized:"true"`
 		UserIDOrMasterKey string `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
 		Username          string `json:"username,omitempty"`
 		DisplayName       string `json:"displayName,omitempty"`

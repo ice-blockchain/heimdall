@@ -1293,7 +1293,7 @@ paths:
         type: string
       - description: User's master key
         in: path
-        name: masterPubkey
+        name: userIdOrMasterKey
         required: true
         type: string
       - description: Data to update the profile

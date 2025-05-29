@@ -54,12 +54,12 @@ func (s *service) VerifyUsernameAvailability(
 //	@Tags			SocialProfiles
 //	@Accept			json
 //	@Produce		json
-//	@Param			Authorization	header		string						true	"Authorization token"
-//	@Param			masterPubkey	path		string						true	"User's master key"
-//	@Param			request			body		UpsertSocialProfileRequest	true	"Data to update the profile"
-//	@Success		200				{object}	accounts.SocialProfile		"Updated social profile"
-//	@Failure		400				{object}	server.ErrorResponse		"Invalid data format"
-//	@Failure		409				{object}	server.ErrorResponse		"Username already exists"
+//	@Param			Authorization		header		string						true	"Authorization token"
+//	@Param			userIdOrMasterKey	path		string						true	"User's master key"
+//	@Param			request				body		UpsertSocialProfileRequest	true	"Data to update the profile"
+//	@Success		200					{object}	accounts.SocialProfile		"Updated social profile"
+//	@Failure		400					{object}	server.ErrorResponse		"Invalid data format"
+//	@Failure		409					{object}	server.ErrorResponse		"Username already exists"
 //	@Router			/v1/users/{userIdOrMasterKey}/profiles/social [PATCH]
 func (s *service) UpsertSocialProfile(
 	ctx context.Context,
@@ -71,6 +71,8 @@ func (s *service) UpsertSocialProfile(
 	profile, err := s.accounts.UpsertSocialProfile(ctx, req.Data.UserIDOrMasterKey, req.Data.Username, req.Data.DisplayName, req.Data.Referral)
 	if err != nil {
 		switch {
+		case errors.Is(err, accounts.ErrUnauthorized):
+			return nil, server.Unauthorized(err)
 		case errors.Is(err, accounts.ErrInvalidUsername):
 			return nil, server.BadRequest(err, invalidUsername)
 		case errors.Is(err, accounts.ErrDuplicate):
