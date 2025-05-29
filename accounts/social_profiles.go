@@ -31,12 +31,11 @@ func (a *accounts) VerifyUsernameAvailability(ctx context.Context, username stri
 	return nil
 }
 
-func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, username, displayName, referralUsername string) (*SocialProfile, error) {
+func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, username, displayName, referralUsername string, loggedInUser server.Token) (*SocialProfile, error) {
 	dbUsr, err := a.getUserByID(ctx, userIDOrMasterKey)
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 		return nil, errors.Wrapf(err, "failed to read extra information about user %v", userIDOrMasterKey)
 	}
-	loggedInUser := server.LoggedInUser(ctx)
 	if dbUsr == nil || loggedInUser == nil || dbUsr.ID != loggedInUser.UserID() {
 		return nil, ErrUnauthorized
 	}

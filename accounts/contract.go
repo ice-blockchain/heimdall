@@ -19,6 +19,7 @@ import (
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
 	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
 	"github.com/ice-blockchain/heimdall/coins"
+	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/time"
@@ -55,7 +56,7 @@ type (
 	}
 	SocialProfiles interface {
 		VerifyUsernameAvailability(ctx context.Context, username string) error
-		UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, username, displayName string, referral string) (*SocialProfile, error)
+		UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, username, displayName string, referral string, loggedInUser server.Token) (*SocialProfile, error)
 		SearchSocialProfiles(ctx context.Context, tpe SearchType, keyword string, limit uint64) ([]*LiteUser, error)
 	}
 	Wallets interface {
