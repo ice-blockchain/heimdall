@@ -184,7 +184,7 @@ func (a *accounts) generateUsernameProofEvents(masterPubkey, username string) ([
 			CreatedAt: nostr.Now(),
 			Kind:      nostr.KindBadgeDefinition,
 			Tags: model.Tags{
-				{"d", usernameProofOfOwnershipBadgeName + ":" + username},
+				{"d", usernameProofOfOwnershipBadgeName + "~" + username},
 				{"name", "username proof of ownership for " + username + " from ION Identity"},
 				{"description", "Awarded by ION Identity to the user that owns the " + username + " username"},
 			},
@@ -198,7 +198,7 @@ func (a *accounts) generateUsernameProofEvents(masterPubkey, username string) ([
 			CreatedAt: nostr.Now(),
 			Kind:      nostr.KindBadgeAward,
 			Tags: model.Tags{
-				{"a", fmt.Sprintf("%d:%s:%s:%s", nostr.KindBadgeDefinition, publicKey, usernameProofOfOwnershipBadgeName, username)},
+				{"a", fmt.Sprintf("%d:%s:%s~%s", nostr.KindBadgeDefinition, publicKey, usernameProofOfOwnershipBadgeName, username)},
 				{"p", masterPubkey},
 			},
 		},
