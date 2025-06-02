@@ -110,13 +110,13 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 			target.username, 
 			target.display_name, 
 			target.referral_master_pubkey,
-			$4 as referral_username,
+			(SELECT sp.username FROM social_profiles sp WHERE sp.master_pubkey = target.referral_master_pubkey) as referral_username,
 			(SELECT COALESCE(old_username, '') FROM upsert_data) as old_username,
 			NOT (SELECT old_username IS NOT NULL FROM upsert_data) as is_new_profile
 	`
 	type resultProfile struct {
 		socialProfile
-		ReferralUsername string  `db:"referral_username"`
+		ReferralUsername *string `db:"referral_username"`
 		OldUsername      *string `db:"old_username"`
 		IsNewProfile     bool    `db:"is_new_profile"`
 	}

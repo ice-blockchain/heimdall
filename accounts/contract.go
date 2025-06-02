@@ -97,7 +97,7 @@ type (
 	SocialProfile struct {
 		Username      string         `json:"username,omitempty"`
 		DisplayName   string         `json:"displayName,omitempty"`
-		Referral      string         `json:"referral,omitempty"`
+		Referral      *string        `json:"referral,omitempty"`
 		UsernameProof []*model.Event `json:"usernameProof"`
 	}
 	WalletView struct {
