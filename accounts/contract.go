@@ -56,7 +56,7 @@ type (
 	SocialProfiles interface {
 		VerifyUsernameAvailability(ctx context.Context, username string) error
 		UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, username, displayName string, referral string, loggedInUserUserID string) (*SocialProfile, error)
-		SearchSocialProfiles(ctx context.Context, tpe SearchType, keyword string, limit uint64) ([]*LiteUser, error)
+		SearchSocialProfiles(ctx context.Context, tpe SearchType, keyword string, limit uint64, offset uint64) ([]*LiteUser, error)
 	}
 	Wallets interface {
 		CreateWalletView(ctx context.Context, userID, name string, items []*CoinMapping, symbolGroups []string) (*WalletView, error)

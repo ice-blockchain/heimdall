@@ -192,6 +192,7 @@ type (
 		Authorization string `header:"Authorization" required:"true" swaggerignore:"true"`
 		Keyword       string `form:"keyword" required:"true" swaggerignore:"true"`
 		Limit         uint64 `form:"limit" required:"true" swaggerignore:"true"`
+		Offset        uint64 `form:"offset" swaggerignore:"true"`
 		Type          string `form:"type" required:"true" swaggerignore:"true"`
 	}
 	UpsertSocialProfileRequest struct {
