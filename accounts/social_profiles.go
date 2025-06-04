@@ -148,13 +148,14 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 	return result, nil
 }
 
-func (a *accounts) SearchSocialProfiles(ctx context.Context, tpe SearchType, keyword string, limit uint64) ([]*LiteUser, error) {
+func (a *accounts) SearchSocialProfiles(ctx context.Context, tpe SearchType, keyword string, limit, offset uint64) ([]*LiteUser, error) {
 	query := `
 		SELECT sp.master_pubkey, COALESCE(u.ion_connect_relays, ARRAY[]::text[]) as ion_connect_relays
 		FROM social_profiles sp
 		JOIN users u ON sp.master_pubkey = u.master_pubkey
 		WHERE sp.lookup ILIKE $1
-		LIMIT $2`
+		ORDER BY sp.master_pubkey
+		LIMIT $2 OFFSET $3`
 
 	likePattern := keyword
 	switch tpe {
@@ -163,7 +164,7 @@ func (a *accounts) SearchSocialProfiles(ctx context.Context, tpe SearchType, key
 	case SearchTypeContains:
 		likePattern = "%" + keyword + "%"
 	}
-	profiles, err := storage.Select[LiteUser](ctx, a.db, query, likePattern, limit)
+	profiles, err := storage.Select[LiteUser](ctx, a.db, query, likePattern, limit, offset)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to search user profiles")
 	}

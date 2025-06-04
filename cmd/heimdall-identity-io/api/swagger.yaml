@@ -897,6 +897,11 @@ paths:
         name: limit
         required: true
         type: integer
+      - description: Offset for pagination
+        in: query
+        name: offset
+        required: true
+        type: integer
       - description: Search type (startsWith, contains)
         in: query
         name: type
