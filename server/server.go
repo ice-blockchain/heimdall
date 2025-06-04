@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"runtime/debug"
+	"strings"
 	"syscall"
 
 	"github.com/gin-gonic/gin"
@@ -88,9 +90,11 @@ func (s *srv) setupSwaggerRoutes() {
 }
 
 func (s *srv) setupServer(ctx context.Context) {
+	wrappedHandler := s.panicRecoveryHandler(s.router)
+
 	s.server = &http.Server{ //nolint:gosec // Not an issue, each request has a deadline set by the handler; and we're behind a proxy.
 		Addr:    fmt.Sprintf(":%v", cfg.HTTPServer.Port),
-		Handler: s.router,
+		Handler: wrappedHandler,
 		BaseContext: func(_ net.Listener) context.Context {
 			return ctx
 		},
@@ -98,7 +102,7 @@ func (s *srv) setupServer(ctx context.Context) {
 	s.h3server = &http3.Server{
 		Addr:    fmt.Sprintf(":%v", cfg.HTTPServer.Port),
 		Port:    int(cfg.HTTPServer.Port),
-		Handler: s.router,
+		Handler: wrappedHandler,
 		ConnContext: func(connCtx context.Context, c quic.Connection) context.Context {
 			return context.WithValue(connCtx, authClientCtxValueKey, ctx.Value(authClientCtxValueKey))
 		},
@@ -168,4 +172,25 @@ func LoggedInUser(ctx context.Context) Token {
 	}
 
 	return val.(Token)
+}
+
+func (s *srv) panicRecoveryHandler(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				stack := string(debug.Stack())
+				if strings.Contains(stack, "findCaseInsensitivePathRec") || strings.Contains(stack, "redirectFixedPath") {
+					log.Warn(fmt.Sprintf("recovered from gin router panic for path %s: %v", r.URL.Path, err))
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusMethodNotAllowed)
+
+					return
+				}
+
+				log.Error(fmt.Errorf("recovered from unexpected panic: %v", err), "stack", stack)
+				http.Error(w, "internal server error", http.StatusInternalServerError)
+			}
+		}()
+		handler.ServeHTTP(w, r)
+	})
 }
