@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	stdlibtime "time"
@@ -86,21 +87,6 @@ func (c *client) ListCoins(ctx context.Context) ([]*Coin, error) {
 		if len(networksForCoin) == 0 && len(coin.Platforms) == 0 {
 			continue
 		}
-		for _, cgNetwork := range networksForCoin {
-			n := networkMappingFromCoinGecko[cgNetwork]
-			if n == "" && c.cfg.TestNet { // Coin has no testnet
-				continue
-			}
-			res[coin.ID] = append(res[coin.ID], &Coin{
-				ID:              coin.ID,
-				Symbol:          coin.Symbol,
-				Name:            coin.Name,
-				Network:         cgNetwork,
-				ContractAddress: "",
-				Native:          true,
-				Decimals:        networks[n].DefaultDecimals,
-			})
-		}
 		coinsToSyncMarketData = append(coinsToSyncMarketData, coin.ID)
 		if len(coin.Platforms) > 0 {
 			platformIdx := 0
@@ -121,10 +107,30 @@ func (c *client) ListCoins(ctx context.Context) ([]*Coin, error) {
 						Name:            coin.Name,
 						Network:         network.CoinGeckoNetworkID,
 						ContractAddress: tokenAddr,
+						Native:          slices.Contains(networksForCoin, cgNetwork),
 						Decimals:        networks[networkName].DefaultDecimals,
 					})
 				}
 				platformIdx += 1
+			}
+		}
+		for _, cgNetwork := range networksForCoin {
+			n := networkMappingFromCoinGecko[cgNetwork]
+			if n == "" && c.cfg.TestNet { // Coin has no testnet
+				continue
+			}
+			if !slices.ContainsFunc(res[coin.ID], func(c *Coin) bool {
+				return c.Native
+			}) {
+				res[coin.ID] = append(res[coin.ID], &Coin{
+					ID:              coin.ID,
+					Symbol:          coin.Symbol,
+					Name:            coin.Name,
+					Network:         cgNetwork,
+					ContractAddress: "",
+					Native:          true,
+					Decimals:        networks[n].DefaultDecimals,
+				})
 			}
 		}
 	}
