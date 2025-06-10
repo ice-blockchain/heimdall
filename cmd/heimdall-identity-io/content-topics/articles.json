@@ -1,0 +1,116 @@
+{
+  "en": {
+    "_version": 1,
+    "sports": {
+      "display": "Sports",
+      "weight": 1,
+      "children": {
+        "football": {
+          "display": "Football",
+          "weight": 1
+        },
+        "tennis": {
+          "display": "Tennis",
+          "weight": 1
+        },
+        "swimming": {
+          "display": "Swimming",
+          "weight": 1
+        }
+      }
+    },
+    "travelling": {
+      "display": "Travelling",
+      "weight": 1,
+      "children": {
+        "asia": {
+          "display": "Asia",
+          "weight": 1
+        },
+        "europe": {
+          "display": "Europe",
+          "weight": 1
+        },
+        "americas": {
+          "display": "Americas",
+          "weight": 1
+        }
+      }
+    },
+    "crypto": {
+      "display": "Cryptocurrencies",
+      "weight": 1,
+      "children": {
+        "defi": {
+          "display": "DeFi",
+          "weight": 1
+        },
+        "stablecoins": {
+          "display": "Stablecoins",
+          "weight": 1
+        },
+        "nfts": {
+          "display": "NFTs",
+          "weight": 1
+        }
+      }
+    }
+  },
+  "fr": {
+    "_version": 1,
+    "sports": {
+      "display": "[FR] Sports",
+      "weight": 1,
+      "children": {
+        "football": {
+          "display": "[FR] Football",
+          "weight": 1
+        },
+        "tennis": {
+          "display": "[FR] Tennis",
+          "weight": 1
+        },
+        "swimming": {
+          "display": "[FR] Swimming",
+          "weight": 1
+        }
+      }
+    },
+    "travelling": {
+      "display": "[FR] Travelling",
+      "weight": 1,
+      "children": {
+        "asia": {
+          "display": "[FR] Asia",
+          "weight": 1
+        },
+        "europe": {
+          "display": "[FR] Europe",
+          "weight": 1
+        },
+        "americas": {
+          "display": "[FR] Americas",
+          "weight": 1
+        }
+      }
+    },
+    "crypto": {
+      "display": "[FR] Cryptocurrencies",
+      "weight": 1,
+      "children": {
+        "defi": {
+          "display": "[FR] DeFi",
+          "weight": 1
+        },
+        "stablecoins": {
+          "display": "[FR] Stablecoins",
+          "weight": 1
+        },
+        "nfts": {
+          "display": "[FR] NFTs",
+          "weight": 1
+        }
+      }
+    }
+  }
+}

@@ -263,8 +263,10 @@ type (
 var (
 	//go:embed templates/*.html
 	templates embed.FS
-	//go:embed content-categories/*.json
-	contentCategories embed.FS
+	//go:embed content-topics/*.json
+	contentTopics embed.FS
+	//go:embed apps-runtime/*.json
+	appsRuntimeConfigs embed.FS
 	//go:embed translations/*/*.json
 	translations        embed.FS
 	allValidConfigNames = map[string]func(cfg *config) (any, Version){

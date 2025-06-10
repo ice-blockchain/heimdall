@@ -1,0 +1,152 @@
+{
+  "en": {
+    "_version": 1,
+    "shorts": {
+      "display": "Short Form Videos",
+      "weight": 4,
+      "children": {
+        "brain_rot": {
+          "display": "Brain Rot Shorts",
+          "weight": 1
+        },
+        "hot_chicks": {
+          "display": "Hot Chicks",
+          "weight": 2
+        },
+        "tiktok": {
+          "display": "Shorts from TikTok",
+          "weight": 3
+        }
+      }
+    },
+    "gaming": {
+      "display": "Playing Video Games",
+      "weight": 10,
+      "children": {
+        "moba": {
+          "display": "MOBA",
+          "weight": 1
+        },
+        "fps": {
+          "display": "FPS",
+          "weight": 2
+        },
+        "rpg": {
+          "display": "RPG",
+          "weight": 3
+        }
+      }
+    },
+    "crypto": {
+      "display": "Cryptocurrencies",
+      "weight": 3,
+      "children": {
+        "defi": {
+          "display": "DeFi",
+          "weight": 1
+        },
+        "stablecoins": {
+          "display": "Stablecoins",
+          "weight": 2
+        },
+        "nfts": {
+          "display": "NFTs",
+          "weight": 3
+        }
+      }
+    },
+    "travelling": {
+      "display": "Travelling",
+      "weight": 1,
+      "children": {
+        "asia": {
+          "display": "Asia",
+          "weight": 1
+        },
+        "europe": {
+          "display": "Europe",
+          "weight": 1
+        },
+        "americas": {
+          "display": "Americas",
+          "weight": 1
+        }
+      }
+    }
+  },
+  "fr": {
+    "_version": 1,
+    "shorts": {
+      "display": "[FR] Short Form Videos",
+      "weight": 4,
+      "children": {
+        "brain_rot": {
+          "display": "[FR] Brain Rot Shorts",
+          "weight": 1
+        },
+        "hot_chicks": {
+          "display": "[FR] Hot Chicks",
+          "weight": 2
+        },
+        "tiktok": {
+          "display": "[FR] Shorts from TikTok",
+          "weight": 3
+        }
+      }
+    },
+    "gaming": {
+      "display": "[FR] Playing Video Games",
+      "weight": 10,
+      "children": {
+        "moba": {
+          "display": "[FR] MOBA",
+          "weight": 1
+        },
+        "fps": {
+          "display": "[FR] FPS",
+          "weight": 2
+        },
+        "rpg": {
+          "display": "[FR] RPG",
+          "weight": 3
+        }
+      }
+    },
+    "crypto": {
+      "display": "[FR] Cryptocurrencies",
+      "weight": 3,
+      "children": {
+        "defi": {
+          "display": "[FR] DeFi",
+          "weight": 1
+        },
+        "stablecoins": {
+          "display": "[FR] Stablecoins",
+          "weight": 2
+        },
+        "nfts": {
+          "display": "[FR] NFTs",
+          "weight": 3
+        }
+      }
+    },
+    "travelling": {
+      "display": "[FR] Travelling",
+      "weight": 1,
+      "children": {
+        "asia": {
+          "display": "[FR] Asia",
+          "weight": 1
+        },
+        "europe": {
+          "display": "[FR] Europe",
+          "weight": 1
+        },
+        "americas": {
+          "display": "[FR] Americas",
+          "weight": 1
+        }
+      }
+    }
+  }
+}

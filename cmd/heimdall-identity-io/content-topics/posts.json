@@ -1,0 +1,80 @@
+{
+  "en": {
+    "_version": 1,
+    "gaming": {
+      "display": "Playing Video Games",
+      "weight": 10,
+      "children": {
+        "moba": {
+          "display": "MOBA",
+          "weight": 1
+        },
+        "fps": {
+          "display": "FPS",
+          "weight": 2
+        },
+        "rpg": {
+          "display": "RPG",
+          "weight": 3
+        }
+      }
+    },
+    "shitposting": {
+      "display": "Shitposting",
+      "weight": 3,
+      "children": {
+        "memes": {
+          "display": "Memes",
+          "weight": 1
+        },
+        "politics": {
+          "display": "Politics",
+          "weight": 2
+        },
+        "celebrities": {
+          "display": "Celebrities",
+          "weight": 3
+        }
+      }
+    }
+  },
+  "fr": {
+    "_version": 1,
+    "gaming": {
+      "display": "[FR] Playing Video Games",
+      "weight": 10,
+      "children": {
+        "moba": {
+          "display": "[FR] MOBA",
+          "weight": 1
+        },
+        "fps": {
+          "display": "[FR] FPS",
+          "weight": 2
+        },
+        "rpg": {
+          "display": "[FR] RPG",
+          "weight": 3
+        }
+      }
+    },
+    "shitposting": {
+      "display": "[FR] Shitposting",
+      "weight": 3,
+      "children": {
+        "memes": {
+          "display": "[FR] Memes",
+          "weight": 1
+        },
+        "politics": {
+          "display": "[FR] Politics",
+          "weight": 2
+        },
+        "celebrities": {
+          "display": "[FR] Celebrities",
+          "weight": 3
+        }
+      }
+    }
+  }
+}

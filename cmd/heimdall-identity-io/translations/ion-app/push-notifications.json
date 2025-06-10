@@ -1,113 +1,221 @@
 {
   "en": {
-    "_version": 1,
+    "_version": 2,
     "reply": {
       "title": "Online+",
-      "body": "You have a new reply from {{username}}"
+      "body": "You have a new reply from @{{username}}"
     },
     "mention": {
       "title": "Online+",
-      "body": "You have a new mention from {{username}}"
+      "body": "You have a new mention from @{{username}}"
     },
     "repost": {
       "title": "Online+",
-      "body": "You have a new repost from {{username}}"
+      "body": "You have a new repost from @{{username}}"
     },
     "like": {
       "title": "Online+",
-      "body": "You have a new like from {{username}}"
+      "body": "You have a new like from @{{username}}"
     },
     "follower": {
       "title": "Online+",
-      "body": "{{username}} followed you"
+      "body": "@{{username}} followed you"
     },
     "chatReaction": {
-      "title": "Online+",
-      "body": "You have a new reaction"
+      "title": "{{displayName}}",
+      "body": "reacted \"{{reactionContent}}\" to your message"
     },
-    "chatMessage": {
-      "title": "Online+",
-      "body": "You have a new message"
+    "chatTextMessage": {
+      "title": "{{displayName}}",
+      "body": "{{messageContent}}"
+    },
+    "chatEmojiMessage": {
+      "title": "{{displayName}}",
+      "body": "{{messageContent}}"
+    },
+    "chatPhotoMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDCF8 Photo"
+    },
+    "chatVideoMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDCF9 Video"
+    },
+    "chatVoiceMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83C\uDFA4 Voice message"
+    },
+    "chatDocumentMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDCC4 {{documentExt}} document"
+    },
+    "chatProfileMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDC64 Profile"
+    },
+    "chatSharePostMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDD17 Post"
+    },
+    "chatShareStoryMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDCD6 Story"
+    },
+    "chatSharedStoryReplyMessage": {
+      "title": "{{displayName}}",
+      "body": "replied to your forwarded story"
     },
     "paymentRequest": {
-      "title": "Online+",
-      "body": "You have a new payment request"
+      "title": "{{displayName}}",
+      "body": "requested \"{{coinAmount}} {{coinSymbol}}\""
     },
     "paymentReceived": {
-      "title": "Online+",
-      "body": "New payment received"
+      "title": "{{displayName}}",
+      "body": "sent \"{{coinAmount}} {{coinSymbol}}\""
     }
   },
   "es": {
-    "_version": 1,
+    "_version": 2,
     "reply": {
       "title": "Online+ES",
-      "body": "Tienes una nueva respuesta de {{username}}"
+      "body": "Tienes una nueva respuesta de @{{username}}"
     },
     "mention": {
       "title": "Online+ES",
-      "body": "Tienes una nueva mención de {{username}}"
+      "body": "Tienes una nueva mención de @{{username}}"
     },
     "repost": {
       "title": "Online+ES",
-      "body": "Tienes una nueva republicación de {{username}}"
+      "body": "Tienes una nueva republicación de @{{username}}"
     },
     "like": {
       "title": "Online+ES",
-      "body": "Tienes un nuevo me gusta de {{username}}"
+      "body": "Tienes un nuevo me gusta de @{{username}}"
     },
     "follower": {
       "title": "Online+ES",
-      "body": "{{username}} empezó a seguirte"
+      "body": "@{{username}} empezó a seguirte"
     },
     "chatReaction": {
-      "title": "Online+ES",
-      "body": "Tienes una nueva reacción"
+      "title": "{{displayName}}",
+      "body": "reaccionó \"{{reactionContent}}\" a tu mensaje"
     },
-    "chatMessage": {
-      "title": "Online+ES",
-      "body": "Tienes un nuevo mensaje"
+    "chatTextMessage": {
+      "title": "{{displayName}}",
+      "body": "{{messageContent}}"
+    },
+    "chatEmojiMessage": {
+      "title": "{{displayName}}",
+      "body": "{{messageContent}}"
+    },
+    "chatPhotoMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDCF8 Foto"
+    },
+    "chatVideoMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDCF9 Video"
+    },
+    "chatVoiceMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83C\uDFA4 Mensaje de voz"
+    },
+    "chatDocumentMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDCC4 {{documentExt}} documento"
+    },
+    "chatProfileMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDC64 Perfil"
+    },
+    "chatSharePostMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDD17 Correo"
+    },
+    "chatShareStoryMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDCD6 Historia"
+    },
+    "chatSharedStoryReplyMessage": {
+      "title": "{{displayName}}",
+      "body": "Respondí a tu historia reenviada"
     },
     "paymentRequest": {
-      "title": "Online+ES",
-      "body": "Tienes una nueva solicitud de pago"
+      "title": "{{displayName}}",
+      "body": "solicitado \"{{coinAmount}} {{coinSymbol}}\""
     },
     "paymentReceived": {
-      "title": "Online+ES",
-      "body": "Nuevo pago recibido"
+      "title": "{{displayName}}",
+      "body": "enviado \"{{coinAmount}} {{coinSymbol}}\""
     }
   },
   "fr": {
-    "_version": 1,
+    "_version": 2,
     "reply": {
-      "body": "Vous avez une nouvelle réponse de {{username}}"
+      "body": "Vous avez une nouvelle réponse de @{{username}}"
     },
     "mention": {
       "title": "Online+FR"
     },
     "like": {
       "title": "Online+FR",
-      "body": "Vous avez un nouveau like de {{username}}"
+      "body": "Vous avez un nouveau like de @{{username}}"
     },
     "follower": {
       "title": "Online+FR",
-      "body": "{{username}} vous suit"
+      "body": "@{{username}} vous suit"
     },
     "chatReaction": {
-      "title": "Online+FR",
-      "body": "Vous avez une nouvelle réaction"
+      "title": "{{displayName}}",
+      "body": "a réagi \"{{reactionContent}}\" à votre message"
     },
-    "chatMessage": {
-      "title": "Online+FR",
-      "body": "Vous avez un nouveau message"
+    "chatTextMessage": {
+      "title": "{{displayName}}",
+      "body": "{{messageContent}}"
+    },
+    "chatEmojiMessage": {
+      "title": "{{displayName}}",
+      "body": "{{messageContent}}"
+    },
+    "chatPhotoMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDCF8 Photo"
+    },
+    "chatVideoMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDCF9 Video"
+    },
+    "chatVoiceMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83C\uDFA4 Message vocal"
+    },
+    "chatDocumentMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDCC4 {{documentExt}} document"
+    },
+    "chatProfileMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDC64 Profil"
+    },
+    "chatSharePostMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDD17 Poste"
+    },
+    "chatShareStoryMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDCD6 Histoire"
+    },
+    "chatSharedStoryReplyMessage": {
+      "title": "{{displayName}}",
+      "body": "répondu à votre histoire transmise"
     },
     "paymentRequest": {
-      "title": "Online+FR",
-      "body": "Vous avez une nouvelle demande de paiement"
+      "title": "{{displayName}}",
+      "body": "demandé \"{{coinAmount}} {{coinSymbol}}\""
     },
     "paymentReceived": {
-      "title": "Online+FR",
-      "body": "Nouveau paiement reçu"
+      "title": "{{displayName}}",
+      "body": "envoyé \"{{coinAmount}} {{coinSymbol}}\""
     }
   }
 }

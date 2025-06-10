@@ -45,40 +45,19 @@ func main() {
 func init() {
 	mountContentCategoriesConfig()
 	mountTranslationsConfig()
+	mountAppsRuntimeConfig()
 }
 
 func mountContentCategoriesConfig() {
-	contentCategoriesFiles := make(map[string][]map[string]string)
-	for _, usecase := range mustReadDir(contentCategories, "content-categories") {
-		usecasePath := fmt.Sprintf("content-categories/%v", usecase.Name())
-		contentCategoriesFiles[usecase.Name()] = mustReadJSONFile[[]map[string]string](contentCategories, usecasePath)
-	}
-
-	type contentCategoryKey struct {
-		Key  string `json:"key"`
-		Name string `json:"name"`
-	}
-	contentCategoriesPerLanguage := make(map[string][]contentCategoryKey)
-	for contentCategoryType, content := range contentCategoriesFiles {
-		for _, languageVariant := range content {
-			var key string
-			for field, value := range languageVariant {
-				if field == "key" {
-					key = value
-					break
-				}
+	for _, contentType := range mustReadDir(contentTopics, "content-topics") {
+		allLanguagesJsonPath := fmt.Sprintf("content-topics/%v", contentType.Name())
+		for language, content := range mustReadJSONFile[map[string]map[string]any](contentTopics, allLanguagesJsonPath) {
+			cfgKey := fmt.Sprintf("content-topics_%v_%v", strings.ReplaceAll(contentType.Name(), ".json", ""), language)
+			version, err := strconv.Atoi(fmt.Sprint(content["_version"]))
+			log.Panic(err)
+			allValidConfigNames[cfgKey] = func(_ *config) (any, Version) {
+				return content, Version(version)
 			}
-			for field, value := range languageVariant {
-				if field != "key" {
-					cfgName := fmt.Sprintf("%v_%v", strings.Replace(contentCategoryType, ".json", "", 1), field)
-					contentCategoriesPerLanguage[cfgName] = append(contentCategoriesPerLanguage[cfgName], contentCategoryKey{Key: key, Name: value})
-				}
-			}
-		}
-	}
-	for k, v := range contentCategoriesPerLanguage {
-		allValidConfigNames[k] = func(_ *config) (any, Version) {
-			return v, Version(0)
 		}
 	}
 }
@@ -90,13 +69,25 @@ func mountTranslationsConfig() {
 			jsonPath := fmt.Sprintf("translations/%v/%v", appName.Name(), usecase.Name())
 			for language, content := range mustReadJSONFile[map[string]map[string]any](translations, jsonPath) {
 				cfgKey := fmt.Sprintf("%v_%v_translations_%v", appName.Name(), strings.ReplaceAll(usecase.Name(), ".json", ""), language)
+				version, err := strconv.Atoi(fmt.Sprint(content["_version"]))
+				log.Panic(err)
 				allValidConfigNames[cfgKey] = func(_ *config) (any, Version) {
-					version, err := strconv.Atoi(fmt.Sprint(content["_version"]))
-					log.Panic(err)
-
 					return content, Version(version)
 				}
 			}
+		}
+	}
+}
+
+func mountAppsRuntimeConfig() {
+	for _, appName := range mustReadDir(appsRuntimeConfigs, "apps-runtime") {
+		appPath := fmt.Sprintf("apps-runtime/%v", appName.Name())
+		content := mustReadJSONFile[map[string]any](appsRuntimeConfigs, appPath)
+		cfgKey := fmt.Sprintf("apps-runtime_%v", strings.ReplaceAll(appName.Name(), ".json", ""))
+		version, err := strconv.Atoi(fmt.Sprint(content["_version"]))
+		log.Panic(err)
+		allValidConfigNames[cfgKey] = func(_ *config) (any, Version) {
+			return content, Version(version)
 		}
 	}
 }

@@ -1,0 +1,80 @@
+{
+  "en": {
+    "_version": 1,
+    "news": {
+      "display": "News",
+      "weight": 1,
+      "children": {
+        "violent": {
+          "display": "Violent",
+          "weight": 1
+        },
+        "international": {
+          "display": "International",
+          "weight": 1
+        },
+        "sports": {
+          "display": "Sports",
+          "weight": 1
+        }
+      }
+    },
+    "crypto": {
+      "display": "Cryptocurrencies",
+      "weight": 3,
+      "children": {
+        "defi": {
+          "display": "DeFi",
+          "weight": 1
+        },
+        "stablecoins": {
+          "display": "Stablecoins",
+          "weight": 2
+        },
+        "nfts": {
+          "display": "NFTs",
+          "weight": 3
+        }
+      }
+    }
+  },
+  "fr": {
+    "_version": 1,
+    "news": {
+      "display": "[FR] News",
+      "weight": 1,
+      "children": {
+        "violent": {
+          "display": "[FR] Violent",
+          "weight": 1
+        },
+        "international": {
+          "display": "[FR] International",
+          "weight": 1
+        },
+        "sports": {
+          "display": "[FR] Sports",
+          "weight": 1
+        }
+      }
+    },
+    "crypto": {
+      "display": "[FR] Cryptocurrencies",
+      "weight": 3,
+      "children": {
+        "defi": {
+          "display": "[FR] DeFi",
+          "weight": 1
+        },
+        "stablecoins": {
+          "display": "[FR] Stablecoins",
+          "weight": 2
+        },
+        "nfts": {
+          "display": "[FR] NFTs",
+          "weight": 3
+        }
+      }
+    }
+  }
+}
