@@ -396,7 +396,7 @@ jobs:
           NEW_TAG_VERSION: ${{ steps.compute_tag.outputs.next_tag }}
       - name: Create Release
         id: create_release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.2.1
         with:
           tag_name: ${{ steps.check_tag.outputs.next_tag }}
           draft: false
