@@ -98,7 +98,7 @@ type (
 		Username      string         `json:"username,omitempty"`
 		DisplayName   string         `json:"displayName,omitempty"`
 		Referral      string         `json:"referral,omitempty"`
-		UsernameProof []*model.Event `json:"usernameProof"`
+		UsernameProof []*model.Event `json:"usernameProof,omitempty"`
 	}
 	WalletView struct {
 		Name  string       `json:"name"`
