@@ -1,4 +1,29 @@
 -- SPDX-License-Identifier: ice License 1.0
+CREATE TABLE IF NOT EXISTS global (
+      value BIGINT NOT NULL,
+      key TEXT PRIMARY KEY
+);
+
+CREATE OR REPLACE FUNCTION trigger_coins_after_insert_update_store_new_version()
+    RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO global (
+        value, key
+    )
+    values (NEW.version, '%[3]v')
+    ON CONFLICT(key) DO UPDATE
+        SET value = NEW.version
+    where global.value < NEW.version;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER trigger_coins_after_insert_update_store_new_version
+    AFTER INSERT OR UPDATE ON coins
+    FOR EACH ROW
+EXECUTE FUNCTION trigger_coins_after_insert_update_store_new_version();
+
 
 CREATE TABLE IF NOT EXISTS coins (
                                      sync_frequency    INTERVAL NOT NULL,
@@ -56,9 +81,15 @@ DO $$ BEGIN
                                        symbol_group = 'ion',
                                        version = coins.version + 1;
     end if;
-    IF NOT exists (select 1 from coins where id = 'a5222026-71b3-a051-8b17-652723c35465') then
-        INSERT INTO coins (sync_frequency, created_at, updated_at, data_updated_at, decimals, version, price_usd, id, coingecko_coin_id, network, name, contract_address, symbol, symbol_group, icon_url, native)
-        VALUES ('%[1]v', now(), now(), now(), 18, (select max(version) from coins)+1, 0.118595, 'a5222026-71b3-a051-8b17-652723c35465', 'plume', 'plume', 'Plume', '', 'plume', 'plume', 'https://coin-images.coingecko.com/coins/images/53623/large/plume-token.png?1736896935', true)
-        ON CONFLICT(id) DO NOTHING;
+END$$;
+
+
+DO $$ BEGIN
+    IF NOT exists (select 1 from global where key = '%[3]v') then
+        INSERT INTO global(value, key)
+        VALUES ((select COALESCE(max(version),0) from coins), '%[3]v')
+        ON CONFLICT(key) DO NOTHING;
     end if;
 END$$;
+
+

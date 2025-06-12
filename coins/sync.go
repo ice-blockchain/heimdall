@@ -34,7 +34,7 @@ func MustStartSyncer(ctx context.Context, cancel context.CancelFunc) Sync {
 	if len(iceCoin) == 0 {
 		log.Panic(errors.New("ice coin not found on coin gecko"))
 	}
-	db := storage.MustConnect(ctx, fmt.Sprintf(ddl, syncFrequency(s.cfg, DefaultWalletViewCoinSymbolGroup), iceCoin[0].PriceUSD), applicationYamlKey)
+	db := storage.MustConnect(ctx, fmt.Sprintf(ddl, syncFrequency(s.cfg, DefaultWalletViewCoinSymbolGroup), iceCoin[0].PriceUSD, keyCoinsMaxVersion), applicationYamlKey)
 	s.db = db
 	s.shutdown = db.Close
 	registry := metrics.NewRegistry()
@@ -270,7 +270,7 @@ func (s *coinSync) updateCoinsData(ctx context.Context, now *time.Time, coins []
 											 coins.symbol != update_data.symbol OR
 											 coins.symbol_group != update_data.symbol_group OR
 											 coins.icon_url != update_data.icon_url)
-											 THEN coins.version + 1 ELSE coins.version END),
+											 THEN (select value from global where key = '%[3]v') + 1 ELSE coins.version END),
 						 price_usd = CASE WHEN update_data.price_usd = 0 and coins.price_usd !=0 THEN coins.price_usd ELSE update_data.price_usd END,
 						 decimals = CASE WHEN (coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v)) AND update_data.decimals != 0 THEN update_data.decimals ELSE coins.decimals END,
 						 coingecko_coin_id = CASE WHEN coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v) THEN update_data.coingecko_coin_id ELSE coins.coingecko_coin_id END,
@@ -288,7 +288,7 @@ func (s *coinSync) updateCoinsData(ctx context.Context, now *time.Time, coins []
 			WHERE coins.id = update_data.id
 			RETURNING coins.id
 		) DELETE FROM coins_sync_queue WHERE coin_id IN (SELECT id FROM upd)
-	`, placeholders, updateFullDataTokens)
+	`, placeholders, updateFullDataTokens, keyCoinsMaxVersion)
 	rowsUpdated, err := storage.Exec(ctx, s.db, sql, params...)
 	if err != nil {
 		return errors.Wrap(err, "failed to update coins data in db from coingecko")

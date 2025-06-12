@@ -36,7 +36,7 @@ func New(ctx context.Context) Coins {
 	if len(iceCoin) == 0 {
 		log.Panic(errors.New("ice coin not found on coin gecko"))
 	}
-	db := storage.MustConnect(ctx, fmt.Sprintf(ddl, syncFrequency(c.cfg, DefaultWalletViewCoinSymbolGroup), iceCoin[0].PriceUSD), applicationYamlKey)
+	db := storage.MustConnect(ctx, fmt.Sprintf(ddl, syncFrequency(c.cfg, DefaultWalletViewCoinSymbolGroup), iceCoin[0].PriceUSD, keyCoinsMaxVersion), applicationYamlKey)
 	c.db = db
 	c.shutdown = db.Close
 	if c.needToSyncAllCoins(ctx) {
@@ -125,7 +125,7 @@ func (c *coinsRepository) buildInsertBatchForCoins(now *time.Time, coinsList []*
 	idx := 2
 	for _, coinItem := range coinsList {
 		params = append(params, syncFrequency(c.cfg, coinItem.ID), coinItem.Decimals, generateInternalID(coinItem, nil), coinItem.Network, coinItem.Name, coinItem.Symbol, coinItem.SymbolGroup(), coinItem.ContractAddress, coinItem.ID, coinItem.PriceUSD, coinItem.IconUrl, coinItem.Native)
-		placeholders = append(placeholders, fmt.Sprintf("($1,$1,$1, $%[1]v::INTERVAL, $%[2]v, COALESCE((SELECT MAX(version) FROM coins),0), $%[3]v,$%[4]v, $%[5]v, $%[6]v, $%[7]v, $%[8]v, $%[9]v, $%[10]v, $%[11]v, $%[12]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7, idx+8, idx+9, idx+10, idx+11))
+		placeholders = append(placeholders, fmt.Sprintf("($1,$1,$1, $%[1]v::INTERVAL, $%[2]v, COALESCE((select value from global where key = '%[1]v'),0), $%[3]v,$%[4]v, $%[5]v, $%[6]v, $%[7]v, $%[8]v, $%[9]v, $%[10]v, $%[11]v, $%[12]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7, idx+8, idx+9, idx+10, idx+11))
 		idx += 12
 	}
 	return strings.Join(placeholders, ", "), params
@@ -218,36 +218,37 @@ func MapNetworkFromCoinGecko(cgNetwork, symbolGroup string) (mappedNetwork strin
 }
 
 func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *coingecko.Coin) (*coin, error) {
-	updated, err := storage.ExecOne[coin](ctx, c.db, `
+	sql := fmt.Sprintf(`
 	INSERT INTO coins (sync_frequency, created_at, updated_at, data_updated_at, decimals, version,                             price_usd, id, coingecko_coin_id,
-	                   network, name, contract_address, symbol, symbol_group, icon_url, native) VALUES (
-	                   $2,             $1,         $1,         $1,          $3,     (SELECT max(version) from coins),      $4,        $5,  $6,
-	                   $7,      $8,    $9,              $10,   $11,          $12,   false                                                                         	
-	                   )
-	ON CONFLICT (id) DO UPDATE SET 
+		network, name, contract_address, symbol, symbol_group, icon_url, native) VALUES (
+	$2,             $1,         $1,         $1,          $3,     (select value from global where key = '%[1]v'),      $4,        $5,  $6,
+		$7,      $8,    $9,              $10,   $11,          $12,   false
+		)
+		ON CONFLICT (id) DO UPDATE SET
 		sync_frequency = excluded.sync_frequency,
-		updated_at = excluded.updated_at,
-		decimals = excluded.decimals,
-		version = (CASE WHEN 
-				coins.decimals != excluded.decimals OR
-				coins.coingecko_coin_id != excluded.coingecko_coin_id OR
-				coins.network != excluded.network OR
-				coins.name != excluded.name OR
-				coins.contract_address != excluded.contract_address OR
-				coins.symbol != excluded.symbol OR
-				coins.symbol_group != excluded.symbol_group OR
-				coins.icon_url != excluded.icon_url
-		    THEN coins.version + 1 ELSE coins.version END),
-		price_usd = excluded.price_usd,
-	    coingecko_coin_id = excluded.coingecko_coin_id,
-	    network = excluded.network,
-	    name = excluded.name,
-	    contract_address = excluded.contract_address,
-	    symbol = excluded.symbol,
-	    symbol_group = excluded.symbol_group,
-	    icon_url = excluded.icon_url
-	RETURNING *
-`, now, syncFrequency(c.cfg, tok.ID), tok.Decimals, tok.PriceUSD, generateInternalID(tok, nil),
+			updated_at = excluded.updated_at,
+			decimals = excluded.decimals,
+			version = (CASE WHEN
+		coins.decimals != excluded.decimals OR
+		coins.coingecko_coin_id != excluded.coingecko_coin_id OR
+		coins.network != excluded.network OR
+		coins.name != excluded.name OR
+		coins.contract_address != excluded.contract_address OR
+		coins.symbol != excluded.symbol OR
+		coins.symbol_group != excluded.symbol_group OR
+		coins.icon_url != excluded.icon_url
+		THEN (select value from global where key = '%[1]v') + 1 ELSE coins.version END),
+			price_usd = excluded.price_usd,
+				coingecko_coin_id = excluded.coingecko_coin_id,
+				network = excluded.network,
+				name = excluded.name,
+				contract_address = excluded.contract_address,
+				symbol = excluded.symbol,
+				symbol_group = excluded.symbol_group,
+				icon_url = excluded.icon_url
+			RETURNING *;`, keyCoinsMaxVersion)
+
+	updated, err := storage.ExecOne[coin](ctx, c.db, sql, now, syncFrequency(c.cfg, tok.ID), tok.Decimals, tok.PriceUSD, generateInternalID(tok, nil),
 		tok.ID, tok.Network, tok.Name, tok.ContractAddress, tok.Symbol, tok.SymbolGroup(), tok.IconUrl)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to upsert token data %+v", tok)
@@ -256,13 +257,13 @@ func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *c
 }
 
 func (c *coinsRepository) GetAllCoins(ctx context.Context) (uint64, []*SymbolGroupWithCoins, error) {
-	allCoins, err := storage.Select[coin](ctx, c.db, `SELECT 
+	allCoins, err := storage.Select[coin](ctx, c.db, fmt.Sprintf(`SELECT 
 		'00:00:00'::INTERVAL as sync_frequency,
 		now() as created_at,
 		now() as updated_at,
 		now() as data_updated_at,
 		0 as decimals,
-		coalesce(max(version),0) as version,
+		coalesce((select value from global where key = '%[1]v'),0) as version,
 		0 as price_usd,
 		'' as id,
 		'' as coingecko_coin_id,
@@ -274,7 +275,7 @@ func (c *coinsRepository) GetAllCoins(ctx context.Context) (uint64, []*SymbolGro
 		'' as icon_url,
 		false as native
 	FROM coins
- 	UNION ALL (SELECT * FROM coins WHERE coingecko_coin_id != '');`)
+ 	UNION ALL (SELECT * FROM coins WHERE coingecko_coin_id != '');`, keyCoinsMaxVersion))
 	if err != nil {
 		return 0, nil, errors.Wrapf(err, "failed to list all coins from db")
 	}
