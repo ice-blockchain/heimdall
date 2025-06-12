@@ -88,6 +88,7 @@ const (
 	coinSyncIterationDuration  = 1 * stdlibtime.Minute
 	coinSyncIterationBatchSize = 100
 	targetCoinGeckoCallsPerMin = 100
+	keyCoinsMaxVersion         = "coins_max_version"
 )
 
 var (
