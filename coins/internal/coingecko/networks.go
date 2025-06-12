@@ -120,14 +120,14 @@ var networks = map[string]*Network{
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_btc.svg",
 		Tier:               1,
 	},
-	"BitcoinTestnet3": &Network{
-		ID:                 "BitcoinTestnet3",
+	"BitcoinSignet": &Network{
+		ID:                 "BitcoinSignet",
 		CoinGeckoNetworkID: "bitcoin",
 		CoinGeckoPlatform:  "bitcoin",
 		IsTestnet:          true,
 		DisplayName:        "Bitcoin",
 		DefaultDecimals:    9,
-		ExplorerURL:        "https://mempool.space/testnet/tx/{txHash}",
+		ExplorerURL:        "https://mempool.space/signet/tx/{txHash}",
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_btc.svg",
 		Tier:               1,
 	},

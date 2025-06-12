@@ -125,7 +125,7 @@ func (c *coinsRepository) buildInsertBatchForCoins(now *time.Time, coinsList []*
 	idx := 2
 	for _, coinItem := range coinsList {
 		params = append(params, syncFrequency(c.cfg, coinItem.ID), coinItem.Decimals, generateInternalID(coinItem, nil), coinItem.Network, coinItem.Name, coinItem.Symbol, coinItem.SymbolGroup(), coinItem.ContractAddress, coinItem.ID, coinItem.PriceUSD, coinItem.IconUrl, coinItem.Native)
-		placeholders = append(placeholders, fmt.Sprintf("($1,$1,$1, $%[1]v::INTERVAL, $%[2]v, COALESCE((select value from global where key = '%[1]v'),0), $%[3]v,$%[4]v, $%[5]v, $%[6]v, $%[7]v, $%[8]v, $%[9]v, $%[10]v, $%[11]v, $%[12]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7, idx+8, idx+9, idx+10, idx+11))
+		placeholders = append(placeholders, fmt.Sprintf("($1,$1,$1, $%[1]v::INTERVAL, $%[2]v, COALESCE((select value from global where key = '%[1]v')::BIGINT,0), $%[3]v,$%[4]v, $%[5]v, $%[6]v, $%[7]v, $%[8]v, $%[9]v, $%[10]v, $%[11]v, $%[12]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7, idx+8, idx+9, idx+10, idx+11))
 		idx += 12
 	}
 	return strings.Join(placeholders, ", "), params
@@ -221,7 +221,7 @@ func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *c
 	sql := fmt.Sprintf(`
 	INSERT INTO coins (sync_frequency, created_at, updated_at, data_updated_at, decimals, version,                             price_usd, id, coingecko_coin_id,
 		network, name, contract_address, symbol, symbol_group, icon_url, native) VALUES (
-	$2,             $1,         $1,         $1,          $3,     (select value from global where key = '%[1]v'),      $4,        $5,  $6,
+	$2,             $1,         $1,         $1,          $3,     (select value from global where key = '%[1]v')::BIGINT,      $4,        $5,  $6,
 		$7,      $8,    $9,              $10,   $11,          $12,   false
 		)
 		ON CONFLICT (id) DO UPDATE SET
@@ -237,7 +237,7 @@ func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *c
 		coins.symbol != excluded.symbol OR
 		coins.symbol_group != excluded.symbol_group OR
 		coins.icon_url != excluded.icon_url
-		THEN (select value from global where key = '%[1]v') + 1 ELSE coins.version END),
+		THEN (select value from global where key = '%[1]v')::BIGINT + 1 ELSE coins.version END),
 			price_usd = excluded.price_usd,
 				coingecko_coin_id = excluded.coingecko_coin_id,
 				network = excluded.network,
@@ -263,7 +263,7 @@ func (c *coinsRepository) GetAllCoins(ctx context.Context) (uint64, []*SymbolGro
 		now() as updated_at,
 		now() as data_updated_at,
 		0 as decimals,
-		coalesce((select value from global where key = '%[1]v'),0) as version,
+		coalesce((select value from global where key = '%[1]v')::BIGINT,0) as version,
 		0 as price_usd,
 		'' as id,
 		'' as coingecko_coin_id,
