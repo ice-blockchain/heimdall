@@ -341,6 +341,9 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 	groupedBySymbol := make(map[string][]*CoinMapping)
 	for _, i := range coins {
 		symbol := strings.ToLower(i.Coin.Symbol)
+		if symbol == "" {
+			symbol = i.Coin.ContractAddress
+		}
 		if i.WalletID != nil {
 			walletIDs[*i.WalletID] = append(walletIDs[*i.WalletID], i)
 			groupedBySymbol[symbol] = append(groupedBySymbol[symbol], i)
@@ -357,6 +360,7 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 		assetsBySymbol := make(map[string]dfns.Asset)
 		for _, asset := range walletAssets.Assets {
 			symbolI, hasSymbol := asset["symbol"]
+			contractI, hasContract := asset["contract"]
 			nativeCoin := asset["kind"] == "Native"
 			if hasSymbol {
 				symbol := strings.ToLower(symbolI.(string))
@@ -379,6 +383,9 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 					}
 				}
 				assetsBySymbol[symbol] = asset
+				if hasContract {
+					assetsBySymbol[contractI.(string)] = asset
+				}
 			}
 		}
 		for symbol, group := range groupedBySymbol {

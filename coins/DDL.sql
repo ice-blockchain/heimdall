@@ -13,7 +13,7 @@ BEGIN
     values (NEW.version, '%[3]v')
     ON CONFLICT(key) DO UPDATE
         SET value = NEW.version
-    where global.value < NEW.version;
+    where global.value::BIGINT < NEW.version;
 
     RETURN NEW;
 END;
