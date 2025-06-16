@@ -67,11 +67,11 @@ func (c *coinsRepository) HealthCheck(ctx context.Context) error {
 func (c *coinsRepository) needToSyncAllCoins(ctx context.Context) bool {
 	ex, err := storage.Select[struct {
 		Exist int
-	}](ctx, c.db, "SELECT 1 as exist FROM coins LIMIT 2;")
+	}](ctx, c.db, "SELECT 1 as exist FROM coins LIMIT 3;")
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 		log.Panic(errors.Wrapf(err, "failed to check any coin existence"))
 	}
-	if len(ex) <= 1 || storage.IsErr(err, storage.ErrNotFound) {
+	if len(ex) <= 2 || storage.IsErr(err, storage.ErrNotFound) {
 		return true
 	}
 	return false
@@ -133,13 +133,13 @@ func (c *coinsRepository) buildInsertBatchForCoins(now *time.Time, coinsList []*
 
 func generateInternalID(coin *coingecko.Coin, mapping map[string]string) string {
 	if coin.ID == "" && len(mapping) > 0 {
-		coin.ID = mapping[coin.Network+":"+coin.ContractAddress]
+		coin.ID = mapping[coin.Network+":@:@:"+coin.ContractAddress]
 	}
 	if coin.Network == "" && len(mapping) > 0 {
 		nw, hasNetwork := mapping[coin.ID]
 		if hasNetwork {
 			coin.Network = nw
-			spl := strings.Split(nw, ":")
+			spl := strings.Split(nw, ":@:@:")
 			if len(spl) == 2 {
 				coin.Network = spl[0]
 				if coin.ContractAddress == "" {

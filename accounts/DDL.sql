@@ -154,11 +154,3 @@ CREATE TABLE IF NOT EXISTS social_profiles (
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX IF NOT EXISTS idx_social_profiles_lookup_trgm ON social_profiles USING gin (lookup gin_trgm_ops);
 
--- unlink existing wallets for bitcoin
--- TODO: remove after deployment / migration is done
-update wallet_views
-set coins = COALESCE((select array_agg((coinid,(CASE when coinid = '8c9de335-a41c-666e-3d35-e1e6e6d3cd88' THEN NULL ELSE walletid END))::coin_mapping)
-                      from unnest(wallet_views.coins) as x),ARRAY[]::coin_mapping[])::coin_mapping[]
-WHERE exists(select 1
-             from unnest(wallet_views.coins) as x
-             where x.coinid = '8c9de335-a41c-666e-3d35-e1e6e6d3cd88' and x.walletid is not null);
