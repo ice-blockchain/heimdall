@@ -37,9 +37,29 @@
       "title": "{{displayName}}",
       "body": "\uD83D\uDCF8 Photo"
     },
+    "chatMultiPhotoMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDCF8 {{fileCount}} Photos"
+    },
+    "chatGifMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83C\uDFAC GIF"
+    },
+    "chatMultiGifMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83C\uDFAC {{fileCount}} GIFs"
+    },
     "chatVideoMessage": {
       "title": "{{displayName}}",
       "body": "\uD83D\uDCF9 Video"
+    },
+    "chatMultiVideoMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDCF9 {{fileCount}} Videos"
+    },
+    "chatMultiMediaMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDDBC\uFE0F Media"
     },
     "chatVoiceMessage": {
       "title": "{{displayName}}",
@@ -112,9 +132,29 @@
       "title": "{{displayName}}",
       "body": "\uD83D\uDCF8 Foto"
     },
+    "chatMultiPhotoMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDCF8 {{fileCount}} Fotos"
+    },
+    "chatGifMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83C\uDFAC GIF"
+    },
+    "chatMultiGifMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83C\uDFAC {{fileCount}} GIFs"
+    },
     "chatVideoMessage": {
       "title": "{{displayName}}",
-      "body": "\uD83D\uDCF9 Video"
+      "body": "\uD83D\uDCF9 Vídeo"
+    },
+    "chatMultiVideoMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDCF9 {{fileCount}} Vídeos"
+    },
+    "chatMultiMediaMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDDBC\uFE0F Medios"
     },
     "chatVoiceMessage": {
       "title": "{{displayName}}",
@@ -181,9 +221,29 @@
       "title": "{{displayName}}",
       "body": "\uD83D\uDCF8 Photo"
     },
+    "chatMultiPhotoMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDCF8 {{fileCount}} Photos"
+    },
+    "chatGifMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83C\uDFAC GIF"
+    },
+    "chatMultiGifMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83C\uDFAC {{fileCount}} GIFs"
+    },
     "chatVideoMessage": {
       "title": "{{displayName}}",
-      "body": "\uD83D\uDCF9 Video"
+      "body": "\uD83D\uDCF9 Vidéo"
+    },
+    "chatMultiVideoMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDCF9 {{fileCount}} Vidéos"
+    },
+    "chatMultiMediaMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDDBC\uFE0F Médias"
     },
     "chatVoiceMessage": {
       "title": "{{displayName}}",
