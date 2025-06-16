@@ -106,7 +106,7 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 	networks := map[string]string{}
 	for _, c := range coinsToSync {
 		for _, cID := range c.CoinGeckoCoinIDs {
-			spl := strings.Split(cID, ":")
+			spl := strings.Split(cID, ":@:@:")
 			network, cgID := spl[0], spl[1]
 			coinIDs = append(coinIDs, cgID)
 			networks[cgID] = network
@@ -132,14 +132,14 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 		contractAddrs := make([]string, 0, len(tokensAddrs.ContractAddresses))
 		notFetched := make(map[string]bool, len(tokensAddrs.ContractAddresses))
 		for _, addr := range tokensAddrs.ContractAddresses {
-			spl := strings.Split(addr, ":")
+			spl := strings.Split(addr, ":@:@:")
 			id, contractAddr := spl[0], spl[1]
 			if strings.Contains(contractAddr, "/") {
 				continue
 			}
 			contractAddrs = append(contractAddrs, contractAddr)
 			notFetched[contractAddr] = true
-			ids[network+":"+contractAddr] = id
+			ids[network+":@:@:"+contractAddr] = id
 		}
 		tokens, err := fn(ctx, network, contractAddrs)
 		if err != nil {
@@ -151,10 +151,10 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 				delete(notFetched, tok.ContractAddress)
 			}
 			for notFetchedContractAddr := range notFetched {
-				coinGeckoID := ids[network+":"+notFetchedContractAddr]
+				coinGeckoID := ids[network+":@:@:"+notFetchedContractAddr]
 				coinIDs = append(coinIDs, coinGeckoID)
-				networks[coinGeckoID] = network + ":" + notFetchedContractAddr
-				ids[coinGeckoID] = network + ":" + notFetchedContractAddr
+				networks[coinGeckoID] = network + ":@:@:" + notFetchedContractAddr
+				ids[coinGeckoID] = network + ":@:@:" + notFetchedContractAddr
 			}
 		}
 		if tokensAddrs.SyncTokenFullData {
@@ -172,7 +172,7 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 			return
 		}
 		for _, c := range coinsAndMissedTokens {
-			if n, hasNetwork := networks[c.ID]; hasNetwork && strings.Contains(n, ":") {
+			if n, hasNetwork := networks[c.ID]; hasNetwork && strings.Contains(n, ":@:@:") {
 				tokensPriceData = append(tokensPriceData, c)
 			} else {
 				coinsData = append(coinsData, c)
@@ -229,8 +229,8 @@ func (s *coinSync) fetchSyncableCoins(ctx context.Context, now *time.Time) (map[
 	expiredDataAt := now.Add(-s.cfg.SyncTokensDataFrequency)
 	coins, err := storage.Select[coinToSync](ctx, s.db,
 		fmt.Sprintf(`SELECT network, 
-       		 array_agg(t.network||':'||t.coingecko_coin_id)  FILTER (WHERE t.contract_address = '') AS coin_ids,
-       		 array_agg(t.coingecko_coin_id||':'||t.contract_address) FILTER (WHERE t.contract_address != '')  AS contract_addresses,
+       		 array_agg(t.network||':@:@:'||t.coingecko_coin_id)  FILTER (WHERE t.contract_address = '') AS coin_ids,
+       		 array_agg(t.coingecko_coin_id||':@:@:'||t.contract_address) FILTER (WHERE t.contract_address != '')  AS contract_addresses,
        		 array_agg((t.data_updated_at < $1)) @> ARRAY[TRUE] as sync_token_full_data 
 			 FROM (
 				SELECT * FROM coins_sync_queue
@@ -294,7 +294,14 @@ func (s *coinSync) updateCoinsData(ctx context.Context, now *time.Time, coins []
 		return errors.Wrap(err, "failed to update coins data in db from coingecko")
 	}
 	if rowsUpdated != uint64(len(coins)) {
-		err = errors.Errorf("not all coins were updated, expecting %v, updated %v", len(coins), rowsUpdated)
+		ids := func() []string {
+			res := make([]string, 0, len(coins))
+			for _, c := range coins {
+				res = append(res, generateInternalID(c, mapping))
+			}
+			return res
+		}
+		err = errors.Errorf("not all coins were updated, expecting %v, updated %v, ids: %#v", len(coins), rowsUpdated, ids)
 	}
 	return errors.Wrap(err, "failed to update coins data in db from coingecko")
 }
