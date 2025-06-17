@@ -80,6 +80,8 @@ func (s *service) UpsertSocialProfile(
 			return nil, server.BadRequest(err, invalidUsername)
 		case errors.Is(err, accounts.ErrDuplicate):
 			return nil, server.Conflict(err, duplicate)
+		case errors.Is(err, accounts.ErrWrongReferral):
+			return nil, server.BadRequest(err, invalidPropertiesErrorCode)
 		default:
 			return nil, server.Unexpected(err)
 		}

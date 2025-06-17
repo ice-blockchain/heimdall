@@ -45,7 +45,7 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 	if username != "" {
 		lookupText = append(lookupText, username)
 	}
-	if displayName != "" {
+	if displayName != "" && displayName != username {
 		lookupText = append(lookupText, displayName)
 	}
 	lookupValue := strings.ToLower(strings.Join(lookupText, " "))
@@ -60,22 +60,45 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 	}
 
 	query := `
-		WITH upsert_data AS (
+		WITH resolved_keys AS (
+			SELECT COALESCE((SELECT master_pubkey FROM users WHERE id = $1), $1) AS current_user_master_pubkey,
+			       CASE WHEN $4 != '' THEN 
+			           (SELECT master_pubkey FROM social_profiles WHERE username = $4 LIMIT 1)
+			       ELSE NULL END AS referral_user_master_pubkey
+		)
+		MERGE INTO social_profiles AS target
+		USING (
 			SELECT 
-				COALESCE((SELECT master_pubkey FROM users WHERE id = $1), $1) AS master_pubkey,
+				rk.current_user_master_pubkey AS master_pubkey,
 				$2::TEXT AS username,
 				$3::TIMESTAMP AS current_time,
 				$5::TEXT AS display_name,
 				$6::TEXT AS lookup,
-				CASE WHEN $4 != '' THEN 
-					(SELECT master_pubkey FROM social_profiles WHERE username = $4 LIMIT 1)
-				ELSE NULL END AS referral_master_pubkey,
-				(SELECT username FROM social_profiles WHERE master_pubkey = COALESCE(
-					(SELECT master_pubkey FROM users WHERE id = $1), $1
-				) LIMIT 1) AS old_username
-		)
-		MERGE INTO social_profiles AS target
-		USING upsert_data AS source
+				rk.referral_user_master_pubkey AS referral_master_pubkey,
+				(SELECT username FROM social_profiles WHERE master_pubkey = rk.current_user_master_pubkey LIMIT 1) AS old_username
+			FROM resolved_keys rk
+			WHERE 
+				($2 != '' OR (SELECT username FROM social_profiles WHERE master_pubkey = rk.current_user_master_pubkey LIMIT 1) IS NOT NULL)
+				-- Block self-referral
+				AND NOT ($4 != '' AND rk.referral_user_master_pubkey IS NOT NULL AND rk.referral_user_master_pubkey = rk.current_user_master_pubkey)
+				-- Block direct circular referral: A->me->A
+				AND NOT ($4 != '' AND rk.referral_user_master_pubkey IS NOT NULL AND EXISTS (
+					SELECT 1 FROM social_profiles referral_user_profile 
+					WHERE referral_user_profile.master_pubkey = rk.referral_user_master_pubkey
+					AND referral_user_profile.referral_master_pubkey = rk.current_user_master_pubkey
+				))
+				-- Block 2-level circular referral: A->me->B->A
+				AND NOT ($4 != '' AND rk.referral_user_master_pubkey IS NOT NULL AND EXISTS (
+					SELECT 1 FROM social_profiles referral_user_profile 
+					WHERE referral_user_profile.master_pubkey = rk.referral_user_master_pubkey
+					AND referral_user_profile.referral_master_pubkey IS NOT NULL
+					AND EXISTS (
+						SELECT 1 FROM social_profiles intermediate_user_profile 
+						WHERE intermediate_user_profile.master_pubkey = referral_user_profile.referral_master_pubkey 
+						AND intermediate_user_profile.referral_master_pubkey = rk.current_user_master_pubkey
+					)
+				))
+		) AS source
 		ON target.master_pubkey = source.master_pubkey
 		WHEN MATCHED THEN
 			UPDATE SET 
@@ -106,13 +129,13 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 		RETURNING 
 			target.created_at, 
 			target.updated_at, 
-			(SELECT master_pubkey FROM upsert_data) as master_pubkey, 
+			target.master_pubkey, 
 			target.username, 
 			target.display_name, 
 			target.referral_master_pubkey,
-			COALESCE((SELECT sp.username FROM social_profiles sp WHERE sp.master_pubkey = target.referral_master_pubkey), '') as referral_username,
-			(SELECT COALESCE(old_username, '') FROM upsert_data) as old_username,
-			NOT (SELECT old_username IS NOT NULL FROM upsert_data) as is_new_profile
+			COALESCE((SELECT referral_profile.username FROM social_profiles referral_profile WHERE referral_profile.master_pubkey = target.referral_master_pubkey), '') as referral_username,
+			COALESCE(source.old_username, '') as old_username,
+			NOT (source.old_username IS NOT NULL) as is_new_profile
 	`
 	type resultProfile struct {
 		socialProfile
@@ -123,10 +146,16 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 	profile, err := storage.ExecOne[resultProfile](ctx, a.db, query, args...)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
-			return nil, errors.Wrap(ErrInvalidUsername, "username cannot be empty when creating a new profile")
+			if referralUsername != "" {
+				return nil, ErrWrongReferral
+			}
+
+			return nil, errors.Wrap(ErrInvalidUsername, "validation failed - operation was blocked")
 		}
-		return nil, errors.Wrapf(err, "failed to upsert social profile with")
+
+		return nil, errors.Wrapf(err, "failed to upsert social profile")
 	}
+
 	var proofEvents []*model.Event
 	oldUsername := ""
 	if profile.OldUsername != nil {
