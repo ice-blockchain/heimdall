@@ -85,6 +85,10 @@
       "title": "{{displayName}}",
       "body": "replied to your forwarded story"
     },
+    "chatFirstContactMessage": {
+      "title": "Online+: new message",
+      "body": "{{deferred}}"
+    },
     "paymentRequest": {
       "title": "{{displayName}}",
       "body": "requested \"{{coinAmount}} {{coinSymbol}}\""
@@ -180,6 +184,10 @@
       "title": "{{displayName}}",
       "body": "Respondí a tu historia reenviada"
     },
+    "chatFirstContactMessage": {
+      "title": "Online+: nuevo mensaje",
+      "body": "{{deferred}}"
+    },
     "paymentRequest": {
       "title": "{{displayName}}",
       "body": "solicitado \"{{coinAmount}} {{coinSymbol}}\""
@@ -268,6 +276,10 @@
     "chatSharedStoryReplyMessage": {
       "title": "{{displayName}}",
       "body": "répondu à votre histoire transmise"
+    },
+    "chatFirstContactMessage": {
+      "title": "Online+: nouveau message",
+      "body": "{{deferred}}"
     },
     "paymentRequest": {
       "title": "{{displayName}}",

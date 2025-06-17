@@ -3,54 +3,66 @@
     "_version": 1,
     "sports": {
       "display": "Sports",
+      "iconUrl" : "https://api.iconify.design/mdi:trophy.svg",
       "weight": 1,
       "children": {
         "football": {
           "display": "Football",
+          "iconUrl" : "https://api.iconify.design/mdi:football.svg",
           "weight": 1
         },
         "tennis": {
           "display": "Tennis",
+          "iconUrl" : "https://api.iconify.design/mdi:tennis.svg",
           "weight": 1
         },
         "swimming": {
           "display": "Swimming",
+          "iconUrl" : "https://api.iconify.design/mdi:swim.svg",
           "weight": 1
         }
       }
     },
     "travelling": {
       "display": "Travelling",
+      "iconUrl" : "https://api.iconify.design/mdi:airplane.svg",
       "weight": 1,
       "children": {
         "asia": {
           "display": "Asia",
+          "iconUrl" : "https://api.iconify.design/mdi:earth-box.svg",
           "weight": 1
         },
         "europe": {
           "display": "Europe",
+          "iconUrl" : "https://api.iconify.design/mdi:map-marker-multiple.svg",
           "weight": 1
         },
         "americas": {
           "display": "Americas",
+          "iconUrl" : "https://api.iconify.design/mdi:map-legend.svg",
           "weight": 1
         }
       }
     },
     "crypto": {
       "display": "Cryptocurrencies",
+      "iconUrl" : "https://api.iconify.design/mdi:bitcoin.svg",
       "weight": 1,
       "children": {
         "defi": {
           "display": "DeFi",
+          "iconUrl" : "https://api.iconify.design/mdi:bank-transfer.svg",
           "weight": 1
         },
         "stablecoins": {
           "display": "Stablecoins",
+          "iconUrl" : "https://api.iconify.design/mdi:currency-usd.svg",
           "weight": 1
         },
         "nfts": {
           "display": "NFTs",
+          "iconUrl" : "https://api.iconify.design/mdi:image-multiple.svg",
           "weight": 1
         }
       }
@@ -60,54 +72,66 @@
     "_version": 1,
     "sports": {
       "display": "[FR] Sports",
+      "iconUrl" : "https://api.iconify.design/mdi:trophy.svg",
       "weight": 1,
       "children": {
         "football": {
           "display": "[FR] Football",
+          "iconUrl" : "https://api.iconify.design/mdi:football.svg",
           "weight": 1
         },
         "tennis": {
           "display": "[FR] Tennis",
+          "iconUrl" : "https://api.iconify.design/mdi:tennis.svg",
           "weight": 1
         },
         "swimming": {
           "display": "[FR] Swimming",
+          "iconUrl" : "https://api.iconify.design/mdi:swim.svg",
           "weight": 1
         }
       }
     },
     "travelling": {
       "display": "[FR] Travelling",
+      "iconUrl" : "https://api.iconify.design/mdi:airplane.svg",
       "weight": 1,
       "children": {
         "asia": {
           "display": "[FR] Asia",
+          "iconUrl" : "https://api.iconify.design/mdi:earth-box.svg",
           "weight": 1
         },
         "europe": {
           "display": "[FR] Europe",
+          "iconUrl" : "https://api.iconify.design/mdi:map-marker-multiple.svg",
           "weight": 1
         },
         "americas": {
           "display": "[FR] Americas",
+          "iconUrl" : "https://api.iconify.design/mdi:map-legend.svg",
           "weight": 1
         }
       }
     },
     "crypto": {
       "display": "[FR] Cryptocurrencies",
+      "iconUrl" : "https://api.iconify.design/mdi:bitcoin.svg",
       "weight": 1,
       "children": {
         "defi": {
           "display": "[FR] DeFi",
+          "iconUrl" : "https://api.iconify.design/mdi:bank-transfer.svg",
           "weight": 1
         },
         "stablecoins": {
           "display": "[FR] Stablecoins",
+          "iconUrl" : "https://api.iconify.design/mdi:currency-usd.svg",
           "weight": 1
         },
         "nfts": {
           "display": "[FR] NFTs",
+          "iconUrl" : "https://api.iconify.design/mdi:image-multiple.svg",
           "weight": 1
         }
       }
