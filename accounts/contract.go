@@ -191,6 +191,7 @@ var (
 	ErrRaceCondition                   = dfns.ErrRaceCondition
 	ErrWalletLinked                    = errors.New("wallet already linked to walletview")
 	ErrUnauthorized                    = errors.New("unauthorized")
+	ErrWrongReferral                   = errors.New("wrong/circular referral detected")
 
 	verifiedBadgeImage1024X1024Tag   = nostr.Tag{"image", "https://example.com/verified_1024x1024.webp", "1024x1024"}
 	verifiedBadgeThumbnail256X256Tag = nostr.Tag{"thumb", "https://example.com/verified_256x256.webp", "256x256"}
