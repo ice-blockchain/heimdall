@@ -10,5 +10,6 @@
   "trendingMaxAge": 86400000,
   "exploreMaxAge": 43200000,
   "repostThrottleDelay": 10800000,
-  "concurrentMediaDownloadsLimit": 3
+  "concurrentMediaDownloadsLimit": 3,
+  "excludeUnclassifiedFromExplore": true
 }

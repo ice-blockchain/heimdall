@@ -1,149 +1,5277 @@
 {
   "en": {
-    "_version": 1,
-    "shorts": {
-      "display": "Short Form Videos",
-      "weight": 4,
+    "_version": 2,
+    "music_videos": {
+      "display": "Music Videos",
+      "weight": 1,
       "children": {
-        "brain_rot": {
-          "display": "Brain Rot Shorts",
+        "pop": {
+          "display": "pop",
           "weight": 1
         },
-        "hot_chicks": {
-          "display": "Hot Chicks",
-          "weight": 2
+        "hip_hop": {
+          "display": "hip hop",
+          "weight": 1
         },
-        "tiktok": {
-          "display": "Shorts from TikTok",
-          "weight": 3
+        "rock": {
+          "display": "rock",
+          "weight": 1
+        },
+        "k_pop": {
+          "display": "k-pop",
+          "weight": 1
+        },
+        "indie": {
+          "display": "indie",
+          "weight": 1
+        },
+        "live_performances": {
+          "display": "live performances",
+          "weight": 1
         }
       }
     },
     "gaming": {
-      "display": "Playing Video Games",
-      "weight": 10,
-      "children": {
-        "moba": {
-          "display": "MOBA",
-          "weight": 1
-        },
-        "fps": {
-          "display": "FPS",
-          "weight": 2
-        },
-        "rpg": {
-          "display": "RPG",
-          "weight": 3
-        }
-      }
-    },
-    "crypto": {
-      "display": "Cryptocurrencies",
-      "weight": 3,
-      "children": {
-        "defi": {
-          "display": "DeFi",
-          "weight": 1
-        },
-        "stablecoins": {
-          "display": "Stablecoins",
-          "weight": 2
-        },
-        "nfts": {
-          "display": "NFTs",
-          "weight": 3
-        }
-      }
-    },
-    "travelling": {
-      "display": "Travelling",
+      "display": "Gaming",
       "weight": 1,
       "children": {
-        "asia": {
-          "display": "Asia",
+        "let_s_plays": {
+          "display": "let's plays",
           "weight": 1
         },
-        "europe": {
-          "display": "Europe",
+        "walkthroughs": {
+          "display": "walkthroughs",
           "weight": 1
         },
-        "americas": {
-          "display": "Americas",
+        "esports_highlights": {
+          "display": "esports highlights",
+          "weight": 1
+        },
+        "speedruns": {
+          "display": "speedruns",
+          "weight": 1
+        },
+        "game_reviews": {
+          "display": "game reviews",
+          "weight": 1
+        },
+        "lore": {
+          "display": "lore",
+          "weight": 1
+        }
+      }
+    },
+    "vlogs": {
+      "display": "Vlogs",
+      "weight": 1,
+      "children": {
+        "daily_vlogs": {
+          "display": "daily vlogs",
+          "weight": 1
+        },
+        "travel_vlogs": {
+          "display": "travel vlogs",
+          "weight": 1
+        },
+        "morning_routines": {
+          "display": "morning routines",
+          "weight": 1
+        },
+        "day_in_life": {
+          "display": "day in life",
+          "weight": 1
+        },
+        "q_and_a": {
+          "display": "Q&A",
+          "weight": 1
+        },
+        "storytime": {
+          "display": "storytime",
+          "weight": 1
+        }
+      }
+    },
+    "how_to_and_diy": {
+      "display": "How-To & DIY",
+      "weight": 1,
+      "children": {
+        "life_hacks": {
+          "display": "life hacks",
+          "weight": 1
+        },
+        "home_improvement": {
+          "display": "home improvement",
+          "weight": 1
+        },
+        "crafts": {
+          "display": "crafts",
+          "weight": 1
+        },
+        "repairs": {
+          "display": "repairs",
+          "weight": 1
+        },
+        "tutorials": {
+          "display": "tutorials",
+          "weight": 1
+        },
+        "tool_reviews": {
+          "display": "tool reviews",
+          "weight": 1
+        }
+      }
+    },
+    "tech_reviews_and_unboxings": {
+      "display": "Tech Reviews & Unboxings",
+      "weight": 1,
+      "children": {
+        "smartphones": {
+          "display": "smartphones",
+          "weight": 1
+        },
+        "laptops": {
+          "display": "laptops",
+          "weight": 1
+        },
+        "gadgets": {
+          "display": "gadgets",
+          "weight": 1
+        },
+        "wearables": {
+          "display": "wearables",
+          "weight": 1
+        },
+        "comparisons": {
+          "display": "comparisons",
+          "weight": 1
+        },
+        "teardown": {
+          "display": "teardown",
+          "weight": 1
+        }
+      }
+    },
+    "science_and_education": {
+      "display": "Science & Education",
+      "weight": 1,
+      "children": {
+        "physics": {
+          "display": "physics",
+          "weight": 1
+        },
+        "chemistry_experiments": {
+          "display": "chemistry experiments",
+          "weight": 1
+        },
+        "space": {
+          "display": "space",
+          "weight": 1
+        },
+        "biology": {
+          "display": "biology",
+          "weight": 1
+        },
+        "history": {
+          "display": "history",
+          "weight": 1
+        },
+        "math": {
+          "display": "math",
+          "weight": 1
+        }
+      }
+    },
+    "cooking_and_recipes": {
+      "display": "Cooking & Recipes",
+      "weight": 1,
+      "children": {
+        "meals": {
+          "display": "meals",
+          "weight": 1
+        },
+        "baking": {
+          "display": "baking",
+          "weight": 1
+        },
+        "street_food": {
+          "display": "street food",
+          "weight": 1
+        },
+        "meal_prep": {
+          "display": "meal prep",
+          "weight": 1
+        },
+        "vegetarian": {
+          "display": "vegetarian",
+          "weight": 1
+        },
+        "food_challenges": {
+          "display": "food challenges",
+          "weight": 1
+        }
+      }
+    },
+    "health_and_fitness": {
+      "display": "Health & Fitness",
+      "weight": 1,
+      "children": {
+        "workouts": {
+          "display": "workouts",
+          "weight": 1
+        },
+        "yoga": {
+          "display": "yoga",
+          "weight": 1
+        },
+        "pilates": {
+          "display": "pilates",
+          "weight": 1
+        },
+        "weightlifting": {
+          "display": "weightlifting",
+          "weight": 1
+        },
+        "cardio": {
+          "display": "cardio",
+          "weight": 1
+        },
+        "nutrition": {
+          "display": "nutrition",
+          "weight": 1
+        }
+      }
+    },
+    "beauty_and_makeup": {
+      "display": "Beauty & Makeup",
+      "weight": 1,
+      "children": {
+        "tutorials": {
+          "display": "tutorials",
+          "weight": 1
+        },
+        "skincare": {
+          "display": "skincare",
+          "weight": 1
+        },
+        "product_reviews": {
+          "display": "product reviews",
+          "weight": 1
+        },
+        "hair": {
+          "display": "hair",
+          "weight": 1
+        },
+        "nails": {
+          "display": "nails",
+          "weight": 1
+        },
+        "transformations": {
+          "display": "transformations",
+          "weight": 1
+        }
+      }
+    },
+    "fashion_and_style": {
+      "display": "Fashion & Style",
+      "weight": 1,
+      "children": {
+        "try_on_hauls": {
+          "display": "try-on hauls",
+          "weight": 1
+        },
+        "thrift_flips": {
+          "display": "thrift flips",
+          "weight": 1
+        },
+        "streetwear": {
+          "display": "streetwear",
+          "weight": 1
+        },
+        "runway_analysis": {
+          "display": "runway analysis",
+          "weight": 1
+        },
+        "capsule_wardrobe": {
+          "display": "capsule wardrobe",
+          "weight": 1
+        }
+      }
+    },
+    "comedy_and_sketches": {
+      "display": "Comedy & Sketches",
+      "weight": 1,
+      "children": {
+        "parodies": {
+          "display": "parodies",
+          "weight": 1
+        },
+        "sketches": {
+          "display": "sketches",
+          "weight": 1
+        },
+        "stand_up_clips": {
+          "display": "stand-up clips",
+          "weight": 1
+        },
+        "improv": {
+          "display": "improv",
+          "weight": 1
+        },
+        "dark_humor": {
+          "display": "dark humor",
+          "weight": 1
+        }
+      }
+    },
+    "reaction_videos": {
+      "display": "Reaction Videos",
+      "weight": 1,
+      "children": {
+        "music_reactions": {
+          "display": "music reactions",
+          "weight": 1
+        },
+        "trailer_reactions": {
+          "display": "trailer reactions",
+          "weight": 1
+        },
+        "meme_reactions": {
+          "display": "meme reactions",
+          "weight": 1
+        },
+        "tiktok_reactions": {
+          "display": "tiktok reactions",
+          "weight": 1
+        },
+        "k_pop_reactions": {
+          "display": "k-pop reactions",
+          "weight": 1
+        }
+      }
+    },
+    "asmr": {
+      "display": "ASMR",
+      "weight": 1,
+      "children": {
+        "whisper": {
+          "display": "whisper",
+          "weight": 1
+        },
+        "eating_sounds": {
+          "display": "eating sounds",
+          "weight": 1
+        },
+        "tapping": {
+          "display": "tapping",
+          "weight": 1
+        },
+        "roleplay": {
+          "display": "roleplay",
+          "weight": 1
+        },
+        "sleep_aid": {
+          "display": "sleep aid",
+          "weight": 1
+        }
+      }
+    },
+    "podcasts_and_longform": {
+      "display": "Podcasts & Longform",
+      "weight": 1,
+      "children": {
+        "interviews": {
+          "display": "interviews",
+          "weight": 1
+        },
+        "talk_shows": {
+          "display": "talk shows",
+          "weight": 1
+        },
+        "debates": {
+          "display": "debates",
+          "weight": 1
+        },
+        "storytelling": {
+          "display": "storytelling",
+          "weight": 1
+        },
+        "commentary": {
+          "display": "commentary",
+          "weight": 1
+        }
+      }
+    },
+    "movies_and_tv_analysis": {
+      "display": "Movies & TV Analysis",
+      "weight": 1,
+      "children": {
+        "reviews": {
+          "display": "reviews",
+          "weight": 1
+        },
+        "breakdowns": {
+          "display": "breakdowns",
+          "weight": 1
+        },
+        "easter_eggs": {
+          "display": "easter eggs",
+          "weight": 1
+        },
+        "theories": {
+          "display": "theories",
+          "weight": 1
+        },
+        "rankings": {
+          "display": "rankings",
+          "weight": 1
+        }
+      }
+    },
+    "animation_and_shorts": {
+      "display": "Animation & Shorts",
+      "weight": 1,
+      "children": {
+        "2d_animation": {
+          "display": "2d animation",
+          "weight": 1
+        },
+        "3d_animation": {
+          "display": "3d animation",
+          "weight": 1
+        },
+        "stop_motion": {
+          "display": "stop motion",
+          "weight": 1
+        },
+        "animated_stories": {
+          "display": "animated stories",
+          "weight": 1
+        },
+        "stick_figure": {
+          "display": "stick figure",
+          "weight": 1
+        }
+      }
+    },
+    "film_and_videography": {
+      "display": "Film & Videography",
+      "weight": 1,
+      "children": {
+        "cinematography_tips": {
+          "display": "cinematography tips",
+          "weight": 1
+        },
+        "camera_gear": {
+          "display": "camera gear",
+          "weight": 1
+        },
+        "editing_tutorials": {
+          "display": "editing tutorials",
+          "weight": 1
+        },
+        "color_grading": {
+          "display": "color grading",
+          "weight": 1
+        },
+        "short_films": {
+          "display": "short films",
+          "weight": 1
+        }
+      }
+    },
+    "travel": {
+      "display": "Travel",
+      "weight": 1,
+      "children": {
+        "destination_guides": {
+          "display": "destination guides",
+          "weight": 1
+        },
+        "budget_travel": {
+          "display": "budget travel",
+          "weight": 1
+        },
+        "luxury_travel": {
+          "display": "luxury travel",
+          "weight": 1
+        },
+        "road_trips": {
+          "display": "road trips",
+          "weight": 1
+        },
+        "van_life": {
+          "display": "van life",
+          "weight": 1
+        }
+      }
+    },
+    "cars_and_vehicles": {
+      "display": "Cars & Vehicles",
+      "weight": 1,
+      "children": {
+        "car_reviews": {
+          "display": "car reviews",
+          "weight": 1
+        },
+        "modifications": {
+          "display": "modifications",
+          "weight": 1
+        },
+        "builds": {
+          "display": "builds",
+          "weight": 1
+        },
+        "racing": {
+          "display": "racing",
+          "weight": 1
+        },
+        "electric_cars": {
+          "display": "electric cars",
+          "weight": 1
+        }
+      }
+    },
+    "sports_highlights": {
+      "display": "Sports Highlights",
+      "weight": 1,
+      "children": {
+        "soccer": {
+          "display": "soccer",
+          "weight": 1
+        },
+        "basketball": {
+          "display": "basketball",
+          "weight": 1
+        },
+        "football": {
+          "display": "football",
+          "weight": 1
+        },
+        "extreme_sports": {
+          "display": "extreme sports",
+          "weight": 1
+        },
+        "olympics": {
+          "display": "olympics",
+          "weight": 1
+        }
+      }
+    },
+    "music_production": {
+      "display": "Music Production",
+      "weight": 1,
+      "children": {
+        "beat_making": {
+          "display": "beat making",
+          "weight": 1
+        },
+        "daw_tutorials": {
+          "display": "daw tutorials",
+          "weight": 1
+        },
+        "mixing_and_mastering": {
+          "display": "mixing and mastering",
+          "weight": 1
+        },
+        "gear_reviews": {
+          "display": "gear reviews",
+          "weight": 1
+        },
+        "sample_packs": {
+          "display": "sample packs",
+          "weight": 1
+        }
+      }
+    },
+    "livestreams_and_irl": {
+      "display": "Livestreams & IRL",
+      "weight": 1,
+      "children": {
+        "gaming_live": {
+          "display": "gaming live",
+          "weight": 1
+        },
+        "irl_streams": {
+          "display": "irl streams",
+          "weight": 1
+        },
+        "study_with_me": {
+          "display": "study with me",
+          "weight": 1
+        },
+        "build_live": {
+          "display": "build live",
+          "weight": 1
+        },
+        "concerts": {
+          "display": "concerts",
+          "weight": 1
+        }
+      }
+    },
+    "pets_and_animals": {
+      "display": "Pets & Animals",
+      "weight": 1,
+      "children": {
+        "funny_pets": {
+          "display": "funny pets",
+          "weight": 1
+        },
+        "training": {
+          "display": "training",
+          "weight": 1
+        },
+        "wildlife": {
+          "display": "wildlife",
+          "weight": 1
+        },
+        "pet_care": {
+          "display": "pet care",
+          "weight": 1
+        },
+        "exotic_animals": {
+          "display": "exotic animals",
+          "weight": 1
+        }
+      }
+    },
+    "documentaries": {
+      "display": "Documentaries",
+      "weight": 1,
+      "children": {
+        "mini_docs": {
+          "display": "mini docs",
+          "weight": 1
+        },
+        "investigative": {
+          "display": "investigative",
+          "weight": 1
+        },
+        "biographies": {
+          "display": "biographies",
+          "weight": 1
+        },
+        "nature_docs": {
+          "display": "nature docs",
+          "weight": 1
+        },
+        "historical": {
+          "display": "historical",
+          "weight": 1
+        }
+      }
+    },
+    "finance_and_investing": {
+      "display": "Finance & Investing",
+      "weight": 1,
+      "children": {
+        "personal_finance": {
+          "display": "personal finance",
+          "weight": 1
+        },
+        "stock_market": {
+          "display": "stock market",
+          "weight": 1
+        },
+        "crypto": {
+          "display": "crypto",
+          "weight": 1
+        },
+        "budgeting": {
+          "display": "budgeting",
+          "weight": 1
+        },
+        "fire": {
+          "display": "fire",
+          "weight": 1
+        }
+      }
+    },
+    "business_and_entrepreneurship": {
+      "display": "Business & Entrepreneurship",
+      "weight": 1,
+      "children": {
+        "startup_tips": {
+          "display": "startup tips",
+          "weight": 1
+        },
+        "case_studies": {
+          "display": "case studies",
+          "weight": 1
+        },
+        "side_hustles": {
+          "display": "side hustles",
+          "weight": 1
+        },
+        "marketing": {
+          "display": "marketing",
+          "weight": 1
+        },
+        "productivity": {
+          "display": "productivity",
+          "weight": 1
+        }
+      }
+    },
+    "productivity_and_study": {
+      "display": "Productivity & Study",
+      "weight": 1,
+      "children": {
+        "study_with_me": {
+          "display": "study with me",
+          "weight": 1
+        },
+        "notetaking": {
+          "display": "notetaking",
+          "weight": 1
+        },
+        "notion": {
+          "display": "notion",
+          "weight": 1
+        },
+        "time_management": {
+          "display": "time management",
+          "weight": 1
+        },
+        "pomodoro": {
+          "display": "pomodoro",
+          "weight": 1
+        }
+      }
+    },
+    "language_learning": {
+      "display": "Language Learning",
+      "weight": 1,
+      "children": {
+        "english_lessons": {
+          "display": "english lessons",
+          "weight": 1
+        },
+        "polyglot": {
+          "display": "polyglot",
+          "weight": 1
+        },
+        "vocab_challenges": {
+          "display": "vocab challenges",
+          "weight": 1
+        },
+        "pronunciation": {
+          "display": "pronunciation",
+          "weight": 1
+        },
+        "language_apps": {
+          "display": "language apps",
+          "weight": 1
+        }
+      }
+    },
+    "art_and_drawing": {
+      "display": "Art & Drawing",
+      "weight": 1,
+      "children": {
+        "time_lapse": {
+          "display": "time lapse",
+          "weight": 1
+        },
+        "tutorials": {
+          "display": "tutorials",
+          "weight": 1
+        },
+        "digital_art": {
+          "display": "digital art",
+          "weight": 1
+        },
+        "traditional_art": {
+          "display": "traditional art",
+          "weight": 1
+        },
+        "sketchbook_tours": {
+          "display": "sketchbook tours",
+          "weight": 1
+        }
+      }
+    },
+    "crafts_and_hobbies": {
+      "display": "Crafts & Hobbies",
+      "weight": 1,
+      "children": {
+        "knitting": {
+          "display": "knitting",
+          "weight": 1
+        },
+        "woodworking": {
+          "display": "woodworking",
+          "weight": 1
+        },
+        "sewing": {
+          "display": "sewing",
+          "weight": 1
+        },
+        "resin_art": {
+          "display": "resin art",
+          "weight": 1
+        },
+        "scrapbooking": {
+          "display": "scrapbooking",
+          "weight": 1
+        }
+      }
+    },
+    "history": {
+      "display": "History",
+      "weight": 1,
+      "children": {
+        "historical_events": {
+          "display": "historical events",
+          "weight": 1
+        },
+        "infographics": {
+          "display": "infographics",
+          "weight": 1
+        },
+        "military_history": {
+          "display": "military history",
+          "weight": 1
+        },
+        "ancient_civilizations": {
+          "display": "ancient civilizations",
+          "weight": 1
+        },
+        "history_documentaries": {
+          "display": "history documentaries",
+          "weight": 1
+        }
+      }
+    },
+    "news_and_commentary": {
+      "display": "News & Commentary",
+      "weight": 1,
+      "children": {
+        "daily_news": {
+          "display": "daily news",
+          "weight": 1
+        },
+        "political_analysis": {
+          "display": "political analysis",
+          "weight": 1
+        },
+        "explainers": {
+          "display": "explainers",
+          "weight": 1
+        },
+        "fact_checks": {
+          "display": "fact-checks",
+          "weight": 1
+        },
+        "breaking_news": {
+          "display": "breaking news",
+          "weight": 1
+        }
+      }
+    },
+    "political_debates": {
+      "display": "Political Debates",
+      "weight": 1,
+      "children": {
+        "commentary": {
+          "display": "commentary",
+          "weight": 1
+        },
+        "discussions": {
+          "display": "discussions",
+          "weight": 1
+        },
+        "town_halls": {
+          "display": "town halls",
+          "weight": 1
+        },
+        "policy_breakdowns": {
+          "display": "policy breakdowns",
+          "weight": 1
+        },
+        "interviews": {
+          "display": "interviews",
+          "weight": 1
+        }
+      }
+    },
+    "spirituality_and_mindfulness": {
+      "display": "Spirituality & Mindfulness",
+      "weight": 1,
+      "children": {
+        "meditation": {
+          "display": "meditation",
+          "weight": 1
+        },
+        "yoga_nidra": {
+          "display": "yoga nidra",
+          "weight": 1
+        },
+        "manifestation": {
+          "display": "manifestation",
+          "weight": 1
+        },
+        "tarot": {
+          "display": "tarot",
+          "weight": 1
+        },
+        "chakras": {
+          "display": "chakras",
+          "weight": 1
+        }
+      }
+    },
+    "self_improvement": {
+      "display": "Self-Improvement",
+      "weight": 1,
+      "children": {
+        "motivation": {
+          "display": "motivation",
+          "weight": 1
+        },
+        "habits": {
+          "display": "habits",
+          "weight": 1
+        },
+        "mental_health": {
+          "display": "mental health",
+          "weight": 1
+        },
+        "self_care": {
+          "display": "self care",
+          "weight": 1
+        },
+        "goal_setting": {
+          "display": "goal setting",
+          "weight": 1
+        }
+      }
+    },
+    "nature_and_outdoors": {
+      "display": "Nature & Outdoors",
+      "weight": 1,
+      "children": {
+        "camping": {
+          "display": "camping",
+          "weight": 1
+        },
+        "hiking": {
+          "display": "hiking",
+          "weight": 1
+        },
+        "survival_skills": {
+          "display": "survival skills",
+          "weight": 1
+        },
+        "bushcraft": {
+          "display": "bushcraft",
+          "weight": 1
+        },
+        "fishing": {
+          "display": "fishing",
+          "weight": 1
+        }
+      }
+    },
+    "food_reviews": {
+      "display": "Food Reviews",
+      "weight": 1,
+      "children": {
+        "restaurant_reviews": {
+          "display": "restaurant reviews",
+          "weight": 1
+        },
+        "mukbang": {
+          "display": "mukbang",
+          "weight": 1
+        },
+        "taste_tests": {
+          "display": "taste tests",
+          "weight": 1
+        },
+        "snack_reviews": {
+          "display": "snack reviews",
+          "weight": 1
+        },
+        "street_food_tours": {
+          "display": "street food tours",
+          "weight": 1
+        }
+      }
+    },
+    "challenges_and_trends": {
+      "display": "Challenges & Trends",
+      "weight": 1,
+      "children": {
+        "24_hour_challenges": {
+          "display": "24-hour challenges",
+          "weight": 1
+        },
+        "viral_trends": {
+          "display": "viral trends",
+          "weight": 1
+        },
+        "mrbeast_style": {
+          "display": "mrbeast style",
+          "weight": 1
+        },
+        "overnight_challenges": {
+          "display": "overnight challenges",
+          "weight": 1
+        },
+        "last_to_leave": {
+          "display": "last to leave",
+          "weight": 1
+        }
+      }
+    },
+    "pranks": {
+      "display": "Pranks",
+      "weight": 1,
+      "children": {
+        "public_pranks": {
+          "display": "public pranks",
+          "weight": 1
+        },
+        "hidden_camera": {
+          "display": "hidden camera",
+          "weight": 1
+        },
+        "social_experiments": {
+          "display": "social experiments",
+          "weight": 1
+        },
+        "reaction_pranks": {
+          "display": "reaction pranks",
+          "weight": 1
+        },
+        "school_pranks": {
+          "display": "school pranks",
+          "weight": 1
+        }
+      }
+    },
+    "kid_content": {
+      "display": "Kid Content",
+      "weight": 1,
+      "children": {
+        "educational_kids": {
+          "display": "educational kids",
+          "weight": 1
+        },
+        "nursery_rhymes": {
+          "display": "nursery rhymes",
+          "weight": 1
+        },
+        "toy_reviews": {
+          "display": "toy reviews",
+          "weight": 1
+        },
+        "family_vlogs": {
+          "display": "family vlogs",
+          "weight": 1
+        },
+        "kids_challenges": {
+          "display": "kids challenges",
+          "weight": 1
+        }
+      }
+    },
+    "pets_dog_focus": {
+      "display": "Pets - Dog Focus",
+      "weight": 1,
+      "children": {
+        "training": {
+          "display": "training",
+          "weight": 1
+        },
+        "breed_info": {
+          "display": "breed info",
+          "weight": 1
+        },
+        "grooming": {
+          "display": "grooming",
+          "weight": 1
+        },
+        "dog_vlogs": {
+          "display": "dog vlogs",
+          "weight": 1
+        },
+        "puppy_care": {
+          "display": "puppy care",
+          "weight": 1
+        }
+      }
+    },
+    "pets_cat_focus": {
+      "display": "Pets - Cat Focus",
+      "weight": 1,
+      "children": {
+        "cat_vlogs": {
+          "display": "cat vlogs",
+          "weight": 1
+        },
+        "cat_care": {
+          "display": "cat care",
+          "weight": 1
+        },
+        "enrichment": {
+          "display": "enrichment",
+          "weight": 1
+        },
+        "funny_cats": {
+          "display": "funny cats",
+          "weight": 1
+        },
+        "cat_breeds": {
+          "display": "cat breeds",
+          "weight": 1
+        }
+      }
+    },
+    "reality_and_lifestyle": {
+      "display": "Reality & Lifestyle",
+      "weight": 1,
+      "children": {
+        "house_tours": {
+          "display": "house tours",
+          "weight": 1
+        },
+        "morning_routines": {
+          "display": "morning routines",
+          "weight": 1
+        },
+        "shopping_hauls": {
+          "display": "shopping hauls",
+          "weight": 1
+        },
+        "what_i_eat_in_a_day": {
+          "display": "what i eat in a day",
+          "weight": 1
+        },
+        "routine_vlogs": {
+          "display": "routine vlogs",
+          "weight": 1
+        }
+      }
+    },
+    "home_organization": {
+      "display": "Home Organization",
+      "weight": 1,
+      "children": {
+        "clean_with_me": {
+          "display": "clean with me",
+          "weight": 1
+        },
+        "declutter": {
+          "display": "declutter",
+          "weight": 1
+        },
+        "minimalism": {
+          "display": "minimalism",
+          "weight": 1
+        },
+        "storage_hacks": {
+          "display": "storage hacks",
+          "weight": 1
+        },
+        "home_reset": {
+          "display": "home reset",
+          "weight": 1
+        }
+      }
+    },
+    "gardening": {
+      "display": "Gardening",
+      "weight": 1,
+      "children": {
+        "indoor_plants": {
+          "display": "indoor plants",
+          "weight": 1
+        },
+        "vegetable_gardening": {
+          "display": "vegetable gardening",
+          "weight": 1
+        },
+        "landscaping": {
+          "display": "landscaping",
+          "weight": 1
+        },
+        "hydroponics": {
+          "display": "hydroponics",
+          "weight": 1
+        },
+        "composting": {
+          "display": "composting",
+          "weight": 1
+        }
+      }
+    },
+    "car_maintenance": {
+      "display": "Car Maintenance",
+      "weight": 1,
+      "children": {
+        "diy_repairs": {
+          "display": "diy repairs",
+          "weight": 1
+        },
+        "detailing": {
+          "display": "detailing",
+          "weight": 1
+        },
+        "diagnostic_tips": {
+          "display": "diagnostic tips",
+          "weight": 1
+        },
+        "maintenance_schedules": {
+          "display": "maintenance schedules",
+          "weight": 1
+        },
+        "car_cleaning": {
+          "display": "car cleaning",
+          "weight": 1
+        }
+      }
+    },
+    "aviation": {
+      "display": "Aviation",
+      "weight": 1,
+      "children": {
+        "plane_spotting": {
+          "display": "plane spotting",
+          "weight": 1
+        },
+        "flight_reviews": {
+          "display": "flight reviews",
+          "weight": 1
+        },
+        "pilot_vlogs": {
+          "display": "pilot vlogs",
+          "weight": 1
+        },
+        "cockpit_videos": {
+          "display": "cockpit videos",
+          "weight": 1
+        },
+        "aviation_news": {
+          "display": "aviation news",
+          "weight": 1
+        }
+      }
+    },
+    "drones_and_fpv": {
+      "display": "Drones & FPV",
+      "weight": 1,
+      "children": {
+        "drone_reviews": {
+          "display": "drone reviews",
+          "weight": 1
+        },
+        "cinematic_fpv": {
+          "display": "cinematic fpv",
+          "weight": 1
+        },
+        "racing_drones": {
+          "display": "racing drones",
+          "weight": 1
+        },
+        "drone_tutorials": {
+          "display": "drone tutorials",
+          "weight": 1
+        },
+        "aerial_photography": {
+          "display": "aerial photography",
+          "weight": 1
+        }
+      }
+    },
+    "photography": {
+      "display": "Photography",
+      "weight": 1,
+      "children": {
+        "photography_tips": {
+          "display": "photography tips",
+          "weight": 1
+        },
+        "gear_reviews": {
+          "display": "gear reviews",
+          "weight": 1
+        },
+        "street_photography": {
+          "display": "street photography",
+          "weight": 1
+        },
+        "photo_editing": {
+          "display": "photo editing",
+          "weight": 1
+        },
+        "portraits": {
+          "display": "portraits",
+          "weight": 1
+        }
+      }
+    },
+    "virtual_reality": {
+      "display": "Virtual Reality",
+      "weight": 1,
+      "children": {
+        "vr_gameplay": {
+          "display": "vr gameplay",
+          "weight": 1
+        },
+        "experiences": {
+          "display": "experiences",
+          "weight": 1
+        },
+        "reviews": {
+          "display": "reviews",
+          "weight": 1
+        },
+        "tutorials": {
+          "display": "tutorials",
+          "weight": 1
+        },
+        "vr_news": {
+          "display": "vr news",
+          "weight": 1
+        }
+      }
+    },
+    "artificial_intelligence": {
+      "display": "Artificial Intelligence",
+      "weight": 1,
+      "children": {
+        "ai_news": {
+          "display": "ai news",
+          "weight": 1
+        },
+        "tutorials": {
+          "display": "tutorials",
+          "weight": 1
+        },
+        "ai_experiments": {
+          "display": "ai experiments",
+          "weight": 1
+        },
+        "ethics": {
+          "display": "ethics",
+          "weight": 1
+        },
+        "ai_tools": {
+          "display": "ai tools",
+          "weight": 1
+        }
+      }
+    },
+    "data_science": {
+      "display": "Data Science",
+      "weight": 1,
+      "children": {
+        "dashboards": {
+          "display": "dashboards",
+          "weight": 1
+        },
+        "projects": {
+          "display": "projects",
+          "weight": 1
+        },
+        "machine_learning": {
+          "display": "machine learning",
+          "weight": 1
+        },
+        "statistics": {
+          "display": "statistics",
+          "weight": 1
+        },
+        "data_visualization": {
+          "display": "data visualization",
+          "weight": 1
+        }
+      }
+    },
+    "coding_tutorials": {
+      "display": "Coding Tutorials",
+      "weight": 1,
+      "children": {
+        "web_development": {
+          "display": "web development",
+          "weight": 1
+        },
+        "python": {
+          "display": "python",
+          "weight": 1
+        },
+        "rust": {
+          "display": "rust",
+          "weight": 1
+        },
+        "game_dev": {
+          "display": "game dev",
+          "weight": 1
+        },
+        "code_challenges": {
+          "display": "code challenges",
+          "weight": 1
+        }
+      }
+    },
+    "crypto_and_blockchain": {
+      "display": "Crypto & Blockchain",
+      "weight": 1,
+      "children": {
+        "bitcoin": {
+          "display": "bitcoin",
+          "weight": 1
+        },
+        "defi": {
+          "display": "defi",
+          "weight": 1
+        },
+        "nfts": {
+          "display": "nfts",
+          "weight": 1
+        },
+        "mining": {
+          "display": "mining",
+          "weight": 1
+        },
+        "market_analysis": {
+          "display": "market analysis",
+          "weight": 1
+        }
+      }
+    },
+    "web_design_and_ui_ux": {
+      "display": "Web Design & UI/UX",
+      "weight": 1,
+      "children": {
+        "figma": {
+          "display": "figma",
+          "weight": 1
+        },
+        "design_systems": {
+          "display": "design systems",
+          "weight": 1
+        },
+        "portfolio_reviews": {
+          "display": "portfolio reviews",
+          "weight": 1
+        },
+        "ui_tips": {
+          "display": "ui tips",
+          "weight": 1
+        },
+        "ux_case_studies": {
+          "display": "ux case studies",
+          "weight": 1
+        }
+      }
+    },
+    "career_advice": {
+      "display": "Career Advice",
+      "weight": 1,
+      "children": {
+        "resume_tips": {
+          "display": "resume tips",
+          "weight": 1
+        },
+        "interviews": {
+          "display": "interviews",
+          "weight": 1
+        },
+        "job_hunting": {
+          "display": "job hunting",
+          "weight": 1
+        },
+        "networking": {
+          "display": "networking",
+          "weight": 1
+        },
+        "freelancing": {
+          "display": "freelancing",
+          "weight": 1
+        }
+      }
+    },
+    "college_life": {
+      "display": "College Life",
+      "weight": 1,
+      "children": {
+        "student_vlogs": {
+          "display": "student vlogs",
+          "weight": 1
+        },
+        "campus_tours": {
+          "display": "campus tours",
+          "weight": 1
+        },
+        "study_hacks": {
+          "display": "study hacks",
+          "weight": 1
+        },
+        "dorm_life": {
+          "display": "dorm life",
+          "weight": 1
+        },
+        "college_advice": {
+          "display": "college advice",
+          "weight": 1
+        }
+      }
+    },
+    "luxury_lifestyle": {
+      "display": "Luxury Lifestyle",
+      "weight": 1,
+      "children": {
+        "yachts": {
+          "display": "yachts",
+          "weight": 1
+        },
+        "supercars": {
+          "display": "supercars",
+          "weight": 1
+        },
+        "luxury_travel": {
+          "display": "luxury travel",
+          "weight": 1
+        },
+        "watch_collection": {
+          "display": "watch collection",
+          "weight": 1
+        },
+        "designer_shopping": {
+          "display": "designer shopping",
+          "weight": 1
+        }
+      }
+    },
+    "anime_and_manga": {
+      "display": "Anime & Manga",
+      "weight": 1,
+      "children": {
+        "reviews": {
+          "display": "reviews",
+          "weight": 1
+        },
+        "episode_reactions": {
+          "display": "episode reactions",
+          "weight": 1
+        },
+        "amvs": {
+          "display": "amvs",
+          "weight": 1
+        },
+        "cosplays": {
+          "display": "cosplays",
+          "weight": 1
+        },
+        "anime_news": {
+          "display": "anime news",
+          "weight": 1
+        }
+      }
+    },
+    "k_pop": {
+      "display": "K-Pop",
+      "weight": 1,
+      "children": {
+        "comebacks": {
+          "display": "comebacks",
+          "weight": 1
+        },
+        "dance_covers": {
+          "display": "dance covers",
+          "weight": 1
+        },
+        "line_distribution": {
+          "display": "line distribution",
+          "weight": 1
+        },
+        "fan_cams": {
+          "display": "fan cams",
+          "weight": 1
+        },
+        "album_reviews": {
+          "display": "album reviews",
+          "weight": 1
+        }
+      }
+    },
+    "indie_music": {
+      "display": "Indie Music",
+      "weight": 1,
+      "children": {
+        "discoveries": {
+          "display": "discoveries",
+          "weight": 1
+        },
+        "acoustic_sessions": {
+          "display": "acoustic sessions",
+          "weight": 1
+        },
+        "playlists": {
+          "display": "playlists",
+          "weight": 1
+        },
+        "live_sessions": {
+          "display": "live sessions",
+          "weight": 1
+        },
+        "artist_interviews": {
+          "display": "artist interviews",
+          "weight": 1
+        }
+      }
+    },
+    "cover_songs": {
+      "display": "Cover Songs",
+      "weight": 1,
+      "children": {
+        "acoustic_covers": {
+          "display": "acoustic covers",
+          "weight": 1
+        },
+        "piano_covers": {
+          "display": "piano covers",
+          "weight": 1
+        },
+        "mashups": {
+          "display": "mashups",
+          "weight": 1
+        },
+        "metal_covers": {
+          "display": "metal covers",
+          "weight": 1
+        },
+        "orchestral_covers": {
+          "display": "orchestral covers",
+          "weight": 1
+        }
+      }
+    },
+    "dance": {
+      "display": "Dance",
+      "weight": 1,
+      "children": {
+        "choreography": {
+          "display": "choreography",
+          "weight": 1
+        },
+        "tutorials": {
+          "display": "tutorials",
+          "weight": 1
+        },
+        "dance_covers": {
+          "display": "dance covers",
+          "weight": 1
+        },
+        "competitions": {
+          "display": "competitions",
+          "weight": 1
+        },
+        "freestyle": {
+          "display": "freestyle",
+          "weight": 1
+        }
+      }
+    },
+    "short_films": {
+      "display": "Short Films",
+      "weight": 1,
+      "children": {
+        "indie_shorts": {
+          "display": "indie shorts",
+          "weight": 1
+        },
+        "student_films": {
+          "display": "student films",
+          "weight": 1
+        },
+        "experimental": {
+          "display": "experimental",
+          "weight": 1
+        },
+        "animated_shorts": {
+          "display": "animated shorts",
+          "weight": 1
+        },
+        "festivals": {
+          "display": "festivals",
+          "weight": 1
+        }
+      }
+    },
+    "lego_and_building": {
+      "display": "Lego & Building",
+      "weight": 1,
+      "children": {
+        "lego_reviews": {
+          "display": "lego reviews",
+          "weight": 1
+        },
+        "speed_builds": {
+          "display": "speed builds",
+          "weight": 1
+        },
+        "mocs": {
+          "display": "mocs",
+          "weight": 1
+        },
+        "stop_motion_lego": {
+          "display": "stop motion lego",
+          "weight": 1
+        },
+        "lego_news": {
+          "display": "lego news",
+          "weight": 1
+        }
+      }
+    },
+    "board_games": {
+      "display": "Board Games",
+      "weight": 1,
+      "children": {
+        "playthroughs": {
+          "display": "playthroughs",
+          "weight": 1
+        },
+        "reviews": {
+          "display": "reviews",
+          "weight": 1
+        },
+        "strategy_tips": {
+          "display": "strategy tips",
+          "weight": 1
+        },
+        "unboxings": {
+          "display": "unboxings",
+          "weight": 1
+        },
+        "top_10_lists": {
+          "display": "top 10 lists",
+          "weight": 1
+        }
+      }
+    },
+    "card_games": {
+      "display": "Card Games",
+      "weight": 1,
+      "children": {
+        "magic_the_gathering": {
+          "display": "magic the gathering",
+          "weight": 1
+        },
+        "pokemon_cards": {
+          "display": "pokemon cards",
+          "weight": 1
+        },
+        "yugioh": {
+          "display": "yugioh",
+          "weight": 1
+        },
+        "card_openings": {
+          "display": "card openings",
+          "weight": 1
+        },
+        "deck_building": {
+          "display": "deck building",
+          "weight": 1
+        }
+      }
+    },
+    "collectibles": {
+      "display": "Collectibles",
+      "weight": 1,
+      "children": {
+        "funko_pops": {
+          "display": "funko pops",
+          "weight": 1
+        },
+        "action_figures": {
+          "display": "action figures",
+          "weight": 1
+        },
+        "unboxing": {
+          "display": "unboxing",
+          "weight": 1
+        },
+        "figurine_reviews": {
+          "display": "figurine reviews",
+          "weight": 1
+        },
+        "collection_tours": {
+          "display": "collection tours",
+          "weight": 1
+        }
+      }
+    },
+    "horror_content": {
+      "display": "Horror Content",
+      "weight": 1,
+      "children": {
+        "urban_legends": {
+          "display": "urban legends",
+          "weight": 1
+        },
+        "scary_stories": {
+          "display": "scary stories",
+          "weight": 1
+        },
+        "paranormal_investigations": {
+          "display": "paranormal investigations",
+          "weight": 1
+        },
+        "creepypasta": {
+          "display": "creepypasta",
+          "weight": 1
+        },
+        "haunted_places": {
+          "display": "haunted places",
+          "weight": 1
+        }
+      }
+    },
+    "true_crime": {
+      "display": "True Crime",
+      "weight": 1,
+      "children": {
+        "case_analysis": {
+          "display": "case analysis",
+          "weight": 1
+        },
+        "documentaries": {
+          "display": "documentaries",
+          "weight": 1
+        },
+        "unsolved_mysteries": {
+          "display": "unsolved mysteries",
+          "weight": 1
+        },
+        "courtroom_footage": {
+          "display": "courtroom footage",
+          "weight": 1
+        },
+        "crime_news": {
+          "display": "crime news",
+          "weight": 1
+        }
+      }
+    },
+    "mystery_and_puzzles": {
+      "display": "Mystery & Puzzles",
+      "weight": 1,
+      "children": {
+        "escape_rooms": {
+          "display": "escape rooms",
+          "weight": 1
+        },
+        "riddles": {
+          "display": "riddles",
+          "weight": 1
+        },
+        "puzzle_solving": {
+          "display": "puzzle solving",
+          "weight": 1
+        },
+        "mystery_games": {
+          "display": "mystery games",
+          "weight": 1
+        },
+        "detective_stories": {
+          "display": "detective stories",
+          "weight": 1
+        }
+      }
+    },
+    "astrology": {
+      "display": "Astrology",
+      "weight": 1,
+      "children": {
+        "horoscopes": {
+          "display": "horoscopes",
+          "weight": 1
+        },
+        "zodiac_compatibility": {
+          "display": "zodiac compatibility",
+          "weight": 1
+        },
+        "astro_basics": {
+          "display": "astro basics",
+          "weight": 1
+        },
+        "birth_chart_readings": {
+          "display": "birth chart readings",
+          "weight": 1
+        },
+        "astro_memes": {
+          "display": "astro memes",
+          "weight": 1
+        }
+      }
+    },
+    "meme_compilations": {
+      "display": "Meme Compilations",
+      "weight": 1,
+      "children": {
+        "fails": {
+          "display": "fails",
+          "weight": 1
+        },
+        "dank_memes": {
+          "display": "dank memes",
+          "weight": 1
+        },
+        "vine_comps": {
+          "display": "vine comps",
+          "weight": 1
+        },
+        "meme_reviews": {
+          "display": "meme reviews",
+          "weight": 1
+        },
+        "try_not_to_laugh": {
+          "display": "try not to laugh",
+          "weight": 1
+        }
+      }
+    },
+    "satisfying_videos": {
+      "display": "Satisfying Videos",
+      "weight": 1,
+      "children": {
+        "slime": {
+          "display": "slime",
+          "weight": 1
+        },
+        "soap_cutting": {
+          "display": "soap cutting",
+          "weight": 1
+        },
+        "hydraulic_press": {
+          "display": "hydraulic press",
+          "weight": 1
+        },
+        "crushing_things": {
+          "display": "crushing things",
+          "weight": 1
+        },
+        "asmr_sounds": {
+          "display": "asmr sounds",
+          "weight": 1
+        }
+      }
+    },
+    "experimental_science": {
+      "display": "Experimental Science",
+      "weight": 1,
+      "children": {
+        "home_experiments": {
+          "display": "home experiments",
+          "weight": 1
+        },
+        "myth_busters": {
+          "display": "myth busters",
+          "weight": 1
+        },
+        "slow_motion": {
+          "display": "slow motion",
+          "weight": 1
+        },
+        "liquid_nitrogen": {
+          "display": "liquid nitrogen",
+          "weight": 1
+        },
+        "vacuum_chamber": {
+          "display": "vacuum chamber",
+          "weight": 1
+        }
+      }
+    },
+    "space_and_astronomy": {
+      "display": "Space & Astronomy",
+      "weight": 1,
+      "children": {
+        "rocket_launches": {
+          "display": "rocket launches",
+          "weight": 1
+        },
+        "space_news": {
+          "display": "space news",
+          "weight": 1
+        },
+        "astrophotography": {
+          "display": "astrophotography",
+          "weight": 1
+        },
+        "mars_missions": {
+          "display": "mars missions",
+          "weight": 1
+        },
+        "telescope_tips": {
+          "display": "telescope tips",
+          "weight": 1
+        }
+      }
+    },
+    "quantum_tech": {
+      "display": "Quantum Tech",
+      "weight": 1,
+      "children": {
+        "quantum_computing_explainers": {
+          "display": "quantum computing explainers",
+          "weight": 1
+        },
+        "manufacturer_updates": {
+          "display": "manufacturer updates",
+          "weight": 1
+        },
+        "quantum_algorithms": {
+          "display": "quantum algorithms",
+          "weight": 1
+        },
+        "qiskit_tutorials": {
+          "display": "qiskit tutorials",
+          "weight": 1
+        },
+        "post_quantum_crypto": {
+          "display": "post quantum crypto",
+          "weight": 1
+        }
+      }
+    },
+    "environmental": {
+      "display": "Environmental",
+      "weight": 1,
+      "children": {
+        "climate_change": {
+          "display": "climate change",
+          "weight": 1
+        },
+        "zero_waste": {
+          "display": "zero waste",
+          "weight": 1
+        },
+        "eco_hacks": {
+          "display": "eco hacks",
+          "weight": 1
+        },
+        "sustainability_news": {
+          "display": "sustainability news",
+          "weight": 1
+        },
+        "plastic_reduction": {
+          "display": "plastic reduction",
+          "weight": 1
+        }
+      }
+    },
+    "philanthropy_and_social_good": {
+      "display": "Philanthropy & Social Good",
+      "weight": 1,
+      "children": {
+        "charity_videos": {
+          "display": "charity videos",
+          "weight": 1
+        },
+        "fundraisers": {
+          "display": "fundraisers",
+          "weight": 1
+        },
+        "impact_stories": {
+          "display": "impact stories",
+          "weight": 1
+        },
+        "volunteering": {
+          "display": "volunteering",
+          "weight": 1
+        },
+        "nonprofit_highlights": {
+          "display": "nonprofit highlights",
+          "weight": 1
+        }
+      }
+    },
+    "health_and_nutrition": {
+      "display": "Health & Nutrition",
+      "weight": 1,
+      "children": {
+        "diet_advice": {
+          "display": "diet advice",
+          "weight": 1
+        },
+        "recipe_analysis": {
+          "display": "recipe analysis",
+          "weight": 1
+        },
+        "nutrition_myths": {
+          "display": "nutrition myths",
+          "weight": 1
+        },
+        "meal_planning": {
+          "display": "meal planning",
+          "weight": 1
+        },
+        "supplement_reviews": {
+          "display": "supplement reviews",
+          "weight": 1
+        }
+      }
+    },
+    "cooking_international": {
+      "display": "Cooking International",
+      "weight": 1,
+      "children": {
+        "asian_cuisine": {
+          "display": "asian cuisine",
+          "weight": 1
+        },
+        "mexican_cuisine": {
+          "display": "mexican cuisine",
+          "weight": 1
+        },
+        "italian_cuisine": {
+          "display": "italian cuisine",
+          "weight": 1
+        },
+        "indian_cuisine": {
+          "display": "indian cuisine",
+          "weight": 1
+        },
+        "mediterranean": {
+          "display": "mediterranean",
+          "weight": 1
+        }
+      }
+    },
+    "baking_and_desserts": {
+      "display": "Baking & Desserts",
+      "weight": 1,
+      "children": {
+        "cakes": {
+          "display": "cakes",
+          "weight": 1
+        },
+        "cookies": {
+          "display": "cookies",
+          "weight": 1
+        },
+        "pastry": {
+          "display": "pastry",
+          "weight": 1
+        },
+        "decoration": {
+          "display": "decoration",
+          "weight": 1
+        },
+        "bread_making": {
+          "display": "bread making",
+          "weight": 1
+        }
+      }
+    },
+    "beverage_arts": {
+      "display": "Beverage Arts",
+      "weight": 1,
+      "children": {
+        "coffee": {
+          "display": "coffee",
+          "weight": 1
+        },
+        "tea": {
+          "display": "tea",
+          "weight": 1
+        },
+        "cocktail_recipes": {
+          "display": "cocktail recipes",
+          "weight": 1
+        },
+        "brewing_guides": {
+          "display": "brewing guides",
+          "weight": 1
+        },
+        "latte_art": {
+          "display": "latte art",
+          "weight": 1
+        }
+      }
+    },
+    "car_tech_and_evs": {
+      "display": "Car Tech & EVs",
+      "weight": 1,
+      "children": {
+        "tesla": {
+          "display": "tesla",
+          "weight": 1
+        },
+        "ev_reviews": {
+          "display": "ev reviews",
+          "weight": 1
+        },
+        "charging": {
+          "display": "charging",
+          "weight": 1
+        },
+        "conversions": {
+          "display": "conversions",
+          "weight": 1
+        },
+        "battery_tech": {
+          "display": "battery tech",
+          "weight": 1
+        }
+      }
+    },
+    "smart_home": {
+      "display": "Smart Home",
+      "weight": 1,
+      "children": {
+        "iot_setup": {
+          "display": "iot setup",
+          "weight": 1
+        },
+        "reviews": {
+          "display": "reviews",
+          "weight": 1
+        },
+        "automations": {
+          "display": "automations",
+          "weight": 1
+        },
+        "home_security": {
+          "display": "home security",
+          "weight": 1
+        },
+        "smart_assistants": {
+          "display": "smart assistants",
+          "weight": 1
+        }
+      }
+    },
+    "home_finance": {
+      "display": "Home Finance",
+      "weight": 1,
+      "children": {
+        "mortgages": {
+          "display": "mortgages",
+          "weight": 1
+        },
+        "real_estate_investing": {
+          "display": "real estate investing",
+          "weight": 1
+        },
+        "property_tours": {
+          "display": "property tours",
+          "weight": 1
+        },
+        "budget_renovations": {
+          "display": "budget renovations",
+          "weight": 1
+        },
+        "tax_tips": {
+          "display": "tax tips",
+          "weight": 1
+        }
+      }
+    },
+    "craft_beer_and_spirits": {
+      "display": "Craft Beer & Spirits",
+      "weight": 1,
+      "children": {
+        "brewery_tours": {
+          "display": "brewery tours",
+          "weight": 1
+        },
+        "whiskey_reviews": {
+          "display": "whiskey reviews",
+          "weight": 1
+        },
+        "home_brewing": {
+          "display": "home brewing",
+          "weight": 1
+        },
+        "beer_tastings": {
+          "display": "beer tastings",
+          "weight": 1
+        },
+        "cocktail_science": {
+          "display": "cocktail science",
+          "weight": 1
+        }
+      }
+    },
+    "pet_health": {
+      "display": "Pet Health",
+      "weight": 1,
+      "children": {
+        "vet_tips": {
+          "display": "vet tips",
+          "weight": 1
+        },
+        "diseases": {
+          "display": "diseases",
+          "weight": 1
+        },
+        "nutrition": {
+          "display": "nutrition",
+          "weight": 1
+        },
+        "first_aid": {
+          "display": "first aid",
+          "weight": 1
+        },
+        "senior_pet_care": {
+          "display": "senior pet care",
+          "weight": 1
+        }
+      }
+    },
+    "urban_exploration": {
+      "display": "Urban Exploration",
+      "weight": 1,
+      "children": {
+        "abandoned_places": {
+          "display": "abandoned places",
+          "weight": 1
+        },
+        "city_tours": {
+          "display": "city tours",
+          "weight": 1
+        },
+        "urbex_stories": {
+          "display": "urbex stories",
+          "weight": 1
+        },
+        "rooftopping": {
+          "display": "rooftopping",
+          "weight": 1
+        },
+        "drain_exploration": {
+          "display": "drain exploration",
+          "weight": 1
+        }
+      }
+    },
+    "survival_and_prepper": {
+      "display": "Survival & Prepper",
+      "weight": 1,
+      "children": {
+        "gear_reviews": {
+          "display": "gear reviews",
+          "weight": 1
+        },
+        "emergency_prep": {
+          "display": "emergency prep",
+          "weight": 1
+        },
+        "bushcraft": {
+          "display": "bushcraft",
+          "weight": 1
+        },
+        "off_grid_living": {
+          "display": "off grid living",
+          "weight": 1
+        },
+        "food_storage": {
+          "display": "food storage",
+          "weight": 1
+        }
+      }
+    },
+    "makeup_sfx_and_cosplay": {
+      "display": "Makeup SFX & Cosplay",
+      "weight": 1,
+      "children": {
+        "special_effects_makeup": {
+          "display": "special effects makeup",
+          "weight": 1
+        },
+        "cosplay_builds": {
+          "display": "cosplay builds",
+          "weight": 1
+        },
+        "body_paint": {
+          "display": "body paint",
+          "weight": 1
+        },
+        "prosthetics": {
+          "display": "prosthetics",
+          "weight": 1
+        },
+        "wig_styling": {
+          "display": "wig styling",
+          "weight": 1
+        }
+      }
+    },
+    "graphic_design": {
+      "display": "Graphic Design",
+      "weight": 1,
+      "children": {
+        "photoshop_tutorials": {
+          "display": "photoshop tutorials",
+          "weight": 1
+        },
+        "logo_design": {
+          "display": "logo design",
+          "weight": 1
+        },
+        "branding": {
+          "display": "branding",
+          "weight": 1
+        },
+        "illustrator_tips": {
+          "display": "illustrator tips",
+          "weight": 1
+        },
+        "design_critiques": {
+          "display": "design critiques",
+          "weight": 1
+        }
+      }
+    },
+    "app_reviews": {
+      "display": "App Reviews",
+      "weight": 1,
+      "children": {
+        "mobile_apps": {
+          "display": "mobile apps",
+          "weight": 1
+        },
+        "productivity_apps": {
+          "display": "productivity apps",
+          "weight": 1
+        },
+        "games": {
+          "display": "games",
+          "weight": 1
+        },
+        "new_releases": {
+          "display": "new releases",
+          "weight": 1
+        },
+        "app_vs_app": {
+          "display": "app vs app",
+          "weight": 1
+        }
+      }
+    },
+    "language_and_culture": {
+      "display": "Language & Culture",
+      "weight": 1,
+      "children": {
+        "culture_explainers": {
+          "display": "culture explainers",
+          "weight": 1
+        },
+        "etiquette_videos": {
+          "display": "etiquette videos",
+          "weight": 1
+        },
+        "global_festivals": {
+          "display": "global festivals",
+          "weight": 1
+        },
+        "cultural_comparisons": {
+          "display": "cultural comparisons",
+          "weight": 1
+        },
+        "language_facts": {
+          "display": "language facts",
+          "weight": 1
+        }
+      }
+    },
+    "intermittent_fasting_and_diets": {
+      "display": "Intermittent Fasting & Diets",
+      "weight": 1,
+      "children": {
+        "keto": {
+          "display": "keto",
+          "weight": 1
+        },
+        "vegan": {
+          "display": "vegan",
+          "weight": 1
+        },
+        "paleo": {
+          "display": "paleo",
+          "weight": 1
+        },
+        "if_methods": {
+          "display": "if methods",
+          "weight": 1
+        },
+        "diet_science": {
+          "display": "diet science",
+          "weight": 1
+        }
+      }
+    },
+    "hair_styling": {
+      "display": "Hair Styling",
+      "weight": 1,
+      "children": {
+        "hairstyles": {
+          "display": "hairstyles",
+          "weight": 1
+        },
+        "barber_tutorials": {
+          "display": "barber tutorials",
+          "weight": 1
+        },
+        "transformations": {
+          "display": "transformations",
+          "weight": 1
+        },
+        "hair_care": {
+          "display": "hair care",
+          "weight": 1
+        },
+        "hair_coloring": {
+          "display": "hair coloring",
+          "weight": 1
+        }
+      }
+    },
+    "nail_art": {
+      "display": "Nail Art",
+      "weight": 1,
+      "children": {
+        "manicure_tutorials": {
+          "display": "manicure tutorials",
+          "weight": 1
+        },
+        "nail_trends": {
+          "display": "nail trends",
+          "weight": 1
+        },
+        "gel_vs_acrylic": {
+          "display": "gel vs acrylic",
+          "weight": 1
+        },
+        "nail_art_time_lapse": {
+          "display": "nail art time lapse",
+          "weight": 1
+        },
+        "press_ons": {
+          "display": "press-ons",
+          "weight": 1
+        }
+      }
+    },
+    "weight_loss_journey": {
+      "display": "Weight Loss Journey",
+      "weight": 1,
+      "children": {
+        "vlogs": {
+          "display": "vlogs",
+          "weight": 1
+        },
+        "tips": {
+          "display": "tips",
+          "weight": 1
+        },
+        "transformation_stories": {
+          "display": "transformation stories",
+          "weight": 1
+        },
+        "progress_updates": {
+          "display": "progress updates",
+          "weight": 1
+        },
+        "diet_tracking": {
+          "display": "diet tracking",
+          "weight": 1
+        }
+      }
+    },
+    "mental_health_awareness": {
+      "display": "Mental Health Awareness",
+      "weight": 1,
+      "children": {
+        "anxiety_coping": {
+          "display": "anxiety coping",
+          "weight": 1
+        },
+        "depression_stories": {
+          "display": "depression stories",
+          "weight": 1
+        },
+        "therapy_journeys": {
+          "display": "therapy journeys",
+          "weight": 1
+        },
+        "psychology_explainers": {
+          "display": "psychology explainers",
+          "weight": 1
+        },
+        "support_resources": {
+          "display": "support resources",
+          "weight": 1
+        }
+      }
+    },
+    "inspirational_stories": {
+      "display": "Inspirational Stories",
+      "weight": 1,
+      "children": {
+        "overcoming_adversity": {
+          "display": "overcoming adversity",
+          "weight": 1
+        },
+        "success_stories": {
+          "display": "success stories",
+          "weight": 1
+        },
+        "documentaries": {
+          "display": "documentaries",
+          "weight": 1
+        },
+        "motivational_speeches": {
+          "display": "motivational speeches",
+          "weight": 1
+        },
+        "human_interest": {
+          "display": "human interest",
           "weight": 1
         }
       }
     }
   },
   "fr": {
-    "_version": 1,
-    "shorts": {
-      "display": "[FR] Short Form Videos",
-      "weight": 4,
+    "_version": 2,
+    "music_videos": {
+      "display": "[FR]Music Videos",
+      "weight": 1,
       "children": {
-        "brain_rot": {
-          "display": "[FR] Brain Rot Shorts",
+        "pop": {
+          "display": "[FR]pop",
           "weight": 1
         },
-        "hot_chicks": {
-          "display": "[FR] Hot Chicks",
-          "weight": 2
+        "hip_hop": {
+          "display": "[FR]hip hop",
+          "weight": 1
         },
-        "tiktok": {
-          "display": "[FR] Shorts from TikTok",
-          "weight": 3
+        "rock": {
+          "display": "[FR]rock",
+          "weight": 1
+        },
+        "k_pop": {
+          "display": "[FR]k-pop",
+          "weight": 1
+        },
+        "indie": {
+          "display": "[FR]indie",
+          "weight": 1
+        },
+        "live_performances": {
+          "display": "[FR]live performances",
+          "weight": 1
         }
       }
     },
     "gaming": {
-      "display": "[FR] Playing Video Games",
-      "weight": 10,
-      "children": {
-        "moba": {
-          "display": "[FR] MOBA",
-          "weight": 1
-        },
-        "fps": {
-          "display": "[FR] FPS",
-          "weight": 2
-        },
-        "rpg": {
-          "display": "[FR] RPG",
-          "weight": 3
-        }
-      }
-    },
-    "crypto": {
-      "display": "[FR] Cryptocurrencies",
-      "weight": 3,
-      "children": {
-        "defi": {
-          "display": "[FR] DeFi",
-          "weight": 1
-        },
-        "stablecoins": {
-          "display": "[FR] Stablecoins",
-          "weight": 2
-        },
-        "nfts": {
-          "display": "[FR] NFTs",
-          "weight": 3
-        }
-      }
-    },
-    "travelling": {
-      "display": "[FR] Travelling",
+      "display": "[FR]Gaming",
       "weight": 1,
       "children": {
-        "asia": {
-          "display": "[FR] Asia",
+        "let_s_plays": {
+          "display": "[FR]let's plays",
           "weight": 1
         },
-        "europe": {
-          "display": "[FR] Europe",
+        "walkthroughs": {
+          "display": "[FR]walkthroughs",
           "weight": 1
         },
-        "americas": {
-          "display": "[FR] Americas",
+        "esports_highlights": {
+          "display": "[FR]esports highlights",
+          "weight": 1
+        },
+        "speedruns": {
+          "display": "[FR]speedruns",
+          "weight": 1
+        },
+        "game_reviews": {
+          "display": "[FR]game reviews",
+          "weight": 1
+        },
+        "lore": {
+          "display": "[FR]lore",
+          "weight": 1
+        }
+      }
+    },
+    "vlogs": {
+      "display": "[FR]Vlogs",
+      "weight": 1,
+      "children": {
+        "daily_vlogs": {
+          "display": "[FR]daily vlogs",
+          "weight": 1
+        },
+        "travel_vlogs": {
+          "display": "[FR]travel vlogs",
+          "weight": 1
+        },
+        "morning_routines": {
+          "display": "[FR]morning routines",
+          "weight": 1
+        },
+        "day_in_life": {
+          "display": "[FR]day in life",
+          "weight": 1
+        },
+        "q_and_a": {
+          "display": "[FR]Q&A",
+          "weight": 1
+        },
+        "storytime": {
+          "display": "[FR]storytime",
+          "weight": 1
+        }
+      }
+    },
+    "how_to_and_diy": {
+      "display": "[FR]How-To & DIY",
+      "weight": 1,
+      "children": {
+        "life_hacks": {
+          "display": "[FR]life hacks",
+          "weight": 1
+        },
+        "home_improvement": {
+          "display": "[FR]home improvement",
+          "weight": 1
+        },
+        "crafts": {
+          "display": "[FR]crafts",
+          "weight": 1
+        },
+        "repairs": {
+          "display": "[FR]repairs",
+          "weight": 1
+        },
+        "tutorials": {
+          "display": "[FR]tutorials",
+          "weight": 1
+        },
+        "tool_reviews": {
+          "display": "[FR]tool reviews",
+          "weight": 1
+        }
+      }
+    },
+    "tech_reviews_and_unboxings": {
+      "display": "[FR]Tech Reviews & Unboxings",
+      "weight": 1,
+      "children": {
+        "smartphones": {
+          "display": "[FR]smartphones",
+          "weight": 1
+        },
+        "laptops": {
+          "display": "[FR]laptops",
+          "weight": 1
+        },
+        "gadgets": {
+          "display": "[FR]gadgets",
+          "weight": 1
+        },
+        "wearables": {
+          "display": "[FR]wearables",
+          "weight": 1
+        },
+        "comparisons": {
+          "display": "[FR]comparisons",
+          "weight": 1
+        },
+        "teardown": {
+          "display": "[FR]teardown",
+          "weight": 1
+        }
+      }
+    },
+    "science_and_education": {
+      "display": "[FR]Science & Education",
+      "weight": 1,
+      "children": {
+        "physics": {
+          "display": "[FR]physics",
+          "weight": 1
+        },
+        "chemistry_experiments": {
+          "display": "[FR]chemistry experiments",
+          "weight": 1
+        },
+        "space": {
+          "display": "[FR]space",
+          "weight": 1
+        },
+        "biology": {
+          "display": "[FR]biology",
+          "weight": 1
+        },
+        "history": {
+          "display": "[FR]history",
+          "weight": 1
+        },
+        "math": {
+          "display": "[FR]math",
+          "weight": 1
+        }
+      }
+    },
+    "cooking_and_recipes": {
+      "display": "[FR]Cooking & Recipes",
+      "weight": 1,
+      "children": {
+        "meals": {
+          "display": "[FR]meals",
+          "weight": 1
+        },
+        "baking": {
+          "display": "[FR]baking",
+          "weight": 1
+        },
+        "street_food": {
+          "display": "[FR]street food",
+          "weight": 1
+        },
+        "meal_prep": {
+          "display": "[FR]meal prep",
+          "weight": 1
+        },
+        "vegetarian": {
+          "display": "[FR]vegetarian",
+          "weight": 1
+        },
+        "food_challenges": {
+          "display": "[FR]food challenges",
+          "weight": 1
+        }
+      }
+    },
+    "health_and_fitness": {
+      "display": "[FR]Health & Fitness",
+      "weight": 1,
+      "children": {
+        "workouts": {
+          "display": "[FR]workouts",
+          "weight": 1
+        },
+        "yoga": {
+          "display": "[FR]yoga",
+          "weight": 1
+        },
+        "pilates": {
+          "display": "[FR]pilates",
+          "weight": 1
+        },
+        "weightlifting": {
+          "display": "[FR]weightlifting",
+          "weight": 1
+        },
+        "cardio": {
+          "display": "[FR]cardio",
+          "weight": 1
+        },
+        "nutrition": {
+          "display": "[FR]nutrition",
+          "weight": 1
+        }
+      }
+    },
+    "beauty_and_makeup": {
+      "display": "[FR]Beauty & Makeup",
+      "weight": 1,
+      "children": {
+        "tutorials": {
+          "display": "[FR]tutorials",
+          "weight": 1
+        },
+        "skincare": {
+          "display": "[FR]skincare",
+          "weight": 1
+        },
+        "product_reviews": {
+          "display": "[FR]product reviews",
+          "weight": 1
+        },
+        "hair": {
+          "display": "[FR]hair",
+          "weight": 1
+        },
+        "nails": {
+          "display": "[FR]nails",
+          "weight": 1
+        },
+        "transformations": {
+          "display": "[FR]transformations",
+          "weight": 1
+        }
+      }
+    },
+    "fashion_and_style": {
+      "display": "[FR]Fashion & Style",
+      "weight": 1,
+      "children": {
+        "try_on_hauls": {
+          "display": "[FR]try-on hauls",
+          "weight": 1
+        },
+        "thrift_flips": {
+          "display": "[FR]thrift flips",
+          "weight": 1
+        },
+        "streetwear": {
+          "display": "[FR]streetwear",
+          "weight": 1
+        },
+        "runway_analysis": {
+          "display": "[FR]runway analysis",
+          "weight": 1
+        },
+        "capsule_wardrobe": {
+          "display": "[FR]capsule wardrobe",
+          "weight": 1
+        }
+      }
+    },
+    "comedy_and_sketches": {
+      "display": "[FR]Comedy & Sketches",
+      "weight": 1,
+      "children": {
+        "parodies": {
+          "display": "[FR]parodies",
+          "weight": 1
+        },
+        "sketches": {
+          "display": "[FR]sketches",
+          "weight": 1
+        },
+        "stand_up_clips": {
+          "display": "[FR]stand-up clips",
+          "weight": 1
+        },
+        "improv": {
+          "display": "[FR]improv",
+          "weight": 1
+        },
+        "dark_humor": {
+          "display": "[FR]dark humor",
+          "weight": 1
+        }
+      }
+    },
+    "reaction_videos": {
+      "display": "[FR]Reaction Videos",
+      "weight": 1,
+      "children": {
+        "music_reactions": {
+          "display": "[FR]music reactions",
+          "weight": 1
+        },
+        "trailer_reactions": {
+          "display": "[FR]trailer reactions",
+          "weight": 1
+        },
+        "meme_reactions": {
+          "display": "[FR]meme reactions",
+          "weight": 1
+        },
+        "tiktok_reactions": {
+          "display": "[FR]tiktok reactions",
+          "weight": 1
+        },
+        "k_pop_reactions": {
+          "display": "[FR]k-pop reactions",
+          "weight": 1
+        }
+      }
+    },
+    "asmr": {
+      "display": "[FR]ASMR",
+      "weight": 1,
+      "children": {
+        "whisper": {
+          "display": "[FR]whisper",
+          "weight": 1
+        },
+        "eating_sounds": {
+          "display": "[FR]eating sounds",
+          "weight": 1
+        },
+        "tapping": {
+          "display": "[FR]tapping",
+          "weight": 1
+        },
+        "roleplay": {
+          "display": "[FR]roleplay",
+          "weight": 1
+        },
+        "sleep_aid": {
+          "display": "[FR]sleep aid",
+          "weight": 1
+        }
+      }
+    },
+    "podcasts_and_longform": {
+      "display": "[FR]Podcasts & Longform",
+      "weight": 1,
+      "children": {
+        "interviews": {
+          "display": "[FR]interviews",
+          "weight": 1
+        },
+        "talk_shows": {
+          "display": "[FR]talk shows",
+          "weight": 1
+        },
+        "debates": {
+          "display": "[FR]debates",
+          "weight": 1
+        },
+        "storytelling": {
+          "display": "[FR]storytelling",
+          "weight": 1
+        },
+        "commentary": {
+          "display": "[FR]commentary",
+          "weight": 1
+        }
+      }
+    },
+    "movies_and_tv_analysis": {
+      "display": "[FR]Movies & TV Analysis",
+      "weight": 1,
+      "children": {
+        "reviews": {
+          "display": "[FR]reviews",
+          "weight": 1
+        },
+        "breakdowns": {
+          "display": "[FR]breakdowns",
+          "weight": 1
+        },
+        "easter_eggs": {
+          "display": "[FR]easter eggs",
+          "weight": 1
+        },
+        "theories": {
+          "display": "[FR]theories",
+          "weight": 1
+        },
+        "rankings": {
+          "display": "[FR]rankings",
+          "weight": 1
+        }
+      }
+    },
+    "animation_and_shorts": {
+      "display": "[FR]Animation & Shorts",
+      "weight": 1,
+      "children": {
+        "2d_animation": {
+          "display": "[FR]2d animation",
+          "weight": 1
+        },
+        "3d_animation": {
+          "display": "[FR]3d animation",
+          "weight": 1
+        },
+        "stop_motion": {
+          "display": "[FR]stop motion",
+          "weight": 1
+        },
+        "animated_stories": {
+          "display": "[FR]animated stories",
+          "weight": 1
+        },
+        "stick_figure": {
+          "display": "[FR]stick figure",
+          "weight": 1
+        }
+      }
+    },
+    "film_and_videography": {
+      "display": "[FR]Film & Videography",
+      "weight": 1,
+      "children": {
+        "cinematography_tips": {
+          "display": "[FR]cinematography tips",
+          "weight": 1
+        },
+        "camera_gear": {
+          "display": "[FR]camera gear",
+          "weight": 1
+        },
+        "editing_tutorials": {
+          "display": "[FR]editing tutorials",
+          "weight": 1
+        },
+        "color_grading": {
+          "display": "[FR]color grading",
+          "weight": 1
+        },
+        "short_films": {
+          "display": "[FR]short films",
+          "weight": 1
+        }
+      }
+    },
+    "travel": {
+      "display": "[FR]Travel",
+      "weight": 1,
+      "children": {
+        "destination_guides": {
+          "display": "[FR]destination guides",
+          "weight": 1
+        },
+        "budget_travel": {
+          "display": "[FR]budget travel",
+          "weight": 1
+        },
+        "luxury_travel": {
+          "display": "[FR]luxury travel",
+          "weight": 1
+        },
+        "road_trips": {
+          "display": "[FR]road trips",
+          "weight": 1
+        },
+        "van_life": {
+          "display": "[FR]van life",
+          "weight": 1
+        }
+      }
+    },
+    "cars_and_vehicles": {
+      "display": "[FR]Cars & Vehicles",
+      "weight": 1,
+      "children": {
+        "car_reviews": {
+          "display": "[FR]car reviews",
+          "weight": 1
+        },
+        "modifications": {
+          "display": "[FR]modifications",
+          "weight": 1
+        },
+        "builds": {
+          "display": "[FR]builds",
+          "weight": 1
+        },
+        "racing": {
+          "display": "[FR]racing",
+          "weight": 1
+        },
+        "electric_cars": {
+          "display": "[FR]electric cars",
+          "weight": 1
+        }
+      }
+    },
+    "sports_highlights": {
+      "display": "[FR]Sports Highlights",
+      "weight": 1,
+      "children": {
+        "soccer": {
+          "display": "[FR]soccer",
+          "weight": 1
+        },
+        "basketball": {
+          "display": "[FR]basketball",
+          "weight": 1
+        },
+        "football": {
+          "display": "[FR]football",
+          "weight": 1
+        },
+        "extreme_sports": {
+          "display": "[FR]extreme sports",
+          "weight": 1
+        },
+        "olympics": {
+          "display": "[FR]olympics",
+          "weight": 1
+        }
+      }
+    },
+    "music_production": {
+      "display": "[FR]Music Production",
+      "weight": 1,
+      "children": {
+        "beat_making": {
+          "display": "[FR]beat making",
+          "weight": 1
+        },
+        "daw_tutorials": {
+          "display": "[FR]daw tutorials",
+          "weight": 1
+        },
+        "mixing_and_mastering": {
+          "display": "[FR]mixing and mastering",
+          "weight": 1
+        },
+        "gear_reviews": {
+          "display": "[FR]gear reviews",
+          "weight": 1
+        },
+        "sample_packs": {
+          "display": "[FR]sample packs",
+          "weight": 1
+        }
+      }
+    },
+    "livestreams_and_irl": {
+      "display": "[FR]Livestreams & IRL",
+      "weight": 1,
+      "children": {
+        "gaming_live": {
+          "display": "[FR]gaming live",
+          "weight": 1
+        },
+        "irl_streams": {
+          "display": "[FR]irl streams",
+          "weight": 1
+        },
+        "study_with_me": {
+          "display": "[FR]study with me",
+          "weight": 1
+        },
+        "build_live": {
+          "display": "[FR]build live",
+          "weight": 1
+        },
+        "concerts": {
+          "display": "[FR]concerts",
+          "weight": 1
+        }
+      }
+    },
+    "pets_and_animals": {
+      "display": "[FR]Pets & Animals",
+      "weight": 1,
+      "children": {
+        "funny_pets": {
+          "display": "[FR]funny pets",
+          "weight": 1
+        },
+        "training": {
+          "display": "[FR]training",
+          "weight": 1
+        },
+        "wildlife": {
+          "display": "[FR]wildlife",
+          "weight": 1
+        },
+        "pet_care": {
+          "display": "[FR]pet care",
+          "weight": 1
+        },
+        "exotic_animals": {
+          "display": "[FR]exotic animals",
+          "weight": 1
+        }
+      }
+    },
+    "documentaries": {
+      "display": "[FR]Documentaries",
+      "weight": 1,
+      "children": {
+        "mini_docs": {
+          "display": "[FR]mini docs",
+          "weight": 1
+        },
+        "investigative": {
+          "display": "[FR]investigative",
+          "weight": 1
+        },
+        "biographies": {
+          "display": "[FR]biographies",
+          "weight": 1
+        },
+        "nature_docs": {
+          "display": "[FR]nature docs",
+          "weight": 1
+        },
+        "historical": {
+          "display": "[FR]historical",
+          "weight": 1
+        }
+      }
+    },
+    "finance_and_investing": {
+      "display": "[FR]Finance & Investing",
+      "weight": 1,
+      "children": {
+        "personal_finance": {
+          "display": "[FR]personal finance",
+          "weight": 1
+        },
+        "stock_market": {
+          "display": "[FR]stock market",
+          "weight": 1
+        },
+        "crypto": {
+          "display": "[FR]crypto",
+          "weight": 1
+        },
+        "budgeting": {
+          "display": "[FR]budgeting",
+          "weight": 1
+        },
+        "fire": {
+          "display": "[FR]fire",
+          "weight": 1
+        }
+      }
+    },
+    "business_and_entrepreneurship": {
+      "display": "[FR]Business & Entrepreneurship",
+      "weight": 1,
+      "children": {
+        "startup_tips": {
+          "display": "[FR]startup tips",
+          "weight": 1
+        },
+        "case_studies": {
+          "display": "[FR]case studies",
+          "weight": 1
+        },
+        "side_hustles": {
+          "display": "[FR]side hustles",
+          "weight": 1
+        },
+        "marketing": {
+          "display": "[FR]marketing",
+          "weight": 1
+        },
+        "productivity": {
+          "display": "[FR]productivity",
+          "weight": 1
+        }
+      }
+    },
+    "productivity_and_study": {
+      "display": "[FR]Productivity & Study",
+      "weight": 1,
+      "children": {
+        "study_with_me": {
+          "display": "[FR]study with me",
+          "weight": 1
+        },
+        "notetaking": {
+          "display": "[FR]notetaking",
+          "weight": 1
+        },
+        "notion": {
+          "display": "[FR]notion",
+          "weight": 1
+        },
+        "time_management": {
+          "display": "[FR]time management",
+          "weight": 1
+        },
+        "pomodoro": {
+          "display": "[FR]pomodoro",
+          "weight": 1
+        }
+      }
+    },
+    "language_learning": {
+      "display": "[FR]Language Learning",
+      "weight": 1,
+      "children": {
+        "english_lessons": {
+          "display": "[FR]english lessons",
+          "weight": 1
+        },
+        "polyglot": {
+          "display": "[FR]polyglot",
+          "weight": 1
+        },
+        "vocab_challenges": {
+          "display": "[FR]vocab challenges",
+          "weight": 1
+        },
+        "pronunciation": {
+          "display": "[FR]pronunciation",
+          "weight": 1
+        },
+        "language_apps": {
+          "display": "[FR]language apps",
+          "weight": 1
+        }
+      }
+    },
+    "art_and_drawing": {
+      "display": "[FR]Art & Drawing",
+      "weight": 1,
+      "children": {
+        "time_lapse": {
+          "display": "[FR]time lapse",
+          "weight": 1
+        },
+        "tutorials": {
+          "display": "[FR]tutorials",
+          "weight": 1
+        },
+        "digital_art": {
+          "display": "[FR]digital art",
+          "weight": 1
+        },
+        "traditional_art": {
+          "display": "[FR]traditional art",
+          "weight": 1
+        },
+        "sketchbook_tours": {
+          "display": "[FR]sketchbook tours",
+          "weight": 1
+        }
+      }
+    },
+    "crafts_and_hobbies": {
+      "display": "[FR]Crafts & Hobbies",
+      "weight": 1,
+      "children": {
+        "knitting": {
+          "display": "[FR]knitting",
+          "weight": 1
+        },
+        "woodworking": {
+          "display": "[FR]woodworking",
+          "weight": 1
+        },
+        "sewing": {
+          "display": "[FR]sewing",
+          "weight": 1
+        },
+        "resin_art": {
+          "display": "[FR]resin art",
+          "weight": 1
+        },
+        "scrapbooking": {
+          "display": "[FR]scrapbooking",
+          "weight": 1
+        }
+      }
+    },
+    "history": {
+      "display": "[FR]History",
+      "weight": 1,
+      "children": {
+        "historical_events": {
+          "display": "[FR]historical events",
+          "weight": 1
+        },
+        "infographics": {
+          "display": "[FR]infographics",
+          "weight": 1
+        },
+        "military_history": {
+          "display": "[FR]military history",
+          "weight": 1
+        },
+        "ancient_civilizations": {
+          "display": "[FR]ancient civilizations",
+          "weight": 1
+        },
+        "history_documentaries": {
+          "display": "[FR]history documentaries",
+          "weight": 1
+        }
+      }
+    },
+    "news_and_commentary": {
+      "display": "[FR]News & Commentary",
+      "weight": 1,
+      "children": {
+        "daily_news": {
+          "display": "[FR]daily news",
+          "weight": 1
+        },
+        "political_analysis": {
+          "display": "[FR]political analysis",
+          "weight": 1
+        },
+        "explainers": {
+          "display": "[FR]explainers",
+          "weight": 1
+        },
+        "fact_checks": {
+          "display": "[FR]fact-checks",
+          "weight": 1
+        },
+        "breaking_news": {
+          "display": "[FR]breaking news",
+          "weight": 1
+        }
+      }
+    },
+    "political_debates": {
+      "display": "[FR]Political Debates",
+      "weight": 1,
+      "children": {
+        "commentary": {
+          "display": "[FR]commentary",
+          "weight": 1
+        },
+        "discussions": {
+          "display": "[FR]discussions",
+          "weight": 1
+        },
+        "town_halls": {
+          "display": "[FR]town halls",
+          "weight": 1
+        },
+        "policy_breakdowns": {
+          "display": "[FR]policy breakdowns",
+          "weight": 1
+        },
+        "interviews": {
+          "display": "[FR]interviews",
+          "weight": 1
+        }
+      }
+    },
+    "spirituality_and_mindfulness": {
+      "display": "[FR]Spirituality & Mindfulness",
+      "weight": 1,
+      "children": {
+        "meditation": {
+          "display": "[FR]meditation",
+          "weight": 1
+        },
+        "yoga_nidra": {
+          "display": "[FR]yoga nidra",
+          "weight": 1
+        },
+        "manifestation": {
+          "display": "[FR]manifestation",
+          "weight": 1
+        },
+        "tarot": {
+          "display": "[FR]tarot",
+          "weight": 1
+        },
+        "chakras": {
+          "display": "[FR]chakras",
+          "weight": 1
+        }
+      }
+    },
+    "self_improvement": {
+      "display": "[FR]Self-Improvement",
+      "weight": 1,
+      "children": {
+        "motivation": {
+          "display": "[FR]motivation",
+          "weight": 1
+        },
+        "habits": {
+          "display": "[FR]habits",
+          "weight": 1
+        },
+        "mental_health": {
+          "display": "[FR]mental health",
+          "weight": 1
+        },
+        "self_care": {
+          "display": "[FR]self care",
+          "weight": 1
+        },
+        "goal_setting": {
+          "display": "[FR]goal setting",
+          "weight": 1
+        }
+      }
+    },
+    "nature_and_outdoors": {
+      "display": "[FR]Nature & Outdoors",
+      "weight": 1,
+      "children": {
+        "camping": {
+          "display": "[FR]camping",
+          "weight": 1
+        },
+        "hiking": {
+          "display": "[FR]hiking",
+          "weight": 1
+        },
+        "survival_skills": {
+          "display": "[FR]survival skills",
+          "weight": 1
+        },
+        "bushcraft": {
+          "display": "[FR]bushcraft",
+          "weight": 1
+        },
+        "fishing": {
+          "display": "[FR]fishing",
+          "weight": 1
+        }
+      }
+    },
+    "food_reviews": {
+      "display": "[FR]Food Reviews",
+      "weight": 1,
+      "children": {
+        "restaurant_reviews": {
+          "display": "[FR]restaurant reviews",
+          "weight": 1
+        },
+        "mukbang": {
+          "display": "[FR]mukbang",
+          "weight": 1
+        },
+        "taste_tests": {
+          "display": "[FR]taste tests",
+          "weight": 1
+        },
+        "snack_reviews": {
+          "display": "[FR]snack reviews",
+          "weight": 1
+        },
+        "street_food_tours": {
+          "display": "[FR]street food tours",
+          "weight": 1
+        }
+      }
+    },
+    "challenges_and_trends": {
+      "display": "[FR]Challenges & Trends",
+      "weight": 1,
+      "children": {
+        "24_hour_challenges": {
+          "display": "[FR]24-hour challenges",
+          "weight": 1
+        },
+        "viral_trends": {
+          "display": "[FR]viral trends",
+          "weight": 1
+        },
+        "mrbeast_style": {
+          "display": "[FR]mrbeast style",
+          "weight": 1
+        },
+        "overnight_challenges": {
+          "display": "[FR]overnight challenges",
+          "weight": 1
+        },
+        "last_to_leave": {
+          "display": "[FR]last to leave",
+          "weight": 1
+        }
+      }
+    },
+    "pranks": {
+      "display": "[FR]Pranks",
+      "weight": 1,
+      "children": {
+        "public_pranks": {
+          "display": "[FR]public pranks",
+          "weight": 1
+        },
+        "hidden_camera": {
+          "display": "[FR]hidden camera",
+          "weight": 1
+        },
+        "social_experiments": {
+          "display": "[FR]social experiments",
+          "weight": 1
+        },
+        "reaction_pranks": {
+          "display": "[FR]reaction pranks",
+          "weight": 1
+        },
+        "school_pranks": {
+          "display": "[FR]school pranks",
+          "weight": 1
+        }
+      }
+    },
+    "kid_content": {
+      "display": "[FR]Kid Content",
+      "weight": 1,
+      "children": {
+        "educational_kids": {
+          "display": "[FR]educational kids",
+          "weight": 1
+        },
+        "nursery_rhymes": {
+          "display": "[FR]nursery rhymes",
+          "weight": 1
+        },
+        "toy_reviews": {
+          "display": "[FR]toy reviews",
+          "weight": 1
+        },
+        "family_vlogs": {
+          "display": "[FR]family vlogs",
+          "weight": 1
+        },
+        "kids_challenges": {
+          "display": "[FR]kids challenges",
+          "weight": 1
+        }
+      }
+    },
+    "pets_dog_focus": {
+      "display": "[FR]Pets - Dog Focus",
+      "weight": 1,
+      "children": {
+        "training": {
+          "display": "[FR]training",
+          "weight": 1
+        },
+        "breed_info": {
+          "display": "[FR]breed info",
+          "weight": 1
+        },
+        "grooming": {
+          "display": "[FR]grooming",
+          "weight": 1
+        },
+        "dog_vlogs": {
+          "display": "[FR]dog vlogs",
+          "weight": 1
+        },
+        "puppy_care": {
+          "display": "[FR]puppy care",
+          "weight": 1
+        }
+      }
+    },
+    "pets_cat_focus": {
+      "display": "[FR]Pets - Cat Focus",
+      "weight": 1,
+      "children": {
+        "cat_vlogs": {
+          "display": "[FR]cat vlogs",
+          "weight": 1
+        },
+        "cat_care": {
+          "display": "[FR]cat care",
+          "weight": 1
+        },
+        "enrichment": {
+          "display": "[FR]enrichment",
+          "weight": 1
+        },
+        "funny_cats": {
+          "display": "[FR]funny cats",
+          "weight": 1
+        },
+        "cat_breeds": {
+          "display": "[FR]cat breeds",
+          "weight": 1
+        }
+      }
+    },
+    "reality_and_lifestyle": {
+      "display": "[FR]Reality & Lifestyle",
+      "weight": 1,
+      "children": {
+        "house_tours": {
+          "display": "[FR]house tours",
+          "weight": 1
+        },
+        "morning_routines": {
+          "display": "[FR]morning routines",
+          "weight": 1
+        },
+        "shopping_hauls": {
+          "display": "[FR]shopping hauls",
+          "weight": 1
+        },
+        "what_i_eat_in_a_day": {
+          "display": "[FR]what i eat in a day",
+          "weight": 1
+        },
+        "routine_vlogs": {
+          "display": "[FR]routine vlogs",
+          "weight": 1
+        }
+      }
+    },
+    "home_organization": {
+      "display": "[FR]Home Organization",
+      "weight": 1,
+      "children": {
+        "clean_with_me": {
+          "display": "[FR]clean with me",
+          "weight": 1
+        },
+        "declutter": {
+          "display": "[FR]declutter",
+          "weight": 1
+        },
+        "minimalism": {
+          "display": "[FR]minimalism",
+          "weight": 1
+        },
+        "storage_hacks": {
+          "display": "[FR]storage hacks",
+          "weight": 1
+        },
+        "home_reset": {
+          "display": "[FR]home reset",
+          "weight": 1
+        }
+      }
+    },
+    "gardening": {
+      "display": "[FR]Gardening",
+      "weight": 1,
+      "children": {
+        "indoor_plants": {
+          "display": "[FR]indoor plants",
+          "weight": 1
+        },
+        "vegetable_gardening": {
+          "display": "[FR]vegetable gardening",
+          "weight": 1
+        },
+        "landscaping": {
+          "display": "[FR]landscaping",
+          "weight": 1
+        },
+        "hydroponics": {
+          "display": "[FR]hydroponics",
+          "weight": 1
+        },
+        "composting": {
+          "display": "[FR]composting",
+          "weight": 1
+        }
+      }
+    },
+    "car_maintenance": {
+      "display": "[FR]Car Maintenance",
+      "weight": 1,
+      "children": {
+        "diy_repairs": {
+          "display": "[FR]diy repairs",
+          "weight": 1
+        },
+        "detailing": {
+          "display": "[FR]detailing",
+          "weight": 1
+        },
+        "diagnostic_tips": {
+          "display": "[FR]diagnostic tips",
+          "weight": 1
+        },
+        "maintenance_schedules": {
+          "display": "[FR]maintenance schedules",
+          "weight": 1
+        },
+        "car_cleaning": {
+          "display": "[FR]car cleaning",
+          "weight": 1
+        }
+      }
+    },
+    "aviation": {
+      "display": "[FR]Aviation",
+      "weight": 1,
+      "children": {
+        "plane_spotting": {
+          "display": "[FR]plane spotting",
+          "weight": 1
+        },
+        "flight_reviews": {
+          "display": "[FR]flight reviews",
+          "weight": 1
+        },
+        "pilot_vlogs": {
+          "display": "[FR]pilot vlogs",
+          "weight": 1
+        },
+        "cockpit_videos": {
+          "display": "[FR]cockpit videos",
+          "weight": 1
+        },
+        "aviation_news": {
+          "display": "[FR]aviation news",
+          "weight": 1
+        }
+      }
+    },
+    "drones_and_fpv": {
+      "display": "[FR]Drones & FPV",
+      "weight": 1,
+      "children": {
+        "drone_reviews": {
+          "display": "[FR]drone reviews",
+          "weight": 1
+        },
+        "cinematic_fpv": {
+          "display": "[FR]cinematic fpv",
+          "weight": 1
+        },
+        "racing_drones": {
+          "display": "[FR]racing drones",
+          "weight": 1
+        },
+        "drone_tutorials": {
+          "display": "[FR]drone tutorials",
+          "weight": 1
+        },
+        "aerial_photography": {
+          "display": "[FR]aerial photography",
+          "weight": 1
+        }
+      }
+    },
+    "photography": {
+      "display": "[FR]Photography",
+      "weight": 1,
+      "children": {
+        "photography_tips": {
+          "display": "[FR]photography tips",
+          "weight": 1
+        },
+        "gear_reviews": {
+          "display": "[FR]gear reviews",
+          "weight": 1
+        },
+        "street_photography": {
+          "display": "[FR]street photography",
+          "weight": 1
+        },
+        "photo_editing": {
+          "display": "[FR]photo editing",
+          "weight": 1
+        },
+        "portraits": {
+          "display": "[FR]portraits",
+          "weight": 1
+        }
+      }
+    },
+    "virtual_reality": {
+      "display": "[FR]Virtual Reality",
+      "weight": 1,
+      "children": {
+        "vr_gameplay": {
+          "display": "[FR]vr gameplay",
+          "weight": 1
+        },
+        "experiences": {
+          "display": "[FR]experiences",
+          "weight": 1
+        },
+        "reviews": {
+          "display": "[FR]reviews",
+          "weight": 1
+        },
+        "tutorials": {
+          "display": "[FR]tutorials",
+          "weight": 1
+        },
+        "vr_news": {
+          "display": "[FR]vr news",
+          "weight": 1
+        }
+      }
+    },
+    "artificial_intelligence": {
+      "display": "[FR]Artificial Intelligence",
+      "weight": 1,
+      "children": {
+        "ai_news": {
+          "display": "[FR]ai news",
+          "weight": 1
+        },
+        "tutorials": {
+          "display": "[FR]tutorials",
+          "weight": 1
+        },
+        "ai_experiments": {
+          "display": "[FR]ai experiments",
+          "weight": 1
+        },
+        "ethics": {
+          "display": "[FR]ethics",
+          "weight": 1
+        },
+        "ai_tools": {
+          "display": "[FR]ai tools",
+          "weight": 1
+        }
+      }
+    },
+    "data_science": {
+      "display": "[FR]Data Science",
+      "weight": 1,
+      "children": {
+        "dashboards": {
+          "display": "[FR]dashboards",
+          "weight": 1
+        },
+        "projects": {
+          "display": "[FR]projects",
+          "weight": 1
+        },
+        "machine_learning": {
+          "display": "[FR]machine learning",
+          "weight": 1
+        },
+        "statistics": {
+          "display": "[FR]statistics",
+          "weight": 1
+        },
+        "data_visualization": {
+          "display": "[FR]data visualization",
+          "weight": 1
+        }
+      }
+    },
+    "coding_tutorials": {
+      "display": "[FR]Coding Tutorials",
+      "weight": 1,
+      "children": {
+        "web_development": {
+          "display": "[FR]web development",
+          "weight": 1
+        },
+        "python": {
+          "display": "[FR]python",
+          "weight": 1
+        },
+        "rust": {
+          "display": "[FR]rust",
+          "weight": 1
+        },
+        "game_dev": {
+          "display": "[FR]game dev",
+          "weight": 1
+        },
+        "code_challenges": {
+          "display": "[FR]code challenges",
+          "weight": 1
+        }
+      }
+    },
+    "crypto_and_blockchain": {
+      "display": "[FR]Crypto & Blockchain",
+      "weight": 1,
+      "children": {
+        "bitcoin": {
+          "display": "[FR]bitcoin",
+          "weight": 1
+        },
+        "defi": {
+          "display": "[FR]defi",
+          "weight": 1
+        },
+        "nfts": {
+          "display": "[FR]nfts",
+          "weight": 1
+        },
+        "mining": {
+          "display": "[FR]mining",
+          "weight": 1
+        },
+        "market_analysis": {
+          "display": "[FR]market analysis",
+          "weight": 1
+        }
+      }
+    },
+    "web_design_and_ui_ux": {
+      "display": "[FR]Web Design & UI/UX",
+      "weight": 1,
+      "children": {
+        "figma": {
+          "display": "[FR]figma",
+          "weight": 1
+        },
+        "design_systems": {
+          "display": "[FR]design systems",
+          "weight": 1
+        },
+        "portfolio_reviews": {
+          "display": "[FR]portfolio reviews",
+          "weight": 1
+        },
+        "ui_tips": {
+          "display": "[FR]ui tips",
+          "weight": 1
+        },
+        "ux_case_studies": {
+          "display": "[FR]ux case studies",
+          "weight": 1
+        }
+      }
+    },
+    "career_advice": {
+      "display": "[FR]Career Advice",
+      "weight": 1,
+      "children": {
+        "resume_tips": {
+          "display": "[FR]resume tips",
+          "weight": 1
+        },
+        "interviews": {
+          "display": "[FR]interviews",
+          "weight": 1
+        },
+        "job_hunting": {
+          "display": "[FR]job hunting",
+          "weight": 1
+        },
+        "networking": {
+          "display": "[FR]networking",
+          "weight": 1
+        },
+        "freelancing": {
+          "display": "[FR]freelancing",
+          "weight": 1
+        }
+      }
+    },
+    "college_life": {
+      "display": "[FR]College Life",
+      "weight": 1,
+      "children": {
+        "student_vlogs": {
+          "display": "[FR]student vlogs",
+          "weight": 1
+        },
+        "campus_tours": {
+          "display": "[FR]campus tours",
+          "weight": 1
+        },
+        "study_hacks": {
+          "display": "[FR]study hacks",
+          "weight": 1
+        },
+        "dorm_life": {
+          "display": "[FR]dorm life",
+          "weight": 1
+        },
+        "college_advice": {
+          "display": "[FR]college advice",
+          "weight": 1
+        }
+      }
+    },
+    "luxury_lifestyle": {
+      "display": "[FR]Luxury Lifestyle",
+      "weight": 1,
+      "children": {
+        "yachts": {
+          "display": "[FR]yachts",
+          "weight": 1
+        },
+        "supercars": {
+          "display": "[FR]supercars",
+          "weight": 1
+        },
+        "luxury_travel": {
+          "display": "[FR]luxury travel",
+          "weight": 1
+        },
+        "watch_collection": {
+          "display": "[FR]watch collection",
+          "weight": 1
+        },
+        "designer_shopping": {
+          "display": "[FR]designer shopping",
+          "weight": 1
+        }
+      }
+    },
+    "anime_and_manga": {
+      "display": "[FR]Anime & Manga",
+      "weight": 1,
+      "children": {
+        "reviews": {
+          "display": "[FR]reviews",
+          "weight": 1
+        },
+        "episode_reactions": {
+          "display": "[FR]episode reactions",
+          "weight": 1
+        },
+        "amvs": {
+          "display": "[FR]amvs",
+          "weight": 1
+        },
+        "cosplays": {
+          "display": "[FR]cosplays",
+          "weight": 1
+        },
+        "anime_news": {
+          "display": "[FR]anime news",
+          "weight": 1
+        }
+      }
+    },
+    "k_pop": {
+      "display": "[FR]K-Pop",
+      "weight": 1,
+      "children": {
+        "comebacks": {
+          "display": "[FR]comebacks",
+          "weight": 1
+        },
+        "dance_covers": {
+          "display": "[FR]dance covers",
+          "weight": 1
+        },
+        "line_distribution": {
+          "display": "[FR]line distribution",
+          "weight": 1
+        },
+        "fan_cams": {
+          "display": "[FR]fan cams",
+          "weight": 1
+        },
+        "album_reviews": {
+          "display": "[FR]album reviews",
+          "weight": 1
+        }
+      }
+    },
+    "indie_music": {
+      "display": "[FR]Indie Music",
+      "weight": 1,
+      "children": {
+        "discoveries": {
+          "display": "[FR]discoveries",
+          "weight": 1
+        },
+        "acoustic_sessions": {
+          "display": "[FR]acoustic sessions",
+          "weight": 1
+        },
+        "playlists": {
+          "display": "[FR]playlists",
+          "weight": 1
+        },
+        "live_sessions": {
+          "display": "[FR]live sessions",
+          "weight": 1
+        },
+        "artist_interviews": {
+          "display": "[FR]artist interviews",
+          "weight": 1
+        }
+      }
+    },
+    "cover_songs": {
+      "display": "[FR]Cover Songs",
+      "weight": 1,
+      "children": {
+        "acoustic_covers": {
+          "display": "[FR]acoustic covers",
+          "weight": 1
+        },
+        "piano_covers": {
+          "display": "[FR]piano covers",
+          "weight": 1
+        },
+        "mashups": {
+          "display": "[FR]mashups",
+          "weight": 1
+        },
+        "metal_covers": {
+          "display": "[FR]metal covers",
+          "weight": 1
+        },
+        "orchestral_covers": {
+          "display": "[FR]orchestral covers",
+          "weight": 1
+        }
+      }
+    },
+    "dance": {
+      "display": "[FR]Dance",
+      "weight": 1,
+      "children": {
+        "choreography": {
+          "display": "[FR]choreography",
+          "weight": 1
+        },
+        "tutorials": {
+          "display": "[FR]tutorials",
+          "weight": 1
+        },
+        "dance_covers": {
+          "display": "[FR]dance covers",
+          "weight": 1
+        },
+        "competitions": {
+          "display": "[FR]competitions",
+          "weight": 1
+        },
+        "freestyle": {
+          "display": "[FR]freestyle",
+          "weight": 1
+        }
+      }
+    },
+    "short_films": {
+      "display": "[FR]Short Films",
+      "weight": 1,
+      "children": {
+        "indie_shorts": {
+          "display": "[FR]indie shorts",
+          "weight": 1
+        },
+        "student_films": {
+          "display": "[FR]student films",
+          "weight": 1
+        },
+        "experimental": {
+          "display": "[FR]experimental",
+          "weight": 1
+        },
+        "animated_shorts": {
+          "display": "[FR]animated shorts",
+          "weight": 1
+        },
+        "festivals": {
+          "display": "[FR]festivals",
+          "weight": 1
+        }
+      }
+    },
+    "lego_and_building": {
+      "display": "[FR]Lego & Building",
+      "weight": 1,
+      "children": {
+        "lego_reviews": {
+          "display": "[FR]lego reviews",
+          "weight": 1
+        },
+        "speed_builds": {
+          "display": "[FR]speed builds",
+          "weight": 1
+        },
+        "mocs": {
+          "display": "[FR]mocs",
+          "weight": 1
+        },
+        "stop_motion_lego": {
+          "display": "[FR]stop motion lego",
+          "weight": 1
+        },
+        "lego_news": {
+          "display": "[FR]lego news",
+          "weight": 1
+        }
+      }
+    },
+    "board_games": {
+      "display": "[FR]Board Games",
+      "weight": 1,
+      "children": {
+        "playthroughs": {
+          "display": "[FR]playthroughs",
+          "weight": 1
+        },
+        "reviews": {
+          "display": "[FR]reviews",
+          "weight": 1
+        },
+        "strategy_tips": {
+          "display": "[FR]strategy tips",
+          "weight": 1
+        },
+        "unboxings": {
+          "display": "[FR]unboxings",
+          "weight": 1
+        },
+        "top_10_lists": {
+          "display": "[FR]top 10 lists",
+          "weight": 1
+        }
+      }
+    },
+    "card_games": {
+      "display": "[FR]Card Games",
+      "weight": 1,
+      "children": {
+        "magic_the_gathering": {
+          "display": "[FR]magic the gathering",
+          "weight": 1
+        },
+        "pokemon_cards": {
+          "display": "[FR]pokemon cards",
+          "weight": 1
+        },
+        "yugioh": {
+          "display": "[FR]yugioh",
+          "weight": 1
+        },
+        "card_openings": {
+          "display": "[FR]card openings",
+          "weight": 1
+        },
+        "deck_building": {
+          "display": "[FR]deck building",
+          "weight": 1
+        }
+      }
+    },
+    "collectibles": {
+      "display": "[FR]Collectibles",
+      "weight": 1,
+      "children": {
+        "funko_pops": {
+          "display": "[FR]funko pops",
+          "weight": 1
+        },
+        "action_figures": {
+          "display": "[FR]action figures",
+          "weight": 1
+        },
+        "unboxing": {
+          "display": "[FR]unboxing",
+          "weight": 1
+        },
+        "figurine_reviews": {
+          "display": "[FR]figurine reviews",
+          "weight": 1
+        },
+        "collection_tours": {
+          "display": "[FR]collection tours",
+          "weight": 1
+        }
+      }
+    },
+    "horror_content": {
+      "display": "[FR]Horror Content",
+      "weight": 1,
+      "children": {
+        "urban_legends": {
+          "display": "[FR]urban legends",
+          "weight": 1
+        },
+        "scary_stories": {
+          "display": "[FR]scary stories",
+          "weight": 1
+        },
+        "paranormal_investigations": {
+          "display": "[FR]paranormal investigations",
+          "weight": 1
+        },
+        "creepypasta": {
+          "display": "[FR]creepypasta",
+          "weight": 1
+        },
+        "haunted_places": {
+          "display": "[FR]haunted places",
+          "weight": 1
+        }
+      }
+    },
+    "true_crime": {
+      "display": "[FR]True Crime",
+      "weight": 1,
+      "children": {
+        "case_analysis": {
+          "display": "[FR]case analysis",
+          "weight": 1
+        },
+        "documentaries": {
+          "display": "[FR]documentaries",
+          "weight": 1
+        },
+        "unsolved_mysteries": {
+          "display": "[FR]unsolved mysteries",
+          "weight": 1
+        },
+        "courtroom_footage": {
+          "display": "[FR]courtroom footage",
+          "weight": 1
+        },
+        "crime_news": {
+          "display": "[FR]crime news",
+          "weight": 1
+        }
+      }
+    },
+    "mystery_and_puzzles": {
+      "display": "[FR]Mystery & Puzzles",
+      "weight": 1,
+      "children": {
+        "escape_rooms": {
+          "display": "[FR]escape rooms",
+          "weight": 1
+        },
+        "riddles": {
+          "display": "[FR]riddles",
+          "weight": 1
+        },
+        "puzzle_solving": {
+          "display": "[FR]puzzle solving",
+          "weight": 1
+        },
+        "mystery_games": {
+          "display": "[FR]mystery games",
+          "weight": 1
+        },
+        "detective_stories": {
+          "display": "[FR]detective stories",
+          "weight": 1
+        }
+      }
+    },
+    "astrology": {
+      "display": "[FR]Astrology",
+      "weight": 1,
+      "children": {
+        "horoscopes": {
+          "display": "[FR]horoscopes",
+          "weight": 1
+        },
+        "zodiac_compatibility": {
+          "display": "[FR]zodiac compatibility",
+          "weight": 1
+        },
+        "astro_basics": {
+          "display": "[FR]astro basics",
+          "weight": 1
+        },
+        "birth_chart_readings": {
+          "display": "[FR]birth chart readings",
+          "weight": 1
+        },
+        "astro_memes": {
+          "display": "[FR]astro memes",
+          "weight": 1
+        }
+      }
+    },
+    "meme_compilations": {
+      "display": "[FR]Meme Compilations",
+      "weight": 1,
+      "children": {
+        "fails": {
+          "display": "[FR]fails",
+          "weight": 1
+        },
+        "dank_memes": {
+          "display": "[FR]dank memes",
+          "weight": 1
+        },
+        "vine_comps": {
+          "display": "[FR]vine comps",
+          "weight": 1
+        },
+        "meme_reviews": {
+          "display": "[FR]meme reviews",
+          "weight": 1
+        },
+        "try_not_to_laugh": {
+          "display": "[FR]try not to laugh",
+          "weight": 1
+        }
+      }
+    },
+    "satisfying_videos": {
+      "display": "[FR]Satisfying Videos",
+      "weight": 1,
+      "children": {
+        "slime": {
+          "display": "[FR]slime",
+          "weight": 1
+        },
+        "soap_cutting": {
+          "display": "[FR]soap cutting",
+          "weight": 1
+        },
+        "hydraulic_press": {
+          "display": "[FR]hydraulic press",
+          "weight": 1
+        },
+        "crushing_things": {
+          "display": "[FR]crushing things",
+          "weight": 1
+        },
+        "asmr_sounds": {
+          "display": "[FR]asmr sounds",
+          "weight": 1
+        }
+      }
+    },
+    "experimental_science": {
+      "display": "[FR]Experimental Science",
+      "weight": 1,
+      "children": {
+        "home_experiments": {
+          "display": "[FR]home experiments",
+          "weight": 1
+        },
+        "myth_busters": {
+          "display": "[FR]myth busters",
+          "weight": 1
+        },
+        "slow_motion": {
+          "display": "[FR]slow motion",
+          "weight": 1
+        },
+        "liquid_nitrogen": {
+          "display": "[FR]liquid nitrogen",
+          "weight": 1
+        },
+        "vacuum_chamber": {
+          "display": "[FR]vacuum chamber",
+          "weight": 1
+        }
+      }
+    },
+    "space_and_astronomy": {
+      "display": "[FR]Space & Astronomy",
+      "weight": 1,
+      "children": {
+        "rocket_launches": {
+          "display": "[FR]rocket launches",
+          "weight": 1
+        },
+        "space_news": {
+          "display": "[FR]space news",
+          "weight": 1
+        },
+        "astrophotography": {
+          "display": "[FR]astrophotography",
+          "weight": 1
+        },
+        "mars_missions": {
+          "display": "[FR]mars missions",
+          "weight": 1
+        },
+        "telescope_tips": {
+          "display": "[FR]telescope tips",
+          "weight": 1
+        }
+      }
+    },
+    "quantum_tech": {
+      "display": "[FR]Quantum Tech",
+      "weight": 1,
+      "children": {
+        "quantum_computing_explainers": {
+          "display": "[FR]quantum computing explainers",
+          "weight": 1
+        },
+        "manufacturer_updates": {
+          "display": "[FR]manufacturer updates",
+          "weight": 1
+        },
+        "quantum_algorithms": {
+          "display": "[FR]quantum algorithms",
+          "weight": 1
+        },
+        "qiskit_tutorials": {
+          "display": "[FR]qiskit tutorials",
+          "weight": 1
+        },
+        "post_quantum_crypto": {
+          "display": "[FR]post quantum crypto",
+          "weight": 1
+        }
+      }
+    },
+    "environmental": {
+      "display": "[FR]Environmental",
+      "weight": 1,
+      "children": {
+        "climate_change": {
+          "display": "[FR]climate change",
+          "weight": 1
+        },
+        "zero_waste": {
+          "display": "[FR]zero waste",
+          "weight": 1
+        },
+        "eco_hacks": {
+          "display": "[FR]eco hacks",
+          "weight": 1
+        },
+        "sustainability_news": {
+          "display": "[FR]sustainability news",
+          "weight": 1
+        },
+        "plastic_reduction": {
+          "display": "[FR]plastic reduction",
+          "weight": 1
+        }
+      }
+    },
+    "philanthropy_and_social_good": {
+      "display": "[FR]Philanthropy & Social Good",
+      "weight": 1,
+      "children": {
+        "charity_videos": {
+          "display": "[FR]charity videos",
+          "weight": 1
+        },
+        "fundraisers": {
+          "display": "[FR]fundraisers",
+          "weight": 1
+        },
+        "impact_stories": {
+          "display": "[FR]impact stories",
+          "weight": 1
+        },
+        "volunteering": {
+          "display": "[FR]volunteering",
+          "weight": 1
+        },
+        "nonprofit_highlights": {
+          "display": "[FR]nonprofit highlights",
+          "weight": 1
+        }
+      }
+    },
+    "health_and_nutrition": {
+      "display": "[FR]Health & Nutrition",
+      "weight": 1,
+      "children": {
+        "diet_advice": {
+          "display": "[FR]diet advice",
+          "weight": 1
+        },
+        "recipe_analysis": {
+          "display": "[FR]recipe analysis",
+          "weight": 1
+        },
+        "nutrition_myths": {
+          "display": "[FR]nutrition myths",
+          "weight": 1
+        },
+        "meal_planning": {
+          "display": "[FR]meal planning",
+          "weight": 1
+        },
+        "supplement_reviews": {
+          "display": "[FR]supplement reviews",
+          "weight": 1
+        }
+      }
+    },
+    "cooking_international": {
+      "display": "[FR]Cooking International",
+      "weight": 1,
+      "children": {
+        "asian_cuisine": {
+          "display": "[FR]asian cuisine",
+          "weight": 1
+        },
+        "mexican_cuisine": {
+          "display": "[FR]mexican cuisine",
+          "weight": 1
+        },
+        "italian_cuisine": {
+          "display": "[FR]italian cuisine",
+          "weight": 1
+        },
+        "indian_cuisine": {
+          "display": "[FR]indian cuisine",
+          "weight": 1
+        },
+        "mediterranean": {
+          "display": "[FR]mediterranean",
+          "weight": 1
+        }
+      }
+    },
+    "baking_and_desserts": {
+      "display": "[FR]Baking & Desserts",
+      "weight": 1,
+      "children": {
+        "cakes": {
+          "display": "[FR]cakes",
+          "weight": 1
+        },
+        "cookies": {
+          "display": "[FR]cookies",
+          "weight": 1
+        },
+        "pastry": {
+          "display": "[FR]pastry",
+          "weight": 1
+        },
+        "decoration": {
+          "display": "[FR]decoration",
+          "weight": 1
+        },
+        "bread_making": {
+          "display": "[FR]bread making",
+          "weight": 1
+        }
+      }
+    },
+    "beverage_arts": {
+      "display": "[FR]Beverage Arts",
+      "weight": 1,
+      "children": {
+        "coffee": {
+          "display": "[FR]coffee",
+          "weight": 1
+        },
+        "tea": {
+          "display": "[FR]tea",
+          "weight": 1
+        },
+        "cocktail_recipes": {
+          "display": "[FR]cocktail recipes",
+          "weight": 1
+        },
+        "brewing_guides": {
+          "display": "[FR]brewing guides",
+          "weight": 1
+        },
+        "latte_art": {
+          "display": "[FR]latte art",
+          "weight": 1
+        }
+      }
+    },
+    "car_tech_and_evs": {
+      "display": "[FR]Car Tech & EVs",
+      "weight": 1,
+      "children": {
+        "tesla": {
+          "display": "[FR]tesla",
+          "weight": 1
+        },
+        "ev_reviews": {
+          "display": "[FR]ev reviews",
+          "weight": 1
+        },
+        "charging": {
+          "display": "[FR]charging",
+          "weight": 1
+        },
+        "conversions": {
+          "display": "[FR]conversions",
+          "weight": 1
+        },
+        "battery_tech": {
+          "display": "[FR]battery tech",
+          "weight": 1
+        }
+      }
+    },
+    "smart_home": {
+      "display": "[FR]Smart Home",
+      "weight": 1,
+      "children": {
+        "iot_setup": {
+          "display": "[FR]iot setup",
+          "weight": 1
+        },
+        "reviews": {
+          "display": "[FR]reviews",
+          "weight": 1
+        },
+        "automations": {
+          "display": "[FR]automations",
+          "weight": 1
+        },
+        "home_security": {
+          "display": "[FR]home security",
+          "weight": 1
+        },
+        "smart_assistants": {
+          "display": "[FR]smart assistants",
+          "weight": 1
+        }
+      }
+    },
+    "home_finance": {
+      "display": "[FR]Home Finance",
+      "weight": 1,
+      "children": {
+        "mortgages": {
+          "display": "[FR]mortgages",
+          "weight": 1
+        },
+        "real_estate_investing": {
+          "display": "[FR]real estate investing",
+          "weight": 1
+        },
+        "property_tours": {
+          "display": "[FR]property tours",
+          "weight": 1
+        },
+        "budget_renovations": {
+          "display": "[FR]budget renovations",
+          "weight": 1
+        },
+        "tax_tips": {
+          "display": "[FR]tax tips",
+          "weight": 1
+        }
+      }
+    },
+    "craft_beer_and_spirits": {
+      "display": "[FR]Craft Beer & Spirits",
+      "weight": 1,
+      "children": {
+        "brewery_tours": {
+          "display": "[FR]brewery tours",
+          "weight": 1
+        },
+        "whiskey_reviews": {
+          "display": "[FR]whiskey reviews",
+          "weight": 1
+        },
+        "home_brewing": {
+          "display": "[FR]home brewing",
+          "weight": 1
+        },
+        "beer_tastings": {
+          "display": "[FR]beer tastings",
+          "weight": 1
+        },
+        "cocktail_science": {
+          "display": "[FR]cocktail science",
+          "weight": 1
+        }
+      }
+    },
+    "pet_health": {
+      "display": "[FR]Pet Health",
+      "weight": 1,
+      "children": {
+        "vet_tips": {
+          "display": "[FR]vet tips",
+          "weight": 1
+        },
+        "diseases": {
+          "display": "[FR]diseases",
+          "weight": 1
+        },
+        "nutrition": {
+          "display": "[FR]nutrition",
+          "weight": 1
+        },
+        "first_aid": {
+          "display": "[FR]first aid",
+          "weight": 1
+        },
+        "senior_pet_care": {
+          "display": "[FR]senior pet care",
+          "weight": 1
+        }
+      }
+    },
+    "urban_exploration": {
+      "display": "[FR]Urban Exploration",
+      "weight": 1,
+      "children": {
+        "abandoned_places": {
+          "display": "[FR]abandoned places",
+          "weight": 1
+        },
+        "city_tours": {
+          "display": "[FR]city tours",
+          "weight": 1
+        },
+        "urbex_stories": {
+          "display": "[FR]urbex stories",
+          "weight": 1
+        },
+        "rooftopping": {
+          "display": "[FR]rooftopping",
+          "weight": 1
+        },
+        "drain_exploration": {
+          "display": "[FR]drain exploration",
+          "weight": 1
+        }
+      }
+    },
+    "survival_and_prepper": {
+      "display": "[FR]Survival & Prepper",
+      "weight": 1,
+      "children": {
+        "gear_reviews": {
+          "display": "[FR]gear reviews",
+          "weight": 1
+        },
+        "emergency_prep": {
+          "display": "[FR]emergency prep",
+          "weight": 1
+        },
+        "bushcraft": {
+          "display": "[FR]bushcraft",
+          "weight": 1
+        },
+        "off_grid_living": {
+          "display": "[FR]off grid living",
+          "weight": 1
+        },
+        "food_storage": {
+          "display": "[FR]food storage",
+          "weight": 1
+        }
+      }
+    },
+    "makeup_sfx_and_cosplay": {
+      "display": "[FR]Makeup SFX & Cosplay",
+      "weight": 1,
+      "children": {
+        "special_effects_makeup": {
+          "display": "[FR]special effects makeup",
+          "weight": 1
+        },
+        "cosplay_builds": {
+          "display": "[FR]cosplay builds",
+          "weight": 1
+        },
+        "body_paint": {
+          "display": "[FR]body paint",
+          "weight": 1
+        },
+        "prosthetics": {
+          "display": "[FR]prosthetics",
+          "weight": 1
+        },
+        "wig_styling": {
+          "display": "[FR]wig styling",
+          "weight": 1
+        }
+      }
+    },
+    "graphic_design": {
+      "display": "[FR]Graphic Design",
+      "weight": 1,
+      "children": {
+        "photoshop_tutorials": {
+          "display": "[FR]photoshop tutorials",
+          "weight": 1
+        },
+        "logo_design": {
+          "display": "[FR]logo design",
+          "weight": 1
+        },
+        "branding": {
+          "display": "[FR]branding",
+          "weight": 1
+        },
+        "illustrator_tips": {
+          "display": "[FR]illustrator tips",
+          "weight": 1
+        },
+        "design_critiques": {
+          "display": "[FR]design critiques",
+          "weight": 1
+        }
+      }
+    },
+    "app_reviews": {
+      "display": "[FR]App Reviews",
+      "weight": 1,
+      "children": {
+        "mobile_apps": {
+          "display": "[FR]mobile apps",
+          "weight": 1
+        },
+        "productivity_apps": {
+          "display": "[FR]productivity apps",
+          "weight": 1
+        },
+        "games": {
+          "display": "[FR]games",
+          "weight": 1
+        },
+        "new_releases": {
+          "display": "[FR]new releases",
+          "weight": 1
+        },
+        "app_vs_app": {
+          "display": "[FR]app vs app",
+          "weight": 1
+        }
+      }
+    },
+    "language_and_culture": {
+      "display": "[FR]Language & Culture",
+      "weight": 1,
+      "children": {
+        "culture_explainers": {
+          "display": "[FR]culture explainers",
+          "weight": 1
+        },
+        "etiquette_videos": {
+          "display": "[FR]etiquette videos",
+          "weight": 1
+        },
+        "global_festivals": {
+          "display": "[FR]global festivals",
+          "weight": 1
+        },
+        "cultural_comparisons": {
+          "display": "[FR]cultural comparisons",
+          "weight": 1
+        },
+        "language_facts": {
+          "display": "[FR]language facts",
+          "weight": 1
+        }
+      }
+    },
+    "intermittent_fasting_and_diets": {
+      "display": "[FR]Intermittent Fasting & Diets",
+      "weight": 1,
+      "children": {
+        "keto": {
+          "display": "[FR]keto",
+          "weight": 1
+        },
+        "vegan": {
+          "display": "[FR]vegan",
+          "weight": 1
+        },
+        "paleo": {
+          "display": "[FR]paleo",
+          "weight": 1
+        },
+        "if_methods": {
+          "display": "[FR]if methods",
+          "weight": 1
+        },
+        "diet_science": {
+          "display": "[FR]diet science",
+          "weight": 1
+        }
+      }
+    },
+    "hair_styling": {
+      "display": "[FR]Hair Styling",
+      "weight": 1,
+      "children": {
+        "hairstyles": {
+          "display": "[FR]hairstyles",
+          "weight": 1
+        },
+        "barber_tutorials": {
+          "display": "[FR]barber tutorials",
+          "weight": 1
+        },
+        "transformations": {
+          "display": "[FR]transformations",
+          "weight": 1
+        },
+        "hair_care": {
+          "display": "[FR]hair care",
+          "weight": 1
+        },
+        "hair_coloring": {
+          "display": "[FR]hair coloring",
+          "weight": 1
+        }
+      }
+    },
+    "nail_art": {
+      "display": "[FR]Nail Art",
+      "weight": 1,
+      "children": {
+        "manicure_tutorials": {
+          "display": "[FR]manicure tutorials",
+          "weight": 1
+        },
+        "nail_trends": {
+          "display": "[FR]nail trends",
+          "weight": 1
+        },
+        "gel_vs_acrylic": {
+          "display": "[FR]gel vs acrylic",
+          "weight": 1
+        },
+        "nail_art_time_lapse": {
+          "display": "[FR]nail art time lapse",
+          "weight": 1
+        },
+        "press_ons": {
+          "display": "[FR]press-ons",
+          "weight": 1
+        }
+      }
+    },
+    "weight_loss_journey": {
+      "display": "[FR]Weight Loss Journey",
+      "weight": 1,
+      "children": {
+        "vlogs": {
+          "display": "[FR]vlogs",
+          "weight": 1
+        },
+        "tips": {
+          "display": "[FR]tips",
+          "weight": 1
+        },
+        "transformation_stories": {
+          "display": "[FR]transformation stories",
+          "weight": 1
+        },
+        "progress_updates": {
+          "display": "[FR]progress updates",
+          "weight": 1
+        },
+        "diet_tracking": {
+          "display": "[FR]diet tracking",
+          "weight": 1
+        }
+      }
+    },
+    "mental_health_awareness": {
+      "display": "[FR]Mental Health Awareness",
+      "weight": 1,
+      "children": {
+        "anxiety_coping": {
+          "display": "[FR]anxiety coping",
+          "weight": 1
+        },
+        "depression_stories": {
+          "display": "[FR]depression stories",
+          "weight": 1
+        },
+        "therapy_journeys": {
+          "display": "[FR]therapy journeys",
+          "weight": 1
+        },
+        "psychology_explainers": {
+          "display": "[FR]psychology explainers",
+          "weight": 1
+        },
+        "support_resources": {
+          "display": "[FR]support resources",
+          "weight": 1
+        }
+      }
+    },
+    "inspirational_stories": {
+      "display": "[FR]Inspirational Stories",
+      "weight": 1,
+      "children": {
+        "overcoming_adversity": {
+          "display": "[FR]overcoming adversity",
+          "weight": 1
+        },
+        "success_stories": {
+          "display": "[FR]success stories",
+          "weight": 1
+        },
+        "documentaries": {
+          "display": "[FR]documentaries",
+          "weight": 1
+        },
+        "motivational_speeches": {
+          "display": "[FR]motivational speeches",
+          "weight": 1
+        },
+        "human_interest": {
+          "display": "[FR]human interest",
           "weight": 1
         }
       }
