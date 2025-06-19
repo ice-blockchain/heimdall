@@ -2,7 +2,7 @@ module github.com/ice-blockchain/heimdall
 
 go 1.24.4
 
-replace github.com/nbd-wtf/go-nostr => github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250529135422-947132aaf4ea
+replace github.com/nbd-wtf/go-nostr => github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5
 
 require (
 	dario.cat/mergo v1.0.2
