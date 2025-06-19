@@ -1,5 +1,5 @@
 {
-  "_version": 1,
+  "_version": 2,
   "interestedThreshold": 0.5,
   "notInterestedCategoryChance": 0.3,
   "notInterestedSubcategoryChance": 0.2,
@@ -11,5 +11,5 @@
   "exploreMaxAge": 43200000,
   "repostThrottleDelay": 10800000,
   "concurrentMediaDownloadsLimit": 3,
-  "excludeUnclassifiedFromExplore": true
+  "excludeUnclassifiedFromExplore": false
 }
