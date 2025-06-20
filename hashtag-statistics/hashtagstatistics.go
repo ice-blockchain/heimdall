@@ -39,7 +39,16 @@ func (h *hashtagStatisticsRepository) Process(ctx context.Context, events []*mod
 		} else {
 			address = strconv.Itoa(event.Kind) + ":" + event.GetMasterPublicKey() + ":" + event.Tags.GetD()
 		}
-		hashtags := extractUniqueHashtags(event.Content)
+		var contentToSearch string
+		if event.Content != "" {
+			contentToSearch = event.Content
+		} else {
+			richTextTag := event.GetTag(model.CustomIONTagRichText)
+			if richTextTag != nil && len(richTextTag) >= 3 && richTextTag[2] != "" {
+				contentToSearch = richTextTag[2]
+			}
+		}
+		hashtags := extractUniqueHashtags(contentToSearch)
 		args = append(args, address, event.GetMasterPublicKey(), hashtags)
 		allHashtags = append(allHashtags, hashtags...)
 	}
