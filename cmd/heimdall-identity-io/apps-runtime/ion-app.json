@@ -12,5 +12,7 @@
   "repostThrottleDelay": 10800000,
   "concurrentMediaDownloadsLimit": 3,
   "excludeUnclassifiedFromExplore": true,
-  "allowNewRegistrations": true
+  "allowNewRegistrations": true,
+  "enableEarlyAccessRegistrations": true,
+  "maxEarlyAccessRegistrationsAllowedPerEmail": 3
 }
