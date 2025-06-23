@@ -6,7 +6,7 @@ replace github.com/nbd-wtf/go-nostr => github.com/ice-blockchain/go-nostr v0.42.
 
 require (
 	dario.cat/mergo v1.0.2
-	github.com/alitto/pond/v2 v2.3.4
+	github.com/alitto/pond/v2 v2.4.0
 	github.com/btcsuite/btcd v0.24.2
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.10
 	github.com/cenkalti/backoff/v4 v4.3.0
@@ -18,7 +18,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/ice-blockchain/subzero v1.270.0
+	github.com/ice-blockchain/subzero v1.275.0
 	github.com/ice-blockchain/wintr v1.156.0
 	github.com/imroc/req/v3 v3.53.0
 	github.com/lestrrat-go/jwx/v2 v2.1.6
