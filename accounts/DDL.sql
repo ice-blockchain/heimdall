@@ -151,6 +151,7 @@ CREATE TABLE IF NOT EXISTS social_profiles (
     primary key(master_pubkey)
 );
 
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
-CREATE INDEX IF NOT EXISTS idx_social_profiles_lookup_trgm ON social_profiles USING gin (lookup gin_trgm_ops);
-
+CREATE EXTENSION IF NOT EXISTS pgroonga;
+DROP INDEX IF EXISTS idx_social_profiles_lookup_trgm; -- Remove after the migration to pgroonga.
+CREATE INDEX IF NOT EXISTS idx_social_profiles_lookup_pgroonga ON social_profiles USING pgroonga (lookup) 
+        WITH (tokenizer='TokenNgram("unify_alphabet", false, "unify_symbol", false, "unify_digit", false)');
