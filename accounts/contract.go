@@ -69,6 +69,7 @@ type (
 	}
 	Coins interface {
 		GetCoinsOfSymbolGroup(ctx context.Context, symbolGroups []string) ([]*coins.Coin, error)
+		GetNativeCoinForNetwork(ctx context.Context, network string) (*coins.Coin, error)
 		GetFees(network string) *coins.Fee
 		ImportNFTs(ctx context.Context, network string, nft []coins.WalletNFT) ([]*NFT, error)
 	}

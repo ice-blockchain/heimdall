@@ -31,6 +31,7 @@ type (
 		GetCoinsOfSymbolGroup(ctx context.Context, symbolGroups []string) ([]*Coin, error)
 		GetFees(network string) *Fee
 		ImportNFTs(ctx context.Context, network string, NFTs []WalletNFT) ([]*NFT, error)
+		GetNativeCoinForNetwork(ctx context.Context, network string) (*Coin, error)
 	}
 	Sync interface {
 		io.Closer
