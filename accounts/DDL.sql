@@ -153,5 +153,4 @@ CREATE TABLE IF NOT EXISTS social_profiles (
 
 CREATE EXTENSION IF NOT EXISTS pgroonga;
 DROP INDEX IF EXISTS idx_social_profiles_lookup_trgm; -- Remove after the migration to pgroonga.
-CREATE INDEX IF NOT EXISTS idx_social_profiles_lookup_pgroonga ON social_profiles USING pgroonga (lookup) 
-        WITH (tokenizer='TokenNgram("unify_alphabet", false, "unify_symbol", false, "unify_digit", false)');
+CREATE INDEX IF NOT EXISTS idx_social_profiles_lookup_pgroonga ON social_profiles USING pgroonga (lookup) WITH (tokenizer='TokenBigramSplitSymbolAlphaDigit');
