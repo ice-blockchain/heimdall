@@ -456,3 +456,32 @@ func IsTestnet(network string) bool {
 func (c *coinsRepository) GetAllNetworks() []*Network {
 	return c.coinGeckoClient.GetAllNetworks()
 }
+
+func (c *coinsRepository) GetNativeCoinForNetwork(ctx context.Context, network string) (*Coin, error) {
+	cgNetwork, err := MapNetworkToCoinGecko(network)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to map network %v to coin gecko", network)
+	}
+	nativeCoin, err := storage.Get[coin](ctx, c.db, `SELECT * from coins where network = $1 and native;`, cgNetwork)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to select native coin for network %v", network)
+	}
+	network, priority, err := MapNetworkFromCoinGecko(nativeCoin.Network, nativeCoin.SymbolGroup)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get coins of symbol group due to unmapped network %v %+v", nativeCoin.Network, c)
+	}
+	return &Coin{
+		ID:              nativeCoin.ID,
+		Name:            nativeCoin.Name,
+		Symbol:          nativeCoin.Symbol,
+		SymbolGroup:     nativeCoin.SymbolGroup,
+		Network:         network,
+		ContractAddress: nativeCoin.ContractAddress,
+		IconURL:         nativeCoin.IconUrl,
+		PriceUSD:        nativeCoin.PriceUSD,
+		SyncFrequency:   nativeCoin.SyncFrequency,
+		Decimals:        nativeCoin.Decimals,
+		Native:          nativeCoin.Native,
+		Prioritized:     priority,
+	}, nil
+}

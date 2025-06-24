@@ -563,7 +563,34 @@ func (a *accounts) CreateWalletForWalletView(ctx context.Context, userID, networ
 		}
 	}
 	if len(targetCoins) == 0 {
-		return nil, ErrWalletLinked
+		nativeCoin, err := a.coinsRepo.GetNativeCoinForNetwork(ctx, network)
+		if err != nil {
+			if errors.Is(err, coins.ErrNotFound) {
+				err = nil
+			}
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to get native coin for network %v", network)
+			}
+		}
+		if nativeCoin == nil {
+			return nil, ErrWalletLinked
+		}
+		containsNativeCoin := false
+		for _, item := range walletView.Coins {
+			if item.Coin.ID == nativeCoin.ID {
+				containsNativeCoin = true
+				break
+			}
+		}
+		if containsNativeCoin {
+			return nil, ErrWalletLinked
+		}
+		walletView.Coins = append(walletView.Coins, &CoinMapping{
+			WalletID: nil,
+			CoinID:   nativeCoin.ID,
+		})
+		walletView.SymbolGroups = append(walletView.SymbolGroups, nativeCoin.SymbolGroup)
+		targetCoins = append(targetCoins, len(walletView.Coins)-1)
 	}
 	wallet, err := a.delegatedRPClient.CreateWallet(ctx, network, walletView.ID)
 	if err != nil {
