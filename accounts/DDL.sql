@@ -132,14 +132,6 @@ CREATE TABLE IF NOT EXISTS verified_users_sync_queue (
 
 CREATE INDEX IF NOT EXISTS verified_users_sync_queue_created_at ON verified_users_sync_queue (created_at);
 
-DO $$ BEGIN
-    if NOT exists (select 1 from coins where id = '7b471f92-ced2-38b0-e408-88e5d89e8045' and symbol = 'ion') then
-        UPDATE wallet_views
-        SET symbol_groups = array_replace(symbol_groups, 'ice', 'ion')
-        WHERE symbol_groups @> ARRAY['ice'];
-    end if;
-END$$;
-
 CREATE TABLE IF NOT EXISTS social_profiles (
     created_at             TIMESTAMP NOT NULL,
     updated_at             TIMESTAMP NOT NULL,

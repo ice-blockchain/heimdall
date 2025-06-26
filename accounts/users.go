@@ -473,11 +473,11 @@ func (a *accounts) CompleteRegistration(ctx context.Context, credentials *Creden
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to complete registration")
 	}
-	if err = a.upsertWalletPubKeyFromRegistrationAndRegisterWalletView(ctx, now, registration); err != nil {
-		return nil, errors.Wrap(err, "failed to upsert wallet pubkey")
-	}
 	if err = a.verifyEarlyAccessAndUpsertUserID(ctx, earlyAccessEmail, registration); err != nil {
 		return nil, errors.Wrap(err, "failed update early access state")
+	}
+	if err = a.upsertWalletPubKeyFromRegistrationAndRegisterWalletView(ctx, now, registration); err != nil {
+		return nil, errors.Wrap(err, "failed to upsert wallet pubkey")
 	}
 	return registration, nil
 }

@@ -4,27 +4,6 @@ CREATE TABLE IF NOT EXISTS global (
       key TEXT PRIMARY KEY
 );
 
-CREATE OR REPLACE FUNCTION trigger_coins_after_insert_update_store_new_version()
-    RETURNS TRIGGER AS $$
-BEGIN
-    INSERT INTO global (
-        value, key
-    )
-    values (NEW.version, '%[3]v')
-    ON CONFLICT(key) DO UPDATE
-        SET value = NEW.version
-    where global.value::BIGINT < NEW.version;
-
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE OR REPLACE TRIGGER trigger_coins_after_insert_update_store_new_version
-    AFTER INSERT OR UPDATE ON coins
-    FOR EACH ROW
-EXECUTE FUNCTION trigger_coins_after_insert_update_store_new_version();
-
-
 CREATE TABLE IF NOT EXISTS coins (
                                      sync_frequency    INTERVAL NOT NULL,
                                      created_at        TIMESTAMP NOT NULL,
@@ -50,6 +29,26 @@ CREATE INDEX IF NOT EXISTS coins_symbol_group_idx ON coins (symbol_group);
 CREATE INDEX IF NOT EXISTS coins_coingecko_coin_id_idx ON coins (coingecko_coin_id);
 
 ALTER TABLE coins ADD COLUMN IF NOT EXISTS native BOOL NOT NULL DEFAULT FALSE;
+
+CREATE OR REPLACE FUNCTION trigger_coins_after_insert_update_store_new_version()
+    RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO global (
+        value, key
+    )
+    values (NEW.version, '%[3]v')
+    ON CONFLICT(key) DO UPDATE
+        SET value = NEW.version
+    where global.value::BIGINT < NEW.version;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER trigger_coins_after_insert_update_store_new_version
+    AFTER INSERT OR UPDATE ON coins
+    FOR EACH ROW
+EXECUTE FUNCTION trigger_coins_after_insert_update_store_new_version();
 
 CREATE TABLE IF NOT EXISTS coins_sync_queue (
                                                 created_at        TIMESTAMP NOT NULL,
@@ -91,5 +90,3 @@ DO $$ BEGIN
         ON CONFLICT(key) DO NOTHING;
     end if;
 END$$;
-
-

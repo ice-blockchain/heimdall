@@ -4,7 +4,6 @@ package accounts
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -19,22 +18,29 @@ func (a *accounts) registrationsEnabled() (enabled, earlyAccess bool, err error)
 
 func (a *accounts) isEmailAllowed(ctx context.Context, email string, userID *string) error {
 	maxAllowedPerEmail := a.appsRuntimeConfig.IONApp.MaxEarlyAccessRegistrationsAllowedPerEmail
-	upsertUserID := ""
+	sql := `SELECT (exists(SELECT 1 FROM early_access_emails WHERE email = $1) 
+			           and (SELECT count(*) FROM assigned_early_access_emails WHERE email = $1) < $2) as email_allowed;`
 	email = strings.ToLower(email)
 	params := []any{email, maxAllowedPerEmail}
 	if userID != nil {
-		upsertUserID = `WITH upsert_user AS (
-			INSERT INTO assigned_early_access_emails(email, user_id) VALUES ($1, $3)
-		)`
+		sql = `WITH inserted_users AS (
+			WITH allowed_email AS (
+				SELECT * FROM (VALUES($1, $3)) as t(email, user_id) WHERE (SELECT count(*) FROM assigned_early_access_emails WHERE email = $1) < $2
+			)
+			INSERT INTO assigned_early_access_emails(email, user_id) SELECT email, user_id FROM allowed_email ON CONFLICT(email, user_id) DO NOTHING
+			RETURNING 1) SELECT count(*) > 0 AS email_allowed from inserted_users`
 		params = append(params, *userID)
 	}
 	allowed, err := storage.ExecOne[struct {
 		EmailAllowed bool `db:"email_allowed"`
-	}](ctx, a.db, fmt.Sprintf(`
-			%v
-			SELECT (exists(SELECT 1 FROM early_access_emails WHERE email = $1) 
-			           and (SELECT count(*) FROM assigned_early_access_emails WHERE email = $1) < $2) as email_allowed;`, upsertUserID), params...)
+	}](ctx, a.db, sql, params...)
 	if err != nil {
+		if storage.IsErr(err, storage.ErrRelationNotFound) {
+			err = nil
+			allowed = &struct {
+				EmailAllowed bool `db:"email_allowed"`
+			}{EmailAllowed: false}
+		}
 		return errors.Wrapf(err, "failed to check if email %v is allowed", email)
 	}
 	if !allowed.EmailAllowed {
