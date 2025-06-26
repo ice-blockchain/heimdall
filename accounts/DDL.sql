@@ -154,3 +154,14 @@ CREATE TABLE IF NOT EXISTS social_profiles (
 CREATE EXTENSION IF NOT EXISTS pgroonga;
 DROP INDEX IF EXISTS idx_social_profiles_lookup_trgm; -- Remove after the migration to pgroonga.
 CREATE INDEX IF NOT EXISTS idx_social_profiles_lookup_pgroonga ON social_profiles USING pgroonga (lookup) WITH (tokenizer='TokenBigramSplitSymbolAlphaDigit');
+
+CREATE TABLE IF NOT EXISTS early_access_emails (
+                                                   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                                   email      TEXT NOT NULL primary key
+);
+
+CREATE TABLE IF NOT EXISTS assigned_early_access_emails (
+                                                            user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                                                            email   TEXT NOT NULL REFERENCES early_access_emails(email) ON DELETE CASCADE,
+                                                            primary key(email, user_id)
+);

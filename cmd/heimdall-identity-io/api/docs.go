@@ -144,6 +144,76 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/registration/enduser": {
+            "post": {
+                "description": "Completes user registration",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Register"
+                ],
+                "parameters": [
+                    {
+                        "description": "Request params",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.GetLoginChallenge"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "default": "ap-",
+                        "description": "App ID",
+                        "name": "X-Client-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003ctoken\u003e",
+                        "description": "Authorization",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.CompletedRegistration"
+                        }
+                    },
+                    "400": {
+                        "description": "if challenge is invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "if early access email is restructed or auth header invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/users/{userIdOrMasterKey}": {
             "get": {
                 "description": "Returns current user state",
@@ -2123,6 +2193,10 @@ const docTemplate = `{
                     "type": "integer"
                 }
             }
+        },
+        "main.CompletedRegistration": {
+            "type": "object",
+            "additionalProperties": {}
         },
         "main.CreateWalletReq": {
             "type": "object",

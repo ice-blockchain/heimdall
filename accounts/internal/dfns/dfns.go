@@ -50,7 +50,7 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 		proxies:               make(map[string]*httputil.ReverseProxy),
 		proxyMx:               sync.Mutex{},
 		refreshAuthIssuer:     NewRefreshAuth(applicationYamlKey),
-		callbacks:             make(map[string]func(ctx context.Context, now *time.Time, res map[string]any) error),
+		callbacks:             make(map[string][]func(ctx context.Context, now *time.Time, res map[string]any) error),
 		tonApi:                mustInitTONClient(ctx, cfg.DFNS.TON.GlobalConfigURL),
 		ionApi:                mustInitTONClient(ctx, cfg.DFNS.ION.GlobalConfigURL),
 		coinFeesProvider:      coinFeesProvider,
@@ -107,6 +107,10 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 		"400:" + networkFeesUrl: cl.extendFees(),
 	}
 	return cl
+}
+
+func (c *dfnsClient) SetEarlyAccessVerifier(verifier EarlyAccessVerifier) {
+	c.earlyAccessVerifier = verifier
 }
 
 func (c *dfnsClient) extendFees() func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
@@ -215,7 +219,7 @@ func (c *dfnsClient) extendChallengeWithRP() func(ctx context.Context, res map[s
 }
 
 func (c *dfnsClient) RegisterPostProxyCallback(url string, cb func(ctx context.Context, now *time.Time, res map[string]any) error) {
-	c.callbacks[url] = cb
+	c.callbacks[url] = append(c.callbacks[url], cb)
 }
 
 func (c *dfnsClient) serviceAccountClient(appID string) *http.Client {
@@ -397,9 +401,7 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 	var extendErrBody *DfnsInternalError
 	switch {
 	case req.URL.Path == initDelegatedRegistrationUrl:
-		extendErrBody, extendErr = c.updateRegisterReqBodyWithEndUser(req)
-	case req.URL.Path == completeDelegatedRegistrationUrl:
-		extendErrBody, extendErr = c.updateRegisterReqBodyWithWallets(req)
+		extendErrBody, extendErr = c.verifyEarlyAccessRegistrationAndPopulateEndUser(req)
 	case req.URL.Path == delegatedLoginUrl:
 		extendErrBody, extendErr = c.exchangeRefreshTokenToUsername(req)
 	case req.URL.Path == initUserSignatureUrl:
@@ -441,7 +443,7 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 func (c *dfnsClient) modifyResponse(r *http.Response) error {
 	r.Header.Del("Access-Control-Allow-Origin") // Duplicated hea
 	now := time.Now()
-	callback, hasCallback := c.callbacks[r.Request.URL.Path]
+	callbacks, hasCallback := c.callbacks[r.Request.URL.Path]
 	modifyKey := fmt.Sprintf("%v:%v", r.StatusCode, r.Request.URL.Path)
 	bodyModify, hasModify := c.bodyModifiableCallbacks[modifyKey]
 	if (r.StatusCode >= http.StatusOK && r.StatusCode < http.StatusBadRequest) || hasModify {
@@ -450,10 +452,13 @@ func (c *dfnsClient) modifyResponse(r *http.Response) error {
 			if err != nil {
 				return errors.Wrap(err, "failed to decode response body as json")
 			}
-			if callback != nil && hasCallback {
-				if err = callback(r.Request.Context(), now, res); err != nil {
-					return errors.Wrapf(err, "failed to store data in DB on %v", r.Request.URL.Path)
+			if callbacks != nil && hasCallback {
+				for _, callback := range callbacks {
+					if err = callback(r.Request.Context(), now, res); err != nil {
+						return errors.Wrapf(err, "failed to store data in DB on %v", r.Request.URL.Path)
+					}
 				}
+
 			}
 			if bodyModify != nil && hasModify {
 				if err = bodyModify(r.Request.Context(), now, res, r); err != nil {
@@ -555,21 +560,29 @@ func extendRequestWith[ReqBody any](req *http.Request, extendFn func(*ReqBody) e
 	return nil, nil //nolint:nilnil // .
 }
 
-func (c *dfnsClient) updateRegisterReqBodyWithEndUser(req *http.Request) (resp *DfnsInternalError, err error) {
+func (c *dfnsClient) verifyEarlyAccessRegistrationAndPopulateEndUser(req *http.Request) (resp *DfnsInternalError, err error) {
 	return extendRequestWith[struct {
-		Email string `json:"email"`
-		Kind  string `json:"kind"`
+		Email            string `json:"email"`
+		EarlyAccessEmail string `json:"earlyAccessEmail,omitempty"`
+		Kind             string `json:"kind"`
 	}](req, func(content *struct {
-		Email string `json:"email"`
-		Kind  string `json:"kind"`
+		Email            string `json:"email"`
+		EarlyAccessEmail string `json:"earlyAccessEmail,omitempty"`
+		Kind             string `json:"kind"`
 	}) error {
 		if !UsernameRegexp.MatchString(content.Email) {
 			return errors.Wrapf(ErrInvalidUsername, "must match %v", UsernameRegexp.String())
 		}
+		if aErr := c.earlyAccessVerifier.VerifyEarlyAccess(req.Context(), content.EarlyAccessEmail, nil); aErr != nil {
+			return aErr
+		}
+
+		content.EarlyAccessEmail = ""
 		content.Kind = "EndUser"
 		return nil
 	})
 }
+
 func (c *dfnsClient) exchangeRefreshTokenToUsername(req *http.Request) (*DfnsInternalError, error) {
 	return extendRequestWith[struct {
 		RefreshToken string `json:"refreshToken,omitempty"`
@@ -710,36 +723,6 @@ func (c *dfnsClient) checkIfNeedToBroadcastTX(req *http.Request, rw http.Respons
 	rw.WriteHeader(http.StatusOK)
 	rw.Write(data)
 	return nil, nil
-}
-
-func (c *dfnsClient) updateRegisterReqBodyWithWallets(req *http.Request) (resp *DfnsInternalError, err error) {
-	return extendRequestWith[struct {
-		FirstFactorCredential  map[string]any `json:"firstFactorCredential"`
-		SecondFactorCredential map[string]any `json:"secondFactorCredential,omitempty"`
-		RecoveryCredential     map[string]any `json:"recoveryCredential,omitempty"`
-		Wallets                []struct {
-			Network string `json:"network"`
-			Name    string `json:"name"`
-		} `json:"wallets"`
-	}](req, func(content *struct {
-		FirstFactorCredential  map[string]any `json:"firstFactorCredential"`
-		SecondFactorCredential map[string]any `json:"secondFactorCredential,omitempty"`
-		RecoveryCredential     map[string]any `json:"recoveryCredential,omitempty"`
-		Wallets                []struct {
-			Network string `json:"network"`
-			Name    string `json:"name"`
-		} `json:"wallets"`
-	}) error {
-		walletNetwork := DefaultWalletNetworkMainNet
-		if c.cfg.DFNS.TestNet {
-			walletNetwork = DefaultWalletNetworkTestNet
-		}
-		content.Wallets = []struct {
-			Network string `json:"network"`
-			Name    string `json:"name"`
-		}{{Network: walletNetwork, Name: defaultWalletName}}
-		return nil
-	})
 }
 
 func (p *proxyResponseBody) Write(b []byte) (int, error) {

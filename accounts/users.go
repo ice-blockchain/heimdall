@@ -232,7 +232,6 @@ func (a *accounts) upsertWalletPubKeyFromRegistrationAndRegisterWalletView(ctx c
 	if _, err := a.createDefaultWalletView(ctx, userID, username, walletID, false); err != nil {
 		return errors.Wrapf(err, "failed to create default walletview for user %v", userID)
 	}
-
 	return nil
 }
 
@@ -465,4 +464,20 @@ func (a *accounts) IsUserVerified(ctx context.Context, masterPubKey string) (boo
 	}
 
 	return true, events, nil
+}
+
+func (a *accounts) CompleteRegistration(ctx context.Context, credentials *Credentials) (CompletedRegistration, error) {
+	now := time.Now()
+	earlyAccessEmail := credentials.EarlyAccessEmail
+	registration, err := a.delegatedRPClient.CompleteRegistrationWithWallets(ctx, credentials)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to complete registration")
+	}
+	if err = a.upsertWalletPubKeyFromRegistrationAndRegisterWalletView(ctx, now, registration); err != nil {
+		return nil, errors.Wrap(err, "failed to upsert wallet pubkey")
+	}
+	if err = a.verifyEarlyAccessAndUpsertUserID(ctx, earlyAccessEmail, registration); err != nil {
+		return nil, errors.Wrap(err, "failed update early access state")
+	}
+	return registration, nil
 }

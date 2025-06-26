@@ -100,3 +100,33 @@ func (c *dfnsClient) GetUser(ctx context.Context, userID string) (*User, error) 
 	}
 	return &usr, nil
 }
+
+func (c *dfnsClient) CompleteRegistrationWithWallets(ctx context.Context, credentials *Credentials) (CompletedRegistration, error) {
+	header := http.Header{}
+	header.Add(authDfnsHeader, dfnsAuthHeader(ctx))
+	header.Add(appIDHeader, appID(ctx))
+	header.Add(userActionDfnsHeader, "false")
+	credentials.EarlyAccessEmail = ""
+	walletNetwork := DefaultWalletNetworkMainNet
+	if c.cfg.DFNS.TestNet {
+		walletNetwork = DefaultWalletNetworkTestNet
+	}
+	credentials.Wallets = []struct {
+		Network string `json:"network"`
+		Name    string `json:"name"`
+	}{{Network: walletNetwork, Name: defaultWalletName}}
+	resp, err := dfnsCall[Credentials, map[string]any](ctx, c, credentials, "POST", "/auth/registration/enduser", header)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to finish registration due to failed dfns call")
+	}
+	userID, username := ExtractUser(*resp, "username")
+	err = c.extendRegistrationBodyWithRefreshToken(userID, username)(ctx, *resp)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to issue refresh token for user %v %v", userID, username)
+	}
+	err = extendResponseBodyWithPaymentExtension()(ctx, *resp)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to enable payment extension for %v %v", userID, username)
+	}
+	return *resp, nil
+}

@@ -62,6 +62,7 @@ func (s *service) setupDelegatedRPProxyRoutes(router *server.Router) {
 		GET("/.well-known/assetlinks.json", server.RootHandler(s.AssetLinks)).
 		GET("/v1/users/:userIdOrMasterKey/wallets/:walletId/secure-payment-confirmations", s.securePaymentConfirmation()).
 		POST("/auth/login/init", server.RootHandler(s.GetLoginChallenge)).
+		POST("/auth/registration/enduser", server.RootHandler(s.CompleteRegistration)).
 		POST("/wallets", server.RootHandler(s.CreateWallet))
 }
 
@@ -243,6 +244,40 @@ func (s *service) GetLoginChallenge(
 		}
 	}
 	return server.OK[LoginChallenge](resp), nil
+}
+
+// CompleteRegistration godoc
+//
+//	@Schemes
+//	@Description	Completes user registration
+//	@Tags			Register
+//	@Produce		json
+//	@Param			request			body		GetLoginChallenge	true	"Request params"
+//	@Param			X-Client-ID		header		string				true	"App ID"		default(ap-)
+//	@Param			Authorization	header		string				true	"Authorization"	default(Bearer <token>)
+//	@Success		200				{object}	CompletedRegistration
+//	@Failure		400				{object}	server.ErrorResponse	"if challenge is invalid"
+//	@Failure		403				{object}	server.ErrorResponse	"if early access email is restructed or auth header invalid"
+//	@Failure		500				{object}	server.ErrorResponse
+//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
+//	@Router			/auth/registration/enduser [POST].
+func (s *service) CompleteRegistration(
+	ctx context.Context,
+	req *server.Request[CompletedRegistrationChallenge, CompletedRegistration],
+) (successResp *server.Response[CompletedRegistration], errorResp *server.ErrResponse[*delegatedErrorResponse]) {
+	ctx = withAppID(ctx, req.Data.ClientID)
+	ctx = withAuth(ctx, req.Data.Authorization)
+	resp, err := s.accounts.CompleteRegistration(ctx, req.Data.Credentials)
+	if err != nil {
+		if delegatedErr := accounts.ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
+			var delegatedParsedErr *accounts.DelegatedRelyingPartyErr
+			if errors.As(delegatedErr, &delegatedParsedErr) {
+				return nil, buildDelegatedErrorResponse(delegatedParsedErr.HTTPStatus, err, delegatedParsedErr.Message)
+			}
+		}
+		return nil, buildDelegatedErrorResponse(http.StatusInternalServerError, err, "")
+	}
+	return server.OK[CompletedRegistration](&resp), nil
 }
 
 // GetNFTs godoc

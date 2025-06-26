@@ -23,15 +23,15 @@ func NewDelegatedRPAuth(ctx context.Context) dfns.AuthClient {
 	return dfns.NewDfnsTokenAuth(ctx, applicationYamlKey)
 }
 
-func New(ctx context.Context, coinsRepo Coins, relays Relays) Accounts {
+func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *AppsRuntimeConfig) Accounts {
 	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
 	cl := dfns.NewDfnsClient(ctx, db, applicationYamlKey, coinsRepo)
 
 	var cfg config
+	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	if cfg.RelaysPerUser == 0 {
 		cfg.RelaysPerUser = 1
 	}
-	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	var smsSender sms.SmsSender
 	func() {
 		defer func() {
@@ -60,11 +60,12 @@ func New(ctx context.Context, coinsRepo Coins, relays Relays) Accounts {
 		concurrentlyGeneratedCodes: make(map[TwoFAOptionEnum]*sync.Map),
 		privateKey:                 cfg.PrivateKey,
 		relaysRepo:                 relays,
+		appsRuntimeConfig:          runtimeConfig,
 	}
+	cl.SetEarlyAccessVerifier(&acc)
 	cl.RegisterPostProxyCallback(registrationUrl, acc.upsertUsernameFromRegistration)
 	cl.RegisterPostProxyCallback(completeLoginUrl, acc.upsertUsernameFromLogin)
 	cl.RegisterPostProxyCallback(delegatedLoginUrl, acc.upsertUsernameFromLogin)
-	cl.RegisterPostProxyCallback(completeRegistrationUrl, acc.upsertWalletPubKeyFromRegistrationAndRegisterWalletView)
 	acc.delegatedRPClient = cl
 	for _, opt := range AllTwoFAOptions {
 		acc.concurrentlyGeneratedCodes[opt] = &sync.Map{}

@@ -343,3 +343,21 @@ relay-management:
       password: pass
     replicaURLs:
       - postgresql://root:pass@localhost:5437/heimdall
+apps-runtime:
+  ion-app:
+    _version: 3
+    interestedThreshold: 0.5
+    notInterestedCategoryChance: 0.3
+    notInterestedSubcategoryChance: 0.2
+    concurrentRequests: 3
+    followingReqMaxAge: 432000000
+    followingCacheMaxAge: 432000000
+    topMaxAge: 259200000
+    trendingMaxAge: 86400000
+    exploreMaxAge: 43200000
+    repostThrottleDelay: 10800000
+    concurrentMediaDownloadsLimit: 3
+    excludeUnclassifiedFromExplore: true
+    allowNewRegistrations: true
+    enableEarlyAccessRegistrations: false
+    maxEarlyAccessRegistrationsAllowedPerEmail: 3
