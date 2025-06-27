@@ -36,15 +36,20 @@ type (
 		ProxyCall(ctx context.Context, rw http.ResponseWriter, r *http.Request) (status int, respBody io.Reader)
 		StartDelegatedRecovery(ctx context.Context, username string, credentialId string) (*StartedDelegatedRecovery, error)
 		GetLoginChallenge(ctx context.Context, username string) (*LoginChallenge, error)
+		CompleteRegistrationWithWallets(ctx context.Context, credentials *Credentials) (CompletedRegistration, error)
 		GetUser(ctx context.Context, userID string) (*User, error)
 		VerifyWebhookSecret(fromWebhook string) bool
 		RegisterPostProxyCallback(url string, cb func(ctx context.Context, now *time.Time, res map[string]any) error)
+		SetEarlyAccessVerifier(verifier EarlyAccessVerifier)
 		ListWallets(ctx context.Context, userID string) ([]Wallet, error)
 		GetWallet(ctx context.Context, userID string) (*Wallet, error)
 		CreateWallet(ctx context.Context, network, name string) (*Wallet, error)
 		ListAssets(ctx context.Context, walletID string) (*Assets, error)
 		ListNFTs(ctx context.Context, walletID string) (*NFTs, error)
 		SecurePaymentConfirmation(ctx context.Context, userID, network string, wallet Wallet, body map[string]string) (tmplData any, err error)
+	}
+	EarlyAccessVerifier interface {
+		VerifyEarlyAccess(ctx context.Context, email string) error
 	}
 	RefreshAuth interface {
 		AuthClient
@@ -56,6 +61,7 @@ type (
 	Asset                    map[string]any
 	NFT                      = coins.WalletNFT
 	LoginChallenge           map[string]any
+	CompletedRegistration    map[string]any
 	Assets                   struct {
 		Assets   []Asset `json:"assets"`
 		Network  string  `json:"network"`
@@ -82,6 +88,17 @@ type (
 		TxHash          string          `json:"txHash"`
 		DateRequested   stdlibtime.Time `json:"dateRequested"`
 		DateBroadcasted stdlibtime.Time `json:"dateBroadcasted"`
+	}
+
+	Credentials struct {
+		FirstFactorCredential  map[string]any `json:"firstFactorCredential"`
+		SecondFactorCredential map[string]any `json:"secondFactorCredential,omitempty"`
+		RecoveryCredential     map[string]any `json:"recoveryCredential,omitempty"`
+		EarlyAccessEmail       string         `json:"earlyAccessEmail,omitempty"`
+		Wallets                []struct {
+			Network string `json:"network"`
+			Name    string `json:"name"`
+		} `json:"wallets"`
 	}
 )
 
@@ -135,9 +152,10 @@ type (
 		userClients             map[string]*http.Client
 		serviceAccountClients   map[string]*http.Client
 		proxies                 map[string]*httputil.ReverseProxy
-		callbacks               map[string]func(ctx context.Context, now *time.Time, res map[string]any) error
+		callbacks               map[string][]func(ctx context.Context, now *time.Time, res map[string]any) error
 		bodyModifiableCallbacks map[string]func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error
 		webhookSecret           string
+		earlyAccessVerifier     EarlyAccessVerifier
 		userMx                  sync.Mutex
 		serviceAccountMx        sync.Mutex
 		proxyMx                 sync.Mutex

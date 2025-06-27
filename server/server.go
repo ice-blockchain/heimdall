@@ -103,7 +103,7 @@ func (s *srv) setupServer(ctx context.Context) {
 		Addr:    fmt.Sprintf(":%v", cfg.HTTPServer.Port),
 		Port:    int(cfg.HTTPServer.Port),
 		Handler: wrappedHandler,
-		ConnContext: func(connCtx context.Context, c quic.Connection) context.Context {
+		ConnContext: func(connCtx context.Context, c *quic.Conn) context.Context {
 			return context.WithValue(connCtx, authClientCtxValueKey, ctx.Value(authClientCtxValueKey))
 		},
 	}

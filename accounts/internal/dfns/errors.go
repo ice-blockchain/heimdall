@@ -50,7 +50,10 @@ func ParseErrAsDfnsInternalErr(err error) error {
 	return nil
 }
 func (d *DfnsInternalError) Error() string {
-	return d.raw
+	if d.raw != "" {
+		return d.raw
+	}
+	return d.Message
 }
 
 func buildDfnsError(status int, url string, respBody []byte) error {

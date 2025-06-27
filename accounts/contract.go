@@ -46,7 +46,9 @@ type (
 		IsUserVerified(ctx context.Context, masterPubKey string) (bool, []*model.Event, error)
 		HealthCheck(ctx context.Context) error
 		PublicKey() string
+		CompleteRegistration(ctx context.Context, credentials *Credentials) (CompletedRegistration, error)
 		SocialProfiles
+		EarlyAccessVerifier
 	}
 	VerifiedUsersSync interface {
 		io.Closer
@@ -57,6 +59,9 @@ type (
 		VerifyUsernameAvailability(ctx context.Context, username string) error
 		UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, username, displayName string, referral string, loggedInUserUserID string) (*SocialProfile, error)
 		SearchSocialProfiles(ctx context.Context, tpe SearchType, keyword string, limit uint64, offset uint64) ([]*LiteUser, error)
+	}
+	EarlyAccessVerifier interface {
+		VerifyEarlyAccess(ctx context.Context, email string) error
 	}
 	Wallets interface {
 		CreateWalletView(ctx context.Context, userID, name string, items []*CoinMapping, symbolGroups []string) (*WalletView, error)
@@ -142,6 +147,9 @@ type (
 		MasterPubKey     string   `json:"masterPubKey" db:"master_pubkey"`
 		IONConnectRelays []string `json:"ionConnectRelays" db:"ion_connect_relays"`
 	}
+
+	Credentials           = dfns.Credentials
+	CompletedRegistration = dfns.CompletedRegistration
 )
 
 const (
@@ -193,9 +201,10 @@ var (
 	ErrWalletLinked                    = errors.New("wallet already linked to walletview")
 	ErrUnauthorized                    = errors.New("unauthorized")
 	ErrWrongReferral                   = errors.New("wrong/circular referral detected")
-
-	verifiedBadgeImage1024X1024Tag   = nostr.Tag{"image", "https://example.com/verified_1024x1024.webp", "1024x1024"}
-	verifiedBadgeThumbnail256X256Tag = nostr.Tag{"thumb", "https://example.com/verified_256x256.webp", "256x256"}
+	ErrRegistrationsDisabled           = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "registrations disabled"}
+	ErrEmailNotAllowedForEarlyAccess   = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "email not allowed for early access"}
+	verifiedBadgeImage1024X1024Tag     = nostr.Tag{"image", "https://example.com/verified_1024x1024.webp", "1024x1024"}
+	verifiedBadgeThumbnail256X256Tag   = nostr.Tag{"thumb", "https://example.com/verified_256x256.webp", "256x256"}
 )
 
 const (
@@ -228,6 +237,7 @@ type (
 		concurrentlyGeneratedCodes map[TwoFAOptionEnum]*sync.Map
 		cfg                        *config
 		privateKey                 string
+		appsRuntimeConfig          *AppsRuntimeConfig
 	}
 	verifiedUsersSync struct {
 		db         *storage.DB
@@ -276,5 +286,27 @@ type (
 		MockRelays               []string            `yaml:"mockRelays" mapstructure:"mockRelays"`
 		PrivateKey               string              `yaml:"privateKey" mapstructure:"privateKey"`
 		RelaysPerUser            uint8               `yaml:"relaysPerUser" mapstructure:"relaysPerUser"`
+	}
+
+	AppsRuntimeConfig struct {
+		IONApp AppRuntimeConfig `yaml:"ion-app" mapstructure:"ion-app"`
+	}
+	AppRuntimeConfig struct {
+		Version                                    int     `yaml:"_version" mapstructure:"_version" json:"_version"`
+		InterestedThreshold                        float64 `yaml:"interestedThreshold" mapstructure:"interestedThreshold" json:"interestedThreshold"`
+		NotInterestedCategoryChance                float64 `yaml:"notInterestedCategoryChance" mapstructure:"notInterestedCategoryChance" json:"notInterestedCategoryChance"`
+		NotInterestedSubcategoryChance             float64 `yaml:"notInterestedSubcategoryChance" mapstructure:"notInterestedSubcategoryChance" json:"notInterestedSubcategoryChance"`
+		ConcurrentRequests                         int     `yaml:"concurrentRequests" mapstructure:"concurrentRequests" json:"concurrentRequests"`
+		FollowingReqMaxAge                         int     `yaml:"followingReqMaxAge" mapstructure:"followingReqMaxAge" json:"followingReqMaxAge"`
+		FollowingCacheMaxAge                       int     `yaml:"followingCacheMaxAge" mapstructure:"followingCacheMaxAge" json:"followingCacheMaxAge"`
+		TopMaxAge                                  int     `yaml:"topMaxAge" mapstructure:"topMaxAge" json:"topMaxAge"`
+		TrendingMaxAge                             int     `yaml:"trendingMaxAge" mapstructure:"trendingMaxAge" json:"trendingMaxAge"`
+		ExploreMaxAge                              int     `yaml:"exploreMaxAge" mapstructure:"exploreMaxAge" json:"exploreMaxAge"`
+		RepostThrottleDelay                        int     `yaml:"repostThrottleDelay" mapstructure:"repostThrottleDelay" json:"repostThrottleDelay"`
+		ConcurrentMediaDownloadsLimit              int     `yaml:"concurrentMediaDownloadsLimit" mapstructure:"concurrentMediaDownloadsLimit" json:"concurrentMediaDownloadsLimit"`
+		ExcludeUnclassifiedFromExplore             bool    `yaml:"excludeUnclassifiedFromExplore" mapstructure:"excludeUnclassifiedFromExplore" json:"excludeUnclassifiedFromExplore"`
+		AllowNewRegistrations                      bool    `yaml:"allowNewRegistrations" mapstructure:"allowNewRegistrations" json:"allowNewRegistrations"`
+		EnableEarlyAccessRegistrations             bool    `yaml:"enableEarlyAccessRegistrations" mapstructure:"enableEarlyAccessRegistrations" json:"enableEarlyAccessRegistrations"`
+		MaxEarlyAccessRegistrationsAllowedPerEmail int     `yaml:"maxEarlyAccessRegistrationsAllowedPerEmail" mapstructure:"maxEarlyAccessRegistrationsAllowedPerEmail" json:"maxEarlyAccessRegistrationsAllowedPerEmail"`
 	}
 )

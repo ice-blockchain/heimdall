@@ -45,7 +45,6 @@ func main() {
 func init() {
 	mountContentCategoriesConfig()
 	mountTranslationsConfig()
-	mountAppsRuntimeConfig()
 }
 
 func mountContentCategoriesConfig() {
@@ -75,19 +74,6 @@ func mountTranslationsConfig() {
 					return content, Version(version)
 				}
 			}
-		}
-	}
-}
-
-func mountAppsRuntimeConfig() {
-	for _, appName := range mustReadDir(appsRuntimeConfigs, "apps-runtime") {
-		appPath := fmt.Sprintf("apps-runtime/%v", appName.Name())
-		content := mustReadJSONFile[map[string]any](appsRuntimeConfigs, appPath)
-		cfgKey := fmt.Sprintf("apps-runtime_%v", strings.ReplaceAll(appName.Name(), ".json", ""))
-		version, err := strconv.Atoi(fmt.Sprint(content["_version"]))
-		log.Panic(err)
-		allValidConfigNames[cfgKey] = func(_ *config) (any, Version) {
-			return content, Version(version)
 		}
 	}
 }
@@ -122,7 +108,12 @@ func (s *service) RegisterRoutes(router *server.Router) {
 func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	s.coins = coins.New(ctx)
 	s.relays = relaymanagement.NewRelays(ctx)
-	s.accounts = accounts.New(ctx, s.coins, s.relays)
+	var appsRuntimeCfg accounts.AppsRuntimeConfig
+	appcfg.MustLoadFromKey(runtimeConfigApplicationYamlKey, &appsRuntimeCfg)
+	allValidConfigNames["apps-runtime_ion-app"] = func(cfg *config) (any, Version) {
+		return appsRuntimeCfg.IONApp, Version(appsRuntimeCfg.IONApp.Version)
+	}
+	s.accounts = accounts.New(ctx, s.coins, s.relays, &appsRuntimeCfg)
 	s.hashtagStatistics = hashtagstatistics.New(ctx)
 
 	publicKey := s.accounts.PublicKey()

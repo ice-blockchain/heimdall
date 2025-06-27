@@ -30,7 +30,13 @@ type (
 		Username               string                         `json:"username" allowUnauthorized:"true"`
 		ClientID               string                         `header:"X-Client-ID" required:"true" swaggerignore:"true"`
 	}
-	LoginChallenge             = accounts.LoginChallenge
+	LoginChallenge                 = accounts.LoginChallenge
+	CompletedRegistrationChallenge struct {
+		*accounts.Credentials `json:",inline"`
+		ClientID              string `header:"X-Client-ID" required:"true" swaggerignore:"true"`
+		Authorization         string `header:"Authorization" required:"true" swaggerignore:"true"`
+	}
+	CompletedRegistration      = accounts.CompletedRegistration
 	TwoFAOptionEnum            = accounts.TwoFAOptionEnum
 	TwoFAOptionWithAddr        = accounts.TwoFAOptionWithAddr
 	StartDelegatedRecoveryResp = accounts.StartedDelegatedRecovery
@@ -265,8 +271,6 @@ var (
 	templates embed.FS
 	//go:embed content-topics/*.json
 	contentTopics embed.FS
-	//go:embed apps-runtime/*.json
-	appsRuntimeConfigs embed.FS
 	//go:embed translations/*/*.json
 	translations        embed.FS
 	allValidConfigNames = map[string]func(cfg *config) (any, Version){
@@ -276,4 +280,8 @@ var (
 		configNameRequiredWindowsAppVersion: func(cfg *config) (any, Version) { return cfg.RequiredAppVersions.Windows, Version(0) },
 		configNameRequiredLinuxAppVersion:   func(cfg *config) (any, Version) { return cfg.RequiredAppVersions.Linux, Version(0) },
 	}
+)
+
+const (
+	runtimeConfigApplicationYamlKey = "apps-runtime"
 )
