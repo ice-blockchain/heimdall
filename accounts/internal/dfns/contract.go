@@ -49,7 +49,7 @@ type (
 		SecurePaymentConfirmation(ctx context.Context, userID, network string, wallet Wallet, body map[string]string) (tmplData any, err error)
 	}
 	EarlyAccessVerifier interface {
-		VerifyEarlyAccess(ctx context.Context, email string, userID *string) error
+		VerifyEarlyAccess(ctx context.Context, email string) error
 	}
 	RefreshAuth interface {
 		AuthClient

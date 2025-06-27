@@ -61,7 +61,7 @@ type (
 		SearchSocialProfiles(ctx context.Context, tpe SearchType, keyword string, limit uint64, offset uint64) ([]*LiteUser, error)
 	}
 	EarlyAccessVerifier interface {
-		VerifyEarlyAccess(ctx context.Context, email string, userID *string) error
+		VerifyEarlyAccess(ctx context.Context, email string) error
 	}
 	Wallets interface {
 		CreateWalletView(ctx context.Context, userID, name string, items []*CoinMapping, symbolGroups []string) (*WalletView, error)

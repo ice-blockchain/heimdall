@@ -469,6 +469,9 @@ func (a *accounts) IsUserVerified(ctx context.Context, masterPubKey string) (boo
 func (a *accounts) CompleteRegistration(ctx context.Context, credentials *Credentials) (CompletedRegistration, error) {
 	now := time.Now()
 	earlyAccessEmail := credentials.EarlyAccessEmail
+	if err := a.VerifyEarlyAccess(ctx, earlyAccessEmail); err != nil {
+		return nil, err
+	}
 	registration, err := a.delegatedRPClient.CompleteRegistrationWithWallets(ctx, credentials)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to complete registration")

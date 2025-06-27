@@ -573,7 +573,7 @@ func (c *dfnsClient) verifyEarlyAccessRegistrationAndPopulateEndUser(req *http.R
 		if !UsernameRegexp.MatchString(content.Email) {
 			return errors.Wrapf(ErrInvalidUsername, "must match %v", UsernameRegexp.String())
 		}
-		if aErr := c.earlyAccessVerifier.VerifyEarlyAccess(req.Context(), content.EarlyAccessEmail, nil); aErr != nil {
+		if aErr := c.earlyAccessVerifier.VerifyEarlyAccess(req.Context(), content.EarlyAccessEmail); aErr != nil {
 			return aErr
 		}
 

@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func ExtractUser(res map[string]any, usernameField string) (userID, username string) {
+func ExtractUser(res map[string]any, usernameField string) (userID, identityKeyName string) {
 	var usr map[string]any
 	if userInferface, hasUser := res["user"]; hasUser {
 		usr = userInferface.(map[string]any)
@@ -22,7 +22,7 @@ func ExtractUser(res map[string]any, usernameField string) (userID, username str
 		return "", ""
 	}
 	userID = usr["id"].(string)
-	username = strings.ToLower(usr[usernameField].(string))
+	identityKeyName = strings.ToLower(usr[usernameField].(string))
 	return
 }
 
