@@ -19,15 +19,22 @@ func (a *accounts) registrationsEnabled() (enabled, earlyAccess bool, err error)
 
 func (a *accounts) isEmailAllowed(ctx context.Context, email string) error {
 	maxAllowedPerEmail := a.appsRuntimeConfig.IONApp.MaxEarlyAccessRegistrationsAllowedPerEmail
-	sql := `SELECT (exists(SELECT 1 FROM early_access_emails WHERE email = $1) 
-			           and (SELECT count(*) FROM assigned_early_access_emails WHERE email = $1) < $2) as email_allowed;`
+	sql := `SELECT exists(SELECT 1 FROM early_access_emails WHERE email = $1) as email_allowed,
+       ((SELECT count(*) FROM assigned_early_access_emails WHERE email = $1) < $2) as email_not_used;`
 	email = strings.ToLower(email)
 	params := []any{email, maxAllowedPerEmail}
 	allowed, err := storage.ExecOne[struct {
 		EmailAllowed bool `db:"email_allowed"`
+		EmailNotUsed bool `db:"email_not_used"`
 	}](ctx, a.db, sql, params...)
 	if err != nil {
 		return errors.Wrapf(err, "failed to check if email %v is allowed", email)
+	}
+	if !allowed.EmailNotUsed {
+		derr := new(dfns.DfnsInternalError)
+		*derr = *ErrEmailUsed
+		derr.HTTPStatus = http.StatusForbidden
+		return derr
 	}
 	if !allowed.EmailAllowed {
 		derr := new(dfns.DfnsInternalError)

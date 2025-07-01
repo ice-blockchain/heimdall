@@ -36,7 +36,10 @@ type (
 		ClientID              string `header:"X-Client-ID" required:"true" swaggerignore:"true"`
 		Authorization         string `header:"Authorization" required:"true" swaggerignore:"true"`
 	}
-	CompletedRegistration      = accounts.CompletedRegistration
+	CompletedRegistration = accounts.CompletedRegistration
+	EarlyAccessCheck      struct {
+		Email string `form:"email" allowUnauthorized:"true" required:"true"`
+	}
 	TwoFAOptionEnum            = accounts.TwoFAOptionEnum
 	TwoFAOptionWithAddr        = accounts.TwoFAOptionWithAddr
 	StartDelegatedRecoveryResp = accounts.StartedDelegatedRecovery
@@ -233,6 +236,9 @@ const (
 	twoFANotConfigured         = "2FA_NOT_CONFIGURED"
 	invalid2FAToTReplace       = "INVALID_2FA_REPLACE"
 	wrongRelay                 = "WRONG_RELAY"
+	invalidEmail               = "INVALID_EMAIL"
+	emailUsed                  = "EMAIL_USED"
+	registrationsDisabled      = "REGISTRATIONS_DISABLED"
 
 	configNameRequiredAndroidAppVersion = "required_android_app_version"
 	configNameRequiredIOSAppVersion     = "required_ios_app_version"

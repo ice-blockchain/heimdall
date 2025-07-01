@@ -63,6 +63,7 @@ func (s *service) setupDelegatedRPProxyRoutes(router *server.Router) {
 		GET("/v1/users/:userIdOrMasterKey/wallets/:walletId/secure-payment-confirmations", s.securePaymentConfirmation()).
 		POST("/auth/login/init", server.RootHandler(s.GetLoginChallenge)).
 		POST("/auth/registration/enduser", server.RootHandler(s.CompleteRegistration)).
+		GET("/v1/early-access-users", server.RootHandler(s.EarlyAccessAvailable)).
 		POST("/wallets", server.RootHandler(s.CreateWallet))
 }
 

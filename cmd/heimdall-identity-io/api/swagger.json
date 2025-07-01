@@ -501,6 +501,55 @@
                 }
             }
         },
+        "/v1/early-access-users": {
+            "get": {
+                "description": "Checks email availability for early access",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Register"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User's email",
+                        "name": "email",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "If email is valid for early access"
+                    },
+                    "403": {
+                        "description": "if registrations disabled",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "if email is not valid for early access",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "if email exceeded number of allowed registrations",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/networks": {
             "get": {
                 "description": "Provides information about all the networks",

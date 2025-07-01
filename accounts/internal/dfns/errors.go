@@ -56,6 +56,14 @@ func (d *DfnsInternalError) Error() string {
 	return d.Message
 }
 
+func (d *DfnsInternalError) Is(tgt error) bool {
+	target, ok := tgt.(*DfnsInternalError)
+	if !ok {
+		return false
+	}
+	return d.Message == target.Message
+}
+
 func buildDfnsError(status int, url string, respBody []byte) error {
 	var body map[string]interface{}
 	if err := json.Unmarshal(respBody, &body); err != nil {
