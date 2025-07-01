@@ -296,6 +296,7 @@ type (
 		InterestedThreshold                        float64 `yaml:"interestedThreshold" mapstructure:"interestedThreshold" json:"interestedThreshold"`
 		NotInterestedCategoryChance                float64 `yaml:"notInterestedCategoryChance" mapstructure:"notInterestedCategoryChance" json:"notInterestedCategoryChance"`
 		NotInterestedSubcategoryChance             float64 `yaml:"notInterestedSubcategoryChance" mapstructure:"notInterestedSubcategoryChance" json:"notInterestedSubcategoryChance"`
+		ForYouMaxRetriesMultiplier                 float64 `yaml:"forYouMaxRetriesMultiplier" mapstructure:"forYouMaxRetriesMultiplier" json:"forYouMaxRetriesMultiplier"`
 		ConcurrentRequests                         int     `yaml:"concurrentRequests" mapstructure:"concurrentRequests" json:"concurrentRequests"`
 		FollowingReqMaxAge                         int     `yaml:"followingReqMaxAge" mapstructure:"followingReqMaxAge" json:"followingReqMaxAge"`
 		FollowingCacheMaxAge                       int     `yaml:"followingCacheMaxAge" mapstructure:"followingCacheMaxAge" json:"followingCacheMaxAge"`
