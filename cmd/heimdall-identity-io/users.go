@@ -283,3 +283,37 @@ func (s *service) GetVerifiedBadge(
 
 	return server.OK(&VerifiedBadgeEvents{Events: events}), nil
 }
+
+// EarlyAccessAvailable godoc
+//
+//	@Schemes
+//	@Description	Checks email availability for early access
+//	@Tags			Register
+//	@Produce		json
+//	@Param			email	query	string	true	"User's email"
+//	@Success		200		"If email is valid for early access"
+//	@Failure		403		{object}	server.ErrorResponse	"if registrations disabled"
+//	@Failure		404		{object}	server.ErrorResponse	"if email is not valid for early access"
+//	@Failure		409		{object}	server.ErrorResponse	"if email exceeded number of allowed registrations"
+//	@Failure		500		{object}	server.ErrorResponse
+//	@Router			/v1/early-access-users [GET]
+func (s *service) EarlyAccessAvailable(
+	ctx context.Context,
+	req *server.Request[EarlyAccessCheck, any],
+) (successResp *server.Response[any], errorResp *server.ErrResponse[*server.ErrorResponse]) {
+	err := s.accounts.VerifyEarlyAccess(ctx, req.Data.Email)
+	if err != nil {
+		switch {
+		case errors.Is(err, accounts.ErrEmailNotAllowedForEarlyAccess):
+			return nil, server.NotFound(err, invalidEmail)
+		case errors.Is(err, accounts.ErrRegistrationsDisabled):
+			return nil, server.ForbiddenWithCode(err, registrationsDisabled)
+		case errors.Is(err, accounts.ErrEmailUsed):
+			return nil, server.Conflict(err, emailUsed)
+		default:
+			return nil, server.Unexpected(errors.Wrap(err, "failed check early access email availability"))
+		}
+	}
+
+	return server.OK[any](), nil
+}
