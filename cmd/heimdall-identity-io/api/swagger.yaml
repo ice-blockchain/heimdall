@@ -411,6 +411,10 @@ definitions:
         type: string
       kind:
         type: integer
+      previous:
+        allOf:
+        - $ref: '#/definitions/model.Event'
+        description: Previous version of the event, if any.
       pubKey:
         type: string
       sig:

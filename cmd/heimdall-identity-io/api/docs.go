@@ -2643,6 +2643,14 @@ const docTemplate = `{
                 "kind": {
                     "type": "integer"
                 },
+                "previous": {
+                    "description": "Previous version of the event, if any.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Event"
+                        }
+                    ]
+                },
                 "pubKey": {
                     "type": "string"
                 },
