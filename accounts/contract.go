@@ -298,6 +298,7 @@ type (
 		NotInterestedCategoryChance                float64 `yaml:"notInterestedCategoryChance" mapstructure:"notInterestedCategoryChance" json:"notInterestedCategoryChance"`
 		NotInterestedSubcategoryChance             float64 `yaml:"notInterestedSubcategoryChance" mapstructure:"notInterestedSubcategoryChance" json:"notInterestedSubcategoryChance"`
 		ForYouMaxRetriesMultiplier                 float64 `yaml:"forYouMaxRetriesMultiplier" mapstructure:"forYouMaxRetriesMultiplier" json:"forYouMaxRetriesMultiplier"`
+		FollowingMaxRetriesMultiplier              float64 `yaml:"followingMaxRetriesMultiplier" mapstructure:"followingMaxRetriesMultiplier" json:"followingMaxRetriesMultiplier"`
 		ConcurrentRequests                         int     `yaml:"concurrentRequests" mapstructure:"concurrentRequests" json:"concurrentRequests"`
 		FollowingReqMaxAge                         int     `yaml:"followingReqMaxAge" mapstructure:"followingReqMaxAge" json:"followingReqMaxAge"`
 		FollowingCacheMaxAge                       int     `yaml:"followingCacheMaxAge" mapstructure:"followingCacheMaxAge" json:"followingCacheMaxAge"`

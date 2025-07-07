@@ -11,14 +11,14 @@ require (
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.10
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/dfns/dfns-sdk-go v0.0.3-beta
-	github.com/ethereum/go-ethereum v1.16.0
+	github.com/ethereum/go-ethereum v1.16.1
 	github.com/gin-gonic/gin v1.10.1
 	github.com/goccy/go-json v0.10.5
 	github.com/goccy/go-reflect v1.2.0
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/ice-blockchain/subzero v1.283.0
+	github.com/ice-blockchain/subzero v1.291.0
 	github.com/ice-blockchain/wintr v1.156.0
 	github.com/imroc/req/v3 v3.54.0
 	github.com/lestrrat-go/jwx/v2 v2.1.6
@@ -30,7 +30,7 @@ require (
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.16.4
-	github.com/twilio/twilio-go v1.26.3
+	github.com/twilio/twilio-go v1.26.4
 	github.com/xssnick/tonutils-go v1.13.0
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b
 	golang.org/x/net v0.41.0
@@ -78,7 +78,7 @@ require (
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
 	github.com/btcsuite/btclog v0.0.0-20241017175713-3428138b75c7 // indirect
 	github.com/bytedance/sonic v1.13.3 // indirect
-	github.com/bytedance/sonic/loader v0.2.4 // indirect
+	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/bzick/tokenizer v1.4.10 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -101,7 +101,7 @@ require (
 	github.com/decred/dcrd/crypto/blake256 v1.1.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/docker v28.3.0+incompatible // indirect
+	github.com/docker/docker v28.3.1+incompatible // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/ebitengine/purego v0.9.0-alpha.8 // indirect
@@ -125,7 +125,7 @@ require (
 	github.com/go-openapi/swag v0.23.1 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/go-playground/validator/v10 v10.26.0 // indirect
+	github.com/go-playground/validator/v10 v10.27.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.3.0 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
@@ -238,7 +238,7 @@ require (
 	golang.org/x/text v0.26.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
 	golang.org/x/tools v0.34.0 // indirect
-	google.golang.org/api v0.239.0 // indirect
+	google.golang.org/api v0.240.0 // indirect
 	google.golang.org/appengine/v2 v2.0.6 // indirect
 	google.golang.org/genproto v0.0.0-20250603155806-513f23925822 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250603155806-513f23925822 // indirect
