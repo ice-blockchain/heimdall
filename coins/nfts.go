@@ -63,7 +63,7 @@ func (c *coinsRepository) populateNFTsWithCollectionInfo(NFTsInWallet []WalletNF
 }
 
 func (c *coinsRepository) getNFTCollections(ctx context.Context, network string, contractAddresses []string) (res map[string]*NFT, missing []string, err error) {
-	nfts, err := storage.Select[nft](ctx, c.db, `SELECT * FROM nft_collections WHERE network = $1 AND contract_address = ANY($2)`, network, contractAddresses)
+	nfts, err := storage.Select[nft](ctx, c.db, `SELECT * FROM nft_collections WHERE network = $1 AND contract_address = ANY($2)`, strings.ToLower(network), contractAddresses)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "failed to get local nfts for %v %+v", network, contractAddresses)
 	}
