@@ -19,6 +19,7 @@ func (a *accounts) VerifyUsernameAvailability(ctx context.Context, username stri
 	if !isUsernameValid(username) {
 		return errors.Wrapf(ErrInvalidUsername, "username %v is invalid", username)
 	}
+	username = strings.ToLower(username)
 	result, err := storage.Get[any](ctx, a.db, `SELECT 1 FROM social_profiles WHERE username = $1 LIMIT 1`, username)
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 		return errors.Wrapf(err, "failed to check username availability")
@@ -40,6 +41,9 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 	}
 	if username != "" && !isUsernameValid(username) {
 		return nil, errors.Wrapf(ErrInvalidUsername, "username %v is invalid", username)
+	}
+	if username != "" {
+		username = strings.ToLower(username)
 	}
 	lookupText := make([]string, 0, 2)
 	if username != "" {

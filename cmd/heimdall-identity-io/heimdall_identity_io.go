@@ -20,6 +20,7 @@ import (
 	hashtagstatistics "github.com/ice-blockchain/heimdall/hashtag-statistics"
 	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
 	"github.com/ice-blockchain/heimdall/server"
+	"github.com/ice-blockchain/subzero/validation"
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/log"
 )
@@ -45,6 +46,7 @@ func main() {
 func init() {
 	mountContentCategoriesConfig()
 	mountTranslationsConfig()
+	validation.MustInit()
 }
 
 func mountContentCategoriesConfig() {

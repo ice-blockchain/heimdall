@@ -270,7 +270,7 @@ func (s *coinSync) updateCoinsData(ctx context.Context, now *time.Time, coins []
 											 coins.symbol != update_data.symbol OR
 											 coins.symbol_group != update_data.symbol_group OR
 											 coins.icon_url != update_data.icon_url)
-											 THEN (select value from global where key = '%[3]v') + 1 ELSE coins.version END),
+											 THEN (select value from global where key = '%[3]v')::BIGINT + 1 ELSE coins.version END),
 						 price_usd = CASE WHEN update_data.price_usd = 0 and coins.price_usd !=0 THEN coins.price_usd ELSE update_data.price_usd END,
 						 decimals = CASE WHEN (coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v)) AND update_data.decimals != 0 THEN update_data.decimals ELSE coins.decimals END,
 						 coingecko_coin_id = CASE WHEN coins.contract_address = '' OR (coins.contract_address != '' AND  %[2]v) THEN update_data.coingecko_coin_id ELSE coins.coingecko_coin_id END,
