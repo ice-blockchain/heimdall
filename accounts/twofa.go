@@ -734,7 +734,17 @@ func (a *accounts) verifyUserSignature(b64 string, now *time.Time, usr *user) er
 	if err != nil {
 		return errors.Wrapf(ErrInvalidUserSignature, "incorrect signature, invalid createdAt %v", string(signatureStringBytes[:createdAtEnd]))
 	}
-	createdAt := stdlibtime.Unix(createdAtUnix, 0)
+	var createdAt stdlibtime.Time
+	switch {
+	case createdAtUnix < 1e10: // Seconds.
+		createdAt = stdlibtime.Unix(int64(createdAtUnix), 0)
+	case createdAtUnix < 1e13: // Milliseconds.
+		createdAt = stdlibtime.UnixMilli(int64(createdAtUnix))
+	case createdAtUnix < 1e16: // Microseconds.
+		createdAt = stdlibtime.UnixMicro(int64(createdAtUnix))
+	default: // Nanoseconds.
+		createdAt = stdlibtime.Unix(int64(createdAtUnix)/1e9, int64(createdAtUnix)%1e9)
+	}
 	if createdAt.After(*now.Time) || now.Sub(createdAt) > a.cfg.UserSignatureExpiration {
 		return errors.Wrapf(ErrInvalidUserSignature, "expired createdAt")
 	}
