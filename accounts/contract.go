@@ -101,10 +101,11 @@ type (
 		MasterPubKey            string            `json:"masterPubKey"`
 	}
 	SocialProfile struct {
-		Username      string         `json:"username,omitempty"`
-		DisplayName   string         `json:"displayName,omitempty"`
-		Referral      string         `json:"referral,omitempty"`
-		UsernameProof []*model.Event `json:"usernameProof,omitempty"`
+		Username          string         `json:"username,omitempty"`
+		DisplayName       string         `json:"displayName,omitempty"`
+		Referral          string         `json:"referral,omitempty"`
+		ReferralMasterKey *string        `json:"referralMasterKey,omitempty"`
+		UsernameProof     []*model.Event `json:"usernameProof,omitempty"`
 	}
 	WalletView struct {
 		Name  string       `json:"name"`
