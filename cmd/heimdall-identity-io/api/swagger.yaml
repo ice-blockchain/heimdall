@@ -56,6 +56,8 @@ definitions:
         type: string
       referral:
         type: string
+      referralMasterKey:
+        type: string
       username:
         type: string
       usernameProof:

@@ -2104,6 +2104,9 @@ const docTemplate = `{
                 "referral": {
                     "type": "string"
                 },
+                "referralMasterKey": {
+                    "type": "string"
+                },
                 "username": {
                     "type": "string"
                 },

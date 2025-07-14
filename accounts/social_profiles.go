@@ -172,10 +172,11 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 		}
 	}
 	result := &SocialProfile{
-		Username:      profile.Username,
-		DisplayName:   profile.DisplayName,
-		Referral:      profile.ReferralUsername,
-		UsernameProof: proofEvents,
+		Username:          profile.Username,
+		DisplayName:       profile.DisplayName,
+		Referral:          profile.ReferralUsername,
+		ReferralMasterKey: profile.ReferralMasterPubkey,
+		UsernameProof:     proofEvents,
 	}
 
 	return result, nil
