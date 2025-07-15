@@ -4,13 +4,13 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
     id                                     TEXT NOT NULL,
-    username                               TEXT NOT NULL UNIQUE,
+    identity_key_name                      TEXT NOT NULL UNIQUE,
     master_pubkey                          TEXT NOT NULL UNIQUE,
     clients                                TEXT[] NOT NULL,
     email                                  TEXT[],
     phone_number                           TEXT[],
     totp_authenticator_secret              TEXT[],
-    ion_connect_relays                     TEXT[],
+    ion_connect_relays                     ion_connect_relay_ref[],
     active_2fa_email                       boolean[], -- bitmask
     active_2fa_phone_number                boolean[], -- bitmask
     active_2fa_totp_authenticator          boolean[], -- bitmask
@@ -157,3 +157,23 @@ CREATE TABLE IF NOT EXISTS assigned_early_access_emails (
                                                             email   TEXT NOT NULL REFERENCES early_access_emails(email) ON DELETE CASCADE,
                                                             primary key(email, user_id)
 );
+
+DO $$ BEGIN
+    if exists (SELECT column_name FROM information_schema.columns WHERE table_name='users' and column_name='ion_connect_relays' AND udt_name = '_text') then
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS ion_connect_relays_v2 ion_connect_relay_ref[];
+        with upd_data as (
+            with relays as (
+                select id as user_id, (relays, 'write')::ion_connect_relay_ref as r from (select users.id, unnest(users.ion_connect_relays) as relays from users
+                                                                                          group by users.id) t where relays is not null
+            )
+            select user_id, array_agg(relays.r) as r from relays group by user_id
+        )
+        UPDATE users SET
+                         ion_connect_relays_v2 = upd_data.r
+        FROM upd_data
+        WHERE users.id = upd_data.user_id and ion_connect_relays_v2 is null;
+        ALTER TABLE users
+            DROP COLUMN IF EXISTS ion_connect_relays;
+        ALTER TABLE users RENAME COLUMN ion_connect_relays_v2 TO ion_connect_relays;
+    end if;
+END$$;

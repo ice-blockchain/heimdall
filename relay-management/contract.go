@@ -14,10 +14,15 @@ import (
 
 type (
 	Relays interface {
-		GetAllIONConnectRelays(ctx context.Context, requestedRelay string) ([]string, error)
-		IONConnectRelaysForUser(ctx context.Context, userId string) ([]string, error)
+		GetAllIONConnectRelays(ctx context.Context, requestedRelay string) ([]*UserAssignedRelay, error)
+		IONConnectRelaysForUser(ctx context.Context, userId string) ([]*UserAssignedRelay, error)
 	}
-	RelaysSyncer interface {
+	UserAssignedRelay struct {
+		URL  string `json:"url"`
+		Type string `json:"type"`
+	}
+	UserAssignedRelays []*UserAssignedRelay
+	RelaysSyncer       interface {
 		CheckRelayStatus(ctx context.Context) error
 	}
 )
@@ -46,7 +51,7 @@ type (
 	}
 
 	ionConnectRelays struct {
-		IONConnectRelays []string `db:"ion_connect_relays"`
+		IONConnectRelays UserAssignedRelays `db:"ion_connect_relays"`
 	}
 	nip11Result struct {
 		url   string

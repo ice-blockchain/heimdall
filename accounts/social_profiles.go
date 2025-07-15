@@ -183,7 +183,7 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 }
 
 func (a *accounts) SearchSocialProfiles(ctx context.Context, tpe SearchType, keyword string, limit, offset uint64) ([]*LiteUser, error) {
-	query := `SELECT sp.master_pubkey, COALESCE(u.ion_connect_relays, ARRAY[]::text[]) as ion_connect_relays
+	query := `SELECT sp.master_pubkey, array_to_json(COALESCE(u.ion_connect_relays, ARRAY[]::ion_connect_relay_ref[])) as ion_connect_relays
 			FROM social_profiles sp
 			JOIN users u ON sp.master_pubkey = u.master_pubkey`
 	switch tpe {

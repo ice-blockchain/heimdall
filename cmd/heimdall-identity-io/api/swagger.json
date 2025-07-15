@@ -2060,7 +2060,7 @@
                 "ionConnectRelays": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/relaymanagement.UserAssignedRelay"
                     }
                 },
                 "masterPubKey": {
@@ -2123,6 +2123,17 @@
                 "TwoFAOptionEmail",
                 "TwoFAOptionTOTPAuthenticator"
             ]
+        },
+        "accounts.UserAssignedRelay": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
         },
         "big.Int": {
             "type": "object"
@@ -2311,7 +2322,7 @@
                 "ionConnectRelays": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/relaymanagement.UserAssignedRelay"
                     }
                 },
                 "masterPubKey": {
@@ -2369,7 +2380,7 @@
                 "ionConnectRelays": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/main.UserAssignedRelay"
                     }
                 }
             }
@@ -2486,7 +2497,7 @@
                 "ionConnectRelays": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/accounts.UserAssignedRelay"
                     }
                 },
                 "masterPubKey": {
@@ -2497,6 +2508,17 @@
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "main.UserAssignedRelay": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
                 }
             }
         },
@@ -2653,6 +2675,17 @@
                             "type": "string"
                         }
                     }
+                }
+            }
+        },
+        "relaymanagement.UserAssignedRelay": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
                 }
             }
         },

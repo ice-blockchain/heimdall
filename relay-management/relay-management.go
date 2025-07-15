@@ -5,6 +5,7 @@ package relaymanagement
 import (
 	"context"
 
+	"github.com/goccy/go-json"
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
@@ -19,11 +20,11 @@ func NewRelays(ctx context.Context) Relays {
 	return &r
 }
 
-func (r *relaysRepository) GetAllIONConnectRelays(ctx context.Context, requestedRelay string) ([]string, error) {
-	allRelays, err := storage.Select[ionConnectRelays](ctx, r.db, `SELECT array_agg(url) as ion_connect_relays 
-		FROM ion_connect_relays
+func (r *relaysRepository) GetAllIONConnectRelays(ctx context.Context, requestedRelay string) ([]*UserAssignedRelay, error) {
+	allRelays, err := storage.Select[ionConnectRelays](ctx, r.db, `SELECT json_agg(relay) as ion_connect_relays from (
+		SELECT (url, relay_type)::ion_connect_relay_ref as relay FROM ion_connect_relays
 		WHERE region = (SELECT region FROM ion_connect_relays WHERE url = $1)
-		AND (unhealthy_started_at is NULL OR unhealthy_started_at between now()-'6 hours'::INTERVAL AND now() )`, requestedRelay)
+		AND (unhealthy_started_at is NULL OR unhealthy_started_at between now()-'6 hours'::INTERVAL AND now() ))`, requestedRelay)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			err = nil
@@ -36,9 +37,9 @@ func (r *relaysRepository) GetAllIONConnectRelays(ctx context.Context, requested
 	return allRelays[0].IONConnectRelays, nil
 }
 
-func (r *relaysRepository) IONConnectRelaysForUser(ctx context.Context, userId string) ([]string, error) {
+func (r *relaysRepository) IONConnectRelaysForUser(ctx context.Context, userId string) ([]*UserAssignedRelay, error) {
 	userRelays, err := storage.Select[ionConnectRelays](ctx, r.db, `
-		SELECT array_agg(url) as ion_connect_relays FROM ion_connect_relays_with_the_lowest_storage_by_region;
+		SELECT json_agg(relay) as ion_connect_relays from (SELECT (url, relay_type)::ion_connect_relay_ref as relay FROM ion_connect_relays_with_the_lowest_storage_by_region) t;
 	`)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
@@ -50,4 +51,13 @@ func (r *relaysRepository) IONConnectRelaysForUser(ctx context.Context, userId s
 		return nil, ErrNoRelays
 	}
 	return userRelays[0].IONConnectRelays, nil
+}
+
+func (r *UserAssignedRelays) Scan(value any) error {
+	if value == nil {
+		*r = UserAssignedRelays([]*UserAssignedRelay{})
+		return nil
+	}
+	err := json.Unmarshal([]byte((value.(string))), r)
+	return errors.Wrapf(err, "failed to unmarshal value from db %v", value)
 }

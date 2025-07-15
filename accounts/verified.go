@@ -45,8 +45,13 @@ func (a *verifiedUsersSync) ProcessNextVerifiedUsersQueue(ctx context.Context) e
 		if err != nil {
 			return errors.Wrap(err, "failed to generate verification events")
 		}
-
-		return errors.Wrapf(a.publishEvents(ctx, userData.IONConnectRelays, verificationEvents),
+		writeRelayUrls := make([]string, 0, len(userData.IONConnectRelays))
+		for _, relay := range userData.IONConnectRelays {
+			if relay.Type == model.RelayListWriteMarker || relay.Type == "" {
+				writeRelayUrls = append(writeRelayUrls, relay.URL)
+			}
+		}
+		return errors.Wrapf(a.publishEvents(ctx, writeRelayUrls, verificationEvents),
 			"failed to process verified user: %s", userData.MasterPubKey)
 	}), "failed to process verified user")
 }

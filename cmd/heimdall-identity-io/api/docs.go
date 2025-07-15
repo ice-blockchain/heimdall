@@ -2067,7 +2067,7 @@ const docTemplate = `{
                 "ionConnectRelays": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/relaymanagement.UserAssignedRelay"
                     }
                 },
                 "masterPubKey": {
@@ -2130,6 +2130,17 @@ const docTemplate = `{
                 "TwoFAOptionEmail",
                 "TwoFAOptionTOTPAuthenticator"
             ]
+        },
+        "accounts.UserAssignedRelay": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
         },
         "big.Int": {
             "type": "object"
@@ -2318,7 +2329,7 @@ const docTemplate = `{
                 "ionConnectRelays": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/relaymanagement.UserAssignedRelay"
                     }
                 },
                 "masterPubKey": {
@@ -2376,7 +2387,7 @@ const docTemplate = `{
                 "ionConnectRelays": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/main.UserAssignedRelay"
                     }
                 }
             }
@@ -2493,7 +2504,7 @@ const docTemplate = `{
                 "ionConnectRelays": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/accounts.UserAssignedRelay"
                     }
                 },
                 "masterPubKey": {
@@ -2504,6 +2515,17 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "main.UserAssignedRelay": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
                 }
             }
         },
@@ -2660,6 +2682,17 @@ const docTemplate = `{
                             "type": "string"
                         }
                     }
+                }
+            }
+        },
+        "relaymanagement.UserAssignedRelay": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
                 }
             }
         },

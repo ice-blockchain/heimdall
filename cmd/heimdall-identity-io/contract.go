@@ -72,8 +72,9 @@ type (
 		Keyword       string `form:"keyword" required:"false"`
 		Limit         int    `form:"limit" required:"false"`
 	}
-	Relays struct {
-		IONConnectRelays []string `json:"ionConnectRelays"`
+	UserAssignedRelay = relaymanagement.UserAssignedRelay
+	Relays            struct {
+		IONConnectRelays []*UserAssignedRelay `json:"ionConnectRelays"`
 	}
 	IndexersReq struct {
 		UserIDOrMasterKey string `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
