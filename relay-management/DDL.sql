@@ -41,7 +41,7 @@ END $$;
 
 
 CREATE INDEX IF NOT EXISTS idx_ion_connect_relays_region_unhealthy_started_at ON ion_connect_relays(region, unhealthy_started_at desc nulls first);
-CREATE INDEX IF NOT EXISTS ion_connect_relays_with_the_lowest_storage_by_region_inner_cte ON ion_connect_relays(unhealthy_started_at desc nulls first, region, total_used_storage ASC);
+CREATE INDEX IF NOT EXISTS ion_connect_relays_with_the_lowest_storage_by_region_inner_cte_total ON ion_connect_relays(unhealthy_started_at desc nulls first, relay_group, total_used_storage ASC);
 CREATE INDEX IF NOT EXISTS ion_connect_relays_date_search ON ion_connect_relays USING brin(unhealthy_started_at);
 
 DO $$ BEGIN
@@ -70,7 +70,7 @@ DO $$ BEGIN
                    ROW_NUMBER() OVER (PARTITION BY region ORDER BY total_used_storage ASC) as rank
             FROM ion_connect_relays
             JOIN best_group ON best_group.relay_group = ion_connect_relays.relay_group
-            WHERE (ion_connect_relays.relay_group = best_group.relay_group AND unhealthy_started_at is NULL OR unhealthy_started_at between now() - '3 minute'::INTERVAL and now())
+            WHERE (unhealthy_started_at is NULL OR unhealthy_started_at between now() - '3 minute'::INTERVAL and now()) AND ion_connect_relays.relay_group = best_group.relay_group
         )
         SELECT url,
                region,
