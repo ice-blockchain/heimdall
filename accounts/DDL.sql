@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
     id                                     TEXT NOT NULL,
-    username                               TEXT NOT NULL UNIQUE,
+    identity_key_name                      TEXT NOT NULL UNIQUE,
     master_pubkey                          TEXT NOT NULL UNIQUE,
     clients                                TEXT[] NOT NULL,
     email                                  TEXT[],

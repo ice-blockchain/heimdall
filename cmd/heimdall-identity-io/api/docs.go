@@ -480,6 +480,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
+                        "format": "int32",
                         "description": "The version of that specific config, if applicable",
                         "name": "version",
                         "in": "query"
@@ -843,6 +844,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
+                        "format": "int64",
                         "description": "Number of content creators to return",
                         "name": "limit",
                         "in": "query",
@@ -2067,7 +2069,7 @@ const docTemplate = `{
                 "ionConnectRelays": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/relaymanagement.UserAssignedRelay"
                     }
                 },
                 "masterPubKey": {
@@ -2130,6 +2132,17 @@ const docTemplate = `{
                 "TwoFAOptionEmail",
                 "TwoFAOptionTOTPAuthenticator"
             ]
+        },
+        "accounts.UserAssignedRelay": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
         },
         "big.Int": {
             "type": "object"
@@ -2318,7 +2331,7 @@ const docTemplate = `{
                 "ionConnectRelays": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/relaymanagement.UserAssignedRelay"
                     }
                 },
                 "masterPubKey": {
@@ -2376,7 +2389,7 @@ const docTemplate = `{
                 "ionConnectRelays": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/main.UserAssignedRelay"
                     }
                 }
             }
@@ -2493,7 +2506,7 @@ const docTemplate = `{
                 "ionConnectRelays": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/accounts.UserAssignedRelay"
                     }
                 },
                 "masterPubKey": {
@@ -2504,6 +2517,17 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "main.UserAssignedRelay": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
                 }
             }
         },
@@ -2638,7 +2662,8 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "createdAt": {
-                    "type": "integer"
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "id": {
                     "type": "string"
@@ -2663,6 +2688,17 @@ const docTemplate = `{
                 }
             }
         },
+        "relaymanagement.UserAssignedRelay": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
         "server.ErrorResponse": {
             "type": "object",
             "properties": {
@@ -2682,6 +2718,7 @@ const docTemplate = `{
         },
         "time.Duration": {
             "type": "integer",
+            "format": "int64",
             "enum": [
                 -9223372036854775808,
                 9223372036854775807,

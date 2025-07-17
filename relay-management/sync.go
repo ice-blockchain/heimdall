@@ -39,7 +39,9 @@ func NewRelaysSync(ctx context.Context) RelaysSyncer {
 }
 
 func (r *relaysSyncer) getAllRelays(ctx context.Context) ([]string, error) {
-	allRelays, err := storage.Select[ionConnectRelays](ctx, r.db, `SELECT array_agg(url) as ion_connect_relays FROM ion_connect_relays;`)
+	allRelays, err := storage.Select[struct {
+		IONConnectRelays []string `db:"ion_connect_relays"`
+	}](ctx, r.db, `SELECT array_agg(url) as ion_connect_relays FROM ion_connect_relays;`)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			err = nil

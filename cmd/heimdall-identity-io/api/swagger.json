@@ -473,6 +473,7 @@
                     },
                     {
                         "type": "integer",
+                        "format": "int32",
                         "description": "The version of that specific config, if applicable",
                         "name": "version",
                         "in": "query"
@@ -836,6 +837,7 @@
                 "parameters": [
                     {
                         "type": "integer",
+                        "format": "int64",
                         "description": "Number of content creators to return",
                         "name": "limit",
                         "in": "query",
@@ -2060,7 +2062,7 @@
                 "ionConnectRelays": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/relaymanagement.UserAssignedRelay"
                     }
                 },
                 "masterPubKey": {
@@ -2123,6 +2125,17 @@
                 "TwoFAOptionEmail",
                 "TwoFAOptionTOTPAuthenticator"
             ]
+        },
+        "accounts.UserAssignedRelay": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
         },
         "big.Int": {
             "type": "object"
@@ -2311,7 +2324,7 @@
                 "ionConnectRelays": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/relaymanagement.UserAssignedRelay"
                     }
                 },
                 "masterPubKey": {
@@ -2369,7 +2382,7 @@
                 "ionConnectRelays": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/main.UserAssignedRelay"
                     }
                 }
             }
@@ -2486,7 +2499,7 @@
                 "ionConnectRelays": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/accounts.UserAssignedRelay"
                     }
                 },
                 "masterPubKey": {
@@ -2497,6 +2510,17 @@
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "main.UserAssignedRelay": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
                 }
             }
         },
@@ -2631,7 +2655,8 @@
                     "type": "string"
                 },
                 "createdAt": {
-                    "type": "integer"
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "id": {
                     "type": "string"
@@ -2656,6 +2681,17 @@
                 }
             }
         },
+        "relaymanagement.UserAssignedRelay": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
         "server.ErrorResponse": {
             "type": "object",
             "properties": {
@@ -2675,6 +2711,7 @@
         },
         "time.Duration": {
             "type": "integer",
+            "format": "int64",
             "enum": [
                 -9223372036854775808,
                 9223372036854775807,

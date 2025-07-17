@@ -19,6 +19,7 @@ import (
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
 	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
 	"github.com/ice-blockchain/heimdall/coins"
+	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/time"
@@ -36,7 +37,7 @@ type (
 		Send2FA(ctx context.Context, userID string, channel TwoFAOptionEnum, deliverTo *string, language string, verificationUsingExisting2FA map[TwoFAOptionWithAddr]string, replaceOldValue *string) (authenticatorUri *string, err error)
 		StartDelegatedRecovery(ctx context.Context, username, credentialID string, codes map[TwoFAOptionWithAddr]string) (resp *StartedDelegatedRecovery, err error)
 		GetLoginChallenge(ctx context.Context, username string, codes map[TwoFAOptionWithAddr]string) (*LoginChallenge, error)
-		GetOrAssignIONConnectRelays(ctx context.Context, userID string, followees []string) (relays []string, err error)
+		GetOrAssignIONConnectRelays(ctx context.Context, userID string, followees []string) (relays []*UserAssignedRelay, err error)
 		GetIONConnectIndexerRelays(ctx context.Context, userID string) (indexers []string, err error)
 		GetUser(ctx context.Context, userID string) (usr *User, err error)
 		SecurePaymentConfirmation(ctx context.Context, userID, walletID string, body map[string]string) (templateData any, err error)
@@ -79,7 +80,7 @@ type (
 		ImportNFTs(ctx context.Context, network string, nft []coins.WalletNFT) ([]*NFT, error)
 	}
 	Relays interface {
-		IONConnectRelaysForUser(ctx context.Context, userId string) ([]string, error)
+		IONConnectRelaysForUser(ctx context.Context, userId string) ([]*UserAssignedRelay, error)
 	}
 	TwoFAOptionEnum     string
 	TwoFAOptionWithAddr struct {
@@ -93,12 +94,12 @@ type (
 	BroadcastTxResponse      = dfns.BroadcastTxResponse
 	User                     struct {
 		dfns.User
-		IONConnectRelays        []string          `json:"ionConnectRelays"`
-		IONConnectIndexerRelays []string          `json:"ionConnectIndexerRelays"`
-		Email                   []string          `json:"email,omitempty"`
-		PhoneNumber             []string          `json:"phoneNumber,omitempty"`
-		TwoFAOptions            []TwoFAOptionEnum `json:"2faOptions,omitempty"`
-		MasterPubKey            string            `json:"masterPubKey"`
+		IONConnectRelays        []*UserAssignedRelay `json:"ionConnectRelays"`
+		IONConnectIndexerRelays []string             `json:"ionConnectIndexerRelays"`
+		Email                   []string             `json:"email,omitempty"`
+		PhoneNumber             []string             `json:"phoneNumber,omitempty"`
+		TwoFAOptions            []TwoFAOptionEnum    `json:"2faOptions,omitempty"`
+		MasterPubKey            string               `json:"masterPubKey"`
 	}
 	SocialProfile struct {
 		Username          string         `json:"username,omitempty"`
@@ -145,12 +146,13 @@ type (
 	NFT      = coins.NFT
 	Wallet   = dfns.Wallet
 	LiteUser struct {
-		MasterPubKey     string   `json:"masterPubKey" db:"master_pubkey"`
-		IONConnectRelays []string `json:"ionConnectRelays" db:"ion_connect_relays"`
+		MasterPubKey     string                             `json:"masterPubKey" db:"master_pubkey"`
+		IONConnectRelays relaymanagement.UserAssignedRelays `json:"ionConnectRelays" db:"ion_connect_relays"`
 	}
 
 	Credentials           = dfns.Credentials
 	CompletedRegistration = dfns.CompletedRegistration
+	UserAssignedRelay     = relaymanagement.UserAssignedRelay
 )
 
 const (
@@ -255,7 +257,7 @@ type (
 		Email                      []string
 		PhoneNumber                []string
 		TotpAuthenticatorSecret    []string
-		IONConnectRelays           []string
+		IONConnectRelays           relaymanagement.UserAssignedRelays
 		Clients                    []string
 		Active2FAEmail             []bool `db:"active_2fa_email"`
 		Active2FAPhoneNumber       []bool `db:"active_2fa_phone_number"`

@@ -32,7 +32,7 @@ definitions:
     properties:
       ionConnectRelays:
         items:
-          type: string
+          $ref: '#/definitions/relaymanagement.UserAssignedRelay'
         type: array
       masterPubKey:
         type: string
@@ -75,6 +75,13 @@ definitions:
     - TwoFAOptionSMS
     - TwoFAOptionEmail
     - TwoFAOptionTOTPAuthenticator
+  accounts.UserAssignedRelay:
+    properties:
+      type:
+        type: string
+      url:
+        type: string
+    type: object
   big.Int:
     type: object
   coins.Coin:
@@ -198,7 +205,7 @@ definitions:
     properties:
       ionConnectRelays:
         items:
-          type: string
+          $ref: '#/definitions/relaymanagement.UserAssignedRelay'
         type: array
       masterPubKey:
         type: string
@@ -236,7 +243,7 @@ definitions:
     properties:
       ionConnectRelays:
         items:
-          type: string
+          $ref: '#/definitions/main.UserAssignedRelay'
         type: array
     type: object
   main.RelaysReq:
@@ -312,7 +319,7 @@ definitions:
         type: array
       ionConnectRelays:
         items:
-          type: string
+          $ref: '#/definitions/accounts.UserAssignedRelay'
         type: array
       masterPubKey:
         type: string
@@ -320,6 +327,13 @@ definitions:
         items:
           type: string
         type: array
+    type: object
+  main.UserAssignedRelay:
+    properties:
+      type:
+        type: string
+      url:
+        type: string
     type: object
   main.VerifiedBadgeEvents:
     properties:
@@ -408,6 +422,7 @@ definitions:
       content:
         type: string
       createdAt:
+        format: int64
         type: integer
       id:
         type: string
@@ -423,6 +438,13 @@ definitions:
             type: string
           type: array
         type: array
+    type: object
+  relaymanagement.UserAssignedRelay:
+    properties:
+      type:
+        type: string
+      url:
+        type: string
     type: object
   server.ErrorResponse:
     properties:
@@ -446,6 +468,7 @@ definitions:
     - 1000000000
     - 60000000000
     - 3600000000000
+    format: int64
     type: integer
     x-enum-varnames:
     - minDuration
@@ -770,6 +793,7 @@ paths:
         required: true
         type: string
       - description: The version of that specific config, if applicable
+        format: int32
         in: query
         name: version
         type: integer
@@ -1654,6 +1678,7 @@ paths:
       description: Returns content creators from the database
       parameters:
       - description: Number of content creators to return
+        format: int64
         in: query
         name: limit
         required: true

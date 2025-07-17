@@ -27,7 +27,22 @@ import (
 )
 
 func (a *accounts) getUserByID(ctx context.Context, userID string) (*user, error) {
-	u, err := storage.Get[user](ctx, a.db, `SELECT * FROM users where id = $1 or master_pubkey = $1`, userID)
+	u, err := storage.Get[user](ctx, a.db, `SELECT 
+    created_at ,
+    updated_at,
+    id,                           
+    identity_key_name,
+    master_pubkey,
+    clients,
+    email,
+    phone_number,
+    totp_authenticator_secret,
+    (select json_agg(x) from (select url, relay_type as "type" from ion_connect_relays where url=ANY(users.ion_connect_relays)) x) as ion_connect_relays,
+    active_2fa_email,
+    active_2fa_phone_number,
+    active_2fa_totp_authenticator,
+    verified
+    FROM users where id = $1 or master_pubkey = $1`, userID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get user by ID %v", userID)
 	}
@@ -36,7 +51,22 @@ func (a *accounts) getUserByID(ctx context.Context, userID string) (*user, error
 }
 
 func (a *accounts) getUserByIdentityKeyName(ctx context.Context, identityKeyName string) (*user, error) {
-	u, err := storage.Get[user](ctx, a.db, `SELECT * FROM users where identity_key_name = $1`, identityKeyName)
+	u, err := storage.Get[user](ctx, a.db, `SELECT 
+		created_at,
+		updated_at,
+		id,                           
+		identity_key_name,
+		master_pubkey,
+		clients,
+		email,
+		phone_number,
+		totp_authenticator_secret,
+		(select json_agg(x) from (select url, relay_type as "type" from ion_connect_relays where url=ANY(users.ion_connect_relays)) x) as ion_connect_relays,
+		active_2fa_email,
+		active_2fa_phone_number,
+		active_2fa_totp_authenticator,
+		verified     
+    FROM users where identity_key_name = $1`, identityKeyName)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get user by identity key name %v", identityKeyName)
 	}
@@ -48,14 +78,14 @@ func clientIPAddress(ctx context.Context) string {
 	return ctx.Value(clientIPCtxValueKey).(string)
 }
 
-func (a *accounts) GetOrAssignIONConnectRelays(ctx context.Context, userID string, followees []string) (relays []string, err error) {
+func (a *accounts) GetOrAssignIONConnectRelays(ctx context.Context, userID string, followees []string) (relays []*UserAssignedRelay, err error) {
 	usr, err := a.getUserByID(ctx, userID)
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 		return nil, errors.Wrapf(err, "failed to check if user already have ion relays")
 	}
 	if len(usr.IONConnectRelays) > 0 {
 		for i := range usr.IONConnectRelays {
-			usr.IONConnectRelays[i] = enhanceRelayURL(usr.IONConnectRelays[i])
+			enhanceRelayURL(usr.IONConnectRelays[i])
 		}
 		return usr.IONConnectRelays, nil
 	}
@@ -78,7 +108,8 @@ func (a *accounts) GetContentCreators(ctx context.Context, limit uint64, exclude
 		excludeClause = "WHERE NOT master_pubkey = ANY($1)"
 	}
 	args = append(args, limit)
-	query := `SELECT x.master_pubkey, COALESCE(u.ion_connect_relays, ARRAY[]::TEXT[]) as ion_connect_relays
+	query := `SELECT x.master_pubkey, 
+       		  (SELECT json_agg(x) FROM (SELECT url, relay_type as "type" from ion_connect_relays where url=ANY(users.ion_connect_relays)) x) as ion_connect_relays
 			  FROM (SELECT master_pubkey FROM content_creators ` + excludeClause + ` 
 			  ORDER BY random() LIMIT $` + strconv.Itoa(len(args)) + `) x
 			  JOIN users u ON x.master_pubkey = u.master_pubkey`
@@ -94,12 +125,16 @@ func (a *accounts) GetContentCreators(ctx context.Context, limit uint64, exclude
 	return results, nil
 }
 
-func (a *accounts) fetchAndUpdateRelays(ctx context.Context, userID string, followees []string) (relays []string, err error) {
+func (a *accounts) fetchAndUpdateRelays(ctx context.Context, userID string, followees []string) (relays []*UserAssignedRelay, err error) {
 	now := time.Now()
 	if relays, err = a.relaysRepo.IONConnectRelaysForUser(ctx, userID); err != nil {
 		return nil, errors.Wrapf(err, "cannot fetch relay list from relays managenent for user %v", userID)
 	}
 	if len(relays) > 0 {
+		relayUrls := make([]string, 0, len(relays))
+		for _, relay := range relays {
+			relayUrls = append(relayUrls, relay.URL)
+		}
 		var usr *user
 		usr, err = storage.ExecOne[user](ctx, a.db, `
 					INSERT INTO 
@@ -108,7 +143,22 @@ func (a *accounts) fetchAndUpdateRelays(ctx context.Context, userID string, foll
     					SET 
     					    ion_connect_relays = $2,
     					    updated_at = $3
-    				WHERE users.ion_connect_relays IS NULL RETURNING *`, userID, relays, *now.Time, []string{})
+    				WHERE users.ion_connect_relays IS NULL RETURNING 
+    						created_at,
+							updated_at,
+							id,                           
+							identity_key_name,
+							master_pubkey,
+							clients,
+							email,
+							phone_number,
+							totp_authenticator_secret,
+							(select array_to_json(array_agg((url, relay_type))) from ion_connect_relays where url=ANY(users.ion_connect_relays)) as ion_connect_relays,           
+							active_2fa_email,
+							active_2fa_phone_number,
+							active_2fa_totp_authenticator,
+							verified     
+    				`, userID, relayUrls, *now.Time, []string{})
 		if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 			return nil, errors.Wrapf(err, "failed to persist ion relays for userID %v", userID)
 		}
@@ -162,8 +212,8 @@ func (a *accounts) fetchIONIndexers(ctx context.Context, userID string) (relays 
 	return []string{}, nil
 }
 
-func enhanceRelayURL(url string) string {
-	return strings.TrimSuffix(url, "/")
+func enhanceRelayURL(relay *UserAssignedRelay) {
+	relay.URL = strings.TrimSuffix(relay.URL, "/")
 }
 
 func (a *accounts) GetUser(ctx context.Context, userIDOrMasterKey string) (*User, error) {
@@ -182,7 +232,7 @@ func (a *accounts) GetUser(ctx context.Context, userIDOrMasterKey string) (*User
 	if dbUsr != nil {
 		usr.IONConnectRelays = dbUsr.IONConnectRelays
 		for i := range usr.IONConnectRelays {
-			usr.IONConnectRelays[i] = enhanceRelayURL(usr.IONConnectRelays[i])
+			enhanceRelayURL(usr.IONConnectRelays[i])
 		}
 		usr.MasterPubKey = dbUsr.MasterPubKey
 		usr.IONConnectIndexerRelays, err = a.GetIONConnectIndexerRelays(ctx, userIDOrMasterKey)
