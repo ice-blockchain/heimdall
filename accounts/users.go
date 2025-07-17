@@ -109,7 +109,7 @@ func (a *accounts) GetContentCreators(ctx context.Context, limit uint64, exclude
 	}
 	args = append(args, limit)
 	query := `SELECT x.master_pubkey, 
-       		  (SELECT json_agg(x) FROM (SELECT url, relay_type as "type" from ion_connect_relays where url=ANY(users.ion_connect_relays)) x) as ion_connect_relays
+       		  (SELECT json_agg(x) FROM (SELECT url, relay_type as "type" from ion_connect_relays where url=ANY(u.ion_connect_relays)) x) as ion_connect_relays
 			  FROM (SELECT master_pubkey FROM content_creators ` + excludeClause + ` 
 			  ORDER BY random() LIMIT $` + strconv.Itoa(len(args)) + `) x
 			  JOIN users u ON x.master_pubkey = u.master_pubkey`
