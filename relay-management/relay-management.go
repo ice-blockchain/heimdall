@@ -64,6 +64,15 @@ func (r *UserAssignedRelays) Scan(value any) error {
 		*r = UserAssignedRelays([]*UserAssignedRelay{})
 		return nil
 	}
-	err := json.Unmarshal([]byte((value.(string))), r)
+	var data []byte
+	switch v := value.(type) {
+	case string:
+		data = []byte(v)
+	case []byte:
+		data = v
+	default:
+		return errors.Errorf("unexpected type %T for value: %v", value, value)
+	}
+	err := json.Unmarshal(data, r)
 	return errors.Wrapf(err, "failed to unmarshal value from db %v", value)
 }

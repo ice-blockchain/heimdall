@@ -224,7 +224,16 @@ func (w *CoinMappings) Scan(value any) error {
 		*w = CoinMappings([]*CoinMapping{})
 		return nil
 	}
-	err := json.Unmarshal([]byte((value.(string))), w)
+	var data []byte
+	switch v := value.(type) {
+	case string:
+		data = []byte(v)
+	case []byte:
+		data = v
+	default:
+		return errors.Errorf("unexpected type %T for value: %v", value, value)
+	}
+	err := json.Unmarshal(data, w)
 	if err == nil && w != nil && len(*w) > 0 {
 		for i, c := range *w {
 			if c.Coin != nil {
