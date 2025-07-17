@@ -422,6 +422,7 @@ definitions:
       content:
         type: string
       createdAt:
+        format: int64
         type: integer
       id:
         type: string
@@ -467,6 +468,7 @@ definitions:
     - 1000000000
     - 60000000000
     - 3600000000000
+    format: int64
     type: integer
     x-enum-varnames:
     - minDuration
@@ -791,6 +793,7 @@ paths:
         required: true
         type: string
       - description: The version of that specific config, if applicable
+        format: int32
         in: query
         name: version
         type: integer
@@ -1675,6 +1678,7 @@ paths:
       description: Returns content creators from the database
       parameters:
       - description: Number of content creators to return
+        format: int64
         in: query
         name: limit
         required: true

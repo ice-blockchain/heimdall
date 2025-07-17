@@ -4,12 +4,6 @@ DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ion_connect_relay_type') THEN
         CREATE TYPE ion_connect_relay_type AS ENUM ('read', 'write');
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ion_connect_relay_ref') THEN
-        CREATE TYPE ion_connect_relay_ref AS (
-                                                 url          TEXT,
-                                                 type         ion_connect_relay_type
-                                             );
-    END IF;
 END$$;
 
 CREATE TABLE IF NOT EXISTS ion_connect_relays (
@@ -19,9 +13,9 @@ CREATE TABLE IF NOT EXISTS ion_connect_relays (
                                                   total_used_storage   BIGINT NOT NULL DEFAULT 0,
                                                   url                  TEXT NOT NULL,
                                                   region               TEXT NOT NULL,
-                                                  nip_11               JSONB,
                                                   relay_type           ion_connect_relay_type NOT NULL,
                                                   relay_group          TEXT NOT NULL,
+                                                  nip_11               JSONB,
                                             primary key(url)
 );
 
@@ -32,7 +26,7 @@ DO $$ BEGIN
         UPDATE ion_connect_relays SET
                                       relay_group = '',
                                       relay_type = 'write'::ion_connect_relay_type
-                                  WHERE relay_group = '';
+                                  WHERE relay_group IS NULL;
         ALTER TABLE ion_connect_relays ALTER COLUMN relay_group SET NOT NULL;
         ALTER TABLE ion_connect_relays ALTER COLUMN relay_type SET NOT NULL;
 
@@ -40,7 +34,7 @@ DO $$ BEGIN
 END $$;
 
 
-CREATE INDEX IF NOT EXISTS idx_ion_connect_relays_region_unhealthy_started_at ON ion_connect_relays(region, unhealthy_started_at desc nulls first);
+CREATE INDEX IF NOT EXISTS idx_ion_connect_relays_group_unhealthy_started_at ON ion_connect_relays(relay_group, unhealthy_started_at desc nulls first);
 CREATE INDEX IF NOT EXISTS ion_connect_relays_with_the_lowest_storage_by_region_inner_cte_total ON ion_connect_relays(unhealthy_started_at desc nulls first, relay_group, total_used_storage ASC);
 CREATE INDEX IF NOT EXISTS ion_connect_relays_date_search ON ion_connect_relays USING brin(unhealthy_started_at);
 
@@ -61,13 +55,12 @@ DO $$ BEGIN
             ORDER BY group_total_storage ASC
             LIMIT 1
         ),
-        ranked_ion_connect_relays AS (
+        ion_connect_relays_from_best_group AS (
             SELECT url,
                    region,
                    total_used_storage,
                    relay_type,
-                   ion_connect_relays.relay_group,
-                   ROW_NUMBER() OVER (PARTITION BY region ORDER BY total_used_storage ASC) as rank
+                   ion_connect_relays.relay_group
             FROM ion_connect_relays
             JOIN best_group ON best_group.relay_group = ion_connect_relays.relay_group
             WHERE (unhealthy_started_at is NULL OR unhealthy_started_at between now() - '3 minute'::INTERVAL and now()) AND ion_connect_relays.relay_group = best_group.relay_group
@@ -76,9 +69,6 @@ DO $$ BEGIN
                region,
                relay_type,
                relay_group
-        FROM ranked_ion_connect_relays
-        WHERE rank = 1;
+        FROM ion_connect_relays_from_best_group;
     end if;
 END$$;
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_ion_connect_relays_with_the_lowest_storage_by_region ON ion_connect_relays_with_the_lowest_storage_by_region(region);

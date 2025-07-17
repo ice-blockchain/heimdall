@@ -37,11 +37,11 @@ func (a *accounts) getUserByID(ctx context.Context, userID string) (*user, error
     email,
     phone_number,
     totp_authenticator_secret,
-    array_to_json(ion_connect_relays) as ion_connect_relays,           
+    (select json_agg(x) from (select url, relay_type as "type" from ion_connect_relays where url=ANY(users.ion_connect_relays)) x) as ion_connect_relays,
     active_2fa_email,
     active_2fa_phone_number,
     active_2fa_totp_authenticator,
-    verified                     
+    verified
     FROM users where id = $1 or master_pubkey = $1`, userID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get user by ID %v", userID)
@@ -52,21 +52,20 @@ func (a *accounts) getUserByID(ctx context.Context, userID string) (*user, error
 
 func (a *accounts) getUserByIdentityKeyName(ctx context.Context, identityKeyName string) (*user, error) {
 	u, err := storage.Get[user](ctx, a.db, `SELECT 
-    created_at ,
-    updated_at,
-    id,                           
-    identity_key_name,
-    master_pubkey,
-    clients,
-    email,
-    phone_number,
-    totp_authenticator_secret,
-    array_to_json(ion_connect_relays) as ion_connect_relays,           
-    active_2fa_email,
-    active_2fa_phone_number,
-    active_2fa_totp_authenticator,
-    verified                     
-
+		created_at,
+		updated_at,
+		id,                           
+		identity_key_name,
+		master_pubkey,
+		clients,
+		email,
+		phone_number,
+		totp_authenticator_secret,
+		(select json_agg(x) from (select url, relay_type as "type" from ion_connect_relays where url=ANY(users.ion_connect_relays)) x) as ion_connect_relays,
+		active_2fa_email,
+		active_2fa_phone_number,
+		active_2fa_totp_authenticator,
+		verified     
     FROM users where identity_key_name = $1`, identityKeyName)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get user by identity key name %v", identityKeyName)
@@ -109,7 +108,8 @@ func (a *accounts) GetContentCreators(ctx context.Context, limit uint64, exclude
 		excludeClause = "WHERE NOT master_pubkey = ANY($1)"
 	}
 	args = append(args, limit)
-	query := `SELECT x.master_pubkey, array_to_json(COALESCE(u.ion_connect_relays, ARRAY[]::ion_connect_relay_ref[])) as ion_connect_relays
+	query := `SELECT x.master_pubkey, 
+       		  (SELECT json_agg(x) FROM (SELECT url, relay_type as "type" from ion_connect_relays where url=ANY(users.ion_connect_relays)) x) as ion_connect_relays
 			  FROM (SELECT master_pubkey FROM content_creators ` + excludeClause + ` 
 			  ORDER BY random() LIMIT $` + strconv.Itoa(len(args)) + `) x
 			  JOIN users u ON x.master_pubkey = u.master_pubkey`
@@ -131,32 +131,34 @@ func (a *accounts) fetchAndUpdateRelays(ctx context.Context, userID string, foll
 		return nil, errors.Wrapf(err, "cannot fetch relay list from relays managenent for user %v", userID)
 	}
 	if len(relays) > 0 {
+		relayUrls := make([]string, 0, len(relays))
+		for _, relay := range relays {
+			relayUrls = append(relayUrls, relay.URL)
+		}
 		var usr *user
-		params := []any{userID, *now.Time, []string{}}
-		placeholders, extraParams := buildRelayList(relays)
-		params = append(params, extraParams...)
-		usr, err = storage.ExecOne[user](ctx, a.db, fmt.Sprintf(`
+		usr, err = storage.ExecOne[user](ctx, a.db, `
 					INSERT INTO 
-    					users (created_at, updated_at, id, ion_connect_relays, identity_key_name, clients, master_pubkey) VALUES ($2,$2,$1, ARRAY[%[1]v]::ion_connect_relay_ref[], $1,$3, $1) 
+    					users (created_at, updated_at, id, ion_connect_relays, identity_key_name, clients, master_pubkey) VALUES ($3,$3,$1, $2, $1,$4, $1) 
     				ON CONFLICT(id) DO UPDATE 
     					SET 
-    					    ion_connect_relays = ARRAY[%[1]v]::ion_connect_relay_ref[],
-    					    updated_at = $2
+    					    ion_connect_relays = $2,
+    					    updated_at = $3
     				WHERE users.ion_connect_relays IS NULL RETURNING 
-    				    created_at ,
-						updated_at,
-						id,                           
-						identity_key_name,
-						master_pubkey,
-						clients,
-						email,
-						phone_number,
-						totp_authenticator_secret,
-						array_to_json(ion_connect_relays) as ion_connect_relays,           
-						active_2fa_email,
-						active_2fa_phone_number,
-						active_2fa_totp_authenticator,
-						verified`, placeholders), params...)
+    						created_at,
+							updated_at,
+							id,                           
+							identity_key_name,
+							master_pubkey,
+							clients,
+							email,
+							phone_number,
+							totp_authenticator_secret,
+							(select array_to_json(array_agg((url, relay_type))) from ion_connect_relays where url=ANY(users.ion_connect_relays)) as ion_connect_relays,           
+							active_2fa_email,
+							active_2fa_phone_number,
+							active_2fa_totp_authenticator,
+							verified     
+    				`, userID, relayUrls, *now.Time, []string{})
 		if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 			return nil, errors.Wrapf(err, "failed to persist ion relays for userID %v", userID)
 		}
@@ -171,19 +173,6 @@ func (a *accounts) fetchAndUpdateRelays(ctx context.Context, userID string, foll
 	}
 
 	return relays, nil
-}
-
-func buildRelayList(relays []*UserAssignedRelay) (placeholders string, extraParams []any) {
-	rows := make([]string, 0, len(relays))
-	params := make([]any, 0, len(relays)*2)
-	nextIndex := 3
-	for _, i := range relays {
-		rows = append(rows, fmt.Sprintf("row($%v,$%v)::ion_connect_relay_ref", nextIndex+1, nextIndex+2))
-		params = append(params, i.URL, i.Type)
-		nextIndex += 2
-	}
-
-	return strings.Join(rows, ","), params
 }
 
 func (a *accounts) validateFollowees(ctx context.Context, followees []string) error {

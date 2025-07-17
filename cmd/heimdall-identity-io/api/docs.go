@@ -480,6 +480,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
+                        "format": "int32",
                         "description": "The version of that specific config, if applicable",
                         "name": "version",
                         "in": "query"
@@ -843,6 +844,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
+                        "format": "int64",
                         "description": "Number of content creators to return",
                         "name": "limit",
                         "in": "query",
@@ -2660,7 +2662,8 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "createdAt": {
-                    "type": "integer"
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "id": {
                     "type": "string"
@@ -2715,6 +2718,7 @@ const docTemplate = `{
         },
         "time.Duration": {
             "type": "integer",
+            "format": "int64",
             "enum": [
                 -9223372036854775808,
                 9223372036854775807,

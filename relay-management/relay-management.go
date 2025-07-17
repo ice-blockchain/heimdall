@@ -21,10 +21,13 @@ func NewRelays(ctx context.Context) Relays {
 }
 
 func (r *relaysRepository) GetAllIONConnectRelays(ctx context.Context, requestedRelay string) ([]*UserAssignedRelay, error) {
-	allRelays, err := storage.Select[ionConnectRelays](ctx, r.db, `SELECT json_agg(relay) as ion_connect_relays from (
-		SELECT (url, relay_type)::ion_connect_relay_ref as relay FROM ion_connect_relays
-		WHERE region = (SELECT region FROM ion_connect_relays WHERE url = $1)
-		AND (unhealthy_started_at is NULL OR unhealthy_started_at between now()-'6 hours'::INTERVAL AND now() ))`, requestedRelay)
+	allRelays, err := storage.Select[ionConnectRelays](ctx, r.db, `
+		WITH relays (url, "type") AS (
+				SELECT url, relay_type as relay FROM ion_connect_relays
+				WHERE relay_group = (SELECT relay_group FROM ion_connect_relays WHERE url = $1)
+				  AND (unhealthy_started_at is NULL OR unhealthy_started_at between now()-'6 hours'::INTERVAL AND now() )
+				)
+		SELECT json_agg(relays) as ion_connect_relays from relays;`, requestedRelay)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			err = nil
@@ -39,7 +42,10 @@ func (r *relaysRepository) GetAllIONConnectRelays(ctx context.Context, requested
 
 func (r *relaysRepository) IONConnectRelaysForUser(ctx context.Context, userId string) ([]*UserAssignedRelay, error) {
 	userRelays, err := storage.Select[ionConnectRelays](ctx, r.db, `
-		SELECT json_agg(relay) as ion_connect_relays from (SELECT (url, relay_type)::ion_connect_relay_ref as relay FROM ion_connect_relays_with_the_lowest_storage_by_region) t;
+		WITH relays(url, "type") as (
+    		SELECT url, relay_type FROM ion_connect_relays_with_the_lowest_storage_by_region
+		)
+		SELECT json_agg(relays) as ion_connect_relays from relays;
 	`)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {

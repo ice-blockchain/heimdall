@@ -473,6 +473,7 @@
                     },
                     {
                         "type": "integer",
+                        "format": "int32",
                         "description": "The version of that specific config, if applicable",
                         "name": "version",
                         "in": "query"
@@ -836,6 +837,7 @@
                 "parameters": [
                     {
                         "type": "integer",
+                        "format": "int64",
                         "description": "Number of content creators to return",
                         "name": "limit",
                         "in": "query",
@@ -2653,7 +2655,8 @@
                     "type": "string"
                 },
                 "createdAt": {
-                    "type": "integer"
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "id": {
                     "type": "string"
@@ -2708,6 +2711,7 @@
         },
         "time.Duration": {
             "type": "integer",
+            "format": "int64",
             "enum": [
                 -9223372036854775808,
                 9223372036854775807,
