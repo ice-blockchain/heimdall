@@ -21,13 +21,12 @@ func NewRelays(ctx context.Context) Relays {
 }
 
 func (r *relaysRepository) GetAllIONConnectRelays(ctx context.Context, requestedRelay string) ([]*UserAssignedRelay, error) {
-	allRelays, err := storage.Select[ionConnectRelays](ctx, r.db, `
-		WITH relays (url, "type") AS (
-				SELECT url, relay_type as relay FROM ion_connect_relays
-				WHERE relay_group = (SELECT relay_group FROM ion_connect_relays WHERE url = $1)
-				  AND (unhealthy_started_at is NULL OR unhealthy_started_at between now()-'6 hours'::INTERVAL AND now() )
-				)
-		SELECT json_agg(relays) as ion_connect_relays from relays;`, requestedRelay)
+	allRelays, err := storage.Select[struct {
+		IONConnectRelays []string `db:"ion_connect_relays"`
+	}](ctx, r.db, `SELECT array_agg(url) as ion_connect_relays 
+		FROM ion_connect_relays
+		WHERE region = (SELECT region FROM ion_connect_relays WHERE url = $1)
+		AND (unhealthy_started_at is NULL OR unhealthy_started_at between now()-'6 hours'::INTERVAL AND now() )`, requestedRelay)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			err = nil
@@ -37,7 +36,11 @@ func (r *relaysRepository) GetAllIONConnectRelays(ctx context.Context, requested
 	if len(allRelays) == 0 || allRelays[0].IONConnectRelays == nil {
 		return nil, ErrNoRelays
 	}
-	return allRelays[0].IONConnectRelays, nil
+	res := make([]*UserAssignedRelay, 0, len(allRelays[0].IONConnectRelays))
+	for _, relayUrl := range allRelays[0].IONConnectRelays {
+		res = append(res, &UserAssignedRelay{URL: relayUrl})
+	}
+	return res, nil
 }
 
 func (r *relaysRepository) IONConnectRelaysForUser(ctx context.Context, userId string) ([]*UserAssignedRelay, error) {

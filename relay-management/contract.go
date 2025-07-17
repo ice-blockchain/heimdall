@@ -19,7 +19,7 @@ type (
 	}
 	UserAssignedRelay struct {
 		URL  string `json:"url"`
-		Type string `json:"type"`
+		Type string `json:"type,omitempty"`
 	}
 	UserAssignedRelays []*UserAssignedRelay
 	RelaysSyncer       interface {
