@@ -139,7 +139,8 @@ func (r *relaysSyncer) requestNIP11(ctx context.Context, relayUrl string) (*nip1
 	default:
 		return nil, errors.Errorf("invalid scheme :%v", u.Scheme)
 	}
-	if resp, err := req.
+	client := req.C().EnableInsecureSkipVerify()
+	if resp, err := client.R().
 		SetContext(ctx).
 		SetRetryCount(3).
 		SetRetryInterval(func(resp *req.Response, attempt int) stdlibtime.Duration {
