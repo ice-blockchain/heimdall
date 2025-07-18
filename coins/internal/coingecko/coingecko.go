@@ -333,7 +333,7 @@ func (c *client) getAllPlatforms(ctx context.Context) (map[string]*platform, err
 }
 
 func backoff(resp *req.Response, attempt int) stdlibtime.Duration {
-	if resp != nil && resp.StatusCode == http.StatusTooManyRequests {
+	if resp != nil && resp.Response != nil && resp.StatusCode == http.StatusTooManyRequests {
 		return 61 * stdlibtime.Second
 	}
 	switch {

@@ -67,11 +67,11 @@ func (c *coinsRepository) HealthCheck(ctx context.Context) error {
 func (c *coinsRepository) needToSyncAllCoins(ctx context.Context) bool {
 	ex, err := storage.Select[struct {
 		Exist int
-	}](ctx, c.db, "SELECT 1 as exist FROM coins LIMIT 3;")
+	}](ctx, c.db, "SELECT 1 as exist FROM coins LIMIT 7;")
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 		log.Panic(errors.Wrapf(err, "failed to check any coin existence"))
 	}
-	if len(ex) <= 2 || storage.IsErr(err, storage.ErrNotFound) {
+	if len(ex) <= 6 || storage.IsErr(err, storage.ErrNotFound) {
 		return true
 	}
 	return false
@@ -105,7 +105,7 @@ func (c *coinsRepository) syncAllCoins(ctx context.Context) error {
 			log.Debug(fmt.Sprintf("Inserting %v coins of %v...", len(batch), total))
 			placeholders, params := c.buildInsertBatchForCoins(now, batch)
 			sql := fmt.Sprintf(`
-			INSERT INTO coins(created_at, updated_at, data_updated_at, sync_frequency, decimals, version, id, network, name, symbol, symbol_group, contract_address, coingecko_coin_id, price_usd, icon_url, native) VALUES 		      %[1]v`,
+			INSERT INTO coins(created_at, updated_at, data_updated_at, sync_frequency, decimals, version, id, network, name, symbol, symbol_group, contract_address, coingecko_coin_id, price_usd, icon_url, native) VALUES 		      %[1]v ON CONFLICT(id) DO NOTHING;`,
 				placeholders)
 			_, err = storage.Exec(ctx, c.db, sql, params...)
 			if err != nil {
