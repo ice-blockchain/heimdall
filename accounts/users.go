@@ -153,8 +153,8 @@ func (a *accounts) fetchAndUpdateRelays(ctx context.Context, userID string, foll
 							email,
 							phone_number,
 							totp_authenticator_secret,
-							(select array_to_json(array_agg((url, relay_type))) from ion_connect_relays where url=ANY(users.ion_connect_relays)) as ion_connect_relays,           
-							active_2fa_email,
+							(SELECT json_agg(x) FROM (SELECT url, relay_type as "type" from ion_connect_relays where url=ANY(ion_connect_relays)) x) as ion_connect_relays,
+			  				active_2fa_email,
 							active_2fa_phone_number,
 							active_2fa_totp_authenticator,
 							verified     
