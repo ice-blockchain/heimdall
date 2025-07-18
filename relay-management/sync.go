@@ -27,6 +27,7 @@ func init() {
 	req.DefaultClient().GetClient().Timeout = 30 * stdlibtime.Second
 	req.DefaultClient().SetJsonMarshal(json.Marshal)
 	req.DefaultClient().SetJsonUnmarshal(json.Unmarshal)
+	req.DefaultClient().EnableInsecureSkipVerify()
 }
 
 func NewRelaysSync(ctx context.Context) RelaysSyncer {
