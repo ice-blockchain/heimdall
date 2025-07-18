@@ -32,7 +32,13 @@ func (a *verifiedUsersSync) ProcessNextVerifiedUsersQueue(ctx context.Context) e
 			UPDATE users 
 				SET verified = true 
 			WHERE id IN (SELECT id FROM next_user)
-			RETURNING master_pubkey, ion_connect_relays
+			RETURNING master_pubkey, 
+				COALESCE(
+					(SELECT json_agg(json_build_object('url', i.url, 'type', i.relay_type)) 
+					 FROM ion_connect_relays i 
+					 WHERE i.url = ANY(ion_connect_relays)),
+					'[]'::json
+				) AS ion_connect_relays
 		`
 		userData, err := storage.ExecOne[LiteUser](ctx, conn, query)
 		if err != nil {
