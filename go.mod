@@ -32,7 +32,7 @@ require (
 	github.com/swaggo/swag v1.16.5
 	github.com/twilio/twilio-go v1.26.5
 	github.com/xssnick/tonutils-go v1.14.0
-	golang.org/x/exp v0.0.0-20250717185816-542afb5b7346
+	golang.org/x/exp v0.0.0-20250718183923-645b1fa84792
 	golang.org/x/net v0.42.0
 	golang.org/x/sync v0.16.0
 )
