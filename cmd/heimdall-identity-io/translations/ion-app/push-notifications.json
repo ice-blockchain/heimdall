@@ -1,6 +1,6 @@
 {
   "en": {
-    "_version": 3,
+    "_version": 4,
     "reply": {
       "title": "Online+",
       "body": "You have a new reply from @{{username}}"
@@ -91,11 +91,11 @@
     },
     "chatPaymentRequestMessage": {
       "title": "{{displayName}}",
-      "body": "requested \"{{coinAmount}} {{coinSymbol}}\""
+      "body": "new message: requested \"{{coinAmount}} {{coinSymbol}}\""
     },
     "chatPaymentReceivedMessage": {
       "title": "{{displayName}}",
-      "body": "sent \"{{coinAmount}} {{coinSymbol}}\""
+      "body": "new message: sent \"{{coinAmount}} {{coinSymbol}}\""
     },
     "paymentRequest": {
       "title": "{{displayName}}",
@@ -107,7 +107,7 @@
     }
   },
   "es": {
-    "_version": 3,
+    "_version": 4,
     "reply": {
       "title": "Online+ES",
       "body": "Tienes una nueva respuesta de @{{username}}"
@@ -198,11 +198,11 @@
     },
     "chatPaymentRequestMessage": {
       "title": "{{displayName}}",
-      "body": "solicitado \"{{coinAmount}} {{coinSymbol}}\""
+      "body": "nuevo mensaje: solicitado \"{{coinAmount}} {{coinSymbol}}\""
     },
     "chatPaymentReceivedMessage": {
       "title": "{{displayName}}",
-      "body": "enviado \"{{coinAmount}} {{coinSymbol}}\""
+      "body": "nuevo mensaje: enviado \"{{coinAmount}} {{coinSymbol}}\""
     },
     "paymentRequest": {
       "title": "{{displayName}}",
@@ -214,7 +214,7 @@
     }
   },
   "fr": {
-    "_version": 3,
+    "_version": 4,
     "reply": {
       "body": "Vous avez une nouvelle réponse de @{{username}}"
     },
@@ -299,11 +299,11 @@
     },
     "chatPaymentRequestMessage": {
       "title": "{{displayName}}",
-      "body": "demandé \"{{coinAmount}} {{coinSymbol}}\""
+      "body": "nouveau message: demandé \"{{coinAmount}} {{coinSymbol}}\""
     },
     "chatPaymentReceivedMessage": {
       "title": "{{displayName}}",
-      "body": "envoyé \"{{coinAmount}} {{coinSymbol}}\""
+      "body": "nouveau message: envoyé \"{{coinAmount}} {{coinSymbol}}\""
     },
     "paymentRequest": {
       "title": "{{displayName}}",
