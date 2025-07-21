@@ -4,6 +4,7 @@ package accounts
 
 import (
 	"context"
+	"crypto/tls"
 	"math/rand"
 	"strconv"
 
@@ -112,7 +113,7 @@ func (a *verifiedUsersSync) publishEvents(ctx context.Context, relays []string, 
 
 		return ok
 	}))
-	if err := nostrRelay.Connect(ctx); err != nil {
+	if err := nostrRelay.ConnectWithTLS(ctx, &tls.Config{InsecureSkipVerify: true}); err != nil {
 		return errors.Wrapf(err, "failed to connect to relay %s", relay)
 	}
 	defer nostrRelay.Close()
