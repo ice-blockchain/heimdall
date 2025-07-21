@@ -1,6 +1,6 @@
 {
   "en": {
-    "_version": 2,
+    "_version": 3,
     "reply": {
       "title": "Online+",
       "body": "You have a new reply from @{{username}}"
@@ -89,6 +89,14 @@
       "title": "Online+: new message",
       "body": "{{deferred}}"
     },
+    "chatPaymentRequestMessage": {
+      "title": "{{displayName}}",
+      "body": "requested \"{{coinAmount}} {{coinSymbol}}\""
+    },
+    "chatPaymentReceivedMessage": {
+      "title": "{{displayName}}",
+      "body": "sent \"{{coinAmount}} {{coinSymbol}}\""
+    },
     "paymentRequest": {
       "title": "{{displayName}}",
       "body": "requested \"{{coinAmount}} {{coinSymbol}}\""
@@ -99,7 +107,7 @@
     }
   },
   "es": {
-    "_version": 2,
+    "_version": 3,
     "reply": {
       "title": "Online+ES",
       "body": "Tienes una nueva respuesta de @{{username}}"
@@ -188,6 +196,14 @@
       "title": "Online+: nuevo mensaje",
       "body": "{{deferred}}"
     },
+    "chatPaymentRequestMessage": {
+      "title": "{{displayName}}",
+      "body": "solicitado \"{{coinAmount}} {{coinSymbol}}\""
+    },
+    "chatPaymentReceivedMessage": {
+      "title": "{{displayName}}",
+      "body": "enviado \"{{coinAmount}} {{coinSymbol}}\""
+    },
     "paymentRequest": {
       "title": "{{displayName}}",
       "body": "solicitado \"{{coinAmount}} {{coinSymbol}}\""
@@ -198,7 +214,7 @@
     }
   },
   "fr": {
-    "_version": 2,
+    "_version": 3,
     "reply": {
       "body": "Vous avez une nouvelle réponse de @{{username}}"
     },
@@ -280,6 +296,14 @@
     "chatFirstContactMessage": {
       "title": "Online+: nouveau message",
       "body": "{{deferred}}"
+    },
+    "chatPaymentRequestMessage": {
+      "title": "{{displayName}}",
+      "body": "demandé \"{{coinAmount}} {{coinSymbol}}\""
+    },
+    "chatPaymentReceivedMessage": {
+      "title": "{{displayName}}",
+      "body": "envoyé \"{{coinAmount}} {{coinSymbol}}\""
     },
     "paymentRequest": {
       "title": "{{displayName}}",
