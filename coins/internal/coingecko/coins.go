@@ -109,6 +109,10 @@ var coinOverwrites = map[string]*Coin{
 	"ton": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/ton.svg",
 	},
+	"toncoin": &Coin{
+		IconUrl: "https://cdn.ice.io/online+/assets/coins/ton.svg",
+		Name:    "Toncoin",
+	},
 	"leo": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/leo.svg",
 	},
