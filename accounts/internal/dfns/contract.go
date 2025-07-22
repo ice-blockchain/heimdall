@@ -119,6 +119,7 @@ const (
 	completeDelegatedRegistrationUrl = "/auth/registration/enduser"
 	delegatedLoginUrl                = "/auth/login/delegated" // Refresh token actually.
 	initUserSignatureUrl             = "/auth/action/init"
+	initCredentialCreationUrl        = "/auth/credentials/init"
 	completeUserSignatureUrl         = "/auth/action"
 	broadcastTransactionUrl          = "/wallets/(wa-[^/]+)/transactions"
 	networkFeesUrl                   = "/networks/fees"
