@@ -80,6 +80,11 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 				cl.extendChallengeWithRP(),
 			)
 		},
+		"200:" + initCredentialCreationUrl: func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
+			return cl.extendResponseBodyWith(r, res,
+				cl.extendChallengeWithRP(),
+			)
+		},
 		"200:" + completeDelegatedRegistrationUrl: func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
 			userID, username := ExtractUser(res, "username")
 
