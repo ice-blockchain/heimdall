@@ -222,14 +222,14 @@ func (c *dfnsClient) RegisterPostProxyCallback(url string, cb func(ctx context.C
 	c.callbacks[url] = append(c.callbacks[url], cb)
 }
 
-func (c *dfnsClient) serviceAccountClient(appID string) *http.Client {
+func (c *dfnsClient) serviceAccountClient() *http.Client {
+	appID := ""
 	c.serviceAccountMx.Lock()
 	defer c.serviceAccountMx.Unlock()
 	if client, ok := c.serviceAccountClients[appID]; ok {
 		return client
 	}
 	opts, err := dfnsapiclient.NewDfnsAPIOptions(&dfnsapiclient.DfnsAPIConfig{
-		AppID:     appID,
 		AuthToken: &c.cfg.DFNS.ServiceKey,
 		BaseURL:   c.cfg.DFNS.BaseURL,
 	}, c.serviceAccountSigner)
@@ -238,14 +238,14 @@ func (c *dfnsClient) serviceAccountClient(appID string) *http.Client {
 	c.serviceAccountClients[appID] = serviceClient
 	return serviceClient
 }
-func (c *dfnsClient) userClient(appID string) *http.Client {
+func (c *dfnsClient) userClient() *http.Client {
 	c.userMx.Lock()
 	defer c.userMx.Unlock()
+	appID := ""
 	if cl, found := c.userClients[appID]; found {
 		return cl
 	}
 	opts, err := dfnsapiclient.NewDfnsAPIOptions(&dfnsapiclient.DfnsAPIConfig{
-		AppID:     appID,
 		AuthToken: &c.cfg.DFNS.ServiceKey,
 		BaseURL:   c.cfg.DFNS.BaseURL,
 	}, nil)
@@ -313,19 +313,19 @@ func (c *dfnsClient) loadWebhookSecret(ctx context.Context, db *storage.DB) (str
 	return res[0].Value, nil
 }
 
-func (c *dfnsClient) proxy(typ, appID string) *httputil.ReverseProxy {
+func (c *dfnsClient) proxy(typ string) *httputil.ReverseProxy {
 	c.proxyMx.Lock()
 	defer c.proxyMx.Unlock()
-	if p, found := c.proxies[typ+appID]; found {
+	if p, found := c.proxies[typ]; found {
 		return p
 	}
 	remote, err := url.Parse(c.cfg.DFNS.BaseURL)
 	log.Panic(errors.Wrapf(err, "failed to parse dfns base url %v", c.cfg.DFNS.BaseURL))
 	proxy := httputil.NewSingleHostReverseProxy(remote)
-	proxy.Director = c.overwriteHostProxy(remote, appID)
+	proxy.Director = c.overwriteHostProxy(remote)
 	proxy.ErrorHandler = passErrorInResponse
 	proxy.ModifyResponse = c.modifyResponse
-	c.proxies[typ+appID] = proxy
+	c.proxies[typ] = proxy
 	return proxy
 }
 
@@ -345,9 +345,7 @@ func (c *dfnsClient) mustRegisterAllEventsWebhook(ctx context.Context) (whSecret
 		Events:      []string{"*"},
 	})
 	log.Panic(errors.Wrapf(err, "failed to marshal webhook struct into json"))
-	header := http.Header{}
-	header.Set(appIDHeader, c.cfg.DFNS.AppID)
-	status, resp, err := c.doClientCall(ctx, c.serviceAccountClient(c.cfg.DFNS.AppID), "POST", "/webhooks", http.Header{}, jData)
+	status, resp, err := c.doClientCall(ctx, c.serviceAccountClient(), "POST", "/webhooks", http.Header{}, jData)
 	log.Panic(errors.Wrapf(err, "failed to register webhook"))
 	if status != http.StatusOK {
 		log.Panic(errors.Errorf("failed to register webhook with status %v body %v", status, string(resp)))
@@ -363,7 +361,7 @@ func (c *dfnsClient) mustRegisterAllEventsWebhook(ctx context.Context) (whSecret
 }
 
 func (c *dfnsClient) mustListWebhooks(ctx context.Context) []webhook {
-	_, jWebhooks, err := c.doClientCall(ctx, c.serviceAccountClient(c.cfg.DFNS.AppID), "GET", "/webhooks", http.Header{}, nil)
+	_, jWebhooks, err := c.doClientCall(ctx, c.serviceAccountClient(), "GET", "/webhooks", http.Header{}, nil)
 	if err != nil {
 		log.Panic(errors.Wrapf(err, "failed to list webhooks"))
 	}
@@ -385,9 +383,6 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 	applicationID := req.Header.Get(clientIDHeader)
 	if applicationID == "" {
 		applicationID = req.Header.Get(appIDHeader)
-		if applicationID == "" {
-			applicationID = c.cfg.DFNS.AppID
-		}
 	}
 	req = req.WithContext(context.WithValue(req.Context(), AppIDCtxValue, applicationID))
 	userAction := req.Header.Get(userActionHeader)
@@ -408,7 +403,7 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 		extendErrBody, extendErr = c.issueUserActionForSignatureIfManualBroadcastNeeded(req)
 	case broadcastTransactionUrlRegexp.MatchString(req.URL.Path):
 		rb := &proxyResponseBody{ResponseWriter: rw, Body: respBody}
-		if extendErrBody, extendErr = c.checkIfNeedToBroadcastTX(req, rb, applicationID, userAction); extendErr == nil && extendErrBody == nil && respBody.Len() > 0 {
+		if extendErrBody, extendErr = c.checkIfNeedToBroadcastTX(req, rb, userAction); extendErr == nil && extendErrBody == nil && respBody.Len() > 0 {
 			return http.StatusOK, respBody
 		}
 	}
@@ -425,12 +420,12 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 	}
 	rb := &proxyResponseBody{ResponseWriter: rw, Body: respBody}
 	if c.urlRequiresServiceAccountSignature(req.URL.Path, req.Method) {
-		cl := c.serviceAccountClient(applicationID)
-		pr := c.proxy("service", applicationID)
+		cl := c.serviceAccountClient()
+		pr := c.proxy("service")
 		pr.Transport = cl.Transport
 		pr.ServeHTTP(rb, req)
 	} else {
-		c.proxy("user", applicationID).ServeHTTP(rb, req)
+		c.proxy("user").ServeHTTP(rb, req)
 	}
 	if rb.Status >= http.StatusBadRequest {
 		bodyData, _ := io.ReadAll(respBody)
@@ -684,9 +679,8 @@ func (c *dfnsClient) issueUserActionForSignatureIfManualBroadcastNeeded(req *htt
 	})
 }
 
-func (c *dfnsClient) checkIfNeedToBroadcastTX(req *http.Request, rw http.ResponseWriter, clientID, userAction string) (*DfnsInternalError, error) {
+func (c *dfnsClient) checkIfNeedToBroadcastTX(req *http.Request, rw http.ResponseWriter, userAction string) (*DfnsInternalError, error) {
 	ctx := context.WithValue(req.Context(), AuthHeaderCtxValue, req.Header.Get("Authorization"))
-	ctx = context.WithValue(ctx, AppIDCtxValue, clientID)
 	ctx = context.WithValue(ctx, UserActionCtxValue, userAction)
 	walletID := strings.ReplaceAll(strings.ReplaceAll(req.URL.Path, "/wallets/", ""), "/transactions", "")
 	wallet, err := c.GetWallet(req.Context(), walletID)
@@ -735,17 +729,13 @@ func (p *proxyResponseBody) WriteHeader(status int) {
 }
 
 func (c *dfnsClient) clientCall(ctx context.Context, method, url string, headers http.Header, jsonData []byte, noBackoffStatusCodes ...[]int) (int, []byte, error) {
-	appID := headers.Get(appIDHeader)
-	if appID == "" {
-		appID = c.cfg.DFNS.AppID
-	}
 	if c.urlRequiresServiceAccountSignature(url, method) {
 		return retry(ctx, func() (status int, body []byte, err error) {
-			return c.doClientCall(ctx, c.serviceAccountClient(appID), method, url, headers, jsonData)
+			return c.doClientCall(ctx, c.serviceAccountClient(), method, url, headers, jsonData)
 		}, noBackoffStatusCodes...)
 	} else {
 		return retry(ctx, func() (status int, body []byte, err error) {
-			return c.doClientCall(ctx, c.userClient(appID), method, url, headers, jsonData)
+			return c.doClientCall(ctx, c.userClient(), method, url, headers, jsonData)
 		}, noBackoffStatusCodes...)
 	}
 }
@@ -808,7 +798,6 @@ func (c *dfnsClient) StartDelegatedRecovery(ctx context.Context, username string
 		CredentialID: credentialId,
 	}
 	header := http.Header{}
-	header.Set(appIDHeader, appID(ctx))
 	resp, err := dfnsCall[struct {
 		Username     string `json:"username"`
 		CredentialID string `json:"credentialId"`
@@ -834,7 +823,6 @@ func (c *dfnsClient) GetLoginChallenge(ctx context.Context, username string) (*L
 		OrgID:    c.cfg.DFNS.OrganizationID,
 	}
 	header := http.Header{}
-	header.Set(appIDHeader, appID(ctx))
 	header.Set(userActionDfnsHeader, "false")
 	resp, err := dfnsCall[struct {
 		Username string `json:"username"`
@@ -947,7 +935,6 @@ func (cfg *config) loadCfg(applicationYamlKey string) {
 	var yamlCfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &yamlCfg)
 	cfg.mustLoadField(&cfg.DFNS.BaseURL, "DFNS_BASE_URL", yamlCfg.DFNS.BaseURL)
-	cfg.mustLoadField(&cfg.DFNS.AppID, "DFNS_APP_ID", yamlCfg.DFNS.AppID)
 	cfg.mustLoadField(&cfg.DFNS.WebFEAppID, "DFNS_WEB_FE_APP_ID", yamlCfg.DFNS.WebFEAppID)
 	cfg.mustLoadField(&cfg.DFNS.ServiceKey, "DFNS_SERVICE_KEY", yamlCfg.DFNS.ServiceKey)
 	cfg.mustLoadField(&cfg.DFNS.ServiceAccountCredentialID, "DFNS_SERVICE_ACCOUNT_CREDENTIAL_ID", yamlCfg.DFNS.ServiceAccountCredentialID)
@@ -997,12 +984,11 @@ func (*config) mustLoadField(field *string, env, yamlVal string) {
 	}
 }
 
-func (*dfnsClient) overwriteHostProxy(remote *url.URL, appID string) func(req *http.Request) {
+func (*dfnsClient) overwriteHostProxy(remote *url.URL) func(req *http.Request) {
 	return func(req *http.Request) {
 		req.RequestURI = ""
 		req.Host = remote.Host
 		req.URL.Scheme = remote.Scheme
 		req.URL.Host = remote.Host
-		req.Header.Set(appIDHeader, appID)
 	}
 }

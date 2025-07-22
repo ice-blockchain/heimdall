@@ -85,7 +85,6 @@ func ExtractWallet(wallet Wallet) (walletID, network, walletPubKey string) {
 
 func (c *dfnsClient) GetUser(ctx context.Context, userID string) (*User, error) {
 	headers := http.Header{}
-	headers.Set(appIDHeader, appID(ctx))
 	uri := fmt.Sprintf("/auth/users/%v", userID)
 	status, body, err := c.clientCall(ctx, "GET", uri, headers, nil)
 	if status >= http.StatusBadRequest && err == nil {
@@ -104,7 +103,6 @@ func (c *dfnsClient) GetUser(ctx context.Context, userID string) (*User, error) 
 func (c *dfnsClient) CompleteRegistrationWithWallets(ctx context.Context, credentials *Credentials) (CompletedRegistration, error) {
 	header := http.Header{}
 	header.Add(authDfnsHeader, dfnsAuthHeader(ctx))
-	header.Add(appIDHeader, appID(ctx))
 	header.Add(userActionDfnsHeader, "false")
 	credentials.EarlyAccessEmail = ""
 	walletNetwork := DefaultWalletNetworkMainNet

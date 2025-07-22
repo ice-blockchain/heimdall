@@ -171,7 +171,6 @@ type (
 		ServiceKey                 string `yaml:"serviceKey" mapstructure:"serviceKey" json:"serviceKey"`
 		ServiceAccountCredentialID string `yaml:"serviceAccountCredentialId" mapstructure:"serviceAccountCredentialId" json:"serviceAccountCredentialId"`
 		ServiceAccountPrivateKey   string `yaml:"serviceAccountPrivateKey" mapstructure:"serviceAccountPrivateKey" json:"serviceAccountPrivateKey"`
-		AppID                      string `yaml:"appId" mapstructure:"appId" json:"appId"`
 		WebFEAppID                 string `yaml:"webFEAppId" mapstructure:"webFEAppId" json:"webFEAppId"` // AppID of web FE, used in payments html
 		OrganizationID             string `yaml:"organizationId" mapstructure:"organizationId" json:"organizationId"`
 		BaseURL                    string `yaml:"baseUrl" mapstructure:"baseUrl" json:"baseUrl"`

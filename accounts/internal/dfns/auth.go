@@ -25,7 +25,6 @@ func NewDfnsTokenAuth(ctx context.Context, applicationYamlKey string) AuthClient
 	jwksFullUrl, err := url.JoinPath(cfg.DFNS.BaseURL, jwksUrl)
 	log.Panic(errors.Wrapf(err, "failed to build JWKS url from %v %v", cfg.DFNS.BaseURL, jwksUrl))
 	opts, err := dfnsapiclient.NewDfnsAPIOptions(&dfnsapiclient.DfnsAPIConfig{
-		AppID:   cfg.DFNS.AppID,
 		BaseURL: cfg.DFNS.BaseURL,
 	}, nil)
 	log.Panic(errors.Wrapf(err, "dfns/auth: failed to init dfns options"))

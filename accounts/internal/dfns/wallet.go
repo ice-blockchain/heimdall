@@ -81,7 +81,6 @@ func (c *dfnsClient) CreateWallet(ctx context.Context, network, name string) (*W
 	header := http.Header{}
 	header.Add(authDfnsHeader, dfnsAuthHeader(ctx))
 	header.Add(userActionDfnsHeader, dfnsUserActionHeader(ctx))
-	header.Add(appIDHeader, appID(ctx))
 	resp, err := dfnsCall[struct {
 		Network string `json:"network"`
 		Name    string `json:"name"`
