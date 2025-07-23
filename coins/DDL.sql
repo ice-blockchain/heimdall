@@ -2,33 +2,31 @@
 CREATE TABLE IF NOT EXISTS global (
       value TEXT NOT NULL,
       key TEXT PRIMARY KEY
-);
+) WITH (FILLFACTOR = 70);
 
 CREATE TABLE IF NOT EXISTS coins (
                                      sync_frequency    INTERVAL NOT NULL,
                                      created_at        TIMESTAMP NOT NULL,
                                      updated_at        TIMESTAMP NOT NULL,
                                      data_updated_at   TIMESTAMP NOT NULL,
-                                     decimals          SMALLINT NOT NULL,
                                      version           BIGINT NOT NULL,
-                                     price_usd         NUMERIC NOT NULL DEFAULT 0,
-                                     id                TEXT NOT NULL,
                                      coingecko_coin_id TEXT NOT NULL DEFAULT '',
+                                     id                TEXT NOT NULL,
                                      network           TEXT NOT NULL,
                                      name              TEXT NOT NULL,
                                      contract_address  TEXT NOT NULL DEFAULT '',
                                      symbol            TEXT NOT NULL,
                                      symbol_group      TEXT NOT NULL,
                                      icon_url          TEXT NOT NULL DEFAULT '',
+                                     price_usd         NUMERIC NOT NULL DEFAULT 0,
+                                     decimals          SMALLINT NOT NULL,
                                      native            BOOL NOT NULL DEFAULT FALSE,
                                      primary key(id)
-);
+) WITH (FILLFACTOR = 70);
 
 CREATE INDEX IF NOT EXISTS coins_contract_address_idx ON coins (contract_address);
 CREATE INDEX IF NOT EXISTS coins_symbol_group_idx ON coins (symbol_group);
 CREATE INDEX IF NOT EXISTS coins_coingecko_coin_id_idx ON coins (coingecko_coin_id);
-
-ALTER TABLE coins ADD COLUMN IF NOT EXISTS native BOOL NOT NULL DEFAULT FALSE;
 
 CREATE OR REPLACE FUNCTION trigger_coins_after_insert_update_store_new_version()
     RETURNS TRIGGER AS $$
@@ -56,7 +54,6 @@ CREATE TABLE IF NOT EXISTS coins_sync_queue (
                                                 primary key(coin_id)
 );
 CREATE INDEX IF NOT EXISTS coins_sync_queue_created_at_idx ON coins_sync_queue (created_at);
-ALTER TABLE IF EXISTS nfts RENAME TO nft_collections;
 CREATE TABLE IF NOT EXISTS nft_collections (
                                     network           TEXT NOT NULL,
                                     name              TEXT NOT NULL,
@@ -66,9 +63,8 @@ CREATE TABLE IF NOT EXISTS nft_collections (
                                     symbol            TEXT NOT NULL,
                                     icon_url          TEXT NOT NULL,
                                     primary key(contract_address)
-);
+) WITH (FILLFACTOR = 70);
 
-ALTER TABLE nft_collections DROP COLUMN IF EXISTS token_id;
 DO $$ BEGIN
     if NOT exists (select 1 from coins where id = '7b471f92-ced2-38b0-e408-88e5d89e8045' and symbol = 'ion') then
         INSERT INTO coins (sync_frequency, created_at, updated_at, data_updated_at, decimals, version, price_usd, id, coingecko_coin_id, network, name, contract_address, symbol, symbol_group, icon_url, native)

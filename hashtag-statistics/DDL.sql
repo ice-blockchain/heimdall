@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS hashtag_statistics (
     occurrences   BIGINT NOT NULL DEFAULT 1,
     lookup        TSVECTOR NOT NULL GENERATED ALWAYS AS (TO_TSVECTOR('english', hashtag)) STORED,
     hashtag       TEXT NOT NULL PRIMARY KEY
-);
+) WITH (FILLFACTOR = 70);
 
 CREATE INDEX IF NOT EXISTS idx_hashtag_statistics_lookup ON hashtag_statistics USING GIN(lookup);
 CREATE INDEX IF NOT EXISTS idx_hashtag_statistics_occurrences ON hashtag_statistics(occurrences desc);
