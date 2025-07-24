@@ -9,6 +9,7 @@ import (
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/coins"
 	hashtagstatistics "github.com/ice-blockchain/heimdall/hashtag-statistics"
+	nftcontent "github.com/ice-blockchain/heimdall/nft-content"
 	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
 	"github.com/ice-blockchain/subzero/model"
 )
@@ -65,6 +66,9 @@ type (
 		IONConnectRelay string `form:"ion-connect-relay" required:"true"`
 	}
 	HashtagsEventsReq struct {
+		Events []*model.Event `json:"events" binding:"required,min=1,dive" allowUnauthorized:"true"`
+	}
+	NFTContentEventsReq struct {
 		Events []*model.Event `json:"events" binding:"required,min=1,dive" allowUnauthorized:"true"`
 	}
 	GetTopHashtagsReq struct {
@@ -255,6 +259,7 @@ type (
 		coins             coins.Coins
 		relays            relaymanagement.Relays
 		hashtagStatistics hashtagstatistics.HashtagStatistics
+		nftContent        nftcontent.NFTContent
 		cfg               *config
 	}
 	config struct {
@@ -270,6 +275,12 @@ type (
 			Windows string `yaml:"windows" mapstructure:"windows"`
 			Linux   string `yaml:"linux" mapstructure:"linux"`
 		} `yaml:"requiredAppVersions" mapstructure:"requiredAppVersions"`
+		Query struct {
+			URL         string   `yaml:"url"`
+			ReplicaURLs []string `yaml:"replicas" mapstructure:"replicas"`
+			PrivateKey  string   `yaml:"private-key" mapstructure:"private-key"`
+			RelayURL    string   `yaml:"relay-url" mapstructure:"relay-url"`
+		} `yaml:"query" mapstructure:"query"`
 	}
 )
 
