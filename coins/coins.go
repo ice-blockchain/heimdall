@@ -262,9 +262,7 @@ func (c *coinsRepository) GetAllCoins(ctx context.Context) (uint64, []*SymbolGro
 		now() as created_at,
 		now() as updated_at,
 		now() as data_updated_at,
-		0 as decimals,
-		coalesce((select value from global where key = '%[1]v')::BIGINT,0) as version,
-		0 as price_usd,
+		coalesce((select value from global where key = 'coins_max_version')::BIGINT,0) as version,
 		'' as id,
 		'' as coingecko_coin_id,
 		'' as network,
@@ -273,6 +271,8 @@ func (c *coinsRepository) GetAllCoins(ctx context.Context) (uint64, []*SymbolGro
 		'' as symbol,
 		'' as symbol_group,
 		'' as icon_url,
+		0 as price_usd,
+		0 as decimals,
 		false as native
 	FROM coins
  	UNION ALL (SELECT * FROM coins WHERE coingecko_coin_id != '');`, keyCoinsMaxVersion))
