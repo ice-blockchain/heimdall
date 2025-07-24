@@ -120,7 +120,7 @@ func (c *client) ListCoins(ctx context.Context) ([]*Coin, error) {
 				continue
 			}
 			if !slices.ContainsFunc(res[coin.ID], func(c *Coin) bool {
-				return c.Native
+				return c.Native && c.Network == cgNetwork
 			}) {
 				res[coin.ID] = append(res[coin.ID], &Coin{
 					ID:              coin.ID,

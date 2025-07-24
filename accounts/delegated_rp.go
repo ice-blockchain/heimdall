@@ -51,6 +51,14 @@ func (a *accounts) GetLoginChallenge(ctx context.Context, username string, codes
 	if username != "" && !dfns.UsernameRegexp.MatchString(username) {
 		return nil, errors.Wrapf(dfns.ErrInvalidUsername, "username must match %v", dfns.UsernameRegexp.String())
 	}
+	usr, uErr := a.getUserByIdentityKeyName(ctx, username)
+	if uErr != nil && storage.IsErr(uErr, storage.ErrNotFound) {
+		return nil, &dfns.DfnsInternalError{
+			Context:    nil,
+			Message:    "Unauthorized",
+			HTTPStatus: 401,
+		}
+	}
 	loginChallenge, err := a.delegatedRPClient.GetLoginChallenge(ctx, username)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to initiate login for username %v", username)
@@ -59,10 +67,8 @@ func (a *accounts) GetLoginChallenge(ctx context.Context, username string, codes
 		if username == "" {
 			return nil, errors.Wrapf(ErrInvalidIdentityKey, "password flow is unsupported without username, use passkey")
 		}
-		var usr *user
-		usr, err = a.getUserByIdentityKeyName(ctx, username)
-		if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
-			return nil, errors.Wrapf(err, "failed to get user 2FA state for username %v", username)
+		if uErr != nil && !errors.Is(uErr, storage.ErrNotFound) {
+			return nil, errors.Wrapf(uErr, "failed to get user for username %v", username)
 		}
 		if usr != nil {
 			var hasEnabled2FA bool
