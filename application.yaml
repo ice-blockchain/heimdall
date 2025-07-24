@@ -37,11 +37,10 @@ cmd/heimdall-identity-io:
     certPath: cmd/heimdall-identity-io/.testdata/localhost.crt
     keyPath: cmd/heimdall-identity-io/.testdata/localhost.key
   query:
-    url: "postgresql://root:pass@localhost:5433/subzero"
-    replicas:
-      - "postgresql://root:pass@localhost:5433/subzero"
-    private-key: x
-    relay-url: wss://example.com
+    writeUrls:
+      - postgresql://root:pass@localhost:5433/subzero
+    privateKey: x
+    relayUrl: wss://example.com
 
 cmd/heimdall-asset-data-syncer:
   version: local

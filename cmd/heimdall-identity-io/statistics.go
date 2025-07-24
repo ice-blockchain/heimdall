@@ -93,7 +93,7 @@ func (s *service) GetTopHashtags(
 //	@Tags			Statistics
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body	HashtagsEventsReq	true	"Events for NFT content (2-3 events: 10100, 0, and optional content)"
+//	@Param			request	body	NFTContentEventsReq	true	"Events for NFT content (2-3 events: 10100, 0, and optional content)"
 //	@Success		202
 //	@Failure		400	{object}	server.ErrorResponse	"if invalid events provided"
 //	@Failure		500	{object}	server.ErrorResponse

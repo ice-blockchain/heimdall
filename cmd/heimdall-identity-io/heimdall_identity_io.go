@@ -41,10 +41,10 @@ func main() {
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 
 	query.MustInit(ctx, query.WithConfig(&query.Config{
-		WriteURLs:  []string{cfg.Query.URL},
-		ReadURLs:   cfg.Query.ReplicaURLs,
-		RelayURL:   cfg.Query.RelayURL,
 		PrivateKey: cfg.Query.PrivateKey,
+		RelayURL:   cfg.Query.RelayURL,
+		WriteURLs:  cfg.Query.WriteURLs,
+		ReadURLs:   cfg.Query.ReadURLs,
 	}))
 	validation.MustInit(validation.WithSkipProfileMetadataProofEventsVerify())
 

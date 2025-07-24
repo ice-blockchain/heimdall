@@ -276,10 +276,10 @@ type (
 			Linux   string `yaml:"linux" mapstructure:"linux"`
 		} `yaml:"requiredAppVersions" mapstructure:"requiredAppVersions"`
 		Query struct {
-			URL         string   `yaml:"url"`
-			ReplicaURLs []string `yaml:"replicas" mapstructure:"replicas"`
-			PrivateKey  string   `yaml:"private-key" mapstructure:"private-key"`
-			RelayURL    string   `yaml:"relay-url" mapstructure:"relay-url"`
+			PrivateKey string   `yaml:"privateKey"`
+			RelayURL   string   `yaml:"relayUrl" validate:"required,url"`
+			WriteURLs  []string `yaml:"writeUrls" validate:"omitempty,dive,url"`
+			ReadURLs   []string `yaml:"readUrls" mapstructure:"read-urls" validate:"omitempty,dive,url"`
 		} `yaml:"query" mapstructure:"query"`
 	}
 )

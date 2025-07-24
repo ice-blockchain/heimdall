@@ -35,7 +35,11 @@ func (n *nftContent) Process(ctx context.Context, events []*model.Event) error {
 		return errors.Wrap(ErrForbiddenContent, "no nft collections found in profile metadata")
 	}
 	if err := n.insertNFTContent(ctx, eventAttestation, contentEvent, &profileContent, contentType); err != nil {
-		return errors.Wrapf(err, "database insertion failed for events: %s, %s, %s", eventAttestation.ID, eventProfileMetadata.ID, contentEvent.ID)
+		contentEventID := ""
+		if contentEvent != nil {
+			contentEventID = contentEvent.ID
+		}
+		return errors.Wrapf(err, "database insertion failed for events: %s, %s, %s", eventAttestation.ID, eventProfileMetadata.ID, contentEventID)
 	}
 
 	return nil

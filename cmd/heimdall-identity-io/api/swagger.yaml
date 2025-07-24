@@ -224,6 +224,16 @@ definitions:
       walletId:
         type: string
     type: object
+  main.NFTContentEventsReq:
+    properties:
+      events:
+        items:
+          $ref: '#/definitions/model.Event'
+        minItems: 1
+        type: array
+    required:
+    - events
+    type: object
   main.Network:
     properties:
       displayName:
@@ -959,7 +969,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/main.HashtagsEventsReq'
+          $ref: '#/definitions/main.NFTContentEventsReq'
       produces:
       - application/json
       responses:

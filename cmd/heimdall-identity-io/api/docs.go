@@ -729,7 +729,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.HashtagsEventsReq"
+                            "$ref": "#/definitions/main.NFTContentEventsReq"
                         }
                     }
                 ],
@@ -2405,6 +2405,21 @@ const docTemplate = `{
                 },
                 "walletId": {
                     "type": "string"
+                }
+            }
+        },
+        "main.NFTContentEventsReq": {
+            "type": "object",
+            "required": [
+                "events"
+            ],
+            "properties": {
+                "events": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/model.Event"
+                    }
                 }
             }
         },
