@@ -51,12 +51,16 @@ func (a *accounts) GetLoginChallenge(ctx context.Context, username string, codes
 	if username != "" && !dfns.UsernameRegexp.MatchString(username) {
 		return nil, errors.Wrapf(dfns.ErrInvalidUsername, "username must match %v", dfns.UsernameRegexp.String())
 	}
-	usr, uErr := a.getUserByIdentityKeyName(ctx, username)
-	if uErr != nil && storage.IsErr(uErr, storage.ErrNotFound) {
-		return nil, &dfns.DfnsInternalError{
-			Context:    nil,
-			Message:    "Unauthorized",
-			HTTPStatus: 401,
+	var usr *user
+	var uErr error
+	if username != "" { // Client passes empty username for autocomplete
+		usr, uErr = a.getUserByIdentityKeyName(ctx, username)
+		if uErr != nil && storage.IsErr(uErr, storage.ErrNotFound) {
+			return nil, &dfns.DfnsInternalError{
+				Context:    nil,
+				Message:    "Unauthorized",
+				HTTPStatus: 401,
+			}
 		}
 	}
 	loginChallenge, err := a.delegatedRPClient.GetLoginChallenge(ctx, username)
