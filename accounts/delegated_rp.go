@@ -53,7 +53,7 @@ func (a *accounts) GetLoginChallenge(ctx context.Context, username string, codes
 	}
 	var usr *user
 	var uErr error
-	if username != "" {
+	if username != "" { // Client passes empty username for autocomplete
 		usr, uErr = a.getUserByIdentityKeyName(ctx, username)
 		if uErr != nil && storage.IsErr(uErr, storage.ErrNotFound) {
 			return nil, &dfns.DfnsInternalError{
