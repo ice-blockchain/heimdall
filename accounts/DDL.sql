@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS content_creators (
 );
 
 CREATE TABLE IF NOT EXISTS verified_users_sync_queue (
-    created_at                       TIMESTAMP NOT NULL DEFAULT now(),
+    created_at                       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     user_id                          TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     primary key(user_id)
 );

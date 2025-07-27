@@ -7,8 +7,8 @@ DO $$ BEGIN
 END$$;
 
 CREATE TABLE IF NOT EXISTS ion_connect_relays (
-                                                  created_at           TIMESTAMP NOT NULL,
-                                                  updated_at           TIMESTAMP NOT NULL,
+                                                  created_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                                  updated_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                                   unhealthy_started_at TIMESTAMP,
                                                   total_used_storage   BIGINT NOT NULL DEFAULT 0,
                                                   relay_type           ion_connect_relay_type NOT NULL,
