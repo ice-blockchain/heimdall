@@ -328,6 +328,33 @@ func (a *accounts) upsertWalletPubKeyFromRegistration(ctx context.Context, now *
 	return errors.Wrapf(a.insertIdentityKeyNameWithPubKey(ctx, now, userID, username, walletPubKey),
 		"failed to store wallet pubkey for user %v on registration", userID)
 }
+func (a *accounts) upsertUsernameFromLogin(ctx context.Context, now *time.Time, res map[string]any) error {
+	var token string
+	if tokenI, hasToken := res["token"]; hasToken {
+		token = tokenI.(string)
+	}
+	if token == "" { //nolint:gosec // .
+		return nil
+	}
+	parsedToken, err := server.Auth(ctx).VerifyToken(ctx, token)
+	if err != nil {
+		log.Panic(errors.Wrapf(err, "we're unable to verify just issued token from 3rd party delegated rp, something changed? Token %v", token))
+	}
+
+	wallets, err := a.delegatedRPClient.ListWallets(ctx, parsedToken.UserID())
+	if err != nil {
+		return errors.Wrapf(err, "failed to get wallets for user %v", parsedToken.UserID())
+	}
+	masterPubKey := parsedToken.UserID()
+	for _, wallet := range wallets {
+		if walletID, walletPubKey := dfns.CheckMainWallet(wallet); walletID != "" && walletPubKey != "" {
+			masterPubKey = walletPubKey
+		}
+	}
+
+	return errors.Wrapf(a.insertIdentityKeyName(ctx, now, parsedToken.UserID(), parsedToken.Username(), masterPubKey),
+		"failed to store identity key name %v for user %v on registration", parsedToken.Username(), parsedToken.UserID())
+}
 
 func (a *accounts) insertIdentityKeyName(ctx context.Context, now *time.Time, userID, identityKeyName, masterPubKey string) error {
 	_, err := storage.Exec(ctx, a.db, `INSERT INTO users(created_at, updated_at, id, identity_key_name, clients, master_pubkey) VALUES ($4,$4,$1,$2,$3,$5) 
