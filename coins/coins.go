@@ -257,14 +257,14 @@ func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *c
 }
 
 func (c *coinsRepository) GetAllCoins(ctx context.Context) (uint64, []*SymbolGroupWithCoins, error) {
-	allCoins, err := storage.Select[coin](ctx, c.db, fmt.Sprintf(`SELECT 
+	allCoins, err := storage.Select[coin](ctx, c.db, fmt.Sprintf(`SELECT * FROM (SELECT 
 		'00:00:00'::INTERVAL as sync_frequency,
 		now() as created_at,
 		now() as updated_at,
 		now() as data_updated_at,
 		coalesce((select value from global where key = '%[1]v')::BIGINT,0) as version,
-		'' as id,
 		'' as coingecko_coin_id,
+		'' as id,
 		'' as network,
 		'' as name,
 		'' as contract_address,
@@ -274,7 +274,7 @@ func (c *coinsRepository) GetAllCoins(ctx context.Context) (uint64, []*SymbolGro
 		0 as price_usd,
 		0 as decimals,
 		false as native
-	FROM coins
+	FROM coins LIMIT 1) t
  	UNION ALL (SELECT * FROM coins WHERE coingecko_coin_id != '');`, keyCoinsMaxVersion))
 	if err != nil {
 		return 0, nil, errors.Wrapf(err, "failed to list all coins from db")
