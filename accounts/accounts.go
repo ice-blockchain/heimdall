@@ -64,6 +64,8 @@ func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *App
 	}
 	cl.SetEarlyAccessVerifier(&acc)
 	cl.RegisterPostProxyCallback(registrationUrl, acc.upsertUsernameFromRegistration)
+	cl.RegisterPostProxyCallback(completeLoginUrl, acc.upsertUsernameFromLogin)
+	cl.RegisterPostProxyCallback(delegatedLoginUrl, acc.upsertUsernameFromLogin)
 	acc.delegatedRPClient = cl
 	for _, opt := range AllTwoFAOptions {
 		acc.concurrentlyGeneratedCodes[opt] = &sync.Map{}
