@@ -69,7 +69,7 @@ type (
 		Events []*model.Event `json:"events" binding:"required,min=1,dive" allowUnauthorized:"true"`
 	}
 	NFTContentEventsReq struct {
-		Events []*model.Event `json:"events" binding:"required,min=1,dive" allowUnauthorized:"true"`
+		Events []*model.Event `json:"events" binding:"required,min=2,dive" allowUnauthorized:"true"`
 	}
 	GetTopHashtagsReq struct {
 		Authorization string `header:"Authorization" required:"true" swaggerignore:"true"`
@@ -275,12 +275,6 @@ type (
 			Windows string `yaml:"windows" mapstructure:"windows"`
 			Linux   string `yaml:"linux" mapstructure:"linux"`
 		} `yaml:"requiredAppVersions" mapstructure:"requiredAppVersions"`
-		Query struct {
-			PrivateKey string   `yaml:"privateKey"`
-			RelayURL   string   `yaml:"relayUrl" validate:"required,url"`
-			WriteURLs  []string `yaml:"writeUrls" validate:"omitempty,dive,url"`
-			ReadURLs   []string `yaml:"readUrls" mapstructure:"read-urls" validate:"omitempty,dive,url"`
-		} `yaml:"query" mapstructure:"query"`
 	}
 )
 

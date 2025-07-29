@@ -21,7 +21,6 @@ import (
 	nftcontent "github.com/ice-blockchain/heimdall/nft-content"
 	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
 	"github.com/ice-blockchain/heimdall/server"
-	"github.com/ice-blockchain/subzero/database/query"
 	"github.com/ice-blockchain/subzero/validation"
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/log"
@@ -40,14 +39,6 @@ func main() {
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 
-	query.MustInit(ctx, query.WithConfig(&query.Config{
-		PrivateKey: cfg.Query.PrivateKey,
-		RelayURL:   cfg.Query.RelayURL,
-		WriteURLs:  cfg.Query.WriteURLs,
-		ReadURLs:   cfg.Query.ReadURLs,
-	}))
-	validation.MustInit(validation.WithSkipProfileMetadataProofEventsVerify())
-
 	api.SwaggerInfo.Host = cfg.Host
 	api.SwaggerInfo.Version = cfg.Version
 	auth := accounts.NewDelegatedRPAuth(ctx)
@@ -57,6 +48,7 @@ func main() {
 func init() {
 	mountContentCategoriesConfig()
 	mountTranslationsConfig()
+	validation.MustInit()
 }
 
 func mountContentCategoriesConfig() {

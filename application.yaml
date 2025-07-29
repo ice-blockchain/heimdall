@@ -36,11 +36,6 @@ cmd/heimdall-identity-io:
     port: 8001
     certPath: cmd/heimdall-identity-io/.testdata/localhost.crt
     keyPath: cmd/heimdall-identity-io/.testdata/localhost.key
-  query:
-    writeUrls:
-      - postgresql://root:pass@localhost:5433/subzero
-    privateKey: x
-    relayUrl: wss://example.com
 
 cmd/heimdall-asset-data-syncer:
   version: local
@@ -331,6 +326,15 @@ nfts:
     #api-key: bogus
     base-url: https://pro-api.coingecko.com
 hashtagstatistics:
+  wintr/connectors/storage/v2:
+    runDDL: true
+    primaryURL: postgresql://root:pass@localhost:5437/heimdall
+    credentials:
+      user: root
+      password: pass
+    replicaURLs:
+      - postgresql://root:pass@localhost:5437/heimdall
+nft-content:
   wintr/connectors/storage/v2:
     runDDL: true
     primaryURL: postgresql://root:pass@localhost:5437/heimdall

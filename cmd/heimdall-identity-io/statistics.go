@@ -12,6 +12,7 @@ import (
 
 	nftcontent "github.com/ice-blockchain/heimdall/nft-content"
 	"github.com/ice-blockchain/heimdall/server"
+	"github.com/ice-blockchain/subzero/database/query"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/subzero/validation"
 )
@@ -95,7 +96,10 @@ func (s *service) GetTopHashtags(
 //	@Produce		json
 //	@Param			request	body	NFTContentEventsReq	true	"Events for NFT content (2-3 events: 10100, 0, and optional content)"
 //	@Success		202
-//	@Failure		400	{object}	server.ErrorResponse	"if invalid events provided"
+//	@Failure		400	{object}	server.ErrorResponse	"Invalid events provided"
+//	@Failure		403	{object}	server.ErrorResponse	"On behalf access denied"
+//	@Failure		404	{object}	server.ErrorResponse	"Master public key not found"
+//	@Failure		422	{object}	server.ErrorResponse	"if invalid events provided"
 //	@Failure		500	{object}	server.ErrorResponse
 //	@Failure		504	{object}	server.ErrorResponse	"if request times out"
 //	@Router			/v1/statistics/nft-content [POST].
@@ -103,12 +107,17 @@ func (s *service) ProcessNFTContent(
 	ctx context.Context,
 	req *server.Request[NFTContentEventsReq, any],
 ) (successResp *server.Response[any], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	if err := validateNFTContentEvents(ctx, req.Data.Events); err != nil {
+	if err := validateNFTContentEvents(req.Data.Events); err != nil {
 		return nil, server.UnprocessableEntity(err, invalidPropertiesErrorCode)
 	}
 	if err := s.nftContent.Process(ctx, req.Data.Events); err != nil {
-		if errors.Is(err, nftcontent.ErrForbiddenContent) || errors.Is(err, nftcontent.ErrOnBehalfAccessDenied) {
+		switch {
+		case errors.Is(err, nftcontent.ErrForbiddenContent):
 			return nil, server.BadRequest(err, invalidPropertiesErrorCode)
+		case errors.Is(err, nftcontent.ErrOnBehalfAccessDenied):
+			return nil, server.Forbidden(err)
+		case errors.Is(err, nftcontent.ErrNotFound):
+			return nil, server.NotFound(err, "user not found")
 		}
 
 		return nil, server.Unexpected(errors.Wrap(err, "failed to process NFT content events"))
@@ -128,7 +137,7 @@ func validateEvent(ctx context.Context, event *model.Event) error {
 	return nil
 }
 
-func validateNFTContentEvents(ctx context.Context, events []*model.Event) error {
+func validateNFTContentEvents(events model.Events) error {
 	if len(events) != 2 && len(events) != 3 {
 		return errors.Errorf("2 or 3 events required, got %d", len(events))
 	}
@@ -175,8 +184,32 @@ func validateNFTContentEvents(ctx context.Context, events []*model.Event) error 
 	if eventProfileMetadata == nil {
 		return errors.Errorf("one profile metadata event is required")
 	}
-	if err := validation.Validate(ctx, events...); err != nil {
-		return errors.Wrap(err, "invalid events")
+	queryFunc := func(ctx context.Context, filters ...model.Filter) query.EventIterator {
+		return func(yield func(*model.Event, error) bool) {
+			for _, filter := range filters {
+				if model.FiltersMatch(model.Filters{filter}, eventProfileMetadata, eventProfileMetadata.GetMasterPublicKey(), eventProfileMetadata.PubKey) {
+					if !yield(eventProfileMetadata, nil) {
+						return
+					}
+				}
+				if model.FiltersMatch(model.Filters{filter}, eventAttestation, eventAttestation.GetMasterPublicKey(), eventAttestation.PubKey) {
+					if !yield(eventAttestation, nil) {
+						return
+					}
+				}
+				if model.FiltersMatch(model.Filters{filter}, contentEvent, contentEvent.GetMasterPublicKey(), contentEvent.PubKey) {
+					if !yield(contentEvent, nil) {
+						return
+					}
+				}
+			}
+		}
+	}
+	if err := validation.ValidateBatch(events,
+		validation.WithQueryFunc(queryFunc),
+		validation.WithSkipProfileMetadataProofEventsVerify(),
+	); err != nil {
+		return errors.Wrap(err, "validation failed")
 	}
 
 	return nil

@@ -36,11 +36,12 @@ type (
 
 var (
 	ErrForbiddenContent     = errors.New("forbidden content")
+	ErrNotFound             = errors.New("not found")
 	ErrOnBehalfAccessDenied = model.ErrOnBehalfAccessDenied
 )
 
 const (
-	applicationYamlKey = "nftcontent"
+	applicationYamlKey = "nft-content"
 )
 
 var (

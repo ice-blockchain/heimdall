@@ -738,6 +738,24 @@ const docTemplate = `{
                         "description": "Accepted"
                     },
                     "400": {
+                        "description": "Invalid events provided",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "On behalf access denied",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Master public key not found",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "422": {
                         "description": "if invalid events provided",
                         "schema": {
                             "$ref": "#/definitions/server.ErrorResponse"
@@ -2416,7 +2434,7 @@ const docTemplate = `{
             "properties": {
                 "events": {
                     "type": "array",
-                    "minItems": 1,
+                    "minItems": 2,
                     "items": {
                         "$ref": "#/definitions/model.Event"
                     }
