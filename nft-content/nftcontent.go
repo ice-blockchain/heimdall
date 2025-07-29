@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/subzero/model"
-	nftcontentsender "github.com/ice-blockchain/subzero/nft-content-sender"
+	"github.com/ice-blockchain/subzero/validation"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
@@ -93,7 +93,7 @@ func (n *nftContent) insertNFTContent(ctx context.Context, contentEvent *model.E
 	if contentEvent == nil {
 		return errors.Wrap(ErrForbiddenContent, "content event is nil for non-account types")
 	}
-	ionCollection, exists := profileContent.IONContentNFTCollections[nftcontentsender.NFTCollectionION]
+	ionCollection, exists := profileContent.IONContentNFTCollections[validation.IONNFTCollectionName]
 	if !exists {
 		return errors.Wrap(ErrForbiddenContent, "ion collection not found in profile metadata")
 	}

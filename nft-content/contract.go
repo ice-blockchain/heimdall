@@ -30,7 +30,7 @@ type (
 	NFTContent       interface {
 		io.Closer
 		HealthCheck(ctx context.Context) error
-		Process(ctx context.Context, events []*model.Event) error
+		Process(ctx context.Context, events model.Events) error
 	}
 )
 
