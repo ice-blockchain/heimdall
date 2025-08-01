@@ -13,9 +13,15 @@ import (
 
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
+	"github.com/ice-blockchain/wintr/log"
 )
 
 func (a *verifiedUsersSync) ProcessNextVerifiedUsersQueue(ctx context.Context) error {
+	if errors.Is(storage.CheckWrite(ctx, a.db), storage.ErrReadOnly) {
+		log.Info("skipping verified users processing, DB is read-only")
+		return ErrNotFound
+	}
+
 	return errors.Wrap(storage.DoInTransaction(ctx, a.db, func(conn storage.QueryExecer) error {
 		query := `
 			WITH next_user AS (

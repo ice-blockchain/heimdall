@@ -65,9 +65,21 @@ func (s *coinSync) sync(ctx context.Context) {
 	s.wg.Add(1)
 	defer s.wg.Done()
 	syncCtx, cancel := context.WithTimeout(context.Background(), coinSyncIterationDuration)
-	s.syncCoinBatch(syncCtx)
+	if storage.CheckWrite(syncCtx, s.db) == nil {
+		s.syncCoinBatch(syncCtx)
+	}
 	cancel()
 	for ctx.Err() == nil {
+		if errors.Is(storage.CheckWrite(syncCtx, s.db), storage.ErrReadOnly) {
+			log.Info("skipping coin sync, DB is read-only")
+			select {
+			case <-ctx.Done():
+				return
+			case <-stdlibtime.After(10 * stdlibtime.Second):
+				cancel()
+				continue
+			}
+		}
 		iterations := s.metrics.Get("iteration").(metrics.Timer)
 		prevIterationTiming := iterations.Percentile(0.99)
 		if prevIterationTiming == 0 {
