@@ -107,7 +107,7 @@ func (s *service) ProcessNFTContent(
 	ctx context.Context,
 	req *server.Request[NFTContentEventsReq, any],
 ) (successResp *server.Response[any], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	if err := validateNFTContentEvents(req.Data.Events); err != nil {
+	if err := validateNFTContentEvents(ctx, req.Data.Events); err != nil {
 		return nil, server.UnprocessableEntity(err, invalidPropertiesErrorCode)
 	}
 	if err := s.nftContent.Process(ctx, req.Data.Events); err != nil {
@@ -130,14 +130,14 @@ func validateEvent(ctx context.Context, event *model.Event) error {
 	if event.Kind != nostr.KindTextNote && event.Kind != model.CustomIONKindEditableTextNote && event.Kind != nostr.KindArticle {
 		return errors.Errorf("invalid event kind: %d", event.Kind)
 	}
-	if err := validation.Validate(ctx, event); err != nil {
+	if err := validation.Validate(ctx, model.Events{event}); err != nil {
 		return errors.Wrap(err, "invalid event")
 	}
 
 	return nil
 }
 
-func validateNFTContentEvents(events model.Events) error {
+func validateNFTContentEvents(ctx context.Context, events model.Events) error {
 	if len(events) != 2 && len(events) != 3 {
 		return errors.Errorf("2 or 3 events required, got %d", len(events))
 	}
@@ -197,18 +197,17 @@ func validateNFTContentEvents(events model.Events) error {
 						return
 					}
 				}
-				if model.FiltersMatch(model.Filters{filter}, contentEvent, contentEvent.GetMasterPublicKey(), contentEvent.PubKey) {
-					if !yield(contentEvent, nil) {
-						return
+				if contentEvent != nil {
+					if model.FiltersMatch(model.Filters{filter}, contentEvent, contentEvent.GetMasterPublicKey(), contentEvent.PubKey) {
+						if !yield(contentEvent, nil) {
+							return
+						}
 					}
 				}
 			}
 		}
 	}
-	if err := validation.ValidateBatch(events,
-		validation.WithQueryFunc(queryFunc),
-		validation.WithSkipProfileMetadataProofEventsVerify(),
-	); err != nil {
+	if err := validation.Validate(ctx, events, validation.WithQueryFunc(queryFunc), validation.WithSkipProfileMetadataProofEventsVerify()); err != nil {
 		return errors.Wrap(err, "validation failed")
 	}
 

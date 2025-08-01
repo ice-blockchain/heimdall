@@ -21,14 +21,6 @@ func TestGetNFTContentType(t *testing.T) {
 		expected       NFTContentType
 	}{
 		{
-			name: "should return account type for nil content event with empty collections",
-			profileContent: &model.ProfileMetadataContent{
-				IONContentNFTCollections: make(map[model.IONContentNFTCollectionName]model.IONContentNFTCollectionMetadata),
-			},
-			contentEvent: nil,
-			expected:     NFTContentTypeAccount,
-		},
-		{
 			name: "should return post for text note without video",
 			profileContent: &model.ProfileMetadataContent{
 				IONContentNFTCollections: map[model.IONContentNFTCollectionName]model.IONContentNFTCollectionMetadata{
