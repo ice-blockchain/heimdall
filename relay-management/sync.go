@@ -56,6 +56,11 @@ func (r *relaysSyncer) getAllRelays(ctx context.Context) ([]string, error) {
 }
 
 func (r *relaysSyncer) CheckRelayStatus(ctx context.Context) error {
+	if errors.Is(storage.CheckWrite(ctx, r.db), storage.ErrReadOnly) {
+		log.Info("skipping checking relays status, DB is read-only")
+
+		return nil
+	}
 	urls, err := r.getAllRelays(ctx)
 	if err != nil {
 		return errors.Wrapf(err, "failed to check relays status, failed to read from relay list from db")
