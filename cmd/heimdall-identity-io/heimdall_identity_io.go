@@ -18,6 +18,7 @@ import (
 	"github.com/ice-blockchain/heimdall/cmd/heimdall-identity-io/api"
 	"github.com/ice-blockchain/heimdall/coins"
 	hashtagstatistics "github.com/ice-blockchain/heimdall/hashtag-statistics"
+	nftcontent "github.com/ice-blockchain/heimdall/nft-content"
 	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
 	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/subzero/validation"
@@ -37,6 +38,7 @@ func main() {
 	defer cancel()
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
+
 	api.SwaggerInfo.Host = cfg.Host
 	api.SwaggerInfo.Version = cfg.Version
 	auth := accounts.NewDelegatedRPAuth(ctx)
@@ -117,6 +119,7 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	}
 	s.accounts = accounts.New(ctx, s.coins, s.relays, &appsRuntimeCfg)
 	s.hashtagStatistics = hashtagstatistics.New(ctx)
+	s.nftContent = nftcontent.New(ctx)
 
 	publicKey := s.accounts.PublicKey()
 	allValidConfigNames[configNameServicePubkeys] = func(_ *config) (any, Version) { return []string{publicKey}, Version(1) }
@@ -131,6 +134,7 @@ func (s *service) Close(ctx context.Context) error {
 		errors.Wrap(s.accounts.Close(), "failed to close accounts"),
 		errors.Wrap(s.coins.Close(), "failed to close coins"),
 		errors.Wrap(s.hashtagStatistics.Close(), "failed to close hashtag statistics"),
+		errors.Wrap(s.nftContent.Close(), "failed to close nft content"),
 	).ErrorOrNil()
 }
 
@@ -141,5 +145,6 @@ func (s *service) CheckHealth(ctx context.Context) error {
 		errors.Wrapf(s.accounts.HealthCheck(ctx), "accounts check failed"),
 		errors.Wrapf(s.coins.HealthCheck(ctx), "coins check failed"),
 		errors.Wrapf(s.hashtagStatistics.HealthCheck(ctx), "hashtag statistics check failed"),
+		errors.Wrapf(s.nftContent.HealthCheck(ctx), "nft content check failed"),
 	).ErrorOrNil()
 }

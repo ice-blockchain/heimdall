@@ -9,6 +9,7 @@ import (
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/coins"
 	hashtagstatistics "github.com/ice-blockchain/heimdall/hashtag-statistics"
+	nftcontent "github.com/ice-blockchain/heimdall/nft-content"
 	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
 	"github.com/ice-blockchain/subzero/model"
 )
@@ -66,6 +67,9 @@ type (
 	}
 	HashtagsEventsReq struct {
 		Events []*model.Event `json:"events" binding:"required,min=1,dive" allowUnauthorized:"true"`
+	}
+	NFTContentEventsReq struct {
+		Events []*model.Event `json:"events" binding:"required,min=2,dive" allowUnauthorized:"true"`
 	}
 	GetTopHashtagsReq struct {
 		Authorization string `header:"Authorization" required:"true" swaggerignore:"true"`
@@ -255,6 +259,7 @@ type (
 		coins             coins.Coins
 		relays            relaymanagement.Relays
 		hashtagStatistics hashtagstatistics.HashtagStatistics
+		nftContent        nftcontent.NFTContent
 		cfg               *config
 	}
 	config struct {

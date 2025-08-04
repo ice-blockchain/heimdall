@@ -334,6 +334,15 @@ hashtagstatistics:
       password: pass
     replicaURLs:
       - postgresql://root:pass@localhost:5437/heimdall
+nft-content:
+  wintr/connectors/storage/v2:
+    runDDL: true
+    primaryURL: postgresql://root:pass@localhost:5437/heimdall
+    credentials:
+      user: root
+      password: pass
+    replicaURLs:
+      - postgresql://root:pass@localhost:5437/heimdall
 relay-management:
   wintr/connectors/storage/v2:
     runDDL: true

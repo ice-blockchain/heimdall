@@ -224,6 +224,16 @@ definitions:
       walletId:
         type: string
     type: object
+  main.NFTContentEventsReq:
+    properties:
+      events:
+        items:
+          $ref: '#/definitions/model.Event'
+        minItems: 2
+        type: array
+    required:
+    - events
+    type: object
   main.Network:
     properties:
       displayName:
@@ -935,6 +945,49 @@ paths:
         "202":
           description: Accepted
         "400":
+          description: if invalid events provided
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Statistics
+  /v1/statistics/nft-content:
+    post:
+      consumes:
+      - application/json
+      description: Process NFT content events
+      parameters:
+      - description: 'Events for NFT content (2-3 events: 10100, 0, and optional content)'
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.NFTContentEventsReq'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+        "400":
+          description: Invalid events provided
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "403":
+          description: On behalf access denied
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "404":
+          description: Master public key not found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "422":
           description: if invalid events provided
           schema:
             $ref: '#/definitions/server.ErrorResponse'
