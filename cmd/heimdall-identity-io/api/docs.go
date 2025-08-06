@@ -173,6 +173,13 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Request ID",
+                        "name": "X-Device-Identification-Request-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
                         "default": "Bearer \u003ctoken\u003e",
                         "description": "Authorization",
                         "name": "Authorization",
@@ -2892,6 +2899,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/accounts.TwoFAOptionEnum"
                     }
+                },
+                "duplicateOf": {
+                    "type": "string"
                 },
                 "email": {
                     "type": "array",

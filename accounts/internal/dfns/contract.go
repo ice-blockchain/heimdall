@@ -39,7 +39,7 @@ type (
 		CompleteRegistrationWithWallets(ctx context.Context, credentials *Credentials) (CompletedRegistration, error)
 		GetUser(ctx context.Context, userID string) (*User, error)
 		VerifyWebhookSecret(fromWebhook string) bool
-		RegisterPostProxyCallback(url string, cb func(ctx context.Context, now *time.Time, res map[string]any) error)
+		RegisterPostProxyCallback(url string, cb func(req *http.Request, now *time.Time, res map[string]any) error)
 		SetEarlyAccessVerifier(verifier EarlyAccessVerifier)
 		ListWallets(ctx context.Context, userID string) ([]Wallet, error)
 		GetWallet(ctx context.Context, userID string) (*Wallet, error)
@@ -153,7 +153,7 @@ type (
 		userClients             map[string]*http.Client
 		serviceAccountClients   map[string]*http.Client
 		proxies                 map[string]*httputil.ReverseProxy
-		callbacks               map[string][]func(ctx context.Context, now *time.Time, res map[string]any) error
+		callbacks               map[string][]func(req *http.Request, now *time.Time, res map[string]any) error
 		bodyModifiableCallbacks map[string]func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error
 		webhookSecret           string
 		earlyAccessVerifier     EarlyAccessVerifier

@@ -15,6 +15,7 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
 
+	device_identification "github.com/ice-blockchain/heimdall/accounts/internal/device-identification"
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
 	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
@@ -27,8 +28,9 @@ import (
 )
 
 type (
-	SearchType = string
-	Accounts   interface {
+	SearchType                = string
+	DeviceIdentificationProxy = device_identification.Proxy
+	Accounts                  interface {
 		io.Closer
 		Wallets
 		ProxyDelegatedRelyingParty(ctx context.Context, rw http.ResponseWriter, r *http.Request)
@@ -103,6 +105,7 @@ type (
 		PhoneNumber             []string             `json:"phoneNumber,omitempty"`
 		TwoFAOptions            []TwoFAOptionEnum    `json:"2faOptions,omitempty"`
 		MasterPubKey            string               `json:"masterPubKey"`
+		DuplicateOf             *string              `json:"duplicateOf,omitempty"`
 	}
 	SocialProfile struct {
 		Username          string         `json:"username,omitempty"`
@@ -168,6 +171,7 @@ const (
 	AppIDHeaderCtxValue                            = dfns.AppIDCtxValue
 	UserActionCtxValue                             = dfns.UserActionCtxValue
 	UserSignatureCtxValueKey                       = "UserSignatureCtxValueKey"
+	RequestIDCtxValueKey                           = "RequestIDCtxValueKey"
 	registrationUrl                                = "/auth/registration/delegated"
 	completeRegistrationUrl                        = "/auth/registration/enduser"
 	completeLoginUrl                               = "/auth/login"
@@ -247,6 +251,7 @@ type (
 		cfg                        *config
 		privateKey                 string
 		appsRuntimeConfig          *AppsRuntimeConfig
+		deviceIdentificationClient device_identification.Client
 	}
 	verifiedUsersSync struct {
 		db         *storage.DB
@@ -264,10 +269,11 @@ type (
 		TotpAuthenticatorSecret    []string
 		IONConnectRelays           relaymanagement.UserAssignedRelays
 		Clients                    []string
-		Active2FAEmail             []bool `db:"active_2fa_email"`
-		Active2FAPhoneNumber       []bool `db:"active_2fa_phone_number"`
-		Active2FATotpAuthenticator []bool `db:"active_2fa_totp_authenticator"`
-		Verified                   bool   `db:"verified"`
+		Active2FAEmail             []bool  `db:"active_2fa_email"`
+		Active2FAPhoneNumber       []bool  `db:"active_2fa_phone_number"`
+		Active2FATotpAuthenticator []bool  `db:"active_2fa_totp_authenticator"`
+		Verified                   bool    `db:"verified"`
+		DuplicateOf                *string `db:"duplicate_of"`
 	}
 	socialProfile struct {
 		CreatedAt            *time.Time
@@ -294,9 +300,7 @@ type (
 		UserSignatureExpiration  stdlibtime.Duration `yaml:"userSignatureExpiration" mapstructure:"userSignatureExpiration"`
 		Max2FACount              int                 `yaml:"max2FACount" mapstructure:"max2FACount"`
 		DefaultCoinsInWalletView []string            `yaml:"defaultCoinsInWalletView" mapstructure:"defaultCoinsInWalletView"`
-		MockRelays               []string            `yaml:"mockRelays" mapstructure:"mockRelays"`
 		PrivateKey               string              `yaml:"privateKey" mapstructure:"privateKey"`
-		RelaysPerUser            uint8               `yaml:"relaysPerUser" mapstructure:"relaysPerUser"`
 	}
 
 	AppsRuntimeConfig struct {

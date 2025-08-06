@@ -34,9 +34,10 @@ type (
 	}
 	LoginChallenge                 = accounts.LoginChallenge
 	CompletedRegistrationChallenge struct {
-		*accounts.Credentials `json:",inline"`
-		ClientID              string `header:"X-Client-ID" required:"true" swaggerignore:"true"`
-		Authorization         string `header:"Authorization" required:"true" swaggerignore:"true"`
+		*accounts.Credentials         `json:",inline"`
+		ClientID                      string `header:"X-Client-ID" required:"true" swaggerignore:"true"`
+		DeviceIdentificationRequestID string `header:"X-Device-Identification-Request-ID" required:"false" swaggerignore:"true"` // TODO: required: true once FE will send header.
+		Authorization                 string `header:"Authorization" required:"true" swaggerignore:"true"`
 	}
 	CompletedRegistration = accounts.CompletedRegistration
 	EarlyAccessCheck      struct {
@@ -276,13 +277,14 @@ const (
 
 type (
 	service struct {
-		accounts          accounts.Accounts
-		coins             coins.Coins
-		relays            relaymanagement.Relays
-		hashtagStatistics hashtagstatistics.HashtagStatistics
-		nftContent        nftcontent.NFTContent
-		following         following.Following
-		cfg               *config
+		accounts                  accounts.Accounts
+		coins                     coins.Coins
+		relays                    relaymanagement.Relays
+		hashtagStatistics         hashtagstatistics.HashtagStatistics
+		nftContent                nftcontent.NFTContent
+		following                 following.Following
+		deviceIdentificationProxy accounts.DeviceIdentificationProxy
+		cfg                       *config
 	}
 	config struct {
 		Host                    string   `yaml:"host"`

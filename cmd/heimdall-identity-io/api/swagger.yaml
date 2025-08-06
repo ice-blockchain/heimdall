@@ -338,6 +338,8 @@ definitions:
         items:
           $ref: '#/definitions/accounts.TwoFAOptionEnum'
         type: array
+      duplicateOf:
+        type: string
       email:
         items:
           type: string
@@ -698,6 +700,11 @@ paths:
         description: App ID
         in: header
         name: X-Client-ID
+        required: true
+        type: string
+      - description: Request ID
+        in: header
+        name: X-Device-Identification-Request-ID
         required: true
         type: string
       - default: Bearer <token>

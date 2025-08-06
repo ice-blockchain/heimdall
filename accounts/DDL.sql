@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
     id                                     TEXT NOT NULL,
     identity_key_name                      TEXT NOT NULL UNIQUE,
     master_pubkey                          TEXT NOT NULL UNIQUE,
+    duplicate_of                           TEXT REFERENCES users(id) ON DELETE SET NULL,
     clients                                TEXT[] NOT NULL,
     email                                  TEXT[],
     phone_number                           TEXT[],
@@ -137,3 +138,12 @@ CREATE TABLE IF NOT EXISTS assigned_early_access_emails (
                                                             email   TEXT NOT NULL REFERENCES early_access_emails(email) ON DELETE CASCADE,
                                                             primary key(email, user_id)
 );
+
+CREATE TABLE IF NOT EXISTS users_visitors (
+                                              created_at    TIMESTAMP NOT NULL,
+                                              user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                                              visitor_id    TEXT NOT NULL,
+                                              primary key (user_id, visitor_id)
+);
+CREATE INDEX IF NOT EXISTS users_visitors_visitor_id ON users_visitors (visitor_id, created_at asc);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS duplicate_of TEXT REFERENCES users(id) ON DELETE SET NULL;

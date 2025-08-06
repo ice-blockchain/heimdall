@@ -8,6 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	device_identification "github.com/ice-blockchain/heimdall/accounts/internal/device-identification"
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
 	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
@@ -23,15 +24,16 @@ func NewDelegatedRPAuth(ctx context.Context) dfns.AuthClient {
 	return dfns.NewDfnsTokenAuth(ctx, applicationYamlKey)
 }
 
+func NewDeviceIdentificationProxy(ctx context.Context, serviceVersion string) DeviceIdentificationProxy {
+	return device_identification.NewProxy(applicationYamlKey, serviceVersion)
+}
+
 func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *AppsRuntimeConfig) Accounts {
 	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
 	cl := dfns.NewDfnsClient(ctx, db, applicationYamlKey, coinsRepo)
 
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
-	if cfg.RelaysPerUser == 0 {
-		cfg.RelaysPerUser = 1
-	}
 	var smsSender sms.SmsSender
 	func() {
 		defer func() {
@@ -63,9 +65,8 @@ func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *App
 		appsRuntimeConfig:          runtimeConfig,
 	}
 	cl.SetEarlyAccessVerifier(&acc)
-	cl.RegisterPostProxyCallback(registrationUrl, acc.upsertUsernameFromRegistration)
-	cl.RegisterPostProxyCallback(completeLoginUrl, acc.upsertUsernameFromLogin)
-	cl.RegisterPostProxyCallback(delegatedLoginUrl, acc.upsertUsernameFromLogin)
+	cl.RegisterPostProxyCallback(completeLoginUrl, acc.upsertUserFromLogin)
+	cl.RegisterPostProxyCallback(delegatedLoginUrl, acc.upsertUserFromLogin)
 	acc.delegatedRPClient = cl
 	for _, opt := range AllTwoFAOptions {
 		acc.concurrentlyGeneratedCodes[opt] = &sync.Map{}
@@ -76,6 +77,7 @@ func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *App
 	for _, dc := range defCoinsList {
 		defaultCoins[dc.SymbolGroup] = append(defaultCoins[dc.SymbolGroup], dc)
 	}
+	acc.deviceIdentificationClient = device_identification.New(applicationYamlKey, acc.masterKeyExists)
 
 	return &acc
 }

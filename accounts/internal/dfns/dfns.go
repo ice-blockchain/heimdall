@@ -50,7 +50,7 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 		proxies:               make(map[string]*httputil.ReverseProxy),
 		proxyMx:               sync.Mutex{},
 		refreshAuthIssuer:     NewRefreshAuth(applicationYamlKey),
-		callbacks:             make(map[string][]func(ctx context.Context, now *time.Time, res map[string]any) error),
+		callbacks:             make(map[string][]func(req *http.Request, now *time.Time, res map[string]any) error),
 		tonApi:                mustInitTONClient(ctx, cfg.DFNS.TON.GlobalConfigURL),
 		ionApi:                mustInitTONClient(ctx, cfg.DFNS.ION.GlobalConfigURL),
 		coinFeesProvider:      coinFeesProvider,
@@ -223,7 +223,7 @@ func (c *dfnsClient) extendChallengeWithRP() func(ctx context.Context, res map[s
 	}
 }
 
-func (c *dfnsClient) RegisterPostProxyCallback(url string, cb func(ctx context.Context, now *time.Time, res map[string]any) error) {
+func (c *dfnsClient) RegisterPostProxyCallback(url string, cb func(req *http.Request, now *time.Time, res map[string]any) error) {
 	c.callbacks[url] = append(c.callbacks[url], cb)
 }
 
@@ -454,14 +454,34 @@ func (c *dfnsClient) modifyResponse(r *http.Response) error {
 			}
 			if callbacks != nil && hasCallback {
 				for _, callback := range callbacks {
-					if err = callback(r.Request.Context(), now, res); err != nil {
-						return errors.Wrapf(err, "failed to store data in DB on %v", r.Request.URL.Path)
+					if err = callback(r.Request, now, res); err != nil {
+						var errWithStatus *DfnsInternalError
+						if errors.As(err, &errWithStatus) {
+							r.StatusCode = errWithStatus.HTTPStatus
+							return c.extendResponseBodyWith(r, res, func(ctx context.Context, res map[string]any) error {
+								res["message"] = errWithStatus.Message
+								delete(res, "token")
+								return nil
+							})
+						} else {
+							return errors.Wrapf(err, "failed to store data in DB on %v", r.Request.URL.Path)
+						}
 					}
 				}
 
 			}
 			if bodyModify != nil && hasModify {
 				if err = bodyModify(r.Request.Context(), now, res, r); err != nil {
+					var errWithStatus *DfnsInternalError
+					if errors.As(err, &errWithStatus) {
+						r.StatusCode = errWithStatus.HTTPStatus
+						return c.extendResponseBodyWith(r, res, func(ctx context.Context, res map[string]any) error {
+							res = map[string]interface{}{
+								"message": errWithStatus.Message,
+							}
+							return nil
+						})
+					}
 					return errors.Wrapf(err, "failed to modify response data on %v", r.Request.URL.Path)
 				}
 			} else {
