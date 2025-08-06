@@ -5,9 +5,10 @@ package main
 import (
 	"context"
 
+	"github.com/pkg/errors"
+
 	nftcontent "github.com/ice-blockchain/heimdall/nft-content"
 	"github.com/ice-blockchain/heimdall/server"
-	"github.com/pkg/errors"
 )
 
 func (s *service) setupNFTRoutes(r *server.Router) {
