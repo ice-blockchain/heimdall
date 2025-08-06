@@ -19,17 +19,17 @@ func (s *service) setupNFTRoutes(r *server.Router) {
 //	@Description	Get NFT collection metadata
 //	@Tags			NFT
 //	@Produce		json
-//	@Param			Authorization	header		string					true	"Auth token"	default(Bearer <Add token here>)
-//	@Param			nftContentType	path		string					true	"NFT content type"
-//	@Param			contentAddress	path		string					true	"Content address"
-//	@Success		200				{object}	any						"NFT collection metadata"
+//	@Param			Authorization	header		string						true	"Auth token"	default(Bearer <Add token here>)
+//	@Param			nftContentType	path		string						true	"NFT content type"
+//	@Param			contentAddress	path		string						true	"Content address"
+//	@Success		200				{object}	any							"NFT collection metadata"
 //	@Header			200				{string}	X-Nft-Collection-Name		"NFT collection name"
 //	@Header			200				{string}	X-Nft-Collection-Address	"NFT collection address"
 //	@Header			200				{string}	X-Nft-Collection-Created-By	"NFT collection creator address"
-//	@Failure		400				{object}	server.ErrorResponse	"Invalid request format"
-//	@Failure		404				{object}	server.ErrorResponse	"NFT collection metadata not found"
-//	@Failure		500				{object}	server.ErrorResponse	"Internal server error"
-//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
+//	@Failure		400				{object}	server.ErrorResponse		"Invalid request format"
+//	@Failure		404				{object}	server.ErrorResponse		"NFT collection metadata not found"
+//	@Failure		500				{object}	server.ErrorResponse		"Internal server error"
+//	@Failure		504				{object}	server.ErrorResponse		"if request times out"
 //	@Router			/v1/nft-collection-metadata/{nftContentType}/{contentAddress} [GET]
 func (s *service) GetNFTCollectionMetadata(
 	ctx context.Context,
