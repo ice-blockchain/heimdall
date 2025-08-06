@@ -22,7 +22,7 @@ func (s *service) setupUserRoutes(router gin.IRoutes) {
 		DELETE("auth/users/:userId", server.RootHandler(s.DeleteUser)).
 		GET("v1/config/:configName", server.RootHandler(s.GetConfig)).
 		POST("v1/users/get-content-creators", server.RootHandler(s.GetContentCreators)).
-		GET("v1/users/get-ion-connect-relays", server.RootHandler(s.GetIONConnectRelays)).
+		GET("v1/users/ion-connect-relays", server.RootHandler(s.GetIONConnectRelays)).
 		GET("v1/users/:userIdOrMasterKey/verified-badge", server.RootHandler(s.GetVerifiedBadge)).
 		GET("v1/users/:userIdOrMasterKey/all-available-ion-connect-relays", server.RootHandler(s.GetAllIONConnectRelays))
 }
@@ -67,7 +67,7 @@ func (s *service) GetOrAssignIONConnectRelays(
 //	@Success		200				{array}		accounts.LiteUser
 //	@Failure		500				{object}	server.ErrorResponse
 //	@Failure		504				{object}	server.ErrorResponse	"if request times out"
-//	@Router			/v1/users/get-ion-connect-relays [GET].
+//	@Router			/v1/users/ion-connect-relays [GET].
 func (s *service) GetIONConnectRelays(
 	ctx context.Context,
 	req *server.Request[GetBatchRelaysReq, []*accounts.LiteUser],

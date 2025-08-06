@@ -958,7 +958,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/users/get-ion-connect-relays": {
+        "/v1/users/ion-connect-relays": {
             "get": {
                 "description": "Returns the relay list for each provided user master pubkey",
                 "produces": [
