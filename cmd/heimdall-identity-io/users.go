@@ -22,6 +22,7 @@ func (s *service) setupUserRoutes(router gin.IRoutes) {
 		DELETE("auth/users/:userId", server.RootHandler(s.DeleteUser)).
 		GET("v1/config/:configName", server.RootHandler(s.GetConfig)).
 		POST("v1/users/get-content-creators", server.RootHandler(s.GetContentCreators)).
+		GET("v1/users/get-ion-connect-relays", server.RootHandler(s.GetIONConnectRelays)).
 		GET("v1/users/:userIdOrMasterKey/verified-badge", server.RootHandler(s.GetVerifiedBadge)).
 		GET("v1/users/:userIdOrMasterKey/all-available-ion-connect-relays", server.RootHandler(s.GetAllIONConnectRelays))
 }
@@ -53,6 +54,36 @@ func (s *service) GetOrAssignIONConnectRelays(
 		}
 	}
 	return server.OK(&Relays{IONConnectRelays: relays}), nil
+}
+
+// GetIONConnectRelays godoc
+//
+//	@Schemes
+//	@Description	Returns the relay list for each provided user master pubkey
+//	@Tags			Users
+//	@Produce		json
+//	@Param			masterPubkey	query		[]string	true	"master pubkeys to get the ion connect relays for"
+//	@Param			Authorization	header		string		true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
+//	@Success		200				{array}		accounts.LiteUser
+//	@Failure		500				{object}	server.ErrorResponse
+//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
+//	@Router			/v1/users/get-ion-connect-relays [GET].
+func (s *service) GetIONConnectRelays(
+	ctx context.Context,
+	req *server.Request[GetBatchRelaysReq, []*accounts.LiteUser],
+) (*server.Response[[]*accounts.LiteUser], *server.ErrResponse[*server.ErrorResponse]) {
+	var err error
+	var relays []*accounts.LiteUser
+	//TODO add auth check
+	//TODO impl it
+	if err != nil {
+		switch {
+		default:
+			return nil, server.Unexpected(err)
+		}
+	}
+
+	return server.OK(&relays), nil
 }
 
 // GetAllConnectRelays godoc

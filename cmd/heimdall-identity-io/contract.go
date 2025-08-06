@@ -62,6 +62,9 @@ type (
 		UserIDOrMasterKey string   `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
 		FolloweeList      []string `json:"followeeList"`
 	}
+	GetBatchRelaysReq struct {
+		MasterPubkeys []string `form:"masterPubkey" required:"true" swaggerignore:"true"`
+	}
 	AllRelaysReq struct {
 		IONConnectRelay string `form:"ion-connect-relay" required:"true"`
 	}

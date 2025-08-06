@@ -1766,6 +1766,43 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Users
+  /v1/users/get-ion-connect-relays:
+    get:
+      description: Returns the relay list for each provided user master pubkey
+      parameters:
+      - collectionFormat: multi
+        description: master pubkeys to get the ion connect relays for
+        in: query
+        items:
+          type: string
+        name: masterPubkey
+        required: true
+        type: array
+      - default: Bearer <Add token here>
+        description: Auth token from delegated relying party
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/accounts.LiteUser'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Users
   /v1/users/verify-username-availability:
     get:
       consumes:
