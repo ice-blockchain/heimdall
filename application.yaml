@@ -335,6 +335,7 @@ hashtagstatistics:
     replicaURLs:
       - postgresql://root:pass@localhost:5437/heimdall
 nft-content:
+  envBasedUrl: https://someEnvBasedBaseUrl
   wintr/connectors/storage/v2:
     runDDL: true
     primaryURL: postgresql://root:pass@localhost:5437/heimdall

@@ -65,13 +65,13 @@ func (s *service) UpsertSocialProfile(
 	ctx context.Context,
 	req *server.Request[UpsertSocialProfileRequest, accounts.SocialProfile],
 ) (*server.Response[accounts.SocialProfile], *server.ErrResponse[*server.ErrorResponse]) {
-	if req.Data.Username == "" && req.Data.DisplayName == "" && req.Data.Referral == "" {
-		return nil, server.BadRequest(fmt.Errorf("at least one of username, displayName or referral must be provided"), invalidPropertiesErrorCode)
+	if req.Data.Username == "" && req.Data.DisplayName == "" && req.Data.Referral == "" && req.Data.Bio == "" && req.Data.Avatar == "" {
+		return nil, server.BadRequest(fmt.Errorf("at least one of username, displayName, referral, bio or avatar must be provided"), invalidPropertiesErrorCode)
 	}
 	if server.LoggedInUser(ctx) == nil {
 		return nil, server.Unauthorized(server.ErrInvalidToken)
 	}
-	profile, err := s.accounts.UpsertSocialProfile(ctx, req.Data.UserIDOrMasterKey, req.Data.Username, req.Data.DisplayName, req.Data.Referral, server.LoggedInUser(ctx).UserID())
+	profile, err := s.accounts.UpsertSocialProfile(ctx, req.Data.UserIDOrMasterKey, req.Data.Username, req.Data.DisplayName, req.Data.Referral, req.Data.Bio, req.Data.Avatar, server.LoggedInUser(ctx).UserID())
 	if err != nil {
 		switch {
 		case errors.Is(err, accounts.ErrUnauthorized):

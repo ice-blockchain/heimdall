@@ -52,6 +52,10 @@ definitions:
     type: object
   accounts.SocialProfile:
     properties:
+      avatar:
+        type: string
+      bio:
+        type: string
       displayName:
         type: string
       referral:
@@ -306,6 +310,10 @@ definitions:
     type: object
   main.UpsertSocialProfileRequest:
     properties:
+      avatar:
+        type: string
+      bio:
+        type: string
       displayName:
         type: string
       referral:
@@ -891,6 +899,60 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Coins
+  /v1/nft-collection-metadata/{nftContentType}/{contentAddress}:
+    get:
+      description: Get NFT collection metadata
+      parameters:
+      - default: Bearer <Add token here>
+        description: Auth token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: NFT content type
+        in: path
+        name: nftContentType
+        required: true
+        type: string
+      - description: Content address
+        in: path
+        name: contentAddress
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: NFT collection metadata
+          headers:
+            X-Nft-Collection-Address:
+              description: NFT collection address
+              type: string
+            X-Nft-Collection-Created-By:
+              description: NFT collection creator address
+              type: string
+            X-Nft-Collection-Name:
+              description: NFT collection name
+              type: string
+          schema: {}
+        "400":
+          description: Invalid request format
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "404":
+          description: NFT collection metadata not found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - NFT
   /v1/statistics/hashtags:
     get:
       description: Returns top hashtags

@@ -86,10 +86,15 @@ CREATE TABLE IF NOT EXISTS social_profiles (
     master_pubkey          TEXT NOT NULL REFERENCES users(master_pubkey) ON DELETE CASCADE,
     username               TEXT NOT NULL UNIQUE,
     display_name           TEXT,
+    bio                    TEXT,
+    avatar                 TEXT,
     referral_master_pubkey TEXT REFERENCES users(master_pubkey) ON DELETE SET NULL,
     lookup                 TEXT NOT NULL DEFAULT '',
     primary key(master_pubkey)
 ) WITH (FILLFACTOR = 70);
+
+ALTER TABLE social_profiles ADD COLUMN IF NOT EXISTS bio TEXT;
+ALTER TABLE social_profiles ADD COLUMN IF NOT EXISTS avatar TEXT;
 
 CREATE EXTENSION IF NOT EXISTS pgroonga;
 CREATE INDEX IF NOT EXISTS idx_social_profiles_lookup_pgroonga ON social_profiles USING pgroonga (lookup) WITH (tokenizer='TokenBigramSplitSymbolAlphaDigit');

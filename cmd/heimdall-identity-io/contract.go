@@ -79,6 +79,11 @@ type (
 		Keyword       string `form:"keyword" required:"false"`
 		Limit         int    `form:"limit" required:"false"`
 	}
+	GetNFTCollectionMetadataRequest struct {
+		Authorization  string `header:"Authorization" required:"true" swaggerignore:"true"`
+		NFTContentType string `uri:"nftContentType" required:"true"`
+		ContentAddress string `uri:"contentAddress" required:"true"`
+	}
 	UserAssignedRelay = relaymanagement.UserAssignedRelay
 	Relays            struct {
 		IONConnectRelays []*UserAssignedRelay `json:"ionConnectRelays"`
@@ -218,6 +223,8 @@ type (
 		Username          string `json:"username,omitempty"`
 		DisplayName       string `json:"displayName,omitempty"`
 		Referral          string `json:"referral,omitempty"`
+		Avatar            string `json:"avatar,omitempty"`
+		Bio               string `json:"bio,omitempty"`
 	}
 	VerifyUsernameRequest struct {
 		Authorization string `header:"Authorization" required:"true" swaggerignore:"true"`

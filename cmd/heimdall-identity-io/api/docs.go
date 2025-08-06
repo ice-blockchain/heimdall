@@ -608,6 +608,85 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/nft-collection-metadata/{nftContentType}/{contentAddress}": {
+            "get": {
+                "description": "Get NFT collection metadata",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "NFT"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cAdd token here\u003e",
+                        "description": "Auth token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "NFT content type",
+                        "name": "nftContentType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Content address",
+                        "name": "contentAddress",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "NFT collection metadata",
+                        "schema": {},
+                        "headers": {
+                            "X-Nft-Collection-Address": {
+                                "type": "string",
+                                "description": "NFT collection address"
+                            },
+                            "X-Nft-Collection-Created-By": {
+                                "type": "string",
+                                "description": "NFT collection creator address"
+                            },
+                            "X-Nft-Collection-Name": {
+                                "type": "string",
+                                "description": "NFT collection name"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request format",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "NFT collection metadata not found",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/statistics/hashtags": {
             "get": {
                 "description": "Returns top hashtags",
@@ -2221,6 +2300,12 @@ const docTemplate = `{
         "accounts.SocialProfile": {
             "type": "object",
             "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "bio": {
+                    "type": "string"
+                },
                 "displayName": {
                     "type": "string"
                 },
@@ -2607,6 +2692,12 @@ const docTemplate = `{
         "main.UpsertSocialProfileRequest": {
             "type": "object",
             "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "bio": {
+                    "type": "string"
+                },
                 "displayName": {
                     "type": "string"
                 },
