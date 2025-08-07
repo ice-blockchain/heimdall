@@ -20,7 +20,7 @@ func (s *service) setupNFTRoutes(r *server.Router) {
 //	@Description	Get NFT collection metadata
 //	@Tags			NFT
 //	@Produce		json
-//	@Param			nftContentType	path		string						true	"NFT content type" Enums(account, post, article, video, story)
+//	@Param			nftContentType	path		string						true	"NFT content type"	Enums(account, post, article, video, story)
 //	@Param			contentAddress	path		string						true	"Content address"
 //	@Success		200				{object}	nftcontent.NFTResponse		"NFT collection metadata"
 //	@Header			200				{string}	X-Nft-Collection-Name		"NFT collection name"
