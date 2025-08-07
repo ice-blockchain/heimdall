@@ -608,6 +608,86 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/nft-collection-metadata/{nftContentType}/{contentAddress}": {
+            "get": {
+                "description": "Get NFT collection metadata",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "NFT"
+                ],
+                "parameters": [
+                    {
+                        "enum": [
+                            "account",
+                            "post",
+                            "article",
+                            "video",
+                            "story"
+                        ],
+                        "type": "string",
+                        "description": "NFT content type",
+                        "name": "nftContentType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Content address",
+                        "name": "contentAddress",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "NFT collection metadata",
+                        "schema": {
+                            "$ref": "#/definitions/nftcontent.NFTResponse"
+                        },
+                        "headers": {
+                            "X-Nft-Collection-Address": {
+                                "type": "string",
+                                "description": "NFT collection address"
+                            },
+                            "X-Nft-Collection-Created-By": {
+                                "type": "string",
+                                "description": "NFT collection creator address"
+                            },
+                            "X-Nft-Collection-Name": {
+                                "type": "string",
+                                "description": "NFT collection name"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request format",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "NFT collection metadata not found",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/statistics/hashtags": {
             "get": {
                 "description": "Returns top hashtags",
@@ -2221,6 +2301,12 @@ const docTemplate = `{
         "accounts.SocialProfile": {
             "type": "object",
             "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "bio": {
+                    "type": "string"
+                },
                 "displayName": {
                     "type": "string"
                 },
@@ -2607,6 +2693,12 @@ const docTemplate = `{
         "main.UpsertSocialProfileRequest": {
             "type": "object",
             "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "bio": {
+                    "type": "string"
+                },
                 "displayName": {
                     "type": "string"
                 },
@@ -2821,6 +2913,120 @@ const docTemplate = `{
                             "type": "string"
                         }
                     }
+                }
+            }
+        },
+        "nftcontent.NFTCategory": {
+            "type": "string",
+            "enum": [
+                "Post",
+                "Video",
+                "Story",
+                "Article"
+            ],
+            "x-enum-varnames": [
+                "NFTCategoryPost",
+                "NFTCategoryVideo",
+                "NFTCategoryStory",
+                "NFTCategoryArticle"
+            ]
+        },
+        "nftcontent.NFTContentType": {
+            "type": "string",
+            "enum": [
+                "account",
+                "post",
+                "article",
+                "video",
+                "story"
+            ],
+            "x-enum-varnames": [
+                "NFTContentTypeAccount",
+                "NFTContentTypePost",
+                "NFTContentTypeArticle",
+                "NFTContentTypeVideo",
+                "NFTContentTypeStory"
+            ]
+        },
+        "nftcontent.NFTResponse": {
+            "type": "object",
+            "properties": {
+                "account_id": {
+                    "type": "string",
+                    "example": "johndoe"
+                },
+                "attributes": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "author_id": {
+                    "type": "string",
+                    "example": "john doe"
+                },
+                "bio": {
+                    "type": "string",
+                    "example": "Official ION Account for John Doe"
+                },
+                "category": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/nftcontent.NFTCategory"
+                    },
+                    "example": [
+                        "[Video",
+                        " Post]"
+                    ]
+                },
+                "content_type": {
+                    "type": "string",
+                    "example": "text/html"
+                },
+                "content_uri": {
+                    "type": "string",
+                    "example": "https://example.com/account/address"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Official ION Account for John Doe"
+                },
+                "display_name": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "html_preview_uri": {
+                    "type": "string",
+                    "example": "https://example.com/html_preview.html"
+                },
+                "image": {
+                    "type": "string",
+                    "example": "https://example.com/image.png"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "John Doe's ION profile"
+                },
+                "profile_uri": {
+                    "type": "string",
+                    "example": "https://example.com/account/address"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "type": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/nftcontent.NFTContentType"
+                        }
+                    ],
+                    "example": "Content"
                 }
             }
         },

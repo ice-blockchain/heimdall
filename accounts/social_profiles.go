@@ -31,7 +31,7 @@ func (a *accounts) VerifyUsernameAvailability(ctx context.Context, username stri
 	return nil
 }
 
-func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, username, displayName, referralUsername, loggedInUserUserID string) (*SocialProfile, error) {
+func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, username, displayName, referralUsername, bio, avatar, loggedInUserUserID string) (*SocialProfile, error) {
 	dbUsr, err := a.getUserByID(ctx, userIDOrMasterKey)
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 		return nil, errors.Wrapf(err, "failed to read extra information about user %v", userIDOrMasterKey)
@@ -61,6 +61,8 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 		referralUsername,
 		displayName,
 		lookupValue,
+		bio,
+		avatar,
 	}
 
 	query := `
@@ -79,7 +81,9 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 				$5::TEXT AS display_name,
 				$6::TEXT AS lookup,
 				rk.referral_user_master_pubkey AS referral_master_pubkey,
-				(SELECT username FROM social_profiles WHERE master_pubkey = rk.current_user_master_pubkey LIMIT 1) AS old_username
+				(SELECT username FROM social_profiles WHERE master_pubkey = rk.current_user_master_pubkey LIMIT 1) AS old_username,
+				$7::TEXT AS bio,
+				$8::TEXT AS avatar
 			FROM resolved_keys rk
 			WHERE 
 				($2 != '' OR (SELECT username FROM social_profiles WHERE master_pubkey = rk.current_user_master_pubkey LIMIT 1) IS NOT NULL)
@@ -118,9 +122,11 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 					     OR (source.display_name != '' AND COALESCE(target.display_name, '') != source.display_name)
 					THEN source.lookup
 					ELSE target.lookup 
-				END
+				END,
+				bio = CASE WHEN source.bio != '' THEN source.bio ELSE target.bio END,
+				avatar = CASE WHEN source.avatar != '' THEN source.avatar ELSE target.avatar END
 		WHEN NOT MATCHED AND source.username != '' THEN
-			INSERT (created_at, updated_at, master_pubkey, username, display_name, referral_master_pubkey, lookup)
+			INSERT (created_at, updated_at, master_pubkey, username, display_name, referral_master_pubkey, lookup, bio, avatar)
 			VALUES (
 				source.current_time, 
 				source.current_time, 
@@ -128,7 +134,9 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 				source.username, 
 				source.display_name, 
 				source.referral_master_pubkey, 
-				source.lookup
+				source.lookup,
+				source.bio,
+				source.avatar
 			)
 		RETURNING 
 			target.created_at, 
@@ -139,7 +147,9 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 			target.referral_master_pubkey,
 			COALESCE((SELECT referral_profile.username FROM social_profiles referral_profile WHERE referral_profile.master_pubkey = target.referral_master_pubkey), '') as referral_username,
 			COALESCE(source.old_username, '') as old_username,
-			NOT (source.old_username IS NOT NULL) as is_new_profile
+			NOT (source.old_username IS NOT NULL) as is_new_profile,
+			target.bio,
+			target.avatar
 	`
 	type resultProfile struct {
 		socialProfile
@@ -177,6 +187,8 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 		Referral:          profile.ReferralUsername,
 		ReferralMasterKey: profile.ReferralMasterPubkey,
 		UsernameProof:     proofEvents,
+		Bio:               profile.Bio,
+		Avatar:            profile.Avatar,
 	}
 
 	return result, nil

@@ -52,6 +52,10 @@ definitions:
     type: object
   accounts.SocialProfile:
     properties:
+      avatar:
+        type: string
+      bio:
+        type: string
       displayName:
         type: string
       referral:
@@ -306,6 +310,10 @@ definitions:
     type: object
   main.UpsertSocialProfileRequest:
     properties:
+      avatar:
+        type: string
+      bio:
+        type: string
       displayName:
         type: string
       referral:
@@ -448,6 +456,89 @@ definitions:
             type: string
           type: array
         type: array
+    type: object
+  nftcontent.NFTCategory:
+    enum:
+    - Post
+    - Video
+    - Story
+    - Article
+    type: string
+    x-enum-varnames:
+    - NFTCategoryPost
+    - NFTCategoryVideo
+    - NFTCategoryStory
+    - NFTCategoryArticle
+  nftcontent.NFTContentType:
+    enum:
+    - account
+    - post
+    - article
+    - video
+    - story
+    type: string
+    x-enum-varnames:
+    - NFTContentTypeAccount
+    - NFTContentTypePost
+    - NFTContentTypeArticle
+    - NFTContentTypeVideo
+    - NFTContentTypeStory
+  nftcontent.NFTResponse:
+    properties:
+      account_id:
+        example: johndoe
+        type: string
+      attributes:
+        items:
+          items:
+            type: string
+          type: array
+        type: array
+      author_id:
+        example: john doe
+        type: string
+      bio:
+        example: Official ION Account for John Doe
+        type: string
+      category:
+        example:
+        - '[Video'
+        - ' Post]'
+        items:
+          $ref: '#/definitions/nftcontent.NFTCategory'
+        type: array
+      content_type:
+        example: text/html
+        type: string
+      content_uri:
+        example: https://example.com/account/address
+        type: string
+      description:
+        example: Official ION Account for John Doe
+        type: string
+      display_name:
+        example: John Doe
+        type: string
+      html_preview_uri:
+        example: https://example.com/html_preview.html
+        type: string
+      image:
+        example: https://example.com/image.png
+        type: string
+      name:
+        example: John Doe's ION profile
+        type: string
+      profile_uri:
+        example: https://example.com/account/address
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      type:
+        allOf:
+        - $ref: '#/definitions/nftcontent.NFTContentType'
+        example: Content
     type: object
   relaymanagement.UserAssignedRelay:
     properties:
@@ -891,6 +982,61 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Coins
+  /v1/nft-collection-metadata/{nftContentType}/{contentAddress}:
+    get:
+      description: Get NFT collection metadata
+      parameters:
+      - description: NFT content type
+        enum:
+        - account
+        - post
+        - article
+        - video
+        - story
+        in: path
+        name: nftContentType
+        required: true
+        type: string
+      - description: Content address
+        in: path
+        name: contentAddress
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: NFT collection metadata
+          headers:
+            X-Nft-Collection-Address:
+              description: NFT collection address
+              type: string
+            X-Nft-Collection-Created-By:
+              description: NFT collection creator address
+              type: string
+            X-Nft-Collection-Name:
+              description: NFT collection name
+              type: string
+          schema:
+            $ref: '#/definitions/nftcontent.NFTResponse'
+        "400":
+          description: Invalid request format
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "404":
+          description: NFT collection metadata not found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - NFT
   /v1/statistics/hashtags:
     get:
       description: Returns top hashtags

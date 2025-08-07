@@ -335,6 +335,9 @@ hashtagstatistics:
     replicaURLs:
       - postgresql://root:pass@localhost:5437/heimdall
 nft-content:
+  profileUriBaseUrl: https://example.com
+  htmlPreviewBaseURL: https://example.com
+  contentUriBaseUrl: https://example.com
   wintr/connectors/storage/v2:
     runDDL: true
     primaryURL: postgresql://root:pass@localhost:5437/heimdall

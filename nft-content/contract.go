@@ -18,6 +18,12 @@ const (
 	NFTContentTypePost    NFTContentType = "post"
 	NFTContentTypeArticle NFTContentType = "article"
 	NFTContentTypeVideo   NFTContentType = "video"
+	NFTContentTypeStory   NFTContentType = "story"
+
+	NFTCategoryPost    NFTCategory = "Post"
+	NFTCategoryVideo   NFTCategory = "Video"
+	NFTCategoryStory   NFTCategory = "Story"
+	NFTCategoryArticle NFTCategory = "Article"
 
 	NFTContentStatusNew       NFTContentStatus = "new"
 	NFTContentStatusPending   NFTContentStatus = "pending"
@@ -27,10 +33,47 @@ const (
 type (
 	NFTContentStatus = string
 	NFTContentType   = string
+	NFTCategory      = string
 	NFTContent       interface {
 		io.Closer
 		HealthCheck(ctx context.Context) error
 		Process(ctx context.Context, events model.Events) error
+		GetNFTCollectionMetadata(ctx context.Context, nftContentType, contentAddress string) (*NFTResponse, *NFTCollectionMetadata, error)
+	}
+	NFTCollectionMetadata struct {
+		Username                    string           `db:"username"`
+		DisplayName                 string           `db:"display_name"`
+		ContentAddress              string           `db:"content_address"`
+		NFTCollectionAddress        string           `db:"nft_collection_address"`
+		NFTCollectionName           string           `db:"nft_collection_name"`
+		NFTCollectionCreatorAddress string           `db:"nft_collection_creator_address"`
+		MasterPubKey                string           `db:"master_pubkey"`
+		Type                        NFTContentType   `db:"type"`
+		Status                      NFTContentStatus `db:"status"`
+		Bio                         *string          `db:"bio"`
+	}
+	NFTResponse struct {
+		Type           NFTContentType `json:"type,omitempty" example:"Content"`
+		Name           string         `json:"name,omitempty" example:"John Doe's ION profile"`
+		Description    string         `json:"description,omitempty" example:"Official ION Account for John Doe"`
+		Image          string         `json:"image,omitempty" example:"https://example.com/image.png"`
+		HtmlPreviewUri string         `json:"html_preview_uri,omitempty" example:"https://example.com/html_preview.html"`
+		AccountID      string         `json:"account_id,omitempty" example:"johndoe"`
+		ProfileUri     string         `json:"profile_uri,omitempty" example:"https://example.com/account/address"`
+		DisplayName    string         `json:"display_name,omitempty" example:"John Doe"`
+		Bio            string         `json:"bio,omitempty" example:"Official ION Account for John Doe"`
+		ContentUri     string         `json:"content_uri,omitempty" example:"https://example.com/account/address"`
+		ContentType    string         `json:"content_type,omitempty" example:"text/html"`
+		AuthorID       string         `json:"author_id,omitempty" example:"john doe"`
+		Category       []NFTCategory  `json:"category,omitempty" example:"[Video, Post]"`
+		Tags           []string       `json:"tags,omitempty"`
+		Attributes     [][]string     `json:"attributes,omitempty"`
+	}
+
+	Config struct {
+		ProfileURIBaseURL  string `yaml:"profileUriBaseUrl"`
+		HTMLPreviewBaseURL string `yaml:"htmlPreviewBaseUrl"`
+		ContentURIBaseURL  string `yaml:"contentUriBaseUrl"`
 	}
 )
 
@@ -42,15 +85,32 @@ var (
 
 const (
 	applicationYamlKey = "nft-content"
+
+	nftResponseName        string = "NFT response name"
+	nftResponseDescription string = "NFT response description"
+
+	contentTypeHtml string = "text/html"
+
+	responseContentType string = "Content"
+	responseAccountType string = "Account"
 )
 
 var (
 	//go:embed DDL.sql
 	ddl string
+
+	imageUrlMap = map[NFTContentType]string{
+		NFTContentTypeAccount: "https://example.com/images/nft-image-account.png",
+		NFTContentTypeVideo:   "https://example.com/images/nft-image-video.png",
+		NFTContentTypeStory:   "https://example.com/images/nft-image-story.png",
+		NFTContentTypePost:    "https://example.com/images/nft-image-post.png",
+		NFTContentTypeArticle: "https://example.com/images/nft-image-article.png",
+	}
 )
 
 type (
 	nftContent struct {
-		db *storage.DB
+		db     *storage.DB
+		config *Config
 	}
 )

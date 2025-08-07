@@ -107,6 +107,7 @@ func (s *service) RegisterRoutes(router *server.Router) {
 	s.setupCoinRoutes(router)
 	s.setupStatisticsRoutes(router)
 	s.setupSocialProfileRoutes(router)
+	s.setupNFTRoutes(router)
 }
 
 func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {

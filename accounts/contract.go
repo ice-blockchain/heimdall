@@ -59,7 +59,7 @@ type (
 	}
 	SocialProfiles interface {
 		VerifyUsernameAvailability(ctx context.Context, username string) error
-		UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, username, displayName string, referral string, loggedInUserUserID string) (*SocialProfile, error)
+		UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, username, displayName, referral, bio, avatar, loggedInUserUserID string) (*SocialProfile, error)
 		SearchSocialProfiles(ctx context.Context, tpe SearchType, keyword string, limit uint64, offset uint64) ([]*LiteUser, error)
 	}
 	EarlyAccessVerifier interface {
@@ -107,6 +107,8 @@ type (
 		DisplayName       string         `json:"displayName,omitempty"`
 		Referral          string         `json:"referral,omitempty"`
 		ReferralMasterKey *string        `json:"referralMasterKey,omitempty"`
+		Bio               *string        `json:"bio,omitempty"`
+		Avatar            *string        `json:"avatar,omitempty"`
 		UsernameProof     []*model.Event `json:"usernameProof,omitempty"`
 	}
 	WalletView struct {
@@ -272,6 +274,8 @@ type (
 		Username             string  `db:"username"`
 		DisplayName          string  `db:"display_name"`
 		ReferralMasterPubkey *string `db:"referral_master_pubkey"`
+		Bio                  *string `db:"bio"`
+		Avatar               *string `db:"avatar"`
 	}
 	twoFACode struct {
 		CreatedAt       *time.Time
