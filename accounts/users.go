@@ -544,7 +544,7 @@ func (a *accounts) GetIONConnectRelaysForUsers(ctx context.Context, masterPubkey
 		return nil, errors.Wrapf(err, "failed to get users relays for pubkeys %#v", masterPubkeys)
 	}
 	if len(u) == 0 {
-		return nil, ErrNotFound
+		return []*LiteUser{}, nil
 	}
 	return u, nil
 }
