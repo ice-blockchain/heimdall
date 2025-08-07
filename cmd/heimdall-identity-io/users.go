@@ -72,10 +72,7 @@ func (s *service) GetIONConnectRelays(
 	ctx context.Context,
 	req *server.Request[GetBatchRelaysReq, []*accounts.LiteUser],
 ) (*server.Response[[]*accounts.LiteUser], *server.ErrResponse[*server.ErrorResponse]) {
-	var err error
-	var relays []*accounts.LiteUser
-	//TODO add auth check
-	//TODO impl it
+	relays, err := s.accounts.GetIONConnectRelaysForUsers(ctx, req.Data.MasterPubkeys)
 	if err != nil {
 		switch {
 		default:
