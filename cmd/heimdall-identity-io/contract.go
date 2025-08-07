@@ -84,6 +84,11 @@ type (
 		NFTContentType string   `uri:"nftContentType" required:"true" binding:"oneof=account post article video story"`
 		ContentAddress string   `uri:"contentAddress" required:"true"`
 	}
+	GetNFTCollectionMetadataHtmlPreviewRequest struct {
+		_              struct{} `json:"-" allowUnauthorized:"true"`
+		NFTContentType string   `uri:"nftContentType" required:"true" binding:"oneof=account post article video story"`
+		ContentAddress string   `uri:"contentAddress" required:"true"`
+	}
 	UserAssignedRelay = relaymanagement.UserAssignedRelay
 	Relays            struct {
 		IONConnectRelays []*UserAssignedRelay `json:"ionConnectRelays"`
