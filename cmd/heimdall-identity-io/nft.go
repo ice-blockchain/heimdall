@@ -20,10 +20,9 @@ func (s *service) setupNFTRoutes(r *server.Router) {
 //	@Description	Get NFT collection metadata
 //	@Tags			NFT
 //	@Produce		json
-//	@Param			Authorization	header		string						true	"Auth token"	default(Bearer <Add token here>)
-//	@Param			nftContentType	path		string						true	"NFT content type"
+//	@Param			nftContentType	path		string						true	"NFT content type" Enums(account, post, article, video, story)
 //	@Param			contentAddress	path		string						true	"Content address"
-//	@Success		200				{object}	any							"NFT collection metadata"
+//	@Success		200				{object}	nftcontent.NFTResponse		"NFT collection metadata"
 //	@Header			200				{string}	X-Nft-Collection-Name		"NFT collection name"
 //	@Header			200				{string}	X-Nft-Collection-Address	"NFT collection address"
 //	@Header			200				{string}	X-Nft-Collection-Created-By	"NFT collection creator address"
@@ -34,20 +33,12 @@ func (s *service) setupNFTRoutes(r *server.Router) {
 //	@Router			/v1/nft-collection-metadata/{nftContentType}/{contentAddress} [GET]
 func (s *service) GetNFTCollectionMetadata(
 	ctx context.Context,
-	req *server.Request[GetNFTCollectionMetadataRequest, any],
-) (*server.Response[any], *server.ErrResponse[*server.ErrorResponse]) {
-	if err := validateNFTCollectionMetadataReq(req.Data.NFTContentType, req.Data.ContentAddress); err != nil {
-		return nil, server.BadRequest(err, invalidPropertiesErrorCode)
+	req *server.Request[GetNFTCollectionMetadataRequest, *nftcontent.NFTResponse],
+) (*server.Response[*nftcontent.NFTResponse], *server.ErrResponse[*server.ErrorResponse]) {
+	if req.Data.ContentAddress == "" {
+		return nil, server.BadRequest(errors.New("content address is required"), invalidPropertiesErrorCode)
 	}
-	var resp any
-	var metadata *nftcontent.NFTCollectionMetadata
-	var err error
-	switch nftcontent.NFTContentType(req.Data.NFTContentType) {
-	case nftcontent.NFTContentTypeAccount:
-		resp, metadata, err = s.nftContent.GetNFTCollectionMetadataAccount(ctx, req.Data.NFTContentType, req.Data.ContentAddress)
-	default:
-		resp, metadata, err = s.nftContent.GetNFTCollectionMetadataContent(ctx, req.Data.NFTContentType, req.Data.ContentAddress)
-	}
+	resp, metadata, err := s.nftContent.GetNFTCollectionMetadata(ctx, req.Data.NFTContentType, req.Data.ContentAddress)
 	if err != nil {
 		switch {
 		case errors.Is(err, nftcontent.ErrNotFound):
@@ -64,22 +55,4 @@ func (s *service) GetNFTCollectionMetadata(
 	}
 
 	return response, nil
-}
-
-func validateNFTCollectionMetadataReq(nftContentType, contentAddress string) error {
-	types := map[nftcontent.NFTContentType]bool{
-		nftcontent.NFTContentTypeAccount: true,
-		nftcontent.NFTContentTypePost:    true,
-		nftcontent.NFTContentTypeArticle: true,
-		nftcontent.NFTContentTypeVideo:   true,
-		nftcontent.NFTContentTypeStory:   true,
-	}
-	if _, ok := types[nftcontent.NFTContentType(nftContentType)]; !ok {
-		return errors.Errorf("invalid nft content type")
-	}
-	if contentAddress == "" {
-		return errors.Errorf("content address is required")
-	}
-
-	return nil
 }

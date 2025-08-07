@@ -80,9 +80,9 @@ type (
 		Limit         int    `form:"limit" required:"false"`
 	}
 	GetNFTCollectionMetadataRequest struct {
-		Authorization  string `header:"Authorization" required:"true" swaggerignore:"true"`
-		NFTContentType string `uri:"nftContentType" required:"true"`
-		ContentAddress string `uri:"contentAddress" required:"true"`
+		_              struct{} `json:"-" allowUnauthorized:"true"`
+		NFTContentType string   `uri:"nftContentType" required:"true" binding:"oneof=account post article video story"`
+		ContentAddress string   `uri:"contentAddress" required:"true"`
 	}
 	UserAssignedRelay = relaymanagement.UserAssignedRelay
 	Relays            struct {

@@ -93,6 +93,7 @@ CREATE TABLE IF NOT EXISTS social_profiles (
     primary key(master_pubkey)
 ) WITH (FILLFACTOR = 70);
 
+-- TODO: remove this it will be migrated to all envs.
 ALTER TABLE social_profiles ADD COLUMN IF NOT EXISTS bio TEXT;
 ALTER TABLE social_profiles ADD COLUMN IF NOT EXISTS avatar TEXT;
 

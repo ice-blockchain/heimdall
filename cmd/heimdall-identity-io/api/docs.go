@@ -619,14 +619,13 @@ const docTemplate = `{
                 ],
                 "parameters": [
                     {
-                        "type": "string",
-                        "default": "Bearer \u003cAdd token here\u003e",
-                        "description": "Auth token",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
+                        "enum": [
+                            "account",
+                            "post",
+                            "article",
+                            "video",
+                            "story"
+                        ],
                         "type": "string",
                         "description": "NFT content type",
                         "name": "nftContentType",
@@ -644,7 +643,9 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "NFT collection metadata",
-                        "schema": {},
+                        "schema": {
+                            "$ref": "#/definitions/nftcontent.NFTResponse"
+                        },
                         "headers": {
                             "X-Nft-Collection-Address": {
                                 "type": "string",
@@ -2912,6 +2913,120 @@ const docTemplate = `{
                             "type": "string"
                         }
                     }
+                }
+            }
+        },
+        "nftcontent.NFTCategory": {
+            "type": "string",
+            "enum": [
+                "Post",
+                "Video",
+                "Story",
+                "Article"
+            ],
+            "x-enum-varnames": [
+                "NFTCategoryPost",
+                "NFTCategoryVideo",
+                "NFTCategoryStory",
+                "NFTCategoryArticle"
+            ]
+        },
+        "nftcontent.NFTContentType": {
+            "type": "string",
+            "enum": [
+                "account",
+                "post",
+                "article",
+                "video",
+                "story"
+            ],
+            "x-enum-varnames": [
+                "NFTContentTypeAccount",
+                "NFTContentTypePost",
+                "NFTContentTypeArticle",
+                "NFTContentTypeVideo",
+                "NFTContentTypeStory"
+            ]
+        },
+        "nftcontent.NFTResponse": {
+            "type": "object",
+            "properties": {
+                "account_id": {
+                    "type": "string",
+                    "example": "johndoe"
+                },
+                "attributes": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "author_id": {
+                    "type": "string",
+                    "example": "john doe"
+                },
+                "bio": {
+                    "type": "string",
+                    "example": "Official ION Account for John Doe"
+                },
+                "category": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/nftcontent.NFTCategory"
+                    },
+                    "example": [
+                        "[Video",
+                        " Post]"
+                    ]
+                },
+                "content_type": {
+                    "type": "string",
+                    "example": "text/html"
+                },
+                "content_uri": {
+                    "type": "string",
+                    "example": "https://example.com/account/address"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Official ION Account for John Doe"
+                },
+                "display_name": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "html_preview_uri": {
+                    "type": "string",
+                    "example": "https://example.com/html_preview.html"
+                },
+                "image": {
+                    "type": "string",
+                    "example": "https://example.com/image.png"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "John Doe's ION profile"
+                },
+                "profile_uri": {
+                    "type": "string",
+                    "example": "https://example.com/account/address"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "type": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/nftcontent.NFTContentType"
+                        }
+                    ],
+                    "example": "Content"
                 }
             }
         },

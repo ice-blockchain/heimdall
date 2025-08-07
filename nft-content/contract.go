@@ -20,6 +20,11 @@ const (
 	NFTContentTypeVideo   NFTContentType = "video"
 	NFTContentTypeStory   NFTContentType = "story"
 
+	NFTCategoryPost    NFTCategory = "Post"
+	NFTCategoryVideo   NFTCategory = "Video"
+	NFTCategoryStory   NFTCategory = "Story"
+	NFTCategoryArticle NFTCategory = "Article"
+
 	NFTContentStatusNew       NFTContentStatus = "new"
 	NFTContentStatusPending   NFTContentStatus = "pending"
 	NFTContentStatusCompleted NFTContentStatus = "completed"
@@ -28,12 +33,12 @@ const (
 type (
 	NFTContentStatus = string
 	NFTContentType   = string
+	NFTCategory      = string
 	NFTContent       interface {
 		io.Closer
 		HealthCheck(ctx context.Context) error
 		Process(ctx context.Context, events model.Events) error
-		GetNFTCollectionMetadataAccount(ctx context.Context, nftContentType, contentAddress string) (*NFTResponseAccount, *NFTCollectionMetadata, error)
-		GetNFTCollectionMetadataContent(ctx context.Context, nftContentType, contentAddress string) (*NFTResponseContent, *NFTCollectionMetadata, error)
+		GetNFTCollectionMetadata(ctx context.Context, nftContentType, contentAddress string) (*NFTResponse, *NFTCollectionMetadata, error)
 	}
 	NFTCollectionMetadata struct {
 		Username                    string           `db:"username"`
@@ -47,33 +52,28 @@ type (
 		Status                      NFTContentStatus `db:"status"`
 		Bio                         *string          `db:"bio"`
 	}
-	NFTResponseAccount struct {
-		Type           NFTContentType `json:"type,omitempty" example:"Account"`
+	NFTResponse struct {
+		Type           NFTContentType `json:"type,omitempty" example:"Content"`
 		Name           string         `json:"name,omitempty" example:"John Doe's ION profile"`
-		Description    string         `json:"description,omitempty" example:"Oficial ION Account for John Doe"`
+		Description    string         `json:"description,omitempty" example:"Official ION Account for John Doe"`
 		Image          string         `json:"image,omitempty" example:"https://example.com/image.png"`
 		HtmlPreviewUri string         `json:"html_preview_uri,omitempty" example:"https://example.com/html_preview.html"`
 		AccountID      string         `json:"account_id,omitempty" example:"johndoe"`
-		ProfileUri     string         `json:"profile_uri,omitempty" example:"https://someOtherEnvBasedBaseUrl/{nft_content_type}/{content_address}"`
+		ProfileUri     string         `json:"profile_uri,omitempty" example:"https://example.com/account/address"`
 		DisplayName    string         `json:"display_name,omitempty" example:"John Doe"`
-		Bio            string         `json:"bio,omitempty" example:"Oficial ION Account for John Doe"`
-	}
-	NFTResponseContent struct {
-		Type           NFTContentType   `json:"type,omitempty" example:"[Video, Post]"`
-		Name           string           `json:"name,omitempty" example:"John Doe's ION profile"`
-		Description    string           `json:"description,omitempty" example:"Oficial ION Account for John Doe"`
-		Image          string           `json:"image,omitempty" example:"https://example.com/image.png"`
-		HtmlPreviewUri string           `json:"html_preview_uri,omitempty" example:"https://example.com/html_preview.html"`
-		ContentUri     string           `json:"content_uri,omitempty" example:"https://someOtherEnvBasedBaseUrl/{nft_content_type}/{content_address}"`
-		ContentType    string           `json:"content_type,omitempty" example:"text/html"`
-		AuthorID       string           `json:"author_id,omitempty" example:"john doe"`
-		Category       []NFTContentType `json:"category,omitempty" example:"Social"`
-		Tags           []string         `json:"tags"`
-		Attributes     []string         `json:"attributes"`
+		Bio            string         `json:"bio,omitempty" example:"Official ION Account for John Doe"`
+		ContentUri     string         `json:"content_uri,omitempty" example:"https://example.com/account/address"`
+		ContentType    string         `json:"content_type,omitempty" example:"text/html"`
+		AuthorID       string         `json:"author_id,omitempty" example:"john doe"`
+		Category       []NFTCategory  `json:"category,omitempty" example:"[Video, Post]"`
+		Tags           []string       `json:"tags,omitempty"`
+		Attributes     [][]string     `json:"attributes,omitempty"`
 	}
 
 	Config struct {
-		EnvBasedUrl string `yaml:"envBasedUrl"`
+		ProfileURIBaseURL  string `yaml:"profileUriBaseUrl"`
+		HTMLPreviewBaseURL string `yaml:"htmlPreviewBaseUrl"`
+		ContentURIBaseURL  string `yaml:"contentUriBaseUrl"`
 	}
 )
 
@@ -86,8 +86,8 @@ var (
 const (
 	applicationYamlKey = "nft-content"
 
-	nftResponseName        string = "Heimdall Identity"
-	nftResponseDescription string = "Heimdall Identity"
+	nftResponseName        string = "NFT response name"
+	nftResponseDescription string = "NFT response description"
 
 	contentTypeHtml string = "text/html"
 
@@ -100,11 +100,11 @@ var (
 	ddl string
 
 	imageUrlMap = map[NFTContentType]string{
-		NFTContentTypeAccount: "https://ice.io/images/nft-image-account.png",
-		NFTContentTypeVideo:   "https://ice.io/images/nft-image-video.png",
-		NFTContentTypeStory:   "https://ice.io/images/nft-image-story.png",
-		NFTContentTypePost:    "https://ice.io/images/nft-image-post.png",
-		NFTContentTypeArticle: "https://ice.io/images/nft-image-article.png",
+		NFTContentTypeAccount: "https://example.com/images/nft-image-account.png",
+		NFTContentTypeVideo:   "https://example.com/images/nft-image-video.png",
+		NFTContentTypeStory:   "https://example.com/images/nft-image-story.png",
+		NFTContentTypePost:    "https://example.com/images/nft-image-post.png",
+		NFTContentTypeArticle: "https://example.com/images/nft-image-article.png",
 	}
 )
 

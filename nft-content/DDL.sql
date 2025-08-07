@@ -4,6 +4,7 @@ DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'nft_content_type') THEN
         CREATE TYPE nft_content_type AS ENUM ('account', 'post', 'article', 'video', 'story');
     ELSE
+        -- TODO: remove this it will be migrated to all envs.
         IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'story' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'nft_content_type')) THEN
             ALTER TYPE nft_content_type ADD VALUE 'story';
         END IF;
@@ -16,6 +17,7 @@ END$$;
 CREATE TABLE IF NOT EXISTS nft_content (
     content_address                        TEXT NOT NULL,
     nft_collection_address                 TEXT NOT NULL DEFAULT '',
+    nft_collection_item_address            TEXT NOT NULL DEFAULT '',
     nft_collection_name                    TEXT NOT NULL DEFAULT '',
     nft_collection_creator_address         TEXT NOT NULL DEFAULT '',
     master_pubkey                          TEXT NOT NULL REFERENCES users(master_pubkey) ON DELETE CASCADE,
@@ -24,8 +26,14 @@ CREATE TABLE IF NOT EXISTS nft_content (
     PRIMARY KEY (content_address, type)
 ) WITH (FILLFACTOR = 70);
 
-ALTER TABLE nft_content ADD COLUMN IF NOT EXISTS nft_collection_name TEXT NOT NULL DEFAULT '';
+CREATE INDEX IF NOT EXISTS nft_content_master_pubkey_idx ON nft_content (master_pubkey);
+CREATE INDEX IF NOT EXISTS nft_content_content_address_type_status_idx ON nft_content (content_address, type, status);
 
+-- TODO: remove this it will be migrated to all envs.
+ALTER TABLE nft_content ADD COLUMN IF NOT EXISTS nft_collection_name TEXT NOT NULL DEFAULT '';
+ALTER TABLE nft_content ADD COLUMN IF NOT EXISTS nft_collection_item_address TEXT NOT NULL DEFAULT '';
+
+-- TODO: remove this it will be migrated to all envs.
 DO $$ 
 BEGIN
     IF EXISTS (
