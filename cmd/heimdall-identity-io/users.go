@@ -65,6 +65,7 @@ func (s *service) GetOrAssignIONConnectRelays(
 //	@Param			masterPubkey	query		[]string	true	"master pubkeys to get the ion connect relays for"
 //	@Param			Authorization	header		string		true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
 //	@Success		200				{array}		accounts.LiteUser
+//	@Failure		404				{object}	server.ErrorResponse	"if none of the users found"
 //	@Failure		500				{object}	server.ErrorResponse
 //	@Failure		504				{object}	server.ErrorResponse	"if request times out"
 //	@Router			/v1/users/ion-connect-relays [GET].
@@ -72,12 +73,11 @@ func (s *service) GetIONConnectRelays(
 	ctx context.Context,
 	req *server.Request[GetBatchRelaysReq, []*accounts.LiteUser],
 ) (*server.Response[[]*accounts.LiteUser], *server.ErrResponse[*server.ErrorResponse]) {
-	var err error
-	var relays []*accounts.LiteUser
-	//TODO add auth check
-	//TODO impl it
+	relays, err := s.accounts.GetIONConnectRelaysForUsers(ctx, req.Data.MasterPubkeys)
 	if err != nil {
 		switch {
+		case errors.Is(err, accounts.ErrNotFound):
+			return nil, server.NotFound(err, notFound)
 		default:
 			return nil, server.Unexpected(err)
 		}

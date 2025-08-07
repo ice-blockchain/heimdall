@@ -534,3 +534,17 @@ func (a *accounts) CompleteRegistration(ctx context.Context, credentials *Creden
 	}
 	return registration, nil
 }
+
+func (a *accounts) GetIONConnectRelaysForUsers(ctx context.Context, masterPubkeys []string) ([]*LiteUser, error) {
+	u, err := storage.Select[LiteUser](ctx, a.db, `SELECT 
+	master_pubkey,
+    (select json_agg(x) from (select url, relay_type as "type" from ion_connect_relays where url=ANY(users.ion_connect_relays)) x) as ion_connect_relays
+    FROM users where master_pubkey = ANY($1)`, masterPubkeys)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get users relays for pubkeys %#v", masterPubkeys)
+	}
+	if len(u) == 0 {
+		return nil, ErrNotFound
+	}
+	return u, nil
+}

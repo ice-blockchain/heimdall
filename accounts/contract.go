@@ -38,6 +38,7 @@ type (
 		StartDelegatedRecovery(ctx context.Context, username, credentialID string, codes map[TwoFAOptionWithAddr]string) (resp *StartedDelegatedRecovery, err error)
 		GetLoginChallenge(ctx context.Context, username string, codes map[TwoFAOptionWithAddr]string) (*LoginChallenge, error)
 		GetOrAssignIONConnectRelays(ctx context.Context, userID string, followees []string) (relays []*UserAssignedRelay, err error)
+		GetIONConnectRelaysForUsers(ctx context.Context, masterPubkeys []string) (relays []*LiteUser, err error)
 		GetIONConnectIndexerRelays(ctx context.Context, userID string) (indexers []string, err error)
 		GetUser(ctx context.Context, userID string) (usr *User, err error)
 		SecurePaymentConfirmation(ctx context.Context, userID, walletID string, body map[string]string) (templateData any, err error)
