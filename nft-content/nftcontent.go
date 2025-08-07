@@ -50,14 +50,14 @@ func (n *nftContent) GetNFTCollectionMetadata(ctx context.Context, nftContentTyp
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to get nft collection metadata")
 	}
-	htmlPreviewUri, _ := url.JoinPath(n.config.HTMLPreviewBaseURL, metadata.Type, metadata.ContentAddress)
+	htmlPreviewUri, _ := url.JoinPath(n.config.HTMLPreviewBaseURL, metadata.Type, metadata.ContentAddress, "html-preview")
 	resp := &NFTResponse{
 		HtmlPreviewUri: htmlPreviewUri,
 		Image:          imageUrlMap[NFTContentType(nftContentType)],
 	}
 
 	if NFTContentType(nftContentType) == NFTContentTypeAccount {
-		profileUri, _ := url.JoinPath(n.config.ProfileURIBaseURL, metadata.Type, metadata.ContentAddress)
+		profileUri, _ := url.JoinPath(n.config.ProfileURIBaseURL, metadata.Type, metadata.ContentAddress, "html-preview")
 		resp.Name = fmt.Sprintf("%s's ION Profile", metadata.Username)
 		resp.Description = fmt.Sprintf("Official ION Account for %s.", metadata.Username)
 		resp.Type = responseAccountType
@@ -70,7 +70,7 @@ func (n *nftContent) GetNFTCollectionMetadata(ctx context.Context, nftContentTyp
 	} else {
 		resp.Name = nftResponseName
 		resp.Description = nftResponseDescription
-		contentUri, _ := url.JoinPath(n.config.ContentURIBaseURL, metadata.Type, metadata.ContentAddress)
+		contentUri, _ := url.JoinPath(n.config.ContentURIBaseURL, metadata.Type, metadata.ContentAddress, "html-preview")
 		resp.Type = responseContentType
 		resp.Category = []NFTContentType{metadata.Type}
 		resp.ContentUri = contentUri

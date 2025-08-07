@@ -688,6 +688,73 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/nft-collection-metadata/{nftContentType}/{contentAddress}/html-preview": {
+            "get": {
+                "description": "Get NFT collection metadata as HTML preview",
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "NFT"
+                ],
+                "summary": "Get NFT collection metadata HTML preview",
+                "parameters": [
+                    {
+                        "enum": [
+                            "account",
+                            "post",
+                            "article",
+                            "video",
+                            "story"
+                        ],
+                        "type": "string",
+                        "description": "NFT content type",
+                        "name": "nftContentType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Content address",
+                        "name": "contentAddress",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "HTML preview of NFT collection metadata",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request format",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid request format",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/statistics/hashtags": {
             "get": {
                 "description": "Returns top hashtags",
