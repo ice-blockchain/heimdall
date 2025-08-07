@@ -35,9 +35,6 @@ func (s *service) GetNFTCollectionMetadata(
 	ctx context.Context,
 	req *server.Request[GetNFTCollectionMetadataRequest, *nftcontent.NFTResponse],
 ) (*server.Response[*nftcontent.NFTResponse], *server.ErrResponse[*server.ErrorResponse]) {
-	if req.Data.ContentAddress == "" {
-		return nil, server.BadRequest(errors.New("content address is required"), invalidPropertiesErrorCode)
-	}
 	resp, metadata, err := s.nftContent.GetNFTCollectionMetadata(ctx, req.Data.NFTContentType, req.Data.ContentAddress)
 	if err != nil {
 		switch {

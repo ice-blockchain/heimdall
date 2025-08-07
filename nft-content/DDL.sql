@@ -27,7 +27,6 @@ CREATE TABLE IF NOT EXISTS nft_content (
 ) WITH (FILLFACTOR = 70);
 
 CREATE INDEX IF NOT EXISTS nft_content_master_pubkey_idx ON nft_content (master_pubkey);
-CREATE INDEX IF NOT EXISTS nft_content_content_address_type_status_idx ON nft_content (content_address, type, status);
 
 -- TODO: remove this it will be migrated to all envs.
 ALTER TABLE nft_content ADD COLUMN IF NOT EXISTS nft_collection_name TEXT NOT NULL DEFAULT '';
