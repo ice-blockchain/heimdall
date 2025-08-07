@@ -998,12 +998,6 @@ const docTemplate = `{
                             }
                         }
                     },
-                    "404": {
-                        "description": "if none of the users found",
-                        "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
-                        }
-                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
