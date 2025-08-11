@@ -362,6 +362,7 @@ apps-runtime:
     notInterestedCategoryChance: 0.3
     notInterestedSubcategoryChance: 0.2
     concurrentRequests: 3
+    concurrentBigFileUploadChunks: 10
     followingReqMaxAge: 432000000
     followingCacheMaxAge: 432000000
     topMaxAge: 259200000
