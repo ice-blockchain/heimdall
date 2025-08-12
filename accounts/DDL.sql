@@ -91,7 +91,7 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE TRIGGER priority_accounts_insert_version_trigger
 AFTER INSERT OR DELETE ON priority_accounts
-FOR EACH ROW
+FOR EACH STATEMENT
 EXECUTE FUNCTION increment_priority_accounts_version();
 
 CREATE TABLE IF NOT EXISTS verified_users_sync_queue (
