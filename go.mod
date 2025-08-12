@@ -31,7 +31,7 @@ require (
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.16.6
 	github.com/twilio/twilio-go v1.27.0
-	github.com/xssnick/tonutils-go v1.14.0
+	github.com/xssnick/tonutils-go v1.14.1
 	golang.org/x/exp v0.0.0-20250811191247-51f88131bc50
 	golang.org/x/net v0.43.0
 	golang.org/x/sync v0.16.0
