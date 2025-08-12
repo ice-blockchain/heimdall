@@ -239,7 +239,10 @@ func (s *service) GetConfig(
 	if !validConfigName {
 		return nil, server.NotFound(errors.Errorf("invalid configName %v", req.Data.ConfigName), notFound)
 	}
-	resp, vers := getConfig(s.cfg)
+	resp, vers := getConfig(s.cfg, req.Data.Version)
+	if err, ok := resp.(error); ok {
+		return nil, server.Unexpected(err)
+	}
 	if vers > Version(0) && req.Data.Version == nil {
 		return nil, server.UnprocessableEntity(errors.Errorf("version required for %v", req.Data.ConfigName), invalidPropertiesErrorCode)
 	}

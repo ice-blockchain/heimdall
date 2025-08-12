@@ -72,6 +72,28 @@ CREATE TABLE IF NOT EXISTS content_creators (
     primary key(master_pubkey)
 );
 
+CREATE TABLE IF NOT EXISTS priority_accounts (
+    master_pubkey                           TEXT NOT NULL REFERENCES users(master_pubkey) ON DELETE CASCADE,
+    primary key(master_pubkey)
+);
+
+CREATE OR REPLACE FUNCTION increment_priority_accounts_version()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO global (key, value)
+    VALUES ('latest_priority_accounts_version', '1')
+    ON CONFLICT (key)
+    DO UPDATE SET value = (COALESCE(CAST(global.value AS INTEGER), 0) + 1)::TEXT;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER priority_accounts_insert_version_trigger
+AFTER INSERT OR DELETE ON priority_accounts
+FOR EACH ROW
+EXECUTE FUNCTION increment_priority_accounts_version();
+
 CREATE TABLE IF NOT EXISTS verified_users_sync_queue (
     created_at                       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     user_id                          TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

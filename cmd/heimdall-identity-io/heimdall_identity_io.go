@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/goccy/go-json"
 	"github.com/hashicorp/go-multierror"
@@ -58,7 +59,7 @@ func mountContentCategoriesConfig() {
 			cfgKey := fmt.Sprintf("content-topics_%v_%v", strings.ReplaceAll(contentType.Name(), ".json", ""), language)
 			version, err := strconv.Atoi(fmt.Sprint(content["_version"]))
 			log.Panic(err)
-			allValidConfigNames[cfgKey] = func(_ *config) (any, Version) {
+			allValidConfigNames[cfgKey] = func(_ *config, _ *Version) (any, Version) {
 				return content, Version(version)
 			}
 		}
@@ -74,7 +75,7 @@ func mountTranslationsConfig() {
 				cfgKey := fmt.Sprintf("%v_%v_translations_%v", appName.Name(), strings.ReplaceAll(usecase.Name(), ".json", ""), language)
 				version, err := strconv.Atoi(fmt.Sprint(content["_version"]))
 				log.Panic(err)
-				allValidConfigNames[cfgKey] = func(_ *config) (any, Version) {
+				allValidConfigNames[cfgKey] = func(_ *config, _ *Version) (any, Version) {
 					return content, Version(version)
 				}
 			}
@@ -115,7 +116,7 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	s.relays = relaymanagement.NewRelays(ctx)
 	var appsRuntimeCfg accounts.AppsRuntimeConfig
 	appcfg.MustLoadFromKey(runtimeConfigApplicationYamlKey, &appsRuntimeCfg)
-	allValidConfigNames["apps-runtime_ion-app"] = func(cfg *config) (any, Version) {
+	allValidConfigNames["apps-runtime_ion-app"] = func(_ *config, _ *Version) (any, Version) {
 		return appsRuntimeCfg.IONApp, Version(appsRuntimeCfg.IONApp.Version)
 	}
 	s.accounts = accounts.New(ctx, s.coins, s.relays, &appsRuntimeCfg)
@@ -123,7 +124,23 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	s.nftContent = nftcontent.New(ctx)
 
 	publicKey := s.accounts.PublicKey()
-	allValidConfigNames[configNameServicePubkeys] = func(_ *config) (any, Version) { return []string{publicKey}, Version(1) }
+	allValidConfigNames[configNameServicePubkeys] = func(_ *config, _ *Version) (any, Version) { return []string{publicKey}, Version(1) }
+	allValidConfigNames["priority_accounts"] = func(_ *config, ver *Version) (any, Version) {
+		reqCtx, reqCancel := context.WithTimeout(ctx, 25*time.Second)
+		defer reqCancel()
+		var currentVer uint8
+		if ver != nil {
+			currentVer = uint8(*ver)
+		} else {
+			return errors.New("version required for priority_accounts"), Version(0)
+		}
+		accs, newVer, err := s.accounts.GetPriorityAccounts(reqCtx, currentVer)
+		if err != nil {
+			return err, Version(0)
+		}
+
+		return accs, Version(newVer)
+	}
 }
 
 func (s *service) Close(ctx context.Context) error {

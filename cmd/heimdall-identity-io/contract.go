@@ -300,12 +300,12 @@ var (
 	contentTopics embed.FS
 	//go:embed translations/*/*.json
 	translations        embed.FS
-	allValidConfigNames = map[string]func(cfg *config) (any, Version){
-		configNameRequiredAndroidAppVersion: func(cfg *config) (any, Version) { return cfg.RequiredAppVersions.Android, Version(0) },
-		configNameRequiredIOSAppVersion:     func(cfg *config) (any, Version) { return cfg.RequiredAppVersions.IOS, Version(0) },
-		configNameRequiredMacOSAppVersion:   func(cfg *config) (any, Version) { return cfg.RequiredAppVersions.MacOS, Version(0) },
-		configNameRequiredWindowsAppVersion: func(cfg *config) (any, Version) { return cfg.RequiredAppVersions.Windows, Version(0) },
-		configNameRequiredLinuxAppVersion:   func(cfg *config) (any, Version) { return cfg.RequiredAppVersions.Linux, Version(0) },
+	allValidConfigNames = map[string]func(cfg *config, _ *Version) (any, Version){
+		configNameRequiredAndroidAppVersion: func(cfg *config, _ *Version) (any, Version) { return cfg.RequiredAppVersions.Android, Version(0) },
+		configNameRequiredIOSAppVersion:     func(cfg *config, _ *Version) (any, Version) { return cfg.RequiredAppVersions.IOS, Version(0) },
+		configNameRequiredMacOSAppVersion:   func(cfg *config, _ *Version) (any, Version) { return cfg.RequiredAppVersions.MacOS, Version(0) },
+		configNameRequiredWindowsAppVersion: func(cfg *config, _ *Version) (any, Version) { return cfg.RequiredAppVersions.Windows, Version(0) },
+		configNameRequiredLinuxAppVersion:   func(cfg *config, _ *Version) (any, Version) { return cfg.RequiredAppVersions.Linux, Version(0) },
 	}
 )
 
