@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS nft_content (
 
 CREATE INDEX IF NOT EXISTS nft_content_master_pubkey_idx ON nft_content (master_pubkey);
 CREATE INDEX IF NOT EXISTS nft_content_new_assignment_idx ON nft_content (content_address) WHERE status = 'new' AND nft_collection_creator_address = '';
-CREATE INDEX IF NOT EXISTS nft_content_creator_sorted_idx ON nft_content (nft_collection_creator_address, master_pubkey, type, content_address) WHERE (status = 'new' OR status = 'pending') AND nft_collection_creator_address IS NOT NULL AND nft_collection_creator_address <> '';
+CREATE INDEX IF NOT EXISTS nft_content_creator_sorted_idx ON nft_content (nft_collection_creator_address, master_pubkey, type, content_address, status) WHERE nft_collection_creator_address IS NOT NULL AND nft_collection_creator_address <> '';
 
 -- TODO: remove this it will be migrated to all envs.
 DO $$ 
