@@ -552,7 +552,7 @@ func (a *accounts) GetIONConnectRelaysForUsers(ctx context.Context, masterPubkey
 func (a *accounts) GetPriorityAccounts(ctx context.Context, currentVer uint8) ([]*LiteUser, uint8, error) {
 	stmt := `SELECT CAST(value AS INTEGER) as latest_version
 			 FROM global 
-			 WHERE key = "latest_priority_accounts_version"
+			 WHERE key = 'latest_priority_accounts_version'
                AND CAST(value AS INTEGER) > $1`
 	lv, err := storage.Get[struct {
 		LatestVersion uint8 `db:"latest_version"`
@@ -579,6 +579,9 @@ func (a *accounts) GetPriorityAccounts(ctx context.Context, currentVer uint8) ([
 	accs, err := storage.Select[LiteUser](ctx, a.db, stmt)
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "failed to select PriorityAccounts for version: %#v", currentVer)
+	}
+	if accs == nil {
+		accs = []*LiteUser{}
 	}
 
 	return accs, lv.LatestVersion, nil
