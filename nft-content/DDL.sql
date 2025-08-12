@@ -17,7 +17,7 @@ END$$;
 CREATE TABLE IF NOT EXISTS nft_content (
     content_address                        TEXT NOT NULL,
     nft_collection_address                 TEXT NOT NULL DEFAULT '',
-    nft_collection_item_address            TEXT NOT NULL DEFAULT '',
+    nft_item_address                       TEXT NOT NULL DEFAULT '',
     nft_collection_name                    TEXT NOT NULL DEFAULT '',
     nft_collection_creator_address         TEXT NOT NULL DEFAULT '',
     master_pubkey                          TEXT NOT NULL REFERENCES users(master_pubkey) ON DELETE CASCADE,
@@ -29,8 +29,20 @@ CREATE TABLE IF NOT EXISTS nft_content (
 CREATE INDEX IF NOT EXISTS nft_content_master_pubkey_idx ON nft_content (master_pubkey);
 
 -- TODO: remove this it will be migrated to all envs.
+DO $$ 
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'nft_content' 
+        AND column_name = 'nft_collection_item_address'
+    ) THEN
+        ALTER TABLE nft_content RENAME COLUMN nft_collection_item_address TO nft_item_address;
+    END IF;
+END $$;
+
+-- TODO: remove this it will be migrated to all envs.
 ALTER TABLE nft_content ADD COLUMN IF NOT EXISTS nft_collection_name TEXT NOT NULL DEFAULT '';
-ALTER TABLE nft_content ADD COLUMN IF NOT EXISTS nft_collection_item_address TEXT NOT NULL DEFAULT '';
+ALTER TABLE nft_content ADD COLUMN IF NOT EXISTS nft_item_address TEXT NOT NULL DEFAULT '';
 
 -- TODO: remove this it will be migrated to all envs.
 DO $$ 
