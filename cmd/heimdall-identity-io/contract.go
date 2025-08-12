@@ -81,7 +81,7 @@ type (
 	}
 	GetNFTCollectionMetadataRequest struct {
 		_              struct{} `json:"-" allowUnauthorized:"true"`
-		NFTContentType string   `uri:"nftContentType" required:"true" binding:"oneof=account post article video story"`
+		NFTContentType string   `uri:"nftContentType" required:"true" binding:"oneof=user account post article video story"`
 		ContentAddress string   `uri:"contentAddress" required:"true"`
 	}
 	GetNFTCollectionMetadataHtmlPreviewRequest struct {

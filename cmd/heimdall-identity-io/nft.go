@@ -21,7 +21,7 @@ func (s *service) setupNFTRoutes(r *server.Router) {
 //	@Description	Get NFT collection metadata
 //	@Tags			NFT
 //	@Produce		json
-//	@Param			nftContentType	path		string						true	"NFT content type"	Enums(account, post, article, video, story)
+//	@Param			nftContentType	path		string						true	"NFT content type"	Enums(user, account, post, article, video, story)
 //	@Param			contentAddress	path		string						true	"Content address"
 //	@Success		200				{object}	nftcontent.NFTResponse		"NFT collection metadata"
 //	@Header			200				{string}	X-Nft-Collection-Name		"NFT collection name"
@@ -36,7 +36,16 @@ func (s *service) GetNFTCollectionMetadata(
 	ctx context.Context,
 	req *server.Request[GetNFTCollectionMetadataRequest, *nftcontent.NFTResponse],
 ) (*server.Response[*nftcontent.NFTResponse], *server.ErrResponse[*server.ErrorResponse]) {
-	resp, metadata, err := s.nftContent.GetNFTCollectionMetadata(ctx, req.Data.NFTContentType, req.Data.ContentAddress)
+	var (
+		err      error
+		resp     *nftcontent.NFTResponse
+		metadata *nftcontent.NFTCollectionMetadata
+	)
+	if req.Data.NFTContentType == "user" {
+		resp, metadata, err = s.nftContent.GetNFTCollectionMetadata(ctx, req.Data.ContentAddress)
+	} else {
+		resp, metadata, err = s.nftContent.GetNFTCollectionItemMetadata(ctx, req.Data.NFTContentType, req.Data.ContentAddress)
+	}
 	if err != nil {
 		switch {
 		case errors.Is(err, nftcontent.ErrNotFound):

@@ -471,6 +471,7 @@ definitions:
     - NFTCategoryArticle
   nftcontent.NFTContentType:
     enum:
+    - user
     - account
     - post
     - article
@@ -478,6 +479,7 @@ definitions:
     - story
     type: string
     x-enum-varnames:
+    - NFTContentTypeUser
     - NFTContentTypeAccount
     - NFTContentTypePost
     - NFTContentTypeArticle
@@ -988,6 +990,7 @@ paths:
       parameters:
       - description: NFT content type
         enum:
+        - user
         - account
         - post
         - article

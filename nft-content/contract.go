@@ -14,6 +14,7 @@ import (
 )
 
 const (
+	NFTContentTypeUser    NFTContentType = "user"
 	NFTContentTypeAccount NFTContentType = "account"
 	NFTContentTypePost    NFTContentType = "post"
 	NFTContentTypeArticle NFTContentType = "article"
@@ -38,19 +39,23 @@ type (
 		io.Closer
 		HealthCheck(ctx context.Context) error
 		Process(ctx context.Context, events model.Events) error
-		GetNFTCollectionMetadata(ctx context.Context, nftContentType, contentAddress string) (*NFTResponse, *NFTCollectionMetadata, error)
+		GetNFTCollectionItemMetadata(ctx context.Context, nftContentType, contentAddress string) (*NFTResponse, *NFTCollectionMetadata, error)
+		GetNFTCollectionMetadata(ctx context.Context, masterPubkey string) (*NFTResponse, *NFTCollectionMetadata, error)
 	}
 	NFTCollectionMetadata struct {
-		Username                    string           `db:"username"`
-		DisplayName                 string           `db:"display_name"`
-		ContentAddress              string           `db:"content_address"`
-		NFTCollectionAddress        string           `db:"nft_collection_address"`
-		NFTCollectionName           string           `db:"nft_collection_name"`
-		NFTCollectionCreatorAddress string           `db:"nft_collection_creator_address"`
-		MasterPubKey                string           `db:"master_pubkey"`
-		Type                        NFTContentType   `db:"type"`
-		Status                      NFTContentStatus `db:"status"`
-		Bio                         *string          `db:"bio"`
+		NFTCollectionAddress        string `db:"nft_collection_address"`
+		NFTCollectionName           string `db:"nft_collection_name"`
+		NFTCollectionCreatorAddress string `db:"nft_collection_creator_address"`
+	}
+	NFTCollectionItemMetadata struct {
+		NFTCollectionMetadata
+		Username       string           `db:"username"`
+		DisplayName    string           `db:"display_name"`
+		ContentAddress string           `db:"content_address"`
+		MasterPubKey   string           `db:"master_pubkey"`
+		Type           NFTContentType   `db:"type"`
+		Status         NFTContentStatus `db:"status"`
+		Bio            *string          `db:"bio"`
 	}
 	NFTResponse struct {
 		Type           NFTContentType `json:"type,omitempty" example:"Content"`
@@ -100,6 +105,7 @@ var (
 	ddl string
 
 	imageUrlMap = map[NFTContentType]string{
+		NFTContentTypeUser:    "https://example.com/images/nft-image-user.png",
 		NFTContentTypeAccount: "https://example.com/images/nft-image-account.png",
 		NFTContentTypeVideo:   "https://example.com/images/nft-image-video.png",
 		NFTContentTypeStory:   "https://example.com/images/nft-image-story.png",

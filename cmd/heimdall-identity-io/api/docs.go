@@ -620,6 +620,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "enum": [
+                            "user",
                             "account",
                             "post",
                             "article",
@@ -3001,6 +3002,7 @@ const docTemplate = `{
         "nftcontent.NFTContentType": {
             "type": "string",
             "enum": [
+                "user",
                 "account",
                 "post",
                 "article",
@@ -3008,6 +3010,7 @@ const docTemplate = `{
                 "story"
             ],
             "x-enum-varnames": [
+                "NFTContentTypeUser",
                 "NFTContentTypeAccount",
                 "NFTContentTypePost",
                 "NFTContentTypeArticle",

@@ -45,8 +45,41 @@ func (n *nftContent) Process(ctx context.Context, events model.Events) error {
 	return nil
 }
 
-func (n *nftContent) GetNFTCollectionMetadata(ctx context.Context, nftContentType, contentAddress string) (*NFTResponse, *NFTCollectionMetadata, error) {
-	metadata, err := n.getNFTCollectionMetadata(ctx, nftContentType, contentAddress)
+func (n *nftContent) GetNFTCollectionMetadata(ctx context.Context, masterPubkey string) (*NFTResponse, *NFTCollectionMetadata, error) {
+	stmt := `SELECT 
+				sp.username,
+				n.nft_collection_address,
+				n.nft_collection_name,
+				n.nft_collection_creator_address
+			 FROM nft_content n
+					INNER JOIN social_profiles sp 
+					        ON n.master_pubkey = sp.master_pubkey 
+			 WHERE n.content_address = $1 
+			   AND n.type = 'account' 
+			   AND n.status = 'completed';`
+	row, err := storage.Get[struct {
+		NFTCollectionMetadata
+		Username string `db:"username"`
+	}](ctx, n.db, stmt, masterPubkey)
+	if err != nil {
+		if storage.IsErr(err, storage.ErrNotFound) {
+			return nil, nil, errors.Wrap(ErrNotFound, "root nft collection metadata not found")
+		}
+
+		return nil, nil, errors.Wrap(err, "failed to get root nft collection metadata")
+	}
+
+	return &NFTResponse{
+			Name:        fmt.Sprintf("%s's ION NFT collection", row.Username),
+			Description: fmt.Sprintf("Official ION NFT Collection for %s", row.Username),
+			Image:       imageUrlMap[NFTContentTypeUser],
+		},
+		&row.NFTCollectionMetadata,
+		nil
+}
+
+func (n *nftContent) GetNFTCollectionItemMetadata(ctx context.Context, nftContentType, contentAddress string) (*NFTResponse, *NFTCollectionMetadata, error) {
+	metadata, err := n.getNFTCollectionItemMetadata(ctx, nftContentType, contentAddress)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to get nft collection metadata")
 	}
@@ -78,10 +111,10 @@ func (n *nftContent) GetNFTCollectionMetadata(ctx context.Context, nftContentTyp
 		resp.AuthorID = metadata.Username
 	}
 
-	return resp, metadata, nil
+	return resp, &metadata.NFTCollectionMetadata, nil
 }
 
-func (n *nftContent) getNFTCollectionMetadata(ctx context.Context, nftContentType, contentAddress string) (*NFTCollectionMetadata, error) {
+func (n *nftContent) getNFTCollectionItemMetadata(ctx context.Context, nftContentType, contentAddress string) (*NFTCollectionItemMetadata, error) {
 	stmt := `SELECT 
 				sp.username,
 				sp.display_name,
@@ -96,7 +129,7 @@ func (n *nftContent) getNFTCollectionMetadata(ctx context.Context, nftContentTyp
 			FROM nft_content n
 			INNER JOIN social_profiles sp ON n.master_pubkey = sp.master_pubkey 
 			WHERE n.content_address = $1 AND n.type = $2::nft_content_type AND n.status = 'completed';`
-	row, err := storage.Get[NFTCollectionMetadata](ctx, n.db, stmt, contentAddress, string(nftContentType))
+	row, err := storage.Get[NFTCollectionItemMetadata](ctx, n.db, stmt, contentAddress, string(nftContentType))
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
 			return nil, errors.Wrap(ErrNotFound, "nft collection metadata not found")
@@ -176,10 +209,10 @@ func (n *nftContent) insertNFTContent(ctx context.Context, contentEvent *model.E
 	return errors.Wrap(n.insertNFTContentForContentType(ctx, contentEvent, accountRecord, contentType), "failed to insert nft content for content type")
 }
 
-func (n *nftContent) getAccountTypeRecord(ctx context.Context, masterPubKey string) (*NFTCollectionMetadata, error) {
+func (n *nftContent) getAccountTypeRecord(ctx context.Context, masterPubKey string) (*NFTCollectionItemMetadata, error) {
 	stmt := `SELECT * FROM nft_content 
 			 WHERE content_address = $1 AND type = 'account'::nft_content_type AND status = 'completed';`
-	row, err := storage.Get[NFTCollectionMetadata](ctx, n.db, stmt, masterPubKey)
+	row, err := storage.Get[NFTCollectionItemMetadata](ctx, n.db, stmt, masterPubKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get account type record")
 	}
@@ -205,7 +238,7 @@ func (n *nftContent) insertNFTContentForAccountType(ctx context.Context, content
 	return nil
 }
 
-func (n *nftContent) insertNFTContentForContentType(ctx context.Context, contentEvent *model.Event, accountRecord *NFTCollectionMetadata, contentType NFTContentType) error {
+func (n *nftContent) insertNFTContentForContentType(ctx context.Context, contentEvent *model.Event, accountRecord *NFTCollectionItemMetadata, contentType NFTContentType) error {
 	stmt := `INSERT INTO nft_content (content_address, nft_collection_address, nft_collection_name, nft_collection_creator_address, master_pubkey, type)
 		 VALUES ($1, $2, $3, $4, $5, $6::nft_content_type) 
 		 ON CONFLICT (content_address, type) DO NOTHING;`
