@@ -46,6 +46,7 @@ type (
 		NFTCollectionAddress        string `db:"nft_collection_address"`
 		NFTCollectionName           string `db:"nft_collection_name"`
 		NFTCollectionCreatorAddress string `db:"nft_collection_creator_address"`
+		NFTItemAddress              string `db:"nft_item_address"`
 	}
 	NFTCollectionItemMetadata struct {
 		NFTCollectionMetadata

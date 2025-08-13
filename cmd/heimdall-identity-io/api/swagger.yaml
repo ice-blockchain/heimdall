@@ -1011,6 +1011,18 @@ paths:
         "200":
           description: NFT collection metadata
           headers:
+            Access-Control-Allow-Headers:
+              description: 'CORS: Allowed request headers'
+              type: string
+            Access-Control-Allow-Methods:
+              description: 'CORS: Allowed HTTP methods'
+              type: string
+            Access-Control-Allow-Origin:
+              description: 'CORS: Allowed origins'
+              type: string
+            Access-Control-Expose-Headers:
+              description: 'CORS: Headers exposed to client'
+              type: string
             X-Nft-Collection-Address:
               description: NFT collection address
               type: string
@@ -1065,6 +1077,16 @@ paths:
       responses:
         "200":
           description: HTML preview of NFT collection metadata
+          headers:
+            Access-Control-Allow-Headers:
+              description: 'CORS: Allowed request headers'
+              type: string
+            Access-Control-Allow-Methods:
+              description: 'CORS: Allowed HTTP methods'
+              type: string
+            Access-Control-Allow-Origin:
+              description: 'CORS: Allowed origins'
+              type: string
           schema:
             type: string
         "400":

@@ -21,16 +21,20 @@ func (s *service) setupNFTRoutes(r *server.Router) {
 //	@Description	Get NFT collection metadata
 //	@Tags			NFT
 //	@Produce		json
-//	@Param			nftContentType	path		string						true	"NFT content type"	Enums(user, account, post, article, video, story)
-//	@Param			contentAddress	path		string						true	"Content address"
-//	@Success		200				{object}	nftcontent.NFTResponse		"NFT collection metadata"
-//	@Header			200				{string}	X-Nft-Collection-Name		"NFT collection name"
-//	@Header			200				{string}	X-Nft-Collection-Address	"NFT collection address"
-//	@Header			200				{string}	X-Nft-Collection-Created-By	"NFT collection creator address"
-//	@Failure		400				{object}	server.ErrorResponse		"Invalid request format"
-//	@Failure		404				{object}	server.ErrorResponse		"NFT collection metadata not found"
-//	@Failure		500				{object}	server.ErrorResponse		"Internal server error"
-//	@Failure		504				{object}	server.ErrorResponse		"if request times out"
+//	@Param			nftContentType	path		string							true	"NFT content type"	Enums(user, account, post, article, video, story)
+//	@Param			contentAddress	path		string							true	"Content address"
+//	@Success		200				{object}	nftcontent.NFTResponse			"NFT collection metadata"
+//	@Header			200				{string}	X-Nft-Collection-Name			"NFT collection name"
+//	@Header			200				{string}	X-Nft-Collection-Address		"NFT collection address"
+//	@Header			200				{string}	X-Nft-Collection-Created-By		"NFT collection creator address"
+//	@Header			200				{string}	Access-Control-Allow-Origin		"CORS: Allowed origins"
+//	@Header			200				{string}	Access-Control-Allow-Methods	"CORS: Allowed HTTP methods"
+//	@Header			200				{string}	Access-Control-Allow-Headers	"CORS: Allowed request headers"
+//	@Header			200				{string}	Access-Control-Expose-Headers	"CORS: Headers exposed to client"
+//	@Failure		400				{object}	server.ErrorResponse			"Invalid request format"
+//	@Failure		404				{object}	server.ErrorResponse			"NFT collection metadata not found"
+//	@Failure		500				{object}	server.ErrorResponse			"Internal server error"
+//	@Failure		504				{object}	server.ErrorResponse			"if request times out"
 //	@Router			/v1/nft-collection-metadata/{nftContentType}/{contentAddress} [GET]
 func (s *service) GetNFTCollectionMetadata(
 	ctx context.Context,
@@ -56,9 +60,13 @@ func (s *service) GetNFTCollectionMetadata(
 	}
 	response := server.OK(&resp)
 	response.Headers = map[string]string{
-		"X-NFT-Collection-Name":       metadata.NFTCollectionName,
-		"X-NFT-Collection-Address":    metadata.NFTCollectionAddress,
-		"X-NFT-Collection-Created-By": metadata.NFTCollectionCreatorAddress,
+		"X-NFT-Collection-Name":         metadata.NFTCollectionName,
+		"X-NFT-Collection-Address":      metadata.NFTCollectionAddress,
+		"X-NFT-Collection-Created-By":   metadata.NFTCollectionCreatorAddress,
+		"Access-Control-Allow-Origin":   "*",
+		"Access-Control-Allow-Methods":  "GET, OPTIONS",
+		"Access-Control-Allow-Headers":  "Content-Type",
+		"Access-Control-Expose-Headers": "X-NFT-Collection-Name, X-NFT-Collection-Address, X-NFT-Collection-Created-By",
 	}
 
 	return response, nil
@@ -70,19 +78,22 @@ func (s *service) GetNFTCollectionMetadata(
 //	@Description	Get NFT collection metadata as HTML preview
 //	@Tags			NFT
 //	@Produce		html
-//	@Param			nftContentType	path		string					true	"NFT content type"	Enums(account, post, article, video, story)
-//	@Param			contentAddress	path		string					true	"Content address"
-//	@Success		200				{string}	string					"HTML preview of NFT collection metadata"
-//	@Failure		400				{object}	server.ErrorResponse	"Invalid request format"
-//	@Failure		422				{object}	server.ErrorResponse	"Invalid request format"
-//	@Failure		500				{object}	server.ErrorResponse	"Internal server error"
-//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
+//	@Param			nftContentType	path		string							true	"NFT content type"	Enums(account, post, article, video, story)
+//	@Param			contentAddress	path		string							true	"Content address"
+//	@Success		200				{string}	string							"HTML preview of NFT collection metadata"
+//	@Header			200				{string}	Access-Control-Allow-Origin		"CORS: Allowed origins"
+//	@Header			200				{string}	Access-Control-Allow-Methods	"CORS: Allowed HTTP methods"
+//	@Header			200				{string}	Access-Control-Allow-Headers	"CORS: Allowed request headers"
+//	@Failure		400				{object}	server.ErrorResponse			"Invalid request format"
+//	@Failure		422				{object}	server.ErrorResponse			"Invalid request format"
+//	@Failure		500				{object}	server.ErrorResponse			"Internal server error"
+//	@Failure		504				{object}	server.ErrorResponse			"if request times out"
 //	@Router			/v1/nft-collection-metadata/{nftContentType}/{contentAddress}/html-preview [GET]
 func (s *service) GetNFTCollectionMetadataHtmlPreview(
 	ctx context.Context,
 	req *server.Request[GetNFTCollectionMetadataHtmlPreviewRequest, string],
 ) (*server.Response[string], *server.ErrResponse[*server.ErrorResponse]) {
-	return server.Raw("text/html; charset=utf-8", []byte(`
+	response := server.Raw("text/html; charset=utf-8", []byte(`
 		<!DOCTYPE html>
 		<html lang="en">
 			<head>
@@ -92,5 +103,12 @@ func (s *service) GetNFTCollectionMetadataHtmlPreview(
 			</head>
 			<body></body>
 		</html>
-	`)), nil
+	`))
+	response.Headers = map[string]string{
+		"Access-Control-Allow-Origin":  "*",
+		"Access-Control-Allow-Methods": "GET, OPTIONS",
+		"Access-Control-Allow-Headers": "Content-Type",
+	}
+
+	return response, nil
 }

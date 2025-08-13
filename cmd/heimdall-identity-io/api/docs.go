@@ -648,6 +648,22 @@ const docTemplate = `{
                             "$ref": "#/definitions/nftcontent.NFTResponse"
                         },
                         "headers": {
+                            "Access-Control-Allow-Headers": {
+                                "type": "string",
+                                "description": "CORS: Allowed request headers"
+                            },
+                            "Access-Control-Allow-Methods": {
+                                "type": "string",
+                                "description": "CORS: Allowed HTTP methods"
+                            },
+                            "Access-Control-Allow-Origin": {
+                                "type": "string",
+                                "description": "CORS: Allowed origins"
+                            },
+                            "Access-Control-Expose-Headers": {
+                                "type": "string",
+                                "description": "CORS: Headers exposed to client"
+                            },
                             "X-Nft-Collection-Address": {
                                 "type": "string",
                                 "description": "NFT collection address"
@@ -727,6 +743,20 @@ const docTemplate = `{
                         "description": "HTML preview of NFT collection metadata",
                         "schema": {
                             "type": "string"
+                        },
+                        "headers": {
+                            "Access-Control-Allow-Headers": {
+                                "type": "string",
+                                "description": "CORS: Allowed request headers"
+                            },
+                            "Access-Control-Allow-Methods": {
+                                "type": "string",
+                                "description": "CORS: Allowed HTTP methods"
+                            },
+                            "Access-Control-Allow-Origin": {
+                                "type": "string",
+                                "description": "CORS: Allowed origins"
+                            }
                         }
                     },
                     "400": {
