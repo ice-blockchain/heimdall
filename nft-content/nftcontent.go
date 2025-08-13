@@ -123,6 +123,7 @@ func (n *nftContent) getNFTCollectionItemMetadata(ctx context.Context, nftConten
 				n.nft_collection_address,
 				n.nft_collection_name,
 				n.nft_collection_creator_address,
+				n.nft_item_address,
 				n.master_pubkey,
 				n.type,
 				n.status
