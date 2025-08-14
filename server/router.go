@@ -41,6 +41,9 @@ func RootHandler[REQ, RESP any, ERR InternalErr[ERRSTR], ERRSTR any](handleReque
 		req := new(Request[REQ, RESP]).init(ginCtx)
 		if err := req.processRequest(); err != nil {
 			log.Error(errors.Wrap(err.Data.InternalErr(), "endpoint processing failed"), fmt.Sprintf("%[1]T", req.Data), req, "Response", err)
+			for k, v := range err.Headers {
+				ginCtx.Header(k, v)
+			}
 			ginCtx.JSON(err.Code, err.Data)
 
 			return
@@ -57,6 +60,9 @@ func RootHandler[REQ, RESP any, ERR InternalErr[ERRSTR], ERRSTR any](handleReque
 		success, failure := handleRequest(reqCtx, req)
 		if failure != nil {
 			log.Error(errors.Wrap((failure.Data).InternalErr(), "endpoint failed"), fmt.Sprintf("%[1]T", req.Data), req, "Response", failure)
+			for k, v := range failure.Headers {
+				ginCtx.Header(k, v)
+			}
 			ginCtx.JSON(processErrorResponse[REQ, RESP, ERR, ERRSTR](ctx, req, failure))
 
 			return
