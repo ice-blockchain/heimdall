@@ -53,9 +53,15 @@ func (s *service) GetNFTCollectionMetadata(
 	if err != nil {
 		switch {
 		case errors.Is(err, nftcontent.ErrNotFound):
-			return nil, server.NotFound(err, notFound)
+			resp := server.NotFound(err, notFound)
+			resp.Headers = corsHeaders()
+
+			return nil, resp
 		default:
-			return nil, server.Unexpected(err)
+			resp := server.Unexpected(err)
+			resp.Headers = corsHeaders()
+
+			return nil, resp
 		}
 	}
 	response := server.OK(&resp)
@@ -63,10 +69,10 @@ func (s *service) GetNFTCollectionMetadata(
 		"X-NFT-Collection-Name":         metadata.NFTCollectionName,
 		"X-NFT-Collection-Address":      metadata.NFTCollectionAddress,
 		"X-NFT-Collection-Created-By":   metadata.NFTCollectionCreatorAddress,
-		"Access-Control-Allow-Origin":   "*",
-		"Access-Control-Allow-Methods":  "GET, OPTIONS",
-		"Access-Control-Allow-Headers":  "Content-Type",
 		"Access-Control-Expose-Headers": "X-NFT-Collection-Name, X-NFT-Collection-Address, X-NFT-Collection-Created-By",
+	}
+	for k, v := range corsHeaders() {
+		response.Headers[k] = v
 	}
 
 	return response, nil
@@ -104,11 +110,15 @@ func (s *service) GetNFTCollectionMetadataHtmlPreview(
 			<body></body>
 		</html>
 	`))
-	response.Headers = map[string]string{
+	response.Headers = corsHeaders()
+
+	return response, nil
+}
+
+func corsHeaders() map[string]string {
+	return map[string]string{
 		"Access-Control-Allow-Origin":  "*",
 		"Access-Control-Allow-Methods": "GET, OPTIONS",
 		"Access-Control-Allow-Headers": "Content-Type",
 	}
-
-	return response, nil
 }
