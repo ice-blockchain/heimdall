@@ -207,7 +207,7 @@ func validateNFTContentEvents(ctx context.Context, events model.Events) error {
 			}
 		}
 	}
-	if err := validation.Validate(ctx, events, validation.WithQueryFunc(queryFunc), validation.WithSkipProfileMetadataProofEventsVerify()); err != nil {
+	if err := validation.New(validation.WithQueryFunc(queryFunc)).Validate(ctx, events, validation.RuleWithSkipProfileMetadataProofEventsVerify()); err != nil {
 		return errors.Wrap(err, "validation failed")
 	}
 
