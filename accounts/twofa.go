@@ -382,7 +382,7 @@ func (a *accounts) get2FACodes(ctx context.Context, usr *user, inputCodes map[Tw
 		WHERE twofa_codes.user_id = $1 and (twofa_codes.code != twofa_codes.user_id OR twofa_codes.option = '%[1]v')) t
     WHERE (%[3]v)
     ORDER BY t.totp_redeemed ASC;`, TwoFAOptionTOTPAuthenticator, TwoFAOptionEmail, whereClause)
-	codes, err := storage.Select[twoFACode](ctx, a.db, sql, params...)
+	codes, err := storage.ExecMany[twoFACode](ctx, a.db, sql, params...)
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 		return nil, errors.Wrapf(err, "failed to select 2fa codes")
 	}
