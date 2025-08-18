@@ -548,7 +548,29 @@ func (a *accounts) GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGrou
 func (a *accounts) GetNFTs(ctx context.Context, walletID string) ([]*NFT, string, error) {
 	nfts, err := a.delegatedRPClient.ListNFTs(ctx, walletID)
 	if err != nil {
-		return nil, "", errors.Wrapf(err, "failed to get nfts from delegatedRP 3rd party")
+		if delegatedErr := ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
+			var delegatedParsedErr *DelegatedRelyingPartyErr
+			if errors.As(delegatedErr, &delegatedParsedErr) {
+				if delegatedParsedErr.HTTPStatus == http.StatusBadRequest && strings.Contains(delegatedParsedErr.Message, dfns.ErrMessageNFTNotSupported) &&
+					(strings.Contains(delegatedParsedErr.Message, dfns.DefaultWalletNetworkMainNet) || strings.Contains(delegatedParsedErr.Message, dfns.DefaultWalletNetworkTestNet)) {
+					var w *dfns.Wallet
+					w, err = a.delegatedRPClient.GetWallet(ctx, walletID)
+					if err != nil {
+						return nil, "", errors.Wrapf(err, "failed to get wallet %v", walletID)
+					}
+					var nftsList []coins.WalletNFT
+					nftsList, err = a.ionNFT.ListNFTs(ctx, (*w)["address"].(string))
+					nfts = &dfns.NFTs{
+						NFTs:     nftsList,
+						Network:  (*w)["network"].(string),
+						WalletID: walletID,
+					}
+				}
+			}
+		}
+		if err != nil {
+			return nil, "", errors.Wrapf(err, "failed to get nfts from delegatedRP 3rd party")
+		}
 	}
 	populatedNFTs, err := a.coinsRepo.ImportNFTs(ctx, nfts.Network, nfts.NFTs)
 	if err != nil {

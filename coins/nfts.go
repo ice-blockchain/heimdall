@@ -49,6 +49,7 @@ func (c *coinsRepository) ImportNFTs(ctx context.Context, network string, NFTsIn
 func (c *coinsRepository) populateNFTsWithCollectionInfo(NFTsInWallet []WalletNFT, nftCollections map[string]*NFT) []*NFT {
 	res := make([]*NFT, 0, len(NFTsInWallet))
 	for _, wn := range NFTsInWallet {
+		delete(wn, CollectionMetadataIndexedKey)
 		contractAddress := wn["contract"].(string)
 		collection := nftCollections[contractAddress]
 		res = append(res, &NFT{
@@ -99,6 +100,16 @@ func (c *coinsRepository) importNFTCollections(ctx context.Context, network stri
 		return nil, errors.Wrapf(err, "failed to import nfts %+v", contractAddresses)
 	}
 	updatedNfts := make(map[string]*NFT, len(nftsToImport))
+	indexedCollectionMetadata := make(map[string]map[string]string, len(nftsToImport))
+	for _, n := range nftsToImport {
+		if metaMap, hasMeta := n[CollectionMetadataIndexedKey]; hasMeta && metaMap != nil {
+			delete(n, CollectionMetadataIndexedKey)
+			if meta, ok := metaMap.(map[string]string); ok {
+				indexedCollectionMetadata[n["contract"].(string)] = meta
+			}
+		}
+
+	}
 	tErr := storage.DoInTransaction(ctx, c.db, func(conn storage.QueryExecer) error {
 		_, err := storage.ExecMany[nft](ctx, conn, `SELECT * from nft_collections where contract_address = ANY($1) FOR UPDATE`, contractAddresses)
 		if err != nil {
@@ -107,6 +118,24 @@ func (c *coinsRepository) importNFTCollections(ctx context.Context, network stri
 		var errGroup errgroup.Group
 		nftData := make(chan *coingecko.NFT, len(contractAddresses))
 		for _, contract := range contractAddresses {
+			if indexedMeta, hasIndexed := indexedCollectionMetadata[contract]; hasIndexed {
+				nftData <- &coingecko.NFT{
+					ContractAddress: contract,
+					Name:            indexedMeta["name"],
+					Symbol:          indexedMeta["symbol"],
+					Description:     indexedMeta["description"],
+					Image: struct {
+						Thumb   string `json:"thumb"`
+						Small2X string `json:"small_2x"`
+						Small   string `json:"small"`
+					}{
+						Thumb:   indexedMeta["image"],
+						Small2X: indexedMeta["image"],
+						Small:   indexedMeta["image"],
+					},
+				}
+				continue
+			}
 			errGroup.Go(func() error {
 				nftItem, nftErr := c.nftCoinGeckoClient.GetNFT(ctx, network, contract)
 				if nftErr != nil {

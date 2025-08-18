@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts"
+	"github.com/ice-blockchain/heimdall/coins"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
@@ -38,6 +39,7 @@ type (
 	NFTCategory         = string
 	OwnerAddressFetcher interface {
 		FetchMainWallet(ctx context.Context, masterKey string) (accounts.Wallet, error)
+		SetProviderForUnsupportedNFTs(nft accounts.NFTInWallets)
 	}
 	NFTContent interface {
 		io.Closer
@@ -45,6 +47,7 @@ type (
 		Process(ctx context.Context, events model.Events) error
 		GetNFTCollectionItemMetadata(ctx context.Context, nftContentType, contentAddress string) (*NFTResponse, *NFTCollectionMetadata, error)
 		GetNFTCollectionMetadata(ctx context.Context, masterPubkey string) (*NFTResponse, *NFTCollectionMetadata, error)
+		ListNFTs(ctx context.Context, walletAddr string) ([]WalletNFT, error)
 	}
 	NFTCollectionMetadata struct {
 		NFTCollectionAddress        string `db:"nft_collection_address"`
@@ -68,6 +71,7 @@ type (
 		Name           string         `json:"name,omitempty" example:"John Doe's ION profile"`
 		Description    string         `json:"description,omitempty" example:"Official ION Account for John Doe"`
 		Image          string         `json:"image,omitempty" example:"https://example.com/image.png"`
+		Symbol         string         `json:"symbol,omitempty" example:"johndoe"`
 		HtmlPreviewUri string         `json:"html_preview_uri,omitempty" example:"https://example.com/html_preview.html"`
 		AccountID      string         `json:"account_id,omitempty" example:"johndoe"`
 		ProfileUri     string         `json:"profile_uri,omitempty" example:"https://example.com/account/address"`
@@ -85,7 +89,12 @@ type (
 		ProfileURIBaseURL  string `yaml:"profileUriBaseUrl"`
 		HTMLPreviewBaseURL string `yaml:"htmlPreviewBaseUrl"`
 		ContentURIBaseURL  string `yaml:"contentUriBaseUrl"`
+		Indexer            struct {
+			ION string `yaml:"ion"  mapstructure:"ion"`
+		} `yaml:"indexer" mapstructure:"indexer"`
 	}
+
+	WalletNFT = coins.WalletNFT
 )
 
 var (
@@ -95,7 +104,8 @@ var (
 )
 
 const (
-	applicationYamlKey = "nft-content"
+	CollectionMetadataIndexedKey = coins.CollectionMetadataIndexedKey
+	applicationYamlKey           = "nft-content"
 
 	nftResponseName        string = "NFT response name"
 	nftResponseDescription string = "NFT response description"
@@ -121,12 +131,64 @@ var (
 		NFTContentTypePost:    "https://api.iconify.design/lucide:square.svg",
 		NFTContentTypeArticle: "https://api.iconify.design/lucide:newspaper.svg",
 	}
+	defaultIndexerReqLimit = 100
 )
 
 type (
 	nftContent struct {
 		db            *storage.DB
-		walletFetcher OwnerAddressFetcher
 		config        *Config
+		walletFetcher OwnerAddressFetcher
+	}
+
+	getNftItemsIndexerResponse struct {
+		NftItems []nftItem               `json:"nft_items"`
+		Metadata map[string]metadataItem `json:"metadata"`
+	}
+	metadataItem struct {
+		IsIndexed bool `json:"is_indexed"`
+		TokenInfo []struct {
+			Type        string `json:"type"`
+			Name        string `json:"name"`
+			Description string `json:"description"`
+			Image       string `json:"image"`
+			Symbol      string `json:"symbol"`
+			Extra       struct {
+				ImageBig       string `json:"_image_big"`
+				ImageMedium    string `json:"_image_medium"`
+				ImageSmall     string `json:"_image_small"`
+				AccountId      string `json:"account_id"`
+				AuthorId       string `json:"author_id"`
+				DisplayName    string `json:"display_name"`
+				HtmlPreviewUri string `json:"html_preview_uri"`
+				ProfileUri     string `json:"profile_uri"`
+				Type           string `json:"type"`
+				Uri            string `json:"uri"`
+			} `json:"extra"`
+		} `json:"token_info"`
+	}
+	nftItem struct {
+		Address           string `json:"address"`
+		Init              bool   `json:"init"`
+		Index             string `json:"index"`
+		CollectionAddress string `json:"collection_address"`
+		OwnerAddress      string `json:"owner_address"`
+		Content           struct {
+			Uri string `json:"uri"`
+		} `json:"content"`
+		LastTransactionLt string `json:"last_transaction_lt"`
+		CodeHash          string `json:"code_hash"`
+		DataHash          string `json:"data_hash"`
+		Collection        struct {
+			Address           string `json:"address"`
+			OwnerAddress      string `json:"owner_address"`
+			LastTransactionLt string `json:"last_transaction_lt"`
+			NextItemIndex     string `json:"next_item_index"`
+			CollectionContent struct {
+				Uri string `json:"uri"`
+			} `json:"collection_content"`
+			DataHash string `json:"data_hash"`
+			CodeHash string `json:"code_hash"`
+		} `json:"collection"`
 	}
 )

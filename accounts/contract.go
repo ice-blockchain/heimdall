@@ -81,6 +81,7 @@ type (
 		GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGroup string) ([]*CoinWithWalletInfo, error)
 		CreateWalletForWalletView(ctx context.Context, userID, network, walletViewID string) (*Wallet, error)
 		FetchMainWallet(ctx context.Context, masterKey string) (Wallet, error)
+		SetProviderForUnsupportedNFTs(nft NFTInWallets)
 	}
 	Coins interface {
 		GetCoinsOfSymbolGroup(ctx context.Context, symbolGroups []string) ([]*coins.Coin, error)
@@ -90,6 +91,9 @@ type (
 	}
 	Relays interface {
 		IONConnectRelaysForUser(ctx context.Context, userId string) ([]*UserAssignedRelay, error)
+	}
+	NFTInWallets interface {
+		ListNFTs(ctx context.Context, walletAddr string) ([]coins.WalletNFT, error)
 	}
 	TwoFAOptionEnum     string
 	TwoFAOptionWithAddr struct {
@@ -259,6 +263,7 @@ type (
 		privateKey                 string
 		appsRuntimeConfig          *AppsRuntimeConfig
 		deviceIdentificationClient deviceidentification.Client
+		ionNFT                     NFTInWallets
 	}
 	verifiedUsersSync struct {
 		db         *storage.DB
