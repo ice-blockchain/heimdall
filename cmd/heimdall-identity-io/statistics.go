@@ -10,6 +10,7 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
 
+	"github.com/ice-blockchain/heimdall/following"
 	nftcontent "github.com/ice-blockchain/heimdall/nft-content"
 	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/subzero/database/query"
@@ -21,6 +22,7 @@ func (s *service) setupStatisticsRoutes(router gin.IRoutes) {
 	router.POST("/v1/statistics/hashtags", server.RootHandler(s.ProcessHashtagsEvents))
 	router.GET("/v1/statistics/hashtags", server.RootHandler(s.GetTopHashtags))
 	router.POST("/v1/statistics/nft-content", server.RootHandler(s.ProcessNFTContent))
+	router.POST("/v1/statistics/followers", server.RootHandler(s.ProcessFollowersEvents))
 }
 
 // ProcessHashtagsEvents godoc
@@ -126,6 +128,39 @@ func (s *service) ProcessNFTContent(
 	return &server.Response[any]{Code: http.StatusAccepted}, nil
 }
 
+// ProcessFollowersEvents
+//
+//	@Schemes
+//	@Description	Process followers events (kind 3 + kind 10100)
+//	@Tags			Statistics
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body	FollowersEventsReq	true	"Events with followers data (kind 3 + kind 10100)"
+//	@Success		202
+//	@Failure		400	{object}	server.ErrorResponse	"if invalid events provided"
+//	@Failure		500	{object}	server.ErrorResponse
+//	@Failure		504	{object}	server.ErrorResponse	"if request times out"
+//	@Router			/v1/statistics/followers [POST].
+func (s *service) ProcessFollowersEvents(
+	ctx context.Context,
+	req *server.Request[FollowersEventsReq, any],
+) (successResp *server.Response[any], errorResp *server.ErrResponse[*server.ErrorResponse]) {
+	followListEvent, attestationEvent, err := validateFollowersEvents(ctx, req.Data.Events)
+	if err != nil {
+		return nil, server.UnprocessableEntity(err, invalidPropertiesErrorCode)
+	}
+	if err := s.following.ProcessFollowersEvent(ctx, followListEvent, attestationEvent); err != nil {
+		switch {
+		case errors.Is(err, following.ErrOnBehalfAccessDenied):
+			return nil, server.Forbidden(err)
+		}
+
+		return nil, server.Unexpected(errors.Wrap(err, "failed to process following events"))
+	}
+
+	return &server.Response[any]{Code: http.StatusAccepted}, nil
+}
+
 func validateEvent(ctx context.Context, event *model.Event) error {
 	if event.Kind != nostr.KindTextNote && event.Kind != model.CustomIONKindEditableTextNote && event.Kind != nostr.KindArticle {
 		return errors.Errorf("invalid event kind: %d", event.Kind)
@@ -212,4 +247,37 @@ func validateNFTContentEvents(ctx context.Context, events model.Events) error {
 	}
 
 	return nil
+}
+
+func validateFollowersEvents(ctx context.Context, events model.Events) (followListEvent, attestationEvent *model.Event, err error) {
+	if len(events) != 2 {
+		return nil, nil, errors.Errorf("2 events required (kind 3 + kind 10100), got %d", len(events))
+	}
+	for _, event := range events {
+		switch event.Kind {
+		case nostr.KindFollowList:
+			if followListEvent != nil {
+				return nil, nil, errors.Errorf("only one kind 3 event allowed")
+			}
+			followListEvent = event
+		case model.CustomIONKindAttestation:
+			if attestationEvent != nil {
+				return nil, nil, errors.Errorf("only one kind 10100 event allowed")
+			}
+			attestationEvent = event
+		default:
+			return nil, nil, errors.Errorf("invalid event kind: %d, allowed kinds: 3, 10100", event.Kind)
+		}
+	}
+	if followListEvent == nil {
+		return nil, nil, errors.Errorf("follow list event is required")
+	}
+	if attestationEvent == nil {
+		return nil, nil, errors.Errorf("attestation event is required")
+	}
+	if err := validation.Validate(ctx, events); err != nil {
+		return nil, nil, errors.Wrap(err, "validation failed")
+	}
+
+	return followListEvent, attestationEvent, nil
 }

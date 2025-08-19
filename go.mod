@@ -10,6 +10,7 @@ require (
 	github.com/btcsuite/btcd v0.24.2
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.10
 	github.com/cenkalti/backoff/v4 v4.3.0
+	github.com/cockroachdb/errors v1.12.0
 	github.com/dfns/dfns-sdk-go v0.0.3-beta.0.20250613152649-e92de28acf34
 	github.com/ethereum/go-ethereum v1.16.2
 	github.com/gin-gonic/gin v1.10.1
@@ -22,7 +23,7 @@ require (
 	github.com/ice-blockchain/wintr v1.158.0
 	github.com/imroc/req/v3 v3.54.1
 	github.com/lestrrat-go/jwx/v2 v2.1.6
-	github.com/nbd-wtf/go-nostr v0.51.12
+	github.com/nbd-wtf/go-nostr v0.52.0
 	github.com/pkg/errors v0.9.1
 	github.com/quic-go/quic-go v0.54.0
 	github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9
@@ -85,7 +86,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/cncf/xds/go v0.0.0-20250501225837-2ac532fd4443 // indirect
-	github.com/cockroachdb/errors v1.12.0 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20241215232642-bb51bb14a506 // indirect
 	github.com/cockroachdb/redact v1.1.6 // indirect
 	github.com/consensys/gnark-crypto v0.18.0 // indirect

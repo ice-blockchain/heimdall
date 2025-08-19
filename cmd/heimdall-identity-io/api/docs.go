@@ -786,6 +786,54 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/statistics/followers": {
+            "post": {
+                "description": "Process followers events (kind 3 + kind 10100)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Statistics"
+                ],
+                "parameters": [
+                    {
+                        "description": "Events with followers data (kind 3 + kind 10100)",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.FollowersEventsReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted"
+                    },
+                    "400": {
+                        "description": "if invalid events provided",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/statistics/hashtags": {
             "get": {
                 "description": "Returns top hashtags",
@@ -1048,6 +1096,18 @@ const docTemplate = `{
                         "name": "offset",
                         "in": "query",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Followed by user",
+                        "name": "followedBy",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Follower of user",
+                        "name": "followerOf",
+                        "in": "query"
                     },
                     {
                         "type": "string",
@@ -2576,6 +2636,22 @@ const docTemplate = `{
                 },
                 "walletViewId": {
                     "type": "string"
+                }
+            }
+        },
+        "main.FollowersEventsReq": {
+            "type": "object",
+            "required": [
+                "events"
+            ],
+            "properties": {
+                "events": {
+                    "type": "array",
+                    "maxItems": 2,
+                    "minItems": 2,
+                    "items": {
+                        "$ref": "#/definitions/model.Event"
+                    }
                 }
             }
         },

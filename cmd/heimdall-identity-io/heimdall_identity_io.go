@@ -18,6 +18,7 @@ import (
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/cmd/heimdall-identity-io/api"
 	"github.com/ice-blockchain/heimdall/coins"
+	"github.com/ice-blockchain/heimdall/following"
 	hashtagstatistics "github.com/ice-blockchain/heimdall/hashtag-statistics"
 	nftcontent "github.com/ice-blockchain/heimdall/nft-content"
 	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
@@ -122,6 +123,7 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	s.accounts = accounts.New(ctx, s.coins, s.relays, &appsRuntimeCfg)
 	s.hashtagStatistics = hashtagstatistics.New(ctx)
 	s.nftContent = nftcontent.New(ctx, s.accounts)
+	s.following = following.New(ctx)
 
 	publicKey := s.accounts.PublicKey()
 	allValidConfigNames[configNameServicePubkeys] = func(_ *config, _ *Version) (any, Version) { return []string{publicKey}, Version(1) }
