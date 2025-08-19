@@ -119,7 +119,7 @@ BEGIN
     WHERE nft_content.content_address = nc.content_address;
 
     -- Step 3: Rank NFTs by minter after assignment
-    WITH ranked_per_minter AS (SELECT *,
+    WITH ranked_per_minter AS (SELECT nc.*,
                                       ROW_NUMBER() OVER (
                                           PARTITION BY nft_collection_creator_address
                                           ORDER BY master_pubkey,
@@ -130,7 +130,7 @@ BEGIN
                                                   END,
                                               content_address
                                           ) AS rn
-                               FROM nft_content
+                               FROM nft_content nc
                                WHERE status = 'new'
                                  AND nft_collection_creator_address IS NOT NULL
                                  AND nft_collection_creator_address <> '')
@@ -142,7 +142,7 @@ BEGIN
 
     -- Step 4: Return grouped result per minter
     RETURN QUERY
-        WITH ranked_pending AS (SELECT *,
+        WITH ranked_pending AS (SELECT nc.*,
                                        ROW_NUMBER() OVER (
                                            PARTITION BY nft_collection_creator_address
                                            ORDER BY master_pubkey,
@@ -153,26 +153,29 @@ BEGIN
                                                    END,
                                                content_address
                                            ) AS rn
-                                FROM nft_content
+                                FROM nft_content nc
                                 WHERE status = 'pending'
                                   AND nft_collection_creator_address IS NOT NULL
                                   AND nft_collection_creator_address <> '')
         SELECT rp.nft_collection_creator_address AS minter_pubkey,
-               json_agg(json_build_object(
-                                'content_address', rp.content_address,
-                                'nft_collection_address', rp.nft_collection_address,
-                                'nft_collection_creator_address', rp.nft_collection_creator_address,
-                                'collection_name', rp.nft_collection_name,
-                                'master_pubkey', rp.master_pubkey,
-                                'type', rp.type,
-                                'status', rp.status
-                        ) ORDER BY rp.master_pubkey,
-                            CASE rp.type
-                                WHEN 'account' THEN 1
-                                WHEN 'story' THEN 2
-                                ELSE 3
-                                END,
-                            rp.content_address
+               json_agg(
+                       json_build_object(
+                               'content_address', rp.content_address,
+                               'nft_collection_address', rp.nft_collection_address,
+                               'nft_collection_creator_address', rp.nft_collection_creator_address,
+                               'collection_name', rp.nft_collection_name,
+                               'master_pubkey', rp.master_pubkey,
+                               'owner', rp.owner,
+                               'type', rp.type,
+                               'status', rp.status
+                       )
+                       ORDER BY rp.master_pubkey,
+                           CASE rp.type
+                               WHEN 'account' THEN 1
+                               WHEN 'story' THEN 2
+                               ELSE 3
+                               END,
+                           rp.content_address
                )                                 AS nft_contents
         FROM ranked_pending rp
         WHERE rp.rn <= limit_per_minter
