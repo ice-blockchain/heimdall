@@ -788,7 +788,7 @@ const docTemplate = `{
         },
         "/v1/statistics/followers": {
             "post": {
-                "description": "Process following events (kind 3 + kind 10100)",
+                "description": "Process followers events (kind 3 + kind 10100)",
                 "consumes": [
                     "application/json"
                 ],

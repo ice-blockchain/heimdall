@@ -1123,7 +1123,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Process following events (kind 3 + kind 10100)
+      description: Process followers events (kind 3 + kind 10100)
       parameters:
       - description: Events with followers data (kind 3 + kind 10100)
         in: body
