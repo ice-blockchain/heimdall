@@ -199,11 +199,11 @@ func (a *accounts) SearchSocialProfiles(ctx context.Context, tpe SearchType, key
        				 (SELECT json_agg(x) FROM (SELECT url, relay_type as "type" FROM ion_connect_relays WHERE url=ANY(u.ion_connect_relays)) x) AS ion_connect_relays
 			FROM social_profiles sp`
 	if followedBy != "" {
-		query += ` JOIN following f ON f.master_pubkey = $1 AND f.follower_master_pubkey = sp.master_pubkey
-				   JOIN users u ON f.follower_master_pubkey = u.master_pubkey`
-	} else if followerOf != "" {
 		query += ` JOIN following f ON f.follower_master_pubkey = $1 AND f.master_pubkey = sp.master_pubkey
 				   JOIN users u ON f.master_pubkey = u.master_pubkey`
+	} else if followerOf != "" {
+		query += ` JOIN following f ON f.master_pubkey = $1 AND f.follower_master_pubkey = sp.master_pubkey
+				   JOIN users u ON f.follower_master_pubkey = u.master_pubkey`
 	} else {
 		query += ` JOIN users u ON sp.master_pubkey = u.master_pubkey`
 	}

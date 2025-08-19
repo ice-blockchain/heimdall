@@ -47,7 +47,7 @@ func (f *following) ProcessFollowersEvent(ctx context.Context, followListEvent, 
 		INSERT INTO following (master_pubkey, follower_master_pubkey)
 		SELECT master_pubkey, $1
 		FROM unnest($2) AS master_pubkey
-		ON CONFLICT (master_pubkey, follower_master_pubkey) DO NOTHING`
+		ON CONFLICT DO NOTHING`
 	_, err := storage.Exec(ctx, f.db, stmt, followListEvent.GetMasterPublicKey(), followedPubkeys)
 
 	return errors.Wrap(err, "failed to update following relationships")
