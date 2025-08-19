@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS nft_content (
     nft_item_address                       TEXT NOT NULL DEFAULT '',
     nft_collection_name                    TEXT NOT NULL DEFAULT '',
     nft_collection_creator_address         TEXT NOT NULL DEFAULT '',
+    owner                                  TEXT NOT NULL DEFAULT '',
     master_pubkey                          TEXT NOT NULL REFERENCES users(master_pubkey) ON DELETE CASCADE,
     type                                   nft_content_type NOT NULL,
     status                                 nft_content_status NOT NULL DEFAULT 'new',
@@ -31,11 +32,11 @@ CREATE INDEX IF NOT EXISTS nft_content_new_assignment_idx ON nft_content (conten
 CREATE INDEX IF NOT EXISTS nft_content_creator_sorted_idx ON nft_content (nft_collection_creator_address, master_pubkey, type, content_address, status) WHERE nft_collection_creator_address IS NOT NULL AND nft_collection_creator_address <> '';
 
 -- TODO: remove this it will be migrated to all envs.
-DO $$ 
+DO $$
 BEGIN
     IF EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'nft_content' 
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'nft_content'
         AND column_name = 'nft_collection_item_address'
     ) THEN
         ALTER TABLE nft_content RENAME COLUMN nft_collection_item_address TO nft_item_address;
@@ -45,14 +46,15 @@ END $$;
 -- TODO: remove this it will be migrated to all envs.
 ALTER TABLE nft_content ADD COLUMN IF NOT EXISTS nft_collection_name TEXT NOT NULL DEFAULT '';
 ALTER TABLE nft_content ADD COLUMN IF NOT EXISTS nft_item_address TEXT NOT NULL DEFAULT '';
+ALTER TABLE nft_content ADD COLUMN IF NOT EXISTS owner TEXT NOT NULL DEFAULT '';
 
 -- TODO: remove this it will be migrated to all envs.
-DO $$ 
+DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM information_schema.table_constraints tc
             JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
-            WHERE tc.table_name = 'nft_content' 
+            WHERE tc.table_name = 'nft_content'
                 AND tc.constraint_type = 'PRIMARY KEY'
                 AND kcu.column_name = 'content_address'
                 AND NOT EXISTS (

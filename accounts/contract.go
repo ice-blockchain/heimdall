@@ -74,6 +74,7 @@ type (
 		ModifyWalletView(ctx context.Context, userID, id, newName string, items []*CoinMapping, symbolGroups []string) (*WalletView, error)
 		GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGroup string) ([]*CoinWithWalletInfo, error)
 		CreateWalletForWalletView(ctx context.Context, userID, network, walletViewID string) (*Wallet, error)
+		FetchMainWallet(ctx context.Context, masterKey string) (Wallet, error)
 	}
 	Coins interface {
 		GetCoinsOfSymbolGroup(ctx context.Context, symbolGroups []string) ([]*coins.Coin, error)
