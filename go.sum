@@ -195,8 +195,8 @@ github.com/dfns/dfns-sdk-go v0.0.3-beta.0.20250613152649-e92de28acf34 h1:NDviDTV
 github.com/dfns/dfns-sdk-go v0.0.3-beta.0.20250613152649-e92de28acf34/go.mod h1:yD3m7uBRPl3/KyTnO31zS/HVxrjxMQuOs4s/xPKMK1s=
 github.com/dgraph-io/badger/v4 v4.8.0 h1:JYph1ChBijCw8SLeybvPINizbDKWZ5n/GYbz2yhN/bs=
 github.com/dgraph-io/badger/v4 v4.8.0/go.mod h1:U6on6e8k/RTbUWxqKR0MvugJuVmkxSNc79ap4917h4w=
-github.com/dgraph-io/ristretto/v2 v2.2.0 h1:bkY3XzJcXoMuELV8F+vS8kzNgicwQFAaGINAEJdWGOM=
-github.com/dgraph-io/ristretto/v2 v2.2.0/go.mod h1:RZrm63UmcBAaYWC1DotLYBmTvgkrs0+XhBd7Npn7/zI=
+github.com/dgraph-io/ristretto/v2 v2.3.0 h1:qTQ38m7oIyd4GAed/QkUZyPFNMnvVWyazGXRwvOt5zk=
+github.com/dgraph-io/ristretto/v2 v2.3.0/go.mod h1:gpoRV3VzrEY1a9dWAYV6T1U7YzfgttXdd/ZzL1s9OZM=
 github.com/distribution/reference v0.6.0 h1:0IXCQ5g4/QMHHkarYzh5l+u8T3t73zM5QvfrDyIgxBk=
 github.com/distribution/reference v0.6.0/go.mod h1:BbU0aIcezP1/5jX/8MP0YiH4SdvB5Y4f/wlDRiLyi3E=
 github.com/docker/docker v28.3.3+incompatible h1:Dypm25kh4rmk49v1eiVbsAtpAsYURjYkaKubwuBdxEI=
@@ -372,8 +372,8 @@ github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5 h1:
 github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5/go.mod h1:or80JBz1VHXxKN5qXBNYFooWcfjUPIQzbNUVZ7FTFzo=
 github.com/ice-blockchain/go/src v0.0.0-20250625091122-356c0c7d1830 h1:FymrVSpOD6rKyZ97MJr5Xu2ZP29EqTKpdMqTf2DrMgU=
 github.com/ice-blockchain/go/src v0.0.0-20250625091122-356c0c7d1830/go.mod h1:pVzkmaIwkLaJ5cKPHPtuKyxaXiTsa/V7kbbgLmsr4Hw=
-github.com/ice-blockchain/subzero v1.369.0 h1:S481pPMt4VLuvP3CHwt2IaAi77sqFbTw96fwet0t+oA=
-github.com/ice-blockchain/subzero v1.369.0/go.mod h1:sK7CTDSeOvjPl3Q2DomSxnKCwI2l48XsqHtEis3FE/c=
+github.com/ice-blockchain/subzero v1.370.0 h1:Yu/Qx0pjbGfpKdqn84wsE/Tfys20g/IwjHG4Q+YrB+o=
+github.com/ice-blockchain/subzero v1.370.0/go.mod h1:neWtgcnciZOfhk/zpC2Jc4sr929/qFWEwJrxX+/xO5U=
 github.com/ice-blockchain/wintr v1.158.0 h1:1VeCnb/jsL9VTC8n2v7r/VJIoY9iHw7ZmciS2zD5be0=
 github.com/ice-blockchain/wintr v1.158.0/go.mod h1:OegsVEpW7RUC9RzCpKSrrqlsM1ttV38rnTjZJ/0aI+E=
 github.com/icholy/digest v1.1.0 h1:HfGg9Irj7i+IX1o1QAmPfIBNu/Q5A5Tu3n/MED9k9H4=
