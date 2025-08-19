@@ -194,19 +194,38 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 	return result, nil
 }
 
-func (a *accounts) SearchSocialProfiles(ctx context.Context, tpe SearchType, keyword string, limit, offset uint64) ([]*LiteUser, error) {
+func (a *accounts) SearchSocialProfiles(ctx context.Context, tpe SearchType, keyword, followedBy, followerOf string, limit, offset uint64) ([]*LiteUser, error) {
 	query := `SELECT sp.master_pubkey,
        				 (SELECT json_agg(x) FROM (SELECT url, relay_type as "type" FROM ion_connect_relays WHERE url=ANY(u.ion_connect_relays)) x) AS ion_connect_relays
-			FROM social_profiles sp
-			JOIN users u ON sp.master_pubkey = u.master_pubkey`
+			FROM social_profiles sp`
+	if followedBy != "" {
+		query += ` JOIN following f ON f.master_pubkey = $1 AND f.follower_master_pubkey = sp.master_pubkey
+				   JOIN users u ON f.follower_master_pubkey = u.master_pubkey`
+	} else if followerOf != "" {
+		query += ` JOIN following f ON f.follower_master_pubkey = $1 AND f.master_pubkey = sp.master_pubkey
+				   JOIN users u ON f.master_pubkey = u.master_pubkey`
+	} else {
+		query += ` JOIN users u ON sp.master_pubkey = u.master_pubkey`
+	}
+	var args []interface{}
+	argIdx := 1
+	if followedBy != "" {
+		args = append(args, followedBy)
+		argIdx++
+	} else if followerOf != "" {
+		args = append(args, followerOf)
+		argIdx++
+	}
 	switch tpe {
 	case SearchTypeStartsWith:
-		query += ` WHERE sp.lookup &^ $1 `
+		query += fmt.Sprintf(` WHERE sp.lookup &^ $%d `, argIdx)
 	case SearchTypeContains:
-		query += ` WHERE sp.lookup &@ $1 `
+		query += fmt.Sprintf(` WHERE sp.lookup &@ $%d `, argIdx)
 	}
-	query += ` ORDER BY sp.master_pubkey LIMIT $2 OFFSET $3`
-	args := []interface{}{strings.ToLower(keyword), limit, offset}
+	args = append(args, strings.ToLower(keyword))
+	argIdx++
+	query += fmt.Sprintf(` ORDER BY sp.master_pubkey LIMIT $%d OFFSET $%d`, argIdx, argIdx+1)
+	args = append(args, limit, offset)
 	profiles, err := storage.Select[LiteUser](ctx, a.db, query, args...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to search user profiles")

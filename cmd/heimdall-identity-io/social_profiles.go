@@ -100,6 +100,8 @@ func (s *service) UpsertSocialProfile(
 //	@Param			keyword			query		string					true	"Keyword to search for"
 //	@Param			limit			query		int						true	"Maximum number of results"
 //	@Param			offset			query		int						true	"Offset for pagination"
+//	@Param			followedBy		query		string					false	"Followed by user"
+//	@Param			followerOf		query		string					false	"Follower of user"
 //	@Param			type			query		string					true	"Search type (startsWith, contains)"
 //	@Success		200				{array}		accounts.LiteUser		"List of users matching the search query"
 //	@Failure		400				{object}	server.ErrorResponse	"Invalid request format"
@@ -111,7 +113,10 @@ func (s *service) SearchSocialProfiles(
 	if req.Data.Type != accounts.SearchTypeContains && req.Data.Type != accounts.SearchTypeStartsWith {
 		return nil, server.BadRequest(fmt.Errorf("invalid search type: %s", req.Data.Type), invalidPropertiesErrorCode)
 	}
-	userProfiles, err := s.accounts.SearchSocialProfiles(ctx, accounts.SearchType(req.Data.Type), req.Data.Keyword, req.Data.Limit, req.Data.Offset)
+	if req.Data.FollowedBy != "" && req.Data.FollowerOf != "" {
+		return nil, server.BadRequest(fmt.Errorf("followedBy and followerOf parameters are mutually exclusive"), invalidPropertiesErrorCode)
+	}
+	userProfiles, err := s.accounts.SearchSocialProfiles(ctx, accounts.SearchType(req.Data.Type), req.Data.Keyword, req.Data.FollowedBy, req.Data.FollowerOf, req.Data.Limit, req.Data.Offset)
 	if err != nil {
 		return nil, server.Unexpected(err)
 	}

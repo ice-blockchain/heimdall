@@ -61,7 +61,7 @@ type (
 	SocialProfiles interface {
 		VerifyUsernameAvailability(ctx context.Context, username string) error
 		UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, username, displayName, referral, bio, avatar, loggedInUserUserID string) (*SocialProfile, error)
-		SearchSocialProfiles(ctx context.Context, tpe SearchType, keyword string, limit uint64, offset uint64) ([]*LiteUser, error)
+		SearchSocialProfiles(ctx context.Context, tpe SearchType, keyword, followedBy, followerOf string, limit, offset uint64) ([]*LiteUser, error)
 	}
 	EarlyAccessVerifier interface {
 		VerifyEarlyAccess(ctx context.Context, email string) error

@@ -346,6 +346,15 @@ nft-content:
       password: pass
     replicaURLs:
       - postgresql://root:pass@localhost:5437/heimdall
+following:
+  wintr/connectors/storage/v2:
+    runDDL: true
+    primaryURL: postgresql://root:pass@localhost:5437/heimdall
+    credentials:
+      user: root
+      password: pass
+    replicaURLs:
+      - postgresql://root:pass@localhost:5437/heimdall
 relay-management:
   wintr/connectors/storage/v2:
     runDDL: true

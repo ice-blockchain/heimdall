@@ -8,6 +8,7 @@ import (
 
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/coins"
+	"github.com/ice-blockchain/heimdall/following"
 	hashtagstatistics "github.com/ice-blockchain/heimdall/hashtag-statistics"
 	nftcontent "github.com/ice-blockchain/heimdall/nft-content"
 	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
@@ -73,6 +74,9 @@ type (
 	}
 	NFTContentEventsReq struct {
 		Events []*model.Event `json:"events" binding:"required,min=2,dive" allowUnauthorized:"true"`
+	}
+	FollowersEventsReq struct {
+		Events []*model.Event `json:"events" binding:"required,min=2,max=2,dive" allowUnauthorized:"true"`
 	}
 	GetTopHashtagsReq struct {
 		Authorization string `header:"Authorization" required:"true" swaggerignore:"true"`
@@ -221,6 +225,8 @@ type (
 		Limit         uint64 `form:"limit" required:"true" swaggerignore:"true"`
 		Offset        uint64 `form:"offset" swaggerignore:"true"`
 		Type          string `form:"type" required:"true" swaggerignore:"true"`
+		FollowedBy    string `form:"followedBy" swaggerignore:"true"`
+		FollowerOf    string `form:"followerOf" swaggerignore:"true"`
 	}
 	UpsertSocialProfileRequest struct {
 		Authorization     string `header:"Authorization" required:"true" swaggerignore:"true" allowUnauthorized:"true"`
@@ -275,6 +281,7 @@ type (
 		relays            relaymanagement.Relays
 		hashtagStatistics hashtagstatistics.HashtagStatistics
 		nftContent        nftcontent.NFTContent
+		following         following.Following
 		cfg               *config
 	}
 	config struct {
