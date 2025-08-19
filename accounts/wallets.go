@@ -616,3 +616,22 @@ func (a *accounts) CreateWalletForWalletView(ctx context.Context, userID, networ
 
 	return wallet, errors.Wrapf(err, "failed to modify walletview after wallet creation")
 }
+
+func (a *accounts) FetchMainWallet(ctx context.Context, masterKey string) (Wallet, error) {
+	usr, err := a.getUserByID(ctx, masterKey)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to match user by master key %v", masterKey)
+	}
+	userWallets, err := a.delegatedRPClient.ListWallets(ctx, usr.ID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to wallet list for user %v", usr.ID)
+	}
+	var mainWallet Wallet
+	for _, wallet := range userWallets {
+		if walletID, walletPubKey := dfns.CheckMainWallet(wallet); walletID != "" && walletPubKey != "" {
+			mainWallet = wallet
+			break
+		}
+	}
+	return mainWallet, nil
+}

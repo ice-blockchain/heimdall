@@ -9,6 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
@@ -32,10 +33,13 @@ const (
 )
 
 type (
-	NFTContentStatus = string
-	NFTContentType   = string
-	NFTCategory      = string
-	NFTContent       interface {
+	NFTContentStatus    = string
+	NFTContentType      = string
+	NFTCategory         = string
+	OwnerAddressFetcher interface {
+		FetchMainWallet(ctx context.Context, masterKey string) (accounts.Wallet, error)
+	}
+	NFTContent interface {
 		io.Closer
 		HealthCheck(ctx context.Context) error
 		Process(ctx context.Context, events model.Events) error
@@ -54,6 +58,7 @@ type (
 		DisplayName    string           `db:"display_name"`
 		ContentAddress string           `db:"content_address"`
 		MasterPubKey   string           `db:"master_pubkey"`
+		Owner          string           `db:"owner"`
 		Type           NFTContentType   `db:"type"`
 		Status         NFTContentStatus `db:"status"`
 		Bio            *string          `db:"bio"`
@@ -97,8 +102,10 @@ const (
 
 	contentTypeHtml string = "text/html"
 
-	responseContentType string = "Content"
-	responseAccountType string = "Account"
+	responseContentType         string = "Content"
+	responseAccountType         string = "Account"
+	defaultWalletNetworkTestNet        = "IonTestnet"
+	defaultWalletNetworkMainNet        = "Ion"
 )
 
 var (
@@ -117,7 +124,8 @@ var (
 
 type (
 	nftContent struct {
-		db     *storage.DB
-		config *Config
+		db            *storage.DB
+		walletFetcher OwnerAddressFetcher
+		config        *Config
 	}
 )

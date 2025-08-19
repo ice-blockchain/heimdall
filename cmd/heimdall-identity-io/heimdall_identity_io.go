@@ -121,7 +121,7 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	}
 	s.accounts = accounts.New(ctx, s.coins, s.relays, &appsRuntimeCfg)
 	s.hashtagStatistics = hashtagstatistics.New(ctx)
-	s.nftContent = nftcontent.New(ctx)
+	s.nftContent = nftcontent.New(ctx, s.accounts)
 
 	publicKey := s.accounts.PublicKey()
 	allValidConfigNames[configNameServicePubkeys] = func(_ *config, _ *Version) (any, Version) { return []string{publicKey}, Version(1) }
