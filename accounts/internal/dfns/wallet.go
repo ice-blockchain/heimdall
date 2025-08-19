@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -49,9 +50,28 @@ func (c *dfnsClient) ListWallets(ctx context.Context, userID string) ([]Wallet, 
 
 func (c *dfnsClient) ListAssets(ctx context.Context, walletID string) (*Assets, error) {
 	header := http.Header{}
-	resp, err := dfnsCall[struct{}, Assets](ctx, c, nil, "GET", fmt.Sprintf("/wallets/%v/assets", walletID), header)
+	resp, err := dfnsCall[struct{}, Assets](ctx, c, nil, "GET", fmt.Sprintf("/wallets/%v/assets", walletID), header, []int{http.StatusNotFound})
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to list assets on wallet %v", walletID)
+		if delegatedErr := ParseErrAsDfnsInternalErr(err); delegatedErr != nil {
+			var delegatedParsedErr *DfnsInternalError
+			if errors.As(delegatedErr, &delegatedParsedErr) && delegatedParsedErr.HTTPStatus == http.StatusNotFound &&
+				strings.Contains(delegatedParsedErr.Message, "Can't complete the action because account") && strings.Contains(delegatedParsedErr.Message, "doesn't exist") {
+				var wallet *Wallet
+				wallet, err = c.GetWallet(ctx, walletID)
+				if err != nil {
+					return nil, errors.Wrap(err, "near network, not existed account yet and failed to get wallet")
+				}
+				resp = &Assets{
+					Assets:   nil,
+					Network:  (*wallet)["network"].(string),
+					WalletID: walletID,
+				}
+			}
+
+		}
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to list assets on wallet %v", walletID)
+		}
 	}
 
 	return resp, nil
