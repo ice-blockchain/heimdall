@@ -5,14 +5,13 @@ package nftcontent
 import (
 	"context"
 	"fmt"
-	"github.com/xssnick/tonutils-go/address"
-
 	"net/url"
 	"slices"
 
 	"github.com/goccy/go-json"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
+	"github.com/xssnick/tonutils-go/address"
 
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/config"

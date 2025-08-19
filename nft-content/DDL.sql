@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS nft_content (
     nft_item_address                       TEXT NOT NULL DEFAULT '',
     nft_collection_name                    TEXT NOT NULL DEFAULT '',
     nft_collection_creator_address         TEXT NOT NULL DEFAULT '',
-    owner                                  TEXT NOT NULL DEFAULT '',
+    owner                                  TEXT NOT NULL,
     master_pubkey                          TEXT NOT NULL REFERENCES users(master_pubkey) ON DELETE CASCADE,
     type                                   nft_content_type NOT NULL,
     status                                 nft_content_status NOT NULL DEFAULT 'new',
@@ -46,7 +46,13 @@ END $$;
 -- TODO: remove this it will be migrated to all envs.
 ALTER TABLE nft_content ADD COLUMN IF NOT EXISTS nft_collection_name TEXT NOT NULL DEFAULT '';
 ALTER TABLE nft_content ADD COLUMN IF NOT EXISTS nft_item_address TEXT NOT NULL DEFAULT '';
-ALTER TABLE nft_content ADD COLUMN IF NOT EXISTS owner TEXT NOT NULL DEFAULT '';
+DO $$
+BEGIN
+    ALTER TABLE nft_content ADD COLUMN IF NOT EXISTS owner TEXT NOT NULL DEFAULT '';
+    UPDATE nft_content SET owner = nft_collection_creator_address WHERE owner = '';
+    ALTER TABLE nft_content ALTER COLUMN owner DROP DEFAULT;
+END $$;
+
 
 -- TODO: remove this it will be migrated to all envs.
 DO $$

@@ -630,6 +630,7 @@ func (a *accounts) FetchMainWallet(ctx context.Context, masterKey string) (Walle
 	for _, wallet := range userWallets {
 		if walletID, walletPubKey := dfns.CheckMainWallet(wallet); walletID != "" && walletPubKey != "" {
 			mainWallet = wallet
+			break
 		}
 	}
 	return mainWallet, nil

@@ -7,9 +7,9 @@ import (
 	_ "embed"
 	"io"
 
-	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/pkg/errors"
 
+	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
