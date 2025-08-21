@@ -36,10 +36,12 @@ func (s *service) ProxyIdentificationReq(ginCtx *gin.Context) {
 
 func (s *service) ProxyBrowserCache(ginCtx *gin.Context) {
 	if true {
-		ginCtx.Data(http.StatusForbidden, "application/javascript", []byte("//disabled"))
+		ginCtx.JSON(http.StatusForbidden, map[string]string{
+			"error": "disabled",
+		})
 		return
 	}
-	status, resp, headers, err := s.deviceIdentificationProxy.ProxyBrowserCache(ginCtx, strings.TrimLeft(ginCtx.Request.URL.Path, "/metrics"))
+	status, resp, headers, err := s.deviceIdentificationProxy.ProxyBrowserCache(ginCtx, strings.TrimLeft(ginCtx.Request.URL.Path, "/v1/device-identifications/"))
 	if err != nil {
 		proxyError(ginCtx, err)
 		return
