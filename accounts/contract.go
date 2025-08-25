@@ -54,6 +54,7 @@ type (
 		GetGlobalAccounts(ctx context.Context, currentVer uint8) ([]*LiteUser, uint8, error)
 		SocialProfiles
 		EarlyAccessVerifier
+		Devices
 	}
 	VerifiedUsersSync interface {
 		io.Closer
@@ -67,6 +68,9 @@ type (
 	}
 	EarlyAccessVerifier interface {
 		VerifyEarlyAccess(ctx context.Context, email string) error
+	}
+	Devices interface {
+		DeviceIdentificationProofs(ctx context.Context, attestationEvent *model.Event, devicePubkey string) ([]*model.Event, error)
 	}
 	Wallets interface {
 		CreateWalletView(ctx context.Context, userID, name string, items []*CoinMapping, symbolGroups []string) (*WalletView, error)
@@ -225,7 +229,8 @@ const (
 	clientIPCtxValueKey    = "clientIPCtxValueKey"
 	confirmationCodeLength = 6
 
-	usernameProofOfOwnershipBadgeName = "username_proof_of_ownership"
+	usernameProofOfOwnershipBadgeName  = "username_proof_of_ownership"
+	deviceIdentificationProofBadgeName = "device_identification_proof"
 )
 
 var (

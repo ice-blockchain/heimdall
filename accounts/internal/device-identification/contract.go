@@ -16,7 +16,7 @@ import (
 
 type (
 	Client interface {
-		ValidateRequestID(ctx context.Context, now *time.Time, requestID, clientIP string) (vistorID string, err error)
+		ValidateRequestID(ctx context.Context, now *time.Time, requestID, clientIP string) (vistorID, devicePubKey string, err error)
 		UpdateRequestID(ctx context.Context, requestID, linkedID string, originLinkedID *string) error
 	}
 	Proxy interface {

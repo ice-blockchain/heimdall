@@ -172,6 +172,17 @@ definitions:
       walletViewId:
         type: string
     type: object
+  main.DeviceIdentificationEventsReq:
+    properties:
+      events:
+        items:
+          $ref: '#/definitions/model.Event'
+        maxItems: 1
+        minItems: 1
+        type: array
+    required:
+    - events
+    type: object
   main.FollowersEventsReq:
     properties:
       events:
@@ -937,6 +948,50 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Config
+  /v1/device-identification-proofs:
+    post:
+      consumes:
+      - application/json
+      description: Process event of linking new device (kind 21750 => 10100)
+      parameters:
+      - description: Authorization token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Event with new linked device (kind 21750 => 10100)
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.DeviceIdentificationEventsReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Badges
+          schema:
+            items:
+              $ref: '#/definitions/model.Event'
+            type: array
+        "404":
+          description: if invalid device key provided with the event
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "422":
+          description: if invalid events provided
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Regisrer
   /v1/early-access-users:
     get:
       description: Checks email availability for early access

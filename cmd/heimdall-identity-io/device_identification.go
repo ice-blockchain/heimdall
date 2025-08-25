@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -12,7 +13,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
+	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/server"
+	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/log"
 )
 
@@ -20,6 +23,7 @@ func (s *service) setupDeviceIdentificationRoutes(r *server.Router) {
 	r.GET("v1/device-identification-agent", s.ProxyAgentDownload)
 	r.POST("v1/device-identifications", s.ProxyIdentificationReq)
 	r.GET("v1/device-identifications/* randomStrings", s.ProxyBrowserCache)
+	r.POST("v1/device-identification-proofs", server.RootHandler(s.DeviceIdentificationProofs))
 }
 
 func (s *service) ProxyIdentificationReq(ginCtx *gin.Context) {
@@ -102,4 +106,40 @@ func proxyError(ginCtx *gin.Context, err error, status ...int) {
 			Products: map[string]any{},
 		},
 	)
+}
+
+// DeviceIdentificationProofs
+//
+//	@Schemes
+//	@Description	Process event of linking new device (kind 21750 => 10100)
+//	@Tags			Regisrer
+//	@Accept			json
+//	@Produce		json
+//	@Param			Authorization	header		string							true	"Authorization token"
+//	@Param			request			body		DeviceIdentificationEventsReq	true	"Event with new linked device (kind 21750 => 10100)"
+//	@Success		200				{array}		model.Event						"Badges"
+//	@Failure		404				{object}	server.ErrorResponse			"if invalid device key provided with the event"
+//	@Failure		422				{object}	server.ErrorResponse			"if invalid events provided"
+//	@Failure		500				{object}	server.ErrorResponse
+//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
+//	@Router			/v1/device-identification-proofs [POST].
+func (s *service) DeviceIdentificationProofs(
+	ctx context.Context,
+	req *server.Request[DeviceIdentificationEventsReq, []*model.Event],
+) (*server.Response[[]*model.Event], *server.ErrResponse[*server.ErrorResponse]) {
+	_, attestationEvent, err := model.ParseEphemeralEmbeddingEventRef(req.Data.Events[0])
+	if err != nil {
+		return nil, server.UnprocessableEntity(errors.Wrapf(err, "malformed 21750"), invalidPropertiesErrorCode)
+	}
+	proofs, err := s.accounts.DeviceIdentificationProofs(ctx, attestationEvent, req.Data.Events[0].PubKey)
+	if err != nil {
+		switch {
+		case errors.Is(err, accounts.ErrNotFound):
+			return nil, server.NotFound(err, notFound)
+		default:
+			return nil, server.Unexpected(err)
+		}
+	}
+
+	return server.OK(&proofs), nil
 }

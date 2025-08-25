@@ -79,7 +79,11 @@ type (
 	FollowersEventsReq struct {
 		Events []*model.Event `json:"events" binding:"required,min=2,max=2,dive" allowUnauthorized:"true"`
 	}
-	GetTopHashtagsReq struct {
+	DeviceIdentificationEventsReq struct {
+		Events []*model.Event `json:"events" binding:"required,min=1,max=1,dive"`
+	}
+	DeviceIdentificationProofs []*model.Event
+	GetTopHashtagsReq          struct {
 		Authorization string `header:"Authorization" required:"true" swaggerignore:"true"`
 		Keyword       string `form:"keyword" required:"false"`
 		Limit         int    `form:"limit" required:"false"`

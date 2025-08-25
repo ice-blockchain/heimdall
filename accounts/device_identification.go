@@ -1,0 +1,113 @@
+// SPDX-License-Identifier: ice License 1.0
+
+package accounts
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+
+	"github.com/nbd-wtf/go-nostr"
+	"github.com/pkg/errors"
+
+	device_identification "github.com/ice-blockchain/heimdall/accounts/internal/device-identification"
+	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
+	"github.com/ice-blockchain/heimdall/server"
+	"github.com/ice-blockchain/subzero/model"
+	"github.com/ice-blockchain/wintr/connectors/storage/v2"
+	"github.com/ice-blockchain/wintr/log"
+	"github.com/ice-blockchain/wintr/time"
+)
+
+func (a *accounts) validateRequestIDAndExtractVisitor(ctx context.Context, now *time.Time, requestID string) (visitorID, devicePubkey string, err error) {
+	visitorID, devicePubkey, err = a.deviceIdentificationClient.ValidateRequestID(ctx, now.Time, requestID, clientIPAddress(ctx))
+	if err != nil {
+		if errors.Is(err, device_identification.ErrUnknownVisitor) {
+			log.Error(err)
+			return "", "", &dfns.DfnsInternalError{
+				Message:    device_identification.ErrUnknownVisitor.Error(),
+				HTTPStatus: http.StatusForbidden,
+			}
+		}
+		return "", "", errors.Wrapf(err, "failed to validate visitor id")
+	}
+	return visitorID, devicePubkey, nil
+}
+
+func (a *accounts) masterKeyExists(ctx context.Context, masterPubKey string) error {
+	_, err := a.getUserByID(ctx, masterPubKey)
+	if err != nil {
+		if storage.IsErr(err, storage.ErrNotFound) {
+			err = device_identification.ErrUnknownVisitor
+		}
+		return errors.Wrapf(err, "failed to check user existence by master key %v", masterPubKey)
+	}
+
+	return nil
+}
+
+func (a *accounts) generateDeviceVerifiedBadges(devicePubkey string) ([]*model.Event, error) {
+	publicKey, err := model.GetPublicKey(a.privateKey)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get public key")
+	}
+	badgeDefinitionEvent := model.Event{
+		Event: nostr.Event{
+			CreatedAt: nostr.Now(),
+			Kind:      nostr.KindBadgeDefinition,
+			Tags: model.Tags{
+				{"d", deviceIdentificationProofBadgeName + "~" + devicePubkey},
+			},
+		},
+	}
+	if err := badgeDefinitionEvent.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
+		return nil, errors.Wrapf(err, "failed to sign badge definition event")
+	}
+	badgeAwardEvent := model.Event{
+		Event: nostr.Event{
+			CreatedAt: nostr.Now(),
+			Kind:      nostr.KindBadgeAward,
+			Tags: model.Tags{
+				{"a", fmt.Sprintf("%d:%s:%s~%s", nostr.KindBadgeDefinition, publicKey, deviceIdentificationProofBadgeName, devicePubkey)},
+				{"p", devicePubkey},
+			},
+		},
+	}
+	if err := badgeAwardEvent.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
+		return nil, errors.Wrapf(err, "failed to sign badge award event")
+	}
+
+	return []*model.Event{&badgeDefinitionEvent, &badgeAwardEvent}, nil
+}
+func (a *accounts) DeviceIdentificationProofs(ctx context.Context, attestationEvent *model.Event, devicePubkey string) (proofs []*model.Event, err error) {
+	now := nostr.Now()
+	var allowed bool
+	allowed, err = model.OnBehalfIsAccessAllowed(attestationEvent.Tags, devicePubkey, 0, now)
+	if err != nil {
+		return nil, errors.Wrapf(ErrNotFound, "failed to parse attestation event: %v", err)
+	}
+	if !allowed {
+		return nil, errors.Wrapf(ErrNotFound, "device is not allowed in attestation")
+	}
+	if err = a.validateDevice(ctx, attestationEvent.GetMasterPublicKey(), devicePubkey); err != nil {
+		return nil, errors.Wrapf(err, "failed to verify device pubkey in db %v", devicePubkey)
+	}
+	return a.generateDeviceVerifiedBadges(devicePubkey)
+}
+
+func (a *accounts) validateDevice(ctx context.Context, masterKey string, devicePubkey string) error {
+	validDevice, err := storage.Get[struct {
+		ValidDevice bool `db:"valid_device"`
+	}](ctx, a.db, `SELECT exists(SELECT 1 FROM users_visitors RIGHT JOIN users u on user_id = u.id
+						 WHERE u.master_pubkey = $1 AND device_pubkey = $2 and u.id = $3) as valid_device;`, masterKey, devicePubkey, server.LoggedInUser(ctx).UserID())
+	if err != nil {
+		if storage.IsErr(err, storage.ErrNotFound) {
+			return ErrNotFound
+		}
+		return errors.Wrapf(err, "failed to check if device %v for user %v is valid", devicePubkey, masterKey)
+	}
+	if !validDevice.ValidDevice {
+		return ErrNotFound
+	}
+	return nil
+}

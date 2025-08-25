@@ -140,10 +140,12 @@ CREATE TABLE IF NOT EXISTS assigned_early_access_emails (
 );
 
 CREATE TABLE IF NOT EXISTS users_visitors (
-                                              created_at    TIMESTAMP NOT NULL,
-                                              user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                                              visitor_id    TEXT NOT NULL,
+                                              created_at       TIMESTAMP NOT NULL,
+                                              user_id          TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                                              visitor_id       TEXT NOT NULL,
+                                              device_pubkey    TEXT NOT NULL,
                                               primary key (user_id, visitor_id)
 );
 CREATE INDEX IF NOT EXISTS users_visitors_visitor_id ON users_visitors (visitor_id, created_at asc);
+CREATE INDEX IF NOT EXISTS users_visitors_user_id_device ON users_visitors (user_id, device_pubkey);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS duplicate_of TEXT REFERENCES users(id) ON DELETE SET NULL;
