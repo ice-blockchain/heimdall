@@ -121,7 +121,6 @@ ALTER TABLE social_profiles ADD COLUMN IF NOT EXISTS avatar TEXT;
 
 -- TODO: remove this it will be migrated to all envs.
 DROP INDEX IF EXISTS idx_social_profiles_lookup_pgroonga;
-DROP EXTENSION IF EXISTS pgroonga;
 
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX IF NOT EXISTS idx_social_profiles_lookup_trgm ON social_profiles USING GIN (lookup gin_trgm_ops);
