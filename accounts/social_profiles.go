@@ -218,11 +218,12 @@ func (a *accounts) SearchSocialProfiles(ctx context.Context, tpe SearchType, key
 	}
 	switch tpe {
 	case SearchTypeStartsWith:
-		query += fmt.Sprintf(` WHERE sp.lookup &^ $%d `, argIdx)
+		query += fmt.Sprintf(` WHERE sp.lookup LIKE $%d `, argIdx)
+		args = append(args, strings.ToLower(keyword)+"%")
 	case SearchTypeContains:
-		query += fmt.Sprintf(` WHERE sp.lookup &@ $%d `, argIdx)
+		query += fmt.Sprintf(` WHERE sp.lookup LIKE $%d `, argIdx)
+		args = append(args, "%"+strings.ToLower(keyword)+"%")
 	}
-	args = append(args, strings.ToLower(keyword))
 	argIdx++
 	query += fmt.Sprintf(` ORDER BY sp.master_pubkey LIMIT $%d OFFSET $%d`, argIdx, argIdx+1)
 	args = append(args, limit, offset)
