@@ -122,7 +122,7 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	}
 
 	s.accounts = accounts.New(ctx, s.coins, s.relays, &appsRuntimeCfg)
-	s.validation = validation.New(ctx, validation.WithServiceKeys(func() []string {
+	s.validation = validation.New(ctx, validation.WithIONIdentityPublicKeys(func() []string {
 		return []string{s.accounts.PublicKey()}
 	}))
 	s.hashtagStatistics = hashtagstatistics.New(ctx)

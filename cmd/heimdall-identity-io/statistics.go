@@ -242,7 +242,7 @@ func (s *service) validateNFTContentEvents(ctx context.Context, events model.Eve
 			}
 		}
 	}
-	if err := validation.New(ctx, validation.WithQueryFunc(queryFunc), validation.WithServiceKeys(func() []string {
+	if err := validation.New(ctx, validation.WithQueryFunc(queryFunc), validation.WithIONIdentityPublicKeys(func() []string {
 		return []string{s.accounts.PublicKey()}
 	})).Validate(ctx, events, validation.RuleWithSkipProfileMetadataProofEventsVerify(), validation.RuleWithSkipDeviceIdentificationProofEventsVerify()); err != nil {
 		return errors.Wrap(err, "validation failed")
