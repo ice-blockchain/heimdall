@@ -52,7 +52,7 @@ func (c *client) ValidateRequestID(ctx context.Context, now *time.Time, requestI
 		if c.config.DeviceIdentification.AllowEmpty {
 			return "", "", nil
 		}
-		return "", "", ErrUnknownVisitor
+		return "", "", ErrUnknownDevice
 	}
 	authCtx := context.WithValue(ctx, fingerprint.ContextAPIKey, fingerprint.APIKey{
 		Key: c.config.DeviceIdentification.APIKey,
@@ -69,7 +69,7 @@ func (c *client) ValidateRequestID(ctx context.Context, now *time.Time, requestI
 			}
 		} else {
 			if httpResp.StatusCode == http.StatusNotFound {
-				return "", "", ErrUnknownVisitor
+				return "", "", ErrUnknownDevice
 			}
 			bodyBytes, bodyErr := io.ReadAll(httpResp.Body)
 			if bodyErr != nil {
@@ -84,30 +84,30 @@ func (c *client) ValidateRequestID(ctx context.Context, now *time.Time, requestI
 
 func (c *client) validateVisitorData(ctx context.Context, now *time.Time, clientIp string, event fingerprint.EventsGetResponse) (visitorID string, devicePubkey string, err error) {
 	if event.Products == nil || event.Products.Identification == nil || event.Products.Identification.Data == nil {
-		return "", "", errors.Wrap(ErrUnknownVisitor, "no identification data")
+		return "", "", errors.Wrap(ErrUnknownDevice, "no identification data")
 	}
 	if !slices.Contains(c.config.DeviceIdentification.AllowedUrls, event.Products.Identification.Data.Url) {
-		return "", "", errors.Wrapf(ErrUnknownVisitor, "id / url %v is not allowed", event.Products.Identification.Data.Url)
+		return "", "", errors.Wrapf(ErrUnknownDevice, "id / url %v is not allowed", event.Products.Identification.Data.Url)
 	}
 	if event.Products.Identification.Data.Sdk == nil {
-		return "", "", errors.Wrap(ErrUnknownVisitor, "sdk is not set")
+		return "", "", errors.Wrap(ErrUnknownDevice, "sdk is not set")
 	}
 	sdkVer, validPlatform := c.config.DeviceIdentification.AllowedSdks[strings.ToLower(event.Products.Identification.Data.Sdk.Platform)]
 	if !validPlatform {
-		return "", "", errors.Wrapf(ErrUnknownVisitor, "invalid sdk platform %v", event.Products.Identification.Data.Sdk.Platform)
+		return "", "", errors.Wrapf(ErrUnknownDevice, "invalid sdk platform %v", event.Products.Identification.Data.Sdk.Platform)
 	}
 	if event.Products.Identification.Data.Sdk.Version != sdkVer {
-		return "", "", errors.Wrapf(ErrUnknownVisitor, "invalid sdk version for %v: %v", event.Products.Identification.Data.Sdk.Platform, event.Products.Identification.Data.Sdk.Version)
+		return "", "", errors.Wrapf(ErrUnknownDevice, "invalid sdk version for %v: %v", event.Products.Identification.Data.Sdk.Platform, event.Products.Identification.Data.Sdk.Version)
 	}
 	log.Debug(fmt.Sprintf("device identification event for requestID %v: %+v", event.Products.Identification.Data.RequestId, event.Products))
 	if now.Before(*event.Products.Identification.Data.Time) || (now.After(*event.Products.Identification.Data.Time) && now.Sub(*event.Products.Identification.Data.Time) > c.config.DeviceIdentification.RequestExpirationTime) {
-		return "", "", errors.Wrapf(ErrUnknownVisitor, "requestID expired %v", event.Products.Identification.Data.Time)
+		return "", "", errors.Wrapf(ErrUnknownDevice, "requestID expired %v", event.Products.Identification.Data.Time)
 	}
 	if devicePubkey, err = c.verifySignatureByDeviceKey(event, now); err != nil {
-		return "", "", errors.Wrapf(ErrUnknownVisitor, "invalid device signature: %v", err)
+		return "", "", errors.Wrapf(ErrUnknownDevice, "invalid device signature: %v", err)
 	}
 	if event.Products.Identification.Data.Replayed {
-		return "", "", errors.Wrapf(ErrUnknownVisitor, "replayed request")
+		return "", "", errors.Wrapf(ErrUnknownDevice, "replayed request")
 	}
 	if clientIp != "" && event.Products.Identification.Data.Ip != "" {
 		ip := net.ParseIP(clientIp)
@@ -117,60 +117,60 @@ func (c *client) validateVisitorData(ctx context.Context, now *time.Time, client
 		}
 		if !skipIPCheck {
 			if clientIp != event.Products.Identification.Data.Ip {
-				return "", "", errors.Wrapf(ErrUnknownVisitor, "ip mismatch, req>%v, fingerprint>%v", clientIp, event.Products.Identification.Data.Ip)
+				return "", "", errors.Wrapf(ErrUnknownDevice, "ip mismatch, req>%v, fingerprint>%v", clientIp, event.Products.Identification.Data.Ip)
 			}
 		}
 	}
 	if event.Products.IpBlocklist != nil && event.Products.IpBlocklist.Data != nil {
 		if event.Products.IpBlocklist.Data.Result {
-			return "", "", errors.Wrapf(ErrUnknownVisitor, "ip blocklist detected")
+			return "", "", errors.Wrapf(ErrUnknownDevice, "ip blocklist detected")
 		}
 	}
 	if event.Products.Botd != nil && event.Products.Botd.Data != nil && event.Products.Botd.Data.Bot != nil && event.Products.Botd.Data.Bot.Result != nil {
 		if *event.Products.Botd.Data.Bot.Result == "bad" {
-			return "", "", errors.Wrapf(ErrUnknownVisitor, "bot detected")
+			return "", "", errors.Wrapf(ErrUnknownDevice, "bot detected")
 		}
 	}
 	if event.Products.Tampering != nil && event.Products.Tampering.Data != nil {
 		if event.Products.Tampering.Data.Result {
-			return "", "", errors.Wrapf(ErrUnknownVisitor, "tampering detected")
+			return "", "", errors.Wrapf(ErrUnknownDevice, "tampering detected")
 		}
 	}
 	if event.Products.ClonedApp != nil && event.Products.ClonedApp.Data != nil {
 		if event.Products.ClonedApp.Data.Result {
-			return "", "", errors.Wrapf(ErrUnknownVisitor, "cloned app detected")
+			return "", "", errors.Wrapf(ErrUnknownDevice, "cloned app detected")
 		}
 	}
 	if event.Products.Frida != nil && event.Products.Frida.Data != nil {
 		if event.Products.Frida.Data.Result {
-			return "", "", errors.Wrapf(ErrUnknownVisitor, "frida detected")
+			return "", "", errors.Wrapf(ErrUnknownDevice, "frida detected")
 		}
 	}
 	if event.Products.MitmAttack != nil && event.Products.MitmAttack.Data != nil {
 		if event.Products.MitmAttack.Data.Result {
-			return "", "", errors.Wrapf(ErrUnknownVisitor, "mitm detected")
+			return "", "", errors.Wrapf(ErrUnknownDevice, "mitm detected")
 		}
 	}
 	if event.Products.RootApps != nil && event.Products.RootApps.Data != nil {
 		if event.Products.RootApps.Data.Result {
-			return "", "", errors.Wrapf(ErrUnknownVisitor, "root detected")
+			return "", "", errors.Wrapf(ErrUnknownDevice, "root detected")
 		}
 	}
 	if event.Products.Jailbroken != nil && event.Products.Jailbroken.Data != nil {
 		if event.Products.Jailbroken.Data.Result {
-			return "", "", errors.Wrapf(ErrUnknownVisitor, "jailbreak detected")
+			return "", "", errors.Wrapf(ErrUnknownDevice, "jailbreak detected")
 		}
 	}
 	if event.Products.Emulator != nil && event.Products.Emulator.Data != nil {
 		var development bool
 		appcfg.MustLoadFromKey("development", &development)
 		if (!development) && event.Products.Emulator.Data.Result {
-			return "", "", errors.Wrapf(ErrUnknownVisitor, "emulator detected")
+			return "", "", errors.Wrapf(ErrUnknownDevice, "emulator detected")
 		}
 	}
 	if event.Products.VirtualMachine != nil && event.Products.VirtualMachine.Data != nil {
 		if event.Products.VirtualMachine.Data.Result {
-			return "", "", errors.Wrapf(ErrUnknownVisitor, "vitrual machine detected")
+			return "", "", errors.Wrapf(ErrUnknownDevice, "vitrual machine detected")
 		}
 	}
 	if event.Products.HighActivity != nil && event.Products.HighActivity.Data != nil {

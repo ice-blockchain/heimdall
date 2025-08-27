@@ -50,7 +50,6 @@ func main() {
 func init() {
 	mountContentCategoriesConfig()
 	mountTranslationsConfig()
-	validation.MustInit()
 }
 
 func mountContentCategoriesConfig() {
@@ -123,6 +122,9 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	}
 
 	s.accounts = accounts.New(ctx, s.coins, s.relays, &appsRuntimeCfg)
+	s.validation = validation.New(ctx, validation.WithServiceKeys(func() []string {
+		return []string{s.accounts.PublicKey()}
+	}))
 	s.hashtagStatistics = hashtagstatistics.New(ctx)
 	s.nftContent = nftcontent.New(ctx, s.accounts)
 	s.following = following.New(ctx)

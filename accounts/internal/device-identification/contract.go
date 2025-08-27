@@ -27,7 +27,7 @@ type (
 )
 
 var (
-	ErrUnknownVisitor = errors.New("unknown visitor")
+	ErrUnknownDevice = errors.New("unknown device")
 )
 
 type (

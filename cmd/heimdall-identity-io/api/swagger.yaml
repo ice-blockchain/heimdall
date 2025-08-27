@@ -991,7 +991,7 @@ paths:
           schema:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
-      - Regisrer
+      - Register
   /v1/early-access-users:
     get:
       description: Checks email availability for early access

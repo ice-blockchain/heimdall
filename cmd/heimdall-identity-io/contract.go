@@ -13,6 +13,7 @@ import (
 	nftcontent "github.com/ice-blockchain/heimdall/nft-content"
 	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
 	"github.com/ice-blockchain/subzero/model"
+	"github.com/ice-blockchain/subzero/validation"
 )
 
 type (
@@ -288,6 +289,7 @@ type (
 		nftContent                nftcontent.NFTContent
 		following                 following.Following
 		deviceIdentificationProxy accounts.DeviceIdentificationProxy
+		validation                validation.Validator
 		cfg                       *config
 	}
 	config struct {

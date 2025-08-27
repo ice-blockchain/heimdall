@@ -112,7 +112,7 @@ func proxyError(ginCtx *gin.Context, err error, status ...int) {
 //
 //	@Schemes
 //	@Description	Process event of linking new device (kind 21750 => 10100)
-//	@Tags			Regisrer
+//	@Tags			Register
 //	@Accept			json
 //	@Produce		json
 //	@Param			Authorization	header		string							true	"Authorization token"

@@ -526,7 +526,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Regisrer"
+                    "Register"
                 ],
                 "parameters": [
                     {

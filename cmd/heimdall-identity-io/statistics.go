@@ -43,7 +43,7 @@ func (s *service) ProcessHashtagsEvents(
 	req *server.Request[HashtagsEventsReq, any],
 ) (successResp *server.Response[any], errorResp *server.ErrResponse[*server.ErrorResponse]) {
 	for _, event := range req.Data.Events {
-		if err := validateEvent(ctx, event); err != nil {
+		if err := s.validateEvent(ctx, event); err != nil {
 			return nil, server.UnprocessableEntity(err, invalidPropertiesErrorCode)
 		}
 	}
@@ -109,7 +109,7 @@ func (s *service) ProcessNFTContent(
 	ctx context.Context,
 	req *server.Request[NFTContentEventsReq, any],
 ) (successResp *server.Response[any], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	if err := validateNFTContentEvents(ctx, req.Data.Events); err != nil {
+	if err := s.validateNFTContentEvents(ctx, req.Data.Events); err != nil {
 		return nil, server.UnprocessableEntity(err, invalidPropertiesErrorCode)
 	}
 	if err := s.nftContent.Process(ctx, req.Data.Events); err != nil {
@@ -145,7 +145,7 @@ func (s *service) ProcessFollowersEvents(
 	ctx context.Context,
 	req *server.Request[FollowersEventsReq, any],
 ) (successResp *server.Response[any], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	followListEvent, attestationEvent, err := validateFollowersEvents(ctx, req.Data.Events)
+	followListEvent, attestationEvent, err := s.validateFollowersEvents(ctx, req.Data.Events)
 	if err != nil {
 		return nil, server.UnprocessableEntity(err, invalidPropertiesErrorCode)
 	}
@@ -161,18 +161,18 @@ func (s *service) ProcessFollowersEvents(
 	return &server.Response[any]{Code: http.StatusAccepted}, nil
 }
 
-func validateEvent(ctx context.Context, event *model.Event) error {
+func (s *service) validateEvent(ctx context.Context, event *model.Event) error {
 	if event.Kind != nostr.KindTextNote && event.Kind != model.CustomIONKindEditableTextNote && event.Kind != nostr.KindArticle {
 		return errors.Errorf("invalid event kind: %d", event.Kind)
 	}
-	if err := validation.Validate(ctx, model.Events{event}); err != nil {
+	if err := s.validation.Validate(ctx, model.Events{event}); err != nil {
 		return errors.Wrap(err, "invalid event")
 	}
 
 	return nil
 }
 
-func validateNFTContentEvents(ctx context.Context, events model.Events) error {
+func (s *service) validateNFTContentEvents(ctx context.Context, events model.Events) error {
 	if len(events) != 2 && len(events) != 3 {
 		return errors.Errorf("2 or 3 events required, got %d", len(events))
 	}
@@ -242,14 +242,16 @@ func validateNFTContentEvents(ctx context.Context, events model.Events) error {
 			}
 		}
 	}
-	if err := validation.New(validation.WithQueryFunc(queryFunc)).Validate(ctx, events, validation.RuleWithSkipProfileMetadataProofEventsVerify(), validation.RuleWithSkipDeviceIdentificationProofEventsVerify()); err != nil {
+	if err := validation.New(ctx, validation.WithQueryFunc(queryFunc), validation.WithServiceKeys(func() []string {
+		return []string{s.accounts.PublicKey()}
+	})).Validate(ctx, events, validation.RuleWithSkipProfileMetadataProofEventsVerify(), validation.RuleWithSkipDeviceIdentificationProofEventsVerify()); err != nil {
 		return errors.Wrap(err, "validation failed")
 	}
 
 	return nil
 }
 
-func validateFollowersEvents(ctx context.Context, events model.Events) (followListEvent, attestationEvent *model.Event, err error) {
+func (s *service) validateFollowersEvents(ctx context.Context, events model.Events) (followListEvent, attestationEvent *model.Event, err error) {
 	if len(events) != 2 {
 		return nil, nil, errors.Errorf("2 events required (kind 3 + kind 10100), got %d", len(events))
 	}
@@ -275,7 +277,7 @@ func validateFollowersEvents(ctx context.Context, events model.Events) (followLi
 	if attestationEvent == nil {
 		return nil, nil, errors.Errorf("attestation event is required")
 	}
-	if err := validation.Validate(ctx, events); err != nil {
+	if err := s.validation.Validate(ctx, events); err != nil {
 		return nil, nil, errors.Wrap(err, "validation failed")
 	}
 

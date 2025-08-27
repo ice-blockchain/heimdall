@@ -22,10 +22,10 @@ import (
 func (a *accounts) validateRequestIDAndExtractVisitor(ctx context.Context, now *time.Time, requestID string) (visitorID, devicePubkey string, err error) {
 	visitorID, devicePubkey, err = a.deviceIdentificationClient.ValidateRequestID(ctx, now.Time, requestID, clientIPAddress(ctx))
 	if err != nil {
-		if errors.Is(err, device_identification.ErrUnknownVisitor) {
+		if errors.Is(err, device_identification.ErrUnknownDevice) {
 			log.Error(err)
 			return "", "", &dfns.DfnsInternalError{
-				Message:    device_identification.ErrUnknownVisitor.Error(),
+				Message:    device_identification.ErrUnknownDevice.Error(),
 				HTTPStatus: http.StatusForbidden,
 			}
 		}
@@ -38,7 +38,7 @@ func (a *accounts) masterKeyExists(ctx context.Context, masterPubKey string) err
 	_, err := a.getUserByID(ctx, masterPubKey)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
-			err = device_identification.ErrUnknownVisitor
+			err = device_identification.ErrUnknownDevice
 		}
 		return errors.Wrapf(err, "failed to check user existence by master key %v", masterPubKey)
 	}
