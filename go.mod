@@ -33,7 +33,7 @@ require (
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.16.6
-	github.com/twilio/twilio-go v1.27.1
+	github.com/twilio/twilio-go v1.27.2
 	github.com/xssnick/tonutils-go v1.14.1
 	golang.org/x/exp v0.0.0-20250819193227-8b4c13bb791b
 	golang.org/x/mod v0.27.0

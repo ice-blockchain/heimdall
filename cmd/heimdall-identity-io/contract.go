@@ -6,6 +6,8 @@ import (
 	"embed"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/coins"
 	"github.com/ice-blockchain/heimdall/following"
@@ -321,6 +323,7 @@ var (
 		configNameRequiredWindowsAppVersion: func(cfg *config, _ *Version) (any, Version) { return cfg.RequiredAppVersions.Windows, Version(0) },
 		configNameRequiredLinuxAppVersion:   func(cfg *config, _ *Version) (any, Version) { return cfg.RequiredAppVersions.Linux, Version(0) },
 	}
+	errVersionRequired = errors.New("version required")
 )
 
 const (
