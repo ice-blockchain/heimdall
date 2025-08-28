@@ -632,7 +632,7 @@ func (a *accounts) GetGlobalAccounts(ctx context.Context, currentVer uint8) ([]*
 	}](ctx, a.db, stmt, currentVer)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
-			return nil, currentVer, nil
+			return []*LiteUser{}, currentVer, nil
 		}
 
 		return nil, 0, errors.Wrapf(err, "failed to select latest_global_accounts_version for version: %#v", currentVer)

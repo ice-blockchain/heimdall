@@ -85,7 +85,6 @@ accounts:
   userSignatureExpiration: 1h
   max2FACount: 2
   device-identification:
-    allowEmpty: true
     #apiKey: bogus
     #proxySecret: bogus
     region: eu
