@@ -17,6 +17,7 @@ import (
 	"time"
 
 	deviceidentificationsdk "github.com/fingerprintjs/fingerprint-pro-server-api-go-sdk/v7/sdk"
+	"github.com/goccy/go-json"
 	"github.com/pkg/errors"
 	"golang.org/x/mod/semver"
 	"golang.org/x/net/http2"
@@ -71,29 +72,33 @@ func (c *client) validateVisitorData(ctx context.Context, now *time.Time, client
 	if event.Products == nil || event.Products.Identification == nil || event.Products.Identification.Data == nil {
 		return "", "", errors.Wrap(ErrUnknownDevice, "no identification data")
 	}
+	jProducts, err := json.Marshal(event.Products)
+	if err != nil {
+		jProducts = []byte(fmt.Sprintf("%+v", event.Products))
+	}
+	log.Debug(fmt.Sprintf("device identification event for requestID %v: %+v", event.Products.Identification.Data.RequestId, string(jProducts)))
 	if !slices.Contains(c.config.DeviceIdentification.AllowedUrls, event.Products.Identification.Data.Url) {
-		return "", "", errors.Wrapf(ErrUnknownDevice, "id / url %v is not allowed", event.Products.Identification.Data.Url)
+		return "", "", errors.Wrapf(ErrUnknownDevice, "request %v id / url %v is not allowed", event.Products.Identification.Data.RequestId, event.Products.Identification.Data.Url)
 	}
 	if event.Products.Identification.Data.Sdk == nil {
-		return "", "", errors.Wrap(ErrUnknownDevice, "sdk is not set")
+		return "", "", errors.Wrapf(ErrUnknownDevice, "request %v sdk is not set", event.Products.Identification.Data.RequestId)
 	}
 	sdkVer, validPlatform := c.config.DeviceIdentification.AllowedSdks[strings.ToLower(event.Products.Identification.Data.Sdk.Platform)]
 	if !validPlatform {
-		return "", "", errors.Wrapf(ErrUnknownDevice, "invalid sdk platform %v", event.Products.Identification.Data.Sdk.Platform)
+		return "", "", errors.Wrapf(ErrUnknownDevice, "request %v invalid sdk platform %v", event.Products.Identification.Data.RequestId, event.Products.Identification.Data.Sdk.Platform)
 	}
 
 	if semver.Compare(event.Products.Identification.Data.Sdk.Version, sdkVer) < 0 {
-		return "", "", errors.Wrapf(ErrUnknownDevice, "invalid sdk version for %v: %v", event.Products.Identification.Data.Sdk.Platform, event.Products.Identification.Data.Sdk.Version)
+		return "", "", errors.Wrapf(ErrUnknownDevice, "request %v invalid sdk version for %v: %v", event.Products.Identification.Data.RequestId, event.Products.Identification.Data.Sdk.Platform, event.Products.Identification.Data.Sdk.Version)
 	}
-	log.Debug(fmt.Sprintf("device identification event for requestID %v: %+v", event.Products.Identification.Data.RequestId, event.Products))
 	if now.Before(*event.Products.Identification.Data.Time) || (now.After(*event.Products.Identification.Data.Time) && now.Sub(*event.Products.Identification.Data.Time) > c.config.DeviceIdentification.RequestExpirationTime) {
-		return "", "", errors.Wrapf(ErrUnknownDevice, "requestID expired %v", event.Products.Identification.Data.Time)
+		return "", "", errors.Wrapf(ErrUnknownDevice, "requestID %v expired %v", event.Products.Identification.Data.RequestId, event.Products.Identification.Data.Time)
 	}
 	if devicePubkey, err = c.verifySignatureByDeviceKey(event, now); err != nil {
-		return "", "", errors.Wrapf(ErrUnknownDevice, "invalid device signature: %v", err)
+		return "", "", errors.Wrapf(ErrUnknownDevice, "invalid device signature: %v request %v", err, event.Products.Identification.Data.RequestId)
 	}
 	if event.Products.Identification.Data.Replayed {
-		return "", "", errors.Wrapf(ErrUnknownDevice, "replayed request")
+		return "", "", errors.Wrapf(ErrUnknownDevice, "replayed request %v", event.Products.Identification.Data.RequestId)
 	}
 	if clientIp != "" && event.Products.Identification.Data.Ip != "" {
 		ip := net.ParseIP(clientIp)
@@ -103,78 +108,79 @@ func (c *client) validateVisitorData(ctx context.Context, now *time.Time, client
 		}
 		if !skipIPCheck {
 			if clientIp != event.Products.Identification.Data.Ip {
-				return "", "", errors.Wrapf(ErrUnknownDevice, "ip mismatch, req>%v, deviceidentificationsdk>%v", clientIp, event.Products.Identification.Data.Ip)
+				return "", "", errors.Wrapf(ErrUnknownDevice, "request %v ip mismatch, req>%v, deviceidentificationsdk>%v", event.Products.Identification.Data.RequestId, clientIp, event.Products.Identification.Data.Ip)
 			}
 		}
 	}
 	if event.Products.IpBlocklist != nil && event.Products.IpBlocklist.Data != nil {
 		if event.Products.IpBlocklist.Data.Result {
-			return "", "", errors.Wrapf(ErrUnknownDevice, "ip blocklist detected")
+			return "", "", errors.Wrapf(ErrUnknownDevice, "request %v ip blocklist detected", event.Products.Identification.Data.RequestId)
 		}
 	}
 	if event.Products.Botd != nil && event.Products.Botd.Data != nil && event.Products.Botd.Data.Bot != nil && event.Products.Botd.Data.Bot.Result != nil {
 		if *event.Products.Botd.Data.Bot.Result == "bad" {
-			return "", "", errors.Wrapf(ErrUnknownDevice, "bot detected")
+			return "", "", errors.Wrapf(ErrUnknownDevice, "request %v bot detected", event.Products.Identification.Data.RequestId)
 		}
 	}
 	if event.Products.Tampering != nil && event.Products.Tampering.Data != nil {
 		if event.Products.Tampering.Data.Result {
-			return "", "", errors.Wrapf(ErrUnknownDevice, "tampering detected")
+			return "", "", errors.Wrapf(ErrUnknownDevice, "request %v tampering detected", event.Products.Identification.Data.RequestId)
 		}
 	}
 	if event.Products.ClonedApp != nil && event.Products.ClonedApp.Data != nil {
 		if event.Products.ClonedApp.Data.Result {
-			return "", "", errors.Wrapf(ErrUnknownDevice, "cloned app detected")
+			return "", "", errors.Wrapf(ErrUnknownDevice, "request %v cloned app detected", event.Products.Identification.Data.RequestId)
 		}
 	}
 	if event.Products.Frida != nil && event.Products.Frida.Data != nil {
 		if event.Products.Frida.Data.Result {
-			return "", "", errors.Wrapf(ErrUnknownDevice, "frida detected")
+			return "", "", errors.Wrapf(ErrUnknownDevice, "request %v frida detected", event.Products.Identification.Data.RequestId)
 		}
 	}
 	if event.Products.MitmAttack != nil && event.Products.MitmAttack.Data != nil {
 		if event.Products.MitmAttack.Data.Result {
-			return "", "", errors.Wrapf(ErrUnknownDevice, "mitm detected")
+			return "", "", errors.Wrapf(ErrUnknownDevice, "request %v mitm detected", event.Products.Identification.Data.RequestId)
 		}
 	}
 	if event.Products.RootApps != nil && event.Products.RootApps.Data != nil {
 		if event.Products.RootApps.Data.Result {
-			return "", "", errors.Wrapf(ErrUnknownDevice, "root detected")
+			return "", "", errors.Wrapf(ErrUnknownDevice, "request %v root detected", event.Products.Identification.Data.RequestId)
 		}
 	}
 	if event.Products.Jailbroken != nil && event.Products.Jailbroken.Data != nil {
 		if event.Products.Jailbroken.Data.Result {
-			return "", "", errors.Wrapf(ErrUnknownDevice, "jailbreak detected")
+			return "", "", errors.Wrapf(ErrUnknownDevice, "request %v jailbreak detected", event.Products.Identification.Data.RequestId)
 		}
 	}
 	if event.Products.Emulator != nil && event.Products.Emulator.Data != nil {
 		var development bool
 		appcfg.MustLoadFromKey("development", &development)
 		if (!development) && event.Products.Emulator.Data.Result {
-			return "", "", errors.Wrapf(ErrUnknownDevice, "emulator detected")
+			return "", "", errors.Wrapf(ErrUnknownDevice, "request %v emulator detected", event.Products.Identification.Data.RequestId)
 		}
 	}
 	if c.config.DeviceIdentification.SuspectThreshold > 0 {
 		if event.Products.SuspectScore != nil && event.Products.SuspectScore.Data != nil {
 			if int(event.Products.SuspectScore.Data.Result) > c.config.DeviceIdentification.SuspectThreshold {
-				return "", "", errors.Wrapf(ErrUnknownDevice, "suspect score is high: %v", event.Products.SuspectScore.Data.Result)
+				return "", "", errors.Wrapf(ErrUnknownDevice, "suspect score is high: %v for request %v", event.Products.SuspectScore.Data.Result, event.Products.Identification.Data.RequestId)
 			}
 		}
 	}
 	if event.Products.VirtualMachine != nil && event.Products.VirtualMachine.Data != nil {
 		if event.Products.VirtualMachine.Data.Result {
-			return "", "", errors.Wrapf(ErrUnknownDevice, "vitrual machine detected")
+			return "", "", errors.Wrapf(ErrUnknownDevice, "request %v vitrual machine detected", event.Products.Identification.Data.RequestId)
 		}
 	}
 	if event.Products.HighActivity != nil && event.Products.HighActivity.Data != nil {
 		if event.Products.HighActivity.Data.Result {
-			log.Warn(fmt.Sprintf("high activity detected %v/24h requests, more than 98% of other visitors", event.Products.HighActivity.Data.DailyRequests))
+			log.Warn(fmt.Sprintf("request %v: high activity detected %v/24h requests, more than 98% of other visitors", event.Products.Identification.Data.RequestId, event.Products.HighActivity.Data.DailyRequests))
 		}
 	}
 	if event.Products.Velocity != nil && event.Products.Velocity.Data != nil &&
 		event.Products.Velocity.Data.DistinctLinkedId != nil && event.Products.Velocity.Data.DistinctLinkedId.Intervals != nil {
 		if event.Products.Velocity.Data.DistinctLinkedId.Intervals.Var24h > 2 {
-			log.Warn(fmt.Sprintf("detected %v various linkedIds / masterKeys for visitor %v requestId %v",
+			log.Warn(fmt.Sprintf("request %v detected %v various linkedIds / masterKeys for visitor %v requestId %v",
+				event.Products.Identification.Data.RequestId,
 				event.Products.Velocity.Data.DistinctLinkedId.Intervals.Var24h,
 				event.Products.Identification.Data.VisitorId,
 				event.Products.Identification.Data.RequestId))
@@ -182,7 +188,8 @@ func (c *client) validateVisitorData(ctx context.Context, now *time.Time, client
 	}
 	if event.Products.Identification.Data.Confidence != nil {
 		if event.Products.Identification.Data.Confidence.Score <= 0.95 {
-			log.Warn(fmt.Sprintf("low confidence score %v (%v) for visitor %v requestId %v",
+			log.Warn(fmt.Sprintf("request %v: low confidence score %v (%v) for visitor %v requestId %v",
+				event.Products.Identification.Data.RequestId,
 				event.Products.Identification.Data.Confidence.Score,
 				event.Products.Identification.Data.Confidence.Comment,
 				event.Products.Identification.Data.VisitorId,
@@ -197,7 +204,7 @@ func (c *client) validateVisitorData(ctx context.Context, now *time.Time, client
 	if event.Products.Identification.Data.Tag != nil {
 		if originID, hasOrigin := (*event.Products.Identification.Data.Tag)["originLinkedId"]; hasOrigin && originID != "" {
 			if err = c.validateLinkedId(ctx, originID.(string)); err != nil {
-				return "", "", errors.Wrapf(err, "failed to validate linked id / master key %v", event.Products.Identification.Data.LinkedId)
+				return "", "", errors.Wrapf(err, "failed to validate linked id / master key %v", originID)
 			}
 		}
 	}
