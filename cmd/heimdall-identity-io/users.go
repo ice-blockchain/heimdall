@@ -241,6 +241,9 @@ func (s *service) GetConfig(
 	}
 	resp, vers := getConfig(s.cfg, req.Data.Version)
 	if err, ok := resp.(error); ok {
+		if errors.Is(err, errVersionRequired) {
+			return nil, server.UnprocessableEntity(err, invalidPropertiesErrorCode)
+		}
 		return nil, server.Unexpected(err)
 	}
 	if vers > Version(0) && req.Data.Version == nil {

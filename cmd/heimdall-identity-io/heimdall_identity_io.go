@@ -138,7 +138,7 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 		if ver != nil {
 			currentVer = uint8(*ver)
 		} else {
-			return errors.New("version required for global_accounts"), Version(0)
+			return errors.Wrapf(errVersionRequired, "version required for global_accounts"), Version(0)
 		}
 		accs, newVer, err := s.accounts.GetGlobalAccounts(reqCtx, currentVer)
 		if err != nil {
