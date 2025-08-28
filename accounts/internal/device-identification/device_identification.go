@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: ice License 1.0
 
-package device_identification
+package deviceidentification
 
 import (
 	"context"
@@ -16,8 +16,9 @@ import (
 	"strings"
 	"time"
 
-	fingerprint "github.com/fingerprintjs/fingerprint-pro-server-api-go-sdk/v7/sdk"
+	deviceidentificationsdk "github.com/fingerprintjs/fingerprint-pro-server-api-go-sdk/v7/sdk"
 	"github.com/pkg/errors"
+	"golang.org/x/mod/semver"
 	"golang.org/x/net/http2"
 
 	appcfg "github.com/ice-blockchain/wintr/config"
@@ -33,56 +34,40 @@ func New(applicationYamlKey string, validateLinkedId func(context.Context, strin
 			log.Panic(errors.Errorf("[DEVICE_IDENTIFICATION] empty api key"))
 		}
 	}
-	if !slices.Contains(validRegions, fingerprint.Region(cfg.DeviceIdentification.Region)) {
+	if !slices.Contains(validRegions, deviceidentificationsdk.Region(cfg.DeviceIdentification.Region)) {
 		log.Panic(errors.Errorf("[DEVICE_IDENTIFICATION] invalid region: %v", cfg.DeviceIdentification.Region))
 	}
-	internalCfg := fingerprint.NewConfiguration()
+	internalCfg := deviceidentificationsdk.NewConfiguration()
 	internalCfg.HTTPClient = &http.Client{Transport: &http2.Transport{AllowHTTP: false}}
-	internalCfg.ChangeRegion(fingerprint.Region(cfg.DeviceIdentification.Region))
+	internalCfg.ChangeRegion(deviceidentificationsdk.Region(cfg.DeviceIdentification.Region))
 	cl := &client{
-		client:           fingerprint.NewAPIClient(internalCfg),
+		client:           deviceidentificationsdk.NewAPIClient(internalCfg),
 		config:           &cfg,
 		validateLinkedId: validateLinkedId,
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := cl.HealthCheck(ctx); err != nil {
+		log.Panic(errors.Wrapf(err, "initial health check of device identification failed"))
 	}
 	return cl
 }
 
 func (c *client) ValidateRequestID(ctx context.Context, now *time.Time, requestID, clientIp string) (visitorID, devicePubKey string, err error) {
 	if requestID == "" || requestID == "-" {
-		if c.config.DeviceIdentification.AllowEmpty {
+		if deviceIdentificationDisabled { // TODO: remove once FE implemented.
 			return "", "", nil
 		}
 		return "", "", ErrUnknownDevice
 	}
-	authCtx := context.WithValue(ctx, fingerprint.ContextAPIKey, fingerprint.APIKey{
-		Key: c.config.DeviceIdentification.APIKey,
-	})
-	request, httpResp, err := c.client.FingerprintApi.GetEvent(authCtx, requestID)
+	request, err := c.getEvent(ctx, requestID)
 	if err != nil {
-		var tooManyRequestsError *fingerprint.TooManyRequestsError
-		if errors.As(err, &tooManyRequestsError) {
-			select {
-			case <-ctx.Done():
-				return "", "", ctx.Err()
-			case <-time.After(time.Duration(tooManyRequestsError.RetryAfter()) * time.Second):
-				return c.ValidateRequestID(ctx, now, requestID, clientIp)
-			}
-		} else {
-			if httpResp.StatusCode == http.StatusNotFound {
-				return "", "", ErrUnknownDevice
-			}
-			bodyBytes, bodyErr := io.ReadAll(httpResp.Body)
-			if bodyErr != nil {
-				return "", "", errors.Wrapf(bodyErr, "[device-identification] failed to read visitor ID %q: %v", requestID, err.Error())
-			}
-			return "", "", errors.Wrapf(err, "failed to get visits for requestID:%v (%v): %v", requestID, httpResp.StatusCode, string(bodyBytes))
-		}
+		return "", "", errors.Wrapf(err, "failed to get event by requestID %v", requestID)
 	}
-
 	return c.validateVisitorData(ctx, now, clientIp, request)
 }
 
-func (c *client) validateVisitorData(ctx context.Context, now *time.Time, clientIp string, event fingerprint.EventsGetResponse) (visitorID string, devicePubkey string, err error) {
+func (c *client) validateVisitorData(ctx context.Context, now *time.Time, clientIp string, event *deviceidentificationsdk.EventsGetResponse) (visitorID string, devicePubkey string, err error) {
 	if event.Products == nil || event.Products.Identification == nil || event.Products.Identification.Data == nil {
 		return "", "", errors.Wrap(ErrUnknownDevice, "no identification data")
 	}
@@ -96,7 +81,8 @@ func (c *client) validateVisitorData(ctx context.Context, now *time.Time, client
 	if !validPlatform {
 		return "", "", errors.Wrapf(ErrUnknownDevice, "invalid sdk platform %v", event.Products.Identification.Data.Sdk.Platform)
 	}
-	if event.Products.Identification.Data.Sdk.Version != sdkVer {
+
+	if semver.Compare(event.Products.Identification.Data.Sdk.Version, sdkVer) < 0 {
 		return "", "", errors.Wrapf(ErrUnknownDevice, "invalid sdk version for %v: %v", event.Products.Identification.Data.Sdk.Platform, event.Products.Identification.Data.Sdk.Version)
 	}
 	log.Debug(fmt.Sprintf("device identification event for requestID %v: %+v", event.Products.Identification.Data.RequestId, event.Products))
@@ -201,10 +187,17 @@ func (c *client) validateVisitorData(ctx context.Context, now *time.Time, client
 			return "", "", errors.Wrapf(err, "failed to validate linked id / master key %v", event.Products.Identification.Data.LinkedId)
 		}
 	}
+	if event.Products.Identification.Data.Tag != nil {
+		if originID, hasOrigin := (*event.Products.Identification.Data.Tag)["originLinkedId"]; hasOrigin && originID != "" {
+			if err = c.validateLinkedId(ctx, originID.(string)); err != nil {
+				return "", "", errors.Wrapf(err, "failed to validate linked id / master key %v", event.Products.Identification.Data.LinkedId)
+			}
+		}
+	}
 	return event.Products.Identification.Data.VisitorId, devicePubkey, nil
 }
 
-func (c *client) deviceIdentificationSignedData(event fingerprint.EventsGetResponse, createdAt string) []byte {
+func (c *client) deviceIdentificationSignedData(event *deviceidentificationsdk.EventsGetResponse, createdAt string) []byte {
 	return []byte(strings.Join([]string{
 		event.Products.Identification.Data.BrowserDetails.Os,
 		event.Products.Identification.Data.BrowserDetails.OsVersion,
@@ -215,7 +208,7 @@ func (c *client) deviceIdentificationSignedData(event fingerprint.EventsGetRespo
 	}, ":"))
 }
 
-func (c *client) verifySignatureByDeviceKey(event fingerprint.EventsGetResponse, now *time.Time) (string, error) {
+func (c *client) verifySignatureByDeviceKey(event *deviceidentificationsdk.EventsGetResponse, now *time.Time) (string, error) {
 	if event.Products.Identification.Data.Tag == nil ||
 		(*event.Products.Identification.Data.Tag)["signature"] == nil {
 		return "", errors.New("no signature")
@@ -256,25 +249,56 @@ func (c *client) verifySignatureByDeviceKey(event fingerprint.EventsGetResponse,
 	return split[1], nil
 }
 
+func (c *client) getEvent(ctx context.Context, requestID string) (*deviceidentificationsdk.EventsGetResponse, error) {
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	authCtx := context.WithValue(ctx, deviceidentificationsdk.ContextAPIKey, deviceidentificationsdk.APIKey{
+		Key: c.config.DeviceIdentification.APIKey,
+	})
+	request, httpResp, err := c.client.FingerprintApi.GetEvent(authCtx, requestID)
+	if err != nil {
+		var tooManyRequestsError *deviceidentificationsdk.TooManyRequestsError
+		if errors.As(err, &tooManyRequestsError) {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(time.Duration(tooManyRequestsError.RetryAfter()) * time.Second):
+				return c.getEvent(ctx, requestID)
+			}
+		} else {
+			if httpResp.StatusCode == http.StatusNotFound {
+				return nil, ErrUnknownDevice
+			}
+			bodyBytes, bodyErr := io.ReadAll(httpResp.Body)
+			if bodyErr != nil {
+				return nil, errors.Wrapf(bodyErr, "[device-identification] failed to read visitor ID %q: %v", requestID, err.Error())
+			}
+			return nil, errors.Wrapf(err, "failed to get visits for requestID:%v (%v): %v", requestID, httpResp.StatusCode, string(bodyBytes))
+		}
+	}
+	return &request, nil
+}
+
 func (c *client) UpdateRequestID(ctx context.Context, requestID, linkedId string, originLinkedId *string) error {
-	if c.config.DeviceIdentification.AllowEmpty && requestID == "" {
+	if deviceIdentificationDisabled && requestID == "" { // TODO: remove once FE implemented.
 		return nil
 	}
 
-	req := fingerprint.EventsUpdateRequest{
+	req := deviceidentificationsdk.EventsUpdateRequest{
 		LinkedId: linkedId,
 	}
 	if originLinkedId != nil && *originLinkedId != "" {
-		req.Tag = &fingerprint.ModelMap{
+		req.Tag = &deviceidentificationsdk.ModelMap{
 			"originLinkedId": *originLinkedId,
 		}
 	}
-	authCtx := context.WithValue(ctx, fingerprint.ContextAPIKey, fingerprint.APIKey{
+	authCtx := context.WithValue(ctx, deviceidentificationsdk.ContextAPIKey, deviceidentificationsdk.APIKey{
 		Key: c.config.DeviceIdentification.APIKey,
 	})
 	httpResp, err := c.client.FingerprintApi.UpdateEvent(authCtx, req, requestID)
 	if err != nil {
-		var tooManyRequestsError *fingerprint.TooManyRequestsError
+		var tooManyRequestsError *deviceidentificationsdk.TooManyRequestsError
 		if errors.As(err, &tooManyRequestsError) {
 			select {
 			case <-ctx.Done():
@@ -294,4 +318,12 @@ func (c *client) UpdateRequestID(ctx context.Context, requestID, linkedId string
 		}
 	}
 	return nil
+}
+
+func (c *client) HealthCheck(ctx context.Context) error {
+	_, err := c.getEvent(ctx, "bogus")
+	if errors.Is(err, ErrUnknownDevice) {
+		err = nil
+	}
+	return errors.Wrapf(err, "device identification sdk health check failed")
 }

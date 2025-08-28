@@ -147,5 +147,4 @@ CREATE TABLE IF NOT EXISTS users_visitors (
                                               primary key (user_id, visitor_id)
 );
 CREATE INDEX IF NOT EXISTS users_visitors_visitor_id ON users_visitors (visitor_id, created_at asc);
-CREATE INDEX IF NOT EXISTS users_visitors_user_id_device ON users_visitors (user_id, device_pubkey);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS duplicate_of TEXT REFERENCES users(id) ON DELETE SET NULL;

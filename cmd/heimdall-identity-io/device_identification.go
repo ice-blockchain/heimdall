@@ -4,18 +4,20 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strings"
 	stdlibtime "time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/subzero/model"
+	"github.com/ice-blockchain/subzero/validation"
 	"github.com/ice-blockchain/wintr/log"
 )
 
@@ -71,8 +73,14 @@ func (s *service) ProxyAgentDownload(ginCtx *gin.Context) {
 	ginCtx.Data(status, headers.Get("Content-Type"), resp)
 }
 
+func mustRandomString(length int) string {
+	bytes := make([]byte, length)
+	_, _ = rand.Read(bytes)
+	return base64.RawURLEncoding.EncodeToString(bytes)[:length]
+}
+
 func proxyError(ginCtx *gin.Context, err error, status ...int) {
-	requestID := fmt.Sprintf("%v.%v", stdlibtime.Now().Unix(), uuid.NewString()[:6])
+	requestID := fmt.Sprintf("%v.%v", stdlibtime.Now().Unix(), mustRandomString(6))
 	log.Error(errors.Wrapf(err, "proxy request to device identification service failed, requestID %v", requestID))
 	origin := ginCtx.Request.Header.Get("Origin")
 	if origin == "" {
@@ -116,7 +124,7 @@ func proxyError(ginCtx *gin.Context, err error, status ...int) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			Authorization	header		string							true	"Authorization token"
-//	@Param			request			body		DeviceIdentificationEventsReq	true	"Event with new linked device (kind 21750 => 10100)"
+//	@Param			request			body		DeviceIdentificationEventReq	true	"Event with new linked device (kind 21750 => 10100)"
 //	@Success		200				{array}		model.Event						"Badges"
 //	@Failure		404				{object}	server.ErrorResponse			"if invalid device key provided with the event"
 //	@Failure		422				{object}	server.ErrorResponse			"if invalid events provided"
@@ -125,13 +133,13 @@ func proxyError(ginCtx *gin.Context, err error, status ...int) {
 //	@Router			/v1/device-identification-proofs [POST].
 func (s *service) DeviceIdentificationProofs(
 	ctx context.Context,
-	req *server.Request[DeviceIdentificationEventsReq, []*model.Event],
+	req *server.Request[DeviceIdentificationEventReq, []*model.Event],
 ) (*server.Response[[]*model.Event], *server.ErrResponse[*server.ErrorResponse]) {
-	_, attestationEvent, err := model.ParseEphemeralEmbeddingEventRef(req.Data.Events[0])
+	attestationEvent, err := s.validateDeviceEvent(ctx, req.Data.Event)
 	if err != nil {
-		return nil, server.UnprocessableEntity(errors.Wrapf(err, "malformed 21750"), invalidPropertiesErrorCode)
+		return nil, server.UnprocessableEntity(err, invalidPropertiesErrorCode)
 	}
-	proofs, err := s.accounts.DeviceIdentificationProofs(ctx, attestationEvent, req.Data.Events[0].PubKey)
+	proofs, err := s.accounts.DeviceIdentificationProofs(ctx, attestationEvent, req.Data.Event.PubKey)
 	if err != nil {
 		switch {
 		case errors.Is(err, accounts.ErrNotFound):
@@ -142,4 +150,43 @@ func (s *service) DeviceIdentificationProofs(
 	}
 
 	return server.OK(&proofs), nil
+}
+
+func (s *service) validateDeviceEvent(ctx context.Context, device *model.Event) (attestationEvent *model.Event, err error) {
+	attestationAddr, attestationEvent, err := model.ParseEphemeralEmbeddingEventRef(device)
+	if err != nil {
+		return nil, errors.Wrapf(err, "malformed 21750")
+	}
+	if attestationEvent.Address() != attestationAddr {
+		return nil, errors.Wrapf(err, "21750 does not point to attestation event")
+	}
+	if err = s.validation.Validate(ctx, []*model.Event{device}, validation.RuleWithSkipDeviceIdentificationProofEventsVerify()); err != nil {
+		return nil, errors.Wrapf(err, "invalid 21750")
+	}
+	if err = s.validation.Validate(ctx, []*model.Event{attestationEvent}, validation.RuleWithSkipDeviceIdentificationProofEventsVerify()); err != nil {
+		return nil, errors.Wrapf(err, "invalid attestation")
+	}
+	if attestationEvent.PubKey != device.GetMasterPublicKey() {
+		return nil, errors.Wrapf(err, "device master %v does not match sttestation", device.GetMasterPublicKey())
+	}
+	for i := len(attestationEvent.Tags) - 1; i >= 0; i-- {
+		pTag := attestationEvent.Tags[i]
+		if pTag.Key() != model.TagAttestationName {
+			continue
+		}
+		action, _, _, err := model.ParseAttestationString(pTag[model.TagAttestationValueIndexAction])
+		if err != nil {
+			return nil, errors.Wrapf(err, "malformed attestation: %v", pTag[model.TagAttestationValueIndexAction])
+		}
+		if action != model.CustomIONAttestationKindActive {
+			continue
+		}
+		pubkey := pTag[model.TagAttestationValueIndexPubkey]
+
+		if pubkey != device.PubKey {
+			return nil, errors.Wrapf(err, "last active device: %v does not match with 21750 signed key %v", pubkey, device.PubKey)
+		}
+		break
+	}
+	return attestationEvent, nil
 }

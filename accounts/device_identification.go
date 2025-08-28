@@ -10,7 +10,7 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
 
-	device_identification "github.com/ice-blockchain/heimdall/accounts/internal/device-identification"
+	deviceidentification "github.com/ice-blockchain/heimdall/accounts/internal/device-identification"
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/subzero/model"
@@ -22,10 +22,10 @@ import (
 func (a *accounts) validateRequestIDAndExtractVisitor(ctx context.Context, now *time.Time, requestID string) (visitorID, devicePubkey string, err error) {
 	visitorID, devicePubkey, err = a.deviceIdentificationClient.ValidateRequestID(ctx, now.Time, requestID, clientIPAddress(ctx))
 	if err != nil {
-		if errors.Is(err, device_identification.ErrUnknownDevice) {
+		if errors.Is(err, deviceidentification.ErrUnknownDevice) {
 			log.Error(err)
 			return "", "", &dfns.DfnsInternalError{
-				Message:    device_identification.ErrUnknownDevice.Error(),
+				Message:    deviceidentification.ErrUnknownDevice.Error(),
 				HTTPStatus: http.StatusForbidden,
 			}
 		}
@@ -38,7 +38,7 @@ func (a *accounts) masterKeyExists(ctx context.Context, masterPubKey string) err
 	_, err := a.getUserByID(ctx, masterPubKey)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
-			err = device_identification.ErrUnknownDevice
+			err = deviceidentification.ErrUnknownDevice
 		}
 		return errors.Wrapf(err, "failed to check user existence by master key %v", masterPubKey)
 	}
@@ -57,6 +57,10 @@ func (a *accounts) generateDeviceVerifiedBadges(devicePubkey string) ([]*model.E
 			Kind:      nostr.KindBadgeDefinition,
 			Tags: model.Tags{
 				{"d", deviceIdentificationProofBadgeName + "~" + devicePubkey},
+				{"name", "Device Identified and Verified by ION Identity"},
+				{"description", "Awarded by ION Identity to each user's device that is verified to be a valid device of that user"},
+				identifiedDeviceBadgeThumbnail256X256Tag,
+				identifiedDeviceImage1024X1024Tag,
 			},
 		},
 	}
@@ -96,10 +100,20 @@ func (a *accounts) DeviceIdentificationProofs(ctx context.Context, attestationEv
 }
 
 func (a *accounts) validateDevice(ctx context.Context, masterKey string, devicePubkey string) error {
+	usr, err := a.getUserByID(ctx, masterKey)
+	if err != nil {
+		if storage.IsErr(err, storage.ErrNotFound) {
+			return ErrNotFound
+		}
+		return errors.Wrapf(err, "failed get user %v for device check", masterKey)
+	}
+	if usr.ID != server.LoggedInUser(ctx).UserID() {
+		return ErrNotFound
+	}
 	validDevice, err := storage.Get[struct {
 		ValidDevice bool `db:"valid_device"`
-	}](ctx, a.db, `SELECT exists(SELECT 1 FROM users_visitors RIGHT JOIN users u on user_id = u.id
-						 WHERE u.master_pubkey = $1 AND device_pubkey = $2 and u.id = $3) as valid_device;`, masterKey, devicePubkey, server.LoggedInUser(ctx).UserID())
+	}](ctx, a.db, `SELECT exists(SELECT 1 FROM users_visitors 
+						 WHERE  user_id = $1 AND device_pubkey = $2) as valid_device;`, usr.ID, devicePubkey)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
 			return ErrNotFound

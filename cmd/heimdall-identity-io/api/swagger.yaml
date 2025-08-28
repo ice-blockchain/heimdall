@@ -172,16 +172,12 @@ definitions:
       walletViewId:
         type: string
     type: object
-  main.DeviceIdentificationEventsReq:
+  main.DeviceIdentificationEventReq:
     properties:
-      events:
-        items:
-          $ref: '#/definitions/model.Event'
-        maxItems: 1
-        minItems: 1
-        type: array
+      event:
+        $ref: '#/definitions/model.Event'
     required:
-    - events
+    - event
     type: object
   main.FollowersEventsReq:
     properties:
@@ -964,7 +960,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/main.DeviceIdentificationEventsReq'
+          $ref: '#/definitions/main.DeviceIdentificationEventReq'
       produces:
       - application/json
       responses:

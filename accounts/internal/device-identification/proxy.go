@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: ice License 1.0
 
-package device_identification
+package deviceidentification
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,7 +12,7 @@ import (
 	"strings"
 	stdlibtime "time"
 
-	fingerprint "github.com/fingerprintjs/fingerprint-pro-server-api-go-sdk/v7/sdk"
+	deviceidentificationsdk "github.com/fingerprintjs/fingerprint-pro-server-api-go-sdk/v7/sdk"
 	"github.com/gin-gonic/gin"
 	"github.com/imroc/req/v3"
 	"github.com/jellydator/ttlcache/v3"
@@ -36,7 +37,7 @@ func NewProxy(applicationYamlKey string, serviceVersion string) Proxy {
 			log.Panic(errors.Errorf("[DEVICE_IDENTIFICATION] empty api key"))
 		}
 	}
-	if !slices.Contains(validRegions, fingerprint.Region(cfg.DeviceIdentification.Region)) {
+	if !slices.Contains(validRegions, deviceidentificationsdk.Region(cfg.DeviceIdentification.Region)) {
 		log.Panic(errors.Errorf("[DEVICE_IDENTIFICATION] invalid region: %v", cfg.DeviceIdentification.Region))
 	}
 	if cfg.DeviceIdentification.ProxySecret == "" {
@@ -47,26 +48,40 @@ func NewProxy(applicationYamlKey string, serviceVersion string) Proxy {
 	}
 	if len(cfg.DeviceIdentification.AllowedClientAPIKeys) == 0 {
 		cfg.DeviceIdentification.AllowedClientAPIKeys = strings.Split(os.Getenv("DEVICE_IDENTIFICATION_ALLOWED_CLIENT_KEYS"), ",")
+		if len(cfg.DeviceIdentification.AllowedClientAPIKeys) == 0 {
+			log.Panic(errors.Errorf("[DEVICE_IDENTIFICATION] empty allowed client api keys"))
+		}
 	}
-	internalCfg := fingerprint.NewConfiguration()
-	internalCfg.ChangeRegion(fingerprint.Region(cfg.DeviceIdentification.Region))
+	internalCfg := deviceidentificationsdk.NewConfiguration()
+	internalCfg.ChangeRegion(deviceidentificationsdk.Region(cfg.DeviceIdentification.Region))
 
-	return &proxy{
+	p := &proxy{
 		config:             &cfg,
 		serviceVersion:     serviceVersion,
 		client:             req.C().SetBaseURL(internalCfg.GetBasePath()),
 		agentPayloadsCache: ttlcache.New[string, *agentPayload](ttlcache.WithTTL[string, *agentPayload](15 * stdlibtime.Minute)),
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*stdlibtime.Second)
+	defer cancel()
+	if err := p.HealthCheck(ctx); err != nil {
+		log.Panic(errors.Wrapf(err, "initial health check of device identification proxy failed"))
+	}
+	return p
 }
 
 func (p *proxy) ProxyIdentification(ginCtx *gin.Context) (status int, body []byte, headers http.Header, err error) {
-	return p.proxyReqToDeviceIdentificationService(ginCtx, func(request *req.Request) (*req.Response, error) {
+	return p.proxyReqToDeviceIdentificationService(ginCtx, p.sendProxyIdentificationReq(ginCtx.ClientIP(), ginCtx.Request.Host))
+}
+
+func (p *proxy) sendProxyIdentificationReq(clientIP, host string) func(request *req.Request) (*req.Response, error) {
+	return func(request *req.Request) (*req.Response, error) {
 		return request.
 			SetHeader("FPJS-Proxy-Secret", p.config.DeviceIdentification.ProxySecret).
-			SetHeader("FPJS-Proxy-Client-IP", ginCtx.ClientIP()).
-			SetHeader("FPJS-Proxy-Forwarded-Host", ginCtx.Request.Host).
+			SetHeader("FPJS-Proxy-Client-IP", clientIP).
+			SetHeader("FPJS-Proxy-Forwarded-Host", host).
 			Post("/")
-	})
+	}
+
 }
 
 func (p *proxy) ProxyBrowserCache(ginCtx *gin.Context, randomPath string) (status int, body []byte, headers http.Header, err error) {
@@ -128,8 +143,11 @@ func (p *proxy) proxyReqToDeviceIdentificationService(ginCtx *gin.Context, execR
 		}
 		ginCtx.Request.Body.Close()
 	}
+	return p.execReqToDeviceIdentificationService(ginCtx, bodyBytes, ginCtx.Request.Header, ginCtx.Request.URL.RawQuery, trimCookies(ginCtx), execRequest)
+}
+func (p *proxy) execReqToDeviceIdentificationService(ctx context.Context, bodyBytes []byte, inputHeaders http.Header, rawQuery string, cookies []*http.Cookie, execRequest func(request *req.Request) (*req.Response, error)) (status int, body []byte, headers http.Header, err error) {
 	request := p.client.R().
-		SetContext(ginCtx).
+		SetContext(ctx).
 		SetRetryCount(3).
 		SetRetryInterval(func(resp *req.Response, attempt int) stdlibtime.Duration {
 			return 1 * stdlibtime.Second
@@ -146,9 +164,9 @@ func (p *proxy) proxyReqToDeviceIdentificationService(ginCtx *gin.Context, execR
 				(resp.GetStatusCode() != http.StatusOK && resp.GetStatusCode() != http.StatusTooManyRequests &&
 					resp.GetStatusCode() != http.StatusForbidden && resp.GetStatusCode() != http.StatusNotFound)
 		}).
-		SetHeaders(trimHeaders(ginCtx.Request.Header)).
-		SetQueryString(ginCtx.Request.URL.RawQuery).
-		SetCookies(trimCookies(ginCtx)...).
+		SetHeaders(trimHeaders(inputHeaders)).
+		SetQueryString(rawQuery).
+		SetCookies(cookies...).
 		AddQueryParam("ii", fmt.Sprintf("custom-proxy-integration/%v/heimdall", p.serviceVersion)).
 		SetBodyBytes(bodyBytes)
 	if resp, err := execRequest(request); err != nil {
@@ -180,4 +198,18 @@ func trimCookies(ginCtx *gin.Context) []*http.Cookie {
 		return []*http.Cookie{}
 	}
 	return []*http.Cookie{cookie}
+}
+
+func (p *proxy) HealthCheck(ctx context.Context) error {
+	h := make(http.Header)
+	h.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36")
+	query := fmt.Sprintf("ci=js/3.12.0&q=%v", p.config.DeviceIdentification.AllowedClientAPIKeys[0])
+	status, _, _, err := p.execReqToDeviceIdentificationService(ctx, nil, h, query, []*http.Cookie{}, p.sendProxyIdentificationReq("1.1.1.1", "identity.io"))
+	if err != nil {
+		return errors.Wrapf(err, "proxy health check failed")
+	}
+	if status != http.StatusBadRequest {
+		return errors.Errorf("proxy health check failed: status %v", status)
+	}
+	return nil
 }

@@ -20,7 +20,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/ice-blockchain/subzero v1.376.1-0.20250827125619-82bb79aac71f
+	github.com/ice-blockchain/subzero v1.377.0
 	github.com/ice-blockchain/wintr v1.158.0
 	github.com/imroc/req/v3 v3.54.2
 	github.com/jellydator/ttlcache/v3 v3.4.0
@@ -36,6 +36,7 @@ require (
 	github.com/twilio/twilio-go v1.27.1
 	github.com/xssnick/tonutils-go v1.14.1
 	golang.org/x/exp v0.0.0-20250819193227-8b4c13bb791b
+	golang.org/x/mod v0.27.0
 	golang.org/x/net v0.43.0
 	golang.org/x/sync v0.16.0
 )
@@ -61,20 +62,20 @@ require (
 	github.com/MicahParks/keyfunc v1.9.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
-	github.com/aws/aws-sdk-go-v2 v1.38.1 // indirect
-	github.com/aws/aws-sdk-go-v2/config v1.31.3 // indirect
-	github.com/aws/aws-sdk-go-v2/credentials v1.18.7 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.4 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.4 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.4 // indirect
+	github.com/aws/aws-sdk-go-v2 v1.38.2 // indirect
+	github.com/aws/aws-sdk-go-v2/config v1.31.4 // indirect
+	github.com/aws/aws-sdk-go-v2/credentials v1.18.8 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.5 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.5 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.5 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.3 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.0 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.4 // indirect
-	github.com/aws/aws-sdk-go-v2/service/kms v1.44.2 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.28.2 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.34.0 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.38.0 // indirect
-	github.com/aws/smithy-go v1.22.5 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.5 // indirect
+	github.com/aws/aws-sdk-go-v2/service/kms v1.45.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.28.3 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.34.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.38.1 // indirect
+	github.com/aws/smithy-go v1.23.0 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/bits-and-blooms/bitset v1.24.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.5 // indirect
@@ -231,7 +232,6 @@ require (
 	go.uber.org/mock v0.6.0 // indirect
 	golang.org/x/arch v0.20.0 // indirect
 	golang.org/x/crypto v0.41.0 // indirect
-	golang.org/x/mod v0.27.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/text v0.28.0 // indirect

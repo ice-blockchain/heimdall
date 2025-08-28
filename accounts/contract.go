@@ -15,7 +15,7 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
 
-	device_identification "github.com/ice-blockchain/heimdall/accounts/internal/device-identification"
+	deviceidentification "github.com/ice-blockchain/heimdall/accounts/internal/device-identification"
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
 	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
@@ -29,7 +29,7 @@ import (
 
 type (
 	SearchType                = string
-	DeviceIdentificationProxy = device_identification.Proxy
+	DeviceIdentificationProxy = deviceidentification.Proxy
 	Accounts                  interface {
 		io.Closer
 		Wallets
@@ -199,29 +199,31 @@ var (
 		TwoFAOptionEmail,
 		TwoFAOptionTOTPAuthenticator,
 	}
-	Err2FADeliverToNotProvided         = errors.New("no email or phone number provided for 2FA")
-	ErrNoPending2FA                    = errors.New("no pending 2FA request")
-	Err2FAExpired                      = errors.New("2FA request expired")
-	Err2FAInvalidCode                  = errors.New("invalid code")
-	Err2FARequired                     = errors.New("2FA required")
-	ErrAuthenticatorRequirementsNotMet = errors.New("authenticator requirements not met")
-	ErrNotFound                        = storage.ErrNotFound
-	ErrDuplicate                       = storage.ErrDuplicate
-	ErrInvalidFollowees                = errors.New("invalid followees")
-	ErrInvalidUserSignature            = errors.New("invalid user signature")
-	ErrInvalidIdentityKey              = dfns.ErrInvalidUsername
-	ErrInvalidUsername                 = errors.New("invalid username")
-	ErrNotChanged                      = errors.New("not changed")
-	ErrDeleteLast                      = errors.New("cannot delete last entry")
-	ErrRaceCondition                   = dfns.ErrRaceCondition
-	ErrWalletLinked                    = errors.New("wallet already linked to walletview")
-	ErrUnauthorized                    = errors.New("unauthorized")
-	ErrWrongReferral                   = errors.New("wrong/circular referral detected")
-	ErrRegistrationsDisabled           = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "registrations disabled"}
-	ErrEmailNotAllowedForEarlyAccess   = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "email not allowed for early access"}
-	ErrEmailUsed                       = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "email used"}
-	verifiedBadgeImage1024X1024Tag     = nostr.Tag{"image", "https://example.com/verified_1024x1024.webp", "1024x1024"}
-	verifiedBadgeThumbnail256X256Tag   = nostr.Tag{"thumb", "https://example.com/verified_256x256.webp", "256x256"}
+	Err2FADeliverToNotProvided               = errors.New("no email or phone number provided for 2FA")
+	ErrNoPending2FA                          = errors.New("no pending 2FA request")
+	Err2FAExpired                            = errors.New("2FA request expired")
+	Err2FAInvalidCode                        = errors.New("invalid code")
+	Err2FARequired                           = errors.New("2FA required")
+	ErrAuthenticatorRequirementsNotMet       = errors.New("authenticator requirements not met")
+	ErrNotFound                              = storage.ErrNotFound
+	ErrDuplicate                             = storage.ErrDuplicate
+	ErrInvalidFollowees                      = errors.New("invalid followees")
+	ErrInvalidUserSignature                  = errors.New("invalid user signature")
+	ErrInvalidIdentityKey                    = dfns.ErrInvalidUsername
+	ErrInvalidUsername                       = errors.New("invalid username")
+	ErrNotChanged                            = errors.New("not changed")
+	ErrDeleteLast                            = errors.New("cannot delete last entry")
+	ErrRaceCondition                         = dfns.ErrRaceCondition
+	ErrWalletLinked                          = errors.New("wallet already linked to walletview")
+	ErrUnauthorized                          = errors.New("unauthorized")
+	ErrWrongReferral                         = errors.New("wrong/circular referral detected")
+	ErrRegistrationsDisabled                 = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "registrations disabled"}
+	ErrEmailNotAllowedForEarlyAccess         = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "email not allowed for early access"}
+	ErrEmailUsed                             = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "email used"}
+	verifiedBadgeImage1024X1024Tag           = nostr.Tag{"image", "https://example.com/verified_1024x1024.webp", "1024x1024"}
+	verifiedBadgeThumbnail256X256Tag         = nostr.Tag{"thumb", "https://example.com/verified_256x256.webp", "256x256"}
+	identifiedDeviceBadgeThumbnail256X256Tag = nostr.Tag{"thumb", "https://example.com/device_256x256.webp", "256x256"}
+	identifiedDeviceImage1024X1024Tag        = nostr.Tag{"image", "https://example.com/device_1024x1024.webp", "1024x1024"}
 )
 
 const (
@@ -256,7 +258,7 @@ type (
 		cfg                        *config
 		privateKey                 string
 		appsRuntimeConfig          *AppsRuntimeConfig
-		deviceIdentificationClient device_identification.Client
+		deviceIdentificationClient deviceidentification.Client
 	}
 	verifiedUsersSync struct {
 		db         *storage.DB

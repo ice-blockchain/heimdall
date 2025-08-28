@@ -542,7 +542,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.DeviceIdentificationEventsReq"
+                            "$ref": "#/definitions/main.DeviceIdentificationEventReq"
                         }
                     }
                 ],
@@ -2713,19 +2713,14 @@ const docTemplate = `{
                 }
             }
         },
-        "main.DeviceIdentificationEventsReq": {
+        "main.DeviceIdentificationEventReq": {
             "type": "object",
             "required": [
-                "events"
+                "event"
             ],
             "properties": {
-                "events": {
-                    "type": "array",
-                    "maxItems": 1,
-                    "minItems": 1,
-                    "items": {
-                        "$ref": "#/definitions/model.Event"
-                    }
+                "event": {
+                    "$ref": "#/definitions/model.Event"
                 }
             }
         },

@@ -8,7 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	device_identification "github.com/ice-blockchain/heimdall/accounts/internal/device-identification"
+	deviceidentification "github.com/ice-blockchain/heimdall/accounts/internal/device-identification"
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
 	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
@@ -25,7 +25,7 @@ func NewDelegatedRPAuth(ctx context.Context) dfns.AuthClient {
 }
 
 func NewDeviceIdentificationProxy(ctx context.Context, serviceVersion string) DeviceIdentificationProxy {
-	return device_identification.NewProxy(applicationYamlKey, serviceVersion)
+	return deviceidentification.NewProxy(applicationYamlKey, serviceVersion)
 }
 
 func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *AppsRuntimeConfig) Accounts {
@@ -77,7 +77,7 @@ func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *App
 	for _, dc := range defCoinsList {
 		defaultCoins[dc.SymbolGroup] = append(defaultCoins[dc.SymbolGroup], dc)
 	}
-	acc.deviceIdentificationClient = device_identification.New(applicationYamlKey, acc.masterKeyExists)
+	acc.deviceIdentificationClient = deviceidentification.New(applicationYamlKey, acc.masterKeyExists)
 
 	return &acc
 }

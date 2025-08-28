@@ -366,7 +366,15 @@ func (a *accounts) upsertUserFromLogin(r *http.Request, now *time.Time, res map[
 	var requestID, visitorID, devicePubkey string
 	if r.URL.Path == completeLoginUrl {
 		requestID = r.Header.Get("X-Device-Identification-Request-ID")
-		ctx = context.WithValue(ctx, clientIPCtxValueKey, r.Header.Get("CF-Connecting-IP"))
+		clientIP := ""
+		remoteHeaders := []string{"CF-Connecting-IP", "X-Real-IP", "X-Forwarded-For"}
+		for _, h := range remoteHeaders {
+			clientIP = r.Header.Get(h)
+			if clientIP != "" {
+				break
+			}
+		}
+		ctx = context.WithValue(ctx, clientIPCtxValueKey, clientIP)
 		if visitorID, devicePubkey, err = a.validateRequestIDAndExtractVisitor(ctx, now, requestID); err != nil {
 			return errors.Wrapf(err, "failed to validate visitor id")
 		}
@@ -376,23 +384,23 @@ func (a *accounts) upsertUserFromLogin(r *http.Request, now *time.Time, res map[
 }
 
 func (a *accounts) insertIdentityKeyNameAndVisitorID(ctx context.Context, now *time.Time, userID, identityKeyName, masterPubKey, visitorID, devicePubkey string) error {
-	visitorUpdate := ``
+	visitorUpdate := `SELECT 1;`
 	params := []any{userID, identityKeyName, []string{}, *now.Time, masterPubKey}
 	if visitorID != "" {
-		visitorUpdate = `WITH visitor_insert AS (
-							INSERT INTO users_visitors(created_at, user_id, visitor_id) VALUES ($4, $1, $6, $7)
-							ON CONFLICT(user_id, visitor_id) DO NOTHING
-						)`
+		visitorUpdate = `INSERT INTO users_visitors(created_at, user_id, visitor_id, device_pubkey) VALUES ($4, $1, $6, $7)
+							ON CONFLICT(user_id, visitor_id) DO NOTHING;`
 		params = append(params, visitorID, devicePubkey)
 	}
 	_, err := storage.Exec(ctx, a.db, fmt.Sprintf(`
-								%v
-								INSERT INTO users(created_at, updated_at, id, identity_key_name, clients, master_pubkey) VALUES ($4,$4,$1,$2,$3,$5) 
+								WITH users_insert AS (
+									INSERT INTO users(created_at, updated_at, id, identity_key_name, clients, master_pubkey) VALUES ($4,$4,$1,$2,$3,$5) 
                                                 ON CONFLICT(id) DO UPDATE SET 
     										    identity_key_name = $2,
     										    updated_at = $4,
 												master_pubkey = $5
-                                            WHERE users.identity_key_name = users.id OR users.master_pubkey = users.id`, visitorUpdate), params...)
+                                            WHERE users.identity_key_name = users.id OR users.master_pubkey = users.id
+									)
+								%v`, visitorUpdate), params...)
 
 	return errors.Wrapf(err, "failed to update user with identity key name in db %v %v", userID, identityKeyName)
 }
