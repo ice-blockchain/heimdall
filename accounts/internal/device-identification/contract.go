@@ -48,14 +48,15 @@ type (
 	}
 	config struct {
 		DeviceIdentification struct {
-			APIKey                string            `yaml:"apiKey"`
-			Region                string            `yaml:"region"`
-			AllowedUrls           []string          `yaml:"allowedUrls"`
-			AllowedClientAPIKeys  []string          `yaml:"allowedClientApiKeys"`
-			AllowedSdks           map[string]string `yaml:"allowedSdks"`
-			RequestExpirationTime time.Duration     `yaml:"requestExpirationTime"`
-			ProxySecret           string            `yaml:"proxySecret"`
-			AgentCDNHost          string            `yaml:"agentCdnHost"`
+			APIKey                string            `yaml:"apiKey" mapstructure:"apiKey"`
+			Region                string            `yaml:"region" mapstructure:"region"`
+			AllowedUrls           []string          `yaml:"allowedUrls" mapstructure:"allowedUrls"`
+			AllowedClientAPIKeys  []string          `yaml:"allowedClientApiKeys" mapstructure:"allowedClientApiKeys"`
+			AllowedSdks           map[string]string `yaml:"allowedSdks" mapstructure:"allowedSdks"`
+			RequestExpirationTime time.Duration     `yaml:"requestExpirationTime" mapstructure:"requestExpirationTime"`
+			SuspectThreshold      int               `yaml:"suspectThreshold" mapstructure:"suspectThreshold"`
+			ProxySecret           string            `yaml:"proxySecret" mapstructure:"proxySecret"`
+			AgentCDNHost          string            `yaml:"agentCdnHost" mapstructure:"agentCdnHost"`
 		} `yaml:"device-identification" mapstructure:"device-identification"`
 	}
 	agentPayload struct {

@@ -90,6 +90,7 @@ accounts:
     #proxySecret: bogus
     region: eu
     requestExpirationTime: 15m
+    suspectThreshold: 999
     allowedUrls:
       - "com.android.bogus"
     allowedSdks:

@@ -103,7 +103,7 @@ func (c *client) validateVisitorData(ctx context.Context, now *time.Time, client
 		}
 		if !skipIPCheck {
 			if clientIp != event.Products.Identification.Data.Ip {
-				return "", "", errors.Wrapf(ErrUnknownDevice, "ip mismatch, req>%v, fingerprint>%v", clientIp, event.Products.Identification.Data.Ip)
+				return "", "", errors.Wrapf(ErrUnknownDevice, "ip mismatch, req>%v, deviceidentificationsdk>%v", clientIp, event.Products.Identification.Data.Ip)
 			}
 		}
 	}
@@ -152,6 +152,13 @@ func (c *client) validateVisitorData(ctx context.Context, now *time.Time, client
 		appcfg.MustLoadFromKey("development", &development)
 		if (!development) && event.Products.Emulator.Data.Result {
 			return "", "", errors.Wrapf(ErrUnknownDevice, "emulator detected")
+		}
+	}
+	if c.config.DeviceIdentification.SuspectThreshold > 0 {
+		if event.Products.SuspectScore != nil && event.Products.SuspectScore.Data != nil {
+			if int(event.Products.SuspectScore.Data.Result) > c.config.DeviceIdentification.SuspectThreshold {
+				return "", "", errors.Wrapf(ErrUnknownDevice, "suspect score is high: %v", event.Products.SuspectScore.Data.Result)
+			}
 		}
 	}
 	if event.Products.VirtualMachine != nil && event.Products.VirtualMachine.Data != nil {
