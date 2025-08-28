@@ -99,9 +99,6 @@ func (a *accounts) VerifyEarlyAccess(ctx context.Context, email string) error {
 		derr.HTTPStatus = http.StatusForbidden
 		return derr
 	}
-	if !earlyAccess && strings.HasPrefix(email, "ea666gg") {
-		earlyAccess = true
-	}
 	if earlyAccess {
 		if err := a.isEmailAllowed(ctx, email); err != nil {
 			return err

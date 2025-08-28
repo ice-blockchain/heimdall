@@ -13,6 +13,7 @@ import (
 	nftcontent "github.com/ice-blockchain/heimdall/nft-content"
 	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
 	"github.com/ice-blockchain/subzero/model"
+	"github.com/ice-blockchain/subzero/validation"
 )
 
 type (
@@ -34,9 +35,10 @@ type (
 	}
 	LoginChallenge                 = accounts.LoginChallenge
 	CompletedRegistrationChallenge struct {
-		*accounts.Credentials `json:",inline"`
-		ClientID              string `header:"X-Client-ID" required:"true" swaggerignore:"true"`
-		Authorization         string `header:"Authorization" required:"true" swaggerignore:"true"`
+		*accounts.Credentials         `json:",inline"`
+		ClientID                      string `header:"X-Client-ID" required:"true" swaggerignore:"true"`
+		DeviceIdentificationRequestID string `header:"X-Device-Identification-Request-ID" required:"false" swaggerignore:"true"` // TODO: required: true once FE will send header.
+		Authorization                 string `header:"Authorization" required:"true" swaggerignore:"true"`
 	}
 	CompletedRegistration = accounts.CompletedRegistration
 	EarlyAccessCheck      struct {
@@ -77,6 +79,9 @@ type (
 	}
 	FollowersEventsReq struct {
 		Events []*model.Event `json:"events" binding:"required,min=2,max=2,dive" allowUnauthorized:"true"`
+	}
+	DeviceIdentificationEventReq struct {
+		Event *model.Event `json:"event" binding:"required"`
 	}
 	GetTopHashtagsReq struct {
 		Authorization string `header:"Authorization" required:"true" swaggerignore:"true"`
@@ -276,13 +281,15 @@ const (
 
 type (
 	service struct {
-		accounts          accounts.Accounts
-		coins             coins.Coins
-		relays            relaymanagement.Relays
-		hashtagStatistics hashtagstatistics.HashtagStatistics
-		nftContent        nftcontent.NFTContent
-		following         following.Following
-		cfg               *config
+		accounts                  accounts.Accounts
+		coins                     coins.Coins
+		relays                    relaymanagement.Relays
+		hashtagStatistics         hashtagstatistics.HashtagStatistics
+		nftContent                nftcontent.NFTContent
+		following                 following.Following
+		deviceIdentificationProxy accounts.DeviceIdentificationProxy
+		validation                validation.Validator
+		cfg                       *config
 	}
 	config struct {
 		Host                    string   `yaml:"host"`

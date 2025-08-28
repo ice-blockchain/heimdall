@@ -9,12 +9,15 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"net/http"
 	"reflect"
 	"slices"
 	"strconv"
 	"strings"
+	stdlibtime "time"
 
 	"github.com/goccy/go-json"
+	"github.com/hashicorp/go-multierror"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
 
@@ -32,6 +35,7 @@ func (a *accounts) getUserByID(ctx context.Context, userID string) (*user, error
     updated_at,
     id,                           
     identity_key_name,
+    duplicate_of,
     master_pubkey,
     clients,
     email,
@@ -56,6 +60,7 @@ func (a *accounts) getUserByIdentityKeyName(ctx context.Context, identityKeyName
 		updated_at,
 		id,                           
 		identity_key_name,
+		duplicate_of,
 		master_pubkey,
 		clients,
 		email,
@@ -231,6 +236,14 @@ func (a *accounts) GetUser(ctx context.Context, userIDOrMasterKey string) (*User
 	}
 	if dbUsr != nil {
 		usr.IONConnectRelays = dbUsr.IONConnectRelays
+		if dbUsr.DuplicateOf != nil {
+			duplUser, dErr := a.getUserByID(ctx, *dbUsr.DuplicateOf)
+			if dErr != nil {
+				return nil, errors.Wrapf(err, "failed to fetch duplicate user (%v) for userID %v", *dbUsr.DuplicateOf, userIDOrMasterKey)
+			}
+			usr.DuplicateOf = &duplUser.MasterPubKey
+		}
+
 		for i := range usr.IONConnectRelays {
 			enhanceRelayURL(usr.IONConnectRelays[i])
 		}
@@ -266,23 +279,17 @@ func (a *accounts) GetUser(ctx context.Context, userIDOrMasterKey string) (*User
 	return usr, nil
 }
 
-func (a *accounts) upsertUsernameFromRegistration(ctx context.Context, now *time.Time, res map[string]any) error {
-	userID, username := dfns.ExtractUser(res, "name")
-	if userID == "" && username == "" {
-		return nil
-	}
-	return errors.Wrapf(a.insertIdentityKeyName(ctx, now, userID, username, userID), "failed to store identity key name %v for user %v on registration", username, userID)
-}
-func (a *accounts) upsertWalletPubKeyFromRegistrationAndRegisterWalletView(ctx context.Context, now *time.Time, res map[string]any) error {
+func (a *accounts) upsertUserAfterRegistrationAndCreateWalletView(ctx context.Context, now *time.Time, res map[string]any, visitorID, devicePubkey string) (*string, string, error) {
 	userID, username := dfns.ExtractUser(res, "username")
 	walletID, walletPubKey := dfns.ExtractMainWallet(res)
-	if err := a.upsertWalletPubKeyFromRegistration(ctx, now, res, walletPubKey); err != nil {
-		return errors.Wrapf(err, "failed to upsert users masterkey")
+	usr, err := a.upsertUserFromRegistration(ctx, now, res, walletPubKey, visitorID, devicePubkey)
+	if err != nil {
+		return nil, "", errors.Wrapf(err, "failed to upsert users masterkey and visitorId")
 	}
 	if _, err := a.createDefaultWalletView(ctx, userID, username, walletID, false); err != nil {
-		return errors.Wrapf(err, "failed to create default walletview for user %v", userID)
+		return nil, "", errors.Wrapf(err, "failed to create default walletview for user %v", userID)
 	}
-	return nil
+	return usr.DuplicateOf, usr.MasterPubKey, nil
 }
 
 func (a *accounts) createDefaultWalletView(ctx context.Context, userID, username, walletID string, linkToTON bool) (*WalletView, error) {
@@ -315,20 +322,25 @@ func (a *accounts) createDefaultWalletView(ctx context.Context, userID, username
 	return a.createWalletView(ctx, userID, defaultWalletViewName, coins, a.cfg.DefaultCoinsInWalletView, true)
 }
 
-func (a *accounts) upsertWalletPubKeyFromRegistration(ctx context.Context, now *time.Time, res map[string]any, walletPubKey string) error {
+func (a *accounts) upsertUserFromRegistration(ctx context.Context, now *time.Time, res map[string]any, walletPubKey, visitorID, devicePubkey string) (*user, error) {
 	userID, username := dfns.ExtractUser(res, "username")
 	if userID == "" && username == "" {
-		return nil
+		return nil, nil
 	}
 	pubkey, err := hex.DecodeString(walletPubKey)
 	if err != nil || len(pubkey) != ed25519.PublicKeySize {
 		log.Fatal(fmt.Sprintf("Wallet master key does not seems to be EdDSA/ed25519: \"%v\"! User %v %v", walletPubKey, userID, username))
 	}
 
-	return errors.Wrapf(a.insertIdentityKeyNameWithPubKey(ctx, now, userID, username, walletPubKey),
-		"failed to store wallet pubkey for user %v on registration", userID)
+	usr, err := a.insertIdentityKeyNameWithPubKeyAndVisitorID(ctx, now, userID, username, walletPubKey, visitorID, devicePubkey)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to store wallet pubkey for user %v on registration", userID)
+	}
+	return usr, nil
+
 }
-func (a *accounts) upsertUsernameFromLogin(ctx context.Context, now *time.Time, res map[string]any) error {
+func (a *accounts) upsertUserFromLogin(r *http.Request, now *time.Time, res map[string]any) error {
+	ctx := r.Context()
 	var token string
 	if tokenI, hasToken := res["token"]; hasToken {
 		token = tokenI.(string)
@@ -351,29 +363,65 @@ func (a *accounts) upsertUsernameFromLogin(ctx context.Context, now *time.Time, 
 			masterPubKey = walletPubKey
 		}
 	}
-
-	return errors.Wrapf(a.insertIdentityKeyName(ctx, now, parsedToken.UserID(), parsedToken.Username(), masterPubKey),
+	var requestID, visitorID, devicePubkey string
+	if r.URL.Path == completeLoginUrl {
+		requestID = r.Header.Get("X-Device-Identification-Request-ID")
+		clientIP := ""
+		remoteHeaders := []string{"CF-Connecting-IP", "X-Real-IP", "X-Forwarded-For"}
+		for _, h := range remoteHeaders {
+			clientIP = r.Header.Get(h)
+			if clientIP != "" {
+				break
+			}
+		}
+		ctx = context.WithValue(ctx, clientIPCtxValueKey, clientIP)
+		if visitorID, devicePubkey, err = a.validateRequestIDAndExtractVisitor(ctx, now, requestID); err != nil {
+			return errors.Wrapf(err, "failed to validate visitor id")
+		}
+	}
+	return errors.Wrapf(a.insertIdentityKeyNameAndVisitorID(ctx, now, parsedToken.UserID(), parsedToken.Username(), masterPubKey, visitorID, devicePubkey),
 		"failed to store identity key name %v for user %v on registration", parsedToken.Username(), parsedToken.UserID())
 }
 
-func (a *accounts) insertIdentityKeyName(ctx context.Context, now *time.Time, userID, identityKeyName, masterPubKey string) error {
-	_, err := storage.Exec(ctx, a.db, `INSERT INTO users(created_at, updated_at, id, identity_key_name, clients, master_pubkey) VALUES ($4,$4,$1,$2,$3,$5) 
+func (a *accounts) insertIdentityKeyNameAndVisitorID(ctx context.Context, now *time.Time, userID, identityKeyName, masterPubKey, visitorID, devicePubkey string) error {
+	visitorUpdate := `SELECT 1;`
+	params := []any{userID, identityKeyName, []string{}, *now.Time, masterPubKey}
+	if visitorID != "" {
+		visitorUpdate = `INSERT INTO users_visitors(created_at, user_id, visitor_id, device_pubkey) VALUES ($4, $1, $6, $7)
+							ON CONFLICT(user_id, visitor_id) DO NOTHING;`
+		params = append(params, visitorID, devicePubkey)
+	}
+	_, err := storage.Exec(ctx, a.db, fmt.Sprintf(`
+								WITH users_insert AS (
+									INSERT INTO users(created_at, updated_at, id, identity_key_name, clients, master_pubkey) VALUES ($4,$4,$1,$2,$3,$5) 
                                                 ON CONFLICT(id) DO UPDATE SET 
     										    identity_key_name = $2,
     										    updated_at = $4,
 												master_pubkey = $5
-                                            WHERE users.identity_key_name = users.id OR users.master_pubkey = users.id`, userID, identityKeyName, []string{}, *now.Time, masterPubKey)
+                                            WHERE users.identity_key_name = users.id OR users.master_pubkey = users.id
+									)
+								%v`, visitorUpdate), params...)
 
 	return errors.Wrapf(err, "failed to update user with identity key name in db %v %v", userID, identityKeyName)
 }
-func (a *accounts) insertIdentityKeyNameWithPubKey(ctx context.Context, now *time.Time, userID, identityKeyName, walletPubkey string) error {
-	_, err := storage.Exec(ctx, a.db, `INSERT INTO users(created_at, updated_at, id, identity_key_name, clients, master_pubkey) VALUES ($4,$4,$1,$2,$3, $5)
+func (a *accounts) insertIdentityKeyNameWithPubKeyAndVisitorID(ctx context.Context, now *time.Time, userID, identityKeyName, walletPubkey, visitorID, devicePubkey string) (*user, error) {
+	usr, err := storage.ExecOne[user](ctx, a.db, `WITH visitor_insert AS (
+		INSERT INTO users_visitors(created_at, user_id, visitor_id, device_pubkey) VALUES ($4, $1, $6, $7)
+		ON CONFLICT(user_id, visitor_id) DO NOTHING
+	),
+	duplicate AS (
+		SELECT user_id FROM users_visitors WHERE visitor_id = $6 AND user_id != $1 ORDER BY created_at ASC LIMIT 1
+	) 
+	INSERT INTO users(created_at, updated_at, id, identity_key_name, clients, master_pubkey, duplicate_of) VALUES ($4,$4,$1,$2,$3, $5, (SELECT user_id FROM duplicate)) 
                                             ON CONFLICT(id) DO UPDATE SET 
     										    master_pubkey = $5,
-    										    updated_at = $4
-                                            WHERE users.master_pubkey = users.id`, userID, identityKeyName, []string{}, *now.Time, walletPubkey)
+    										    updated_at = $4,
+    										    identity_key_name = $2,
+												duplicate_of = (SELECT user_id FROM duplicate)
+                                            WHERE users.master_pubkey = users.id
+											RETURNING users.duplicate_of, COALESCE((SELECT master_pubkey FROM users WHERE id = (SELECT user_id FROM duplicate) LIMIT 1),'') as master_pubkey`, userID, identityKeyName, []string{}, *now.Time, walletPubkey, visitorID, devicePubkey)
 
-	return errors.Wrapf(err, "failed to update user with pubkey in db %v %v", userID, walletPubkey)
+	return usr, errors.Wrapf(err, "failed to update user with pubkey in db %v %v", userID, walletPubkey)
 }
 
 func (u *User) MarshalJSON() ([]byte, error) {
@@ -516,11 +564,20 @@ func (a *accounts) IsUserVerified(ctx context.Context, masterPubKey string) (boo
 	return true, events, nil
 }
 
-func (a *accounts) CompleteRegistration(ctx context.Context, credentials *Credentials) (CompletedRegistration, error) {
+func (a *accounts) CompleteRegistration(ctx context.Context, credentials *Credentials) (res CompletedRegistration, err error) {
 	now := time.Now()
 	earlyAccessEmail := credentials.EarlyAccessEmail
 	if err := a.VerifyEarlyAccess(ctx, earlyAccessEmail); err != nil {
 		return nil, err
+	}
+	var visitorID, devicePubkey, requestID string
+	requestIDVal := ctx.Value(RequestIDCtxValueKey)
+	if requestIDVal != nil {
+		requestID = requestIDVal.(string)
+		visitorID, devicePubkey, err = a.validateRequestIDAndExtractVisitor(ctx, now, requestID)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to verify visitor id")
+		}
 	}
 	registration, err := a.delegatedRPClient.CompleteRegistrationWithWallets(ctx, credentials)
 	if err != nil {
@@ -529,9 +586,25 @@ func (a *accounts) CompleteRegistration(ctx context.Context, credentials *Creden
 	if err = a.verifyEarlyAccessAndUpsertUserID(ctx, earlyAccessEmail, registration); err != nil {
 		return nil, errors.Wrap(err, "failed update early access state")
 	}
-	if err = a.upsertWalletPubKeyFromRegistrationAndRegisterWalletView(ctx, now, registration); err != nil {
+	var duplicateOf *string
+	var originLinkedId string
+	userID, _ := dfns.ExtractUser(registration, "username")
+	duplicateOf, originLinkedId, err = a.upsertUserAfterRegistrationAndCreateWalletView(ctx, now, registration, visitorID, devicePubkey)
+	if err != nil {
 		return nil, errors.Wrap(err, "failed to upsert wallet pubkey")
 	}
+	_, masterPubKey := dfns.ExtractMainWallet(registration)
+	if duplicateOf != nil {
+		registration["duplicateOf"] = originLinkedId
+	}
+	if err = a.deviceIdentificationClient.UpdateRequestID(ctx, requestID, masterPubKey, &originLinkedId); err != nil {
+		rErr := a.rollbackVisitor(userID, visitorID, duplicateOf)
+		if rErr != nil {
+			return nil, multierror.Append(err, errors.Wrap(rErr, "failed to rollback visitor link"))
+		}
+		return registration, nil
+	}
+
 	return registration, nil
 }
 
@@ -559,7 +632,7 @@ func (a *accounts) GetGlobalAccounts(ctx context.Context, currentVer uint8) ([]*
 	}](ctx, a.db, stmt, currentVer)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
-			return nil, currentVer, nil
+			return []*LiteUser{}, currentVer, nil
 		}
 
 		return nil, 0, errors.Wrapf(err, "failed to select latest_global_accounts_version for version: %#v", currentVer)
@@ -585,4 +658,22 @@ func (a *accounts) GetGlobalAccounts(ctx context.Context, currentVer uint8) ([]*
 	}
 
 	return accs, lv.LatestVersion, nil
+}
+
+func (a *accounts) rollbackVisitor(userID, visitorID string, duplicateOf *string) error {
+	rollbackCtx, cancel := context.WithTimeout(context.Background(), 30*stdlibtime.Second)
+	defer cancel()
+	rollbackDuplicateOf := ""
+	if duplicateOf != nil {
+		rollbackDuplicateOf = `WITH duplicate_rollback AS (
+			UPDATE users SET duplicate_of = NULL WHERE id = $2
+		)`
+	}
+	_, err := storage.Exec(rollbackCtx, a.db,
+		fmt.Sprintf(`%v DELETE FROM users_visitors WHERE visitor_id = $1 and user_id = $2`, rollbackDuplicateOf), visitorID, userID,
+	)
+	if err != nil {
+		return errors.Wrapf(err, "failed to rollback visitor for user %v")
+	}
+	return nil
 }

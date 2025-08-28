@@ -50,7 +50,6 @@ func main() {
 func init() {
 	mountContentCategoriesConfig()
 	mountTranslationsConfig()
-	validation.MustInit()
 }
 
 func mountContentCategoriesConfig() {
@@ -110,6 +109,7 @@ func (s *service) RegisterRoutes(router *server.Router) {
 	s.setupStatisticsRoutes(router)
 	s.setupSocialProfileRoutes(router)
 	s.setupNFTRoutes(router)
+	s.setupDeviceIdentificationRoutes(router)
 }
 
 func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
@@ -120,11 +120,15 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	allValidConfigNames["apps-runtime_ion-app"] = func(_ *config, _ *Version) (any, Version) {
 		return appsRuntimeCfg.IONApp, Version(appsRuntimeCfg.IONApp.Version)
 	}
+
 	s.accounts = accounts.New(ctx, s.coins, s.relays, &appsRuntimeCfg)
+	s.validation = validation.New(ctx, validation.WithIONIdentityPublicKeys(func() []string {
+		return []string{s.accounts.PublicKey()}
+	}))
 	s.hashtagStatistics = hashtagstatistics.New(ctx)
 	s.nftContent = nftcontent.New(ctx, s.accounts)
 	s.following = following.New(ctx)
-
+	s.deviceIdentificationProxy = accounts.NewDeviceIdentificationProxy(ctx, s.cfg.Version)
 	publicKey := s.accounts.PublicKey()
 	allValidConfigNames[configNameServicePubkeys] = func(_ *config, _ *Version) (any, Version) { return []string{publicKey}, Version(1) }
 	allValidConfigNames["global_accounts"] = func(_ *config, ver *Version) (any, Version) {

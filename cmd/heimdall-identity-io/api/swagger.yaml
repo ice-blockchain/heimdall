@@ -172,6 +172,13 @@ definitions:
       walletViewId:
         type: string
     type: object
+  main.DeviceIdentificationEventReq:
+    properties:
+      event:
+        $ref: '#/definitions/model.Event'
+    required:
+    - event
+    type: object
   main.FollowersEventsReq:
     properties:
       events:
@@ -338,6 +345,8 @@ definitions:
         items:
           $ref: '#/definitions/accounts.TwoFAOptionEnum'
         type: array
+      duplicateOf:
+        type: string
       email:
         items:
           type: string
@@ -700,6 +709,11 @@ paths:
         name: X-Client-ID
         required: true
         type: string
+      - description: Request ID
+        in: header
+        name: X-Device-Identification-Request-ID
+        required: true
+        type: string
       - default: Bearer <token>
         description: Authorization
         in: header
@@ -930,6 +944,50 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Config
+  /v1/device-identification-proofs:
+    post:
+      consumes:
+      - application/json
+      description: Process event of linking new device (kind 21750 => 10100)
+      parameters:
+      - description: Authorization token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Event with new linked device (kind 21750 => 10100)
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.DeviceIdentificationEventReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Badges
+          schema:
+            items:
+              $ref: '#/definitions/model.Event'
+            type: array
+        "404":
+          description: if invalid device key provided with the event
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "422":
+          description: if invalid events provided
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Register
   /v1/early-access-users:
     get:
       description: Checks email availability for early access

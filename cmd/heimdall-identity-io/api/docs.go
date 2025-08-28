@@ -173,6 +173,13 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Request ID",
+                        "name": "X-Device-Identification-Request-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
                         "default": "Bearer \u003ctoken\u003e",
                         "description": "Authorization",
                         "name": "Authorization",
@@ -496,6 +503,73 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "if invalid configName passed",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/device-identification-proofs": {
+            "post": {
+                "description": "Process event of linking new device (kind 21750 =\u003e 10100)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Register"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Event with new linked device (kind 21750 =\u003e 10100)",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.DeviceIdentificationEventReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Badges",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Event"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "if invalid device key provided with the event",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "if invalid events provided",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/server.ErrorResponse"
                         }
@@ -2639,6 +2713,17 @@ const docTemplate = `{
                 }
             }
         },
+        "main.DeviceIdentificationEventReq": {
+            "type": "object",
+            "required": [
+                "event"
+            ],
+            "properties": {
+                "event": {
+                    "$ref": "#/definitions/model.Event"
+                }
+            }
+        },
         "main.FollowersEventsReq": {
             "type": "object",
             "required": [
@@ -2892,6 +2977,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/accounts.TwoFAOptionEnum"
                     }
+                },
+                "duplicateOf": {
+                    "type": "string"
                 },
                 "email": {
                     "type": "array",

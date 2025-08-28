@@ -84,11 +84,18 @@ accounts:
   smsExpiration: 15m
   userSignatureExpiration: 1h
   max2FACount: 2
-  mockRelays:
-    - wss://relay.nostr.band/
-    - wss://relay1.nostr.band/
-    - wss://relay3.nostr.band/
-  relaysPerUser: 1
+  device-identification:
+    #apiKey: bogus
+    #proxySecret: bogus
+    region: eu
+    requestExpirationTime: 15m
+    suspectThreshold: 999
+    allowedUrls:
+      - "com.android.bogus"
+    allowedSdks:
+      android: 2.9.0
+    allowedClientApiKeys:
+    #  - bogus
   defaultCoinsInWalletView:
     - ice
     - binancecoin

@@ -15,6 +15,7 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
 
+	deviceidentification "github.com/ice-blockchain/heimdall/accounts/internal/device-identification"
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
 	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
@@ -27,8 +28,9 @@ import (
 )
 
 type (
-	SearchType = string
-	Accounts   interface {
+	SearchType                = string
+	DeviceIdentificationProxy = deviceidentification.Proxy
+	Accounts                  interface {
 		io.Closer
 		Wallets
 		ProxyDelegatedRelyingParty(ctx context.Context, rw http.ResponseWriter, r *http.Request)
@@ -52,6 +54,7 @@ type (
 		GetGlobalAccounts(ctx context.Context, currentVer uint8) ([]*LiteUser, uint8, error)
 		SocialProfiles
 		EarlyAccessVerifier
+		Devices
 	}
 	VerifiedUsersSync interface {
 		io.Closer
@@ -65,6 +68,9 @@ type (
 	}
 	EarlyAccessVerifier interface {
 		VerifyEarlyAccess(ctx context.Context, email string) error
+	}
+	Devices interface {
+		DeviceIdentificationProofs(ctx context.Context, attestationEvent *model.Event, devicePubkey string) ([]*model.Event, error)
 	}
 	Wallets interface {
 		CreateWalletView(ctx context.Context, userID, name string, items []*CoinMapping, symbolGroups []string) (*WalletView, error)
@@ -103,6 +109,7 @@ type (
 		PhoneNumber             []string             `json:"phoneNumber,omitempty"`
 		TwoFAOptions            []TwoFAOptionEnum    `json:"2faOptions,omitempty"`
 		MasterPubKey            string               `json:"masterPubKey"`
+		DuplicateOf             *string              `json:"duplicateOf,omitempty"`
 	}
 	SocialProfile struct {
 		Username          string         `json:"username,omitempty"`
@@ -168,6 +175,7 @@ const (
 	AppIDHeaderCtxValue                            = dfns.AppIDCtxValue
 	UserActionCtxValue                             = dfns.UserActionCtxValue
 	UserSignatureCtxValueKey                       = "UserSignatureCtxValueKey"
+	RequestIDCtxValueKey                           = "RequestIDCtxValueKey"
 	registrationUrl                                = "/auth/registration/delegated"
 	completeRegistrationUrl                        = "/auth/registration/enduser"
 	completeLoginUrl                               = "/auth/login"
@@ -191,29 +199,31 @@ var (
 		TwoFAOptionEmail,
 		TwoFAOptionTOTPAuthenticator,
 	}
-	Err2FADeliverToNotProvided         = errors.New("no email or phone number provided for 2FA")
-	ErrNoPending2FA                    = errors.New("no pending 2FA request")
-	Err2FAExpired                      = errors.New("2FA request expired")
-	Err2FAInvalidCode                  = errors.New("invalid code")
-	Err2FARequired                     = errors.New("2FA required")
-	ErrAuthenticatorRequirementsNotMet = errors.New("authenticator requirements not met")
-	ErrNotFound                        = storage.ErrNotFound
-	ErrDuplicate                       = storage.ErrDuplicate
-	ErrInvalidFollowees                = errors.New("invalid followees")
-	ErrInvalidUserSignature            = errors.New("invalid user signature")
-	ErrInvalidIdentityKey              = dfns.ErrInvalidUsername
-	ErrInvalidUsername                 = errors.New("invalid username")
-	ErrNotChanged                      = errors.New("not changed")
-	ErrDeleteLast                      = errors.New("cannot delete last entry")
-	ErrRaceCondition                   = dfns.ErrRaceCondition
-	ErrWalletLinked                    = errors.New("wallet already linked to walletview")
-	ErrUnauthorized                    = errors.New("unauthorized")
-	ErrWrongReferral                   = errors.New("wrong/circular referral detected")
-	ErrRegistrationsDisabled           = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "registrations disabled"}
-	ErrEmailNotAllowedForEarlyAccess   = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "email not allowed for early access"}
-	ErrEmailUsed                       = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "email used"}
-	verifiedBadgeImage1024X1024Tag     = nostr.Tag{"image", "https://example.com/verified_1024x1024.webp", "1024x1024"}
-	verifiedBadgeThumbnail256X256Tag   = nostr.Tag{"thumb", "https://example.com/verified_256x256.webp", "256x256"}
+	Err2FADeliverToNotProvided               = errors.New("no email or phone number provided for 2FA")
+	ErrNoPending2FA                          = errors.New("no pending 2FA request")
+	Err2FAExpired                            = errors.New("2FA request expired")
+	Err2FAInvalidCode                        = errors.New("invalid code")
+	Err2FARequired                           = errors.New("2FA required")
+	ErrAuthenticatorRequirementsNotMet       = errors.New("authenticator requirements not met")
+	ErrNotFound                              = storage.ErrNotFound
+	ErrDuplicate                             = storage.ErrDuplicate
+	ErrInvalidFollowees                      = errors.New("invalid followees")
+	ErrInvalidUserSignature                  = errors.New("invalid user signature")
+	ErrInvalidIdentityKey                    = dfns.ErrInvalidUsername
+	ErrInvalidUsername                       = errors.New("invalid username")
+	ErrNotChanged                            = errors.New("not changed")
+	ErrDeleteLast                            = errors.New("cannot delete last entry")
+	ErrRaceCondition                         = dfns.ErrRaceCondition
+	ErrWalletLinked                          = errors.New("wallet already linked to walletview")
+	ErrUnauthorized                          = errors.New("unauthorized")
+	ErrWrongReferral                         = errors.New("wrong/circular referral detected")
+	ErrRegistrationsDisabled                 = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "registrations disabled"}
+	ErrEmailNotAllowedForEarlyAccess         = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "email not allowed for early access"}
+	ErrEmailUsed                             = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "email used"}
+	verifiedBadgeImage1024X1024Tag           = nostr.Tag{"image", "https://example.com/verified_1024x1024.webp", "1024x1024"}
+	verifiedBadgeThumbnail256X256Tag         = nostr.Tag{"thumb", "https://example.com/verified_256x256.webp", "256x256"}
+	identifiedDeviceBadgeThumbnail256X256Tag = nostr.Tag{"thumb", "https://example.com/device_256x256.webp", "256x256"}
+	identifiedDeviceImage1024X1024Tag        = nostr.Tag{"image", "https://example.com/device_1024x1024.webp", "1024x1024"}
 )
 
 const (
@@ -221,7 +231,8 @@ const (
 	clientIPCtxValueKey    = "clientIPCtxValueKey"
 	confirmationCodeLength = 6
 
-	usernameProofOfOwnershipBadgeName = "username_proof_of_ownership"
+	usernameProofOfOwnershipBadgeName  = "username_proof_of_ownership"
+	deviceIdentificationProofBadgeName = "device_identification_proof"
 )
 
 var (
@@ -247,6 +258,7 @@ type (
 		cfg                        *config
 		privateKey                 string
 		appsRuntimeConfig          *AppsRuntimeConfig
+		deviceIdentificationClient deviceidentification.Client
 	}
 	verifiedUsersSync struct {
 		db         *storage.DB
@@ -264,10 +276,11 @@ type (
 		TotpAuthenticatorSecret    []string
 		IONConnectRelays           relaymanagement.UserAssignedRelays
 		Clients                    []string
-		Active2FAEmail             []bool `db:"active_2fa_email"`
-		Active2FAPhoneNumber       []bool `db:"active_2fa_phone_number"`
-		Active2FATotpAuthenticator []bool `db:"active_2fa_totp_authenticator"`
-		Verified                   bool   `db:"verified"`
+		Active2FAEmail             []bool  `db:"active_2fa_email"`
+		Active2FAPhoneNumber       []bool  `db:"active_2fa_phone_number"`
+		Active2FATotpAuthenticator []bool  `db:"active_2fa_totp_authenticator"`
+		Verified                   bool    `db:"verified"`
+		DuplicateOf                *string `db:"duplicate_of"`
 	}
 	socialProfile struct {
 		CreatedAt            *time.Time
@@ -294,9 +307,7 @@ type (
 		UserSignatureExpiration  stdlibtime.Duration `yaml:"userSignatureExpiration" mapstructure:"userSignatureExpiration"`
 		Max2FACount              int                 `yaml:"max2FACount" mapstructure:"max2FACount"`
 		DefaultCoinsInWalletView []string            `yaml:"defaultCoinsInWalletView" mapstructure:"defaultCoinsInWalletView"`
-		MockRelays               []string            `yaml:"mockRelays" mapstructure:"mockRelays"`
 		PrivateKey               string              `yaml:"privateKey" mapstructure:"privateKey"`
-		RelaysPerUser            uint8               `yaml:"relaysPerUser" mapstructure:"relaysPerUser"`
 	}
 
 	AppsRuntimeConfig struct {

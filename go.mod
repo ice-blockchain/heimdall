@@ -13,6 +13,7 @@ require (
 	github.com/cockroachdb/errors v1.12.0
 	github.com/dfns/dfns-sdk-go v0.0.3-beta.0.20250613152649-e92de28acf34
 	github.com/ethereum/go-ethereum v1.16.2
+	github.com/fingerprintjs/fingerprint-pro-server-api-go-sdk/v7 v7.8.0
 	github.com/gin-gonic/gin v1.10.1
 	github.com/goccy/go-json v0.10.5
 	github.com/goccy/go-reflect v1.2.0
@@ -22,6 +23,7 @@ require (
 	github.com/ice-blockchain/subzero v1.377.0
 	github.com/ice-blockchain/wintr v1.158.0
 	github.com/imroc/req/v3 v3.54.2
+	github.com/jellydator/ttlcache/v3 v3.4.0
 	github.com/lestrrat-go/jwx/v2 v2.1.6
 	github.com/nbd-wtf/go-nostr v0.52.0
 	github.com/pkg/errors v0.9.1
@@ -34,6 +36,7 @@ require (
 	github.com/twilio/twilio-go v1.27.1
 	github.com/xssnick/tonutils-go v1.14.1
 	golang.org/x/exp v0.0.0-20250819193227-8b4c13bb791b
+	golang.org/x/mod v0.27.0
 	golang.org/x/net v0.43.0
 	golang.org/x/sync v0.16.0
 )
@@ -146,7 +149,6 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/pgx/v5 v5.7.5 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
-	github.com/jellydator/ttlcache/v3 v3.4.0 // indirect
 	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
@@ -230,7 +232,6 @@ require (
 	go.uber.org/mock v0.6.0 // indirect
 	golang.org/x/arch v0.20.0 // indirect
 	golang.org/x/crypto v0.41.0 // indirect
-	golang.org/x/mod v0.27.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
