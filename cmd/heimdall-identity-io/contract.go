@@ -273,12 +273,14 @@ const (
 	emailUsed                  = "EMAIL_USED"
 	registrationsDisabled      = "REGISTRATIONS_DISABLED"
 
-	configNameRequiredAndroidAppVersion = "required_android_app_version"
-	configNameRequiredIOSAppVersion     = "required_ios_app_version"
-	configNameRequiredMacOSAppVersion   = "required_macos_app_version"
-	configNameRequiredWindowsAppVersion = "required_windows_app_version"
-	configNameRequiredLinuxAppVersion   = "required_linux_app_version"
-	configNameServicePubkeys            = "service_pubkeys"
+	configNameRequiredAndroidAppVersion       = "required_android_app_version"
+	configNameRequiredIOSAppVersion           = "required_ios_app_version"
+	configNameRequiredMacOSAppVersion         = "required_macos_app_version"
+	configNameRequiredWindowsAppVersion       = "required_windows_app_version"
+	configNameRequiredLinuxAppVersion         = "required_linux_app_version"
+	configNameServicePubkeys                  = "service_pubkeys"
+	runtimeConfigApplicationYamlKey           = "apps-runtime"
+	configNameBlacklistedCountriesForPhone2FA = "blacklisted_countries_phone2fa"
 )
 
 type (
@@ -322,10 +324,13 @@ var (
 		configNameRequiredMacOSAppVersion:   func(cfg *config, _ *Version) (any, Version) { return cfg.RequiredAppVersions.MacOS, Version(0) },
 		configNameRequiredWindowsAppVersion: func(cfg *config, _ *Version) (any, Version) { return cfg.RequiredAppVersions.Windows, Version(0) },
 		configNameRequiredLinuxAppVersion:   func(cfg *config, _ *Version) (any, Version) { return cfg.RequiredAppVersions.Linux, Version(0) },
+		configNameBlacklistedCountriesForPhone2FA: func(cfg *config, ver *Version) (any, Version) {
+			if ver == nil {
+				return errors.Wrapf(errVersionRequired, "version required for %s", configNameBlacklistedCountriesForPhone2FA), Version(0)
+			}
+			return blacklistedCountriesPhone2FA, Version(1)
+		},
 	}
-	errVersionRequired = errors.New("version required")
-)
-
-const (
-	runtimeConfigApplicationYamlKey = "apps-runtime"
+	errVersionRequired           = errors.New("version required")
+	blacklistedCountriesPhone2FA = []string{"SV", "EG", "IS"}
 )
