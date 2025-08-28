@@ -49,7 +49,7 @@ type (
 		HealthCheck(ctx context.Context) error
 		PublicKey() string
 		CompleteRegistration(ctx context.Context, credentials *Credentials) (CompletedRegistration, error)
-		GetPriorityAccounts(ctx context.Context, currentVer uint8) ([]*LiteUser, uint8, error)
+		GetGlobalAccounts(ctx context.Context, currentVer uint8) ([]*LiteUser, uint8, error)
 		SocialProfiles
 		EarlyAccessVerifier
 	}

@@ -549,10 +549,10 @@ func (a *accounts) GetIONConnectRelaysForUsers(ctx context.Context, masterPubkey
 	return u, nil
 }
 
-func (a *accounts) GetPriorityAccounts(ctx context.Context, currentVer uint8) ([]*LiteUser, uint8, error) {
+func (a *accounts) GetGlobalAccounts(ctx context.Context, currentVer uint8) ([]*LiteUser, uint8, error) {
 	stmt := `SELECT CAST(value AS INTEGER) as latest_version
 			 FROM global 
-			 WHERE key = 'latest_priority_accounts_version'
+			 WHERE key = 'latest_global_accounts_version'
                AND CAST(value AS INTEGER) > $1`
 	lv, err := storage.Get[struct {
 		LatestVersion uint8 `db:"latest_version"`
@@ -562,10 +562,10 @@ func (a *accounts) GetPriorityAccounts(ctx context.Context, currentVer uint8) ([
 			return nil, currentVer, nil
 		}
 
-		return nil, 0, errors.Wrapf(err, "failed to select latest_priority_accounts_version for version: %#v", currentVer)
+		return nil, 0, errors.Wrapf(err, "failed to select latest_global_accounts_version for version: %#v", currentVer)
 	}
 	stmt = `SELECT 
-					priority_accounts.master_pubkey,
+					global_accounts.master_pubkey,
     				(select json_agg(x) 
 					 from 
 						(select url, 
@@ -573,12 +573,12 @@ func (a *accounts) GetPriorityAccounts(ctx context.Context, currentVer uint8) ([
 						from ion_connect_relays 
 						where url=ANY(users.ion_connect_relays)) x
 				    ) as ion_connect_relays
-    		 FROM priority_accounts
+    		 FROM global_accounts
 				JOIN users 
-                  ON users.master_pubkey = priority_accounts.master_pubkey`
+                  ON users.master_pubkey = global_accounts.master_pubkey`
 	accs, err := storage.Select[LiteUser](ctx, a.db, stmt)
 	if err != nil {
-		return nil, 0, errors.Wrapf(err, "failed to select PriorityAccounts for version: %#v", currentVer)
+		return nil, 0, errors.Wrapf(err, "failed to select GlobalAccounts for version: %#v", currentVer)
 	}
 	if accs == nil {
 		accs = []*LiteUser{}

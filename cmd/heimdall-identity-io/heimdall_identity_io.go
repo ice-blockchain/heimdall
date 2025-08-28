@@ -127,16 +127,16 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 
 	publicKey := s.accounts.PublicKey()
 	allValidConfigNames[configNameServicePubkeys] = func(_ *config, _ *Version) (any, Version) { return []string{publicKey}, Version(1) }
-	allValidConfigNames["priority_accounts"] = func(_ *config, ver *Version) (any, Version) {
+	allValidConfigNames["global_accounts"] = func(_ *config, ver *Version) (any, Version) {
 		reqCtx, reqCancel := context.WithTimeout(ctx, 25*time.Second)
 		defer reqCancel()
 		var currentVer uint8
 		if ver != nil {
 			currentVer = uint8(*ver)
 		} else {
-			return errors.New("version required for priority_accounts"), Version(0)
+			return errors.New("version required for global_accounts"), Version(0)
 		}
-		accs, newVer, err := s.accounts.GetPriorityAccounts(reqCtx, currentVer)
+		accs, newVer, err := s.accounts.GetGlobalAccounts(reqCtx, currentVer)
 		if err != nil {
 			return err, Version(0)
 		}
