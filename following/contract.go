@@ -5,8 +5,9 @@ package following
 import (
 	"context"
 	_ "embed"
-	"errors"
 	"io"
+
+	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
