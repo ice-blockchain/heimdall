@@ -7,12 +7,15 @@ import (
 	_ "embed"
 	"io"
 
+	"github.com/pkg/errors"
+
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
 var (
 	ErrOnBehalfAccessDenied = model.ErrOnBehalfAccessDenied
+	ErrRelationNotFound     = errors.New("relation not found")
 )
 
 type (
