@@ -213,11 +213,9 @@ func (c *client) validateVisitorData(ctx context.Context, now *time.Time, client
 
 func (c *client) deviceIdentificationSignedData(event *deviceidentificationsdk.EventsGetResponse, createdAt string) []byte {
 	return []byte(strings.Join([]string{
-		event.Products.Identification.Data.BrowserDetails.Os,
-		event.Products.Identification.Data.BrowserDetails.OsVersion,
-		event.Products.Vpn.Data.OriginTimezone,
-		event.Products.Identification.Data.BrowserDetails.Device,
-		fmt.Sprintf("%v", event.Products.FactoryReset.Data.Timestamp),
+		strings.ToLower(event.Products.Identification.Data.BrowserDetails.Os),
+		strings.ToLower(event.Products.Identification.Data.BrowserDetails.OsVersion),
+		strings.ToLower(event.Products.Vpn.Data.OriginTimezone),
 		createdAt,
 	}, ":"))
 }
