@@ -27,7 +27,17 @@ func (c *coinsRepository) ImportNFTs(ctx context.Context, network string, NFTsIn
 		return nil, errors.Wrapf(err, "failed to get local nfts")
 	}
 	if len(missing) == 0 {
-		return c.populateNFTsWithCollectionInfo(NFTsInWallet, nftCollections), nil
+		allPopulated := true
+		for contractAddr, c := range nftCollections {
+			if c.Name == "" && c.Description == "" && c.CollectionImageURI == "" {
+				missing = append(missing, contractAddr)
+				allPopulated = false
+			}
+		}
+		if allPopulated {
+			return c.populateNFTsWithCollectionInfo(NFTsInWallet, nftCollections), nil
+		}
+
 	}
 	nftsToImport := make([]WalletNFT, 0, len(missing))
 	for _, n := range NFTsInWallet {
@@ -37,6 +47,9 @@ func (c *coinsRepository) ImportNFTs(ctx context.Context, network string, NFTsIn
 	}
 	imported, err := c.importNFTCollections(ctx, network, nftsToImport, missing)
 	if err != nil {
+		if errors.Is(err, coingecko.ErrNotFound) {
+			return c.populateNFTsWithCollectionInfo(NFTsInWallet, nftCollections), nil
+		}
 		return nil, errors.Wrapf(err, "failed to import missing NFTs %v %+v", network, missing)
 	}
 	for k, v := range imported {
@@ -51,7 +64,10 @@ func (c *coinsRepository) populateNFTsWithCollectionInfo(NFTsInWallet []WalletNF
 	for _, wn := range NFTsInWallet {
 		delete(wn, CollectionMetadataIndexedKey)
 		contractAddress := wn["contract"].(string)
-		collection := nftCollections[contractAddress]
+		collection, hasCollection := nftCollections[contractAddress]
+		if !hasCollection || collection == nil {
+			collection = &NFT{}
+		}
 		res = append(res, &NFT{
 			WalletNFT:          wn,
 			Name:               collection.Name,
@@ -118,7 +134,7 @@ func (c *coinsRepository) importNFTCollections(ctx context.Context, network stri
 		var errGroup errgroup.Group
 		nftData := make(chan *coingecko.NFT, len(contractAddresses))
 		for _, contract := range contractAddresses {
-			if indexedMeta, hasIndexed := indexedCollectionMetadata[contract]; hasIndexed {
+			if indexedMeta, hasIndexed := indexedCollectionMetadata[contract]; hasIndexed && indexedMeta != nil {
 				nftData <- &coingecko.NFT{
 					ContractAddress: contract,
 					Name:            indexedMeta["name"],
@@ -163,12 +179,18 @@ func (c *coinsRepository) importNFTCollections(ctx context.Context, network stri
 	return updatedNfts, errors.Wrapf(tErr, "failed to update nfts from coin gecko")
 }
 func (c *coinsRepository) insertNFTs(ctx context.Context, network string, nftsToImport []WalletNFT) error {
+	if len(nftsToImport) == 0 {
+		return nil
+	}
 	placeholders, params := buildNftsInsert(strings.ToLower(network), nftsToImport)
 	_, err := storage.Exec(ctx, c.db, fmt.Sprintf("INSERT INTO nft_collections(network, name, description, token_standard, contract_address, symbol, icon_url)  VALUES %v ON CONFLICT(contract_address) DO NOTHING;", placeholders), params...)
 	return errors.Wrapf(err, "failed to insert nfts (wallet data)")
 }
 
 func (c *coinsRepository) updateNFTCollections(ctx context.Context, conn storage.QueryExecer, nfts []*coingecko.NFT) (map[string]*NFT, error) {
+	if len(nfts) == 0 {
+		return nil, nil
+	}
 	placeholders, params := buildNftsUpdate(nfts)
 	nftsUpdated, err := storage.ExecMany[nft](ctx, conn, fmt.Sprintf(`
 			UPDATE nft_collections SET
