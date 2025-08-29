@@ -215,7 +215,6 @@ func (c *client) deviceIdentificationSignedData(event *deviceidentificationsdk.E
 	return []byte(strings.Join([]string{
 		strings.ToLower(event.Products.Identification.Data.BrowserDetails.Os),
 		strings.ToLower(event.Products.Identification.Data.BrowserDetails.OsVersion),
-		strings.ToLower(event.Products.Vpn.Data.OriginTimezone),
 		createdAt,
 	}, ":"))
 }
