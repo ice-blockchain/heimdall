@@ -138,6 +138,7 @@ func (s *service) ProcessNFTContent(
 //	@Param			request	body	FollowersEventsReq	true	"Events with followers data (kind 3 + kind 10100)"
 //	@Success		202
 //	@Failure		400	{object}	server.ErrorResponse	"if invalid events provided"
+//	@Failure		404	{object}	server.ErrorResponse	"if relation not found"
 //	@Failure		500	{object}	server.ErrorResponse
 //	@Failure		504	{object}	server.ErrorResponse	"if request times out"
 //	@Router			/v1/statistics/followers [POST].
@@ -153,6 +154,8 @@ func (s *service) ProcessFollowersEvents(
 		switch {
 		case errors.Is(err, following.ErrOnBehalfAccessDenied):
 			return nil, server.Forbidden(err)
+		case errors.Is(err, following.ErrRelationNotFound):
+			return nil, server.NotFound(err, "relation not found")
 		}
 
 		return nil, server.Unexpected(errors.Wrap(err, "failed to process following events"))
