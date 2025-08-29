@@ -5,6 +5,7 @@ package following
 import (
 	"context"
 	_ "embed"
+	"errors"
 	"io"
 
 	"github.com/ice-blockchain/subzero/model"
@@ -13,6 +14,7 @@ import (
 
 var (
 	ErrOnBehalfAccessDenied = model.ErrOnBehalfAccessDenied
+	ErrRelationNotFound     = errors.New("relation not found")
 )
 
 type (
