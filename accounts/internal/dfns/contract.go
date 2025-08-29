@@ -130,11 +130,12 @@ const (
 	DefaultWalletNetworkTestNetForOldAccounts = "TonTestnet"
 	defaultWalletName                         = "main"
 
-	networkTON        = "ton"
-	networkTONTestnet = "tontestnet"
-	networkION        = "ion"
-	networkIONTestnet = "iontestnet"
-	erc20ABI          = `[{"constant":true,"inputs":[{"name":"","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"from","type":"address"},{"indexed":true,"name":"to","type":"address"},{"indexed":false,"name":"value","type":"uint256"}],"name":"Transfer","type":"event"}]`
+	networkTON                = "ton"
+	networkTONTestnet         = "tontestnet"
+	networkION                = "ion"
+	networkIONTestnet         = "iontestnet"
+	erc20ABI                  = `[{"constant":true,"inputs":[{"name":"","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"from","type":"address"},{"indexed":true,"name":"to","type":"address"},{"indexed":false,"name":"value","type":"uint256"}],"name":"Transfer","type":"event"}]`
+	ErrMessageNFTNotSupported = `does not support NFT balances`
 )
 
 var (

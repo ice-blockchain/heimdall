@@ -4,9 +4,11 @@ package main
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/pkg/errors"
 
+	"github.com/ice-blockchain/heimdall/accounts"
 	nftcontent "github.com/ice-blockchain/heimdall/nft-content"
 	"github.com/ice-blockchain/heimdall/server"
 )
@@ -121,4 +123,44 @@ func corsHeaders() map[string]string {
 		"Access-Control-Allow-Methods": "GET, OPTIONS",
 		"Access-Control-Allow-Headers": "Content-Type",
 	}
+}
+
+// GetNFTs godoc
+//
+//	@Schemes
+//	@Description	Gets NFTs from the wallet
+//	@Tags			Wallets
+//	@Produce		json
+//	@Param			X-Client-ID		header		string	true	"App ID"									default(ap-)
+//	@Param			Authorization	header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
+//	@Param			walletId		path		string	true	"ID of the wallet"
+//	@Param			limit			query		string	false	"custom limit"
+//	@Param			paginationToken	query		string	false	"pagination token to continue from"
+//	@Success		200				{object}	NFTCollection
+//	@Failure		500				{object}	server.ErrorResponse
+//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
+//	@Router			/wallets/{walletId}/nfts [GET].
+func (s *service) GetNFTs(
+	ctx context.Context,
+	req *server.Request[GetNFTsReq, NFTCollection],
+) (successResp *server.Response[NFTCollection], errorResp *server.ErrResponse[*delegatedErrorResponse]) {
+	if req.Data.Limit == 0 {
+		req.Data.Limit = 100
+	}
+	nfts, network, newPagination, err := s.accounts.GetNFTs(ctx, req.Data.WalletID, req.Data.PaginationToken, req.Data.Limit)
+	if err != nil {
+		if delegatedErr := accounts.ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
+			var delegatedParsedErr *accounts.DelegatedRelyingPartyErr
+			if errors.As(delegatedErr, &delegatedParsedErr) {
+				return nil, buildDelegatedErrorResponse(delegatedParsedErr.HTTPStatus, err, delegatedParsedErr.Message)
+			}
+		}
+		return nil, buildDelegatedErrorResponse(http.StatusInternalServerError, err, "")
+	}
+	return server.OK[NFTCollection](&NFTCollection{
+		WalletID:        req.Data.WalletID,
+		Network:         network,
+		NFTs:            nfts,
+		PaginationToken: newPagination,
+	}), nil
 }

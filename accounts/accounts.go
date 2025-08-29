@@ -133,3 +133,7 @@ func (a *accounts) PublicKey() string {
 
 	return pubKey
 }
+
+func (a *accounts) SetProviderForUnsupportedNFTs(nft NFTInWallets) {
+	a.ionNFT = nft
+}

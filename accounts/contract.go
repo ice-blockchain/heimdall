@@ -44,7 +44,7 @@ type (
 		GetIONConnectIndexerRelays(ctx context.Context, userID string) (indexers []string, err error)
 		GetUser(ctx context.Context, userID string) (usr *User, err error)
 		SecurePaymentConfirmation(ctx context.Context, userID, walletID string, body map[string]string) (templateData any, err error)
-		GetNFTs(ctx context.Context, walletID string) ([]*NFT, string, error)
+		GetNFTs(ctx context.Context, walletID, paginationToken string, limit uint) ([]*NFT, string, *string, error)
 		DeleteUser(ctx context.Context, userID string) error
 		GetContentCreators(ctx context.Context, limit uint64, excludeMasterPubKeys []string) ([]*LiteUser, error)
 		IsUserVerified(ctx context.Context, masterPubKey string) (bool, []*model.Event, error)
@@ -75,12 +75,13 @@ type (
 	Wallets interface {
 		CreateWalletView(ctx context.Context, userID, name string, items []*CoinMapping, symbolGroups []string) (*WalletView, error)
 		GetWalletViews(ctx context.Context, userID string) ([]*WalletView, error)
-		GetWalletView(ctx context.Context, userID, id string) (*WalletView, error)
+		GetWalletView(ctx context.Context, userID, id string) (wv *WalletView, nextPage *string, err error)
 		DeleteWalletView(ctx context.Context, userID, id string) error
 		ModifyWalletView(ctx context.Context, userID, id, newName string, items []*CoinMapping, symbolGroups []string) (*WalletView, error)
 		GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGroup string) ([]*CoinWithWalletInfo, error)
 		CreateWalletForWalletView(ctx context.Context, userID, network, walletViewID string) (*Wallet, error)
 		FetchMainWallet(ctx context.Context, masterKey string) (Wallet, error)
+		SetProviderForUnsupportedNFTs(nft NFTInWallets)
 	}
 	Coins interface {
 		GetCoinsOfSymbolGroup(ctx context.Context, symbolGroups []string) ([]*coins.Coin, error)
@@ -90,6 +91,9 @@ type (
 	}
 	Relays interface {
 		IONConnectRelaysForUser(ctx context.Context, userId string) ([]*UserAssignedRelay, error)
+	}
+	NFTInWallets interface {
+		ListNFTs(ctx context.Context, walletAddr string, paginationToken string, limit uint) ([]coins.WalletNFT, *string, error)
 	}
 	TwoFAOptionEnum     string
 	TwoFAOptionWithAddr struct {
@@ -259,6 +263,7 @@ type (
 		privateKey                 string
 		appsRuntimeConfig          *AppsRuntimeConfig
 		deviceIdentificationClient deviceidentification.Client
+		ionNFT                     NFTInWallets
 	}
 	verifiedUsersSync struct {
 		db         *storage.DB

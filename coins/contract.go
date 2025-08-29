@@ -75,6 +75,7 @@ const (
 	// TODO: update to ion once ion updated on coin gecko.
 	DefaultWalletViewCoinSymbolGroup = "ice"
 	DefaultWalletViewCoinID          = "7b471f92-ced2-38b0-e408-88e5d89e8045"
+	CollectionMetadataIndexedKey     = "__collection_metadata__"
 )
 
 var (

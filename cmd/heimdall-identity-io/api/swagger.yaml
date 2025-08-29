@@ -243,6 +243,8 @@ definitions:
         items:
           $ref: '#/definitions/coins.NFT'
         type: array
+      paginationToken:
+        type: string
       walletId:
         type: string
     type: object
@@ -552,6 +554,9 @@ definitions:
         type: string
       profile_uri:
         example: https://example.com/account/address
+        type: string
+      symbol:
+        example: johndoe
         type: string
       tags:
         items:
@@ -1978,6 +1983,14 @@ paths:
         name: walletViewId
         required: true
         type: string
+      - description: pagination token to continue from
+        in: query
+        name: paginationToken
+        type: string
+      - description: custom limit
+        in: query
+        name: limit
+        type: string
       - default: Bearer <Add token here>
         description: Auth token from delegated relying party
         in: header
@@ -1989,6 +2002,11 @@ paths:
       responses:
         "200":
           description: OK
+          headers:
+            X-Next-Page:
+              description: Optional, if response has more pages, to be provided in
+                paginationToken on next req
+              type: string
           schema:
             $ref: '#/definitions/main.WalletView'
         "404":
@@ -2228,6 +2246,14 @@ paths:
         in: path
         name: walletId
         required: true
+        type: string
+      - description: custom limit
+        in: query
+        name: limit
+        type: string
+      - description: pagination token to continue from
+        in: query
+        name: paginationToken
         type: string
       produces:
       - application/json

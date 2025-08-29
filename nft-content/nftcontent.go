@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"slices"
+	"strconv"
 
 	"github.com/goccy/go-json"
 	"github.com/nbd-wtf/go-nostr"
@@ -23,12 +24,16 @@ func New(ctx context.Context, walletFetcher OwnerAddressFetcher) NFTContent {
 
 	var cfg Config
 	config.MustLoadFromKey(applicationYamlKey, &cfg)
-
-	return &nftContent{
+	if cfg.Indexer.ION == "" {
+		panic("[nft-content] indexer>ion is not set")
+	}
+	nft := &nftContent{
 		db:            db,
 		walletFetcher: walletFetcher,
 		config:        &cfg,
 	}
+	walletFetcher.SetProviderForUnsupportedNFTs(nft)
+	return nft
 }
 
 func (n *nftContent) Process(ctx context.Context, events model.Events) error {
@@ -79,6 +84,7 @@ func (n *nftContent) GetNFTCollectionMetadata(ctx context.Context, masterPubkey 
 			Name:        fmt.Sprintf("%s's ION NFT collection", row.Username),
 			Description: fmt.Sprintf("Official ION NFT Collection for %s", row.Username),
 			Image:       imageUrlMap[NFTContentTypeUser],
+			Symbol:      row.Username,
 		},
 		&row.NFTCollectionMetadata,
 		nil
@@ -290,6 +296,18 @@ func (n *nftContent) Close() error {
 
 func (n *nftContent) HealthCheck(ctx context.Context) error {
 	return errors.Wrap(n.db.Ping(ctx), "failed to ping database")
+}
+
+func (n *nftContent) ListNFTs(ctx context.Context, walletAddr string, paginationToken string, limit uint) ([]WalletNFT, *string, error) {
+	if paginationToken == "" {
+		paginationToken = "0" // Basically offset, but on 3rd party wallet provider they use strings, we try to mimic to their endpoint
+	}
+	offset, err := strconv.ParseUint(paginationToken, 10, 64)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "failed to parse pagination token: %v", paginationToken)
+	}
+	nfts, newPagination, err := n.listNFTs(ctx, walletAddr, uint(offset), limit)
+	return nfts, newPagination, errors.Wrapf(err, "failed to fetch NFTs for wallet %v from ion indexer", walletAddr)
 }
 
 func (n *nftContent) getOwnerWalletAddress(ctx context.Context, event *model.Event) (string, error) {

@@ -4,6 +4,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -67,17 +69,23 @@ func (s *service) CreateWalletView(
 //	@Produce		json
 //	@Param			userIdOrMasterKey	path		string	true	"ID of the user"
 //	@Param			walletViewId		path		string	true	"ID of wallet view"
+//	@Param			paginationToken		query		string	false	"pagination token to continue from"
+//	@Param			limit				query		string	false	"custom limit"
 //	@Param			Authorization		header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
 //	@Success		200					{object}	WalletView
+//	@Header			200					string		X-Next-Page	"Optional, if response has more pages, to be provided in paginationToken on next req"
 //	@Failure		500					{object}	server.ErrorResponse
 //	@Failure		404					{object}	server.ErrorResponse	"if wallet view not found"
 //	@Failure		504					{object}	server.ErrorResponse	"if request times out"
 //	@Router			/v1/users/{userIdOrMasterKey}/wallet-views/{walletViewId} [GET].
 func (s *service) GetWalletView(
 	ctx context.Context,
-	req *server.Request[WalletViewReference, WalletView],
+	req *server.Request[GetWalletViewReq, WalletView],
 ) (successResp *server.Response[WalletView], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	view, err := s.accounts.GetWalletView(ctx, req.Data.UserIDOrMasterKey, req.Data.WalletViewID)
+	if req.Data.Limit == 0 {
+		req.Data.Limit = 100
+	}
+	view, nextPage, err := s.accounts.GetWalletView(withPagination(ctx, req.Data.PaginationToken, req.Data.Limit), req.Data.UserIDOrMasterKey, req.Data.WalletViewID)
 	if err != nil {
 		switch {
 		case errors.Is(err, accounts.ErrNotFound):
@@ -85,6 +93,9 @@ func (s *service) GetWalletView(
 		default:
 			return nil, server.Unexpected(err)
 		}
+	}
+	if nextPage != nil {
+		return &server.Response[WalletView]{Code: http.StatusOK, Data: view, Headers: map[string]string{"X-Next-Page": fmt.Sprintf("%v", *nextPage)}}, nil
 	}
 	return server.OK(view), nil
 }
@@ -220,4 +231,10 @@ func (s *service) ModifyWalletView(
 	}
 
 	return server.OK[WalletView](view), nil
+}
+
+func withPagination(ctx context.Context, token string, limit uint) context.Context {
+	ctx = context.WithValue(ctx, "paginationToken", token)
+	ctx = context.WithValue(ctx, "paginationLimit", limit)
+	return ctx
 }

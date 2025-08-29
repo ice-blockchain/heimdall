@@ -239,7 +239,7 @@ func (a *accounts) GetUser(ctx context.Context, userIDOrMasterKey string) (*User
 		if dbUsr.DuplicateOf != nil {
 			duplUser, dErr := a.getUserByID(ctx, *dbUsr.DuplicateOf)
 			if dErr != nil {
-				return nil, errors.Wrapf(err, "failed to fetch duplicate user (%v) for userID %v", *dbUsr.DuplicateOf, userIDOrMasterKey)
+				return nil, errors.Wrapf(dErr, "failed to fetch duplicate user (%v) for userID %v", *dbUsr.DuplicateOf, userIDOrMasterKey)
 			}
 			usr.DuplicateOf = &duplUser.MasterPubKey
 		}
