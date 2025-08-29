@@ -42,7 +42,7 @@ func (n *nftContent) listNFTs(ctx context.Context, walletAddress string, offset,
 		for _, nft := range nftItems.NftItems {
 			var collectionMetadata map[string]string
 			indexedCollectionMeta, hasCollectionMeta := nftItems.Metadata[nft.CollectionAddress]
-			if hasCollectionMeta && len(indexedCollectionMeta.TokenInfo) > 0 {
+			if hasCollectionMeta && indexedCollectionMeta.IsIndexed && len(indexedCollectionMeta.TokenInfo) > 0 {
 				collectionMetadata = map[string]string{
 					"name":        indexedCollectionMeta.TokenInfo[0].Name,
 					"description": indexedCollectionMeta.TokenInfo[0].Description,
@@ -117,6 +117,9 @@ func indexerReq[T any](ctx context.Context, i *nftContent, relativeUrl string, p
 		}).
 		SetQueryParams(params).
 		SetHeader("Accept", "application/json").
+		SetHeader("Cache-Control", "no-cache, no-store, must-revalidate").
+		SetHeader("Pragma", "no-cache").
+		SetHeader("Expires", "0").
 		Get(relativeUrl); err != nil {
 		return nil, 0, errors.Wrapf(err, "failed to call indexer %v %v", i.config.Indexer.ION, relativeUrl)
 
