@@ -112,13 +112,14 @@ var (
 	//go:embed DDL.sql
 	ddl string
 
+	//TODO: change them
 	imageUrlMap = map[NFTContentType]string{
-		NFTContentTypeUser:    "https://example.com/images/nft-image-user.png",
-		NFTContentTypeAccount: "https://example.com/images/nft-image-account.png",
-		NFTContentTypeVideo:   "https://example.com/images/nft-image-video.png",
-		NFTContentTypeStory:   "https://example.com/images/nft-image-story.png",
-		NFTContentTypePost:    "https://example.com/images/nft-image-post.png",
-		NFTContentTypeArticle: "https://example.com/images/nft-image-article.png",
+		NFTContentTypeUser:    "https://api.iconify.design/lucide:grid-3x3.svg",
+		NFTContentTypeAccount: "https://api.iconify.design/lucide:user.svg",
+		NFTContentTypeVideo:   "https://api.iconify.design/lucide:video.svg",
+		NFTContentTypeStory:   "https://api.iconify.design/lucide:circle-dot.svg",
+		NFTContentTypePost:    "https://api.iconify.design/lucide:square.svg",
+		NFTContentTypeArticle: "https://api.iconify.design/lucide:newspaper.svg",
 	}
 )
 
