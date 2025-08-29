@@ -3278,6 +3278,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "https://example.com/account/address"
                 },
+                "symbol": {
+                    "type": "string",
+                    "example": "johndoe"
+                },
                 "tags": {
                     "type": "array",
                     "items": {

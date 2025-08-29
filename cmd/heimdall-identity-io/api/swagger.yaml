@@ -553,6 +553,9 @@ definitions:
       profile_uri:
         example: https://example.com/account/address
         type: string
+      symbol:
+        example: johndoe
+        type: string
       tags:
         items:
           type: string
