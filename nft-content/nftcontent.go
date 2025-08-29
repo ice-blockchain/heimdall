@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"slices"
+	"strconv"
 
 	"github.com/goccy/go-json"
 	"github.com/nbd-wtf/go-nostr"
@@ -297,9 +298,16 @@ func (n *nftContent) HealthCheck(ctx context.Context) error {
 	return errors.Wrap(n.db.Ping(ctx), "failed to ping database")
 }
 
-func (n *nftContent) ListNFTs(ctx context.Context, walletAddr string) ([]WalletNFT, error) {
-	nfts, err := n.listNFTs(ctx, walletAddr)
-	return nfts, errors.Wrapf(err, "failed to fetch NFTs for wallet %v from ion indexer", walletAddr)
+func (n *nftContent) ListNFTs(ctx context.Context, walletAddr string, paginationToken string, limit uint) ([]WalletNFT, *string, error) {
+	if paginationToken == "" {
+		paginationToken = "0" // Basically offset, but on 3rd party wallet provider they use strings, we try to mimic to their endpoint
+	}
+	offset, err := strconv.ParseUint(paginationToken, 10, 64)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "failed to parse pagination token: %v", paginationToken)
+	}
+	nfts, newPagination, err := n.listNFTs(ctx, walletAddr, uint(offset), limit)
+	return nfts, newPagination, errors.Wrapf(err, "failed to fetch NFTs for wallet %v from ion indexer", walletAddr)
 }
 
 func (n *nftContent) getOwnerWalletAddress(ctx context.Context, event *model.Event) (string, error) {

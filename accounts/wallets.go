@@ -4,6 +4,7 @@ package accounts
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -92,12 +93,14 @@ func (a *accounts) createWalletView(ctx context.Context, userID, name string, it
 		}
 		if storage.IsErr(err, storage.ErrDuplicate) {
 			if main {
-				return a.GetWalletView(ctx, userID, id)
+				wv, _, err := a.GetWalletView(ctx, userID, id)
+				return wv, err
 			}
 			return a.CreateWalletView(ctx, userID, name, items, symbolGroups)
 		}
 		if storage.IsErr(err, storage.ErrNotFound) {
-			return a.GetWalletView(ctx, userID, id)
+			wv, _, err := a.GetWalletView(ctx, userID, id)
+			return wv, err
 		}
 		return nil, errors.Wrap(err, "failed to create wallet view")
 	}
@@ -108,7 +111,7 @@ func (a *accounts) createWalletView(ctx context.Context, userID, name string, it
 		}
 	}
 	if hasWallets {
-		view.Aggregation, view.NFTs, err = a.fetchWalletInfoForCoins(ctx, userID, view.Coins, view.SymbolGroups)
+		view.Aggregation, view.NFTs, _, err = a.fetchWalletInfoForCoins(ctx, userID, view.Coins, view.SymbolGroups)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to aggregate walletview coins with wallet data walletview id %v on creation", view.ID)
 		}
@@ -158,10 +161,10 @@ func (a *accounts) GetWalletViews(ctx context.Context, userID string) ([]*Wallet
 	return views, nil
 }
 
-func (a *accounts) GetWalletView(ctx context.Context, userID, id string) (*WalletView, error) {
+func (a *accounts) GetWalletView(ctx context.Context, userID, id string) (*WalletView, *string, error) {
 	return a.getWalletView(ctx, userID, id, true)
 }
-func (a *accounts) getWalletView(ctx context.Context, userID, id string, buildCoinsAggregation bool) (*WalletView, error) {
+func (a *accounts) getWalletView(ctx context.Context, userID, id string, buildCoinsAggregation bool) (*WalletView, *string, error) {
 	// Merge coinId from wallet_views.coins and coins entry and collapse to json array
 	views, err := storage.Select[WalletView](ctx, a.db, `
 		SELECT created_at, updated_at, name, user_id, symbol_groups, id,
@@ -190,21 +193,22 @@ func (a *accounts) getWalletView(ctx context.Context, userID, id string, buildCo
 	group by created_at, updated_at, name, user_id, symbol_groups, id`, userID, id)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
-			return nil, ErrNotFound
+			return nil, nil, ErrNotFound
 		}
 
-		return nil, errors.Wrapf(err, "failed to get wallet views for user %v", userID)
+		return nil, nil, errors.Wrapf(err, "failed to get wallet views for user %v", userID)
 	}
 	if len(views) == 0 {
-		return nil, ErrNotFound
+		return nil, nil, ErrNotFound
 	}
+	var nextPage *string
 	if buildCoinsAggregation {
-		views[0].Aggregation, views[0].NFTs, err = a.fetchWalletInfoForCoins(ctx, userID, views[0].Coins, views[0].SymbolGroups)
+		views[0].Aggregation, views[0].NFTs, nextPage, err = a.fetchWalletInfoForCoins(ctx, userID, views[0].Coins, views[0].SymbolGroups)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to aggregate walletview coins with wallet data walletview id %v", views[0].ID)
+			return nil, nil, errors.Wrapf(err, "failed to aggregate walletview coins with wallet data walletview id %v", views[0].ID)
 		}
 	}
-	return views[0], nil
+	return views[0], nextPage, nil
 }
 
 func buildInsert(items []*CoinMapping, nextIndex int) (string, []any) {
@@ -284,7 +288,7 @@ func (a *accounts) DeleteWalletView(ctx context.Context, userID, id string) erro
 }
 
 func (a *accounts) ModifyWalletView(ctx context.Context, userID, id, newName string, items []*CoinMapping, symbolGroups []string) (*WalletView, error) {
-	wv, err := a.getWalletView(ctx, userID, id, false)
+	wv, _, err := a.getWalletView(ctx, userID, id, false)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get wallet view for modification")
 	}
@@ -338,14 +342,14 @@ func (a *accounts) ModifyWalletView(ctx context.Context, userID, id, newName str
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to modify wallet view %v for user %v", id, userID)
 	}
-	view.Aggregation, view.NFTs, err = a.fetchWalletInfoForCoins(ctx, userID, view.Coins, view.SymbolGroups)
+	view.Aggregation, view.NFTs, _, err = a.fetchWalletInfoForCoins(ctx, userID, view.Coins, view.SymbolGroups)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to aggregate walletview coins with wallet data walletview id %v", view.ID)
 	}
 	return view, nil
 }
 
-func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, coins []*CoinMapping, symbolGroups []string) (map[string]*CoinAggregation, []*NFT, error) {
+func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, coins []*CoinMapping, symbolGroups []string) (map[string]*CoinAggregation, []*NFT, *string, error) {
 	walletIDs := map[string][]*CoinMapping{}
 	groupedBySymbol := make(map[string][]*CoinMapping)
 	for _, i := range coins {
@@ -361,10 +365,11 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 	coinGroups := make(map[string]*CoinAggregation)
 	testNetSymbols := make(map[string]bool)
 	allNftsFromWalletView := []*NFT{}
+	nextPageVal := make(map[string]string, 0)
 	for walletID, linkedSymbols := range walletIDs {
 		walletAssets, err := a.delegatedRPClient.ListAssets(ctx, walletID)
 		if err != nil {
-			return nil, nil, errors.Wrapf(err, "failed to list assets for wallet %v", walletID)
+			return nil, nil, nil, errors.Wrapf(err, "failed to list assets for wallet %v", walletID)
 		}
 		assetsBySymbol := make(map[string]dfns.Asset)
 		for _, asset := range walletAssets.Assets {
@@ -432,7 +437,18 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 				}
 			}
 		}
-		nfts, network, err := a.GetNFTs(ctx, walletID)
+		paginationTokens, limit, err := pagination(ctx)
+		if err != nil {
+			return nil, nil, nil, errors.Wrapf(err, "malformed pagination tokens %v", walletID)
+		}
+		p, ok := paginationTokens[walletID]
+		if !ok {
+			p = "0"
+		}
+		nfts, network, np, err := a.GetNFTs(ctx, walletID, p, limit)
+		if np != nil {
+			nextPageVal[walletID] = *np
+		}
 		if err != nil {
 			if delegatedErr := ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
 				var delegatedParsedErr *DelegatedRelyingPartyErr
@@ -442,7 +458,7 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 					}
 				}
 			}
-			return nil, nil, errors.Wrapf(err, "failed to get nfts for wallet %v (wallet view aggregation)", walletID)
+			return nil, nil, nil, errors.Wrapf(err, "failed to get nfts for wallet %v (wallet view aggregation)", walletID)
 		}
 		for _, n := range nfts {
 			n.WalletID = walletID
@@ -450,8 +466,13 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 			allNftsFromWalletView = append(allNftsFromWalletView, n)
 		}
 	}
-
-	return coinGroups, allNftsFromWalletView, nil
+	var nextPage *string
+	if len(nextPageVal) > 0 {
+		b, _ := json.Marshal(nextPageVal)
+		str := base64.StdEncoding.EncodeToString(b)
+		nextPage = &str
+	}
+	return coinGroups, allNftsFromWalletView, nextPage, nil
 }
 
 func (a *accounts) GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGroup string) ([]*CoinWithWalletInfo, error) {
@@ -545,7 +566,8 @@ func (a *accounts) GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGrou
 	return res, nil
 }
 
-func (a *accounts) GetNFTs(ctx context.Context, walletID string) ([]*NFT, string, error) {
+func (a *accounts) GetNFTs(ctx context.Context, walletID, paginationToken string, limit uint) (nftResp []*NFT, walletNetwork string, newPaginationToken *string, err error) {
+	newPaginationToken = nil
 	nfts, err := a.delegatedRPClient.ListNFTs(ctx, walletID)
 	if err != nil {
 		if delegatedErr := ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
@@ -556,10 +578,10 @@ func (a *accounts) GetNFTs(ctx context.Context, walletID string) ([]*NFT, string
 					var w *dfns.Wallet
 					w, err = a.delegatedRPClient.GetWallet(ctx, walletID)
 					if err != nil {
-						return nil, "", errors.Wrapf(err, "failed to get wallet %v", walletID)
+						return nil, "", nil, errors.Wrapf(err, "failed to get wallet %v", walletID)
 					}
 					var nftsList []coins.WalletNFT
-					nftsList, err = a.ionNFT.ListNFTs(ctx, (*w)["address"].(string))
+					nftsList, newPaginationToken, err = a.ionNFT.ListNFTs(ctx, (*w)["address"].(string), paginationToken, limit)
 					nfts = &dfns.NFTs{
 						NFTs:     nftsList,
 						Network:  (*w)["network"].(string),
@@ -569,18 +591,18 @@ func (a *accounts) GetNFTs(ctx context.Context, walletID string) ([]*NFT, string
 			}
 		}
 		if err != nil {
-			return nil, "", errors.Wrapf(err, "failed to get nfts from delegatedRP 3rd party")
+			return nil, "", nil, errors.Wrapf(err, "failed to get nfts from delegatedRP 3rd party")
 		}
 	}
 	populatedNFTs, err := a.coinsRepo.ImportNFTs(ctx, nfts.Network, nfts.NFTs)
 	if err != nil {
-		return nil, "", errors.Wrapf(err, "failed to import extra data for nfts")
+		return nil, "", nil, errors.Wrapf(err, "failed to import extra data for nfts")
 	}
-	return populatedNFTs, nfts.Network, nil
+	return populatedNFTs, nfts.Network, newPaginationToken, nil
 }
 
 func (a *accounts) CreateWalletForWalletView(ctx context.Context, userID, network, walletViewID string) (*Wallet, error) {
-	walletView, err := a.getWalletView(ctx, userID, walletViewID, false)
+	walletView, _, err := a.getWalletView(ctx, userID, walletViewID, false)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get wallet view %v for wallet creation on %v", walletViewID, network)
 	}
@@ -656,4 +678,28 @@ func (a *accounts) FetchMainWallet(ctx context.Context, masterKey string) (Walle
 		}
 	}
 	return mainWallet, nil
+}
+
+func pagination(ctx context.Context) (map[string]string, uint, error) {
+	if lim := ctx.Value("paginationLimit"); lim != nil {
+		paginationLimit := lim.(uint)
+		if tok := ctx.Value("paginationToken"); tok != nil {
+			str := tok.(string)
+			if str == "" {
+				return map[string]string{}, paginationLimit, nil
+			}
+			b, err := base64.StdEncoding.DecodeString(str)
+			if err != nil {
+				return nil, 0, errors.Wrapf(err, "failed to unmarshal pagination token: %v", tok)
+			}
+			var byWallet map[string]string
+			if err = json.Unmarshal(b, &byWallet); err != nil {
+				return nil, 0, errors.Wrapf(err, "failed to unmarshal pagination token: %v", tok)
+			}
+			return byWallet, paginationLimit, nil
+		} else {
+			return map[string]string{}, paginationLimit, nil
+		}
+	}
+	return map[string]string{}, 100, nil
 }

@@ -2162,6 +2162,18 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "pagination token to continue from",
+                        "name": "paginationToken",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "custom limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "default": "Bearer \u003cAdd token here\u003e",
                         "description": "Auth token from delegated relying party",
                         "name": "Authorization",
@@ -2428,6 +2440,18 @@ const docTemplate = `{
                         "name": "walletId",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "custom limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "pagination token to continue from",
+                        "name": "paginationToken",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -2820,6 +2844,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/coins.NFT"
                     }
+                },
+                "paginationToken": {
+                    "type": "string"
                 },
                 "walletId": {
                     "type": "string"

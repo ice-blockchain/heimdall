@@ -47,7 +47,7 @@ type (
 		Process(ctx context.Context, events model.Events) error
 		GetNFTCollectionItemMetadata(ctx context.Context, nftContentType, contentAddress string) (*NFTResponse, *NFTCollectionMetadata, error)
 		GetNFTCollectionMetadata(ctx context.Context, masterPubkey string) (*NFTResponse, *NFTCollectionMetadata, error)
-		ListNFTs(ctx context.Context, walletAddr string) ([]WalletNFT, error)
+		ListNFTs(ctx context.Context, walletAddr, paginationToken string, limit uint) ([]WalletNFT, *string, error)
 	}
 	NFTCollectionMetadata struct {
 		NFTCollectionAddress        string `db:"nft_collection_address"`
@@ -131,7 +131,7 @@ var (
 		NFTContentTypePost:    "https://api.iconify.design/lucide:square.svg",
 		NFTContentTypeArticle: "https://api.iconify.design/lucide:newspaper.svg",
 	}
-	defaultIndexerReqLimit = 100
+	defaultIndexerReqLimit = uint(100)
 )
 
 type (

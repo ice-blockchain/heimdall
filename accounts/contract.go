@@ -44,7 +44,7 @@ type (
 		GetIONConnectIndexerRelays(ctx context.Context, userID string) (indexers []string, err error)
 		GetUser(ctx context.Context, userID string) (usr *User, err error)
 		SecurePaymentConfirmation(ctx context.Context, userID, walletID string, body map[string]string) (templateData any, err error)
-		GetNFTs(ctx context.Context, walletID string) ([]*NFT, string, error)
+		GetNFTs(ctx context.Context, walletID, paginationToken string, limit uint) ([]*NFT, string, *string, error)
 		DeleteUser(ctx context.Context, userID string) error
 		GetContentCreators(ctx context.Context, limit uint64, excludeMasterPubKeys []string) ([]*LiteUser, error)
 		IsUserVerified(ctx context.Context, masterPubKey string) (bool, []*model.Event, error)
@@ -75,7 +75,7 @@ type (
 	Wallets interface {
 		CreateWalletView(ctx context.Context, userID, name string, items []*CoinMapping, symbolGroups []string) (*WalletView, error)
 		GetWalletViews(ctx context.Context, userID string) ([]*WalletView, error)
-		GetWalletView(ctx context.Context, userID, id string) (*WalletView, error)
+		GetWalletView(ctx context.Context, userID, id string) (wv *WalletView, nextPage *string, err error)
 		DeleteWalletView(ctx context.Context, userID, id string) error
 		ModifyWalletView(ctx context.Context, userID, id, newName string, items []*CoinMapping, symbolGroups []string) (*WalletView, error)
 		GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGroup string) ([]*CoinWithWalletInfo, error)
@@ -93,7 +93,7 @@ type (
 		IONConnectRelaysForUser(ctx context.Context, userId string) ([]*UserAssignedRelay, error)
 	}
 	NFTInWallets interface {
-		ListNFTs(ctx context.Context, walletAddr string) ([]coins.WalletNFT, error)
+		ListNFTs(ctx context.Context, walletAddr string, paginationToken string, limit uint) ([]coins.WalletNFT, *string, error)
 	}
 	TwoFAOptionEnum     string
 	TwoFAOptionWithAddr struct {

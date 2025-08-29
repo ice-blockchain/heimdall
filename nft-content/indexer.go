@@ -24,10 +24,16 @@ func init() {
 	req.DefaultClient().SetJsonUnmarshal(json.Unmarshal)
 }
 
-func (n *nftContent) listNFTs(ctx context.Context, walletAddress string) ([]WalletNFT, error) {
-	nfts, err := indexerReq[WalletNFT](ctx, n, "/indexer/v3/nft/items", map[string]string{
+func (n *nftContent) listNFTs(ctx context.Context, walletAddress string, offset, limit uint) ([]WalletNFT, *string, error) {
+	params := map[string]string{
+		"offset":        fmt.Sprintf("%v", offset),
 		"owner_address": walletAddress,
-	}, func(data []byte) ([]WalletNFT, bool, error) {
+	}
+	if limit < defaultIndexerReqLimit {
+		params["limit"] = fmt.Sprintf("%v", limit)
+	}
+	total := uint(0)
+	nfts, newOffset, err := indexerReq[WalletNFT](ctx, n, "/indexer/v3/nft/items", params, func(data []byte) ([]WalletNFT, bool, error) {
 		var nftItems getNftItemsIndexerResponse
 		if err := json.UnmarshalContext(ctx, data, &nftItems); err != nil {
 			return nil, false, err
@@ -68,20 +74,25 @@ func (n *nftContent) listNFTs(ctx context.Context, walletAddress string) ([]Wall
 			}))
 		}
 		continuePagination := true
-		if len(res) < defaultIndexerReqLimit {
+		total += uint(len(res))
+		if uint(len(res)) < defaultIndexerReqLimit || total >= limit {
 			continuePagination = false
 		}
 		return res, continuePagination, nil
 	})
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to fetch nfts from ion indexer for wallet %v")
+		return nil, nil, errors.Wrapf(err, "failed to fetch nfts from ion indexer for wallet %v")
 	}
-	return nfts, nil
+	if uint(len(nfts)) >= limit {
+		paginationToken := fmt.Sprintf("%v", newOffset)
+		return nfts, &paginationToken, nil
+	}
+	return nfts, nil, nil
 }
 
-func indexerReq[T any](ctx context.Context, i *nftContent, relativeUrl string, params map[string]string, unmarshal func([]byte) ([]T, bool, error)) ([]T, error) {
+func indexerReq[T any](ctx context.Context, i *nftContent, relativeUrl string, params map[string]string, unmarshal func([]byte) ([]T, bool, error)) ([]T, uint, error) {
 	if ctx.Err() != nil {
-		return nil, ctx.Err()
+		return nil, 0, ctx.Err()
 	}
 
 	if _, hasLimit := params["limit"]; !hasLimit {
@@ -107,30 +118,37 @@ func indexerReq[T any](ctx context.Context, i *nftContent, relativeUrl string, p
 		SetQueryParams(params).
 		SetHeader("Accept", "application/json").
 		Get(relativeUrl); err != nil {
-		return nil, errors.Wrapf(err, "failed to call indexer %v %v", i.config.Indexer.ION, relativeUrl)
+		return nil, 0, errors.Wrapf(err, "failed to call indexer %v %v", i.config.Indexer.ION, relativeUrl)
 
 	} else if statusCode := resp.GetStatusCode(); statusCode != http.StatusOK {
-		return nil, errors.Errorf("failed to check indexer %v %v with status code:%v", i.config.Indexer.ION, relativeUrl, statusCode)
+		return nil, 0, errors.Errorf("failed to check indexer %v %v with status code:%v", i.config.Indexer.ION, relativeUrl, statusCode)
 	} else if data, err2 := resp.ToBytes(); err2 != nil {
-		return nil, errors.Wrapf(err2, "failed to read body of indexer %v %v response", i.config.Indexer.ION, relativeUrl)
+		return nil, 0, errors.Wrapf(err2, "failed to read body of indexer %v %v response", i.config.Indexer.ION, relativeUrl)
 	} else {
 		res, continuePagination, err3 := unmarshal(data)
 		if err3 != nil {
-			return nil, errors.Wrapf(err2, "failed to unmarshal response of indexer %v %v", i.config.Indexer.ION, relativeUrl)
+			return nil, 0, errors.Wrapf(err3, "failed to unmarshal response of indexer %v %v", i.config.Indexer.ION, relativeUrl)
 		}
+		offset := 0
+		if off, hasOffset := params["offset"]; hasOffset {
+			offset, _ = strconv.Atoi(off)
+		}
+		totalOffset := uint(offset + len(res))
 		if continuePagination {
-			offset := 0
-			if off, hasOffset := params["offset"]; hasOffset {
-				offset, _ = strconv.Atoi(off)
+			if limit, hasLimit := params["limit"]; hasLimit {
+				lim, _ := strconv.Atoi(limit)
+				offset += int(lim)
+			} else {
+				offset += int(defaultIndexerReqLimit)
 			}
-			offset += defaultIndexerReqLimit
 			params["offset"] = strconv.Itoa(offset)
-			nextPage, err := indexerReq[T](ctx, i, relativeUrl, params, unmarshal)
+			nextPage, newOff, err := indexerReq[T](ctx, i, relativeUrl, params, unmarshal)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to load page of %v %v (offset %v)", i.config.Indexer.ION, relativeUrl, offset)
+				return nil, 0, errors.Wrapf(err, "failed to load page of %v %v (offset %v)", i.config.Indexer.ION, relativeUrl, offset)
 			}
 			res = append(res, nextPage...)
+			totalOffset += newOff
 		}
-		return res, nil
+		return res, totalOffset, nil
 	}
 }

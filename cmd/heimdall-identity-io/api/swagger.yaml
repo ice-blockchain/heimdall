@@ -243,6 +243,8 @@ definitions:
         items:
           $ref: '#/definitions/coins.NFT'
         type: array
+      paginationToken:
+        type: string
       walletId:
         type: string
     type: object
@@ -1981,6 +1983,14 @@ paths:
         name: walletViewId
         required: true
         type: string
+      - description: pagination token to continue from
+        in: query
+        name: paginationToken
+        type: string
+      - description: custom limit
+        in: query
+        name: limit
+        type: string
       - default: Bearer <Add token here>
         description: Auth token from delegated relying party
         in: header
@@ -2231,6 +2241,14 @@ paths:
         in: path
         name: walletId
         required: true
+        type: string
+      - description: custom limit
+        in: query
+        name: limit
+        type: string
+      - description: pagination token to continue from
+        in: query
+        name: paginationToken
         type: string
       produces:
       - application/json
