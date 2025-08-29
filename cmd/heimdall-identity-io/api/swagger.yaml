@@ -2002,6 +2002,11 @@ paths:
       responses:
         "200":
           description: OK
+          headers:
+            X-Next-Page:
+              description: Optional, if response has more pages, to be provided in
+                paginationToken on next req
+              type: string
           schema:
             $ref: '#/definitions/main.WalletView'
         "404":

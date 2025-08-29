@@ -73,6 +73,7 @@ func (s *service) CreateWalletView(
 //	@Param			limit				query		string	false	"custom limit"
 //	@Param			Authorization		header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
 //	@Success		200					{object}	WalletView
+//	@Header			200					string		X-Next-Page	"Optional, if response has more pages, to be provided in paginationToken on next req"
 //	@Failure		500					{object}	server.ErrorResponse
 //	@Failure		404					{object}	server.ErrorResponse	"if wallet view not found"
 //	@Failure		504					{object}	server.ErrorResponse	"if request times out"

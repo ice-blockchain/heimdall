@@ -2186,6 +2186,12 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/main.WalletView"
+                        },
+                        "headers": {
+                            "X-Next-Page": {
+                                "type": "string",
+                                "description": "Optional, if response has more pages, to be provided in paginationToken on next req"
+                            }
                         }
                     },
                     "404": {
