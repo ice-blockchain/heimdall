@@ -81,7 +81,7 @@ func (n *nftContent) listNFTs(ctx context.Context, walletAddress string, offset,
 		return res, continuePagination, nil
 	})
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "failed to fetch nfts from ion indexer for wallet %v")
+		return nil, nil, errors.Wrapf(err, "failed to fetch nfts from ion indexer for wallet %v", walletAddress)
 	}
 	if uint(len(nfts)) >= limit {
 		paginationToken := fmt.Sprintf("%v", newOffset)
@@ -109,7 +109,7 @@ func indexerReq[T any](ctx context.Context, i *nftContent, relativeUrl string, p
 			if err != nil {
 				log.Error(errors.Wrapf(err, "failed to call indexer %v %v, retrying...", i.config.Indexer.ION, relativeUrl))
 			} else {
-				log.Error(errors.Errorf("failed to call indexer %v with status code:%v, retrying...", i.config.Indexer.ION, relativeUrl, resp.GetStatusCode()))
+				log.Error(errors.Errorf("failed to call indexer %v, relativeUrl:%v with status code:%v, retrying...", i.config.Indexer.ION, relativeUrl, resp.GetStatusCode()))
 			}
 		}).
 		SetRetryCondition(func(resp *req.Response, err error) bool {
