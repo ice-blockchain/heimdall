@@ -673,7 +673,7 @@ func (a *accounts) rollbackVisitor(userID, visitorID string, duplicateOf *string
 		fmt.Sprintf(`%v DELETE FROM users_visitors WHERE visitor_id = $1 and user_id = $2`, rollbackDuplicateOf), visitorID, userID,
 	)
 	if err != nil {
-		return errors.Wrapf(err, "failed to rollback visitor for user %v")
+		return errors.Wrapf(err, "failed to rollback visitor for user %v", userID)
 	}
 	return nil
 }

@@ -167,7 +167,7 @@ func (s *service) validateDeviceEvent(ctx context.Context, device *model.Event) 
 		return nil, errors.Wrapf(err, "invalid attestation")
 	}
 	if attestationEvent.PubKey != device.GetMasterPublicKey() {
-		return nil, errors.Wrapf(err, "device master %v does not match sttestation", device.GetMasterPublicKey())
+		return nil, errors.Wrapf(err, "device master %v does not match attestation", device.GetMasterPublicKey())
 	}
 	for i := len(attestationEvent.Tags) - 1; i >= 0; i-- {
 		pTag := attestationEvent.Tags[i]

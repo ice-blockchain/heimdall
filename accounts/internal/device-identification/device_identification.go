@@ -59,7 +59,7 @@ func (c *client) ValidateRequestID(ctx context.Context, now *time.Time, requestI
 		if deviceIdentificationDisabled { // TODO: remove once FE implemented.
 			return "", "", nil
 		}
-		return "", "", ErrUnknownDevice
+		return "", "", errors.Wrap(ErrUnknownDevice, "requestID is empty")
 	}
 	request, err := c.getEvent(ctx, requestID)
 	if err != nil {
@@ -214,7 +214,6 @@ func (c *client) validateVisitorData(ctx context.Context, now *time.Time, client
 func (c *client) deviceIdentificationSignedData(event *deviceidentificationsdk.EventsGetResponse, createdAt string) []byte {
 	return []byte(strings.Join([]string{
 		strings.ToLower(event.Products.Identification.Data.BrowserDetails.Os),
-		strings.ToLower(event.Products.Identification.Data.BrowserDetails.OsVersion),
 		createdAt,
 	}, ":"))
 }
@@ -248,7 +247,7 @@ func (c *client) verifySignatureByDeviceKey(event *deviceidentificationsdk.Event
 	}
 	key, err := hex.DecodeString(split[1])
 	if err != nil {
-		return "", errors.Wrapf(err, "malformed key part: ", split[1])
+		return "", errors.Wrapf(err, "malformed key part: %v", split[1])
 	}
 	signature, err := hex.DecodeString(split[2])
 	if err != nil {
@@ -325,7 +324,7 @@ func (c *client) UpdateRequestID(ctx context.Context, requestID, linkedId string
 				}
 				return errors.Wrapf(err, "failed to update requestID:%v (%v): %v", requestID, httpResp.StatusCode, string(bodyBytes))
 			}
-			return errors.Wrapf(err, "failed to update requestID:%v (%v): %v", requestID)
+			return errors.Wrapf(err, "failed to update requestID:%v", requestID)
 		}
 	}
 	return nil
