@@ -45,14 +45,6 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 	if username != "" {
 		username = strings.ToLower(username)
 	}
-	lookupText := make([]string, 0, 2)
-	if username != "" {
-		lookupText = append(lookupText, username)
-	}
-	if displayName != "" && displayName != username {
-		lookupText = append(lookupText, displayName)
-	}
-	lookupValue := strings.ToLower(strings.Join(lookupText, " "))
 
 	args := []interface{}{
 		userIDOrMasterKey,
@@ -60,7 +52,6 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 		time.Now(),
 		referralUsername,
 		displayName,
-		lookupValue,
 		bio,
 		avatar,
 	}
@@ -79,11 +70,10 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 				$2::TEXT AS username,
 				$3::TIMESTAMP AS current_time,
 				$5::TEXT AS display_name,
-				$6::TEXT AS lookup,
 				rk.referral_user_master_pubkey AS referral_master_pubkey,
 				(SELECT username FROM social_profiles WHERE master_pubkey = rk.current_user_master_pubkey LIMIT 1) AS old_username,
-				$7::TEXT AS bio,
-				$8::TEXT AS avatar
+				$6::TEXT AS bio,
+				$7::TEXT AS avatar
 			FROM resolved_keys rk
 			WHERE 
 				($2 != '' OR (SELECT username FROM social_profiles WHERE master_pubkey = rk.current_user_master_pubkey LIMIT 1) IS NOT NULL)
@@ -117,12 +107,17 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 					WHEN source.referral_master_pubkey IS NOT NULL THEN source.referral_master_pubkey
 					ELSE target.referral_master_pubkey 
 				END,
-				lookup = CASE 
-					WHEN (source.username != '' AND COALESCE(target.username, '') != source.username) 
-					     OR (source.display_name != '' AND COALESCE(target.display_name, '') != source.display_name)
-					THEN source.lookup
-					ELSE target.lookup 
-				END,
+				lookup = LOWER(TRIM(
+					CASE 
+						WHEN source.username != '' THEN source.username 
+						ELSE (SELECT username FROM social_profiles WHERE master_pubkey = source.master_pubkey LIMIT 1)
+					END ||
+					' ' ||
+					CASE 
+						WHEN source.display_name != '' THEN source.display_name 
+						ELSE (SELECT display_name FROM social_profiles WHERE master_pubkey = source.master_pubkey LIMIT 1)
+					END
+				)),
 				bio = CASE WHEN source.bio != '' THEN source.bio ELSE target.bio END,
 				avatar = CASE WHEN source.avatar != '' THEN source.avatar ELSE target.avatar END
 		WHEN NOT MATCHED AND source.username != '' THEN
@@ -134,7 +129,7 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 				source.username, 
 				source.display_name, 
 				source.referral_master_pubkey, 
-				source.lookup,
+				LOWER(TRIM(COALESCE(source.username, '') || ' ' || COALESCE(source.display_name, ''))),
 				source.bio,
 				source.avatar
 			)
