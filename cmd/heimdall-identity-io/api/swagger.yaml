@@ -975,6 +975,10 @@ paths:
             items:
               $ref: '#/definitions/model.Event'
             type: array
+        "403":
+          description: if master key of event does not belong to user
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
         "404":
           description: if invalid device key provided with the event
           schema:

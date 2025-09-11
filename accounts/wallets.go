@@ -349,17 +349,27 @@ func (a *accounts) ModifyWalletView(ctx context.Context, userID, id, newName str
 	return view, nil
 }
 
-func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, coins []*CoinMapping, symbolGroups []string) (map[string]*CoinAggregation, []*NFT, *string, error) {
+func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, coinsInWalletView []*CoinMapping, symbolGroups []string) (map[string]*CoinAggregation, []*NFT, *string, error) {
 	walletIDs := map[string][]*CoinMapping{}
 	groupedBySymbol := make(map[string][]*CoinMapping)
-	for _, i := range coins {
+	for _, i := range coinsInWalletView {
 		symbol := strings.ToLower(i.Coin.Symbol)
 		if symbol == "" {
 			symbol = i.Coin.ContractAddress
 		}
 		if i.WalletID != nil {
 			walletIDs[*i.WalletID] = append(walletIDs[*i.WalletID], i)
+			if duplSymbol, hasDupl := groupedBySymbol[symbol]; hasDupl {
+				for _, dupl := range duplSymbol {
+					if dupl.Network == i.Network {
+						groupedBySymbol[dupl.ContractAddress] = append(groupedBySymbol[dupl.ContractAddress], dupl)
+						delete(groupedBySymbol, symbol)
+						symbol = i.Coin.ContractAddress
+					}
+				}
+			}
 			groupedBySymbol[symbol] = append(groupedBySymbol[symbol], i)
+
 		}
 	}
 	coinGroups := make(map[string]*CoinAggregation)
@@ -398,13 +408,21 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 				}
 				assetsBySymbol[symbol] = asset
 				if hasContract {
+					if coins.IsTestnet(walletAssets.Network) && strings.ToLower(symbol) == "snow" {
+						assetsBySymbol["0xd1f3d2f5c12a205fc912358878b089eae48a557f"] = asset
+					}
 					assetsBySymbol[contractI.(string)] = asset
 				}
 			}
 		}
-		for symbol, group := range groupedBySymbol {
-			asset, hasAsset := assetsBySymbol[symbol]
+		for searchSymbol, group := range groupedBySymbol {
+			asset, hasAsset := assetsBySymbol[searchSymbol]
 			if hasAsset {
+				symbolI, hasSymbol := asset["symbol"]
+				symbol := searchSymbol
+				if hasSymbol {
+					symbol = strings.ToLower(symbolI.(string))
+				}
 				for _, g := range group {
 					if g.WalletID == nil || *g.WalletID == walletID {
 						coin, hasCoin := coinGroups[symbol]
@@ -430,8 +448,8 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 						coinGroups[symbol] = coin
 					}
 				}
-			} else if _, hasCoin := coinGroups[symbol]; !hasAsset && !hasCoin {
-				coinGroups[symbol] = &CoinAggregation{
+			} else if _, hasCoin := coinGroups[searchSymbol]; !hasAsset && !hasCoin {
+				coinGroups[searchSymbol] = &CoinAggregation{
 					TotalBalance: big.NewInt(0),
 					Wallets:      make([]*CoinInWallet, 0),
 				}

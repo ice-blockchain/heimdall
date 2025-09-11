@@ -103,12 +103,12 @@ func (a *accounts) validateDevice(ctx context.Context, masterKey string, deviceP
 	usr, err := a.getUserByID(ctx, masterKey)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
-			return ErrNotFound
+			return errors.Wrapf(ErrNotFound, "user %v not found", masterKey)
 		}
 		return errors.Wrapf(err, "failed get user %v for device check", masterKey)
 	}
 	if usr.ID != server.LoggedInUser(ctx).UserID() {
-		return ErrNotFound
+		return errors.Wrapf(ErrUnauthorized, "user auth mismatch")
 	}
 	validDevice, err := storage.Get[struct {
 		ValidDevice bool `db:"valid_device"`
@@ -116,12 +116,12 @@ func (a *accounts) validateDevice(ctx context.Context, masterKey string, deviceP
 						 WHERE  user_id = $1 AND device_pubkey = $2) as valid_device;`, usr.ID, devicePubkey)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
-			return ErrNotFound
+			return errors.Wrapf(ErrNotFound, "device %v not found for usr %v (%v)", devicePubkey, usr.ID, masterKey)
 		}
 		return errors.Wrapf(err, "failed to check if device %v for user %v is valid", devicePubkey, masterKey)
 	}
 	if !validDevice.ValidDevice {
-		return ErrNotFound
+		return errors.Wrapf(ErrNotFound, "device %v not valid for usr %v (%v)", devicePubkey, usr.ID, masterKey)
 	}
 	return nil
 }
