@@ -126,6 +126,7 @@ func proxyError(ginCtx *gin.Context, err error, status ...int) {
 //	@Param			Authorization	header		string							true	"Authorization token"
 //	@Param			request			body		DeviceIdentificationEventReq	true	"Event with new linked device (kind 21750 => 10100)"
 //	@Success		200				{array}		model.Event						"Badges"
+//	@Failure		403				{object}	server.ErrorResponse			"if master key of event does not belong to user"
 //	@Failure		404				{object}	server.ErrorResponse			"if invalid device key provided with the event"
 //	@Failure		422				{object}	server.ErrorResponse			"if invalid events provided"
 //	@Failure		500				{object}	server.ErrorResponse
@@ -144,6 +145,8 @@ func (s *service) DeviceIdentificationProofs(
 		switch {
 		case errors.Is(err, accounts.ErrNotFound):
 			return nil, server.NotFound(err, notFound)
+		case errors.Is(err, accounts.ErrUnauthorized):
+			return nil, server.Forbidden(err)
 		default:
 			return nil, server.Unexpected(err)
 		}
