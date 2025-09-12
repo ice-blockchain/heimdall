@@ -12,6 +12,15 @@ package coingecko
 // and to (for upd sql)
 // WHEN symbol = '$1' THEN 'https://cdn.ice.io/online+/assets/coins/$1.svg'
 var coinOverwrites = map[string]*Coin{
+	"binance-bridged-usdt-bnb-smart-chain": &Coin{
+		IconUrl: "https://cdn.ice.io/online+/assets/coins/usdt.svg",
+		Name:    "Bridged USDT",
+	},
+	"bridged-usdt": &Coin{
+		IconUrl: "https://cdn.ice.io/online+/assets/coins/usdt.svg",
+		Name:    "Bridged USDT",
+	},
+
 	"ion": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/ion.svg",
 	},
@@ -451,6 +460,7 @@ var coinOverwrites = map[string]*Coin{
 	},
 	"weth": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/weth.svg",
+		Name:    "WETH",
 	},
 	"atom": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/atom.svg",
