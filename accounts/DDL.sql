@@ -166,7 +166,7 @@ BEGIN
     INSERT INTO users(
         created_at, updated_at, id, identity_key_name, master_pubkey, clients
     ) VALUES (
-        v_now, v_now, v_reserved_id, v_username, v_reserved_id, ARRAY[]::TEXT[]
+        v_now, v_now, v_reserved_id, v_reserved_id, v_reserved_id, ARRAY[]::TEXT[]
     );
     INSERT INTO social_profiles(
         created_at, updated_at, master_pubkey, username
