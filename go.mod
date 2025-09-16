@@ -20,7 +20,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/ice-blockchain/subzero v1.388.0
+	github.com/ice-blockchain/subzero v1.393.0
 	github.com/ice-blockchain/wintr v1.158.0
 	github.com/imroc/req/v3 v3.55.0
 	github.com/jellydator/ttlcache/v3 v3.4.0
@@ -51,7 +51,7 @@ require (
 	cloud.google.com/go/iam v1.5.2 // indirect
 	cloud.google.com/go/longrunning v0.6.7 // indirect
 	cloud.google.com/go/monitoring v1.24.2 // indirect
-	cloud.google.com/go/storage v1.56.1 // indirect
+	cloud.google.com/go/storage v1.56.2 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
 	firebase.google.com/go/v4 v4.18.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
@@ -117,7 +117,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.10 // indirect
 	github.com/georgysavva/scany/v2 v2.1.4 // indirect
-	github.com/getsentry/sentry-go v0.35.2 // indirect
+	github.com/getsentry/sentry-go v0.35.3 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.2 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
@@ -178,7 +178,7 @@ require (
 	github.com/lestrrat-go/option v1.0.1 // indirect
 	github.com/lufia/plan9stats v0.0.0-20250827001030-24949be3fa54 // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
-	github.com/mailru/easyjson v0.9.0 // indirect
+	github.com/mailru/easyjson v0.9.1 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/microcosm-cc/bluemonday v1.0.27 // indirect
@@ -199,7 +199,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
-	github.com/puzpuzpuz/xsync/v4 v4.1.0 // indirect
+	github.com/puzpuzpuz/xsync/v4 v4.2.0 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/refraction-networking/utls v1.8.0 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
@@ -233,7 +233,7 @@ require (
 	github.com/xlzd/gotp v0.1.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
-	go.opentelemetry.io/auto/sdk v1.2.0 // indirect
+	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.38.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.63.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0 // indirect
