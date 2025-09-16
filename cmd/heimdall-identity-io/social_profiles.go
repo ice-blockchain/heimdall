@@ -28,7 +28,7 @@ func (s *service) setupSocialProfileRoutes(r *server.Router) {
 //	@Param			username		query		string					true	"Username to check"
 //	@Success		200				{object}	nil						"Username is available"
 //	@Failure		400				{object}	server.ErrorResponse	"Invalid username format"
-//	@Failure		409				{object}	server.ErrorResponse	"Username already exists"
+//	@Failure		409				{object}	server.ErrorResponse	"Username already exists or reserved"
 //	@Router			/v1/users/verify-username-availability [GET]
 func (s *service) VerifyUsernameAvailability(
 	ctx context.Context,
@@ -40,6 +40,8 @@ func (s *service) VerifyUsernameAvailability(
 			return nil, server.BadRequest(err, invalidUsername)
 		case errors.Is(err, accounts.ErrDuplicate):
 			return nil, server.Conflict(err, duplicate)
+		case errors.Is(err, accounts.ErrReserved):
+			return nil, server.Conflict(err, reserved)
 		default:
 			return nil, server.Unexpected(err)
 		}
@@ -59,7 +61,7 @@ func (s *service) VerifyUsernameAvailability(
 //	@Param			request				body		UpsertSocialProfileRequest	true	"Data to update the profile"
 //	@Success		200					{object}	accounts.SocialProfile		"Updated social profile"
 //	@Failure		400					{object}	server.ErrorResponse		"Invalid data format"
-//	@Failure		409					{object}	server.ErrorResponse		"Username already exists"
+//	@Failure		409					{object}	server.ErrorResponse		"Username already exists or reserved"
 //	@Router			/v1/users/{userIdOrMasterKey}/profiles/social [PATCH]
 func (s *service) UpsertSocialProfile(
 	ctx context.Context,
@@ -80,6 +82,8 @@ func (s *service) UpsertSocialProfile(
 			return nil, server.BadRequest(err, invalidUsername)
 		case errors.Is(err, accounts.ErrDuplicate):
 			return nil, server.Conflict(err, duplicate)
+		case errors.Is(err, accounts.ErrReserved):
+			return nil, server.Conflict(err, reserved)
 		case errors.Is(err, accounts.ErrWrongReferral):
 			return nil, server.BadRequest(err, invalidPropertiesErrorCode)
 		default:

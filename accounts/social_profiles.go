@@ -20,15 +20,25 @@ func (a *accounts) VerifyUsernameAvailability(ctx context.Context, username stri
 		return errors.Wrapf(ErrInvalidUsername, "username %v is invalid", username)
 	}
 	username = strings.ToLower(username)
-	result, err := storage.Get[any](ctx, a.db, `SELECT 1 FROM social_profiles WHERE username = $1 LIMIT 1`, username)
+	type row struct {
+		ID           string `db:"id"`
+		MasterPubkey string `db:"master_pubkey"`
+	}
+	r, err := storage.Get[row](ctx, a.db, `SELECT u.id, sp.master_pubkey 
+									FROM social_profiles sp
+									JOIN users u ON sp.master_pubkey = u.master_pubkey 
+									WHERE sp.username = $1 LIMIT 1`, username)
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 		return errors.Wrapf(err, "failed to check username availability")
 	}
-	if result != nil {
-		return errors.Wrapf(ErrDuplicate, "username %v already exists", username)
+	if r == nil {
+		return nil
+	}
+	if r.ID == r.MasterPubkey && strings.HasPrefix(r.MasterPubkey, "reserved_") {
+		return errors.Wrap(ErrReserved, "username is reserved")
 	}
 
-	return nil
+	return errors.Wrapf(ErrDuplicate, "username %v already exists", username)
 }
 
 func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, username, displayName, referralUsername, bio, avatar, loggedInUserUserID string) (*SocialProfile, error) {
@@ -160,6 +170,25 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 			}
 
 			return nil, errors.Wrap(ErrInvalidUsername, "validation failed - operation was blocked")
+		}
+		if storage.IsErr(err, storage.ErrDuplicate) {
+			type reserved struct {
+				ID           string `db:"id"`
+				MasterPubkey string `db:"master_pubkey"`
+			}
+			row, gErr := storage.Get[reserved](ctx, a.db, `SELECT u.id, sp.master_pubkey 
+													  FROM social_profiles sp
+													  JOIN users u
+													  ON sp.master_pubkey = u.master_pubkey
+													  WHERE username = $1 LIMIT 1`, username)
+			if gErr != nil {
+				return nil, errors.Wrapf(gErr, "failed to get owner of conflicting username")
+			}
+			if row.ID == row.MasterPubkey && strings.HasPrefix(row.MasterPubkey, "reserved_") {
+				return nil, errors.Wrap(ErrReserved, "username is reserved")
+			}
+
+			return nil, errors.Wrap(ErrDuplicate, "username is already taken")
 		}
 
 		return nil, errors.Wrapf(err, "failed to upsert social profile")

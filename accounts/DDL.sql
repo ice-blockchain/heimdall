@@ -126,6 +126,7 @@ ALTER TABLE social_profiles ADD COLUMN IF NOT EXISTS avatar TEXT;
 DROP INDEX IF EXISTS idx_social_profiles_lookup_pgroonga;
 
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE INDEX IF NOT EXISTS idx_social_profiles_lookup_trgm ON social_profiles USING GIN (lookup gin_trgm_ops);
 
 CREATE TABLE IF NOT EXISTS early_access_emails (
@@ -148,3 +149,29 @@ CREATE TABLE IF NOT EXISTS users_visitors (
 );
 CREATE INDEX IF NOT EXISTS users_visitors_visitor_id ON users_visitors (visitor_id, created_at asc);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS duplicate_of TEXT REFERENCES users(id) ON DELETE SET NULL;
+
+CREATE OR REPLACE FUNCTION reserve_username(p_username TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_now TIMESTAMP := CURRENT_TIMESTAMP;
+    v_reserved_id TEXT := 'reserved_' || gen_random_uuid()::TEXT;
+    v_username TEXT := lower(p_username);
+BEGIN
+    IF v_username = '' THEN
+        RAISE EXCEPTION 'USERNAME_REQUIRED';
+    END IF;
+
+    INSERT INTO users(
+        created_at, updated_at, id, identity_key_name, master_pubkey, clients
+    ) VALUES (
+        v_now, v_now, v_reserved_id, v_username, v_reserved_id, ARRAY[]::TEXT[]
+    );
+    INSERT INTO social_profiles(
+        created_at, updated_at, master_pubkey, username
+    ) VALUES (
+        v_now, v_now, v_reserved_id, v_username
+    );
+END;
+$$;
