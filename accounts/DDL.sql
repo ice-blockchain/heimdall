@@ -126,7 +126,6 @@ ALTER TABLE social_profiles ADD COLUMN IF NOT EXISTS avatar TEXT;
 DROP INDEX IF EXISTS idx_social_profiles_lookup_pgroonga;
 
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE INDEX IF NOT EXISTS idx_social_profiles_lookup_trgm ON social_profiles USING GIN (lookup gin_trgm_ops);
 
 CREATE TABLE IF NOT EXISTS early_access_emails (
