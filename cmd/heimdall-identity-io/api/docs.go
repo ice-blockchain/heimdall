@@ -1376,7 +1376,7 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "Username already exists",
+                        "description": "Username already exists or reserved",
                         "schema": {
                             "$ref": "#/definitions/server.ErrorResponse"
                         }
@@ -1971,7 +1971,7 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "Username already exists",
+                        "description": "Username already exists or reserved",
                         "schema": {
                             "$ref": "#/definitions/server.ErrorResponse"
                         }

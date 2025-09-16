@@ -221,6 +221,7 @@ var (
 	ErrWalletLinked                          = errors.New("wallet already linked to walletview")
 	ErrUnauthorized                          = errors.New("unauthorized")
 	ErrWrongReferral                         = errors.New("wrong/circular referral detected")
+	ErrReserved                              = errors.New("reserved")
 	ErrRegistrationsDisabled                 = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "registrations disabled"}
 	ErrEmailNotAllowedForEarlyAccess         = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "email not allowed for early access"}
 	ErrEmailUsed                             = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "email used"}

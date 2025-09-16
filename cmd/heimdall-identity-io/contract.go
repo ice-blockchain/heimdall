@@ -281,6 +281,7 @@ const (
 	invalidEmail               = "INVALID_EMAIL"
 	emailUsed                  = "EMAIL_USED"
 	registrationsDisabled      = "REGISTRATIONS_DISABLED"
+	reserved                   = "RESERVED"
 
 	configNameRequiredAndroidAppVersion       = "required_android_app_version"
 	configNameRequiredIOSAppVersion           = "required_ios_app_version"
