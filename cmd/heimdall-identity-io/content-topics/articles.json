@@ -1,885 +1,1625 @@
 {
   "en": {
-    "_version": 3,
-    "world_news": {
-      "display": "World News",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/newspaper.svg",
+    "_version": 4,
+    "news_world_events": {
+      "display": "News & World Events",
       "weight": 1,
       "children": {
-        "international_affairs": {
-          "display": "international affairs",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
-          "weight": 1
-        },
         "breaking_news": {
-          "display": "breaking news",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+          "display": "Breaking news",
           "weight": 1
         },
-        "global_policy": {
-          "display": "global policy",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "current_affairs": {
+          "display": "Current affairs",
+          "weight": 1
+        },
+        "global_issues": {
+          "display": "Global issues",
+          "weight": 1
+        },
+        "local_news": {
+          "display": "Local news",
+          "weight": 1
+        },
+        "politics_policy": {
+          "display": "Politics & policy",
+          "weight": 1
+        },
+        "trending_topics": {
+          "display": "Trending topics",
           "weight": 1
         }
       }
     },
-    "politics": {
-      "display": "Politics",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/scale.svg",
+    "technology_ai": {
+      "display": "Technology & AI",
       "weight": 1,
       "children": {
-        "elections": {
-          "display": "elections",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "ai_tools": {
+          "display": "AI tools",
           "weight": 1
         },
-        "policy_analysis": {
-          "display": "policy analysis",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
-          "weight": 1
-        },
-        "political_theory": {
-          "display": "political theory",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
-          "weight": 1
-        }
-      }
-    },
-    "economics": {
-      "display": "Economics",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/banknotes.svg",
-      "weight": 1,
-      "children": {
-        "macroeconomics": {
-          "display": "macroeconomics",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
-          "weight": 1
-        },
-        "microeconomics": {
-          "display": "microeconomics",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
-          "weight": 1
-        },
-        "economic_policy": {
-          "display": "economic policy",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
-          "weight": 1
-        }
-      }
-    },
-    "business_startups": {
-      "display": "Business & Startups",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/briefcase.svg",
-      "weight": 1,
-      "children": {
-        "startup_stories": {
-          "display": "startup stories",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
-          "weight": 1
-        },
-        "fundraising": {
-          "display": "fundraising",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
-          "weight": 1
-        },
-        "case_studies": {
-          "display": "case studies",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
-          "weight": 1
-        }
-      }
-    },
-    "finance_investing": {
-      "display": "Finance & Investing",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/currency-dollar.svg",
-      "weight": 1,
-      "children": {
-        "stock_market": {
-          "display": "stock market",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
-          "weight": 1
-        },
-        "personal_finance": {
-          "display": "personal finance",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
-          "weight": 1
-        },
-        "portfolio_management": {
-          "display": "portfolio management",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
-          "weight": 1
-        }
-      }
-    },
-    "cryptocurrency_blockchain": {
-      "display": "Cryptocurrency & Blockchain",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/cube.svg",
-      "weight": 1,
-      "children": {
-        "bitcoin_analysis": {
-          "display": "bitcoin analysis",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
-          "weight": 1
-        },
-        "defi": {
-          "display": "defi",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
-          "weight": 1
-        },
-        "nft_markets": {
-          "display": "nft markets",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
-          "weight": 1
-        }
-      }
-    },
-    "technology_trends": {
-      "display": "Technology Trends",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/cpu-chip.svg",
-      "weight": 1,
-      "children": {
-        "emerging_tech": {
-          "display": "emerging tech",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "apps_software": {
+          "display": "Apps & software",
           "weight": 1
         },
         "gadget_reviews": {
-          "display": "gadget reviews",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+          "display": "Gadget reviews",
           "weight": 1
         },
-        "industry_analysis": {
-          "display": "industry analysis",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "smart_home_devices": {
+          "display": "Smart home devices",
+          "weight": 1
+        },
+        "smartphones": {
+          "display": "Smartphones",
+          "weight": 1
+        },
+        "tech_news": {
+          "display": "Tech news",
           "weight": 1
         }
       }
     },
-    "artificial_intelligence": {
-      "display": "Artificial Intelligence",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/sparkles.svg",
+    "web3_crypto": {
+      "display": "Web3 & Crypto",
       "weight": 1,
       "children": {
-        "machine_learning": {
-          "display": "machine learning",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "altcoins": {
+          "display": "Altcoins",
           "weight": 1
         },
-        "nlp": {
-          "display": "nlp",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+        "bitcoin_ethereum": {
+          "display": "Bitcoin & Ethereum",
           "weight": 1
         },
-        "ai_ethics": {
-          "display": "ai ethics",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "defi_basics": {
+          "display": "DeFi basics",
+          "weight": 1
+        },
+        "nft_marketplace": {
+          "display": "NFT marketplace",
+          "weight": 1
+        },
+        "trading_strategies": {
+          "display": "Trading strategies",
+          "weight": 1
+        },
+        "web3_news": {
+          "display": "Web3 news",
           "weight": 1
         }
       }
     },
-    "software_development": {
-      "display": "Software Development",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/code-bracket-square.svg",
+    "business_money": {
+      "display": "Business & Money",
       "weight": 1,
       "children": {
-        "backend": {
-          "display": "backend",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "careers_jobs": {
+          "display": "Careers & jobs",
           "weight": 1
         },
-        "frontend": {
-          "display": "frontend",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+        "entrepreneurship": {
+          "display": "Entrepreneurship",
           "weight": 1
         },
-        "mobile_development": {
-          "display": "mobile development",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "investing_markets": {
+          "display": "Investing & markets",
+          "weight": 1
+        },
+        "personal_finance": {
+          "display": "Personal finance",
+          "weight": 1
+        },
+        "productivity_tools": {
+          "display": "Productivity & tools",
+          "weight": 1
+        },
+        "startups": {
+          "display": "Startups",
           "weight": 1
         }
       }
     },
-    "data_science_analytics": {
-      "display": "Data Science & Analytics",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/chart-bar.svg",
+    "gaming": {
+      "display": "Gaming",
       "weight": 1,
       "children": {
-        "data_visualization": {
-          "display": "data visualization",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "console_gaming": {
+          "display": "Console gaming",
           "weight": 1
         },
-        "big_data": {
-          "display": "big data",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+        "esports": {
+          "display": "Esports",
           "weight": 1
         },
-        "statistics": {
-          "display": "statistics",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "game_reviews": {
+          "display": "Game reviews",
+          "weight": 1
+        },
+        "gaming_setups": {
+          "display": "Gaming setups",
+          "weight": 1
+        },
+        "mobile_gaming": {
+          "display": "Mobile gaming",
+          "weight": 1
+        },
+        "pc_gaming": {
+          "display": "PC gaming",
           "weight": 1
         }
       }
     },
-    "cybersecurity": {
-      "display": "Cybersecurity",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/shield-check.svg",
+    "sports": {
+      "display": "Sports",
       "weight": 1,
       "children": {
-        "threat_intelligence": {
-          "display": "threat intelligence",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "american_football": {
+          "display": "American football",
           "weight": 1
         },
-        "incident_response": {
-          "display": "incident response",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+        "basketball": {
+          "display": "Basketball",
           "weight": 1
         },
-        "privacy": {
-          "display": "privacy",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "combat_sports": {
+          "display": "Combat sports",
+          "weight": 1
+        },
+        "football_soccer": {
+          "display": "Football/Soccer",
+          "weight": 1
+        },
+        "olympic_sports": {
+          "display": "Olympic sports",
+          "weight": 1
+        },
+        "tennis": {
+          "display": "Tennis",
           "weight": 1
         }
       }
     },
-    "cloud_computing": {
-      "display": "Cloud Computing",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/cloud.svg",
+    "music": {
+      "display": "Music",
       "weight": 1,
       "children": {
-        "iaas": {
-          "display": "iaas",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "classical": {
+          "display": "Classical",
           "weight": 1
         },
-        "saas": {
-          "display": "saas",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+        "electronic_edm": {
+          "display": "Electronic/EDM",
           "weight": 1
         },
-        "serverless": {
-          "display": "serverless",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "hip_hop": {
+          "display": "Hip hop",
+          "weight": 1
+        },
+        "music_production": {
+          "display": "Music production",
+          "weight": 1
+        },
+        "pop_music": {
+          "display": "Pop music",
+          "weight": 1
+        },
+        "rock_alternative": {
+          "display": "Rock & alternative",
           "weight": 1
         }
       }
     },
-    "developer_tools": {
-      "display": "Developer Tools",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+    "movies_tv": {
+      "display": "Movies & TV",
       "weight": 1,
       "children": {
-        "ides": {
-          "display": "ides",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "behind_the_scenes": {
+          "display": "Behind the scenes",
           "weight": 1
         },
-        "version_control": {
-          "display": "version control",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "celebrity_news": {
+          "display": "Celebrity news",
           "weight": 1
         },
-        "testing_frameworks": {
-          "display": "testing frameworks",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/arrow-path.svg",
+        "film_analysis": {
+          "display": "Film analysis",
+          "weight": 1
+        },
+        "movie_reviews": {
+          "display": "Movie reviews",
+          "weight": 1
+        },
+        "streaming_recommendations": {
+          "display": "Streaming recommendations",
+          "weight": 1
+        },
+        "tv_series_discussions": {
+          "display": "TV series discussions",
           "weight": 1
         }
       }
     },
-    "devops": {
-      "display": "DevOps",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/camera.svg",
+    "fashion_style": {
+      "display": "Fashion & Style",
       "weight": 1,
       "children": {
-        "ci_cd": {
-          "display": "ci/cd",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "accessories": {
+          "display": "Accessories",
           "weight": 1
         },
-        "kubernetes": {
-          "display": "kubernetes",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+        "designer_fashion": {
+          "display": "Designer fashion",
           "weight": 1
         },
-        "infrastructure_as_code": {
-          "display": "infrastructure as code",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "fashion_tips": {
+          "display": "Fashion tips",
+          "weight": 1
+        },
+        "outfit_ideas": {
+          "display": "Outfit ideas",
+          "weight": 1
+        },
+        "streetwear": {
+          "display": "Streetwear",
+          "weight": 1
+        },
+        "vintage_fashion": {
+          "display": "Vintage fashion",
           "weight": 1
         }
       }
     },
-    "product_management": {
-      "display": "Product Management",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/chart-bar.svg",
+    "beauty_skincare": {
+      "display": "Beauty & Skincare",
       "weight": 1,
       "children": {
-        "roadmaps": {
-          "display": "roadmaps",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "beauty_hacks": {
+          "display": "Beauty hacks",
           "weight": 1
         },
-        "user_research": {
-          "display": "user research",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+        "hair_styling": {
+          "display": "Hair styling",
           "weight": 1
         },
-        "product_metrics": {
-          "display": "product metrics",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "makeup_tutorials": {
+          "display": "Makeup tutorials",
+          "weight": 1
+        },
+        "nail_art": {
+          "display": "Nail art",
+          "weight": 1
+        },
+        "product_reviews": {
+          "display": "Product reviews",
+          "weight": 1
+        },
+        "skincare_routines": {
+          "display": "Skincare routines",
           "weight": 1
         }
       }
     },
-    "ux_ui_design": {
-      "display": "UX/UI Design",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/chart-pie.svg",
+    "fitness_wellness": {
+      "display": "Fitness & Wellness",
       "weight": 1,
       "children": {
-        "interaction_design": {
-          "display": "interaction design",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "home_workouts": {
+          "display": "Home workouts",
           "weight": 1
         },
-        "user_testing": {
-          "display": "user testing",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+        "nutrition_tips": {
+          "display": "Nutrition tips",
           "weight": 1
         },
-        "design_systems": {
-          "display": "design systems",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "running": {
+          "display": "Running",
+          "weight": 1
+        },
+        "workout_routines": {
+          "display": "Workout routines",
+          "weight": 1
+        },
+        "yoga": {
+          "display": "Yoga",
+          "weight": 1
+        },
+        "zen_habits": {
+          "display": "Zen habits",
           "weight": 1
         }
       }
     },
-    "graphic_design": {
-      "display": "Graphic Design",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/chat-bubble-left.svg",
+    "food_drink": {
+      "display": "Food & Drink",
       "weight": 1,
       "children": {
-        "logos": {
-          "display": "logos",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "baking": {
+          "display": "Baking",
           "weight": 1
         },
-        "branding": {
-          "display": "branding",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+        "dietary_trends": {
+          "display": "Dietary trends",
           "weight": 1
         },
-        "typography": {
-          "display": "typography",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "food_hacks": {
+          "display": "Food hacks",
+          "weight": 1
+        },
+        "recipes": {
+          "display": "Recipes",
+          "weight": 1
+        },
+        "restaurant_reviews": {
+          "display": "Restaurant reviews",
+          "weight": 1
+        },
+        "street_food": {
+          "display": "Street food",
           "weight": 1
         }
       }
     },
-    "illustration_digital_art": {
-      "display": "Illustration & Digital Art",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/check-circle.svg",
+    "travel_tourism": {
+      "display": "Travel & Tourism",
       "weight": 1,
       "children": {
-        "concept_art": {
-          "display": "concept art",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "budget_travel": {
+          "display": "Budget travel",
           "weight": 1
         },
-        "vector_art": {
-          "display": "vector art",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+        "destinations": {
+          "display": "Destinations",
           "weight": 1
         },
-        "character_design": {
-          "display": "character design",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "local_experiences": {
+          "display": "Local experiences",
+          "weight": 1
+        },
+        "luxury_travel": {
+          "display": "Luxury travel",
+          "weight": 1
+        },
+        "travel_photography": {
+          "display": "Travel photography",
+          "weight": 1
+        },
+        "travel_tips": {
+          "display": "Travel tips",
+          "weight": 1
+        }
+      }
+    },
+    "cars_vehicles": {
+      "display": "Cars & Vehicles",
+      "weight": 1,
+      "children": {
+        "car_care": {
+          "display": "Car care",
+          "weight": 1
+        },
+        "electric_vehicles": {
+          "display": "Electric vehicles",
+          "weight": 1
+        },
+        "motorcycles": {
+          "display": "Motorcycles",
+          "weight": 1
+        },
+        "motorsport": {
+          "display": "Motorsport",
+          "weight": 1
+        },
+        "reviews_builds": {
+          "display": "Reviews & builds",
+          "weight": 1
+        },
+        "tuning_mods": {
+          "display": "Tuning & mods",
+          "weight": 1
+        }
+      }
+    },
+    "animals_pets": {
+      "display": "Animals & Pets",
+      "weight": 1,
+      "children": {
+        "cats": {
+          "display": "Cats",
+          "weight": 1
+        },
+        "dogs": {
+          "display": "Dogs",
+          "weight": 1
+        },
+        "exotic_pets": {
+          "display": "Exotic pets",
+          "weight": 1
+        },
+        "marine_life": {
+          "display": "Marine life",
+          "weight": 1
+        },
+        "pet_care_training": {
+          "display": "Pet care & training",
+          "weight": 1
+        },
+        "wildlife": {
+          "display": "Wildlife",
+          "weight": 1
+        }
+      }
+    },
+    "art_design": {
+      "display": "Art & Design",
+      "weight": 1,
+      "children": {
+        "design_trends": {
+          "display": "Design trends",
+          "weight": 1
+        },
+        "digital_art": {
+          "display": "Digital art",
+          "weight": 1
+        },
+        "graphic_design": {
+          "display": "Graphic design",
+          "weight": 1
+        },
+        "street_art": {
+          "display": "Street art",
+          "weight": 1
+        },
+        "traditional_art": {
+          "display": "Traditional art",
+          "weight": 1
+        },
+        "tutorials": {
+          "display": "Art tutorials",
           "weight": 1
         }
       }
     },
     "photography": {
       "display": "Photography",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/circle-stack.svg",
       "weight": 1,
       "children": {
-        "portrait_photography": {
-          "display": "portrait photography",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "equipment_reviews": {
+          "display": "Equipment reviews",
           "weight": 1
         },
         "landscape_photography": {
-          "display": "landscape photography",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+          "display": "Landscape photography",
           "weight": 1
         },
         "photo_editing": {
-          "display": "photo editing",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+          "display": "Photo editing",
+          "weight": 1
+        },
+        "photography_tips": {
+          "display": "Photography tips",
+          "weight": 1
+        },
+        "portrait_photography": {
+          "display": "Portrait photography",
+          "weight": 1
+        },
+        "street_photography": {
+          "display": "Street photography",
           "weight": 1
         }
       }
     },
-    "film_video": {
-      "display": "Film & Video",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/cloud.svg",
+    "home_living": {
+      "display": "Home & Living",
       "weight": 1,
       "children": {
-        "filmmaking": {
-          "display": "filmmaking",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "decor_ideas": {
+          "display": "Decor ideas",
           "weight": 1
         },
-        "video_editing": {
-          "display": "video editing",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+        "furniture": {
+          "display": "Furniture",
           "weight": 1
         },
-        "cinematography": {
-          "display": "cinematography",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "organization_tips": {
+          "display": "Organization tips",
+          "weight": 1
+        },
+        "room_makeovers": {
+          "display": "Room makeovers",
+          "weight": 1
+        },
+        "small_spaces": {
+          "display": "Small spaces",
+          "weight": 1
+        },
+        "smart_home": {
+          "display": "Smart home",
+          "weight": 1
+        }
+      }
+    },
+    "diy_maker": {
+      "display": "DIY & Maker",
+      "weight": 1,
+      "children": {
+        "art_craft_supplies": {
+          "display": "Art & craft supplies",
+          "weight": 1
+        },
+        "craft_tutorials": {
+          "display": "Craft tutorials",
+          "weight": 1
+        },
+        "home_projects": {
+          "display": "Home projects",
+          "weight": 1
+        },
+        "sewing_knitting": {
+          "display": "Sewing & knitting",
+          "weight": 1
+        },
+        "upcycling": {
+          "display": "Upcycling",
+          "weight": 1
+        },
+        "woodworking": {
+          "display": "Woodworking",
+          "weight": 1
+        }
+      }
+    },
+    "parenting_family": {
+      "display": "Parenting & Family",
+      "weight": 1,
+      "children": {
+        "baby_care": {
+          "display": "Baby care",
+          "weight": 1
+        },
+        "education": {
+          "display": "Education",
+          "weight": 1
+        },
+        "family_life": {
+          "display": "Family life",
+          "weight": 1
+        },
+        "kids_activities": {
+          "display": "Kids activities",
+          "weight": 1
+        },
+        "parenting_tips": {
+          "display": "Parenting tips",
+          "weight": 1
+        },
+        "pregnancy": {
+          "display": "Pregnancy",
+          "weight": 1
+        }
+      }
+    },
+    "relationships_life": {
+      "display": "Relationships & Life",
+      "weight": 1,
+      "children": {
+        "breakups": {
+          "display": "Breakups",
+          "weight": 1
+        },
+        "communication": {
+          "display": "Communication",
+          "weight": 1
+        },
+        "dating_advice": {
+          "display": "Dating advice",
+          "weight": 1
+        },
+        "love_stories": {
+          "display": "Love stories",
+          "weight": 1
+        },
+        "marriage": {
+          "display": "Marriage",
+          "weight": 1
+        },
+        "relationship_tips": {
+          "display": "Relationship tips",
+          "weight": 1
+        }
+      }
+    },
+    "mental_health": {
+      "display": "Mental Health & Wellness",
+      "weight": 1,
+      "children": {
+        "anxiety_management": {
+          "display": "Anxiety management",
+          "weight": 1
+        },
+        "depression_awareness": {
+          "display": "Depression awareness",
+          "weight": 1
+        },
+        "meditation": {
+          "display": "Meditation",
+          "weight": 1
+        },
+        "self_care": {
+          "display": "Self-care",
+          "weight": 1
+        },
+        "stress_relief": {
+          "display": "Stress relief",
+          "weight": 1
+        },
+        "therapy_insights": {
+          "display": "Therapy insights",
+          "weight": 1
+        }
+      }
+    },
+    "education_learning": {
+      "display": "Education & Learning",
+      "weight": 1,
+      "children": {
+        "career_skills": {
+          "display": "Career skills",
+          "weight": 1
+        },
+        "language_learning": {
+          "display": "Language learning",
+          "weight": 1
+        },
+        "online_courses": {
+          "display": "Online courses",
+          "weight": 1
+        },
+        "research_explainers": {
+          "display": "Research explainers",
+          "weight": 1
+        },
+        "study_tips": {
+          "display": "Study tips",
+          "weight": 1
+        },
+        "test_prep": {
+          "display": "Test prep",
+          "weight": 1
+        }
+      }
+    },
+    "science_space": {
+      "display": "Science & Space",
+      "weight": 1,
+      "children": {
+        "astronomy_space": {
+          "display": "Astronomy & space",
+          "weight": 1
+        },
+        "biology_nature": {
+          "display": "Biology & nature",
+          "weight": 1
+        },
+        "earth_climate": {
+          "display": "Earth & climate",
+          "weight": 1
+        },
+        "engineering": {
+          "display": "Engineering",
+          "weight": 1
+        },
+        "physics_math": {
+          "display": "Physics & math",
+          "weight": 1
+        },
+        "science_news": {
+          "display": "Science news",
+          "weight": 1
+        }
+      }
+    },
+    "nature_environment": {
+      "display": "Nature & Environment",
+      "weight": 1,
+      "children": {
+        "conservation": {
+          "display": "Conservation",
+          "weight": 1
+        },
+        "ecotravel": {
+          "display": "Eco-travel",
+          "weight": 1
+        },
+        "gardening": {
+          "display": "Gardening",
+          "weight": 1
+        },
+        "hiking_outdoors": {
+          "display": "Hiking & outdoors",
+          "weight": 1
+        },
+        "sustainability": {
+          "display": "Sustainability",
+          "weight": 1
+        },
+        "wild_places": {
+          "display": "Wild places",
+          "weight": 1
+        }
+      }
+    },
+    "comedy_internet": {
+      "display": "Comedy & Internet Culture",
+      "weight": 1,
+      "children": {
+        "comedy_sketches": {
+          "display": "Comedy sketches",
+          "weight": 1
+        },
+        "funny_videos": {
+          "display": "Funny videos",
+          "weight": 1
+        },
+        "memes": {
+          "display": "Memes",
+          "weight": 1
+        },
+        "parodies_satire": {
+          "display": "Parodies & satire",
+          "weight": 1
+        },
+        "pranks": {
+          "display": "Pranks",
+          "weight": 1
+        },
+        "stand_up_comedy": {
+          "display": "Stand-up comedy",
+          "weight": 1
+        }
+      }
+    },
+    "events_lifestyle": {
+      "display": "Events & Lifestyle",
+      "weight": 1,
+      "children": {
+        "festivals_concerts": {
+          "display": "Festivals & concerts",
+          "weight": 1
+        },
+        "health_beauty": {
+          "display": "Health & beauty",
+          "weight": 1
+        },
+        "home_hacks": {
+          "display": "Home hacks",
+          "weight": 1
+        },
+        "life_updates": {
+          "display": "Life updates",
+          "weight": 1
+        },
+        "tips_tricks": {
+          "display": "Tips & tricks",
+          "weight": 1
+        },
+        "vlogs_day_in_life": {
+          "display": "Vlogs & day-in-life",
           "weight": 1
         }
       }
     }
   },
   "fr": {
-    "_version": 3,
-    "world_news": {
-      "display": "[FR]World News",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/newspaper.svg",
+    "_version": 4,
+    "news_world_events": {
+      "display": "[FR] News & World Events",
       "weight": 1,
       "children": {
-        "international_affairs": {
-          "display": "[FR]international affairs",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
-          "weight": 1
-        },
         "breaking_news": {
-          "display": "[FR]breaking news",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+          "display": "[FR] Breaking news",
           "weight": 1
         },
-        "global_policy": {
-          "display": "[FR]global policy",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "current_affairs": {
+          "display": "[FR] Current affairs",
+          "weight": 1
+        },
+        "global_issues": {
+          "display": "[FR] Global issues",
+          "weight": 1
+        },
+        "local_news": {
+          "display": "[FR] Local news",
+          "weight": 1
+        },
+        "politics_policy": {
+          "display": "[FR] Politics & policy",
+          "weight": 1
+        },
+        "trending_topics": {
+          "display": "[FR] Trending topics",
           "weight": 1
         }
       }
     },
-    "politics": {
-      "display": "[FR]Politics",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/scale.svg",
+    "technology_ai": {
+      "display": "[FR] Technology & AI",
       "weight": 1,
       "children": {
-        "elections": {
-          "display": "[FR]elections",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "ai_tools": {
+          "display": "[FR] AI tools",
           "weight": 1
         },
-        "policy_analysis": {
-          "display": "[FR]policy analysis",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
-          "weight": 1
-        },
-        "political_theory": {
-          "display": "[FR]political theory",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
-          "weight": 1
-        }
-      }
-    },
-    "economics": {
-      "display": "[FR]Economics",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/banknotes.svg",
-      "weight": 1,
-      "children": {
-        "macroeconomics": {
-          "display": "[FR]macroeconomics",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
-          "weight": 1
-        },
-        "microeconomics": {
-          "display": "[FR]microeconomics",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
-          "weight": 1
-        },
-        "economic_policy": {
-          "display": "[FR]economic policy",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
-          "weight": 1
-        }
-      }
-    },
-    "business_startups": {
-      "display": "[FR]Business & Startups",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/briefcase.svg",
-      "weight": 1,
-      "children": {
-        "startup_stories": {
-          "display": "[FR]startup stories",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
-          "weight": 1
-        },
-        "fundraising": {
-          "display": "[FR]fundraising",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
-          "weight": 1
-        },
-        "case_studies": {
-          "display": "[FR]case studies",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
-          "weight": 1
-        }
-      }
-    },
-    "finance_investing": {
-      "display": "[FR]Finance & Investing",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/currency-dollar.svg",
-      "weight": 1,
-      "children": {
-        "stock_market": {
-          "display": "[FR]stock market",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
-          "weight": 1
-        },
-        "personal_finance": {
-          "display": "[FR]personal finance",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
-          "weight": 1
-        },
-        "portfolio_management": {
-          "display": "[FR]portfolio management",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
-          "weight": 1
-        }
-      }
-    },
-    "cryptocurrency_blockchain": {
-      "display": "[FR]Cryptocurrency & Blockchain",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/cube.svg",
-      "weight": 1,
-      "children": {
-        "bitcoin_analysis": {
-          "display": "[FR]bitcoin analysis",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
-          "weight": 1
-        },
-        "defi": {
-          "display": "[FR]defi",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
-          "weight": 1
-        },
-        "nft_markets": {
-          "display": "[FR]nft markets",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
-          "weight": 1
-        }
-      }
-    },
-    "technology_trends": {
-      "display": "[FR]Technology Trends",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/cpu-chip.svg",
-      "weight": 1,
-      "children": {
-        "emerging_tech": {
-          "display": "[FR]emerging tech",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "apps_software": {
+          "display": "[FR] Apps & software",
           "weight": 1
         },
         "gadget_reviews": {
-          "display": "[FR]gadget reviews",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+          "display": "[FR] Gadget reviews",
           "weight": 1
         },
-        "industry_analysis": {
-          "display": "[FR]industry analysis",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "smart_home_devices": {
+          "display": "[FR] Smart home devices",
+          "weight": 1
+        },
+        "smartphones": {
+          "display": "[FR] Smartphones",
+          "weight": 1
+        },
+        "tech_news": {
+          "display": "[FR] Tech news",
           "weight": 1
         }
       }
     },
-    "artificial_intelligence": {
-      "display": "[FR]Artificial Intelligence",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/sparkles.svg",
+    "web3_crypto": {
+      "display": "[FR] Web3 & Crypto",
       "weight": 1,
       "children": {
-        "machine_learning": {
-          "display": "[FR]machine learning",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "altcoins": {
+          "display": "[FR] Altcoins",
           "weight": 1
         },
-        "nlp": {
-          "display": "[FR]nlp",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+        "bitcoin_ethereum": {
+          "display": "[FR] Bitcoin & Ethereum",
           "weight": 1
         },
-        "ai_ethics": {
-          "display": "[FR]ai ethics",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "defi_basics": {
+          "display": "[FR] DeFi basics",
+          "weight": 1
+        },
+        "nft_marketplace": {
+          "display": "[FR] NFT marketplace",
+          "weight": 1
+        },
+        "trading_strategies": {
+          "display": "[FR] Trading strategies",
+          "weight": 1
+        },
+        "web3_news": {
+          "display": "[FR] Web3 news",
           "weight": 1
         }
       }
     },
-    "software_development": {
-      "display": "[FR]Software Development",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/code-bracket-square.svg",
+    "business_money": {
+      "display": "[FR] Business & Money",
       "weight": 1,
       "children": {
-        "backend": {
-          "display": "[FR]backend",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "careers_jobs": {
+          "display": "[FR] Careers & jobs",
           "weight": 1
         },
-        "frontend": {
-          "display": "[FR]frontend",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+        "entrepreneurship": {
+          "display": "[FR] Entrepreneurship",
           "weight": 1
         },
-        "mobile_development": {
-          "display": "[FR]mobile development",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "investing_markets": {
+          "display": "[FR] Investing & markets",
+          "weight": 1
+        },
+        "personal_finance": {
+          "display": "[FR] Personal finance",
+          "weight": 1
+        },
+        "productivity_tools": {
+          "display": "[FR] Productivity & tools",
+          "weight": 1
+        },
+        "startups": {
+          "display": "[FR] Startups",
           "weight": 1
         }
       }
     },
-    "data_science_analytics": {
-      "display": "[FR]Data Science & Analytics",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/chart-bar.svg",
+    "gaming": {
+      "display": "[FR] Gaming",
       "weight": 1,
       "children": {
-        "data_visualization": {
-          "display": "[FR]data visualization",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "console_gaming": {
+          "display": "[FR] Console gaming",
           "weight": 1
         },
-        "big_data": {
-          "display": "[FR]big data",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+        "esports": {
+          "display": "[FR] Esports",
           "weight": 1
         },
-        "statistics": {
-          "display": "[FR]statistics",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "game_reviews": {
+          "display": "[FR] Game reviews",
+          "weight": 1
+        },
+        "gaming_setups": {
+          "display": "[FR] Gaming setups",
+          "weight": 1
+        },
+        "mobile_gaming": {
+          "display": "[FR] Mobile gaming",
+          "weight": 1
+        },
+        "pc_gaming": {
+          "display": "[FR] PC gaming",
           "weight": 1
         }
       }
     },
-    "cybersecurity": {
-      "display": "[FR]Cybersecurity",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/shield-check.svg",
+    "sports": {
+      "display": "[FR] Sports",
       "weight": 1,
       "children": {
-        "threat_intelligence": {
-          "display": "[FR]threat intelligence",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "american_football": {
+          "display": "[FR] American football",
           "weight": 1
         },
-        "incident_response": {
-          "display": "[FR]incident response",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+        "basketball": {
+          "display": "[FR] Basketball",
           "weight": 1
         },
-        "privacy": {
-          "display": "[FR]privacy",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "combat_sports": {
+          "display": "[FR] Combat sports",
+          "weight": 1
+        },
+        "football_soccer": {
+          "display": "[FR] Football/Soccer",
+          "weight": 1
+        },
+        "olympic_sports": {
+          "display": "[FR] Olympic sports",
+          "weight": 1
+        },
+        "tennis": {
+          "display": "[FR] Tennis",
           "weight": 1
         }
       }
     },
-    "cloud_computing": {
-      "display": "[FR]Cloud Computing",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/cloud.svg",
+    "music": {
+      "display": "[FR] Music",
       "weight": 1,
       "children": {
-        "iaas": {
-          "display": "[FR]iaas",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "classical": {
+          "display": "[FR] Classical",
           "weight": 1
         },
-        "saas": {
-          "display": "[FR]saas",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+        "electronic_edm": {
+          "display": "[FR] Electronic/EDM",
           "weight": 1
         },
-        "serverless": {
-          "display": "[FR]serverless",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "hip_hop": {
+          "display": "[FR] Hip hop",
+          "weight": 1
+        },
+        "music_production": {
+          "display": "[FR] Music production",
+          "weight": 1
+        },
+        "pop_music": {
+          "display": "[FR] Pop music",
+          "weight": 1
+        },
+        "rock_alternative": {
+          "display": "[FR] Rock & alternative",
           "weight": 1
         }
       }
     },
-    "developer_tools": {
-      "display": "[FR]Developer Tools",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+    "movies_tv": {
+      "display": "[FR] Movies & TV",
       "weight": 1,
       "children": {
-        "ides": {
-          "display": "[FR]ides",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "behind_the_scenes": {
+          "display": "[FR] Behind the scenes",
           "weight": 1
         },
-        "version_control": {
-          "display": "[FR]version control",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "celebrity_news": {
+          "display": "[FR] Celebrity news",
           "weight": 1
         },
-        "testing_frameworks": {
-          "display": "[FR]testing frameworks",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/arrow-path.svg",
+        "film_analysis": {
+          "display": "[FR] Film analysis",
+          "weight": 1
+        },
+        "movie_reviews": {
+          "display": "[FR] Movie reviews",
+          "weight": 1
+        },
+        "streaming_recommendations": {
+          "display": "[FR] Streaming recommendations",
+          "weight": 1
+        },
+        "tv_series_discussions": {
+          "display": "[FR] TV series discussions",
           "weight": 1
         }
       }
     },
-    "devops": {
-      "display": "[FR]DevOps",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/camera.svg",
+    "fashion_style": {
+      "display": "[FR] Fashion & Style",
       "weight": 1,
       "children": {
-        "ci_cd": {
-          "display": "[FR]ci/cd",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "accessories": {
+          "display": "[FR] Accessories",
           "weight": 1
         },
-        "kubernetes": {
-          "display": "[FR]kubernetes",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+        "designer_fashion": {
+          "display": "[FR] Designer fashion",
           "weight": 1
         },
-        "infrastructure_as_code": {
-          "display": "[FR]infrastructure as code",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "fashion_tips": {
+          "display": "[FR] Fashion tips",
+          "weight": 1
+        },
+        "outfit_ideas": {
+          "display": "[FR] Outfit ideas",
+          "weight": 1
+        },
+        "streetwear": {
+          "display": "[FR] Streetwear",
+          "weight": 1
+        },
+        "vintage_fashion": {
+          "display": "[FR] Vintage fashion",
           "weight": 1
         }
       }
     },
-    "product_management": {
-      "display": "[FR]Product Management",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/chart-bar.svg",
+    "beauty_skincare": {
+      "display": "[FR] Beauty & Skincare",
       "weight": 1,
       "children": {
-        "roadmaps": {
-          "display": "[FR]roadmaps",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "beauty_hacks": {
+          "display": "[FR] Beauty hacks",
           "weight": 1
         },
-        "user_research": {
-          "display": "[FR]user research",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+        "hair_styling": {
+          "display": "[FR] Hair styling",
           "weight": 1
         },
-        "product_metrics": {
-          "display": "[FR]product metrics",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "makeup_tutorials": {
+          "display": "[FR] Makeup tutorials",
+          "weight": 1
+        },
+        "nail_art": {
+          "display": "[FR] Nail art",
+          "weight": 1
+        },
+        "product_reviews": {
+          "display": "[FR] Product reviews",
+          "weight": 1
+        },
+        "skincare_routines": {
+          "display": "[FR] Skincare routines",
           "weight": 1
         }
       }
     },
-    "ux_ui_design": {
-      "display": "[FR]UX/UI Design",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/chart-pie.svg",
+    "fitness_wellness": {
+      "display": "[FR] Fitness & Wellness",
       "weight": 1,
       "children": {
-        "interaction_design": {
-          "display": "[FR]interaction design",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "home_workouts": {
+          "display": "[FR] Home workouts",
           "weight": 1
         },
-        "user_testing": {
-          "display": "[FR]user testing",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+        "nutrition_tips": {
+          "display": "[FR] Nutrition tips",
           "weight": 1
         },
-        "design_systems": {
-          "display": "[FR]design systems",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "running": {
+          "display": "[FR] Running",
+          "weight": 1
+        },
+        "workout_routines": {
+          "display": "[FR] Workout routines",
+          "weight": 1
+        },
+        "yoga": {
+          "display": "[FR] Yoga",
+          "weight": 1
+        },
+        "zen_habits": {
+          "display": "[FR] Zen habits",
           "weight": 1
         }
       }
     },
-    "graphic_design": {
-      "display": "[FR]Graphic Design",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/chat-bubble-left.svg",
+    "food_drink": {
+      "display": "[FR] Food & Drink",
       "weight": 1,
       "children": {
-        "logos": {
-          "display": "[FR]logos",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "baking": {
+          "display": "[FR] Baking",
           "weight": 1
         },
-        "branding": {
-          "display": "[FR]branding",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+        "dietary_trends": {
+          "display": "[FR] Dietary trends",
           "weight": 1
         },
-        "typography": {
-          "display": "[FR]typography",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "food_hacks": {
+          "display": "[FR] Food hacks",
+          "weight": 1
+        },
+        "recipes": {
+          "display": "[FR] Recipes",
+          "weight": 1
+        },
+        "restaurant_reviews": {
+          "display": "[FR] Restaurant reviews",
+          "weight": 1
+        },
+        "street_food": {
+          "display": "[FR] Street food",
           "weight": 1
         }
       }
     },
-    "illustration_digital_art": {
-      "display": "[FR]Illustration & Digital Art",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/check-circle.svg",
+    "travel_tourism": {
+      "display": "[FR] Travel & Tourism",
       "weight": 1,
       "children": {
-        "concept_art": {
-          "display": "[FR]concept art",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "budget_travel": {
+          "display": "[FR] Budget travel",
           "weight": 1
         },
-        "vector_art": {
-          "display": "[FR]vector art",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+        "destinations": {
+          "display": "[FR] Destinations",
           "weight": 1
         },
-        "character_design": {
-          "display": "[FR]character design",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "local_experiences": {
+          "display": "[FR] Local experiences",
+          "weight": 1
+        },
+        "luxury_travel": {
+          "display": "[FR] Luxury travel",
+          "weight": 1
+        },
+        "travel_photography": {
+          "display": "[FR] Travel photography",
+          "weight": 1
+        },
+        "travel_tips": {
+          "display": "[FR] Travel tips",
+          "weight": 1
+        }
+      }
+    },
+    "cars_vehicles": {
+      "display": "[FR] Cars & Vehicles",
+      "weight": 1,
+      "children": {
+        "car_care": {
+          "display": "[FR] Car care",
+          "weight": 1
+        },
+        "electric_vehicles": {
+          "display": "[FR] Electric vehicles",
+          "weight": 1
+        },
+        "motorcycles": {
+          "display": "[FR] Motorcycles",
+          "weight": 1
+        },
+        "motorsport": {
+          "display": "[FR] Motorsport",
+          "weight": 1
+        },
+        "reviews_builds": {
+          "display": "[FR] Reviews & builds",
+          "weight": 1
+        },
+        "tuning_mods": {
+          "display": "[FR] Tuning & mods",
+          "weight": 1
+        }
+      }
+    },
+    "animals_pets": {
+      "display": "[FR] Animals & Pets",
+      "weight": 1,
+      "children": {
+        "cats": {
+          "display": "[FR] Cats",
+          "weight": 1
+        },
+        "dogs": {
+          "display": "[FR] Dogs",
+          "weight": 1
+        },
+        "exotic_pets": {
+          "display": "[FR] Exotic pets",
+          "weight": 1
+        },
+        "marine_life": {
+          "display": "[FR] Marine life",
+          "weight": 1
+        },
+        "pet_care_training": {
+          "display": "[FR] Pet care & training",
+          "weight": 1
+        },
+        "wildlife": {
+          "display": "[FR] Wildlife",
+          "weight": 1
+        }
+      }
+    },
+    "art_design": {
+      "display": "[FR] Art & Design",
+      "weight": 1,
+      "children": {
+        "design_trends": {
+          "display": "[FR] Design trends",
+          "weight": 1
+        },
+        "digital_art": {
+          "display": "[FR] Digital art",
+          "weight": 1
+        },
+        "graphic_design": {
+          "display": "[FR] Graphic design",
+          "weight": 1
+        },
+        "street_art": {
+          "display": "[FR] Street art",
+          "weight": 1
+        },
+        "traditional_art": {
+          "display": "[FR] Traditional art",
+          "weight": 1
+        },
+        "tutorials": {
+          "display": "[FR] Art tutorials",
           "weight": 1
         }
       }
     },
     "photography": {
-      "display": "[FR]Photography",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/circle-stack.svg",
+      "display": "[FR] Photography",
       "weight": 1,
       "children": {
-        "portrait_photography": {
-          "display": "[FR]portrait photography",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "equipment_reviews": {
+          "display": "[FR] Equipment reviews",
           "weight": 1
         },
         "landscape_photography": {
-          "display": "[FR]landscape photography",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+          "display": "[FR] Landscape photography",
           "weight": 1
         },
         "photo_editing": {
-          "display": "[FR]photo editing",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+          "display": "[FR] Photo editing",
+          "weight": 1
+        },
+        "photography_tips": {
+          "display": "[FR] Photography tips",
+          "weight": 1
+        },
+        "portrait_photography": {
+          "display": "[FR] Portrait photography",
+          "weight": 1
+        },
+        "street_photography": {
+          "display": "[FR] Street photography",
           "weight": 1
         }
       }
     },
-    "film_video": {
-      "display": "[FR]Film & Video",
-      "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/cloud.svg",
+    "home_living": {
+      "display": "[FR] Home & Living",
       "weight": 1,
       "children": {
-        "filmmaking": {
-          "display": "[FR]filmmaking",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/academic-cap.svg",
+        "decor_ideas": {
+          "display": "[FR] Decor ideas",
           "weight": 1
         },
-        "video_editing": {
-          "display": "[FR]video editing",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/adjustments-horizontal.svg",
+        "furniture": {
+          "display": "[FR] Furniture",
           "weight": 1
         },
-        "cinematography": {
-          "display": "[FR]cinematography",
-          "iconUrl": "https://unpkg.com/heroicons@2.2.0/24/outline/archive-box.svg",
+        "organization_tips": {
+          "display": "[FR] Organization tips",
+          "weight": 1
+        },
+        "room_makeovers": {
+          "display": "[FR] Room makeovers",
+          "weight": 1
+        },
+        "small_spaces": {
+          "display": "[FR] Small spaces",
+          "weight": 1
+        },
+        "smart_home": {
+          "display": "[FR] Smart home",
+          "weight": 1
+        }
+      }
+    },
+    "diy_maker": {
+      "display": "[FR] DIY & Maker",
+      "weight": 1,
+      "children": {
+        "art_craft_supplies": {
+          "display": "[FR] Art & craft supplies",
+          "weight": 1
+        },
+        "craft_tutorials": {
+          "display": "[FR] Craft tutorials",
+          "weight": 1
+        },
+        "home_projects": {
+          "display": "[FR] Home projects",
+          "weight": 1
+        },
+        "sewing_knitting": {
+          "display": "[FR] Sewing & knitting",
+          "weight": 1
+        },
+        "upcycling": {
+          "display": "[FR] Upcycling",
+          "weight": 1
+        },
+        "woodworking": {
+          "display": "[FR] Woodworking",
+          "weight": 1
+        }
+      }
+    },
+    "parenting_family": {
+      "display": "[FR] Parenting & Family",
+      "weight": 1,
+      "children": {
+        "baby_care": {
+          "display": "[FR] Baby care",
+          "weight": 1
+        },
+        "education": {
+          "display": "[FR] Education",
+          "weight": 1
+        },
+        "family_life": {
+          "display": "[FR] Family life",
+          "weight": 1
+        },
+        "kids_activities": {
+          "display": "[FR] Kids activities",
+          "weight": 1
+        },
+        "parenting_tips": {
+          "display": "[FR] Parenting tips",
+          "weight": 1
+        },
+        "pregnancy": {
+          "display": "[FR] Pregnancy",
+          "weight": 1
+        }
+      }
+    },
+    "relationships_life": {
+      "display": "[FR] Relationships & Life",
+      "weight": 1,
+      "children": {
+        "breakups": {
+          "display": "[FR] Breakups",
+          "weight": 1
+        },
+        "communication": {
+          "display": "[FR] Communication",
+          "weight": 1
+        },
+        "dating_advice": {
+          "display": "[FR] Dating advice",
+          "weight": 1
+        },
+        "love_stories": {
+          "display": "[FR] Love stories",
+          "weight": 1
+        },
+        "marriage": {
+          "display": "[FR] Marriage",
+          "weight": 1
+        },
+        "relationship_tips": {
+          "display": "[FR] Relationship tips",
+          "weight": 1
+        }
+      }
+    },
+    "mental_health": {
+      "display": "[FR] Mental Health & Wellness",
+      "weight": 1,
+      "children": {
+        "anxiety_management": {
+          "display": "[FR] Anxiety management",
+          "weight": 1
+        },
+        "depression_awareness": {
+          "display": "[FR] Depression awareness",
+          "weight": 1
+        },
+        "meditation": {
+          "display": "[FR] Meditation",
+          "weight": 1
+        },
+        "self_care": {
+          "display": "[FR] Self-care",
+          "weight": 1
+        },
+        "stress_relief": {
+          "display": "[FR] Stress relief",
+          "weight": 1
+        },
+        "therapy_insights": {
+          "display": "[FR] Therapy insights",
+          "weight": 1
+        }
+      }
+    },
+    "education_learning": {
+      "display": "[FR] Education & Learning",
+      "weight": 1,
+      "children": {
+        "career_skills": {
+          "display": "[FR] Career skills",
+          "weight": 1
+        },
+        "language_learning": {
+          "display": "[FR] Language learning",
+          "weight": 1
+        },
+        "online_courses": {
+          "display": "[FR] Online courses",
+          "weight": 1
+        },
+        "research_explainers": {
+          "display": "[FR] Research explainers",
+          "weight": 1
+        },
+        "study_tips": {
+          "display": "[FR] Study tips",
+          "weight": 1
+        },
+        "test_prep": {
+          "display": "[FR] Test prep",
+          "weight": 1
+        }
+      }
+    },
+    "science_space": {
+      "display": "[FR] Science & Space",
+      "weight": 1,
+      "children": {
+        "astronomy_space": {
+          "display": "[FR] Astronomy & space",
+          "weight": 1
+        },
+        "biology_nature": {
+          "display": "[FR] Biology & nature",
+          "weight": 1
+        },
+        "earth_climate": {
+          "display": "[FR] Earth & climate",
+          "weight": 1
+        },
+        "engineering": {
+          "display": "[FR] Engineering",
+          "weight": 1
+        },
+        "physics_math": {
+          "display": "[FR] Physics & math",
+          "weight": 1
+        },
+        "science_news": {
+          "display": "[FR] Science news",
+          "weight": 1
+        }
+      }
+    },
+    "nature_environment": {
+      "display": "[FR] Nature & Environment",
+      "weight": 1,
+      "children": {
+        "conservation": {
+          "display": "[FR] Conservation",
+          "weight": 1
+        },
+        "ecotravel": {
+          "display": "[FR] Eco-travel",
+          "weight": 1
+        },
+        "gardening": {
+          "display": "[FR] Gardening",
+          "weight": 1
+        },
+        "hiking_outdoors": {
+          "display": "[FR] Hiking & outdoors",
+          "weight": 1
+        },
+        "sustainability": {
+          "display": "[FR] Sustainability",
+          "weight": 1
+        },
+        "wild_places": {
+          "display": "[FR] Wild places",
+          "weight": 1
+        }
+      }
+    },
+    "comedy_internet": {
+      "display": "[FR] Comedy & Internet Culture",
+      "weight": 1,
+      "children": {
+        "comedy_sketches": {
+          "display": "[FR] Comedy sketches",
+          "weight": 1
+        },
+        "funny_videos": {
+          "display": "[FR] Funny videos",
+          "weight": 1
+        },
+        "memes": {
+          "display": "[FR] Memes",
+          "weight": 1
+        },
+        "parodies_satire": {
+          "display": "[FR] Parodies & satire",
+          "weight": 1
+        },
+        "pranks": {
+          "display": "[FR] Pranks",
+          "weight": 1
+        },
+        "stand_up_comedy": {
+          "display": "[FR] Stand-up comedy",
+          "weight": 1
+        }
+      }
+    },
+    "events_lifestyle": {
+      "display": "[FR] Events & Lifestyle",
+      "weight": 1,
+      "children": {
+        "festivals_concerts": {
+          "display": "[FR] Festivals & concerts",
+          "weight": 1
+        },
+        "health_beauty": {
+          "display": "[FR] Health & beauty",
+          "weight": 1
+        },
+        "home_hacks": {
+          "display": "[FR] Home hacks",
+          "weight": 1
+        },
+        "life_updates": {
+          "display": "[FR] Life updates",
+          "weight": 1
+        },
+        "tips_tricks": {
+          "display": "[FR] Tips & tricks",
+          "weight": 1
+        },
+        "vlogs_day_in_life": {
+          "display": "[FR] Vlogs & day-in-life",
           "weight": 1
         }
       }
