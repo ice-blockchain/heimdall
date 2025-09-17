@@ -403,8 +403,6 @@ github.com/ice-blockchain/go/src v0.0.0-20250625091122-356c0c7d1830 h1:FymrVSpOD
 github.com/ice-blockchain/go/src v0.0.0-20250625091122-356c0c7d1830/go.mod h1:pVzkmaIwkLaJ5cKPHPtuKyxaXiTsa/V7kbbgLmsr4Hw=
 github.com/ice-blockchain/subzero v1.394.0 h1:gqRO3nmvhVab5nTRtevz54+KZaUn6HIOVP90l84e8gc=
 github.com/ice-blockchain/subzero v1.394.0/go.mod h1:tdBn80c/pxYfXtfBVVZ2aL7+i9HzWod8YGS8AbqetHU=
-github.com/ice-blockchain/wintr v1.158.0 h1:1VeCnb/jsL9VTC8n2v7r/VJIoY9iHw7ZmciS2zD5be0=
-github.com/ice-blockchain/wintr v1.158.0/go.mod h1:OegsVEpW7RUC9RzCpKSrrqlsM1ttV38rnTjZJ/0aI+E=
 github.com/ice-blockchain/wintr v1.159.0 h1:xdUfbHtw243VwVYc2ASPxphGkGBUUCFZ4VYMaSuU3y4=
 github.com/ice-blockchain/wintr v1.159.0/go.mod h1:gy7DPR2JVbRJ1wDN4uYbfbkDlGegIY5azBx3FnQ9cyM=
 github.com/icholy/digest v1.1.0 h1:HfGg9Irj7i+IX1o1QAmPfIBNu/Q5A5Tu3n/MED9k9H4=
