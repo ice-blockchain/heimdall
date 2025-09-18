@@ -78,20 +78,26 @@ func (a *accounts) insertRegistrationComplete(ctx context.Context, now *time.Tim
 	}](ctx, a.db, sql, params...)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
-			derr := new(dfns.DfnsInternalError)
-			*derr = *ErrEmailNotAllowedForEarlyAccess
-			derr.HTTPStatus = http.StatusForbidden
-			return derr
+			if email == "" {
+				err = nil
+			} else {
+				derr := new(dfns.DfnsInternalError)
+				*derr = *ErrEmailNotAllowedForEarlyAccess
+				derr.HTTPStatus = http.StatusForbidden
+				return derr
+			}
 		}
-		return errors.Wrapf(err, "failed to insert registration complete")
+		if err != nil {
+			return errors.Wrapf(err, "failed to insert registration complete")
+		}
 	}
-	if res == nil {
+	if email != "" && res == nil {
 		derr := new(dfns.DfnsInternalError)
 		*derr = *ErrEmailNotAllowedForEarlyAccess
 		derr.HTTPStatus = http.StatusForbidden
 		return derr
 	}
-	if res.Email != email || res.IdentityKeyName != identityKeyName || res.UserID != userID {
+	if email != "" && (res.Email != email || res.IdentityKeyName != identityKeyName || res.UserID != userID) {
 		derr := new(dfns.DfnsInternalError)
 		*derr = *ErrEmailNotAllowedForEarlyAccess
 		derr.HTTPStatus = http.StatusForbidden
