@@ -8,8 +8,8 @@ import (
 	"html/template"
 	"net/http"
 
+	"github.com/cockroachdb/errors"
 	"github.com/gin-gonic/gin"
-	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/server"
@@ -63,6 +63,7 @@ func (s *service) setupDelegatedRPProxyRoutes(router *server.Router) {
 		GET("/v1/users/:userIdOrMasterKey/wallets/:walletId/secure-payment-confirmations", s.securePaymentConfirmation()).
 		POST("/auth/login/init", server.RootHandler(s.GetLoginChallenge)).
 		POST("/auth/registration/enduser", server.RootHandler(s.CompleteRegistration)).
+		POST("/auth/registration/delegated", server.RootHandler(s.InitRegistration)).
 		GET("/v1/early-access-users", server.RootHandler(s.EarlyAccessAvailable)).
 		POST("/wallets", server.RootHandler(s.CreateWallet))
 }
@@ -253,10 +254,10 @@ func (s *service) GetLoginChallenge(
 //	@Description	Completes user registration
 //	@Tags			Register
 //	@Produce		json
-//	@Param			request								body		GetLoginChallenge	true	"Request params"
-//	@Param			X-Client-ID							header		string				true	"App ID"	default(ap-)
-//	@Param			X-Device-Identification-Request-ID	header		string				true	"Request ID"
-//	@Param			Authorization						header		string				true	"Authorization"	default(Bearer <token>)
+//	@Param			request								body		CompletedRegistrationChallenge	true	"Request params"
+//	@Param			X-Client-ID							header		string							true	"App ID"	default(ap-)
+//	@Param			X-Device-Identification-Request-ID	header		string							true	"Request ID"
+//	@Param			Authorization						header		string							true	"Authorization"	default(Bearer <token>)
 //	@Success		200									{object}	CompletedRegistration
 //	@Failure		400									{object}	server.ErrorResponse	"if challenge is invalid"
 //	@Failure		403									{object}	server.ErrorResponse	"if early access email is restructed or auth header invalid"
@@ -281,6 +282,37 @@ func (s *service) CompleteRegistration(
 		return nil, buildDelegatedErrorResponse(http.StatusInternalServerError, err, "")
 	}
 	return server.OK[CompletedRegistration](&resp), nil
+}
+
+// InitRegistration godoc
+//
+//	@Schemes
+//	@Description	Initiates user registration
+//	@Tags			Register
+//	@Produce		json
+//	@Param			request		body		GetLoginChallenge	true	"Request params"
+//	@Param			X-Client-ID	header		string				true	"App ID"	default(ap-)
+//	@Success		200			{object}	RegistrationChallenge
+//	@Failure		403			{object}	server.ErrorResponse	"if early access email is restricted"
+//	@Failure		500			{object}	server.ErrorResponse
+//	@Failure		504			{object}	server.ErrorResponse	"if request times out"
+//	@Router			/auth/registration/delegated [POST].
+func (s *service) InitRegistration(
+	ctx context.Context,
+	req *server.Request[InitRegistration, RegistrationChallenge],
+) (successResp *server.Response[RegistrationChallenge], errorResp *server.ErrResponse[*delegatedErrorResponse]) {
+	ctx = withAppID(ctx, req.Data.ClientID)
+	resp, err := s.accounts.InitRegistration(ctx, req.Data.IdentityKeyName, req.Data.EarlyAccessEmail)
+	if err != nil {
+		if delegatedErr := accounts.ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
+			var delegatedParsedErr *accounts.DelegatedRelyingPartyErr
+			if errors.As(delegatedErr, &delegatedParsedErr) {
+				return nil, buildDelegatedErrorResponse(delegatedParsedErr.HTTPStatus, err, delegatedParsedErr.Message)
+			}
+		}
+		return nil, buildDelegatedErrorResponse(http.StatusInternalServerError, err, "")
+	}
+	return server.OK[RegistrationChallenge](resp), nil
 }
 
 // CreateWallet godoc

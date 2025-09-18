@@ -16,16 +16,17 @@ import (
 	"strings"
 	stdlibtime "time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/goccy/go-json"
 	"github.com/hashicorp/go-multierror"
 	"github.com/nbd-wtf/go-nostr"
-	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
+	"github.com/ice-blockchain/wintr/terror"
 	"github.com/ice-blockchain/wintr/time"
 )
 
@@ -279,10 +280,10 @@ func (a *accounts) GetUser(ctx context.Context, userIDOrMasterKey string) (*User
 	return usr, nil
 }
 
-func (a *accounts) upsertUserAfterRegistrationAndCreateWalletView(ctx context.Context, now *time.Time, res map[string]any, visitorID, devicePubkey string) (*string, string, error) {
+func (a *accounts) upsertUserAfterRegistrationAndCreateWalletView(ctx context.Context, now *time.Time, res map[string]any, visitorID, devicePubkey, earlyAccessEmail string) (*string, string, error) {
 	userID, username := dfns.ExtractUser(res, "username")
 	walletID, walletPubKey := dfns.ExtractMainWallet(res)
-	usr, err := a.upsertUserFromRegistration(ctx, now, res, walletPubKey, visitorID, devicePubkey)
+	usr, err := a.upsertUserFromRegistration(ctx, now, res, walletPubKey, visitorID, devicePubkey, earlyAccessEmail)
 	if err != nil {
 		return nil, "", errors.Wrapf(err, "failed to upsert users masterkey and visitorId")
 	}
@@ -322,7 +323,7 @@ func (a *accounts) createDefaultWalletView(ctx context.Context, userID, username
 	return a.createWalletView(ctx, userID, defaultWalletViewName, coins, a.cfg.DefaultCoinsInWalletView, true)
 }
 
-func (a *accounts) upsertUserFromRegistration(ctx context.Context, now *time.Time, res map[string]any, walletPubKey, visitorID, devicePubkey string) (*user, error) {
+func (a *accounts) upsertUserFromRegistration(ctx context.Context, now *time.Time, res map[string]any, walletPubKey, visitorID, devicePubkey, earlyAccessEmail string) (*user, error) {
 	userID, username := dfns.ExtractUser(res, "username")
 	if userID == "" && username == "" {
 		return nil, nil
@@ -332,7 +333,7 @@ func (a *accounts) upsertUserFromRegistration(ctx context.Context, now *time.Tim
 		log.Fatal(fmt.Sprintf("Wallet master key does not seems to be EdDSA/ed25519: \"%v\"! User %v %v", walletPubKey, userID, username))
 	}
 
-	usr, err := a.insertIdentityKeyNameWithPubKeyAndVisitorID(ctx, now, userID, username, walletPubKey, visitorID, devicePubkey)
+	usr, err := a.insertIdentityKeyNameWithPubKeyAndVisitorID(ctx, now, userID, username, walletPubKey, visitorID, devicePubkey, earlyAccessEmail)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to store wallet pubkey for user %v on registration", userID)
 	}
@@ -404,10 +405,24 @@ func (a *accounts) insertIdentityKeyNameAndVisitorID(ctx context.Context, now *t
 
 	return errors.Wrapf(err, "failed to update user with identity key name in db %v %v", userID, identityKeyName)
 }
-func (a *accounts) insertIdentityKeyNameWithPubKeyAndVisitorID(ctx context.Context, now *time.Time, userID, identityKeyName, walletPubkey, visitorID, devicePubkey string) (*user, error) {
-	usr, err := storage.ExecOne[user](ctx, a.db, `WITH visitor_insert AS (
-		INSERT INTO users_visitors(created_at, user_id, visitor_id, device_pubkey) VALUES ($4, $1, $6, $7)
-		ON CONFLICT(user_id, visitor_id) DO NOTHING
+func (a *accounts) insertIdentityKeyNameWithPubKeyAndVisitorID(ctx context.Context, now *time.Time, userID, identityKeyName, walletPubkey, visitorID, devicePubkey, earlyAccessEmail string) (*user, error) {
+	emailUpdate := ""
+	params := []any{userID, identityKeyName, []string{}, *now.Time, walletPubkey, visitorID, devicePubkey}
+	if earlyAccessEmail != "" {
+		emailUpdate = `email_update AS (
+			UPDATE assigned_early_access_emails SET
+				email = $8
+			WHERE email = $2 AND user_id = $1
+		),`
+		params = append(params, earlyAccessEmail)
+	}
+	sql := fmt.Sprintf(`
+	WITH %v visitor_update AS (
+		UPDATE users_visitors SET 
+			visitor_id = $6,
+			device_pubkey = $7,
+			created_at = $4
+		WHERE user_id = $1 AND visitor_id = $1
 	),
 	duplicate AS (
 		SELECT user_id FROM users_visitors WHERE visitor_id = $6 AND user_id != $1 ORDER BY created_at ASC LIMIT 1
@@ -419,7 +434,8 @@ func (a *accounts) insertIdentityKeyNameWithPubKeyAndVisitorID(ctx context.Conte
     										    identity_key_name = $2,
 												duplicate_of = (SELECT user_id FROM duplicate)
                                             WHERE users.master_pubkey = users.id
-											RETURNING users.duplicate_of, COALESCE((SELECT master_pubkey FROM users WHERE id = (SELECT user_id FROM duplicate) LIMIT 1),'') as master_pubkey`, userID, identityKeyName, []string{}, *now.Time, walletPubkey, visitorID, devicePubkey)
+											RETURNING users.duplicate_of, COALESCE((SELECT master_pubkey FROM users WHERE id = (SELECT user_id FROM duplicate) LIMIT 1),'') as master_pubkey`, emailUpdate)
+	usr, err := storage.ExecOne[user](ctx, a.db, sql, params...)
 
 	return usr, errors.Wrapf(err, "failed to update user with pubkey in db %v %v", userID, walletPubkey)
 }
@@ -567,13 +583,36 @@ func (a *accounts) IsUserVerified(ctx context.Context, masterPubKey string) (boo
 func (a *accounts) CompleteRegistration(ctx context.Context, credentials *Credentials) (res CompletedRegistration, err error) {
 	now := time.Now()
 	earlyAccessEmail := credentials.EarlyAccessEmail
-	if err := a.VerifyEarlyAccess(ctx, earlyAccessEmail); err != nil {
-		return nil, err
+	registrationsEnabled, earlyAccess := a.registrationsEnabled()
+	if !registrationsEnabled {
+		derr := new(dfns.DfnsInternalError)
+		*derr = *ErrRegistrationsDisabled
+		derr.HTTPStatus = http.StatusForbidden
+		return nil, derr
+	}
+	if earlyAccess {
+		if strings.TrimSpace(earlyAccessEmail) == "" {
+			derr := new(dfns.DfnsInternalError)
+			*derr = *ErrEmailNotAllowedForEarlyAccess
+			derr.HTTPStatus = http.StatusForbidden
+			return nil, derr
+		}
+	} else {
+		earlyAccessEmail = ""
+	}
+	tok, err := server.Auth(ctx).VerifyToken(ctx, strings.TrimPrefix(authHeader(ctx), "Bearer "))
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to verify temporary auth token from registration %v", authHeader(ctx))
 	}
 	var visitorID, devicePubkey, requestID string
 	requestIDVal := ctx.Value(RequestIDCtxValueKey)
 	if requestIDVal != nil {
 		requestID = requestIDVal.(string)
+	}
+	if err = a.insertRegistrationComplete(ctx, now, earlyAccessEmail, tok.UserID(), tok.Username(), requestID); err != nil {
+		return nil, errors.Wrap(err, "failed to insert registration complete")
+	}
+	if requestIDVal != nil && requestID != "" {
 		visitorID, devicePubkey, err = a.validateRequestIDAndExtractVisitor(ctx, now, requestID)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to verify visitor id")
@@ -581,15 +620,16 @@ func (a *accounts) CompleteRegistration(ctx context.Context, credentials *Creden
 	}
 	registration, err := a.delegatedRPClient.CompleteRegistrationWithWallets(ctx, credentials)
 	if err != nil {
+		rErr := a.rollbackRegistrationAttempt(tok.Username(), earlyAccessEmail)
+		if rErr != nil {
+			return nil, errors.Join(err, errors.Wrapf(rErr, "failed to rollback registration attempt (complete) for user %v %v", tok.UserID(), tok.Username()))
+		}
 		return nil, errors.Wrap(err, "failed to complete registration")
-	}
-	if err = a.verifyEarlyAccessAndUpsertUserID(ctx, earlyAccessEmail, registration); err != nil {
-		return nil, errors.Wrap(err, "failed update early access state")
 	}
 	var duplicateOf *string
 	var originLinkedId string
 	userID, _ := dfns.ExtractUser(registration, "username")
-	duplicateOf, originLinkedId, err = a.upsertUserAfterRegistrationAndCreateWalletView(ctx, now, registration, visitorID, devicePubkey)
+	duplicateOf, originLinkedId, err = a.upsertUserAfterRegistrationAndCreateWalletView(ctx, now, registration, visitorID, devicePubkey, earlyAccessEmail)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to upsert wallet pubkey")
 	}
@@ -606,6 +646,42 @@ func (a *accounts) CompleteRegistration(ctx context.Context, credentials *Creden
 	}
 
 	return registration, nil
+}
+
+func (a *accounts) InitRegistration(ctx context.Context, identityKeyName string, earlyAccessEmail string) (res *RegistrationChallenge, err error) {
+	now := time.Now()
+	registrationsEnabled, earlyAccess := a.registrationsEnabled()
+	if !registrationsEnabled {
+		derr := new(dfns.DfnsInternalError)
+		*derr = *ErrRegistrationsDisabled
+		derr.HTTPStatus = http.StatusForbidden
+		return nil, derr
+	}
+	if earlyAccess {
+		if strings.TrimSpace(earlyAccessEmail) == "" {
+			derr := new(dfns.DfnsInternalError)
+			*derr = *ErrEmailNotAllowedForEarlyAccess
+			derr.HTTPStatus = http.StatusForbidden
+			return nil, derr
+		}
+	} else {
+		earlyAccessEmail = ""
+	}
+	if err = a.insertRegistrationAttempt(ctx, now, identityKeyName, earlyAccessEmail); err != nil {
+		return nil, errors.Wrap(err, "failed to insert registration attempt")
+	}
+	resp, err := a.delegatedRPClient.InitRegistration(ctx, identityKeyName)
+	if err != nil {
+		if rErr := a.rollbackRegistrationAttempt(identityKeyName, earlyAccessEmail); rErr != nil {
+			err = errors.Join(err, errors.Wrap(rErr, "failed to rollback registration attempt"))
+		}
+		return nil, errors.Wrapf(err, "failed to init registration in 3rd party side for user %v", identityKeyName)
+	}
+	usrID, respIdentityKeyName := dfns.ExtractUser(*resp, "name")
+	if err = a.updateRegistrationAttemptWithUserID(ctx, now, usrID, respIdentityKeyName, earlyAccessEmail); err != nil {
+		return nil, errors.Wrapf(err, "failed to update registration attempt for user %v, early access %v", identityKeyName, earlyAccessEmail)
+	}
+	return resp, nil
 }
 
 func (a *accounts) GetIONConnectRelaysForUsers(ctx context.Context, masterPubkeys []string) ([]*LiteUser, error) {
@@ -676,4 +752,86 @@ func (a *accounts) rollbackVisitor(userID, visitorID string, duplicateOf *string
 		return errors.Wrapf(err, "failed to rollback visitor for user %v", userID)
 	}
 	return nil
+}
+
+func (a *accounts) insertRegistrationAttempt(ctx context.Context, now *time.Time, identityKeyName, earlyAccessEmail string) error {
+	params := []any{identityKeyName, []string{}, *now.Time}
+	earlyAccessEmailClause := "SELECT true as email_allowed from ins_user;"
+	if earlyAccessEmail != "" {
+		maxAllowedPerEmail := a.appsRuntimeConfig.IONApp.MaxEarlyAccessRegistrationsAllowedPerEmail
+		earlyAccessEmailClause = `, ins_email as (WITH allowed_email AS (
+				SELECT * FROM (VALUES($1, $1)) as t(email, user_id) WHERE (SELECT count(*) FROM assigned_early_access_emails WHERE email = $4) < $5
+			)
+			INSERT INTO assigned_early_access_emails(email, user_id) SELECT email, user_id FROM allowed_email ON CONFLICT(email, user_id) 
+			DO UPDATE SET user_id = excluded.user_id
+			RETURNING 1) SELECT count(*) > 0 AS email_allowed from ins_email;`
+		params = append(params, earlyAccessEmail, maxAllowedPerEmail)
+	}
+	sql := fmt.Sprintf(`WITH ins_user AS (
+				INSERT INTO users(created_at, updated_at, id, identity_key_name, clients, master_pubkey) 
+					  	  VALUES ($3,         $3,         $1 ,$1,                $2,      $1)
+                                                ON CONFLICT(id) DO NOTHING
+						  RETURNING 1
+				) 
+			%v;`, earlyAccessEmailClause)
+	allowed, err := storage.ExecOne[struct {
+		EmailAllowed bool `db:"email_allowed"`
+	}](ctx, a.db, sql, params...)
+	if err != nil {
+		switch {
+		case storage.IsErr(err, storage.ErrRelationNotFound):
+			err = nil
+			allowed = &struct {
+				EmailAllowed bool `db:"email_allowed"`
+			}{EmailAllowed: false}
+		case storage.IsErr(err, storage.ErrDuplicate):
+			// retry from FE due to webauthn failure probably, its challenge endpoint
+			if tErr := terror.As(err); tErr != nil && tErr.Data["column"] == "identityname" {
+				err = nil
+				allowed = &struct {
+					EmailAllowed bool `db:"email_allowed"`
+				}{EmailAllowed: true}
+			}
+		default:
+			return errors.Wrapf(err, "failed to check if email %v is allowed and insert user %v", earlyAccessEmail, identityKeyName)
+		}
+	}
+	if !allowed.EmailAllowed {
+		derr := new(dfns.DfnsInternalError)
+		*derr = *ErrEmailNotAllowedForEarlyAccess
+		derr.HTTPStatus = http.StatusForbidden
+		return derr
+	}
+	return nil
+}
+func (a *accounts) updateRegistrationAttemptWithUserID(ctx context.Context, now *time.Time, userID, identityKeyName, earlyAccessEmail string) error {
+	params := []any{userID, identityKeyName, *now.Time}
+	earlyAccessEmailClause := "SELECT 1;"
+	if earlyAccessEmail != "" {
+		earlyAccessEmailClause = `UPDATE assigned_early_access_emails SET user_id = $1 WHERE email = $2 AND user_id = $2`
+	}
+	sql := fmt.Sprintf(`WITH upd_user AS (
+				UPDATE users SET updated_at = $3, 
+								 id = $1,
+								 master_pubkey = $1
+                WHERE id = $2 AND identity_key_name = id
+				) 
+			%v`, earlyAccessEmailClause)
+	_, err := storage.Exec(ctx, a.db, sql, params...)
+	if err != nil {
+		return errors.Wrapf(err, "failed to update pre-registered user %v", identityKeyName)
+	}
+	return nil
+}
+
+func (a *accounts) rollbackRegistrationAttempt(identityKeyName, earlyAccessEmail string) (err error) {
+	rollbackCtx, cancel := context.WithTimeout(context.Background(), 30*stdlibtime.Second)
+	defer cancel()
+	_, err = storage.Exec(rollbackCtx, a.db, `WITH email_del AS (
+		DELETE from assigned_early_access_emails WHERE email = $1 and user_id = $1
+	)
+	DELETE FROM users WHERE id = identity_key_name and id = $1`, identityKeyName,
+	)
+
+	return errors.Wrapf(err, "failed to rollback registration attempt for user %v", identityKeyName)
 }

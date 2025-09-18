@@ -144,6 +144,62 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/registration/delegated": {
+            "post": {
+                "description": "Initiates user registration",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Register"
+                ],
+                "parameters": [
+                    {
+                        "description": "Request params",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.GetLoginChallenge"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "default": "ap-",
+                        "description": "App ID",
+                        "name": "X-Client-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.RegistrationChallenge"
+                        }
+                    },
+                    "403": {
+                        "description": "if early access email is restricted",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/registration/enduser": {
             "post": {
                 "description": "Completes user registration",
@@ -160,7 +216,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.GetLoginChallenge"
+                            "$ref": "#/definitions/main.CompletedRegistrationChallenge"
                         }
                     },
                     {
@@ -2744,6 +2800,40 @@ const docTemplate = `{
             "type": "object",
             "additionalProperties": {}
         },
+        "main.CompletedRegistrationChallenge": {
+            "type": "object",
+            "properties": {
+                "earlyAccessEmail": {
+                    "type": "string"
+                },
+                "firstFactorCredential": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "recoveryCredential": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "secondFactorCredential": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "wallets": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "network": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "main.CreateWalletReq": {
             "type": "object",
             "properties": {
@@ -2908,6 +2998,10 @@ const docTemplate = `{
                     "type": "integer"
                 }
             }
+        },
+        "main.RegistrationChallenge": {
+            "type": "object",
+            "additionalProperties": {}
         },
         "main.Relays": {
             "type": "object",

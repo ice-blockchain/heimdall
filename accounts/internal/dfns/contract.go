@@ -11,11 +11,11 @@ import (
 	"sync"
 	stdlibtime "time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/dfns/dfns-sdk-go/credentials"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/pkg/errors"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -36,20 +36,17 @@ type (
 		ProxyCall(ctx context.Context, rw http.ResponseWriter, r *http.Request) (status int, respBody io.Reader)
 		StartDelegatedRecovery(ctx context.Context, username string, credentialId string) (*StartedDelegatedRecovery, error)
 		GetLoginChallenge(ctx context.Context, username string) (*LoginChallenge, error)
+		InitRegistration(ctx context.Context, identityKeyName string) (*RegistrationChallenge, error)
 		CompleteRegistrationWithWallets(ctx context.Context, credentials *Credentials) (CompletedRegistration, error)
 		GetUser(ctx context.Context, userID string) (*User, error)
 		VerifyWebhookSecret(fromWebhook string) bool
 		RegisterPostProxyCallback(url string, cb func(req *http.Request, now *time.Time, res map[string]any) error)
-		SetEarlyAccessVerifier(verifier EarlyAccessVerifier)
 		ListWallets(ctx context.Context, userID string) ([]Wallet, error)
 		GetWallet(ctx context.Context, userID string) (*Wallet, error)
 		CreateWallet(ctx context.Context, network, name string) (*Wallet, error)
 		ListAssets(ctx context.Context, walletID string) (*Assets, error)
 		ListNFTs(ctx context.Context, walletID string) (*NFTs, error)
 		SecurePaymentConfirmation(ctx context.Context, userID, network string, wallet Wallet, body map[string]string) (tmplData any, err error)
-	}
-	EarlyAccessVerifier interface {
-		VerifyEarlyAccess(ctx context.Context, email string) error
 	}
 	RefreshAuth interface {
 		AuthClient
@@ -61,6 +58,7 @@ type (
 	Asset                    map[string]any
 	NFT                      = coins.WalletNFT
 	LoginChallenge           map[string]any
+	RegistrationChallenge    map[string]any
 	CompletedRegistration    map[string]any
 	Assets                   struct {
 		Assets   []Asset `json:"assets"`
@@ -157,7 +155,6 @@ type (
 		callbacks               map[string][]func(req *http.Request, now *time.Time, res map[string]any) error
 		bodyModifiableCallbacks map[string]func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error
 		webhookSecret           string
-		earlyAccessVerifier     EarlyAccessVerifier
 		userMx                  sync.Mutex
 		serviceAccountMx        sync.Mutex
 		proxyMx                 sync.Mutex

@@ -12,8 +12,8 @@ import (
 	"sync"
 	stdlibtime "time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/nbd-wtf/go-nostr"
-	"github.com/pkg/errors"
 
 	deviceidentification "github.com/ice-blockchain/heimdall/accounts/internal/device-identification"
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
@@ -51,9 +51,10 @@ type (
 		HealthCheck(ctx context.Context) error
 		PublicKey() string
 		CompleteRegistration(ctx context.Context, credentials *Credentials) (CompletedRegistration, error)
+		InitRegistration(ctx context.Context, identityKeyName string, earlyAccessEmail string) (*RegistrationChallenge, error)
 		GetGlobalAccounts(ctx context.Context, currentVer uint8) ([]*LiteUser, uint8, error)
+		VerifyEarlyAccess(ctx context.Context, email string) error
 		SocialProfiles
-		EarlyAccessVerifier
 		Devices
 	}
 	VerifiedUsersSync interface {
@@ -65,9 +66,6 @@ type (
 		VerifyUsernameAvailability(ctx context.Context, username string) error
 		UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, username, displayName, referral, bio, avatar, loggedInUserUserID string) (*SocialProfile, error)
 		SearchSocialProfiles(ctx context.Context, tpe SearchType, keyword, followedBy, followerOf string, limit, offset uint64) ([]*LiteUser, error)
-	}
-	EarlyAccessVerifier interface {
-		VerifyEarlyAccess(ctx context.Context, email string) error
 	}
 	Devices interface {
 		DeviceIdentificationProofs(ctx context.Context, attestationEvent *model.Event, devicePubkey string) ([]*model.Event, error)
@@ -103,6 +101,7 @@ type (
 	} // email:someone@bogus.com, for the maps to separate codes for same channel
 	StartedDelegatedRecovery = dfns.StartedDelegatedRecovery
 	LoginChallenge           = dfns.LoginChallenge
+	RegistrationChallenge    = dfns.RegistrationChallenge
 	DelegatedRelyingPartyErr = dfns.DfnsInternalError
 	BroadcastTxResponse      = dfns.BroadcastTxResponse
 	User                     struct {

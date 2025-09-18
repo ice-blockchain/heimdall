@@ -135,9 +135,11 @@ CREATE TABLE IF NOT EXISTS early_access_emails (
 
 CREATE TABLE IF NOT EXISTS assigned_early_access_emails (
                                                             user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                                                            email   TEXT NOT NULL REFERENCES early_access_emails(email) ON DELETE CASCADE,
+                                                            email   TEXT NOT NULL,
                                                             primary key(email, user_id)
 );
+
+ALTER TABLE assigned_early_access_emails DROP CONSTRAINT IF EXISTS assigned_early_access_emails_email_fkey;
 
 CREATE TABLE IF NOT EXISTS users_visitors (
                                               created_at       TIMESTAMP NOT NULL,
