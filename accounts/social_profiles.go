@@ -81,7 +81,6 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 				$3::TIMESTAMP AS current_time,
 				$5::TEXT AS display_name,
 				rk.referral_user_master_pubkey AS referral_master_pubkey,
-				(SELECT username FROM social_profiles WHERE master_pubkey = rk.current_user_master_pubkey LIMIT 1) AS old_username,
 				$6::TEXT AS bio,
 				$7::TEXT AS avatar
 			FROM resolved_keys rk
@@ -151,16 +150,12 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 			target.display_name, 
 			target.referral_master_pubkey,
 			COALESCE((SELECT referral_profile.username FROM social_profiles referral_profile WHERE referral_profile.master_pubkey = target.referral_master_pubkey), '') as referral_username,
-			COALESCE(source.old_username, '') as old_username,
-			NOT (source.old_username IS NOT NULL) as is_new_profile,
 			target.bio,
 			target.avatar
 	`
 	type resultProfile struct {
 		socialProfile
-		ReferralUsername string  `db:"referral_username"`
-		OldUsername      *string `db:"old_username"`
-		IsNewProfile     bool    `db:"is_new_profile"`
+		ReferralUsername string `db:"referral_username"`
 	}
 	profile, err := storage.ExecOne[resultProfile](ctx, a.db, query, args...)
 	if err != nil {
@@ -194,16 +189,9 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 		return nil, errors.Wrapf(err, "failed to upsert social profile")
 	}
 
-	var proofEvents []*model.Event
-	oldUsername := ""
-	if profile.OldUsername != nil {
-		oldUsername = *profile.OldUsername
-	}
-	if profile.IsNewProfile || (username != "" && oldUsername != username) {
-		proofEvents, err = a.generateUsernameProofEvents(profile.MasterPubkey, profile.Username)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to generate username proof events for master pubkey %v", profile.MasterPubkey)
-		}
+	proofEvents, err := a.generateUsernameProofEvents(profile.MasterPubkey, profile.Username)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to generate username proof events for master pubkey %v", profile.MasterPubkey)
 	}
 	result := &SocialProfile{
 		Username:          profile.Username,
