@@ -246,6 +246,13 @@ definitions:
       network:
         type: string
     type: object
+  main.InitRegistration:
+    properties:
+      earlyAccessEmail:
+        type: string
+      email:
+        type: string
+    type: object
   main.LiteUser:
     properties:
       ionConnectRelays:
@@ -733,7 +740,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/main.GetLoginChallenge'
+          $ref: '#/definitions/main.InitRegistration'
       - default: ap-
         description: App ID
         in: header

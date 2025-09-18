@@ -160,7 +160,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.GetLoginChallenge"
+                            "$ref": "#/definitions/main.InitRegistration"
                         }
                     },
                     {
@@ -2919,6 +2919,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "network": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.InitRegistration": {
+            "type": "object",
+            "properties": {
+                "earlyAccessEmail": {
+                    "type": "string"
+                },
+                "email": {
                     "type": "string"
                 }
             }

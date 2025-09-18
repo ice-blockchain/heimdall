@@ -290,7 +290,7 @@ func (s *service) CompleteRegistration(
 //	@Description	Initiates user registration
 //	@Tags			Register
 //	@Produce		json
-//	@Param			request		body		GetLoginChallenge	true	"Request params"
+//	@Param			request		body		InitRegistration	true	"Request params"
 //	@Param			X-Client-ID	header		string				true	"App ID"	default(ap-)
 //	@Success		200			{object}	RegistrationChallenge
 //	@Failure		403			{object}	server.ErrorResponse	"if early access email is restricted"
