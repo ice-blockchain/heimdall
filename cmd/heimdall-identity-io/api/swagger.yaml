@@ -165,6 +165,29 @@ definitions:
   main.CompletedRegistration:
     additionalProperties: {}
     type: object
+  main.CompletedRegistrationChallenge:
+    properties:
+      earlyAccessEmail:
+        type: string
+      firstFactorCredential:
+        additionalProperties: {}
+        type: object
+      recoveryCredential:
+        additionalProperties: {}
+        type: object
+      secondFactorCredential:
+        additionalProperties: {}
+        type: object
+      wallets:
+        items:
+          properties:
+            name:
+              type: string
+            network:
+              type: string
+          type: object
+        type: array
+    type: object
   main.CreateWalletReq:
     properties:
       network:
@@ -223,6 +246,13 @@ definitions:
       network:
         type: string
     type: object
+  main.InitRegistration:
+    properties:
+      earlyAccessEmail:
+        type: string
+      email:
+        type: string
+    type: object
   main.LiteUser:
     properties:
       ionConnectRelays:
@@ -272,6 +302,9 @@ definitions:
         type: boolean
       tier:
         type: integer
+    type: object
+  main.RegistrationChallenge:
+    additionalProperties: {}
     type: object
   main.Relays:
     properties:
@@ -698,6 +731,43 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Recovery
+  /auth/registration/delegated:
+    post:
+      description: Initiates user registration
+      parameters:
+      - description: Request params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.InitRegistration'
+      - default: ap-
+        description: App ID
+        in: header
+        name: X-Client-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.RegistrationChallenge'
+        "403":
+          description: if early access email is restricted
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Register
   /auth/registration/enduser:
     post:
       description: Completes user registration
@@ -707,7 +777,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/main.GetLoginChallenge'
+          $ref: '#/definitions/main.CompletedRegistrationChallenge'
       - default: ap-
         description: App ID
         in: header

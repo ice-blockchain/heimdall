@@ -6,7 +6,7 @@ import (
 	"embed"
 	"time"
 
-	"github.com/pkg/errors"
+	"github.com/cockroachdb/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/coins"
@@ -35,7 +35,12 @@ type (
 		Username               string                         `json:"username" allowUnauthorized:"true"`
 		ClientID               string                         `header:"X-Client-ID" required:"true" swaggerignore:"true"`
 	}
-	LoginChallenge                 = accounts.LoginChallenge
+	LoginChallenge   = accounts.LoginChallenge
+	InitRegistration struct {
+		IdentityKeyName  string `json:"email" required:"true" allowUnauthorized:"true"`
+		EarlyAccessEmail string `json:"earlyAccessEmail" required:"false"`
+		ClientID         string `header:"X-Client-ID" required:"true" swaggerignore:"true"`
+	}
 	CompletedRegistrationChallenge struct {
 		*accounts.Credentials         `json:",inline"`
 		ClientID                      string `header:"X-Client-ID" required:"true" swaggerignore:"true"`
@@ -43,6 +48,7 @@ type (
 		Authorization                 string `header:"Authorization" required:"true" swaggerignore:"true"`
 	}
 	CompletedRegistration = accounts.CompletedRegistration
+	RegistrationChallenge = accounts.RegistrationChallenge
 	EarlyAccessCheck      struct {
 		Email string `form:"email" allowUnauthorized:"true" required:"true"`
 	}

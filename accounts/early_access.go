@@ -4,17 +4,19 @@ package accounts
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
-	"github.com/pkg/errors"
+	"github.com/cockroachdb/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
+	"github.com/ice-blockchain/wintr/time"
 )
 
-func (a *accounts) registrationsEnabled() (enabled, earlyAccess bool, err error) {
-	return a.appsRuntimeConfig.IONApp.AllowNewRegistrations, a.appsRuntimeConfig.IONApp.EnableEarlyAccessRegistrations, nil
+func (a *accounts) registrationsEnabled() (enabled, earlyAccess bool) {
+	return a.appsRuntimeConfig.IONApp.AllowNewRegistrations, a.appsRuntimeConfig.IONApp.EnableEarlyAccessRegistrations
 }
 
 func (a *accounts) isEmailAllowed(ctx context.Context, email string) error {
@@ -51,29 +53,45 @@ func (a *accounts) isEmailAllowed(ctx context.Context, email string) error {
 	return nil
 }
 
-func (a *accounts) markEmailAsUsed(ctx context.Context, email string, userID string) error {
+func (a *accounts) insertRegistrationComplete(ctx context.Context, now *time.Time, email, userID, identityKeyName, deviceIdentificationRequestId string) error {
 	maxAllowedPerEmail := a.appsRuntimeConfig.IONApp.MaxEarlyAccessRegistrationsAllowedPerEmail
-	sql := `WITH inserted_users AS (
-			WITH allowed_email AS (
-				SELECT * FROM (VALUES($1, $3)) as t(email, user_id) WHERE (SELECT count(*) FROM assigned_early_access_emails WHERE email = $1) < $2
-			)
-			INSERT INTO assigned_early_access_emails(email, user_id) SELECT email, user_id FROM allowed_email ON CONFLICT(email, user_id) DO NOTHING
-			RETURNING 1) SELECT count(*) > 0 AS email_allowed from inserted_users`
 	email = strings.ToLower(email)
 	params := []any{email, maxAllowedPerEmail, userID}
-	allowed, err := storage.ExecOne[struct {
-		EmailAllowed bool `db:"email_allowed"`
+	visitorInsert := ""
+	if deviceIdentificationRequestId != "" {
+		visitorInsert = `visitor_insert AS (
+		INSERT INTO users_visitors(created_at, user_id, visitor_id, device_pubkey) VALUES ($4, $3, $3, $3)
+		ON CONFLICT(user_id, visitor_id) DO NOTHING
+	),`
+		params = append(params, *now.Time)
+	}
+	sql := fmt.Sprintf(`WITH %v
+				allowed_email AS (
+					SELECT * FROM (VALUES($1, $3)) as t(email, user_id) WHERE (SELECT count(*) FROM assigned_early_access_emails WHERE email = $1) <= $2
+				)
+				SELECT ae.user_id, ae.email, assigned.email as key_name FROM allowed_email ae
+				JOIN assigned_early_access_emails assigned ON ae.user_id = assigned.user_id`, visitorInsert)
+	res, err := storage.ExecOne[struct {
+		UserID          string `db:"user_id"`
+		Email           string `db:"email"`
+		IdentityKeyName string `db:"key_name"`
 	}](ctx, a.db, sql, params...)
 	if err != nil {
-		if storage.IsErr(err, storage.ErrRelationNotFound) {
-			err = nil
-			allowed = &struct {
-				EmailAllowed bool `db:"email_allowed"`
-			}{EmailAllowed: false}
+		if storage.IsErr(err, storage.ErrNotFound) {
+			derr := new(dfns.DfnsInternalError)
+			*derr = *ErrEmailNotAllowedForEarlyAccess
+			derr.HTTPStatus = http.StatusForbidden
+			return derr
 		}
-		return errors.Wrapf(err, "failed to check if email %v is allowed and insert user ID %v", email, userID)
+		return errors.Wrapf(err, "failed to insert registration complete")
 	}
-	if !allowed.EmailAllowed {
+	if res == nil {
+		derr := new(dfns.DfnsInternalError)
+		*derr = *ErrEmailNotAllowedForEarlyAccess
+		derr.HTTPStatus = http.StatusForbidden
+		return derr
+	}
+	if res.Email != email || res.IdentityKeyName != identityKeyName || res.UserID != userID {
 		derr := new(dfns.DfnsInternalError)
 		*derr = *ErrEmailNotAllowedForEarlyAccess
 		derr.HTTPStatus = http.StatusForbidden
@@ -83,16 +101,8 @@ func (a *accounts) markEmailAsUsed(ctx context.Context, email string, userID str
 
 }
 
-func (a *accounts) verifyEarlyAccessAndUpsertUserID(ctx context.Context, email string, res map[string]any) error {
-	userID, _ := dfns.ExtractUser(res, "username")
-	return a.markEmailAsUsed(ctx, email, userID)
-}
-
 func (a *accounts) VerifyEarlyAccess(ctx context.Context, email string) error {
-	registrationsEnabled, earlyAccess, rErr := a.registrationsEnabled()
-	if rErr != nil {
-		return errors.Wrapf(rErr, "failed to check if registrations are enabled")
-	}
+	registrationsEnabled, earlyAccess := a.registrationsEnabled()
 	if !registrationsEnabled {
 		derr := new(dfns.DfnsInternalError)
 		*derr = *ErrRegistrationsDisabled

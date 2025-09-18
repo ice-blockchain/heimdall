@@ -64,7 +64,6 @@ func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *App
 		relaysRepo:                 relays,
 		appsRuntimeConfig:          runtimeConfig,
 	}
-	cl.SetEarlyAccessVerifier(&acc)
 	cl.RegisterPostProxyCallback(completeLoginUrl, acc.upsertUserFromLogin)
 	cl.RegisterPostProxyCallback(delegatedLoginUrl, acc.upsertUserFromLogin)
 	acc.delegatedRPClient = cl

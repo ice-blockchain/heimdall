@@ -19,11 +19,11 @@ import (
 
 	"dario.cat/mergo"
 	"github.com/cenkalti/backoff/v4"
+	"github.com/cockroachdb/errors"
 	"github.com/dfns/dfns-sdk-go/credentials"
 	"github.com/dfns/dfns-sdk-go/dfnsapiclient"
 	ethabi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/goccy/go-json"
-	"github.com/pkg/errors"
 	"github.com/twilio/twilio-go/client/form"
 
 	"github.com/ice-blockchain/heimdall/server"
@@ -65,11 +65,6 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 		log.Panic(errors.Errorf("webFEAppId is not listed in allowed applications"))
 	}
 	cl.bodyModifiableCallbacks = map[string]func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error{
-		"200:" + initDelegatedRegistrationUrl: func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
-			return cl.extendResponseBodyWith(r, res,
-				cl.extendChallengeWithRP(),
-			)
-		},
 		"200:" + initLoginUrl: func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
 			return cl.extendResponseBodyWith(r, res,
 				cl.extendChallengeWithRP(),
@@ -112,10 +107,6 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 		"400:" + networkFeesUrl: cl.extendFees(),
 	}
 	return cl
-}
-
-func (c *dfnsClient) SetEarlyAccessVerifier(verifier EarlyAccessVerifier) {
-	c.earlyAccessVerifier = verifier
 }
 
 func (c *dfnsClient) extendFees() func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
@@ -400,8 +391,6 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 	var extendErr error
 	var extendErrBody *DfnsInternalError
 	switch {
-	case req.URL.Path == initDelegatedRegistrationUrl:
-		extendErrBody, extendErr = c.verifyEarlyAccessRegistrationAndPopulateEndUser(req)
 	case req.URL.Path == delegatedLoginUrl:
 		extendErrBody, extendErr = c.exchangeRefreshTokenToUsername(req)
 	case req.URL.Path == initUserSignatureUrl:
@@ -578,29 +567,6 @@ func extendRequestWith[ReqBody any](req *http.Request, extendFn func(*ReqBody) e
 	req.Body = io.NopCloser(bytes.NewReader(body))
 
 	return nil, nil //nolint:nilnil // .
-}
-
-func (c *dfnsClient) verifyEarlyAccessRegistrationAndPopulateEndUser(req *http.Request) (resp *DfnsInternalError, err error) {
-	return extendRequestWith[struct {
-		Email            string `json:"email"`
-		EarlyAccessEmail string `json:"earlyAccessEmail,omitempty"`
-		Kind             string `json:"kind"`
-	}](req, func(content *struct {
-		Email            string `json:"email"`
-		EarlyAccessEmail string `json:"earlyAccessEmail,omitempty"`
-		Kind             string `json:"kind"`
-	}) error {
-		if !UsernameRegexp.MatchString(content.Email) {
-			return errors.Wrapf(ErrInvalidUsername, "must match %v", UsernameRegexp.String())
-		}
-		if aErr := c.earlyAccessVerifier.VerifyEarlyAccess(req.Context(), content.EarlyAccessEmail); aErr != nil {
-			return aErr
-		}
-
-		content.EarlyAccessEmail = ""
-		content.Kind = "EndUser"
-		return nil
-	})
 }
 
 func (c *dfnsClient) exchangeRefreshTokenToUsername(req *http.Request) (*DfnsInternalError, error) {
@@ -855,6 +821,35 @@ func (c *dfnsClient) GetLoginChallenge(ctx context.Context, username string) (*L
 	}, LoginChallenge](ctx, c, &params, "POST", "/auth/login/init", header)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to start login flow for username %v", username)
+	}
+	m := map[string]any(*resp)
+	m["rp"] = map[string]any{
+		"name": c.cfg.DFNS.AllowedApplications[appID(ctx)].Name,
+		"id":   c.cfg.DFNS.AllowedApplications[appID(ctx)].RPID,
+	}
+	*resp = m
+	return resp, nil
+}
+func (c *dfnsClient) InitRegistration(ctx context.Context, identityKeyName string) (*RegistrationChallenge, error) {
+	if !UsernameRegexp.MatchString(identityKeyName) {
+		return nil, errors.Wrapf(ErrInvalidUsername, "must match %v", UsernameRegexp.String())
+	}
+
+	params := struct {
+		Email string `json:"email"`
+		Kind  string `json:"kind"`
+	}{
+		Email: identityKeyName,
+		Kind:  "EndUser",
+	}
+	header := http.Header{}
+	header.Set("Authorization", c.cfg.DFNS.ServiceKey)
+	resp, err := dfnsCall[struct {
+		Email string `json:"email"`
+		Kind  string `json:"kind"`
+	}, RegistrationChallenge](ctx, c, &params, "POST", "/auth/registration/delegated", header, []int{http.StatusUnauthorized})
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to init registration flow for identity key name %v", identityKeyName)
 	}
 	m := map[string]any(*resp)
 	m["rp"] = map[string]any{
