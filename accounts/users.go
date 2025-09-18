@@ -756,7 +756,10 @@ func (a *accounts) rollbackVisitor(userID, visitorID string, duplicateOf *string
 
 func (a *accounts) insertRegistrationAttempt(ctx context.Context, now *time.Time, identityKeyName, earlyAccessEmail string) error {
 	params := []any{identityKeyName, []string{}, *now.Time}
-	earlyAccessEmailClause := "SELECT true as email_allowed from ins_user;"
+	earlyAccessEmailClause := "SELECT true as email_allowed;"
+	type emailAllowed struct {
+		EmailAllowed bool `db:"email_allowed"`
+	}
 	if earlyAccessEmail != "" {
 		maxAllowedPerEmail := a.appsRuntimeConfig.IONApp.MaxEarlyAccessRegistrationsAllowedPerEmail
 		earlyAccessEmailClause = `, ins_email as (WITH allowed_email AS (
@@ -774,26 +777,27 @@ func (a *accounts) insertRegistrationAttempt(ctx context.Context, now *time.Time
 						  RETURNING 1
 				) 
 			%v;`, earlyAccessEmailClause)
-	allowed, err := storage.ExecOne[struct {
-		EmailAllowed bool `db:"email_allowed"`
-	}](ctx, a.db, sql, params...)
+	allowed, err := storage.ExecOne[emailAllowed](ctx, a.db, sql, params...)
 	if err != nil {
 		switch {
 		case storage.IsErr(err, storage.ErrRelationNotFound):
 			err = nil
-			allowed = &struct {
-				EmailAllowed bool `db:"email_allowed"`
-			}{EmailAllowed: false}
+			allowed = &emailAllowed{EmailAllowed: false}
 		case storage.IsErr(err, storage.ErrDuplicate):
 			// retry from FE due to webauthn failure probably, its challenge endpoint
 			if tErr := terror.As(err); tErr != nil && tErr.Data["column"] == "identityname" {
 				err = nil
-				allowed = &struct {
-					EmailAllowed bool `db:"email_allowed"`
-				}{EmailAllowed: true}
+				allowed = &emailAllowed{EmailAllowed: true}
 			}
 		default:
 			return errors.Wrapf(err, "failed to check if email %v is allowed and insert user %v", earlyAccessEmail, identityKeyName)
+		}
+	}
+	if allowed == nil {
+		if earlyAccessEmail != "" {
+			allowed = &emailAllowed{EmailAllowed: false}
+		} else {
+			allowed = &emailAllowed{EmailAllowed: true}
 		}
 	}
 	if !allowed.EmailAllowed {
