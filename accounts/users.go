@@ -642,7 +642,7 @@ func (a *accounts) CompleteRegistration(ctx context.Context, credentials *Creden
 		if rErr != nil {
 			return nil, multierror.Append(err, errors.Wrap(rErr, "failed to rollback visitor link"))
 		}
-		return registration, nil
+		return nil, errors.Wrapf(err, "failed to update request id for user %v: %v", userID, requestID)
 	}
 
 	return registration, nil
