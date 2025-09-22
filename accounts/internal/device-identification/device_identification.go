@@ -337,7 +337,7 @@ func (c *client) updateRequestID(ctx context.Context, requestID, linkedId string
 	httpResp, err := c.client.FingerprintApi.UpdateEvent(authCtx, req, requestID)
 	if err != nil {
 		var tooManyRequestsError *deviceidentificationsdk.TooManyRequestsError
-		var conflictTooEarly *deviceidentificationsdk.ErrorResponse
+		var conflictTooEarly *deviceidentificationsdk.ApiError
 		switch {
 		case errors.As(err, &tooManyRequestsError):
 			select {
@@ -346,7 +346,7 @@ func (c *client) updateRequestID(ctx context.Context, requestID, linkedId string
 			case <-time.After(time.Duration(tooManyRequestsError.RetryAfter()) * time.Second):
 				return c.updateRequestID(ctx, requestID, linkedId, originLinkedId)
 			}
-		case errors.As(err, &conflictTooEarly) && strings.Contains(strings.ToLower(err.Error()), "resource is not mutable yet, try again"):
+		case errors.As(err, &conflictTooEarly) && strings.Contains(strings.ToLower(conflictTooEarly.Error()), "resource is not mutable yet, try again"):
 			return errors.Wrapf(errRetry, "update requestID:%v failed: %v", requestID, err.Error())
 		default:
 			if httpResp != nil {
