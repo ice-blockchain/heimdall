@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	deviceidentificationsdk "github.com/fingerprintjs/fingerprint-pro-server-api-go-sdk/v7/sdk"
 	"github.com/goccy/go-json"
 	"github.com/pkg/errors"
@@ -290,11 +291,38 @@ func (c *client) getEvent(ctx context.Context, requestID string) (*deviceidentif
 	return &request, nil
 }
 
-func (c *client) UpdateRequestID(ctx context.Context, requestID, linkedId string, originLinkedId *string) error {
+func (c *client) UpdateRequestID(ctx context.Context, requestID, linkedId string, originLinkedId *string) (err error) {
+	err = backoff.RetryNotify(
+		func() error {
+			err = c.updateRequestID(ctx, requestID, linkedId, originLinkedId)
+			if errors.Is(err, errRetry) {
+				return err
+			}
+			return backoff.Permanent(err)
+		},
+		backoff.WithContext(&backoff.ExponentialBackOff{
+			InitialInterval:     500 * time.Millisecond,
+			RandomizationFactor: 0.5,
+			Multiplier:          2.5,
+			MaxInterval:         3 * time.Second,
+			MaxElapsedTime:      25 * time.Second,
+			Stop:                backoff.Stop,
+			Clock:               backoff.SystemClock,
+		}, ctx),
+		func(e error, next time.Duration) {
+			log.Info(fmt.Sprintf("update request id call failed for %v: %v retrying in %v... ", requestID, e, next))
+		})
+
+	return err
+}
+
+func (c *client) updateRequestID(ctx context.Context, requestID, linkedId string, originLinkedId *string) error {
 	if deviceIdentificationDisabled && requestID == "" { // TODO: remove once FE implemented.
 		return nil
 	}
-
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
 	req := deviceidentificationsdk.EventsUpdateRequest{
 		LinkedId: linkedId,
 	}
@@ -309,18 +337,25 @@ func (c *client) UpdateRequestID(ctx context.Context, requestID, linkedId string
 	httpResp, err := c.client.FingerprintApi.UpdateEvent(authCtx, req, requestID)
 	if err != nil {
 		var tooManyRequestsError *deviceidentificationsdk.TooManyRequestsError
-		if errors.As(err, &tooManyRequestsError) {
+		var conflictTooEarly *deviceidentificationsdk.ErrorResponse
+		switch {
+		case errors.As(err, &tooManyRequestsError):
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
 			case <-time.After(time.Duration(tooManyRequestsError.RetryAfter()) * time.Second):
-				return c.UpdateRequestID(ctx, requestID, linkedId, originLinkedId)
+				return c.updateRequestID(ctx, requestID, linkedId, originLinkedId)
 			}
-		} else {
+		case errors.As(err, &conflictTooEarly) && strings.Contains(strings.ToLower(err.Error()), "resource is not mutable yet, try again"):
+			return errors.Wrapf(errRetry, "update requestID:%v failed: %v", requestID, err.Error())
+		default:
 			if httpResp != nil {
 				bodyBytes, bodyErr := io.ReadAll(httpResp.Body)
 				if bodyErr != nil {
 					return errors.Wrapf(bodyErr, "[device-identification] failed to update request %q: %v", requestID, err.Error())
+				}
+				if httpResp.StatusCode == http.StatusConflict && strings.Contains(strings.ToLower(string(bodyBytes)), "resource is not mutable yet, try again") {
+					return errors.Wrapf(errRetry, "failed to update requestID:%v (%v): %v", requestID, httpResp.StatusCode, string(bodyBytes))
 				}
 				return errors.Wrapf(err, "failed to update requestID:%v (%v): %v", requestID, httpResp.StatusCode, string(bodyBytes))
 			}

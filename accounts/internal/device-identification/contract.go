@@ -67,6 +67,7 @@ type (
 
 var (
 	validRegions = []deviceidentificationsdk.Region{deviceidentificationsdk.RegionUS, deviceidentificationsdk.RegionEU, deviceidentificationsdk.RegionAsia}
+	errRetry     = errors.New("retry")
 )
 
 const (
