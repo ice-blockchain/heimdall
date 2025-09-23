@@ -263,6 +263,7 @@ func (a *accounts) generateUsernameProofEvents(masterPubkey, username string) ([
 				{"d", usernameProofOfOwnershipBadgeName + "~" + username},
 				{"name", "username proof of ownership for " + username + " from ION Identity"},
 				{"description", "Awarded by ION Identity to the user that owns the " + username + " username"},
+				{"p", masterPubkey},
 			},
 		},
 	}
