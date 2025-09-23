@@ -94,10 +94,10 @@ func (a *accounts) DeviceIdentificationProofs(ctx context.Context, attestationEv
 	if !allowed {
 		return nil, errors.Wrapf(ErrNotFound, "device is not allowed in attestation")
 	}
-	if err = a.validateDevice(ctx, attestationEvent.GetMasterPublicKey(), devicePubkey); err != nil {
+	if err = a.validateDevice(ctx, attestationEvent.PubKey, devicePubkey); err != nil {
 		return nil, errors.Wrapf(err, "failed to verify device pubkey in db %v", devicePubkey)
 	}
-	return a.generateDeviceVerifiedBadges(devicePubkey, attestationEvent.GetMasterPublicKey())
+	return a.generateDeviceVerifiedBadges(devicePubkey, attestationEvent.PubKey)
 }
 
 func (a *accounts) validateDevice(ctx context.Context, masterKey string, devicePubkey string) error {
