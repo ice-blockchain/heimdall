@@ -124,7 +124,7 @@ var (
 
 	imageUrlMap = map[NFTContentType]string{
 		NFTContentTypeUser:    "https://cdn.ice.io/nft/assets/collection.png",
-		NFTContentTypeAccount: "http://cdn.ice.io/nft/assets/account.png",
+		NFTContentTypeAccount: "https://cdn.ice.io/nft/assets/account.png",
 		NFTContentTypeVideo:   "https://cdn.ice.io/nft/assets/video.png",
 		NFTContentTypeStory:   "https://cdn.ice.io/nft/assets/stories.png",
 		NFTContentTypePost:    "https://cdn.ice.io/nft/assets/post.png",
