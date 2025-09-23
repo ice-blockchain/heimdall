@@ -46,7 +46,7 @@ func (a *accounts) masterKeyExists(ctx context.Context, masterPubKey string) err
 	return nil
 }
 
-func (a *accounts) generateDeviceVerifiedBadges(devicePubkey string) ([]*model.Event, error) {
+func (a *accounts) generateDeviceVerifiedBadges(devicePubkey, masterPubKey string) ([]*model.Event, error) {
 	publicKey, err := model.GetPublicKey(a.privateKey)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get public key")
@@ -61,6 +61,7 @@ func (a *accounts) generateDeviceVerifiedBadges(devicePubkey string) ([]*model.E
 				{"description", "Awarded by ION Identity to each user's device that is verified to be a valid device of that user"},
 				identifiedDeviceBadgeThumbnail256X256Tag,
 				identifiedDeviceImage1024X1024Tag,
+				{"p", masterPubKey},
 			},
 		},
 	}
@@ -96,7 +97,7 @@ func (a *accounts) DeviceIdentificationProofs(ctx context.Context, attestationEv
 	if err = a.validateDevice(ctx, attestationEvent.GetMasterPublicKey(), devicePubkey); err != nil {
 		return nil, errors.Wrapf(err, "failed to verify device pubkey in db %v", devicePubkey)
 	}
-	return a.generateDeviceVerifiedBadges(devicePubkey)
+	return a.generateDeviceVerifiedBadges(devicePubkey, attestationEvent.GetMasterPublicKey())
 }
 
 func (a *accounts) validateDevice(ctx context.Context, masterKey string, devicePubkey string) error {
