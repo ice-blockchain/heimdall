@@ -389,7 +389,7 @@ func (a *accounts) insertIdentityKeyNameAndVisitorID(ctx context.Context, now *t
 	params := []any{userID, identityKeyName, []string{}, *now.Time, masterPubKey}
 	if visitorID != "" {
 		visitorUpdate = `INSERT INTO users_visitors(created_at, user_id, visitor_id, device_pubkey) VALUES ($4, $1, $6, $7)
-							ON CONFLICT(user_id, visitor_id) DO NOTHING;`
+							ON CONFLICT(user_id, visitor_id) DO UPDATE SET device_pubkey = $7;`
 		params = append(params, visitorID, devicePubkey)
 	}
 	_, err := storage.Exec(ctx, a.db, fmt.Sprintf(`
