@@ -122,14 +122,13 @@ var (
 	//go:embed DDL.sql
 	ddl string
 
-	//TODO: change them
 	imageUrlMap = map[NFTContentType]string{
-		NFTContentTypeUser:    "https://api.iconify.design/lucide:grid-3x3.svg",
-		NFTContentTypeAccount: "https://api.iconify.design/lucide:user.svg",
-		NFTContentTypeVideo:   "https://api.iconify.design/lucide:video.svg",
-		NFTContentTypeStory:   "https://api.iconify.design/lucide:circle-dot.svg",
-		NFTContentTypePost:    "https://api.iconify.design/lucide:square.svg",
-		NFTContentTypeArticle: "https://api.iconify.design/lucide:newspaper.svg",
+		NFTContentTypeUser:    "https://cdn.ice.io/nft/assets/collection.png",
+		NFTContentTypeAccount: "http://cdn.ice.io/nft/assets/account.png",
+		NFTContentTypeVideo:   "https://cdn.ice.io/nft/assets/video.png",
+		NFTContentTypeStory:   "https://cdn.ice.io/nft/assets/stories.png",
+		NFTContentTypePost:    "https://cdn.ice.io/nft/assets/post.png",
+		NFTContentTypeArticle: "https://cdn.ice.io/nft/assets/article.png",
 	}
 	defaultIndexerReqLimit = uint(100)
 )
