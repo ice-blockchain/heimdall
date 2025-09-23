@@ -81,8 +81,8 @@ func (n *nftContent) GetNFTCollectionMetadata(ctx context.Context, masterPubkey 
 	}
 
 	return &NFTResponse{
-			Name:        fmt.Sprintf("%s's ION NFT collection", row.Username),
-			Description: fmt.Sprintf("Official ION NFT Collection for %s", row.Username),
+			Name:        fmt.Sprintf("%s's Collection", row.Username),
+			Description: fmt.Sprintf("A personal on-chain collection for @%s. All account, story, post, video, and article NFTs are stored here, permanently tied to the user's identity.", row.Username),
 			Image:       imageUrlMap[NFTContentTypeUser],
 			Symbol:      row.Username,
 		},
@@ -103,8 +103,8 @@ func (n *nftContent) GetNFTCollectionItemMetadata(ctx context.Context, nftConten
 
 	if NFTContentType(nftContentType) == NFTContentTypeAccount {
 		profileUri, _ := url.JoinPath(n.config.ProfileURIBaseURL, metadata.Type, metadata.ContentAddress, "html-preview")
-		resp.Name = fmt.Sprintf("%s's ION Profile", metadata.Username)
-		resp.Description = fmt.Sprintf("Official ION Account for %s.", metadata.Username)
+		resp.Name = "Identity"
+		resp.Description = fmt.Sprintf("The first NFT in @%s's collection. It proves their account registration and anchors their identity on-chain.", metadata.Username)
 		resp.Type = responseAccountType
 		resp.AccountID = metadata.Username
 		resp.ProfileUri = profileUri
@@ -113,14 +113,30 @@ func (n *nftContent) GetNFTCollectionItemMetadata(ctx context.Context, nftConten
 			resp.Bio = *metadata.Bio
 		}
 	} else {
-		resp.Name = nftResponseName
-		resp.Description = nftResponseDescription
 		contentUri, _ := url.JoinPath(n.config.ContentURIBaseURL, metadata.Type, metadata.ContentAddress, "html-preview")
 		resp.Type = responseContentType
 		resp.Category = []NFTContentType{metadata.Type}
 		resp.ContentUri = contentUri
 		resp.ContentType = contentTypeHtml
 		resp.AuthorID = metadata.Username
+
+		switch NFTContentType(nftContentType) {
+		case NFTContentTypeStory:
+			resp.Name = "Stories"
+			resp.Description = fmt.Sprintf("An NFT that contains all currently active stories shared by @%s. When stories expire, their content is no longer available, but the NFT remains, always reflecting the user's active stories at that moment.", metadata.Username)
+		case NFTContentTypePost:
+			resp.Name = "Post"
+			resp.Description = fmt.Sprintf("An immutable record of @%s's post, preserved inside their personal collection.", metadata.Username)
+		case NFTContentTypeVideo:
+			resp.Name = "Video"
+			resp.Description = fmt.Sprintf("An immutable record of @%s's video, stored forever in their collection.", metadata.Username)
+		case NFTContentTypeArticle:
+			resp.Name = "Article"
+			resp.Description = fmt.Sprintf("An immutable record of @%s's article, recording their authorship permanently.", metadata.Username)
+		default:
+			resp.Name = nftResponseName
+			resp.Description = nftResponseDescription
+		}
 	}
 
 	return resp, &metadata.NFTCollectionMetadata, nil

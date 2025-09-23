@@ -47,7 +47,7 @@ func (s *service) GetNFTCollectionMetadata(
 		resp     *nftcontent.NFTResponse
 		metadata *nftcontent.NFTCollectionMetadata
 	)
-	if req.Data.NFTContentType == "user" {
+	if req.Data.NFTContentType == nftcontent.NFTContentTypeUser {
 		resp, metadata, err = s.nftContent.GetNFTCollectionMetadata(ctx, req.Data.ContentAddress)
 	} else {
 		resp, metadata, err = s.nftContent.GetNFTCollectionItemMetadata(ctx, req.Data.NFTContentType, req.Data.ContentAddress)
