@@ -348,5 +348,5 @@ var (
 		},
 	}
 	errVersionRequired           = errors.New("version required")
-	blacklistedCountriesPhone2FA = []string{"SV", "EG", "IS"}
+	blacklistedCountriesPhone2FA = []string{"AF", "AG", "AI", "AL", "AM", "AO", "AQ", "AS", "AW", "AX", "AZ", "BA", "BB", "BD", "BE", "BF", "BG", "BI", "BJ", "BL", "BM", "BO", "BQ", "BT", "BV", "BW", "BY", "BZ", "CC", "CD", "CF", "CG", "CI", "CK", "CM", "CN", "CU", "CV", "CW", "CX", "DE", "DJ", "DM", "DO", "DZ", "EC", "EG", "EH", "ER", "ET", "FJ", "FK", "FM", "FO", "GA", "GD", "GE", "GF", "GG", "GH", "GI", "GM", "GN", "GP", "GQ", "GS", "GT", "GY", "HM", "HN", "HR", "HT", "ID", "IL", "IM", "IN", "IO", "IQ", "IR", "JE", "JM", "JO", "KE", "KG", "KH", "KI", "KM", "KN", "KP", "XK", "KW", "KY", "KZ", "LA", "LB", "LC", "LK", "LR", "LS", "LY", "MA", "MC", "MD", "ME", "MF", "MG", "MH", "ML", "MM", "MN", "MP", "MQ", "MR", "MS", "MU", "MV", "MW", "MX", "MY", "MZ", "NC", "NE", "NF", "NG", "NI", "NL", "NP", "NU", "NZ", "OM", "PA", "PE", "PF", "PG", "PH", "PK", "PM", "PN", "PS", "PW", "PY", "QA", "RE", "RS", "RU", "RW", "SA", "SB", "SC", "SD", "SH", "SI", "SJ", "SL", "SM", "SN", "SO", "SR", "SS", "ST", "SV", "SX", "SY", "SZ", "TC", "TD", "TF", "TG", "TJ", "TK", "TL", "TM", "TN", "TO", "TT", "TV", "TZ", "UA", "UG", "UM", "UZ", "VA", "VC", "VE", "VG", "VI", "VN", "VU", "WF", "WS", "YE", "YT", "ZA", "ZM", "ZW"}
 )
