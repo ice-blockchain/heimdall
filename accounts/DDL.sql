@@ -176,3 +176,49 @@ BEGIN
     );
 END;
 $$;
+
+CREATE OR REPLACE FUNCTION add_verified(p_username TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_username TEXT := lower(p_username);
+BEGIN
+    IF v_username = '' THEN
+        RAISE EXCEPTION 'USERNAME_REQUIRED';
+    END IF;
+
+    INSERT INTO verified_users_sync_queue(user_id)
+    SELECT u.id
+    FROM users u
+    JOIN social_profiles sp ON u.master_pubkey = sp.master_pubkey
+    WHERE sp.username = v_username;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'USER_NOT_FOUND: %', v_username;
+    END IF;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION add_content_creator(p_username TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_username TEXT := lower(p_username);
+BEGIN
+    IF v_username = '' THEN
+        RAISE EXCEPTION 'USERNAME_REQUIRED';
+    END IF;
+
+    INSERT INTO content_creators(master_pubkey)
+    SELECT u.master_pubkey
+    FROM users u
+    JOIN social_profiles sp ON u.master_pubkey = sp.master_pubkey
+    WHERE sp.username = v_username;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'USER_NOT_FOUND: %', v_username;
+    END IF;
+END;
+$$;
