@@ -1,5 +1,5 @@
 {
   "en": {
-    "text": "Your ION confirmation code: {{.ConfirmationCode}}"
+    "text": "Your Identity.io confirmation code: {{.ConfirmationCode}}"
   }
 }
