@@ -23,8 +23,8 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/ice-blockchain/subzero v1.404.0
-	github.com/ice-blockchain/wintr v1.160.0
+	github.com/ice-blockchain/subzero v1.406.0
+	github.com/ice-blockchain/wintr v1.162.0
 	github.com/imroc/req/v3 v3.55.0
 	github.com/jellydator/ttlcache/v3 v3.4.0
 	github.com/lestrrat-go/jwx/v2 v2.1.6
@@ -36,7 +36,7 @@ require (
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.1
 	github.com/swaggo/swag v1.16.6
-	github.com/twilio/twilio-go v1.28.1
+	github.com/twilio/twilio-go v1.28.2
 	github.com/xssnick/tonutils-go v1.15.0
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621
 	golang.org/x/mod v0.28.0
