@@ -124,7 +124,8 @@ accounts:
   wintr/connectors/storage/v2:
     runDDL: true
     primaryURL: postgresql://root:pass@localhost:5437/heimdall
-    primaryFallbackURL: postgresql://root:pass@localhost:5437/heimdall
+    primaryFallbackURLs:
+      - postgresql://root:pass@localhost:5437/heimdall
     credentials:
       user: root
       password: pass
@@ -324,7 +325,8 @@ coins:
   wintr/connectors/storage/v2:
     runDDL: true
     primaryURL: postgresql://root:pass@localhost:5437/heimdall
-    primaryFallbackURL: postgresql://root:pass@localhost:5437/heimdall
+    primaryFallbackURLs:
+     - postgresql://root:pass@localhost:5437/heimdall
     credentials:
       user: root
       password: pass
@@ -338,7 +340,8 @@ hashtagstatistics:
   wintr/connectors/storage/v2:
     runDDL: true
     primaryURL: postgresql://root:pass@localhost:5437/heimdall
-    primaryFallbackURL: postgresql://root:pass@localhost:5437/heimdall
+    primaryFallbackURLs:
+      - postgresql://root:pass@localhost:5437/heimdall
     credentials:
       user: root
       password: pass
@@ -353,7 +356,8 @@ nft-content:
   wintr/connectors/storage/v2:
     runDDL: true
     primaryURL: postgresql://root:pass@localhost:5437/heimdall
-    primaryFallbackURL: postgresql://root:pass@localhost:5437/heimdall
+    primaryFallbackURLs:
+      - postgresql://root:pass@localhost:5437/heimdall
     credentials:
       user: root
       password: pass
@@ -363,7 +367,8 @@ following:
   wintr/connectors/storage/v2:
     runDDL: true
     primaryURL: postgresql://root:pass@localhost:5437/heimdall
-    primaryFallbackURL: postgresql://root:pass@localhost:5437/heimdall
+    primaryFallbackURLs:
+      - postgresql://root:pass@localhost:5437/heimdall
     credentials:
       user: root
       password: pass
@@ -373,7 +378,8 @@ relay-management:
   wintr/connectors/storage/v2:
     runDDL: true
     primaryURL: postgresql://root:pass@localhost:5437/heimdall
-    primaryFallbackURL: postgresql://root:pass@localhost:5437/heimdall
+    primaryFallbackURLs:
+      - postgresql://root:pass@localhost:5437/heimdall
     credentials:
       user: root
       password: pass

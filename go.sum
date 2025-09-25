@@ -457,10 +457,10 @@ github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5 h1:
 github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5/go.mod h1:or80JBz1VHXxKN5qXBNYFooWcfjUPIQzbNUVZ7FTFzo=
 github.com/ice-blockchain/go/src v0.0.0-20250625091122-356c0c7d1830 h1:FymrVSpOD6rKyZ97MJr5Xu2ZP29EqTKpdMqTf2DrMgU=
 github.com/ice-blockchain/go/src v0.0.0-20250625091122-356c0c7d1830/go.mod h1:pVzkmaIwkLaJ5cKPHPtuKyxaXiTsa/V7kbbgLmsr4Hw=
-github.com/ice-blockchain/subzero v1.404.0 h1:LB8ZsP1aLfHoWWZMg7SUq1dj8gQwFiVFB7ixJ0i7pO0=
-github.com/ice-blockchain/subzero v1.404.0/go.mod h1:DzMmCm9IoA8C6gKTcbcHFV8DlQnCNkLfTtpUaXsXwjo=
-github.com/ice-blockchain/wintr v1.160.0 h1:BqQwghk2EknLeeZIbDMbDNETdq+lXuFX/EG8BS9iXqQ=
-github.com/ice-blockchain/wintr v1.160.0/go.mod h1:sGgF06+vkBKDBfNIKbsfelPVfHSEG66NiL6xKGj+LcM=
+github.com/ice-blockchain/subzero v1.406.0 h1:eAx28TWx6Dzk+QVse95h36masJvoXhvwRyjUcoc1o8w=
+github.com/ice-blockchain/subzero v1.406.0/go.mod h1:m3RjPPDFevkucv7B2+XadpC3sCUNxSknRqAMAUP06wg=
+github.com/ice-blockchain/wintr v1.162.0 h1:rWADHZWpHchNj6T4O8+tSEigmoFgcGr2dLOYSmqHBLI=
+github.com/ice-blockchain/wintr v1.162.0/go.mod h1:90eXnhvMZ2KhK+pghah/PA2+spMZqOis9P1yYvav03I=
 github.com/icholy/digest v1.1.0 h1:HfGg9Irj7i+IX1o1QAmPfIBNu/Q5A5Tu3n/MED9k9H4=
 github.com/icholy/digest v1.1.0/go.mod h1:QNrsSGQ5v7v9cReDI0+eyjsXGUoRSUZQHeQ5C4XLa0Y=
 github.com/imroc/req/v3 v3.55.0 h1:vg2Q33TGU12wZWZyPkiPbCGGTeiOmlEOdOwHLH03//I=
@@ -752,8 +752,8 @@ github.com/tklauser/go-sysconf v0.3.15 h1:VE89k0criAymJ/Os65CSn1IXaol+1wrsFHEB8O
 github.com/tklauser/go-sysconf v0.3.15/go.mod h1:Dmjwr6tYFIseJw7a3dRLJfsHAMXZ3nEnL/aZY+0IuI4=
 github.com/tklauser/numcpus v0.10.0 h1:18njr6LDBk1zuna922MgdjQuJFjrdppsZG60sHGfjso=
 github.com/tklauser/numcpus v0.10.0/go.mod h1:BiTKazU708GQTYF4mB+cmlpT2Is1gLk7XVuEeem8LsQ=
-github.com/twilio/twilio-go v1.28.1 h1:xFLRYlPX4TOMlRlujtCCebZcuV3XAIfGJRaxt/ZIqRM=
-github.com/twilio/twilio-go v1.28.1/go.mod h1:FpgNWMoD8CFnmukpKq9RNpUSGXC0BwnbeKZj2YHlIkw=
+github.com/twilio/twilio-go v1.28.2 h1:pEqz1Tmd+azQ5yMrM5sxWxfG0txpcqDDbNAop/Fo5po=
+github.com/twilio/twilio-go v1.28.2/go.mod h1:FpgNWMoD8CFnmukpKq9RNpUSGXC0BwnbeKZj2YHlIkw=
 github.com/twitchyliquid64/golang-asm v0.15.1 h1:SU5vSMR7hnwNxj24w34ZyCi/FmDZTkS4MhqMhdFk5YI=
 github.com/twitchyliquid64/golang-asm v0.15.1/go.mod h1:a1lVb/DtPvCB8fslRZhAngC2+aY1QWCk3Cedj/Gdt08=
 github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8/go.mod h1:VFNgLljTbGfSG7qAOspJ7OScBnGdDN/yBr0sguwnwf0=

@@ -204,6 +204,7 @@ var networks = map[string]*Network{
 		SkipSyncTokens:     true,
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_dogecoin.svg",
 		Tier:               1,
+		ExplorerURL:        "https://blockchair.com/dogecoin/transaction/{txHash}",
 	},
 	"Ethereum": &Network{
 		ID:                 "Ethereum",
