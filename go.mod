@@ -23,8 +23,8 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/ice-blockchain/subzero v1.402.0
-	github.com/ice-blockchain/wintr v1.159.0
+	github.com/ice-blockchain/subzero v1.404.0
+	github.com/ice-blockchain/wintr v1.160.0
 	github.com/imroc/req/v3 v3.55.0
 	github.com/jellydator/ttlcache/v3 v3.4.0
 	github.com/lestrrat-go/jwx/v2 v2.1.6
@@ -49,7 +49,7 @@ require (
 	cloud.google.com/go v0.123.0 // indirect
 	cloud.google.com/go/auth v0.16.5 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
-	cloud.google.com/go/compute/metadata v0.8.4 // indirect
+	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	cloud.google.com/go/firestore v1.18.0 // indirect
 	cloud.google.com/go/iam v1.5.2 // indirect
 	cloud.google.com/go/longrunning v0.6.7 // indirect
@@ -74,7 +74,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.3 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.8 // indirect
-	github.com/aws/aws-sdk-go-v2/service/kms v1.45.4 // indirect
+	github.com/aws/aws-sdk-go-v2/service/kms v1.45.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.29.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.38.5 // indirect
@@ -136,18 +136,18 @@ require (
 	github.com/go-openapi/jsonpointer v0.22.0 // indirect
 	github.com/go-openapi/jsonreference v0.21.1 // indirect
 	github.com/go-openapi/spec v0.21.0 // indirect
-	github.com/go-openapi/swag v0.24.1 // indirect
-	github.com/go-openapi/swag/cmdutils v0.24.0 // indirect
-	github.com/go-openapi/swag/conv v0.24.0 // indirect
-	github.com/go-openapi/swag/fileutils v0.24.0 // indirect
-	github.com/go-openapi/swag/jsonname v0.24.0 // indirect
-	github.com/go-openapi/swag/jsonutils v0.24.0 // indirect
-	github.com/go-openapi/swag/loading v0.24.0 // indirect
-	github.com/go-openapi/swag/mangling v0.24.0 // indirect
-	github.com/go-openapi/swag/netutils v0.24.0 // indirect
-	github.com/go-openapi/swag/stringutils v0.24.0 // indirect
-	github.com/go-openapi/swag/typeutils v0.24.0 // indirect
-	github.com/go-openapi/swag/yamlutils v0.24.0 // indirect
+	github.com/go-openapi/swag v0.25.0 // indirect
+	github.com/go-openapi/swag/cmdutils v0.25.0 // indirect
+	github.com/go-openapi/swag/conv v0.25.0 // indirect
+	github.com/go-openapi/swag/fileutils v0.25.0 // indirect
+	github.com/go-openapi/swag/jsonname v0.25.0 // indirect
+	github.com/go-openapi/swag/jsonutils v0.25.0 // indirect
+	github.com/go-openapi/swag/loading v0.25.0 // indirect
+	github.com/go-openapi/swag/mangling v0.25.0 // indirect
+	github.com/go-openapi/swag/netutils v0.25.0 // indirect
+	github.com/go-openapi/swag/stringutils v0.25.0 // indirect
+	github.com/go-openapi/swag/typeutils v0.25.0 // indirect
+	github.com/go-openapi/swag/yamlutils v0.25.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.27.0 // indirect

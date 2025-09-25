@@ -1,6 +1,6 @@
 {
   "en": {
-    "_version": 5,
+    "_version": 6,
     "news_world_events": {
       "display": "News & World Events",
       "weight": 2,
@@ -32,7 +32,7 @@
       "weight": 7,
       "children": {
         "ai_tools": {
-          "display": "AI tools",
+          "display": "AI",
           "weight": 1
         },
         "apps_software": {
@@ -55,8 +55,12 @@
     },
     "web3_crypto": {
       "display": "Web3 & Crypto",
-      "weight": 10,
+      "weight": 8,
       "children": {
+        "blockchain": {
+          "display": "Blockchain",
+          "weight": 1
+        },
         "altcoins": {
           "display": "Altcoins",
           "weight": 1
@@ -66,15 +70,15 @@
           "weight": 1
         },
         "defi_basics": {
-          "display": "DeFi basics",
+          "display": "DeFi",
           "weight": 1
         },
         "nft_marketplace": {
-          "display": "NFT marketplace",
+          "display": "NFTs",
           "weight": 1
         },
         "trading_strategies": {
-          "display": "Trading strategies",
+          "display": "Trading",
           "weight": 1
         }
       }
@@ -133,7 +137,7 @@
     },
     "funny_memes": {
       "display": "Funny & Memes",
-      "weight": 8,
+      "weight": 9,
       "children": {
         "comedy_sketches": {
           "display": "Comedy sketches",
@@ -237,7 +241,7 @@
     },
     "lifestyle_wellness": {
       "display": "Lifestyle & Wellness",
-      "weight": 9,
+      "weight": 10,
       "children": {
         "fitness_training": {
           "display": "Fitness & training",
@@ -263,7 +267,7 @@
     },
     "food_cooking": {
       "display": "Food & Cooking",
-      "weight": 1,
+      "weight": 2,
       "children": {
         "baking": {
           "display": "Baking",
@@ -286,292 +290,185 @@
           "weight": 1
         }
       }
-    }
-  },
-  "fr": {
-    "_version": 5,
-    "news_world_events": {
-      "display": "[FR]News & World Events",
-      "weight": 2,
-      "children": {
-        "breaking_news": {
-          "display": "[FR]Breaking news",
-          "weight": 1
-        },
-        "current_affairs": {
-          "display": "[FR]Current affairs",
-          "weight": 1
-        },
-        "global_issues": {
-          "display": "[FR]Global issues",
-          "weight": 1
-        },
-        "local_news": {
-          "display": "[FR]Local news",
-          "weight": 1
-        },
-        "politics_policy": {
-          "display": "[FR]Politics & policy",
-          "weight": 1
-        }
-      }
     },
-    "technology_ai": {
-      "display": "[FR]Technology & AI",
-      "weight": 7,
-      "children": {
-        "ai_tools": {
-          "display": "[FR]AI tools",
-          "weight": 1
-        },
-        "apps_software": {
-          "display": "[FR]Apps & software",
-          "weight": 1
-        },
-        "gadget_reviews": {
-          "display": "[FR]Gadget reviews",
-          "weight": 1
-        },
-        "smartphones": {
-          "display": "[FR]Smartphones",
-          "weight": 1
-        },
-        "tech_news": {
-          "display": "[FR]Tech news",
-          "weight": 1
-        }
-      }
-    },
-    "web3_crypto": {
-      "display": "[FR]Web3 & Crypto",
-      "weight": 10,
-      "children": {
-        "altcoins": {
-          "display": "[FR]Altcoins",
-          "weight": 1
-        },
-        "bitcoin_ethereum": {
-          "display": "[FR]Bitcoin & Ethereum",
-          "weight": 1
-        },
-        "defi_basics": {
-          "display": "[FR]DeFi basics",
-          "weight": 1
-        },
-        "nft_marketplace": {
-          "display": "[FR]NFT marketplace",
-          "weight": 1
-        },
-        "trading_strategies": {
-          "display": "[FR]Trading strategies",
-          "weight": 1
-        }
-      }
-    },
-    "business_finance": {
-      "display": "[FR]Business & Finance",
-      "weight": 6,
-      "children": {
-        "entrepreneurship": {
-          "display": "[FR]Entrepreneurship",
-          "weight": 1
-        },
-        "investing_markets": {
-          "display": "[FR]Investing & markets",
-          "weight": 1
-        },
-        "personal_finance": {
-          "display": "[FR]Personal finance",
-          "weight": 1
-        },
-        "productivity_tools": {
-          "display": "[FR]Productivity & tools",
-          "weight": 1
-        },
-        "startups": {
-          "display": "[FR]Startups",
-          "weight": 1
-        }
-      }
-    },
-    "arts_entertainment": {
-      "display": "[FR]Arts & Entertainment",
-      "weight": 1,
-      "children": {
-        "celebrity_news": {
-          "display": "[FR]Celebrity news",
-          "weight": 1
-        },
-        "film_tv": {
-          "display": "[FR]Film & TV",
-          "weight": 1
-        },
-        "music": {
-          "display": "[FR]Music",
-          "weight": 1
-        },
-        "reviews_recommendations": {
-          "display": "[FR]Reviews & recommendations",
-          "weight": 1
-        },
-        "behind_the_scenes": {
-          "display": "[FR]Behind the scenes",
-          "weight": 1
-        }
-      }
-    },
-    "funny_memes": {
-      "display": "[FR]Funny & Memes",
-      "weight": 8,
-      "children": {
-        "comedy_sketches": {
-          "display": "[FR]Comedy sketches",
-          "weight": 1
-        },
-        "funny_videos": {
-          "display": "[FR]Funny videos",
-          "weight": 1
-        },
-        "memes": {
-          "display": "[FR]Memes",
-          "weight": 1
-        },
-        "parodies_satire": {
-          "display": "[FR]Parodies & satire",
-          "weight": 1
-        },
-        "pranks": {
-          "display": "[FR]Pranks",
-          "weight": 1
-        }
-      }
-    },
-    "sports": {
-      "display": "[FR]Sports",
-      "weight": 3,
-      "children": {
-        "basketball": {
-          "display": "[FR]Basketball",
-          "weight": 1
-        },
-        "combat_sports": {
-          "display": "[FR]Combat sports",
-          "weight": 1
-        },
-        "football_soccer": {
-          "display": "[FR]Football/Soccer",
-          "weight": 1
-        },
-        "tennis": {
-          "display": "[FR]Tennis",
-          "weight": 1
-        },
-        "us_football": {
-          "display": "[FR]American football",
-          "weight": 1
-        }
-      }
-    },
-    "gaming": {
-      "display": "[FR]Gaming",
+    "cars_vehicles": {
+      "display": "Cars & Vehicles",
       "weight": 4,
       "children": {
-        "console_gaming": {
-          "display": "[FR]Console gaming",
+        "car_reviews": {
+          "display": "Car reviews",
           "weight": 1
         },
-        "esports": {
-          "display": "[FR]Esports",
+        "electric_vehicles": {
+          "display": "Electric vehicles",
           "weight": 1
         },
-        "game_reviews": {
-          "display": "[FR]Game reviews",
+        "motorcycles": {
+          "display": "Motorcycles",
           "weight": 1
         },
-        "mobile_gaming": {
-          "display": "[FR]Mobile gaming",
+        "motorsport": {
+          "display": "Motorsport",
           "weight": 1
         },
-        "pc_gaming": {
-          "display": "[FR]PC gaming",
+        "tuning_custom": {
+          "display": "Tuning & custom",
           "weight": 1
         }
       }
     },
-    "travel_places": {
-      "display": "[FR]Travel & Places",
+    "science_nature": {
+      "display": "Science & Nature",
+      "weight": 3,
+      "children": {
+        "space": {
+          "display": "Space & astronomy",
+          "weight": 1
+        },
+        "biology": {
+          "display": "Biology & life sciences",
+          "weight": 1
+        },
+        "environment": {
+          "display": "Environment & climate",
+          "weight": 1
+        },
+        "physics": {
+          "display": "Physics & chemistry",
+          "weight": 1
+        },
+        "wildlife": {
+          "display": "Wildlife & nature",
+          "weight": 1
+        }
+      }
+    },
+    "health_medicine": {
+      "display": "Health & Medicine",
       "weight": 5,
       "children": {
-        "budget_travel": {
-          "display": "[FR]Budget travel",
+        "nutrition": {
+          "display": "Nutrition",
           "weight": 1
         },
-        "destinations": {
-          "display": "[FR]Destinations",
+        "medical_news": {
+          "display": "Medical news",
           "weight": 1
         },
-        "local_experiences": {
-          "display": "[FR]Local experiences",
+        "diseases": {
+          "display": "Diseases & treatment",
           "weight": 1
         },
-        "luxury_travel": {
-          "display": "[FR]Luxury travel",
+        "fitness_science": {
+          "display": "Fitness science",
           "weight": 1
         },
-        "travel_tips": {
-          "display": "[FR]Travel tips",
+        "biohacking": {
+          "display": "Biohacking",
           "weight": 1
         }
       }
     },
-    "lifestyle_wellness": {
-      "display": "[FR]Lifestyle & Wellness",
-      "weight": 9,
+    "education_learning": {
+      "display": "Education & Learning",
+      "weight": 2,
       "children": {
-        "fitness_training": {
-          "display": "[FR]Fitness & training",
+        "study_tips": {
+          "display": "Study tips",
           "weight": 1
         },
-        "mental_health": {
-          "display": "[FR]Mental health",
+        "online_courses": {
+          "display": "Online courses",
           "weight": 1
         },
-        "relationships": {
-          "display": "[FR]Relationships",
+        "books": {
+          "display": "Books & reading",
           "weight": 1
         },
-        "self_care": {
-          "display": "[FR]Self-care",
+        "knowledge_sharing": {
+          "display": "Knowledge sharing",
           "weight": 1
         },
-        "yoga_mindfulness": {
-          "display": "[FR]Yoga & mindfulness",
+        "language_learning": {
+          "display": "Language learning",
           "weight": 1
         }
       }
     },
-    "food_cooking": {
-      "display": "[FR]Food & Cooking",
-      "weight": 1,
+    "religion_spirituality": {
+      "display": "Religion & Spirituality",
+      "weight": 2,
       "children": {
-        "baking": {
-          "display": "[FR]Baking",
+        "beliefs": {
+          "display": "Beliefs & traditions",
           "weight": 1
         },
-        "dietary_trends": {
-          "display": "[FR]Dietary trends",
+        "philosophy": {
+          "display": "Philosophy",
           "weight": 1
         },
-        "recipes": {
-          "display": "[FR]Recipes",
+        "spiritual_practices": {
+          "display": "Spiritual practices",
           "weight": 1
         },
-        "restaurant_reviews": {
-          "display": "[FR]Restaurant reviews",
+        "world_religions": {
+          "display": "World religions",
           "weight": 1
         },
-        "street_food": {
-          "display": "[FR]Street food",
+        "interfaith": {
+          "display": "Interfaith dialogue",
+          "weight": 1
+        }
+      }
+    },
+    "fashion_style": {
+      "display": "Fashion & Style",
+      "weight": 3,
+      "children": {
+        "trends": {
+          "display": "Trends",
+          "weight": 1
+        },
+        "streetwear": {
+          "display": "Streetwear",
+          "weight": 1
+        },
+        "beauty": {
+          "display": "Beauty & makeup",
+          "weight": 1
+        },
+        "luxury": {
+          "display": "Luxury fashion",
+          "weight": 1
+        },
+        "personal_style": {
+          "display": "Personal style",
+          "weight": 1
+        }
+      }
+    },
+    "home_living": {
+      "display": "Home & Living",
+      "weight": 2,
+      "children": {
+        "interior_design": {
+          "display": "Interior design",
+          "weight": 1
+        },
+        "real_estate": {
+          "display": "Real estate",
+          "weight": 1
+        },
+        "gardening": {
+          "display": "Gardening",
+          "weight": 1
+        },
+        "diy": {
+          "display": "DIY & crafts",
+          "weight": 1
+        },
+        "home_tips": {
+          "display": "Home tips",
           "weight": 1
         }
       }
