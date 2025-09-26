@@ -13,6 +13,7 @@ import (
 
 	"github.com/goccy/go-json"
 	"github.com/google/uuid"
+	"github.com/ice-blockchain/wintr/log"
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
@@ -388,6 +389,9 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 			nativeCoin := asset["kind"] == "Native"
 			if hasSymbol {
 				symbol := strings.ToLower(symbolI.(string))
+				if symbol == "ice" && (nativeCoin || strings.EqualFold(walletAssets.Network, "ion")) {
+					symbol = "ion"
+				}
 				// Testnet, i.e SepoliaETH, coin gecko dont provide testnet symbol
 				if nativeCoin {
 					_, testnetSymbol := testNetSymbols[symbol]
@@ -422,7 +426,7 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 				symbol := searchSymbol
 				if hasSymbol {
 					symbol = strings.ToLower(symbolI.(string))
-					if symbol == "ice" && len(group) > 0 && strings.EqualFold(group[0].Network, "ion") {
+					if symbol == "ice" && (strings.EqualFold(searchSymbol, "ion")) {
 						symbol = "ion"
 					}
 				}
@@ -493,6 +497,8 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 		str := base64.StdEncoding.EncodeToString(b)
 		nextPage = &str
 	}
+	dbg, _ := json.Marshal(coinGroups)
+	log.Info(fmt.Sprintf("Wallet %v, coins %v", userID, string(dbg)))
 	return coinGroups, allNftsFromWalletView, nextPage, nil
 }
 
