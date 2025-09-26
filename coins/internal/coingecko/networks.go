@@ -229,8 +229,8 @@ var networks = map[string]*Network{
 		Tier:               1,
 		PrioritizedCoins:   []string{"ethereum"},
 	},
-	"ICP": &Network{
-		ID:                 "ICP",
+	"InternetComputer": &Network{
+		ID:                 "InternetComputer",
 		CoinGeckoNetworkID: "icp",
 		CoinGeckoPlatform:  "internet-computer",
 		DefaultDecimals:    18,
