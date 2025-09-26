@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/tls"
 	"math/rand"
-	"strconv"
 
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
@@ -70,10 +69,6 @@ func (a *verifiedUsersSync) ProcessNextVerifiedUsersQueue(ctx context.Context) e
 }
 
 func generateVerificationEvents(heimdallPrivateKey string, masterPubKey string) (events []*model.Event, err error) {
-	heimdallPubKey, err := model.GetPublicKey(heimdallPrivateKey)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get public key")
-	}
 	now := nostr.Now()
 	badgeDefinitionEvent := &model.Event{
 		Event: nostr.Event{
@@ -96,7 +91,7 @@ func generateVerificationEvents(heimdallPrivateKey string, masterPubKey string) 
 			CreatedAt: now,
 			Kind:      nostr.KindBadgeAward,
 			Tags: nostr.Tags{
-				{"a", strconv.Itoa(nostr.KindBadgeDefinition) + ":" + heimdallPubKey + ":" + verifiedBadgeDTag},
+				{"a", badgeDefinitionEvent.Address()},
 				{"p", masterPubKey},
 			},
 		},
