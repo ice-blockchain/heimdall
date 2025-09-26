@@ -422,6 +422,9 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 				symbol := searchSymbol
 				if hasSymbol {
 					symbol = strings.ToLower(symbolI.(string))
+					if symbol == "ice" && len(group) > 0 && strings.EqualFold(group[0].Network, "ion") {
+						symbol = "ion"
+					}
 				}
 				for _, g := range group {
 					if g.WalletID == nil || *g.WalletID == walletID {
