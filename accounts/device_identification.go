@@ -57,8 +57,8 @@ func (a *accounts) generateDeviceVerifiedBadges(devicePubkey, masterPubKey strin
 			Kind:      nostr.KindBadgeDefinition,
 			Tags: model.Tags{
 				{"d", deviceIdentificationProofBadgeName + "~" + devicePubkey},
-				{"name", "Device Identified and Verified by ION Identity"},
-				{"description", "Awarded by ION Identity to each user's device that is verified to be a valid device of that user"},
+				{"name", "Device Identified and Verified by ION Identity (identity.io)"},
+				{"description", "Awarded by ION Identity (identity.io) to each user's device that is verified to be a valid device of that user"},
 				identifiedDeviceBadgeThumbnail256X256Tag,
 				identifiedDeviceImage1024X1024Tag,
 				{"p", masterPubKey},

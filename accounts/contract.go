@@ -189,8 +189,8 @@ const (
 	defaultWalletViewName                          = "ion.wallet"
 
 	verifiedBadgeDTag        = "verified"
-	verifiedBadgeName        = "Verified by ION Identity"
-	verifiedBadgeDescription = "Awarded to users that are verified by ION Identity"
+	verifiedBadgeName        = "Verified by ION Identity (identity.io)"
+	verifiedBadgeDescription = "Awarded to users that are verified by ION Identity (identity.io)"
 
 	SearchTypeContains   SearchType = "contains"
 	SearchTypeStartsWith SearchType = "startsWith"
@@ -224,10 +224,10 @@ var (
 	ErrRegistrationsDisabled                 = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "registrations disabled"}
 	ErrEmailNotAllowedForEarlyAccess         = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "email not allowed for early access"}
 	ErrEmailUsed                             = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "email used"}
-	verifiedBadgeImage1024X1024Tag           = nostr.Tag{"image", "https://example.com/verified_1024x1024.webp", "1024x1024"}
-	verifiedBadgeThumbnail256X256Tag         = nostr.Tag{"thumb", "https://example.com/verified_256x256.webp", "256x256"}
-	identifiedDeviceBadgeThumbnail256X256Tag = nostr.Tag{"thumb", "https://example.com/device_256x256.webp", "256x256"}
-	identifiedDeviceImage1024X1024Tag        = nostr.Tag{"image", "https://example.com/device_1024x1024.webp", "1024x1024"}
+	verifiedBadgeImage1024X1024Tag           = nostr.Tag{"image", "https://api.iconify.design/bi:patch-check.svg?width=512&height=512", "512x512"}
+	verifiedBadgeThumbnail256X256Tag         = nostr.Tag{"thumb", "https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/icons/patch-check.svg", "16x16"}
+	identifiedDeviceBadgeThumbnail256X256Tag = nostr.Tag{"thumb", "https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/icons/shield-check.svg", "16x16"}
+	identifiedDeviceImage1024X1024Tag        = nostr.Tag{"image", "https://api.iconify.design/bi:shield-check.svg?width=512&height=512", "512x512"}
 )
 
 const (
