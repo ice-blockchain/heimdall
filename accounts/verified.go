@@ -85,7 +85,6 @@ func generateVerificationEvents(heimdallPrivateKey string, masterPubKey string) 
 				{"description", verifiedBadgeDescription},
 				verifiedBadgeImage1024X1024Tag,
 				verifiedBadgeThumbnail256X256Tag,
-				{"p", masterPubKey},
 			},
 		},
 	}
