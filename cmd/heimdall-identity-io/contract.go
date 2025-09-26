@@ -19,7 +19,7 @@ import (
 )
 
 type (
-	Version           uint8
+	Version           uint64
 	Language          string
 	AppAssociationReq struct {
 		_ struct{} `json:"-" allowUnauthorized:"true"`

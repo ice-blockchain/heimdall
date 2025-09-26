@@ -134,13 +134,29 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	allValidConfigNames["global_accounts"] = func(_ *config, ver *Version) (any, Version) {
 		reqCtx, reqCancel := context.WithTimeout(ctx, 25*time.Second)
 		defer reqCancel()
-		var currentVer uint8
+		var currentVer uint64
 		if ver != nil {
-			currentVer = uint8(*ver)
+			currentVer = uint64(*ver)
 		} else {
 			return errors.Wrapf(errVersionRequired, "version required for global_accounts"), Version(0)
 		}
 		accs, newVer, err := s.accounts.GetGlobalAccounts(reqCtx, currentVer)
+		if err != nil {
+			return err, Version(0)
+		}
+
+		return accs, Version(newVer)
+	}
+	allValidConfigNames["nsfw_accounts"] = func(_ *config, ver *Version) (any, Version) {
+		reqCtx, reqCancel := context.WithTimeout(ctx, 25*time.Second)
+		defer reqCancel()
+		var currentVer uint64
+		if ver != nil {
+			currentVer = uint64(*ver)
+		} else {
+			return errors.Wrapf(errVersionRequired, "version required for nsfw_accounts"), Version(0)
+		}
+		accs, newVer, err := s.accounts.GetNSFWAccounts(reqCtx, currentVer)
 		if err != nil {
 			return err, Version(0)
 		}

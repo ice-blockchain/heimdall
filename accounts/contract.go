@@ -52,7 +52,8 @@ type (
 		PublicKey() string
 		CompleteRegistration(ctx context.Context, credentials *Credentials) (CompletedRegistration, error)
 		InitRegistration(ctx context.Context, identityKeyName string, earlyAccessEmail string) (*RegistrationChallenge, error)
-		GetGlobalAccounts(ctx context.Context, currentVer uint8) ([]*LiteUser, uint8, error)
+		GetGlobalAccounts(ctx context.Context, currentVer uint64) ([]*LiteUser, uint64, error)
+		GetNSFWAccounts(ctx context.Context, currentVer uint64) ([]string, uint64, error)
 		VerifyEarlyAccess(ctx context.Context, email string) error
 		SocialProfiles
 		Devices

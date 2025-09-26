@@ -698,13 +698,13 @@ func (a *accounts) GetIONConnectRelaysForUsers(ctx context.Context, masterPubkey
 	return u, nil
 }
 
-func (a *accounts) GetGlobalAccounts(ctx context.Context, currentVer uint8) ([]*LiteUser, uint8, error) {
-	stmt := `SELECT CAST(value AS INTEGER) as latest_version
+func (a *accounts) GetGlobalAccounts(ctx context.Context, currentVer uint64) ([]*LiteUser, uint64, error) {
+	stmt := `SELECT CAST(value AS BIGINT) as latest_version
 			 FROM global 
 			 WHERE key = 'latest_global_accounts_version'
-               AND CAST(value AS INTEGER) > $1`
+               AND CAST(value AS BIGINT) > $1`
 	lv, err := storage.Get[struct {
-		LatestVersion uint8 `db:"latest_version"`
+		LatestVersion uint64 `db:"latest_version"`
 	}](ctx, a.db, stmt, currentVer)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
@@ -734,6 +734,37 @@ func (a *accounts) GetGlobalAccounts(ctx context.Context, currentVer uint8) ([]*
 	}
 
 	return accs, lv.LatestVersion, nil
+}
+
+func (a *accounts) GetNSFWAccounts(ctx context.Context, currentVer uint64) ([]string, uint64, error) {
+	stmt := `SELECT CAST(value AS BIGINT) as latest_version
+			 FROM global 
+			 WHERE key = 'latest_nsfw_accounts_version'
+               AND CAST(value AS BIGINT) > $1`
+	lv, err := storage.Get[struct {
+		LatestVersion uint64 `db:"latest_version"`
+	}](ctx, a.db, stmt, currentVer)
+	if err != nil {
+		if storage.IsErr(err, storage.ErrNotFound) {
+			return []string{}, currentVer, nil
+		}
+
+		return nil, 0, errors.Wrapf(err, "failed to select latest_nsfw_accounts_version for version: %#v", currentVer)
+	}
+	stmt = `SELECT master_pubkey FROM nsfw_accounts`
+	accs, err := storage.Select[struct {
+		MasterPubkey string `db:"master_pubkey"`
+	}](ctx, a.db, stmt)
+	if err != nil {
+		return nil, 0, errors.Wrapf(err, "failed to select NSFWAccounts for version: %#v", currentVer)
+	}
+
+	masterPubkeys := make([]string, 0, len(accs))
+	for _, acc := range accs {
+		masterPubkeys = append(masterPubkeys, acc.MasterPubkey)
+	}
+
+	return masterPubkeys, lv.LatestVersion, nil
 }
 
 func (a *accounts) rollbackVisitor(userID, visitorID string, duplicateOf *string) error {

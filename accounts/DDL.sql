@@ -97,6 +97,28 @@ AFTER INSERT OR DELETE OR TRUNCATE ON global_accounts
 FOR EACH STATEMENT
 EXECUTE FUNCTION increment_global_accounts_version();
 
+CREATE TABLE IF NOT EXISTS nsfw_accounts (
+    master_pubkey                           TEXT NOT NULL REFERENCES users(master_pubkey) ON DELETE CASCADE,
+    primary key(master_pubkey)
+);
+
+CREATE OR REPLACE FUNCTION increment_nsfw_accounts_version()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO global (key, value)
+    VALUES ('latest_nsfw_accounts_version', '1')
+    ON CONFLICT (key)
+    DO UPDATE SET value = (COALESCE(CAST(global.value AS INTEGER), 0) + 1)::TEXT;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER nsfw_accounts_insert_version_trigger
+AFTER INSERT OR DELETE OR TRUNCATE ON nsfw_accounts
+FOR EACH STATEMENT
+EXECUTE FUNCTION increment_nsfw_accounts_version();
+
 CREATE TABLE IF NOT EXISTS verified_users_sync_queue (
     created_at                       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     user_id                          TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -219,6 +241,45 @@ BEGIN
 
     IF NOT FOUND THEN
         RAISE EXCEPTION 'USER_NOT_FOUND: %', v_username;
+    END IF;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION add_nsfw_accounts(VARIADIC p_usernames TEXT[])
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_normalized_usernames TEXT[];
+    v_not_found_users TEXT[];
+BEGIN
+    IF array_length(p_usernames, 1) IS NULL THEN
+        RAISE EXCEPTION 'USERNAMES_REQUIRED';
+    END IF;
+
+    SELECT array_agg(lower(trim(username)))
+    INTO v_normalized_usernames
+    FROM unnest(p_usernames) AS username
+    WHERE trim(username) != '';
+
+    INSERT INTO nsfw_accounts(master_pubkey)
+    SELECT DISTINCT u.master_pubkey
+    FROM users u
+    JOIN social_profiles sp ON u.master_pubkey = sp.master_pubkey
+    WHERE sp.username = ANY(v_normalized_usernames)
+    ON CONFLICT (master_pubkey) DO NOTHING;
+
+    SELECT array_agg(username)
+    INTO v_not_found_users
+    FROM unnest(v_normalized_usernames) AS username
+    WHERE username NOT IN (
+        SELECT sp.username 
+        FROM social_profiles sp 
+        WHERE sp.username = ANY(v_normalized_usernames)
+    );
+
+    IF array_length(v_not_found_users, 1) > 0 THEN
+        RAISE NOTICE 'Users not found: %', array_to_string(v_not_found_users, ', ');
     END IF;
 END;
 $$;
