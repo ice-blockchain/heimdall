@@ -168,7 +168,7 @@ func (s *service) validateEvent(ctx context.Context, event *model.Event) error {
 	if event.Kind != nostr.KindTextNote && event.Kind != model.CustomIONKindEditableTextNote && event.Kind != nostr.KindArticle {
 		return errors.Errorf("invalid event kind: %d", event.Kind)
 	}
-	if err := s.validation.Validate(ctx, model.Events{event}); err != nil {
+	if err := s.validation.Validate(ctx, model.Events{event}, validation.RuleWithSkipRootContentNFTCollectionsValidation()); err != nil {
 		return errors.Wrap(err, "invalid event")
 	}
 
