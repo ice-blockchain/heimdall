@@ -28,11 +28,11 @@ var (
 	//go:embed DDL.sql
 	ddl string
 
-	hashtagRegex = regexp.MustCompile(`#[a-zA-Z0-9_]+`)
+	hashtagRegex      = regexp.MustCompile(`#[a-zA-Z0-9_]+`)
+	validKeywordChars = regexp.MustCompile(`^[a-zA-Z0-9_\s]+$`)
 )
 
 type (
-	hashtag     = string
 	topHashtags struct {
 		Hashtags []string `db:"hashtags"`
 	}
