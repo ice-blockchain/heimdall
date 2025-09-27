@@ -105,6 +105,9 @@ func (h *hashtagStatisticsRepository) GetTopHashtags(ctx context.Context, limit 
 }
 
 func (h *hashtagStatisticsRepository) GetTopHashtagsByKeyword(ctx context.Context, keyword string, limit int) ([]string, error) {
+	if !validKeywordChars.MatchString(keyword) {
+		return []string{}, nil
+	}
 	stmt := `
 		SELECT array_agg(x.hashtag) hashtags
 		FROM (
