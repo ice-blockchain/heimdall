@@ -92,6 +92,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- TODO: Remove this after migration to all environments
+DROP TRIGGER IF EXISTS global_accounts_insert_version_trigger ON global_accounts;
+
 CREATE OR REPLACE TRIGGER global_accounts_insert_delete_version_trigger
 AFTER INSERT OR DELETE ON global_accounts
 FOR EACH ROW
@@ -118,6 +121,9 @@ BEGIN
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
+
+-- TODO: Remove this after migration to all environments
+DROP TRIGGER IF EXISTS nsfw_accounts_insert_version_trigger ON nsfw_accounts;
 
 CREATE OR REPLACE TRIGGER nsfw_accounts_insert_delete_version_trigger
 AFTER INSERT OR DELETE ON nsfw_accounts
