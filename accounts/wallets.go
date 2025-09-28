@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/goccy/go-json"
 	"github.com/google/uuid"
@@ -377,11 +378,62 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 	testNetSymbols := make(map[string]bool)
 	allNftsFromWalletView := []*NFT{}
 	nextPageVal := make(map[string]string, 0)
+	type assetsInfo struct {
+		linkedSymbols []*CoinMapping
+		assets        *dfns.Assets
+		err           error
+	}
+	type nftInfo struct {
+		nfts     []*NFT
+		walletID string
+		network  string
+		nextPage *string
+		err      error
+	}
+	assets := make(chan assetsInfo, len(walletIDs))
+	nftInfos := make(chan nftInfo, len(walletIDs))
+	var assetsWg, nftsWg sync.WaitGroup
+	paginationTokens, limit, err := pagination(ctx)
+	if err != nil {
+		return nil, nil, nil, errors.Wrapf(err, "malformed pagination tokens %v", userID)
+	}
 	for walletID, linkedSymbols := range walletIDs {
-		walletAssets, err := a.delegatedRPClient.ListAssets(ctx, walletID)
-		if err != nil {
-			return nil, nil, nil, errors.Wrapf(err, "failed to list assets for wallet %v", walletID)
+		assetsWg.Go(func() {
+			walletAssets, err := a.delegatedRPClient.ListAssets(ctx, walletID)
+			if err != nil {
+				assets <- assetsInfo{err: errors.Wrapf(err, "failed to list assets for wallet %v", walletID)}
+			}
+			assets <- assetsInfo{
+				linkedSymbols: linkedSymbols,
+				assets:        walletAssets,
+			}
+		})
+		nftsWg.Go(func() {
+			p, ok := paginationTokens[walletID]
+			if !ok {
+				p = "0"
+			}
+			nfts, network, np, err := a.GetNFTs(ctx, walletID, p, limit)
+			nftInfos <- nftInfo{
+				nfts:     nfts,
+				network:  network,
+				nextPage: np,
+				walletID: walletID,
+				err:      err,
+			}
+		})
+	}
+	assetsWg.Wait()
+	close(assets)
+	nftsWg.Wait()
+	close(nftInfos)
+	for walletAsset := range assets {
+		if walletAsset.err != nil {
+			return nil, nil, nil, errors.Wrapf(err, "failed to fetch wallet assets for user %v", userID)
 		}
+		walletID := walletAsset.assets.WalletID
+		walletAssets := walletAsset.assets
+		linkedSymbols := walletAsset.linkedSymbols
 		assetsBySymbol := make(map[string]dfns.Asset)
 		for _, asset := range walletAssets.Assets {
 			symbolI, hasSymbol := asset["symbol"]
@@ -462,18 +514,10 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 				}
 			}
 		}
-		paginationTokens, limit, err := pagination(ctx)
-		if err != nil {
-			return nil, nil, nil, errors.Wrapf(err, "malformed pagination tokens %v", walletID)
-		}
-		p, ok := paginationTokens[walletID]
-		if !ok {
-			p = "0"
-		}
-		nfts, network, np, err := a.GetNFTs(ctx, walletID, p, limit)
-		if np != nil {
-			nextPageVal[walletID] = *np
-		}
+	}
+
+	for ni := range nftInfos {
+		err = ni.err
 		if err != nil {
 			if delegatedErr := ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
 				var delegatedParsedErr *DelegatedRelyingPartyErr
@@ -483,14 +527,19 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 					}
 				}
 			}
-			return nil, nil, nil, errors.Wrapf(err, "failed to get nfts for wallet %v (wallet view aggregation)", walletID)
+			return nil, nil, nil, errors.Wrapf(err, "failed to get nfts for wallet %v (wallet view aggregation)", ni.walletID)
 		}
-		for _, n := range nfts {
-			n.WalletID = walletID
-			n.Network = network
+		np := ni.nextPage
+		if np != nil {
+			nextPageVal[ni.walletID] = *np
+		}
+		for _, n := range ni.nfts {
+			n.WalletID = ni.walletID
+			n.Network = ni.network
 			allNftsFromWalletView = append(allNftsFromWalletView, n)
 		}
 	}
+
 	var nextPage *string
 	if len(nextPageVal) > 0 {
 		b, _ := json.Marshal(nextPageVal)
