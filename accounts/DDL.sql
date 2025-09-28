@@ -93,7 +93,12 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE TRIGGER global_accounts_insert_version_trigger
-AFTER INSERT OR DELETE OR TRUNCATE ON global_accounts
+AFTER INSERT OR DELETE ON global_accounts
+FOR EACH ROW
+EXECUTE FUNCTION increment_global_accounts_version();
+
+CREATE OR REPLACE TRIGGER global_accounts_truncate_version_trigger
+AFTER TRUNCATE ON global_accounts
 FOR EACH STATEMENT
 EXECUTE FUNCTION increment_global_accounts_version();
 
@@ -115,7 +120,12 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE TRIGGER nsfw_accounts_insert_version_trigger
-AFTER INSERT OR DELETE OR TRUNCATE ON nsfw_accounts
+AFTER INSERT OR DELETE ON nsfw_accounts
+FOR EACH ROW
+EXECUTE FUNCTION increment_nsfw_accounts_version();
+
+CREATE OR REPLACE TRIGGER nsfw_accounts_truncate_version_trigger
+AFTER TRUNCATE ON nsfw_accounts
 FOR EACH STATEMENT
 EXECUTE FUNCTION increment_nsfw_accounts_version();
 
