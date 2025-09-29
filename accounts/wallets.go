@@ -19,7 +19,6 @@ import (
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/coins"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
-	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/time"
 )
 
@@ -546,8 +545,6 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 		str := base64.StdEncoding.EncodeToString(b)
 		nextPage = &str
 	}
-	dbg, _ := json.Marshal(coinGroups)
-	log.Info(fmt.Sprintf("Wallet %v, coins %v", userID, string(dbg)))
 	return coinGroups, allNftsFromWalletView, nextPage, nil
 }
 
