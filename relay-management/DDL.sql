@@ -23,32 +23,36 @@ CREATE INDEX IF NOT EXISTS idx_ion_connect_region_unhealthy_started_at ON ion_co
 CREATE INDEX IF NOT EXISTS ion_connect_relays_with_the_lowest_storage_by_region_inner_cte_total ON ion_connect_relays(unhealthy_started_at desc nulls first, relay_group, total_used_storage ASC);
 CREATE INDEX IF NOT EXISTS ion_connect_relays_date_search ON ion_connect_relays USING brin(unhealthy_started_at);
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS ion_connect_relays_with_the_lowest_storage_by_region AS
-WITH group_totals AS (
-    SELECT relay_group,
-           SUM(total_used_storage) as group_total_storage
-    FROM ion_connect_relays
-    WHERE (unhealthy_started_at is NULL OR unhealthy_started_at between now() - '3 minute'::INTERVAL and now())
-    GROUP BY relay_group
-),
-best_group AS (
-    SELECT relay_group
-    FROM group_totals
-    ORDER BY group_total_storage ASC
-    LIMIT 1
-),
-ion_connect_relays_from_best_group AS (
+DO $$ BEGIN
+    DROP MATERIALIZED VIEW IF EXISTS ion_connect_relays_with_the_lowest_storage_by_region;
+    CREATE MATERIALIZED VIEW IF NOT EXISTS ion_connect_relays_with_the_lowest_storage_by_region AS
+    WITH group_totals AS (
+        SELECT relay_group,
+               SUM(total_used_storage) as group_total_storage
+        FROM ion_connect_relays
+        --WHERE (unhealthy_started_at is NULL OR unhealthy_started_at between now() - '3 minute'::INTERVAL and now())
+        GROUP BY relay_group
+    ),
+    best_group AS (
+        SELECT relay_group
+        FROM group_totals
+        ORDER BY group_total_storage ASC
+        LIMIT 1
+    ),
+    ion_connect_relays_from_best_group AS (
+        SELECT url,
+               region,
+               total_used_storage,
+               relay_type,
+               ion_connect_relays.relay_group
+        FROM ion_connect_relays
+        JOIN best_group ON best_group.relay_group = ion_connect_relays.relay_group
+        WHERE --(unhealthy_started_at is NULL OR unhealthy_started_at between now() - '3 minute'::INTERVAL and now()) AND
+              ion_connect_relays.relay_group = best_group.relay_group
+    )
     SELECT url,
            region,
-           total_used_storage,
            relay_type,
-           ion_connect_relays.relay_group
-    FROM ion_connect_relays
-    JOIN best_group ON best_group.relay_group = ion_connect_relays.relay_group
-    WHERE (unhealthy_started_at is NULL OR unhealthy_started_at between now() - '3 minute'::INTERVAL and now()) AND ion_connect_relays.relay_group = best_group.relay_group
-)
-SELECT url,
-       region,
-       relay_type,
-       relay_group
-FROM ion_connect_relays_from_best_group;
+           relay_group
+    FROM ion_connect_relays_from_best_group;
+END$$;
