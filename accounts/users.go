@@ -214,7 +214,6 @@ func (a *accounts) validateFollowees(ctx context.Context, followees []string) er
 }
 
 func (a *accounts) fetchIONIndexers(ctx context.Context, userID string) (relays []string, err error) {
-	log.Info("Fetching indexers from polaris for %v", clientIPAddress(ctx))
 	return []string{}, nil
 }
 
