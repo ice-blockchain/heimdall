@@ -64,7 +64,7 @@ type (
 		HealthCheck(ctx context.Context) error
 	}
 	SocialProfiles interface {
-		VerifyUsernameAvailability(ctx context.Context, username string) error
+		VerifyUsernameAvailability(ctx context.Context, username, loggedInUserID string) error
 		UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, username, displayName, referral, bio, avatar, loggedInUserUserID string) (*SocialProfile, error)
 		SearchSocialProfiles(ctx context.Context, tpe SearchType, keyword, followedBy, followerOf string, limit, offset uint64) ([]*LiteUser, error)
 	}

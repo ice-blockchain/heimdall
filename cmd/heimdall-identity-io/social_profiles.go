@@ -34,7 +34,11 @@ func (s *service) VerifyUsernameAvailability(
 	ctx context.Context,
 	req *server.Request[VerifyUsernameRequest, interface{}],
 ) (*server.Response[interface{}], *server.ErrResponse[*server.ErrorResponse]) {
-	if err := s.accounts.VerifyUsernameAvailability(ctx, req.Data.Username); err != nil {
+	var loggedInUserID string
+	if loggedInUser := server.LoggedInUser(ctx); loggedInUser != nil {
+		loggedInUserID = loggedInUser.UserID()
+	}
+	if err := s.accounts.VerifyUsernameAvailability(ctx, req.Data.Username, loggedInUserID); err != nil {
 		switch {
 		case errors.Is(err, accounts.ErrInvalidUsername):
 			return nil, server.BadRequest(err, invalidUsername)

@@ -15,7 +15,7 @@ import (
 	"github.com/ice-blockchain/wintr/time"
 )
 
-func (a *accounts) VerifyUsernameAvailability(ctx context.Context, username string) error {
+func (a *accounts) VerifyUsernameAvailability(ctx context.Context, username, loggedInUserID string) error {
 	if !isUsernameValid(username) {
 		return errors.Wrapf(ErrInvalidUsername, "username %v is invalid", username)
 	}
@@ -36,6 +36,9 @@ func (a *accounts) VerifyUsernameAvailability(ctx context.Context, username stri
 	}
 	if r.ID == r.MasterPubkey && strings.HasPrefix(r.MasterPubkey, "reserved_") {
 		return errors.Wrap(ErrReserved, "username is reserved")
+	}
+	if r.ID == loggedInUserID {
+		return nil
 	}
 
 	return errors.Wrapf(ErrDuplicate, "username %v already exists", username)
