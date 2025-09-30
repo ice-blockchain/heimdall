@@ -171,3 +171,8 @@ UPDATE coins SET
                                  WHEN coingecko_coin_id = 'ice-token' THEN 'https://coin-images.coingecko.com/coins/images/14586/large/ice.png?1696514266'
                                  ELSE coins.icon_url END)
 WHERE lower(symbol) = 'ice';
+
+UPDATE coins SET
+                 version = (select global.value from global where global.key = '%[3]v')::BIGINT + 1,
+                 decimals = 10
+where network = 'polkadot' and lower(symbol) = 'dot' and decimals > 10;

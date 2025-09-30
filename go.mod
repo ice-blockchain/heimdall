@@ -14,7 +14,7 @@ require (
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.10
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cockroachdb/errors v1.12.0
-	github.com/dfns/dfns-sdk-go v0.0.3-beta.0.20250613152649-e92de28acf34
+	github.com/dfns/dfns-sdk-go v1.0.0
 	github.com/ethereum/go-ethereum v1.16.4
 	github.com/fingerprintjs/fingerprint-pro-server-api-go-sdk/v7 v7.9.0
 	github.com/gin-gonic/gin v1.11.0
