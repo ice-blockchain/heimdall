@@ -5,494 +5,494 @@ package coingecko
 // ([a-z1-9\-]+).svg
 // replace to
 //
-//	"$1": &Coin{
+//	"symbol:$1": &Coin{
 //			IconUrl: "https://cdn.ice.io/online+/assets/coins/$1.svg",
 //		},
 //
 // and to (for upd sql)
 // WHEN symbol = '$1' THEN 'https://cdn.ice.io/online+/assets/coins/$1.svg'
 var coinOverwrites = map[string]*Coin{
-	"binance-bridged-usdt-bnb-smart-chain": &Coin{
+	"id:binance-bridged-usdt-bnb-smart-chain": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/usdt.svg",
 		Name:    "Bridged USDT",
 	},
-	"bridged-usdt": &Coin{
+	"id:bridged-usdt": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/usdt.svg",
 		Name:    "Bridged USDT",
 	},
 
-	"ion": &Coin{
+	"id:ion": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/ion.svg",
 	},
-	"ice": &Coin{
+	"id:ice": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/ion.svg",
 	},
 
-	"spx": &Coin{
+	"symbol:spx": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/spx.svg",
 	},
-	"mina": &Coin{
+	"symbol:mina": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/mina.svg",
 	},
-	"buidl": &Coin{
+	"symbol:buidl": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/buidl.svg",
 	},
-	"oxb": &Coin{
+	"symbol:oxb": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/oxb.svg",
 	},
-	"kas": &Coin{
+	"symbol:kas": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/kas.svg",
 	},
-	"usdc": &Coin{
+	"symbol:usdc": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/usdc.svg",
 	},
-	"usdt": &Coin{
+	"symbol:usdt": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/usdt.svg",
 	},
-	"theta": &Coin{
+	"symbol:theta": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/theta.svg",
 	},
-	"purr": &Coin{
+	"symbol:purr": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/purr.svg",
 	},
-	"ldo": &Coin{
+	"symbol:ldo": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/ldo.svg",
 	},
-	"xtz": &Coin{
+	"symbol:xtz": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/xtz.svg",
 	},
-	"weeth": &Coin{
+	"symbol:weeth": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/weeth.svg",
 	},
-	"pi": &Coin{
+	"symbol:pi": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/pi.svg",
 	},
-	"snow": &Coin{
+	"symbol:snow": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/snow.svg",
 	},
-	"glm": &Coin{
+	"symbol:glm": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/glm.svg",
 	},
-	"inj": &Coin{
+	"symbol:inj": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/inj.svg",
 	},
-	"1inch": &Coin{
+	"symbol:1inch": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/1inch.svg",
 	},
-	"eth": &Coin{
+	"symbol:eth": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/eth.svg",
 	},
-	"strk": &Coin{
+	"symbol:strk": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/strk.svg",
 	},
-	"fet": &Coin{
+	"symbol:fet": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/fet.svg",
 	},
-	"gt": &Coin{
+	"symbol:gt": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/gt.svg",
 	},
-	"usde": &Coin{
+	"symbol:usde": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/usde.svg",
 	},
-	"neo": &Coin{
+	"symbol:neo": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/neo.svg",
 	},
-	"usds": &Coin{
+	"symbol:usds": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/usds.svg",
 	},
-	"prime": &Coin{
+	"symbol:prime": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/prime.svg",
 	},
-	"sei": &Coin{
+	"symbol:sei": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/sei.svg",
 	},
-	"super": &Coin{
+	"symbol:super": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/super.svg",
 	},
-	"xlm": &Coin{
+	"symbol:xlm": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/xlm.svg",
 	},
-	"avax": &Coin{
+	"symbol:avax": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/avax.svg",
 	},
-	"ton": &Coin{
+	"symbol:ton": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/ton.svg",
 	},
-	"toncoin": &Coin{
+	"symbol:toncoin": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/ton.svg",
 		Name:    "Toncoin",
 	},
-	"leo": &Coin{
+	"symbol:leo": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/leo.svg",
 	},
-	"ena": &Coin{
+	"symbol:ena": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/ena.svg",
 	},
-	"hype": &Coin{
+	"symbol:hype": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/hype.svg",
 	},
-	"algo": &Coin{
+	"symbol:algo": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/algo.svg",
 	},
-	"usd1": &Coin{
+	"symbol:usd1": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/usd1.svg",
 	},
-	"eos": &Coin{
+	"symbol:eos": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/eos.svg",
 	},
-	"steth": &Coin{
+	"symbol:steth": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/steth.svg",
 	},
-	"eigen": &Coin{
+	"symbol:eigen": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/eigen.svg",
 	},
-	"cro": &Coin{
+	"symbol:cro": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/cro.svg",
 	},
-	"dot": &Coin{
+	"symbol:dot": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/dot.svg",
 	},
-	"nexo": &Coin{
+	"symbol:nexo": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/nexo.svg",
 	},
-	"ape": &Coin{
+	"symbol:ape": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/ape.svg",
 	},
-	"wbtc": &Coin{
+	"symbol:wbtc": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/wbtc.svg",
 	},
-	"rune-1": &Coin{
+	"symbol:rune-1": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/rune-1.svg",
 	},
-	"fdusd": &Coin{
+	"symbol:fdusd": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/fdusd.svg",
 	},
-	"pepe": &Coin{
+	"symbol:pepe": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/pepe.svg",
 	},
-	"link": &Coin{
+	"symbol:link": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/link.svg",
 	},
-	"fantom": &Coin{
+	"symbol:fantom": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/fantom.svg",
 	},
-	"dai": &Coin{
+	"symbol:dai": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/dai.svg",
 	},
-	"ada": &Coin{
+	"symbol:ada": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/ada.svg",
 	},
-	"eos-1": &Coin{
+	"symbol:eos-1": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/eos-1.svg",
 	},
-	"stg": &Coin{
+	"symbol:stg": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/stg.svg",
 	},
-	"zk": &Coin{
+	"symbol:zk": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/zk.svg",
 	},
-	"bnb": &Coin{
+	"symbol:bnb": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/bnb.svg",
 	},
-	"arkm": &Coin{
+	"symbol:arkm": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/arkm.svg",
 	},
-	"cbbtc": &Coin{
+	"symbol:cbbtc": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/cbbtc.svg",
 	},
-	"gala": &Coin{
+	"symbol:gala": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/gala.svg",
 	},
-	"fartcoin": &Coin{
+	"symbol:fartcoin": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/fartcoin.svg",
 	},
-	"dogs": &Coin{
+	"symbol:dogs": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/dogs.svg",
 	},
-	"ltc": &Coin{
+	"symbol:ltc": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/ltc.svg",
 	},
-	"doge": &Coin{
+	"symbol:doge": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/doge.svg",
 	},
-	"pyth": &Coin{
+	"symbol:pyth": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/pyth.svg",
 	},
-	"wld": &Coin{
+	"symbol:wld": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/wld.svg",
 	},
-	"susde": &Coin{
+	"symbol:susde": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/susde.svg",
 	},
-	"matic": &Coin{
+	"symbol:matic": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/matic.svg",
 	},
-	"sol": &Coin{
+	"symbol:sol": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/sol.svg",
 	},
-	"zro": &Coin{
+	"symbol:zro": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/zro.svg",
 	},
-	"apt": &Coin{
+	"symbol:apt": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/apt.svg",
 	},
-	"neiro": &Coin{
+	"symbol:neiro": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/neiro.svg",
 	},
-	"mkr": &Coin{
+	"symbol:mkr": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/mkr.svg",
 	},
-	"zec": &Coin{
+	"symbol:zec": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/zec.svg",
 	},
-	"jup": &Coin{
+	"symbol:jup": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/jup.svg",
 	},
-	"brett": &Coin{
+	"symbol:brett": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/brett.svg",
 	},
-	"cfx": &Coin{
+	"symbol:cfx": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/cfx.svg",
 	},
-	"uni": &Coin{
+	"symbol:uni": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/uni.svg",
 	},
-	"dash": &Coin{
+	"symbol:dash": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/dash.svg",
 	},
-	"egld": &Coin{
+	"symbol:egld": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/egld.svg",
 	},
-	"om": &Coin{
+	"symbol:om": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/om.svg",
 	},
-	"usds-1": &Coin{
+	"symbol:usds-1": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/usds-1.svg",
 	},
-	"shib": &Coin{
+	"symbol:shib": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/shib.svg",
 	},
-	"sui": &Coin{
+	"symbol:sui": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/sui.svg",
 	},
-	"rune": &Coin{
+	"symbol:rune": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/rune.svg",
 	},
-	"hnt": &Coin{
+	"symbol:hnt": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/hnt.svg",
 	},
-	"mew": &Coin{
+	"symbol:mew": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/mew.svg",
 	},
-	"tia": &Coin{
+	"symbol:tia": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/tia.svg",
 	},
-	"grt": &Coin{
+	"symbol:grt": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/grt.svg",
 	},
-	"xrp": &Coin{
+	"symbol:xrp": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/xrp.svg",
 	},
-	"trump": &Coin{
+	"symbol:trump": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/trump.svg",
 	},
-	"near": &Coin{
+	"symbol:near": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/near.svg",
 	},
-	"flr": &Coin{
+	"symbol:flr": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/flr.svg",
 	},
-	"vet": &Coin{
+	"symbol:vet": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/vet.svg",
 	},
-	"pengu": &Coin{
+	"symbol:pengu": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/pengu.svg",
 	},
-	"core": &Coin{
+	"symbol:core": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/core.svg",
 	},
-	"not": &Coin{
+	"symbol:not": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/not.svg",
 	},
-	"flow": &Coin{
+	"symbol:flow": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/flow.svg",
 	},
-	"s": &Coin{
+	"symbol:s": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/s.svg",
 	},
-	"stx": &Coin{
+	"symbol:stx": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/stx.svg",
 	},
-	"moodeng": &Coin{
+	"symbol:moodeng": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/moodeng.svg",
 	},
-	"w": &Coin{
+	"symbol:w": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/w.svg",
 	},
-	"sand": &Coin{
+	"symbol:sand": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/sand.svg",
 	},
-	"arb": &Coin{
+	"symbol:arb": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/arb.svg",
 	},
-	"tkx": &Coin{
+	"symbol:tkx": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/tkx.svg",
 	},
-	"hbar": &Coin{
+	"symbol:hbar": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/hbar.svg",
 	},
-	"iota": &Coin{
+	"symbol:iota": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/iota.svg",
 	},
-	"ksm": &Coin{
+	"symbol:ksm": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/ksm.svg",
 	},
-	"panecakeswap": &Coin{
+	"symbol:panecakeswap": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/panecakeswap.svg",
 	},
-	"wbt": &Coin{
+	"symbol:wbt": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/wbt.svg",
 	},
-	"bch": &Coin{
+	"symbol:bch": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/bch.svg",
 	},
-	"floki": &Coin{
+	"symbol:floki": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/floki.svg",
 	},
-	"op": &Coin{
+	"symbol:op": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/op.svg",
 	},
-	"render": &Coin{
+	"symbol:render": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/render.svg",
 	},
-	"pendle": &Coin{
+	"symbol:pendle": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/pendle.svg",
 	},
-	"jitosol": &Coin{
+	"symbol:jitosol": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/jitosol.svg",
 	},
-	"akt": &Coin{
+	"symbol:akt": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/akt.svg",
 	},
-	"btc": &Coin{
+	"symbol:btc": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/btc.svg",
 	},
-	"btt": &Coin{
+	"symbol:btt": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/btt.svg",
 	},
-	"zeta": &Coin{
+	"symbol:zeta": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/zeta.svg",
 	},
-	"ordi": &Coin{
+	"symbol:ordi": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/ordi.svg",
 	},
-	"kava": &Coin{
+	"symbol:kava": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/kava.svg",
 	},
-	"ogy": &Coin{
+	"symbol:ogy": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/ogy.svg",
 	},
-	"trx": &Coin{
+	"symbol:trx": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/trx.svg",
 	},
-	"popcat": &Coin{
+	"symbol:popcat": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/popcat.svg",
 	},
-	"etc": &Coin{
+	"symbol:etc": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/etc.svg",
 	},
-	"icp": &Coin{
+	"symbol:icp": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/icp.svg",
 	},
-	"mana": &Coin{
+	"symbol:mana": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/mana.svg",
 	},
-	"aioz": &Coin{
+	"symbol:aioz": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/aioz.svg",
 	},
-	"ray": &Coin{
+	"symbol:ray": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/ray.svg",
 	},
-	"kcs": &Coin{
+	"symbol:kcs": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/kcs.svg",
 	},
-	"jamsy": &Coin{
+	"symbol:jamsy": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/jamsy.svg",
 	},
-	"base": &Coin{
+	"symbol:base": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/base.svg",
 	},
-	"dydx": &Coin{
+	"symbol:dydx": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/dydx.svg",
 	},
-	"imx": &Coin{
+	"symbol:imx": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/imx.svg",
 	},
-	"aave": &Coin{
+	"symbol:aave": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/aave.svg",
 	},
-	"xmr": &Coin{
+	"symbol:xmr": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/xmr.svg",
 	},
-	"paxg": &Coin{
+	"symbol:paxg": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/paxg.svg",
 	},
-	"virtual": &Coin{
+	"symbol:virtual": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/virtual.svg",
 	},
-	"tao": &Coin{
+	"symbol:tao": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/tao.svg",
 	},
-	"bgb": &Coin{
+	"symbol:bgb": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/bgb.svg",
 	},
-	"lbtc": &Coin{
+	"symbol:lbtc": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/lbtc.svg",
 	},
-	"wif": &Coin{
+	"symbol:wif": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/wif.svg",
 	},
-	"ondo": &Coin{
+	"symbol:ondo": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/ondo.svg",
 	},
-	"bera": &Coin{
+	"symbol:bera": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/bera.svg",
 	},
-	"weth": &Coin{
+	"symbol:weth": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/weth.svg",
 		Name:    "WETH",
 	},
-	"atom": &Coin{
+	"symbol:atom": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/atom.svg",
 	},
-	"giga": &Coin{
+	"symbol:giga": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/giga.svg",
 	},
-	"mnt": &Coin{
+	"symbol:mnt": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/mnt.svg",
 	},
-	"fil": &Coin{
+	"symbol:fil": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/fil.svg",
 	},
-	"twt": &Coin{
+	"symbol:twt": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/twt.svg",
 	},
-	"grass": &Coin{
+	"symbol:grass": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/grass.svg",
 	},
-	"kaia": &Coin{
+	"symbol:kaia": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/kaia.svg",
 	},
-	"bsc-usd": &Coin{
+	"symbol:bsc-usd": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/bsc-usd.svg",
 	},
-	"morpho": &Coin{
+	"symbol:morpho": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/morpho.svg",
 	},
-	"ai16z": &Coin{
+	"symbol:ai16z": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/ai16z.svg",
 	},
-	"launchcoin": &Coin{
+	"symbol:launchcoin": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/launchcoin.svg",
 	},
 }
