@@ -210,8 +210,8 @@ github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1/go.mod h1:hyedUtir6IdtD/7lIxGeC
 github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 h1:NMZiJj8QnKe1LgsbDayM4UoHwbvwDRwnI3hwNaAHRnc=
 github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0/go.mod h1:ZXNYxsqcloTdSy/rNShjYzMhyjf0LaoftYK0p+A3h40=
 github.com/decred/dcrd/lru v1.0.0/go.mod h1:mxKOwFd7lFjN2GZYsiz/ecgqR6kkYAl+0pz0tEMk218=
-github.com/dfns/dfns-sdk-go v0.0.3-beta.0.20250613152649-e92de28acf34 h1:NDviDTVdRR/kSnBykxN5rmqU/U35hPcNyOUL7bci6jY=
-github.com/dfns/dfns-sdk-go v0.0.3-beta.0.20250613152649-e92de28acf34/go.mod h1:yD3m7uBRPl3/KyTnO31zS/HVxrjxMQuOs4s/xPKMK1s=
+github.com/dfns/dfns-sdk-go v1.0.0 h1:aJVemHE1OVOFqFxPm9dSW3kZKIo5zowl37n3O8RhTpg=
+github.com/dfns/dfns-sdk-go v1.0.0/go.mod h1:yD3m7uBRPl3/KyTnO31zS/HVxrjxMQuOs4s/xPKMK1s=
 github.com/dgraph-io/badger/v3 v3.2103.5 h1:ylPa6qzbjYRQMU6jokoj4wzcaweHylt//CH0AKt0akg=
 github.com/dgraph-io/badger/v3 v3.2103.5/go.mod h1:4MPiseMeDQ3FNCYwRbbcBOGJLf5jsE0PPFzRiKjtcdw=
 github.com/dgraph-io/badger/v4 v4.8.0 h1:JYph1ChBijCw8SLeybvPINizbDKWZ5n/GYbz2yhN/bs=
