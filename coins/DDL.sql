@@ -161,16 +161,13 @@ DO $$ BEGIN
 END$$;
 
 UPDATE coins SET
-    version = (select global.value from global where global.key = '%[3]v')::BIGINT + 1
-WHERE network = 'icp';
-
-insert into public.coins (sync_frequency, created_at, updated_at, data_updated_at, version, coingecko_coin_id, id, network, name, contract_address, symbol, symbol_group, icon_url, price_usd, decimals, native)
-values  ('0 years 0 mons 0 days 1 hours 0 mins 0.0 secs', now(), now(), now(), (select global.value from global where global.key = '%[3]v')::BIGINT + 2, 'weth', 'dff9d436-d7d5-93ad-5c2b-9d73f03e16b1', 'bob-network', 'WETH', '', 'weth', 'weth', 'https://cdn.ice.io/online+/assets/coins/weth.svg', 3921.99, 18, true),
-        ('0 years 0 mons 0 days 1 hours 0 mins 0.0 secs', now(), now(), now(), (select global.value from global where global.key = '%[3]v')::BIGINT + 2, 'near', '455e33cf-2651-920e-2f19-d8d50e9cd56d', 'near', 'NEAR Protocol', '', 'near', 'near', 'https://cdn.ice.io/online+/assets/coins/near.svg', 2.69, 24, true)
-ON CONFLICT(id) DO NOTHING;
-
-UPDATE wallet_views SET
-       coins = array_append(array_append(wallet_views.coins, ('dff9d436-d7d5-93ad-5c2b-9d73f03e16b1',null)::coin_mapping),('455e33cf-2651-920e-2f19-d8d50e9cd56d',null)::coin_mapping)
-WHERE
-    'dff9d436-d7d5-93ad-5c2b-9d73f03e16b1' NOT IN (select (unnest(wallet_views.coins)::coin_mapping).coinId) OR
-    '455e33cf-2651-920e-2f19-d8d50e9cd56d' NOT IN (select (unnest(wallet_views.coins)::coin_mapping).coinId);
+                 version = (select global.value from global where global.key = '%[3]v')::BIGINT + 1,
+                 icon_url = (CASE
+                                 WHEN coingecko_coin_id = 'icecream' THEN 'https://coin-images.coingecko.com/coins/images/26237/large/icecream.png?1696525321'
+                                 WHEN coingecko_coin_id = 'iron-finance' THEN 'https://coin-images.coingecko.com/coins/images/17024/large/ice_logo.jpg?1696516587'
+                                 WHEN coingecko_coin_id = 'alligator-alcatraz' THEN 'https://coin-images.coingecko.com/coins/images/66962/large/ICE.png?1751266097'
+                                 WHEN coingecko_coin_id = 'ice-bucket-challenge' THEN 'https://coin-images.coingecko.com/coins/images/55313/large/icebucket.png?1745368086'
+                                 WHEN coingecko_coin_id = 'decentral-games-ice' THEN 'https://coin-images.coingecko.com/coins/images/18110/large/ice-poker.png?1696517614'
+                                 WHEN coingecko_coin_id = 'ice-token' THEN 'https://coin-images.coingecko.com/coins/images/14586/large/ice.png?1696514266'
+                                 ELSE coins.icon_url END)
+WHERE lower(symbol) = 'ice';
