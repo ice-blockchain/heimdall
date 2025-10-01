@@ -495,7 +495,7 @@ var networks = map[string]*Network{
 		CoinGeckoPlatform:  "polkadot",
 		DefaultDecimals:    10,
 		DisplayName:        "Polkadot",
-		ExplorerURL:        "https://subscan.io/extrinsic/{txHash}",
+		ExplorerURL:        "https://polkadot.statescan.io/#/extrinsics/{txHash}",
 		SkipSyncTokens:     true,
 		Image:              "https://cdn.ice.io/online+/assets/networks/wallet_polkadot.svg",
 		Tier:               2,
