@@ -70,10 +70,12 @@ func (s *coinSync) sync(ctx context.Context) {
 	}
 	cancel()
 	for ctx.Err() == nil {
+		syncCtx, cancel = context.WithTimeout(context.Background(), coinSyncIterationDuration)
 		if errors.Is(storage.CheckWrite(syncCtx, s.db), storage.ErrReadOnly) {
 			log.Info("skipping coin sync, DB is read-only")
 			select {
 			case <-ctx.Done():
+				cancel()
 				return
 			case <-stdlibtime.After(10 * stdlibtime.Second):
 				cancel()
@@ -99,7 +101,6 @@ func (s *coinSync) sync(ctx context.Context) {
 		}
 		sleepTime := stdlibtime.Duration(coinSyncIterationDuration / stdlibtime.Duration(targetIterations))
 		start := time.Now()
-		syncCtx, cancel = context.WithTimeout(context.Background(), coinSyncIterationDuration)
 		s.syncCoinBatch(syncCtx)
 		cancel()
 
