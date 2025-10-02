@@ -169,6 +169,7 @@ UPDATE coins SET
                                  WHEN coingecko_coin_id = 'ice-bucket-challenge' THEN 'https://coin-images.coingecko.com/coins/images/55313/large/icebucket.png?1745368086'
                                  WHEN coingecko_coin_id = 'decentral-games-ice' THEN 'https://coin-images.coingecko.com/coins/images/18110/large/ice-poker.png?1696517614'
                                  WHEN coingecko_coin_id = 'ice-token' THEN 'https://coin-images.coingecko.com/coins/images/14586/large/ice.png?1696514266'
+                                 WHEN coingecko_coin_id = 'iceleia' THEN 'https://static.arkhamintelligence.com/tokens/iceleia.png'
                                  ELSE coins.icon_url END)
 WHERE lower(symbol) = 'ice';
 
