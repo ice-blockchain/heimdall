@@ -387,6 +387,6 @@ func (s *service) EventWebhookFromDelegatedRP(
 	ctx context.Context,
 	req *server.Request[WebhookData, WebhookResp],
 ) (successResp *server.Response[WebhookResp], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	log.Info(fmt.Sprintf("Webhook call for %v %+v", req.Data.Kind, req.Data.Data))
+	log.Debug(fmt.Sprintf("Webhook call for %v %+v", req.Data.Kind, req.Data.Data))
 	return server.OK[WebhookResp](&WebhookResp{}), nil
 }
