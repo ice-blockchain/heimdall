@@ -1,9 +1,17 @@
 {
   "en": {
-    "_version": 5,
+    "_version": 6,
     "reply": {
       "title": "Online+",
       "body": "\uD83D\uDCAC @{{username}} replied to your post"
+    },
+    "replyArticle": {
+      "title": "Online+",
+      "body": "\uD83D\uDCAC @{{username}} replied to your article"
+    },
+    "replyComment": {
+      "title": "Online+",
+      "body": "\uD83D\uDCAC @{{username}} replied to your comment"
     },
     "mention": {
       "title": "Online+",
@@ -13,9 +21,41 @@
       "title": "Online+",
       "body": "\uD83D\uDD01 @{{username}} reposted your post"
     },
+    "repostArticle": {
+      "title": "Online+",
+      "body": "\uD83D\uDD01 @{{username}} reposted your article"
+    },
+    "repostComment": {
+      "title": "Online+",
+      "body": "\uD83D\uDD01 @{{username}} reposted your comment"
+    },
+    "quote": {
+      "title": "Online+",
+      "body": "\u270D\uFE0F @{{username}} quoted your post"
+    },
+    "quoteArticle": {
+      "title": "Online+",
+      "body": "\u270D\uFE0F @{{username}} quoted your article"
+    },
+    "quoteComment": {
+      "title": "Online+",
+      "body": "\u270D\uFE0F @{{username}} quoted your comment"
+    },
     "like": {
       "title": "Online+",
       "body": "\u2764\uFE0F @{{username}} liked your post"
+    },
+    "likeArticle": {
+      "title": "Online+",
+      "body": "\u2764\uFE0F @{{username}} liked your article"
+    },
+    "likeStory": {
+      "title": "Online+",
+      "body": "\u2764\uFE0F @{{username}} liked your story"
+    },
+    "likeComment": {
+      "title": "Online+",
+      "body": "\u2764\uFE0F @{{username}} liked your comment"
     },
     "follower": {
       "title": "Online+",
@@ -77,6 +117,10 @@
       "title": "{{displayName}}",
       "body": "\uD83D\uDD17 Shared a post"
     },
+    "chatShareArticleMessage": {
+      "title": "{{displayName}}",
+      "body": "\uD83D\uDD17 Shared an article"
+    },
     "chatShareStoryMessage": {
       "title": "{{displayName}}",
       "body": "\uD83D\uDDBC\uFE0F Shared a story"
@@ -107,10 +151,18 @@
     }
   },
   "es": {
-    "_version": 5,
+    "_version": 6,
     "reply": {
       "title": "Online+",
       "body": "[ES] \uD83D\uDCAC @{{username}} replied to your post"
+    },
+    "replyArticle": {
+      "title": "Online+",
+      "body": "[ES] \uD83D\uDCAC @{{username}} replied to your article"
+    },
+    "replyComment": {
+      "title": "Online+",
+      "body": "[ES] \uD83D\uDCAC @{{username}} replied to your comment"
     },
     "mention": {
       "title": "Online+",
@@ -120,9 +172,41 @@
       "title": "Online+",
       "body": "[ES] \uD83D\uDD01 @{{username}} reposted your post"
     },
+    "repostArticle": {
+      "title": "Online+",
+      "body": "[ES] \uD83D\uDD01 @{{username}} reposted your article"
+    },
+    "repostComment": {
+      "title": "Online+",
+      "body": "[ES] \uD83D\uDD01 @{{username}} reposted your comment"
+    },
+    "quote": {
+      "title": "Online+",
+      "body": "[ES] \u270D\uFE0F @{{username}} quoted your post"
+    },
+    "quoteArticle": {
+      "title": "Online+",
+      "body": "[ES] \u270D\uFE0F @{{username}} quoted your article"
+    },
+    "quoteComment": {
+      "title": "Online+",
+      "body": "[ES] \u270D\uFE0F @{{username}} quoted your comment"
+    },
     "like": {
       "title": "Online+",
       "body": "[ES] \u2764\uFE0F @{{username}} liked your post"
+    },
+    "likeArticle": {
+      "title": "Online+",
+      "body": "[ES] \u2764\uFE0F @{{username}} liked your article"
+    },
+    "likeStory": {
+      "title": "Online+",
+      "body": "[ES] \u2764\uFE0F @{{username}} liked your story"
+    },
+    "likeComment": {
+      "title": "Online+",
+      "body": "[ES] \u2764\uFE0F @{{username}} liked your comment"
     },
     "follower": {
       "title": "Online+",
@@ -184,6 +268,10 @@
       "title": "{{displayName}}",
       "body": "[ES] \uD83D\uDD17 Shared a post"
     },
+    "chatShareArticleMessage": {
+      "title": "{{displayName}}",
+      "body": "[ES] \uD83D\uDD17 Shared an article"
+    },
     "chatShareStoryMessage": {
       "title": "{{displayName}}",
       "body": "[ES] \uD83D\uDDBC\uFE0F Shared a story"
@@ -214,10 +302,18 @@
     }
   },
   "fr": {
-    "_version": 5,
+    "_version": 6,
     "reply": {
       "title": "Online+",
       "body": "[FR] \uD83D\uDCAC @{{username}} replied to your post"
+    },
+    "replyArticle": {
+      "title": "Online+",
+      "body": "[FR] \uD83D\uDCAC @{{username}} replied to your article"
+    },
+    "replyComment": {
+      "title": "Online+",
+      "body": "[FR] \uD83D\uDCAC @{{username}} replied to your comment"
     },
     "mention": {
       "title": "Online+",
@@ -227,9 +323,41 @@
       "title": "Online+",
       "body": "[FR] \uD83D\uDD01 @{{username}} reposted your post"
     },
+    "repostArticle": {
+      "title": "Online+",
+      "body": "[FR] \uD83D\uDD01 @{{username}} reposted your article"
+    },
+    "repostComment": {
+      "title": "Online+",
+      "body": "[FR] \uD83D\uDD01 @{{username}} reposted your comment"
+    },
+    "quote": {
+      "title": "Online+",
+      "body": "[FR] \u270D\uFE0F @{{username}} quoted your post"
+    },
+    "quoteArticle": {
+      "title": "Online+",
+      "body": "[FR] \u270D\uFE0F @{{username}} quoted your article"
+    },
+    "quoteComment": {
+      "title": "Online+",
+      "body": "[FR] \u270D\uFE0F @{{username}} quoted your comment"
+    },
     "like": {
       "title": "Online+",
       "body": "[FR] \u2764\uFE0F @{{username}} liked your post"
+    },
+    "likeArticle": {
+      "title": "Online+",
+      "body": "[FR] \u2764\uFE0F @{{username}} liked your article"
+    },
+    "likeStory": {
+      "title": "Online+",
+      "body": "[FR] \u2764\uFE0F @{{username}} liked your story"
+    },
+    "likeComment": {
+      "title": "Online+",
+      "body": "[FR] \u2764\uFE0F @{{username}} liked your comment"
     },
     "follower": {
       "title": "Online+",
@@ -290,6 +418,10 @@
     "chatSharePostMessage": {
       "title": "{{displayName}}",
       "body": "[FR] \uD83D\uDD17 Shared a post"
+    },
+    "chatShareArticleMessage": {
+      "title": "{{displayName}}",
+      "body": "[FR] \uD83D\uDD17 Shared an article"
     },
     "chatShareStoryMessage": {
       "title": "{{displayName}}",
