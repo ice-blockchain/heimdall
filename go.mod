@@ -38,7 +38,7 @@ require (
 	github.com/swaggo/swag v1.16.6
 	github.com/twilio/twilio-go v1.28.3
 	github.com/xssnick/tonutils-go v1.15.3
-	golang.org/x/exp v0.0.0-20250911091902-df9299821621
+	golang.org/x/exp v0.0.0-20251002181428-27f1f14c8bb9
 	golang.org/x/mod v0.28.0
 	golang.org/x/net v0.44.0
 	golang.org/x/sync v0.17.0
@@ -47,7 +47,7 @@ require (
 require (
 	cel.dev/expr v0.24.0 // indirect
 	cloud.google.com/go v0.123.0 // indirect
-	cloud.google.com/go/auth v0.16.5 // indirect
+	cloud.google.com/go/auth v0.17.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	cloud.google.com/go/firestore v1.18.0 // indirect
@@ -112,7 +112,7 @@ require (
 	github.com/dgraph-io/badger/v3 v3.2103.5 // indirect
 	github.com/dgraph-io/ristretto v1.0.1 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/docker v28.4.0+incompatible // indirect
+	github.com/docker/docker v28.5.0+incompatible // indirect
 	github.com/docker/go-connections v0.6.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dundee/gdu/v5 v5.31.0 // indirect
@@ -270,9 +270,9 @@ require (
 	golang.org/x/tools v0.37.0 // indirect
 	google.golang.org/api v0.251.0 // indirect
 	google.golang.org/appengine/v2 v2.0.6 // indirect
-	google.golang.org/genproto v0.0.0-20250929231259-57b25ae835d4 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20250929231259-57b25ae835d4 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250929231259-57b25ae835d4 // indirect
+	google.golang.org/genproto v0.0.0-20251002232023-7c0ddcbb5797 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20251002232023-7c0ddcbb5797 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251002232023-7c0ddcbb5797 // indirect
 	google.golang.org/grpc v1.75.1 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
