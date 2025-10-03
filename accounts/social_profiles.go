@@ -240,8 +240,9 @@ func (a *accounts) SearchSocialProfiles(ctx context.Context, tpe SearchType, key
 		args = append(args, "%"+strings.ToLower(keyword)+"%")
 	}
 	argIdx++
-	query += fmt.Sprintf(` ORDER BY sp.master_pubkey LIMIT $%d OFFSET $%d`, argIdx, argIdx+1)
-	args = append(args, limit, offset)
+	query += fmt.Sprintf(` ORDER BY similarity(sp.lookup, $%d) DESC, u.verified DESC, sp.lookup ASC 
+						   LIMIT $%d OFFSET $%d`, argIdx, argIdx+1, argIdx+2)
+	args = append(args, strings.ToLower(keyword), limit, offset)
 	profiles, err := storage.Select[LiteUser](ctx, a.db, query, args...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to search user profiles")
