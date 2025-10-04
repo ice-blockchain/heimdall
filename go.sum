@@ -450,8 +450,8 @@ github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5 h1:
 github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5/go.mod h1:or80JBz1VHXxKN5qXBNYFooWcfjUPIQzbNUVZ7FTFzo=
 github.com/ice-blockchain/go/src v0.0.0-20250625091122-356c0c7d1830 h1:FymrVSpOD6rKyZ97MJr5Xu2ZP29EqTKpdMqTf2DrMgU=
 github.com/ice-blockchain/go/src v0.0.0-20250625091122-356c0c7d1830/go.mod h1:pVzkmaIwkLaJ5cKPHPtuKyxaXiTsa/V7kbbgLmsr4Hw=
-github.com/ice-blockchain/subzero v1.420.0 h1:vgKDkgQMFxKmE90Zuc6VR6YdHL71GH8ojeGMt3fyszc=
-github.com/ice-blockchain/subzero v1.420.0/go.mod h1:lKBim2y8FyyaU6hLf3VZnBCZbWIJVyvt632ohIlPtNw=
+github.com/ice-blockchain/subzero v1.421.0 h1:d8sBpS3PPlIWeiWOGeCcuk9IGqLgqW9hffeadkqF/bA=
+github.com/ice-blockchain/subzero v1.421.0/go.mod h1:illmzWuLDYLmxzQ74ATwxT5WJr/3+tXAAJRpd1l0NbA=
 github.com/ice-blockchain/wintr v1.163.0 h1:uWKNSRtW20O1uptbyzlg904G/VpfoQfwqXObp1Y328k=
 github.com/ice-blockchain/wintr v1.163.0/go.mod h1:xH5jJKTDmz0CtDixERNtxeOEinK1kvF8ISlBmjFSXMQ=
 github.com/icholy/digest v1.1.0 h1:HfGg9Irj7i+IX1o1QAmPfIBNu/Q5A5Tu3n/MED9k9H4=
@@ -760,8 +760,8 @@ github.com/vmihailenco/tagparser/v2 v2.0.0/go.mod h1:Wri+At7QHww0WTrCBeu4J6bNtoV
 github.com/xlzd/gotp v0.1.0 h1:37blvlKCh38s+fkem+fFh7sMnceltoIEBYTVXyoa5Po=
 github.com/xlzd/gotp v0.1.0/go.mod h1:ndLJ3JKzi3xLmUProq4LLxCuECL93dG9WASNLpHz8qg=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
-github.com/xssnick/tonutils-go v1.15.3 h1:9iEHmm87I2IP75nyLiLF9T9xW8Gx+ksgXx43cGaCayg=
-github.com/xssnick/tonutils-go v1.15.3/go.mod h1:3/B8mS5IWLTd1xbGbFbzRem55oz/Q86HG884bVsTqZ8=
+github.com/xssnick/tonutils-go v1.15.4 h1:W8At5J1Z5Mg1Pf/eJDw+takoAHB1U0iKOFK76DzGu3Q=
+github.com/xssnick/tonutils-go v1.15.4/go.mod h1:3/B8mS5IWLTd1xbGbFbzRem55oz/Q86HG884bVsTqZ8=
 github.com/xyproto/randomstring v1.0.5 h1:YtlWPoRdgMu3NZtP45drfy1GKoojuR7hmRcnhZqKjWU=
 github.com/xyproto/randomstring v1.0.5/go.mod h1:rgmS5DeNXLivK7YprL0pY+lTuhNQW3iGxZ18UQApw/E=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
