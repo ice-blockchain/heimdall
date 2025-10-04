@@ -154,7 +154,8 @@ func (n *nftContent) getNFTCollectionItemMetadata(ctx context.Context, nftConten
 				n.nft_item_address,
 				n.master_pubkey,
 				n.type,
-				n.status
+				n.status,
+				n.created_at
 			FROM nft_content n
 			INNER JOIN social_profiles sp ON n.master_pubkey = sp.master_pubkey 
 			WHERE n.content_address = $1 AND n.type = $2::nft_content_type AND n.status = 'completed';`
@@ -239,7 +240,18 @@ func (n *nftContent) insertNFTContent(ctx context.Context, contentEvent *model.E
 }
 
 func (n *nftContent) getAccountTypeRecord(ctx context.Context, masterPubKey string) (*NFTCollectionItemMetadata, error) {
-	stmt := `SELECT * FROM nft_content 
+	stmt := `SELECT 
+				content_address,
+				nft_collection_address,
+				nft_collection_name,
+				nft_collection_creator_address,
+				nft_item_address,
+				master_pubkey,
+				owner,
+				type,
+				status,
+				created_at
+			 FROM nft_content 
 			 WHERE content_address = $1 AND type = 'account'::nft_content_type AND status = 'completed';`
 	row, err := storage.Get[NFTCollectionItemMetadata](ctx, n.db, stmt, masterPubKey)
 	if err != nil {
