@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/gin-gonic/gin"
+	"github.com/goccy/go-json"
 
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/server"
@@ -23,27 +25,40 @@ type (
 		Data  map[string]any `json:"data,omitempty"`
 		Error errMessage     `json:"error"`
 	}
-	errMessage struct {
+	InternalError interface {
+		InternalErr() error
+		SetData(d map[string]any)
+	}
+	quotedDelegatedErrorResponse string
+	errMessage                   struct {
 		Message string `json:"message"`
 	}
 )
 
+func (d *quotedDelegatedErrorResponse) InternalErr() error {
+	return errors.Errorf(string(*d))
+}
+func (d *quotedDelegatedErrorResponse) SetData(data map[string]any) {}
 func (d *delegatedErrorResponse) InternalErr() error {
 	return d.err
 }
-func buildDelegatedErrorResponse(status int, err error, code string, data ...map[string]any) *server.ErrResponse[*delegatedErrorResponse] {
+func (d *delegatedErrorResponse) SetData(data map[string]any) {
+	d.Data = data
+}
+
+func buildDelegatedErrorResponse(status int, err error, code string, data ...map[string]any) *server.ErrResponse[InternalError] {
 	msg := err.Error()
 	if len(code) > 0 {
 		msg = code
 	}
 
-	resp := &server.ErrResponse[*delegatedErrorResponse]{
+	resp := &server.ErrResponse[InternalError]{
 		Data:    &delegatedErrorResponse{Error: errMessage{Message: msg}, err: err},
 		Headers: nil,
 		Code:    status,
 	}
 	if len(data) > 0 {
-		resp.Data.Data = data[0]
+		resp.Data.SetData(data[0])
 	}
 	return resp
 }
@@ -163,7 +178,7 @@ func (s *service) AssetLinks(
 func (s *service) StartDelegatedRecovery(
 	ctx context.Context,
 	req *server.Request[StartDelegatedRecoveryReq, StartDelegatedRecoveryResp],
-) (successResp *server.Response[StartDelegatedRecoveryResp], errorResp *server.ErrResponse[*delegatedErrorResponse]) {
+) (successResp *server.Response[StartDelegatedRecoveryResp], errorResp *server.ErrResponse[InternalError]) {
 	if err := req.Data.validate(); err != nil {
 		return nil, buildDelegatedErrorResponse(http.StatusBadRequest, errors.Wrapf(err, "invalid 2fa option provided"), invalidPropertiesErrorCode)
 	}
@@ -214,7 +229,7 @@ func (s *service) StartDelegatedRecovery(
 func (s *service) GetLoginChallenge(
 	ctx context.Context,
 	req *server.Request[GetLoginChallenge, LoginChallenge],
-) (successResp *server.Response[LoginChallenge], errorResp *server.ErrResponse[*delegatedErrorResponse]) {
+) (successResp *server.Response[LoginChallenge], errorResp *server.ErrResponse[InternalError]) {
 	if err := req.Data.validate(); err != nil {
 		return nil, buildDelegatedErrorResponse(http.StatusBadRequest, errors.Wrapf(err, "invalid 2fa option provided"), invalidPropertiesErrorCode)
 	}
@@ -267,7 +282,7 @@ func (s *service) GetLoginChallenge(
 func (s *service) CompleteRegistration(
 	ctx context.Context,
 	req *server.Request[CompletedRegistrationChallenge, CompletedRegistration],
-) (successResp *server.Response[CompletedRegistration], errorResp *server.ErrResponse[*delegatedErrorResponse]) {
+) (successResp *server.Response[CompletedRegistration], errorResp *server.ErrResponse[InternalError]) {
 	ctx = withAppID(ctx, req.Data.ClientID)
 	ctx = withAuth(ctx, req.Data.Authorization)
 	ctx = withDeviceIdentificationRequestID(ctx, req.Data.DeviceIdentificationRequestID)
@@ -300,13 +315,22 @@ func (s *service) CompleteRegistration(
 func (s *service) InitRegistration(
 	ctx context.Context,
 	req *server.Request[InitRegistration, RegistrationChallenge],
-) (successResp *server.Response[RegistrationChallenge], errorResp *server.ErrResponse[*delegatedErrorResponse]) {
+) (successResp *server.Response[RegistrationChallenge], errorResp *server.ErrResponse[InternalError]) {
 	ctx = withAppID(ctx, req.Data.ClientID)
 	resp, err := s.accounts.InitRegistration(ctx, req.Data.IdentityKeyName, req.Data.EarlyAccessEmail)
 	if err != nil {
 		if delegatedErr := accounts.ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
 			var delegatedParsedErr *accounts.DelegatedRelyingPartyErr
 			if errors.As(delegatedErr, &delegatedParsedErr) {
+				if strings.Contains(delegatedParsedErr.Message, "User already exists.") {
+					jBytes, _ := json.Marshal(&delegatedErrorResponse{Error: errMessage{Message: delegatedParsedErr.Message}, err: err})
+					q := quotedDelegatedErrorResponse(string(jBytes))
+					return nil, &server.ErrResponse[InternalError]{
+						Data:    &q,
+						Headers: nil,
+						Code:    delegatedParsedErr.HTTPStatus,
+					}
+				}
 				return nil, buildDelegatedErrorResponse(delegatedParsedErr.HTTPStatus, err, delegatedParsedErr.Message)
 			}
 		}
@@ -333,7 +357,7 @@ func (s *service) InitRegistration(
 func (s *service) CreateWallet(
 	ctx context.Context,
 	req *server.Request[CreateWalletReq, Wallet],
-) (successResp *server.Response[Wallet], errorResp *server.ErrResponse[*delegatedErrorResponse]) {
+) (successResp *server.Response[Wallet], errorResp *server.ErrResponse[InternalError]) {
 	ctx = withAppID(ctx, req.Data.ClientID)
 	ctx = withAuth(ctx, req.Data.Authorization)
 	ctx = withUserAction(ctx, req.Data.UserAction)

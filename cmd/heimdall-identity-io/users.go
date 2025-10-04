@@ -157,7 +157,7 @@ func (s *service) UserIndexers(
 func (s *service) GetUser(
 	ctx context.Context,
 	req *server.Request[GetUserReq, User],
-) (successResp *server.Response[User], errorResp *server.ErrResponse[*delegatedErrorResponse]) {
+) (successResp *server.Response[User], errorResp *server.ErrResponse[InternalError]) {
 	ctx = context.WithValue(ctx, accounts.AuthorizationHeaderCtxValue, req.Data.Authorization)
 	ctx = context.WithValue(ctx, accounts.AppIDHeaderCtxValue, req.Data.ClientID)
 
