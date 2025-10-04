@@ -31,7 +31,7 @@ func init() {
 }
 
 //nolint:funlen // .
-func RootHandler[REQ, RESP any, ERR InternalErr[ERRSTR], ERRSTR any](handleRequest func(context.Context, *Request[REQ, RESP]) (*Response[RESP], *ErrResponse[ERR])) func(*gin.Context) {
+func RootHandler[REQ, RESP any, ERR interface{ InternalErr() error }](handleRequest func(context.Context, *Request[REQ, RESP]) (*Response[RESP], *ErrResponse[ERR])) func(*gin.Context) {
 	return func(ginCtx *gin.Context) {
 		ctx, cancel := context.WithTimeout(ginCtx.Request.Context(), cfg.DefaultEndpointTimeout)
 		defer cancel()
@@ -63,7 +63,7 @@ func RootHandler[REQ, RESP any, ERR InternalErr[ERRSTR], ERRSTR any](handleReque
 			for k, v := range failure.Headers {
 				ginCtx.Header(k, v)
 			}
-			ginCtx.JSON(processErrorResponse[REQ, RESP, ERR, ERRSTR](ctx, req, failure))
+			ginCtx.JSON(processErrorResponse[REQ, RESP, ERR](ctx, req, failure))
 
 			return
 		}
@@ -249,7 +249,7 @@ func AuthorizeWithCustomAuthStore(ctx context.Context, ginCtx *gin.Context, allo
 	return token, nil
 }
 
-func processErrorResponse[REQ, RESP any, ERR InternalErr[ERRSTR], ERRSTR any](ctx context.Context, req *Request[REQ, RESP], failure *ErrResponse[ERR]) (int, any) {
+func processErrorResponse[REQ, RESP any, ERR interface{ InternalErr() error }](ctx context.Context, req *Request[REQ, RESP], failure *ErrResponse[ERR]) (int, any) {
 	err := (failure.Data).InternalErr()
 	if errors.Is(err, req.ginCtx.Request.Context().Err()) {
 		return http.StatusServiceUnavailable, &ErrorResponse{Error: "service is shutting down"}

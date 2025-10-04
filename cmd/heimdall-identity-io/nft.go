@@ -143,7 +143,7 @@ func corsHeaders() map[string]string {
 func (s *service) GetNFTs(
 	ctx context.Context,
 	req *server.Request[GetNFTsReq, NFTCollection],
-) (successResp *server.Response[NFTCollection], errorResp *server.ErrResponse[*delegatedErrorResponse]) {
+) (successResp *server.Response[NFTCollection], errorResp *server.ErrResponse[InternalError]) {
 	if req.Data.Limit == 0 {
 		req.Data.Limit = 100
 	}
