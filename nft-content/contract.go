@@ -6,6 +6,7 @@ import (
 	"context"
 	_ "embed"
 	"io"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -65,6 +66,7 @@ type (
 		Type           NFTContentType   `db:"type"`
 		Status         NFTContentStatus `db:"status"`
 		Bio            *string          `db:"bio"`
+		CreatedAt      *time.Time       `db:"created_at"`
 	}
 	NFTResponse struct {
 		Type           NFTContentType `json:"type,omitempty" example:"Content"`
