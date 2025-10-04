@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS nft_content (
     master_pubkey                          TEXT NOT NULL REFERENCES users(master_pubkey) ON DELETE CASCADE,
     type                                   nft_content_type NOT NULL,
     status                                 nft_content_status NOT NULL DEFAULT 'new',
-    created_at                             TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at                             TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (content_address, type)
 ) WITH (FILLFACTOR = 70);
 
@@ -55,7 +55,7 @@ BEGIN
 END $$;
 
 -- TODO: remove this it will be migrated to all envs.
-ALTER TABLE nft_content ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE nft_content ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
 
 -- TODO: remove this it will be migrated to all envs.
 DO $$
