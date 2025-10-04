@@ -45,15 +45,12 @@ func (f *following) ProcessFollowersEvent(ctx context.Context, followListEvent, 
 			  	  AND master_pubkey != ALL($2)
 		)
 		INSERT INTO following (master_pubkey, follower_master_pubkey)
-		SELECT master_pubkey, $1
-		FROM unnest($2) AS master_pubkey
+		SELECT u.master_pubkey, $1
+		FROM unnest($2) AS target_pubkey
+		INNER JOIN users u ON u.master_pubkey = target_pubkey
 		ON CONFLICT DO NOTHING`
 	_, err := storage.Exec(ctx, f.db, stmt, followListEvent.GetMasterPublicKey(), followedPubkeys)
 	if err != nil {
-		if errors.Is(err, storage.ErrRelationNotFound) {
-			return errors.Wrap(ErrRelationNotFound, "failed to update following relationships")
-		}
-
 		return errors.Wrap(err, "failed to update following relationships")
 	}
 
