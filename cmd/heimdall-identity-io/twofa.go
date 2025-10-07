@@ -79,6 +79,8 @@ func (s *service) Send2FARequest(
 			return nil, server.BadRequest(err, invalid2FAToTReplace)
 		case errors.Is(err, accounts.ErrDuplicate):
 			return nil, server.Conflict(err, invalid2FAToTReplace)
+		case errors.Is(err, accounts.ErrInvalid2FAInput):
+			return nil, server.BadRequest(err, invalidPropertiesErrorCode)
 		default:
 			return nil, server.Unexpected(err)
 		}

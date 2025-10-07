@@ -32,6 +32,7 @@ const (
 )
 
 var (
+	ErrUnsupportedCountry = sms.ErrUnsupportedCountry
 	//go:embed translations
 	translations embed.FS
 	//nolint:gochecknoglobals // Its loaded once at startup.

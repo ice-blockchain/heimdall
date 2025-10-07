@@ -23,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/exp/maps"
 
+	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
 	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
@@ -543,7 +544,13 @@ func (a *accounts) deliverCode(ctx context.Context, opt TwoFAOptionEnum, code, l
 		log.Panic(errors.Errorf("unsupported 2FA provider %v", opt))
 	}
 	if codeDeliverer != nil {
-		return nil, errors.Wrapf(codeDeliverer.DeliverCode(ctx, code, language, deliverTo), "failed to deliver 2fa code to %v using %v", deliverTo, opt)
+		if err := codeDeliverer.DeliverCode(ctx, code, language, deliverTo); err != nil {
+			if errors.Is(err, sms.ErrUnsupportedCountry) {
+				return nil, errors.Wrapf(ErrInvalid2FAInput, "failed to deliver 2fa code to %v using %v", deliverTo, opt)
+			}
+			return nil, errors.Wrapf(err, "failed to deliver 2fa code to %v using %v", deliverTo, opt)
+		}
+		return nil, nil
 	}
 	return nil, errors.Errorf("unsupported 2FA provider %v", opt)
 }

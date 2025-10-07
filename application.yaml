@@ -75,6 +75,9 @@ accounts:
     credentials:
       #apiKey: bogus
   wintr/sms:
+    #messageServiceSIDs:
+    #  th: MG12234
+    #  ge: MG43211
     credentials:
       #user: bogus
       #password: bogus
