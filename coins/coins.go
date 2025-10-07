@@ -219,11 +219,17 @@ func MapNetworkFromCoinGecko(cgNetwork, symbolGroup string) (mappedNetwork strin
 
 func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *coingecko.Coin) (*coin, error) {
 	sql := fmt.Sprintf(`
+	WITH insert_data AS (
+		SELECT * from (VALUES (
+				$2::INTERVAL,             $1::TIMESTAMP,         $1::TIMESTAMP,         $1::TIMESTAMP,          $3::SMALLINT,     (select value from global where key = '%[1]v')::BIGINT,      $4::NUMERIC,        $5,  $6,
+				$7,      $8,    $9,              $10,   $11,          $12,   false
+		)) as t(sync_frequency, created_at, updated_at, data_updated_at, decimals, version,                             price_usd, id, coingecko_coin_id,
+				network, name, contract_address, symbol, symbol_group, icon_url, native)
+		WHERE NOT EXISTS (SELECT 1 FROM coins WHERE symbol_group = $9) -- restrict contract_address to be eq symbol_group of existing coins
+	)
 	INSERT INTO coins (sync_frequency, created_at, updated_at, data_updated_at, decimals, version,                             price_usd, id, coingecko_coin_id,
-		network, name, contract_address, symbol, symbol_group, icon_url, native) VALUES (
-	$2,             $1,         $1,         $1,          $3,     (select value from global where key = '%[1]v')::BIGINT,      $4,        $5,  $6,
-		$7,      $8,    $9,              $10,   $11,          $12,   false
-		)
+		network, name, contract_address, symbol, symbol_group, icon_url, native) 
+		SELECT * from insert_data
 		ON CONFLICT (id) DO UPDATE SET
 		sync_frequency = excluded.sync_frequency,
 			updated_at = excluded.updated_at,
