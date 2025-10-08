@@ -23,7 +23,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/ice-blockchain/subzero v1.426.0
+	github.com/ice-blockchain/subzero v1.427.0
 	github.com/ice-blockchain/wintr v1.164.0
 	github.com/imroc/req/v3 v3.55.0
 	github.com/jellydator/ttlcache/v3 v3.4.0
@@ -40,7 +40,7 @@ require (
 	github.com/xssnick/tonutils-go v1.15.5
 	golang.org/x/exp v0.0.0-20251002181428-27f1f14c8bb9
 	golang.org/x/mod v0.28.0
-	golang.org/x/net v0.44.0
+	golang.org/x/net v0.45.0
 	golang.org/x/sync v0.17.0
 )
 
@@ -271,9 +271,9 @@ require (
 	golang.org/x/tools v0.37.0 // indirect
 	google.golang.org/api v0.252.0 // indirect
 	google.golang.org/appengine/v2 v2.0.6 // indirect
-	google.golang.org/genproto v0.0.0-20251006185510-65f7160b3a87 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20251006185510-65f7160b3a87 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251006185510-65f7160b3a87 // indirect
+	google.golang.org/genproto v0.0.0-20251007200510-49b9836ed3ff // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20251007200510-49b9836ed3ff // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251007200510-49b9836ed3ff // indirect
 	google.golang.org/grpc v1.76.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
