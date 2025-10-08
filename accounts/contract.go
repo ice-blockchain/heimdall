@@ -204,6 +204,7 @@ var (
 		TwoFAOptionTOTPAuthenticator,
 	}
 	Err2FADeliverToNotProvided               = errors.New("no email or phone number provided for 2FA")
+	ErrInvalid2FAInput                       = errors.New("invalid 2FA input")
 	ErrNoPending2FA                          = errors.New("no pending 2FA request")
 	Err2FAExpired                            = errors.New("2FA request expired")
 	Err2FAInvalidCode                        = errors.New("invalid code")
