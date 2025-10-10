@@ -12,6 +12,7 @@ import (
 
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
+	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/time"
 )
 
@@ -210,39 +211,74 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 }
 
 func (a *accounts) SearchSocialProfiles(ctx context.Context, tpe SearchType, keyword, followedBy, followerOf string, limit, offset uint64) ([]*LiteUser, error) {
-	query := `SELECT sp.master_pubkey,
-       				 (SELECT json_agg(x) FROM (SELECT url, relay_type as "type" FROM ion_connect_relays WHERE url=ANY(u.ion_connect_relays)) x) AS ion_connect_relays
-			FROM social_profiles sp`
-	if followedBy != "" {
-		query += ` JOIN following f ON f.follower_master_pubkey = $1 AND f.master_pubkey = sp.master_pubkey
-				   JOIN users u ON f.master_pubkey = u.master_pubkey`
-	} else if followerOf != "" {
-		query += ` JOIN following f ON f.master_pubkey = $1 AND f.follower_master_pubkey = sp.master_pubkey
-				   JOIN users u ON f.follower_master_pubkey = u.master_pubkey`
-	} else {
-		query += ` JOIN users u ON sp.master_pubkey = u.master_pubkey`
+	kw := strings.ToLower(keyword)
+
+	const fixedPre = uint64(200)
+	pre := fixedPre
+	if offset > pre {
+		log.Info(fmt.Sprintf("search-social-profiles: offset %d exceeds pre-limit %d", offset, pre))
 	}
+
 	var args []interface{}
 	argIdx := 1
+	var joinClause string
 	if followedBy != "" {
 		args = append(args, followedBy)
+		joinClause = ` JOIN following f ON f.follower_master_pubkey = $1 AND f.master_pubkey = r.master_pubkey
+					   JOIN users u ON f.master_pubkey = u.master_pubkey`
 		argIdx++
 	} else if followerOf != "" {
 		args = append(args, followerOf)
+		joinClause = ` JOIN following f ON f.master_pubkey = $1 AND f.follower_master_pubkey = r.master_pubkey
+					   JOIN users u ON f.follower_master_pubkey = u.master_pubkey`
 		argIdx++
+	} else {
+		joinClause = ` JOIN users u ON u.master_pubkey = r.master_pubkey`
 	}
-	switch tpe {
-	case SearchTypeStartsWith:
-		query += fmt.Sprintf(` WHERE sp.lookup LIKE $%d `, argIdx)
-		args = append(args, strings.ToLower(keyword)+"%")
-	case SearchTypeContains:
-		query += fmt.Sprintf(` WHERE sp.lookup LIKE $%d `, argIdx)
-		args = append(args, "%"+strings.ToLower(keyword)+"%")
+
+	kwIdx := argIdx
+	if tpe == SearchTypeContains {
+		args = append(args, kw)
+	} else {
+		args = append(args, kw+"%")
 	}
 	argIdx++
-	query += fmt.Sprintf(` ORDER BY similarity(sp.lookup, $%d) DESC, u.verified DESC, sp.lookup ASC 
-						   LIMIT $%d OFFSET $%d`, argIdx, argIdx+1, argIdx+2)
-	args = append(args, strings.ToLower(keyword), limit, offset)
+	preIdx := argIdx
+	args = append(args, int(pre))
+	argIdx++
+	limitIdx := argIdx
+	args = append(args, limit)
+	argIdx++
+	offsetIdx := argIdx
+	args = append(args, offset)
+
+	var whereClause string
+	if tpe == SearchTypeContains {
+		whereClause = fmt.Sprintf(` WHERE sp.lookup %% $%d AND similarity(sp.lookup, $%d) >= 0.3`, kwIdx, kwIdx)
+	} else {
+		whereClause = fmt.Sprintf(` WHERE sp.lookup LIKE $%d AND similarity(sp.lookup, $%d) >= 0.3`, kwIdx, kwIdx)
+	}
+
+	query := fmt.Sprintf(`
+		WITH candidates AS (
+			SELECT sp.master_pubkey, sp.lookup, u.verified, similarity(sp.lookup, $%d) AS sim
+			FROM social_profiles sp
+			JOIN users u ON u.master_pubkey = sp.master_pubkey
+			%s
+			ORDER BY sp.lookup <-> $%d, sp.master_pubkey ASC
+			LIMIT $%d
+		),
+		ranked AS (
+			SELECT master_pubkey, lookup, sim, verified
+			FROM candidates
+			ORDER BY verified DESC, sim DESC, lookup ASC, master_pubkey ASC
+			LIMIT $%d OFFSET $%d
+		)
+		SELECT r.master_pubkey,
+			   (SELECT json_agg(x) FROM (SELECT url, relay_type as "type" FROM ion_connect_relays WHERE url=ANY(u.ion_connect_relays)) x) AS ion_connect_relays
+		FROM ranked r
+		%s`, kwIdx, whereClause, kwIdx, preIdx, limitIdx, offsetIdx, joinClause)
+
 	profiles, err := storage.Select[LiteUser](ctx, a.db, query, args...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to search user profiles")
