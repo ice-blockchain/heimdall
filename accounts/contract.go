@@ -327,7 +327,7 @@ type (
 		NotInterestedSubcategoryChance             float64 `yaml:"notInterestedSubcategoryChance" mapstructure:"notInterestedSubcategoryChance" json:"notInterestedSubcategoryChance"`
 		ForYouMaxRetriesMultiplier                 float64 `yaml:"forYouMaxRetriesMultiplier" mapstructure:"forYouMaxRetriesMultiplier" json:"forYouMaxRetriesMultiplier"`
 		FollowingMaxRetriesMultiplier              float64 `yaml:"followingMaxRetriesMultiplier" mapstructure:"followingMaxRetriesMultiplier" json:"followingMaxRetriesMultiplier"`
-		ForYouOverflowMultiplier                   int     `yaml:"forYouOverflowMultiplier" mapstructure:"forYouOverflowMultiplier" json:"forYouOverflowMultiplier"`
+		ForYouOverflowMultiplier                   float64 `yaml:"forYouOverflowMultiplier" mapstructure:"forYouOverflowMultiplier" json:"forYouOverflowMultiplier"`
 		ConcurrentRequests                         int     `yaml:"concurrentRequests" mapstructure:"concurrentRequests" json:"concurrentRequests"`
 		ConcurrentBigFileUploadChunks              int     `yaml:"concurrentBigFileUploadChunks" mapstructure:"concurrentBigFileUploadChunks" json:"concurrentBigFileUploadChunks"`
 		FollowingReqMaxAge                         int     `yaml:"followingReqMaxAge" mapstructure:"followingReqMaxAge" json:"followingReqMaxAge"`
