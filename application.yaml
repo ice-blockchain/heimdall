@@ -407,3 +407,4 @@ apps-runtime:
     allowNewRegistrations: true
     enableEarlyAccessRegistrations: false
     maxEarlyAccessRegistrationsAllowedPerEmail: 3
+    forYouOverflowMultiplier: 1.5
