@@ -10,7 +10,12 @@ DO $$ BEGIN
         END IF;
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'nft_content_status') THEN
-        CREATE TYPE nft_content_status AS ENUM ('new','pending', 'completed');
+        CREATE TYPE nft_content_status AS ENUM ('new', 'pending', 'completed', 'failed');
+    ELSE
+        -- TODO: remove this it will be migrated to all envs.
+        IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'failed' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'nft_content_status')) THEN
+            ALTER TYPE nft_content_status ADD VALUE 'failed';
+        END IF;
     END IF;
 END$$;
 
@@ -86,7 +91,11 @@ CREATE TABLE IF NOT EXISTS nft_minters
 
 CREATE INDEX IF NOT EXISTS nft_minters_active_pubkey_idx ON nft_minters (is_active, pubkey);
 
-CREATE OR REPLACE FUNCTION assign_and_prepare_pending_nfts(limit_per_minter INTEGER)
+CREATE OR REPLACE FUNCTION assign_and_prepare_pending_nfts(
+    limit_per_minter INTEGER,
+    minter_count_limit INTEGER DEFAULT NULL,
+    minter_offset INTEGER DEFAULT 0
+)
     RETURNS TABLE
             (
                 minter_pubkey TEXT,
@@ -99,29 +108,49 @@ DECLARE
     total_minters INTEGER;
 BEGIN
     -- Step 1: Count active minters
-    SELECT COUNT(*) INTO total_minters FROM nft_minters WHERE is_active = TRUE;
+    SELECT COUNT(*)
+    INTO total_minters
+    FROM nft_minters
+    WHERE is_active = TRUE
+      AND pubkey NOT IN
+          ('UQA4sXqzs9NTxfUgP4s2XAjMPqOxIG7L84dO6s8fDa0DuCr3', 'UQATJyhHxJuB4Fw4qpMOvtp1nvBBZQBmQg0NFGN3Qbv-DNZc');
     IF total_minters = 0 THEN
         RETURN;
     END IF;
 
-    -- Step 2: Assign new NFTs to minters using round-robin logic
+    -- Step 2: Assign new AND failed NFTs to minters using round-robin logic
+    -- Include both NFTs without creator address and failed NFTs for rescheduling
     WITH active_minters AS (SELECT pubkey,
                                    ROW_NUMBER() OVER (ORDER BY pubkey) - 1 AS minter_rn
                             FROM nft_minters
-                            WHERE is_active = TRUE),
+                            WHERE is_active = TRUE
+                              AND pubkey NOT IN ('UQA4sXqzs9NTxfUgP4s2XAjMPqOxIG7L84dO6s8fDa0DuCr3',
+                                                 'UQATJyhHxJuB4Fw4qpMOvtp1nvBBZQBmQg0NFGN3Qbv-DNZc')),
          new_content AS (SELECT content_address,
                                 ROW_NUMBER() OVER (ORDER BY content_address) - 1 AS rn
                          FROM nft_content
-                         WHERE status = 'new'
-                           AND nft_collection_creator_address = '')
+                         WHERE (status = 'new' AND nft_collection_creator_address = '')
+                            OR status = 'failed')
     UPDATE nft_content
     SET nft_collection_creator_address = am.pubkey
     FROM new_content nc
              JOIN active_minters am
                   ON am.minter_rn = (nc.rn % total_minters)
-    WHERE nft_content.content_address = nc.content_address;
+    WHERE nft_content.content_address = nc.content_address
+      AND ((nft_content.status = 'new' AND nft_content.nft_collection_creator_address = '')
+        OR nft_content.status = 'failed');
 
-    -- Step 3: Rank NFTs by minter after assignment
+    -- Step 3: Create temporary table to track newly assigned NFTs in this call
+    CREATE TEMP TABLE IF NOT EXISTS newly_assigned_nfts
+    (
+        content_address TEXT PRIMARY KEY
+    ) ON COMMIT DROP;
+
+    TRUNCATE newly_assigned_nfts;
+
+    -- Step 4: Atomically select and update NFTs from 'new'/'failed' to 'pending' with row locking
+    -- This prevents race conditions when multiple processes run in parallel
+    -- First, rank the records without locking
     WITH ranked_per_minter AS (SELECT nc.*,
                                       ROW_NUMBER() OVER (
                                           PARTITION BY nft_collection_creator_address
@@ -134,55 +163,76 @@ BEGIN
                                               content_address
                                           ) AS rn
                                FROM nft_content nc
-                               WHERE status = 'new'
+                               WHERE (status = 'new' OR status = 'failed')
                                  AND nft_collection_creator_address IS NOT NULL
-                                 AND nft_collection_creator_address <> '')
-    UPDATE nft_content
-    SET status = 'pending'
-    FROM ranked_per_minter rpm
-    WHERE nft_content.content_address = rpm.content_address
-      AND rpm.rn <= limit_per_minter;
+                                 AND nft_collection_creator_address <> ''),
+         -- Then select records to update with locking
+         to_update AS (SELECT nc.*
+                       FROM nft_content nc
+                                INNER JOIN ranked_per_minter rpm ON nc.content_address = rpm.content_address
+                       WHERE rpm.rn <= limit_per_minter
+                         AND (nc.status = 'new' OR nc.status = 'failed') -- Double-check current status
+                           FOR UPDATE OF nc SKIP LOCKED -- Lock only the nft_content rows, skip locked ones
+         ),
+         -- Finally, perform the update
+         updated AS (
+             UPDATE nft_content
+                 SET status = 'pending'
+                 FROM to_update tu
+                 WHERE nft_content.content_address = tu.content_address
+                 RETURNING nft_content.content_address)
+    INSERT
+    INTO newly_assigned_nfts (content_address)
+    SELECT content_address
+    FROM updated;
 
-    -- Step 4: Return grouped result per minter
+    -- Step 5: Return only the newly assigned NFTs with pagination
     RETURN QUERY
-        WITH ranked_pending AS (SELECT nc.*,
-                                       ROW_NUMBER() OVER (
-                                           PARTITION BY nft_collection_creator_address
-                                           ORDER BY master_pubkey,
-                                               CASE type
-                                                   WHEN 'account' THEN 1
-                                                   WHEN 'story' THEN 2
-                                                   ELSE 3
-                                                   END,
-                                               content_address
-                                           ) AS rn
-                                FROM nft_content nc
-                                WHERE status = 'pending'
-                                  AND nft_collection_creator_address IS NOT NULL
-                                  AND nft_collection_creator_address <> '')
-        SELECT rp.nft_collection_creator_address AS minter_pubkey,
-               json_agg(
-                       json_build_object(
-                               'content_address', rp.content_address,
-                               'nft_collection_address', rp.nft_collection_address,
-                               'nft_collection_creator_address', rp.nft_collection_creator_address,
-                               'collection_name', rp.nft_collection_name,
-                               'master_pubkey', rp.master_pubkey,
-                               'owner', rp.owner,
-                               'type', rp.type,
-                               'status', rp.status
-                       )
-                       ORDER BY rp.master_pubkey,
-                           CASE rp.type
-                               WHEN 'account' THEN 1
-                               WHEN 'story' THEN 2
-                               ELSE 3
-                               END,
-                           rp.content_address
-               )                                 AS nft_contents
-        FROM ranked_pending rp
-        WHERE rp.rn <= limit_per_minter
-        GROUP BY rp.nft_collection_creator_address;
+        WITH newly_pending AS (SELECT nc.*,
+                                      ROW_NUMBER() OVER (
+                                          PARTITION BY nc.nft_collection_creator_address
+                                          ORDER BY nc.master_pubkey,
+                                              CASE nc.type
+                                                  WHEN 'account' THEN 1
+                                                  WHEN 'story' THEN 2
+                                                  ELSE 3
+                                                  END,
+                                              nc.content_address
+                                          ) AS rn
+                               FROM nft_content nc
+                                        INNER JOIN newly_assigned_nfts na ON nc.content_address = na.content_address
+                               WHERE nc.status = 'pending'
+                                 AND nc.nft_collection_creator_address IS NOT NULL
+                                 AND nc.nft_collection_creator_address <> ''),
+             aggregated_minters AS (SELECT np.nft_collection_creator_address AS minter_pubkey,
+                                           json_agg(
+                                                   json_build_object(
+                                                           'content_address', np.content_address,
+                                                           'nft_collection_address', np.nft_collection_address,
+                                                           'nft_collection_creator_address',
+                                                           np.nft_collection_creator_address,
+                                                           'collection_name', np.nft_collection_name,
+                                                           'master_pubkey', np.master_pubkey,
+                                                           'owner', np.owner,
+                                                           'type', np.type,
+                                                           'status', np.status
+                                                   )
+                                                   ORDER BY np.master_pubkey,
+                                                       CASE np.type
+                                                           WHEN 'account' THEN 1
+                                                           WHEN 'story' THEN 2
+                                                           ELSE 3
+                                                           END,
+                                                       np.content_address
+                                           )                                 AS nft_contents
+                                    FROM newly_pending np
+                                    WHERE np.rn <= limit_per_minter
+                                    GROUP BY np.nft_collection_creator_address
+                                    ORDER BY np.nft_collection_creator_address)
+        SELECT am.minter_pubkey,
+               am.nft_contents
+        FROM aggregated_minters am
+        LIMIT minter_count_limit OFFSET minter_offset;
 
 END;
 $$;

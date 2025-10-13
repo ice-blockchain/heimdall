@@ -101,8 +101,8 @@ github.com/aymerick/douceur v0.2.0/go.mod h1:wlT5vV2O3h55X9m7iVYN0TBM0NH/MmbLnd3
 github.com/beevik/etree v1.1.0/go.mod h1:r8Aw8JqVegEf0w2fDnATrX9VpkMcyFeM0FhwO62wh+A=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
-github.com/bits-and-blooms/bitset v1.24.0 h1:H4x4TuulnokZKvHLfzVRTHJfFfnHEeSYJizujEZvmAM=
-github.com/bits-and-blooms/bitset v1.24.0/go.mod h1:7hO7Gc7Pp1vODcmWvKMRA9BNmbv6a/7QIWpPxHddWR8=
+github.com/bits-and-blooms/bitset v1.24.1 h1:hqnfFbjjk3pxGa5E9Ho3hjoU7odtUuNmJ9Ao+Bo8s1c=
+github.com/bits-and-blooms/bitset v1.24.1/go.mod h1:7hO7Gc7Pp1vODcmWvKMRA9BNmbv6a/7QIWpPxHddWR8=
 github.com/btcsuite/btcd v0.20.1-beta/go.mod h1:wVuoA8VJLEcwgqHBwHmzLRazpKxTv13Px/pDuV7OomQ=
 github.com/btcsuite/btcd v0.22.0-beta.0.20220111032746-97732e52810c/go.mod h1:tjmYdS6MLJ5/s0Fj4DbLgSbDHbEqLJrtnHecBFkdz5M=
 github.com/btcsuite/btcd v0.23.5-0.20231215221805-96c9fd8078fd/go.mod h1:nm3Bko6zh6bWP60UxwoT5LzdGJsQJaPo6HjduXq9p6A=
@@ -460,8 +460,8 @@ github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5 h1:
 github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5/go.mod h1:or80JBz1VHXxKN5qXBNYFooWcfjUPIQzbNUVZ7FTFzo=
 github.com/ice-blockchain/go/src v0.0.0-20250625091122-356c0c7d1830 h1:FymrVSpOD6rKyZ97MJr5Xu2ZP29EqTKpdMqTf2DrMgU=
 github.com/ice-blockchain/go/src v0.0.0-20250625091122-356c0c7d1830/go.mod h1:pVzkmaIwkLaJ5cKPHPtuKyxaXiTsa/V7kbbgLmsr4Hw=
-github.com/ice-blockchain/subzero v1.433.0 h1:99bJHUnFUobFgX1r0amvuifyMekMsrk2JGON/D2WG3A=
-github.com/ice-blockchain/subzero v1.433.0/go.mod h1:t0BVx7HfuB6eD5mQO74nF/a6RsyltFDvskiecvmZyeU=
+github.com/ice-blockchain/subzero v1.434.0 h1:BylZmvr+cX7YmnYrA/LCkFsJB5l8LAR5IssoJIqN1hk=
+github.com/ice-blockchain/subzero v1.434.0/go.mod h1:t0BVx7HfuB6eD5mQO74nF/a6RsyltFDvskiecvmZyeU=
 github.com/ice-blockchain/wintr v1.164.0 h1:VhYyc77S8ipDz2f2Zr5Pxh8yIppTZZQ+srBVA032F94=
 github.com/ice-blockchain/wintr v1.164.0/go.mod h1:rYwmiaeCFgUzRVL+aruU6wKCgtF2C9+0aqPfVrHqysU=
 github.com/icholy/digest v1.1.0 h1:HfGg9Irj7i+IX1o1QAmPfIBNu/Q5A5Tu3n/MED9k9H4=
@@ -539,8 +539,8 @@ github.com/localtunnel/go-localtunnel v0.0.0-20170326223115-8a804488f275 h1:IZyc
 github.com/localtunnel/go-localtunnel v0.0.0-20170326223115-8a804488f275/go.mod h1:zt6UU74K6Z6oMOYJbJzYpYucqdcQwSMPBEdSvGiaUMw=
 github.com/lucasb-eyer/go-colorful v1.3.0 h1:2/yBRLdWBZKrf7gB40FoiKfAWYQ0lqNcbuQwVHXptag=
 github.com/lucasb-eyer/go-colorful v1.3.0/go.mod h1:R4dSotOR9KMtayYi1e77YzuveK+i7ruzyGqttikkLy0=
-github.com/lufia/plan9stats v0.0.0-20250827001030-24949be3fa54 h1:mFWunSatvkQQDhpdyuFAYwyAan3hzCuma+Pz8sqvOfg=
-github.com/lufia/plan9stats v0.0.0-20250827001030-24949be3fa54/go.mod h1:autxFIvghDt3jPTLoqZ9OZ7s9qTGNAWmYCjVFWPX/zg=
+github.com/lufia/plan9stats v0.0.0-20251013123823-9fd1530e3ec3 h1:PwQumkgq4/acIiZhtifTV5OUqqiP82UAl0h87xj/l9k=
+github.com/lufia/plan9stats v0.0.0-20251013123823-9fd1530e3ec3/go.mod h1:autxFIvghDt3jPTLoqZ9OZ7s9qTGNAWmYCjVFWPX/zg=
 github.com/magiconair/properties v1.8.0/go.mod h1:PppfXfuXeibc/6YijjN8zIbojt8czPbwD3XqdrwzmxQ=
 github.com/magiconair/properties v1.8.10 h1:s31yESBquKXCV9a/ScB3ESkOjUYYv+X0rg8SYxI99mE=
 github.com/magiconair/properties v1.8.10/go.mod h1:Dhd985XPs7jluiymwWYZ0G4Z61jb3vdS329zhj2hYo0=
@@ -607,8 +607,8 @@ github.com/mxschmitt/golang-combinations v1.2.0 h1:V5E7MncIK8Yr1SL/SpdqMuSquFsfo
 github.com/mxschmitt/golang-combinations v1.2.0/go.mod h1:RCm5eR03B+JrBOMRDLsKZWShluXdrHu+qwhPEJ0miBM=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
-github.com/nyaruka/phonenumbers v1.6.5 h1:aBCaUhfpRA7hU6fsXk+p7KF1aNx4nQlq9hGeo2qdFg8=
-github.com/nyaruka/phonenumbers v1.6.5/go.mod h1:7gjs+Lchqm49adhAKB5cdcng5ZXgt6x7Jgvi0ZorUtU=
+github.com/nyaruka/phonenumbers v1.6.6 h1:cZv5/vslJh65zuOrLjdVDHKHzVEwVuUsXAPQi3bjGJU=
+github.com/nyaruka/phonenumbers v1.6.6/go.mod h1:7gjs+Lchqm49adhAKB5cdcng5ZXgt6x7Jgvi0ZorUtU=
 github.com/oasisprotocol/curve25519-voi v0.0.0-20230904125328-1f23a7beb09a h1:dlRvE5fWabOchtH7znfiFCcOvmIYgOeAS5ifBXBlh9Q=
 github.com/oasisprotocol/curve25519-voi v0.0.0-20230904125328-1f23a7beb09a/go.mod h1:hVoHR2EVESiICEMbg137etN/Lx+lSrHPTD39Z/uE+2s=
 github.com/olekukonko/tablewriter v0.0.5 h1:P2Ga83D34wi1o9J6Wh1mRuqd4mF/x/lgBS7N7AbDhec=

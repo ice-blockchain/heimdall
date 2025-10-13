@@ -23,7 +23,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/ice-blockchain/subzero v1.433.0
+	github.com/ice-blockchain/subzero v1.434.0
 	github.com/ice-blockchain/wintr v1.164.0
 	github.com/imroc/req/v3 v3.55.0
 	github.com/jellydator/ttlcache/v3 v3.4.0
@@ -83,7 +83,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.38.6 // indirect
 	github.com/aws/smithy-go v1.23.0 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
-	github.com/bits-and-blooms/bitset v1.24.0 // indirect
+	github.com/bits-and-blooms/bitset v1.24.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.5 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.6 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
@@ -194,7 +194,7 @@ require (
 	github.com/lestrrat-go/iter v1.0.2 // indirect
 	github.com/lestrrat-go/option v1.0.1 // indirect
 	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
-	github.com/lufia/plan9stats v0.0.0-20250827001030-24949be3fa54 // indirect
+	github.com/lufia/plan9stats v0.0.0-20251013123823-9fd1530e3ec3 // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/mailru/easyjson v0.9.1 // indirect
 	github.com/maruel/natural v1.1.1 // indirect
@@ -214,7 +214,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
-	github.com/nyaruka/phonenumbers v1.6.5 // indirect
+	github.com/nyaruka/phonenumbers v1.6.6 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
