@@ -30,11 +30,17 @@ definitions:
     type: object
   accounts.LiteUser:
     properties:
+      avatar:
+        type: string
+      displayName:
+        type: string
       ionConnectRelays:
         items:
           $ref: '#/definitions/relaymanagement.UserAssignedRelay'
         type: array
       masterPubKey:
+        type: string
+      username:
         type: string
     type: object
   accounts.NFT:
@@ -60,6 +66,8 @@ definitions:
         type: string
       referral:
         type: string
+      referralCount:
+        type: integer
       referralMasterKey:
         type: string
       username:
@@ -255,11 +263,17 @@ definitions:
     type: object
   main.LiteUser:
     properties:
+      avatar:
+        type: string
+      displayName:
+        type: string
       ionConnectRelays:
         items:
           $ref: '#/definitions/relaymanagement.UserAssignedRelay'
         type: array
       masterPubKey:
+        type: string
+      username:
         type: string
     type: object
   main.LoginChallenge:
@@ -1851,6 +1865,32 @@ paths:
       tags:
       - Users
   /v1/users/{userIdOrMasterKey}/profiles/social:
+    get:
+      description: Gets social profile for the user
+      parameters:
+      - description: Authorization token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: User's master key
+        in: path
+        name: userIdOrMasterKey
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated social profile
+          schema:
+            $ref: '#/definitions/accounts.SocialProfile'
+        "404":
+          description: User dont have social profile
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - SocialProfiles
     patch:
       consumes:
       - application/json

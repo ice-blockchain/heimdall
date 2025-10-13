@@ -140,6 +140,7 @@ CREATE INDEX IF NOT EXISTS verified_users_sync_queue_created_at ON verified_user
 CREATE TABLE IF NOT EXISTS social_profiles (
     created_at             TIMESTAMP NOT NULL,
     updated_at             TIMESTAMP NOT NULL,
+    referral_count         BIGINT NOT NULL DEFAULT 0,
     master_pubkey          TEXT NOT NULL REFERENCES users(master_pubkey) ON DELETE CASCADE,
     username               TEXT NOT NULL UNIQUE,
     display_name           TEXT,
@@ -162,6 +163,47 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 -- TODO: Remove this DROP INDEX after migration to idx_social_profiles_lookup_gist_trgm index is completed.
 DROP INDEX IF EXISTS idx_social_profiles_lookup_trgm;
 CREATE INDEX IF NOT EXISTS idx_social_profiles_lookup_gist_trgm ON social_profiles USING GiST (lookup gist_trgm_ops);
+
+-- TODO: remove this it will be migrated to all envs.
+DO $$ BEGIN
+    IF NOT exists (select 1 from information_schema.columns where table_name = 'social_profiles' and column_name = 'referral_count') then
+        ALTER TABLE social_profiles ADD COLUMN IF NOT EXISTS referral_count BIGINT NOT NULL DEFAULT 0;
+        UPDATE social_profiles
+            SET referral_count = update_data.ref_count
+        FROM (SELECT social_profiles.referral_master_pubkey, count(*) AS ref_count
+              FROM social_profiles
+              WHERE referral_master_pubkey IS NOT NULL
+              GROUP BY social_profiles.referral_master_pubkey) update_data (referral_master_pubkey, ref_count)
+        WHERE social_profiles.master_pubkey = update_data.referral_master_pubkey
+            AND referral_count = 0;
+    END IF;
+END$$;
+
+CREATE OR REPLACE FUNCTION trigger_social_after_insert_update_ref_count()
+    RETURNS TRIGGER AS $$
+BEGIN
+        IF NEW.referral_master_pubkey IS NULL THEN
+            IF OLD.referral_master_pubkey IS NULL THEN
+                RETURN NEW;
+            ELSE
+                UPDATE social_profiles
+                SET referral_count = GREATEST(referral_count - 1, 0)
+                WHERE master_pubkey = OLD.referral_master_pubkey;
+
+                RETURN NEW;
+            END IF;
+        ELSE
+            UPDATE social_profiles
+            SET referral_count = referral_count + 1
+            WHERE master_pubkey = NEW.referral_master_pubkey;
+            RETURN NEW;
+        END IF;
+END $$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER trigger_social_after_insert_update_ref_count
+    AFTER INSERT OR UPDATE OF referral_master_pubkey OR DELETE ON social_profiles
+    FOR EACH ROW
+EXECUTE FUNCTION trigger_social_after_insert_update_ref_count();
 
 CREATE TABLE IF NOT EXISTS early_access_emails (
                                                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -286,8 +328,8 @@ BEGIN
     INTO v_not_found_users
     FROM unnest(v_normalized_usernames) AS username
     WHERE username NOT IN (
-        SELECT sp.username 
-        FROM social_profiles sp 
+        SELECT sp.username
+        FROM social_profiles sp
         WHERE sp.username = ANY(v_normalized_usernames)
     );
 

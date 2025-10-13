@@ -10,6 +10,7 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
 
+	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
@@ -155,7 +156,8 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 			target.referral_master_pubkey,
 			COALESCE((SELECT referral_profile.username FROM social_profiles referral_profile WHERE referral_profile.master_pubkey = target.referral_master_pubkey), '') as referral_username,
 			target.bio,
-			target.avatar
+			target.avatar,
+			target.referral_count
 	`
 	type resultProfile struct {
 		socialProfile
@@ -205,9 +207,56 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 		UsernameProof:     proofEvents,
 		Bio:               profile.Bio,
 		Avatar:            profile.Avatar,
+		ReferralCount:     profile.ReferralCount,
 	}
 
 	return result, nil
+}
+
+func (a *accounts) GetSocialProfile(ctx context.Context, userIDOrMasterKey string) (*SocialProfile, error) {
+	dbUsr, err := a.getUserByID(ctx, userIDOrMasterKey)
+	if err != nil {
+		if storage.IsErr(err, storage.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, errors.Wrapf(err, "failed to read extra information about user %v", userIDOrMasterKey)
+	}
+	type resultProfile struct {
+		socialProfile
+		ReferralUsername string `db:"referral_username"`
+	}
+	profile, err := storage.Get[resultProfile](ctx, a.db, `SELECT 
+        social_profiles.created_at, 
+		social_profiles.updated_at, 
+		social_profiles.master_pubkey, 
+		social_profiles.username, 
+		social_profiles.display_name, 
+		social_profiles.referral_master_pubkey,
+		social_profiles.bio,
+		social_profiles.avatar,
+		social_profiles.referral_count,
+        COALESCE((SELECT referral_profile.username FROM social_profiles referral_profile WHERE referral_profile.master_pubkey = social_profiles.referral_master_pubkey), '') as referral_username
+       FROM social_profiles WHERE master_pubkey = $1 LIMIT 1`, dbUsr.MasterPubKey)
+	if err != nil {
+		if storage.IsErr(err, storage.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, errors.Wrapf(err, "failed to get social profile")
+	}
+	res := &SocialProfile{
+		Username:      profile.Username,
+		DisplayName:   profile.DisplayName,
+		Bio:           profile.Bio,
+		Avatar:        profile.Avatar,
+		ReferralCount: profile.ReferralCount,
+	}
+	if server.LoggedInUser(ctx) != nil && ((dbUsr != nil && dbUsr.ID == server.LoggedInUser(ctx).UserID()) || userIDOrMasterKey == server.LoggedInUser(ctx).UserID()) {
+		res.Referral = profile.ReferralUsername
+		res.ReferralMasterKey = profile.ReferralMasterPubkey
+		res.ReferralCount = profile.ReferralCount
+	}
+
+	return res, nil
 }
 
 func (a *accounts) SearchSocialProfiles(ctx context.Context, tpe SearchType, keyword, followedBy, followerOf string, limit, offset uint64) ([]*LiteUser, error) {
@@ -261,7 +310,8 @@ func (a *accounts) SearchSocialProfiles(ctx context.Context, tpe SearchType, key
 
 	query := fmt.Sprintf(`
 		WITH candidates AS (
-			SELECT sp.master_pubkey, sp.lookup, u.verified, similarity(sp.lookup, $%d) AS sim
+			SELECT sp.master_pubkey, sp.lookup, u.verified, similarity(sp.lookup, $%d) AS sim,
+			username, display_name, avatar
 			FROM social_profiles sp
 			JOIN users u ON u.master_pubkey = sp.master_pubkey
 			%s
@@ -269,12 +319,12 @@ func (a *accounts) SearchSocialProfiles(ctx context.Context, tpe SearchType, key
 			LIMIT $%d
 		),
 		ranked AS (
-			SELECT master_pubkey, lookup, sim, verified
+			SELECT master_pubkey, lookup, sim, verified, username, display_name, avatar
 			FROM candidates
 			ORDER BY verified DESC, sim DESC, lookup ASC, master_pubkey ASC
 			LIMIT $%d OFFSET $%d
 		)
-		SELECT r.master_pubkey,
+		SELECT r.master_pubkey, username, display_name, avatar,
 			   (SELECT json_agg(x) FROM (SELECT url, relay_type as "type" FROM ion_connect_relays WHERE url=ANY(u.ion_connect_relays)) x) AS ion_connect_relays
 		FROM ranked r
 		%s`, kwIdx, whereClause, kwIdx, preIdx, limitIdx, offsetIdx, joinClause)

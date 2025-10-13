@@ -15,6 +15,7 @@ import (
 func (s *service) setupSocialProfileRoutes(r *server.Router) {
 	r.GET("v1/users/verify-username-availability", server.RootHandler(s.VerifyUsernameAvailability))
 	r.PATCH("v1/users/:userIdOrMasterKey/profiles/social", server.RootHandler(s.UpsertSocialProfile))
+	r.GET("v1/users/:userIdOrMasterKey/profiles/social", server.RootHandler(s.GetSocialProfile))
 	r.GET("v1/user-social-profiles", server.RootHandler(s.SearchSocialProfiles))
 }
 
@@ -90,6 +91,33 @@ func (s *service) UpsertSocialProfile(
 			return nil, server.Conflict(err, reserved)
 		case errors.Is(err, accounts.ErrWrongReferral):
 			return nil, server.BadRequest(err, invalidPropertiesErrorCode)
+		default:
+			return nil, server.Unexpected(err)
+		}
+	}
+
+	return server.OK(profile), nil
+}
+
+// GetSocialProfile gets social profile for the user
+//
+//	@Description	Gets social profile for the user
+//	@Tags			SocialProfiles
+//	@Produce		json
+//	@Param			Authorization		header		string					true	"Authorization token"
+//	@Param			userIdOrMasterKey	path		string					true	"User's master key"
+//	@Success		200					{object}	accounts.SocialProfile	"Updated social profile"
+//	@Failure		404					{object}	server.ErrorResponse	"User dont have social profile"
+//	@Router			/v1/users/{userIdOrMasterKey}/profiles/social [GET]
+func (s *service) GetSocialProfile(
+	ctx context.Context,
+	req *server.Request[GetSocialProfileRequest, accounts.SocialProfile],
+) (*server.Response[accounts.SocialProfile], *server.ErrResponse[*server.ErrorResponse]) {
+	profile, err := s.accounts.GetSocialProfile(ctx, req.Data.UserIDOrMasterKey)
+	if err != nil {
+		switch {
+		case errors.Is(err, accounts.ErrNotFound):
+			return nil, server.NotFound(err, notFound)
 		default:
 			return nil, server.Unexpected(err)
 		}

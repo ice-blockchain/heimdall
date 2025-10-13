@@ -1971,6 +1971,45 @@ const docTemplate = `{
             }
         },
         "/v1/users/{userIdOrMasterKey}/profiles/social": {
+            "get": {
+                "description": "Gets social profile for the user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SocialProfiles"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "User's master key",
+                        "name": "userIdOrMasterKey",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated social profile",
+                        "schema": {
+                            "$ref": "#/definitions/accounts.SocialProfile"
+                        }
+                    },
+                    "404": {
+                        "description": "User dont have social profile",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            },
             "patch": {
                 "description": "Updates or creates a social profile for a user",
                 "consumes": [
@@ -2591,6 +2630,12 @@ const docTemplate = `{
         "accounts.LiteUser": {
             "type": "object",
             "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
+                },
                 "ionConnectRelays": {
                     "type": "array",
                     "items": {
@@ -2598,6 +2643,9 @@ const docTemplate = `{
                     }
                 },
                 "masterPubKey": {
+                    "type": "string"
+                },
+                "username": {
                     "type": "string"
                 }
             }
@@ -2636,6 +2684,9 @@ const docTemplate = `{
                 },
                 "referral": {
                     "type": "string"
+                },
+                "referralCount": {
+                    "type": "integer"
                 },
                 "referralMasterKey": {
                     "type": "string"
@@ -2931,6 +2982,12 @@ const docTemplate = `{
         "main.LiteUser": {
             "type": "object",
             "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
+                },
                 "ionConnectRelays": {
                     "type": "array",
                     "items": {
@@ -2938,6 +2995,9 @@ const docTemplate = `{
                     }
                 },
                 "masterPubKey": {
+                    "type": "string"
+                },
+                "username": {
                     "type": "string"
                 }
             }

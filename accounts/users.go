@@ -114,11 +114,13 @@ func (a *accounts) GetContentCreators(ctx context.Context, limit uint64, exclude
 		excludeClause = "WHERE NOT master_pubkey = ANY($1)"
 	}
 	args = append(args, limit)
-	query := `SELECT x.master_pubkey, 
+	query := `SELECT x.master_pubkey,  s.username, s.display_name, s.avatar,
        		  (SELECT json_agg(x) FROM (SELECT url, relay_type as "type" from ion_connect_relays where url=ANY(u.ion_connect_relays)) x) as ion_connect_relays
 			  FROM (SELECT master_pubkey FROM content_creators ` + excludeClause + ` 
 			  ORDER BY random() LIMIT $` + strconv.Itoa(len(args)) + `) x
-			  JOIN users u ON x.master_pubkey = u.master_pubkey`
+			  JOIN users u ON x.master_pubkey = u.master_pubkey
+			  JOIN social_profiles s ON x.master_pubkey = s.master_pubkey
+`
 
 	results, err := storage.Select[LiteUser](ctx, a.db, query, args...)
 	if err != nil {
@@ -685,9 +687,11 @@ func (a *accounts) InitRegistration(ctx context.Context, identityKeyName string,
 
 func (a *accounts) GetIONConnectRelaysForUsers(ctx context.Context, masterPubkeys []string) ([]*LiteUser, error) {
 	u, err := storage.Select[LiteUser](ctx, a.db, `SELECT 
-	master_pubkey,
+	users.master_pubkey, s.username, s.display_name, s.avatar,
     (select json_agg(x) from (select url, relay_type as "type" from ion_connect_relays where url=ANY(users.ion_connect_relays)) x) as ion_connect_relays
-    FROM users where master_pubkey = ANY($1)`, masterPubkeys)
+    FROM users 
+    JOIN social_profiles s ON users.master_pubkey = s.master_pubkey
+    where users.master_pubkey = ANY($1)`, masterPubkeys)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get users relays for pubkeys %#v", masterPubkeys)
 	}
@@ -720,10 +724,12 @@ func (a *accounts) GetGlobalAccounts(ctx context.Context, currentVer uint64) ([]
 								relay_type as "type" 	
 						from ion_connect_relays 
 						where url=ANY(users.ion_connect_relays)) x
-				    ) as ion_connect_relays
+				    ) as ion_connect_relays,
+    				s.username, s.display_name, s.avatar
     		 FROM global_accounts
-				JOIN users 
-                  ON users.master_pubkey = global_accounts.master_pubkey`
+				JOIN users ON users.master_pubkey = global_accounts.master_pubkey
+				JOIN social_profiles s ON users.master_pubkey = s.master_pubkey
+				`
 	accs, err := storage.Select[LiteUser](ctx, a.db, stmt)
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "failed to select GlobalAccounts for version: %#v", currentVer)
