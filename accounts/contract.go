@@ -67,6 +67,7 @@ type (
 		VerifyUsernameAvailability(ctx context.Context, username, loggedInUserID string) error
 		UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, username, displayName, referral, bio, avatar, loggedInUserUserID string) (*SocialProfile, error)
 		SearchSocialProfiles(ctx context.Context, tpe SearchType, keyword, followedBy, followerOf string, limit, offset uint64) ([]*LiteUser, error)
+		GetSocialProfile(ctx context.Context, userIDOrMasterKey string) (*SocialProfile, error)
 	}
 	Devices interface {
 		DeviceIdentificationProofs(ctx context.Context, attestationEvent *model.Event, devicePubkey string) ([]*model.Event, error)
@@ -122,6 +123,7 @@ type (
 		ReferralMasterKey *string        `json:"referralMasterKey,omitempty"`
 		Bio               *string        `json:"bio,omitempty"`
 		Avatar            *string        `json:"avatar,omitempty"`
+		ReferralCount     uint64         `json:"referralCount,omitempty"`
 		UsernameProof     []*model.Event `json:"usernameProof,omitempty"`
 	}
 	WalletView struct {
@@ -163,6 +165,9 @@ type (
 	Wallet   = dfns.Wallet
 	LiteUser struct {
 		MasterPubKey     string                             `json:"masterPubKey" db:"master_pubkey"`
+		Username         string                             `json:"username,omitempty" db:"username"`
+		DisplayName      string                             `json:"displayName,omitempty" db:"display_name"`
+		Avatar           *string                            `json:"avatar,omitempty" db:"avatar"`
 		IONConnectRelays relaymanagement.UserAssignedRelays `json:"ionConnectRelays" db:"ion_connect_relays"`
 	}
 
@@ -298,6 +303,7 @@ type (
 		ReferralMasterPubkey *string `db:"referral_master_pubkey"`
 		Bio                  *string `db:"bio"`
 		Avatar               *string `db:"avatar"`
+		ReferralCount        uint64  `db:"referral_count"`
 	}
 	twoFACode struct {
 		CreatedAt       *time.Time

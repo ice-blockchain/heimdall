@@ -259,6 +259,10 @@ type (
 		Avatar            string `json:"avatar,omitempty"`
 		Bio               string `json:"bio,omitempty"`
 	}
+	GetSocialProfileRequest struct {
+		Authorization     string `header:"Authorization" required:"true" swaggerignore:"true" allowUnauthorized:"true"`
+		UserIDOrMasterKey string `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
+	}
 	VerifyUsernameRequest struct {
 		Authorization string `header:"Authorization" required:"true" swaggerignore:"true"`
 		Username      string `form:"username" required:"true"`
