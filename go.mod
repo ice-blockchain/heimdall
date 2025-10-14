@@ -1,6 +1,6 @@
 module github.com/ice-blockchain/heimdall
 
-go 1.25.2
+go 1.25.3
 
 replace (
 	github.com/dgraph-io/ristretto => github.com/dgraph-io/ristretto v0.1.0
@@ -225,7 +225,7 @@ require (
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
 	github.com/puzpuzpuz/xsync/v4 v4.2.0 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
-	github.com/refraction-networking/utls v1.8.0 // indirect
+	github.com/refraction-networking/utls v1.8.1 // indirect
 	github.com/rivo/tview v0.42.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
