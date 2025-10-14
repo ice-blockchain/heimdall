@@ -328,6 +328,7 @@ type (
 	}
 	AppRuntimeConfig struct {
 		Version                                    int     `yaml:"_version" mapstructure:"_version" json:"_version"`
+		CdnBaseUrl                                 string  `yaml:"cdnBaseUrl" mapstructure:"cdnBaseUrl" json:"cdnBaseUrl"`
 		InterestedThreshold                        float64 `yaml:"interestedThreshold" mapstructure:"interestedThreshold" json:"interestedThreshold"`
 		NotInterestedCategoryChance                float64 `yaml:"notInterestedCategoryChance" mapstructure:"notInterestedCategoryChance" json:"notInterestedCategoryChance"`
 		NotInterestedSubcategoryChance             float64 `yaml:"notInterestedSubcategoryChance" mapstructure:"notInterestedSubcategoryChance" json:"notInterestedSubcategoryChance"`
