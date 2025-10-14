@@ -225,7 +225,7 @@ require (
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
 	github.com/puzpuzpuz/xsync/v4 v4.2.0 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
-	github.com/refraction-networking/utls v1.8.0 // indirect
+	github.com/refraction-networking/utls v1.8.1 // indirect
 	github.com/rivo/tview v0.42.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
