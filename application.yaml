@@ -408,3 +408,4 @@ apps-runtime:
     enableEarlyAccessRegistrations: false
     maxEarlyAccessRegistrationsAllowedPerEmail: 3
     forYouOverflowMultiplier: 1.5
+    nsfwBlockThreshold: 0.5

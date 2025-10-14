@@ -328,6 +328,7 @@ type (
 		ForYouMaxRetriesMultiplier                 float64 `yaml:"forYouMaxRetriesMultiplier" mapstructure:"forYouMaxRetriesMultiplier" json:"forYouMaxRetriesMultiplier"`
 		FollowingMaxRetriesMultiplier              float64 `yaml:"followingMaxRetriesMultiplier" mapstructure:"followingMaxRetriesMultiplier" json:"followingMaxRetriesMultiplier"`
 		ForYouOverflowMultiplier                   float64 `yaml:"forYouOverflowMultiplier" mapstructure:"forYouOverflowMultiplier" json:"forYouOverflowMultiplier"`
+		NsfwBlockThreshold                         float64 `yaml:"nsfwBlockThreshold" mapstructure:"nsfwBlockThreshold" json:"nsfwBlockThreshold"`
 		ConcurrentRequests                         int     `yaml:"concurrentRequests" mapstructure:"concurrentRequests" json:"concurrentRequests"`
 		ConcurrentBigFileUploadChunks              int     `yaml:"concurrentBigFileUploadChunks" mapstructure:"concurrentBigFileUploadChunks" json:"concurrentBigFileUploadChunks"`
 		FollowingReqMaxAge                         int     `yaml:"followingReqMaxAge" mapstructure:"followingReqMaxAge" json:"followingReqMaxAge"`
