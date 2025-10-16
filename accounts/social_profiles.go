@@ -303,9 +303,9 @@ func (a *accounts) SearchSocialProfiles(ctx context.Context, tpe SearchType, key
 
 	var whereClause string
 	if tpe == SearchTypeContains {
-		whereClause = fmt.Sprintf(` WHERE sp.lookup %% $%d AND similarity(sp.lookup, $%d) >= 0.3`, kwIdx, kwIdx)
+		whereClause = fmt.Sprintf(` WHERE sp.lookup %% $%d AND similarity(sp.lookup, $%d) >= 0.2`, kwIdx, kwIdx)
 	} else {
-		whereClause = fmt.Sprintf(` WHERE sp.lookup LIKE $%d AND similarity(sp.lookup, $%d) >= 0.3`, kwIdx, kwIdx)
+		whereClause = fmt.Sprintf(` WHERE sp.lookup LIKE $%d AND similarity(sp.lookup, $%d) >= 0.2`, kwIdx, kwIdx)
 	}
 
 	query := fmt.Sprintf(`
