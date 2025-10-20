@@ -303,15 +303,15 @@ func (a *accounts) SearchSocialProfiles(ctx context.Context, tpe SearchType, key
 
 	var whereClause string
 	if tpe == SearchTypeContains {
-		whereClause = fmt.Sprintf(` WHERE sp.lookup %% $%d AND similarity(sp.lookup, $%d) >= 0.2`, kwIdx, kwIdx)
+		whereClause = fmt.Sprintf(` WHERE sp.lookup LIKE '%%' || $%d || '%%' AND similarity(sp.lookup, $%d) >= 0.2`, kwIdx, kwIdx)
 	} else {
-		whereClause = fmt.Sprintf(` WHERE sp.lookup LIKE $%d AND similarity(sp.lookup, $%d) >= 0.2`, kwIdx, kwIdx)
+		whereClause = fmt.Sprintf(` WHERE sp.lookup LIKE $%d || '%%'  AND similarity(sp.lookup, $%d) >= 0.2`, kwIdx, kwIdx)
 	}
 
 	query := fmt.Sprintf(`
 		WITH candidates AS (
 			SELECT sp.master_pubkey, sp.lookup, u.verified, similarity(sp.lookup, $%d) AS sim,
-			username, display_name, avatar
+				   username, display_name, avatar
 			FROM social_profiles sp
 			JOIN users u ON u.master_pubkey = sp.master_pubkey
 			%s
