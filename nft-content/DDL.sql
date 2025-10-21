@@ -91,6 +91,8 @@ CREATE TABLE IF NOT EXISTS nft_minters
 
 CREATE INDEX IF NOT EXISTS nft_minters_active_pubkey_idx ON nft_minters (is_active, pubkey);
 
+DROP FUNCTION IF EXISTS assign_and_prepare_pending_nfts(limit_per_minter INTEGER);
+
 CREATE OR REPLACE FUNCTION assign_and_prepare_pending_nfts(
     limit_per_minter INTEGER,
     minter_count_limit INTEGER DEFAULT NULL,
