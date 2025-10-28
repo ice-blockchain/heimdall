@@ -156,8 +156,14 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 		}
 		tokens, err := fn(ctx, network, contractAddrs)
 		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				for _, notFetchedContractAddr := range contractAddrs {
+					if coinGeckoID, hasCoinGeckoId := ids[network+":@:@:"+notFetchedContractAddr]; hasCoinGeckoId {
+						coinIDs = append(coinIDs, coinGeckoID)
+					}
+				}
+			}
 			log.Error(errors.Wrapf(err, "failed to sync tokens data"))
-			return
 		}
 		if len(tokens) < len(contractAddrs) && !tokensAddrs.SyncTokenFullData {
 			for _, tok := range tokens {
@@ -186,19 +192,28 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 		}
 		for _, c := range coinsAndMissedTokens {
 			if n, hasNetwork := networks[c.ID]; hasNetwork && strings.Contains(n, ":@:@:") {
-				tokensPriceData = append(tokensPriceData, c)
+				found := false
+				for _, t := range tokensPriceData {
+					if strings.EqualFold(c.ContractAddress, t.ContractAddress) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					tokensPriceData = append(tokensPriceData, c)
+				}
 			} else {
 				coinsData = append(coinsData, c)
 			}
 		}
 		s.metrics.Get("coin_gecko_calls").(metrics.Meter).Mark(1)
 	}
-	err = s.updateCoinsData(ctx, start, coinsData, true, networks)
+	err = s.updateCoinsData(ctx, start, coinsData, true, false, networks)
 	if err != nil {
 		log.Error(errors.Wrapf(err, "failed to write updated data from coin market cap for full data %#v", coinsData))
 		return
 	}
-	err = s.updateCoinsData(ctx, start, tokensPriceData, false, ids)
+	err = s.updateCoinsData(ctx, start, tokensPriceData, false, false, ids)
 	if err != nil {
 		log.Error(errors.Wrapf(err, "failed to write updated data from coin market cap for tokens prices %#v", tokensPriceData))
 		return
@@ -262,9 +277,12 @@ func (s *coinSync) fetchSyncableCoins(ctx context.Context, now *time.Time) (map[
 	return res, nil
 }
 
-func (s *coinSync) updateCoinsData(ctx context.Context, now *time.Time, coins []*coingecko.Coin, updateFullDataTokens bool, mapping map[string]string) error {
+func (s *coinSync) updateCoinsData(ctx context.Context, now *time.Time, coins []*coingecko.Coin, updateFullDataTokens, dbMatching bool, mapping map[string]string) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
 	params := []any{now}
-	placeholders, extraParams := s.buildBatchUpdate(now, coins, mapping)
+	placeholders, extraParams := s.buildBatchUpdate(now, coins, mapping, dbMatching)
 	if len(placeholders) == 0 {
 		return nil
 	}
@@ -301,25 +319,43 @@ func (s *coinSync) updateCoinsData(ctx context.Context, now *time.Time, coins []
 			WHERE coins.id = update_data.id
 			RETURNING coins.id
 		) DELETE FROM coins_sync_queue WHERE coin_id IN (SELECT id FROM upd)
+		RETURNING coin_id as id
 	`, placeholders, updateFullDataTokens, keyCoinsMaxVersion)
-	rowsUpdated, err := storage.Exec(ctx, s.db, sql, params...)
+	type coinId struct {
+		ID string `db:"id"`
+	}
+	rowsUpdated, err := storage.ExecMany[coinId](ctx, s.db, sql, params...)
 	if err != nil {
 		return errors.Wrap(err, "failed to update coins data in db from coingecko")
 	}
-	if rowsUpdated != uint64(len(coins)) {
+	if len(rowsUpdated) != len(coins) {
 		ids := func() []string {
 			res := make([]string, 0, len(coins))
 			for _, c := range coins {
 				res = append(res, generateInternalID(c, mapping))
 			}
 			return res
+		}()
+		log.Error(errors.Errorf("not all coins were updated, expecting %v, updated %v, ids: %#v", len(coins), len(rowsUpdated), ids))
+		nonUpdatedCoins := make([]*coingecko.Coin, 0, len(coins)-len(rowsUpdated))
+		for _, c := range coins {
+			updated := false
+			for _, upd := range rowsUpdated {
+				if generateInternalID(c, mapping) == upd.ID {
+					updated = true
+					break
+				}
+			}
+			if !updated {
+				nonUpdatedCoins = append(nonUpdatedCoins, c)
+			}
 		}
-		err = errors.Errorf("not all coins were updated, expecting %v, updated %v, ids: %#v", len(coins), rowsUpdated, ids)
+		return s.updateCoinsData(ctx, now, nonUpdatedCoins, updateFullDataTokens, true, mapping)
 	}
 	return errors.Wrap(err, "failed to update coins data in db from coingecko")
 }
 
-func (s *coinSync) buildBatchUpdate(now *time.Time, coinsList []*coingecko.Coin, mapping map[string]string) (sql string, params []any) {
+func (s *coinSync) buildBatchUpdate(now *time.Time, coinsList []*coingecko.Coin, mapping map[string]string, matchByDb bool) (sql string, params []any) {
 	placeholders := make([]string, 0, len(coinsList))
 	idx := 2
 	params = make([]any, 0, len(coinsList)*10)
@@ -329,9 +365,16 @@ func (s *coinSync) buildBatchUpdate(now *time.Time, coinsList []*coingecko.Coin,
 			coin.Symbol = "ion"
 			coin.ID = "ion"
 		}
-		params = append(params, id, coin.Decimals, coin.PriceUSD, coin.ID, coin.Network, coin.Name, coin.ContractAddress, coin.Symbol, coin.SymbolGroup(), coin.IconUrl)
-		placeholders = append(placeholders, fmt.Sprintf(""+
-			"(                  $%[1]v,                $%[2]v::SMALLINT, $%[3]v::NUMERIC, $%[4]v, $%[5]v,         $%[6]v,  $%[7]v,              $%[8]v,  $%[9]v,          $%[10]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7, idx+8, idx+9))
+		if matchByDb {
+			params = append(params, id, coin.Decimals, coin.PriceUSD, coin.ID, coin.Network, coin.Name, coin.ContractAddress, coin.Symbol, coin.SymbolGroup(), coin.IconUrl)
+			placeholders = append(placeholders, fmt.Sprintf(""+
+				"(                  COALESCE((SELECT id FROM coins WHERE network = $%[5]v AND LOWER(contract_address) = LOWER($%[7]v)),$%[1]v),                $%[2]v::SMALLINT, $%[3]v::NUMERIC, $%[4]v, $%[5]v,         $%[6]v,  $%[7]v,              $%[8]v,  $%[9]v,          $%[10]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7, idx+8, idx+9))
+
+		} else {
+			params = append(params, id, coin.Decimals, coin.PriceUSD, coin.ID, coin.Network, coin.Name, coin.ContractAddress, coin.Symbol, coin.SymbolGroup(), coin.IconUrl)
+			placeholders = append(placeholders, fmt.Sprintf(""+
+				"(                  $%[1]v,                $%[2]v::SMALLINT, $%[3]v::NUMERIC, $%[4]v, $%[5]v,         $%[6]v,  $%[7]v,              $%[8]v,  $%[9]v,          $%[10]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7, idx+8, idx+9))
+		}
 		idx += 10
 	}
 	return strings.Join(placeholders, ", \n"), params
