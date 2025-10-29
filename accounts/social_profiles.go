@@ -262,7 +262,7 @@ func (a *accounts) GetSocialProfile(ctx context.Context, userIDOrMasterKey strin
 func (a *accounts) SearchSocialProfiles(ctx context.Context, tpe SearchType, keyword, followedBy, followerOf string, limit, offset uint64) ([]*LiteUser, error) {
 	kw := strings.ToLower(keyword)
 
-	const fixedPre = uint64(200)
+	const fixedPre = uint64(250)
 	pre := fixedPre
 	if offset > pre {
 		log.Info(fmt.Sprintf("search-social-profiles: offset %d exceeds pre-limit %d", offset, pre))
@@ -305,12 +305,21 @@ func (a *accounts) SearchSocialProfiles(ctx context.Context, tpe SearchType, key
 	if tpe == SearchTypeContains {
 		whereClause = fmt.Sprintf(` WHERE sp.lookup LIKE '%%' || $%d || '%%' AND similarity(sp.lookup, $%d) >= 0.2`, kwIdx, kwIdx)
 	} else {
-		whereClause = fmt.Sprintf(` WHERE sp.lookup LIKE $%d || '%%'  AND similarity(sp.lookup, $%d) >= 0.2`, kwIdx, kwIdx)
+		whereClause = fmt.Sprintf(` WHERE sp.lookup LIKE $%d || '%%' AND similarity(sp.lookup, $%d) >= 0.2`, kwIdx, kwIdx)
 	}
 
 	query := fmt.Sprintf(`
 		WITH candidates AS (
-			SELECT sp.master_pubkey, sp.lookup, u.verified, similarity(sp.lookup, $%d) AS sim,
+			SELECT sp.master_pubkey, sp.lookup, u.verified,
+				   GREATEST(
+					   similarity(sp.lookup, $%d),
+					   word_similarity($%d, sp.lookup)
+				   ) + 
+				   CASE 
+					   WHEN sp.lookup LIKE $%d || ' %%' THEN 1.0        -- complete word at start  
+					   WHEN sp.lookup LIKE $%d || '%%' THEN 0.5         -- prefix match
+					   ELSE 0.0
+				   END AS sim,
 				   username, display_name, avatar
 			FROM social_profiles sp
 			JOIN users u ON u.master_pubkey = sp.master_pubkey
@@ -327,7 +336,7 @@ func (a *accounts) SearchSocialProfiles(ctx context.Context, tpe SearchType, key
 		SELECT r.master_pubkey, username, display_name, avatar,
 			   (SELECT json_agg(x) FROM (SELECT url, relay_type as "type" FROM ion_connect_relays WHERE url=ANY(u.ion_connect_relays)) x) AS ion_connect_relays
 		FROM ranked r
-		%s`, kwIdx, whereClause, kwIdx, preIdx, limitIdx, offsetIdx, joinClause)
+		%s`, kwIdx, kwIdx, kwIdx, kwIdx, whereClause, kwIdx, preIdx, limitIdx, offsetIdx, joinClause)
 
 	profiles, err := storage.Select[LiteUser](ctx, a.db, query, args...)
 	if err != nil {
