@@ -409,4 +409,5 @@ apps-runtime:
     maxEarlyAccessRegistrationsAllowedPerEmail: 3
     forYouOverflowMultiplier: 1.5
     nsfwBlockThreshold: 0.5
+    langDetectScoreThreshold: 0.5
     cdnBaseUrl: https://cdn.example.com/bogus
