@@ -254,48 +254,93 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION add_verified(p_username TEXT)
+CREATE OR REPLACE FUNCTION add_verified(VARIADIC p_usernames TEXT[])
 RETURNS VOID
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_username TEXT := lower(p_username);
+    v_normalized_usernames TEXT[];
+    v_not_found_users TEXT[];
+    v_already_verified_users TEXT[];
 BEGIN
-    IF v_username = '' THEN
-        RAISE EXCEPTION 'USERNAME_REQUIRED';
+    IF array_length(p_usernames, 1) IS NULL THEN
+        RAISE EXCEPTION 'USERNAMES_REQUIRED';
     END IF;
 
-    INSERT INTO verified_users_sync_queue(user_id)
-    SELECT u.id
-    FROM users u
-    JOIN social_profiles sp ON u.master_pubkey = sp.master_pubkey
-    WHERE sp.username = v_username;
+    SELECT array_agg(lower(trim(username)))
+    INTO v_normalized_usernames
+    FROM unnest(p_usernames) AS username
+    WHERE trim(username) != '';
 
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'USER_NOT_FOUND: %', v_username;
+    SELECT array_agg(sp.username)
+    INTO v_already_verified_users
+    FROM users u
+    JOIN social_profiles sp
+    ON u.master_pubkey = sp.master_pubkey
+    WHERE sp.username = ANY(v_normalized_usernames) AND u.verified = true;
+
+    INSERT INTO verified_users_sync_queue(user_id)
+    SELECT DISTINCT u.id
+    FROM users u
+    JOIN social_profiles sp
+    ON u.master_pubkey = sp.master_pubkey
+    WHERE sp.username = ANY(v_normalized_usernames) AND u.verified = false
+    ON CONFLICT (user_id) DO NOTHING;
+
+    SELECT array_agg(username)
+    INTO v_not_found_users
+    FROM unnest(v_normalized_usernames) AS username
+    WHERE username NOT IN (
+        SELECT sp.username
+        FROM social_profiles sp
+        WHERE sp.username = ANY(v_normalized_usernames)
+    );
+
+    IF array_length(v_already_verified_users, 1) > 0 THEN
+        RAISE NOTICE 'Users already verified: %', array_to_string(v_already_verified_users, ', ');
+    END IF;
+
+    IF array_length(v_not_found_users, 1) > 0 THEN
+        RAISE NOTICE 'Users not found: %', array_to_string(v_not_found_users, ', ');
     END IF;
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION add_content_creator(p_username TEXT)
+CREATE OR REPLACE FUNCTION add_content_creator(VARIADIC p_usernames TEXT[])
 RETURNS VOID
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_username TEXT := lower(p_username);
+    v_normalized_usernames TEXT[];
+    v_not_found_users TEXT[];
 BEGIN
-    IF v_username = '' THEN
-        RAISE EXCEPTION 'USERNAME_REQUIRED';
+    IF array_length(p_usernames, 1) IS NULL THEN
+        RAISE EXCEPTION 'USERNAMES_REQUIRED';
     END IF;
 
+    SELECT array_agg(lower(trim(username)))
+    INTO v_normalized_usernames
+    FROM unnest(p_usernames) AS username
+    WHERE trim(username) != '';
+
     INSERT INTO content_creators(master_pubkey)
-    SELECT u.master_pubkey
+    SELECT DISTINCT u.master_pubkey
     FROM users u
     JOIN social_profiles sp ON u.master_pubkey = sp.master_pubkey
-    WHERE sp.username = v_username;
+    WHERE sp.username = ANY(v_normalized_usernames)
+    ON CONFLICT (master_pubkey) DO NOTHING;
 
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'USER_NOT_FOUND: %', v_username;
+    SELECT array_agg(username)
+    INTO v_not_found_users
+    FROM unnest(v_normalized_usernames) AS username
+    WHERE username NOT IN (
+        SELECT sp.username
+        FROM social_profiles sp
+        WHERE sp.username = ANY(v_normalized_usernames)
+    );
+
+    IF array_length(v_not_found_users, 1) > 0 THEN
+        RAISE NOTICE 'Users not found: %', array_to_string(v_not_found_users, ', ');
     END IF;
 END;
 $$;
