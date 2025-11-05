@@ -422,8 +422,8 @@ apps-runtime:
 
 token-analytics:
   wintr/connectors/storage/v3:
-    url: redis://default:@localhost:6381
-  wintr/connectors/storage/v2: &globalDB
+    url: redis://default:@localhost:6379
+  wintr/connectors/storage/v2:
     runDDL: true
     primaryURL: postgresql://root:pass@localhost:5442/ingested_data
     credentials:
