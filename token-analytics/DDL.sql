@@ -1,31 +1,180 @@
 -- SPDX-License-Identifier: ice License 1.0
-
-CREATE TABLE IF NOT EXISTS raw_tx_data
-(
-    address             TEXT NOT NULL,
-    topics              TEXT[],
-    data                TEXT,
-    blockNumber         TEXT NOT NULL,
-    transactionHash     TEXT NOT NULL,
-    transactionIndex    TEXT NOT NULL,
-    blockHash           TEXT NOT NULL,
-    blockTimestamp      TEXT NOT NULL,
-    logIndex            TEXT NOT NULL,
-    removed             BOOLEAN NOT NULL,
-    primary key (transactionHash, logIndex)
+-- TODO: reorder fields properly
+CREATE TABLE IF NOT EXISTS blocks (
+                                      block_number         BIGINT NOT NULL,
+                                      block_hash          TEXT NOT NULL,
+                                      timestamp     TIMESTAMP NOT NULL,
+                                      base_fee_per_gas    BIGINT,
+                                      blob_gas_used       BIGINT,
+                                      difficulty          TEXT NOT NULL,
+                                      excess_blob_gas     TEXT,
+                                      extra_data          TEXT,
+                                      gas_limit           BIGINT NOT NULL,
+                                      gas_used            BIGINT NOT NULL,
+                                      logs_bloom          TEXT,
+                                      miner               TEXT NOT NULL,
+                                      mix_hash            TEXT,
+                                      nonce               TEXT,
+                                      parent_beacon_block_root TEXT,
+                                      parent_hash         TEXT NOT NULL,
+                                      receipts_root       TEXT,
+                                      requests_hash       TEXT,
+                                      sha3_uncles         TEXT,
+                                      size                TEXT,
+                                      state_root          TEXT,
+                                      transactions_root   TEXT,
+                                      removed             BOOLEAN NOT NULL DEFAULT FALSE,
+                                      PRIMARY KEY (block_number)
 );
 
----          "address": "0xb05f36c9dffa76f0af639385ef44d5560e0160c1",
---          "topics": [ // topic 0 should point to event (hex)
---             "0x034dd13d657aeb14f8dec7291c4a8ddb3b20d40cf2412714e72f97f19c735609",
---             "0x000000000000000000000000000000000000000000000000000000000000477d",
---             "0x00000000000000000000000006054cfa0b56f350687b72d8944f7c235d4a0a43"
---           ],
---           "data": "0x",
---           "blockNumber": "0x91f3eb",
---           "transactionHash": "0xf2f810e59c7de7e2e92161ca2f756be7619a301c89db526aec29c2b135337d51",
---           "transactionIndex": "0x2",
---           "blockHash": "0xc6f373a8870c5634acf696e9158f9f02e18b4bf9bf6c8ba5b19cc1ac2c22aeb3",
---           "blockTimestamp": "0x690b1e94",
---           "logIndex": "0x1",
---           "removed": false
+CREATE TABLE IF NOT EXISTS transactions
+(
+    chain_id              TEXT NOT NULL,
+    block_number          BIGINT NOT NULL, --references blocks(block_number) DEFERRABLE INITIALLY DEFERRED,
+    transaction_hash      TEXT NOT NULL,
+    transaction_index     BIGINT,
+    gas                   BIGINT NOT NULL,
+    gas_price            BIGINT NOT NULL,
+    max_fee_per_gas      BIGINT,
+    max_priority_fee_per_gas BIGINT,
+    nonce                BIGINT NOT NULL,
+    to_address           TEXT NOT NULL,
+    transaction_type     TEXT,
+    value                TEXT NOT NULL,
+    y_parity             TEXT,
+    input                TEXT,
+    from_address         TEXT NOT NULL,
+    PRIMARY KEY (transaction_hash)
+);
+CREATE TABLE IF NOT EXISTS tx_logs
+(
+    address             TEXT NOT NULL,
+    topic0              TEXT NOT NULL,
+    topics              TEXT[],
+    data                TEXT,
+    block_number         BIGINT NOT NULL, --REFERENCES blocks(block_number) DEFERRABLE INITIALLY DEFERRED,
+    transaction_hash     TEXT NOT NULL, --references transactions(transaction_hash) DEFERRABLE INITIALLY DEFERRED,
+    log_index            BIGINT NOT NULL,
+    removed             BOOLEAN NOT NULL,
+    primary key (transaction_hash, log_index)
+);
+
+CREATE TABLE IF NOT EXISTS incoming_data (
+                               from_block_number BIGINT,
+                               to_block_number BIGINT,
+                               network TEXT,
+                               stream_id TEXT,
+                               data JSONB,
+                               PRIMARY KEY (from_block_number,to_block_number,network)
+);
+
+CREATE OR REPLACE FUNCTION trigger_move_incoming_logs()
+    RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO blocks (
+        block_number,
+        block_hash,
+        timestamp,
+        base_fee_per_gas,
+        blob_gas_used,
+        difficulty,
+        excess_blob_gas,
+        extra_data,
+        gas_limit,
+        gas_used,
+        logs_bloom,
+        miner,
+        mix_hash,
+        nonce,
+        parent_beacon_block_root,
+        parent_hash,
+        receipts_root,
+        requests_hash,
+        sha3_uncles,
+        size,
+        state_root,
+        transactions_root,
+        removed
+    )
+    VALUES ((NEW.data -> 'block'->> 'number')::bigint,
+            NEW.data -> 'block'->> 'hash',
+            to_timestamp((NEW.data -> 'block'->> 'timestamp')::BIGINT),
+            (NEW.data -> 'block'->> 'baseFeePerGas')::BIGINT,
+            (NEW.data -> 'block'->> 'blobGasUsed')::BIGINT,
+            NEW.data -> 'block'->> 'difficulty',
+            NEW.data -> 'block'->> 'excessBlobGas',
+            NEW.data -> 'block'->> 'extraData',
+            (NEW.data -> 'block'->> 'gasLimit')::BIGINT,
+            (NEW.data -> 'block'->> 'gasUsed')::BIGINT,
+            NEW.data -> 'block'->> 'logsBloom',
+            NEW.data -> 'block'->> 'miner',
+            NEW.data -> 'block'->> 'mixHash',
+            NEW.data -> 'block'->> 'nonce',
+            NEW.data -> 'block'->> 'parentBeaconBlockRoot',
+            NEW.data -> 'block'->> 'parentHash',
+            NEW.data -> 'block'->> 'receiptsRoot',
+            NEW.data -> 'block'->> 'requestsHash',
+            NEW.data -> 'block'->> 'sha3Uncles',
+            (NEW.data -> 'block'->> 'size')::BIGINT,
+            NEW.data -> 'block'->> 'stateRoot',
+            NEW.data -> 'block'->> 'transactionsRoot',
+            false
+    ) ON CONFLICT (block_number) DO NOTHING;
+
+
+    INSERT INTO transactions (
+        chain_id,
+        block_number,
+        transaction_hash,
+        transaction_index,
+        gas,
+        gas_price,
+        max_fee_per_gas,
+        max_priority_fee_per_gas,
+        nonce,
+        to_address,
+        transaction_type,
+        value,
+        y_parity,
+        input,
+        from_address
+    ) SELECT
+              transaction_data->>'chainId',
+                 (transaction_data->>'blockNumber')::BIGINT,
+                 transaction_data->>'hash',
+                 (transaction_data->>'transactionIndex')::BIGINT,
+                 (transaction_data->>'gas')::BIGINT,
+                 (transaction_data->>'gasPrice')::BIGINT,
+                 (transaction_data->>'maxFeePerGas')::BIGINT,
+                 (transaction_data->>'maxPriorityFeePerGas')::BIGINT,
+                 (transaction_data->>'nonce')::BIGINT,
+                 transaction_data->>'to',
+                 transaction_data->>'type',
+                 (transaction_data->>'value')::BIGINT,
+                 (transaction_data->>'yParity')::BIGINT,
+                 transaction_data->>'input',
+                 transaction_data->>'from'
+         FROM jsonb_array_elements(NEW.data -> 'block'->'transactions') as transaction_data
+    ON CONFLICT(transaction_hash) DO NOTHING;
+
+    INSERT INTO tx_logs(address, topics, topic0, data, block_number, transaction_hash, log_index, removed)
+    (SELECT
+              elem->>'address' as address,
+              (SELECT t.topics from jsonb_to_record(elem) as t (topics TEXT[])) AS topics,
+              (elem->'topics'->>0) as topics,
+              elem->>'data' as data,
+              (elem->>'blockNumber')::BIGINT as block_number,
+              elem->>'transactionHash' as transaction_hash,
+              (elem->>'logIndex')::BIGINT as log_index,
+              (elem->>'removed')::BOOLEAN as removed
+              FROM jsonb_array_elements(NEW.data -> 'logs') as elem)
+    ON CONFLICT (transaction_hash, log_index) DO NOTHING;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER trigger_move_incoming_logs
+    AFTER INSERT ON incoming_data
+    FOR EACH ROW
+EXECUTE FUNCTION trigger_move_incoming_logs();
