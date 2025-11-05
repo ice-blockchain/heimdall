@@ -411,3 +411,4 @@ apps-runtime:
     nsfwBlockThreshold: 0.5
     langDetectScoreThreshold: 0.5
     cdnBaseUrl: https://cdn.example.com/bogus
+    forYouSeenSkipsMultiplier: 1
