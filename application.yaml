@@ -44,6 +44,13 @@ cmd/heimdall-asset-data-syncer:
     port: 8888
     certPath: cmd/heimdall-identity-io/.testdata/localhost.crt
     keyPath: cmd/heimdall-identity-io/.testdata/localhost.key
+cmd/heimdall-token-analytics:
+  version: local
+  defaultEndpointTimeout: 60s
+  httpServer:
+    port: 8888
+    certPath: cmd/heimdall-identity-io/.testdata/localhost.crt
+    keyPath: cmd/heimdall-identity-io/.testdata/localhost.key
 accounts:
   delegated_relying_party:
     auth:
@@ -411,3 +418,16 @@ apps-runtime:
     nsfwBlockThreshold: 0.5
     langDetectScoreThreshold: 0.5
     cdnBaseUrl: https://cdn.example.com/bogus
+
+
+token-analytics:
+  wintr/connectors/storage/v3:
+    url: redis://default:@localhost:6381
+  wintr/connectors/storage/v2: &globalDB
+    runDDL: true
+    primaryURL: postgresql://root:pass@localhost:5442/ingested_data
+    credentials:
+      user: root
+      password: pass
+    replicaURLs:
+      - postgresql://root:pass@localhost:5442/ingested_data
