@@ -421,6 +421,7 @@ apps-runtime:
 
 
 token-analytics:
+  workers: 10
   wintr/connectors/storage/v3:
     url: redis://default:@localhost:6379
   wintr/connectors/storage/v2:

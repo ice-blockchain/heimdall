@@ -1,9 +1,11 @@
 -- SPDX-License-Identifier: ice License 1.0
 -- TODO: reorder fields properly
 CREATE TABLE IF NOT EXISTS blocks (
+                                      stream_id           TEXT NOT NULL,
+                                      ingested_at         TIMESTAMP NOT NULL DEFAULT NOW(),
                                       block_number         BIGINT NOT NULL,
                                       block_hash          TEXT NOT NULL,
-                                      timestamp     TIMESTAMP NOT NULL,
+                                      timestamp           TIMESTAMP NOT NULL,
                                       base_fee_per_gas    BIGINT,
                                       blob_gas_used       BIGINT,
                                       difficulty          TEXT NOT NULL,
@@ -30,7 +32,7 @@ CREATE TABLE IF NOT EXISTS blocks (
 CREATE TABLE IF NOT EXISTS transactions
 (
     chain_id              TEXT NOT NULL,
-    block_number          BIGINT NOT NULL, --references blocks(block_number) DEFERRABLE INITIALLY DEFERRED,
+    block_number          BIGINT NOT NULL REFERENCES blocks(block_number) DEFERRABLE INITIALLY DEFERRED,
     transaction_hash      TEXT NOT NULL,
     transaction_index     BIGINT,
     gas                   BIGINT NOT NULL,
@@ -46,18 +48,28 @@ CREATE TABLE IF NOT EXISTS transactions
     from_address         TEXT NOT NULL,
     PRIMARY KEY (transaction_hash)
 );
+CREATE INDEX IF NOT EXISTS idx_transactions_from_address ON transactions (from_address);
+
 CREATE TABLE IF NOT EXISTS tx_logs
 (
+    i                   BIGINT generated always as identity NOT NULL,
+    stream_id           TEXT NOT NULL,
+    ingested_at         TIMESTAMP NOT NULL DEFAULT NOW(),
     address             TEXT NOT NULL,
     topic0              TEXT NOT NULL,
     topics              TEXT[],
     data                TEXT,
-    block_number         BIGINT NOT NULL, --REFERENCES blocks(block_number) DEFERRABLE INITIALLY DEFERRED,
-    transaction_hash     TEXT NOT NULL, --references transactions(transaction_hash) DEFERRABLE INITIALLY DEFERRED,
+    block_number         BIGINT NOT NULL REFERENCES blocks(block_number) DEFERRABLE INITIALLY DEFERRED,
+    transaction_hash     TEXT NOT NULL REFERENCES transactions(transaction_hash) DEFERRABLE INITIALLY DEFERRED,
     log_index            BIGINT NOT NULL,
     removed             BOOLEAN NOT NULL,
+    processed_at        TIMESTAMP,
     primary key (transaction_hash, log_index)
 );
+CREATE INDEX IF NOT EXISTS tx_logs_topic0_idx ON tx_logs (topic0) WHERE removed = false;
+CREATE UNIQUE INDEX IF NOT EXISTS tx_logs_i_ix ON tx_logs (i);
+CREATE INDEX IF NOT EXISTS tx_logs_mod_i_ix ON tx_logs (MOD(i, %[1]v), ingested_at ASC);
+
 
 CREATE TABLE IF NOT EXISTS incoming_data (
                                from_block_number BIGINT,
@@ -68,10 +80,13 @@ CREATE TABLE IF NOT EXISTS incoming_data (
                                PRIMARY KEY (from_block_number,to_block_number,network)
 );
 
+CREATE INDEX IF NOT EXISTS incoming_data_to_block_number_idx ON incoming_data (to_block_number);
+
 CREATE OR REPLACE FUNCTION trigger_move_incoming_logs()
     RETURNS TRIGGER AS $$
 BEGIN
     INSERT INTO blocks (
+        stream_id,
         block_number,
         block_hash,
         timestamp,
@@ -96,7 +111,8 @@ BEGIN
         transactions_root,
         removed
     )
-    VALUES ((NEW.data -> 'block'->> 'number')::bigint,
+    VALUES (NEW.data ->> 'stream',
+            (NEW.data -> 'block'->> 'number')::bigint,
             NEW.data -> 'block'->> 'hash',
             to_timestamp((NEW.data -> 'block'->> 'timestamp')::BIGINT),
             (NEW.data -> 'block'->> 'baseFeePerGas')::BIGINT,
@@ -157,8 +173,9 @@ BEGIN
          FROM jsonb_array_elements(NEW.data -> 'block'->'transactions') as transaction_data
     ON CONFLICT(transaction_hash) DO NOTHING;
 
-    INSERT INTO tx_logs(address, topics, topic0, data, block_number, transaction_hash, log_index, removed)
+    INSERT INTO tx_logs(stream_id, address, topics, topic0, data, block_number, transaction_hash, log_index, removed)
     (SELECT
+              NEW.data ->> 'stream',
               elem->>'address' as address,
               (SELECT t.topics from jsonb_to_record(elem) as t (topics TEXT[])) AS topics,
               (elem->'topics'->>0) as topics,
@@ -169,7 +186,7 @@ BEGIN
               (elem->>'removed')::BOOLEAN as removed
               FROM jsonb_array_elements(NEW.data -> 'logs') as elem)
     ON CONFLICT (transaction_hash, log_index) DO NOTHING;
-
+    DELETE FROM incoming_data WHERE to_block_number<=(NEW.data -> 'block'->> 'number')::bigint;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
