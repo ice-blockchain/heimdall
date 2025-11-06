@@ -66,9 +66,8 @@ CREATE TABLE IF NOT EXISTS tx_logs
     processed_at        TIMESTAMP,
     primary key (transaction_hash, log_index)
 );
-CREATE INDEX IF NOT EXISTS tx_logs_topic0_idx ON tx_logs (topic0) WHERE removed = false;
 CREATE UNIQUE INDEX IF NOT EXISTS tx_logs_i_ix ON tx_logs (i);
-CREATE INDEX IF NOT EXISTS tx_logs_mod_i_ix ON tx_logs (MOD(i, %[1]v), ingested_at ASC);
+CREATE INDEX IF NOT EXISTS tx_logs_mod_i_ix ON tx_logs (MOD(i, %[1]v), block_number, log_index ASC);
 
 
 CREATE TABLE IF NOT EXISTS incoming_data (
