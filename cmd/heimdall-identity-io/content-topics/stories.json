@@ -80,6 +80,10 @@
         "trading_strategies": {
           "display": "Trading",
           "weight": 1
+        },
+        "ion": {
+          "display": "Ice Open Network",
+          "weight": 1
         }
       }
     },
