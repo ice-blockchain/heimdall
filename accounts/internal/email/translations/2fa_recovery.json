@@ -1,6 +1,6 @@
 {
   "en": {
     "subject": "Your confirmation code",
-    "body": "<p>Hi,</p>\n<p>We received a request to confirm your Identity.io account using this email address. If you want to confirm your {{.Email}} account, use this confirmation code:</p>\n<p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n<p>If you did not request this code, you can safely ignore this email.</p>\n<p>Thanks,<br>\nIdentity.io Team</p>"
+    "body": "<p>Hi,</p>\n<p>To confirm your email for 2FA, please use the code below:</p>\n<p style=\"font-size:22px\"><b>{{.ConfirmationCode}}</b></p>\n<p>If you did not request this code, you can safely ignore this email.</p>\n<p>Thanks,<br>\nIdentity Team</p>"
   }
 }
