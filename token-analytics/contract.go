@@ -31,6 +31,7 @@ const (
 
 type (
 	config struct {
+		Workers uint `yaml:"workers"`
 	}
 	tokenAnalytics struct {
 		ingestedDataDB  *storage.DB

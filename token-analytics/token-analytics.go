@@ -16,7 +16,10 @@ func New(ctx context.Context) TokenAnalytics {
 
 	var cfg config
 	appconfig.MustLoadFromKey(applicationYamlKey, &cfg)
-	db := storage.MustConnect(ctx, sourceDDL, applicationYamlKey)
+	if cfg.Workers == 0 {
+		cfg.Workers = 1
+	}
+	db := storage.MustConnect(ctx, fmt.Sprintf(sourceDDL, cfg.Workers), applicationYamlKey)
 	targetDB := storagev3.MustConnect(ctx, applicationYamlKey)
 	t := &tokenAnalytics{
 		ingestedDataDB:  db,

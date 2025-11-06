@@ -420,6 +420,7 @@ apps-runtime:
     cdnBaseUrl: https://cdn.example.com/bogus
     forYouSeenSkipsMultiplier: 1
 token-analytics:
+  workers: 10
   wintr/connectors/storage/v3:
     url: redis://default:@localhost:6379
   wintr/connectors/storage/v2:
