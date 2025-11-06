@@ -421,6 +421,7 @@ apps-runtime:
     forYouSeenSkipsMultiplier: 1
 token-analytics:
   workers: 10
+  batchSize: 2
   wintr/connectors/storage/v3:
     url: redis://default:@localhost:6379
   wintr/connectors/storage/v2:

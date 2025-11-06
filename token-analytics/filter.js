@@ -1,3 +1,5 @@
+//Blocks with receipt dataset
+
 function main(payload) {
     const {
         data,
