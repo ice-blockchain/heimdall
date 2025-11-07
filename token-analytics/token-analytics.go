@@ -11,6 +11,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/hashicorp/go-multierror"
+	"github.com/ice-blockchain/heimdall/token-analytics/internal"
 	appconfig "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	storagev3 "github.com/ice-blockchain/wintr/connectors/storage/v3"
@@ -26,11 +27,13 @@ func New(ctx context.Context) TokenAnalytics {
 	}
 	db := storage.MustConnect(ctx, fmt.Sprintf(sourceDDL, cfg.Workers), applicationYamlKey)
 	targetDB := storagev3.MustConnect(ctx, applicationYamlKey)
+	qn := internal.NewQuickNodeClient(ctx, applicationYamlKey)
 	t := &tokenAnalytics{
 		ingestedDataDB:  db,
 		processedDataDB: targetDB,
 		wg:              new(sync.WaitGroup),
 		cfg:             &cfg,
+		quickNode:       qn,
 		shutdown: func() error {
 			return multierror.Append(
 				errors.Wrapf(db.Close(), "failed to close source db"),

@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ice-blockchain/heimdall/token-analytics/internal"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	storagev3 "github.com/ice-blockchain/wintr/connectors/storage/v3"
 	"github.com/ice-blockchain/wintr/time"
@@ -56,6 +57,7 @@ type (
 		cfg             *config
 		wg              *sync.WaitGroup
 		bondingCurveABI abi.ABI
+		quickNode       internal.QuickNodeClient
 	}
 	txEvent struct {
 		*SavePoint

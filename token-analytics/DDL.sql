@@ -194,3 +194,12 @@ CREATE OR REPLACE TRIGGER trigger_move_incoming_logs
     AFTER INSERT ON incoming_data
     FOR EACH ROW
 EXECUTE FUNCTION trigger_move_incoming_logs();
+
+
+CREATE TABLE IF NOT EXISTS streams (
+    contract_address TEXT NOT NULL,
+    stream_id TEXT,
+    name TEXT,
+    created_at TIMESTAMP,
+    PRIMARY KEY (contract_address)
+);
