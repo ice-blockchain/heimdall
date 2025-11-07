@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ice-blockchain/wintr/log"
 	"github.com/pkg/errors"
 )
@@ -63,10 +64,10 @@ func (t *tokenAnalytics) tokenCreated(ctx context.Context, event *txEvent) error
 	if err := decode[*logTokenCreated](t.bondingCurveABI, &tokenCreatedEvent, "BondedTokenCreated", event.Data); err != nil {
 		return errors.Wrapf(err, "failed to unpack BondedTokenCreated event")
 	}
-	log.Info(fmt.Sprintf("Token created:%+v ", tokenCreatedEvent))
-	if event.Address == t.cfg.BondingCurveContract {
-		// TODO: create stream for user token (tokenCreatedEvent.Address)
-		return nil
+	tokenCreatedEvent.Address = common.HexToAddress(event.Topics[1]) // Indexed
+	log.Info(fmt.Sprintf("Token created:%v %+v ", event.Address, tokenCreatedEvent))
+	if strings.EqualFold(event.Address, t.cfg.BondingCurveContract) {
+		return errors.Wrapf(t.createStreamForContractAddress(ctx, tokenCreatedEvent.Address.String()), "failed to create stream  fo monitor contract %v", tokenCreatedEvent.Address.String())
 	}
 	return nil
 }

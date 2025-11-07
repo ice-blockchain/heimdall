@@ -423,6 +423,13 @@ apps-runtime:
 token-analytics:
   workers: 10
   batchSize: 2
+  bondingCurveContract: 0x348A10ea12E737E64e706Dc71606F6a3e2062efe
+  quickNode:
+    network: ethereum-sepolia #currently deployed there
+    startBlock: 9553982
+    # update to accessible over internet, ngrok tcp, or that 23... machine
+    destinationUrl: postgresql://root:pass@localhost:5442/ingested_data
+    apiKey: "-"
   wintr/connectors/storage/v3:
     url: redis://default:@localhost:6379
   wintr/connectors/storage/v2:

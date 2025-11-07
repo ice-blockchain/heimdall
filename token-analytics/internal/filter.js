@@ -9,7 +9,7 @@ function main(payload) {
     filtered = data[0].receipts.filter(function(item) {
         logs = item.logs.filter(function(log) {
             // Contract addr
-            contains = log.address.toLowerCase() === '0x999bA6d981A46CB64C8A3bFFbA70101893c57aC4'.toLowerCase()
+            contains = log.address.toLowerCase() === '{{.ContractAddress}}'.toLowerCase()
             if (contains) {
                 txs[log.transactionHash] = true
             }
