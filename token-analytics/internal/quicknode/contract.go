@@ -1,4 +1,6 @@
-package internal
+// SPDX-License-Identifier: ice License 1.0
+
+package quicknode
 
 import (
 	"context"
@@ -12,8 +14,8 @@ import (
 )
 
 type (
-	QuickNodeClient interface {
-		CreateStream(ctx context.Context, streamName, contractAddrToMonitor string) (stream *Stream, err error)
+	Client interface {
+		CreateStream(ctx context.Context, streamName, contractAddrToMonitor string) (*Stream, error)
 	}
 	Stream struct {
 		ID        string     `json:"id"`
@@ -24,23 +26,22 @@ type (
 )
 
 type (
-	quickNodeClient struct {
-		client         *req.Client
-		config         *config
-		filterTemplate *template.Template
-		destination    *pgx.ConnConfig
+	client struct {
+		httpClient                              *req.Client
+		config                                  *config
+		bondingCurveSmartContractFilterTemplate *template.Template
+		erc20SmartContractFilterTemplate        *template.Template
+		streamDestination                       *pgx.ConnConfig
 	}
 
 	config struct {
-		QuickNode quickNodeCfg `yaml:"quickNode" mapstructure:"quickNode"`
+		QuickNode quickNodeCfg `yaml:"quicknode" mapstructure:"quicknode"`
 	}
 	quickNodeCfg struct {
-		APIKey  string `yaml:"apiKey" mapstructure:"apiKey"`
-		Network string `yaml:"network" mapstructure:"network"`
+		APIKey string `yaml:"api-key" mapstructure:"api-key"`
 		// There is no sense to read history before BondingCurve is deployed - 1
-		StartBlock        uint   `yaml:"startBlock" mapstructure:"startBlock"`
-		DestinationUrl    string `yaml:"destinationUrl" mapstructure:"destinationUrl"`
-		NotificationEmail string `yaml:"notificationEmail" mapstructure:"notificationEmail"`
+		StartBlock           uint   `yaml:"start-block" mapstructure:"start-block"`
+		StreamDestinationURL string `yaml:"stream-destination-url" mapstructure:"stream-destination-url"`
 	}
 	createStreamReq struct {
 		Name                  string `json:"name"`
@@ -73,6 +74,8 @@ type (
 )
 
 var (
-	//go:embed filter.js
-	filterTemplate string
+	//go:embed .quicknode-streams-filters/bonding_curve_smart_contract.js
+	bondingCurveSmartContractTemplate string
+	//go:embed .quicknode-streams-filters/erc20_smart_contract.js
+	erc20SmartContract string
 )

@@ -1,3 +1,7 @@
+/**
+ * SPDX-License-Identifier: ice License 1.0
+ */
+
 //Blocks with receipt dataset
 
 function main(payload) {

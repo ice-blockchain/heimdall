@@ -1,4 +1,6 @@
-package internal
+// SPDX-License-Identifier: ice License 1.0
+
+package quicknode
 
 import (
 	"bytes"
@@ -18,22 +20,22 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewQuickNodeClient(ctx context.Context, applicationYamlKey string) QuickNodeClient {
+func NewClient(ctx context.Context, applicationYamlKey string) Client {
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	if cfg.QuickNode.APIKey == "" || cfg.QuickNode.APIKey == "-" {
 		cfg.QuickNode.APIKey = os.Getenv("QUICKNODE_API_KEY")
 	}
-	filterTempl := template.Must(template.New("quickNode-filter").Parse(filterTemplate))
-	conf, err := pgxpool.ParseConfig(cfg.QuickNode.DestinationUrl)
+	conf, err := pgxpool.ParseConfig(cfg.QuickNode.StreamDestinationURL)
 	if err != nil {
 		log.Panic(errors.Wrapf(err, "failed to parse destination url"))
 	}
-	q := &quickNodeClient{
-		filterTemplate: filterTempl,
-		client:         req.C().SetBaseURL("https://api.quicknode.com/"),
-		config:         &cfg,
-		destination:    conf.ConnConfig,
+	q := &client{
+		bondingCurveSmartContractFilterTemplate: template.Must(template.New("bondingCurveSmartContractTemplate").Parse(bondingCurveSmartContractTemplate)),
+		erc20SmartContractFilterTemplate:        template.Must(template.New("erc20SmartContract").Parse(erc20SmartContract)),
+		httpClient:                              req.C().SetBaseURL("https://api.quicknode.com/"),
+		config:                                  &cfg,
+		streamDestination:                       conf.ConnConfig,
 	}
 	if err = q.bootstrap(ctx); err != nil {
 		log.Panic(errors.Wrapf(err, "failed to bootstrap quick node conn"))
@@ -41,7 +43,7 @@ func NewQuickNodeClient(ctx context.Context, applicationYamlKey string) QuickNod
 	return q
 }
 
-func (q *quickNodeClient) bootstrap(ctx context.Context) error {
+func (q *client) bootstrap(ctx context.Context) error {
 	if resp, err := q.req(ctx).Get("/streams/rest/v1/streams"); err != nil {
 		return errors.Wrapf(err, "failed to get /streams/rest/v1/streams")
 	} else if resp.GetStatusCode() >= http.StatusBadRequest {
@@ -53,14 +55,14 @@ func (q *quickNodeClient) bootstrap(ctx context.Context) error {
 	}
 }
 
-func (q *quickNodeClient) req(ctx context.Context) *req.Request {
-	return q.client.R().
+func (q *client) req(ctx context.Context) *req.Request {
+	return q.httpClient.R().
 		SetContext(ctx).
 		SetRetryBackoffInterval(100*time.Millisecond, 10*time.Second).
 		SetRetryHook(func(resp *req.Response, err error) {
 			switch {
 			case err != nil:
-				log.Error(errors.Wrapf(err, "faied to exec quick node request %v %v", resp.Request.URL.String()))
+				log.Error(errors.Wrapf(err, "faied to exec quick node request %v", resp.Request.URL.String()))
 			case resp.GetStatusCode() >= http.StatusBadRequest:
 				log.Error(errors.Errorf("quick node request failed %v: %v", resp.Request.URL.String(), resp.GetStatusCode()))
 			}
@@ -72,20 +74,20 @@ func (q *quickNodeClient) req(ctx context.Context) *req.Request {
 		SetHeader("x-api-key", q.config.QuickNode.APIKey)
 }
 
-func (q *quickNodeClient) CreateStream(ctx context.Context, streamName, contractAddrToMonitor string) (*Stream, error) {
-	filter, err := q.filterFunc(contractAddrToMonitor)
+func (q *client) CreateStream(ctx context.Context, streamName, contractAddrToMonitor string) (*Stream, error) {
+	filter, err := q.erc20SmartContractFilterFunc(contractAddrToMonitor)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to load filter function")
 	}
 	sslmode := "disable"
-	if strings.Contains(q.config.QuickNode.DestinationUrl, "sslmode=require") {
+	if strings.Contains(q.config.QuickNode.StreamDestinationURL, "sslmode=require") {
 		sslmode = "require"
 	}
 	params := &createStreamReq{
 		Name:                  streamName,
-		Network:               q.config.QuickNode.Network,
+		Network:               "BNB Smart Chain Testnet", // TODO see whats the correct value; and use mainnet if its not development
 		Dataset:               "block_with_receipts",
-		FilterFunction:        base64.StdEncoding.EncodeToString([]byte(filter)),
+		FilterFunction:        base64.StdEncoding.EncodeToString(filter),
 		Region:                "usa_east",
 		StartRange:            q.config.QuickNode.StartBlock,
 		DatasetBatchSize:      1,
@@ -105,12 +107,12 @@ func (q *quickNodeClient) CreateStream(ctx context.Context, streamName, contract
 			RetryIntervalSec int    `json:"retry_interval_sec"`
 			SslMode          string `json:"sslmode"`
 		}{
-			Username:         q.destination.User,
-			Password:         q.destination.Password,
-			Host:             q.destination.Host,
-			Port:             q.destination.Port,
+			Username:         q.streamDestination.User,
+			Password:         q.streamDestination.Password,
+			Host:             q.streamDestination.Host,
+			Port:             q.streamDestination.Port,
 			TableName:        "incoming_data",
-			Database:         q.destination.Database,
+			Database:         q.streamDestination.Database,
 			SslMode:          sslmode,
 			MaxRetry:         5,
 			RetryIntervalSec: 5,
@@ -118,7 +120,7 @@ func (q *quickNodeClient) CreateStream(ctx context.Context, streamName, contract
 		Status: "active",
 	}
 	// TODO: For now there are only a few events in blocks 9553982-9553986, remove once we have more events
-	if q.config.QuickNode.Network == "ethereum-sepolia" && q.config.QuickNode.StartBlock == 9553982 {
+	if /*q.config.QuickNode.Network == "ethereum-sepolia" &&*/ q.config.QuickNode.StartBlock == 9553982 {
 		endBlock := uint(9553986)
 		params.EndRange = &endBlock
 	}
@@ -126,7 +128,7 @@ func (q *quickNodeClient) CreateStream(ctx context.Context, streamName, contract
 	if resp, err = q.req(ctx).SetBody(params).Post("/streams/rest/v1/streams"); err != nil {
 		return nil, errors.Wrapf(err, "failed to post /streams/rest/v1/streams")
 	} else if resp.GetStatusCode() >= http.StatusBadRequest {
-		return nil, errors.Errorf("failed /streams/rest/v1/streams with %v: %v", resp.GetStatusCode(), string(resp.String()))
+		return nil, errors.Errorf("failed /streams/rest/v1/streams with %v: %v", resp.GetStatusCode(), resp.String())
 	} else if data, err2 := resp.ToBytes(); err2 != nil {
 		return nil, errors.Wrapf(err2, "failed to read body of /streams/rest/v1/streams")
 	} else {
@@ -138,9 +140,9 @@ func (q *quickNodeClient) CreateStream(ctx context.Context, streamName, contract
 	}
 }
 
-func (q *quickNodeClient) filterFunc(contractAddrToMonitor string) ([]byte, error) {
+func (q *client) erc20SmartContractFilterFunc(contractAddrToMonitor string) ([]byte, error) {
 	buf := bytes.NewBuffer([]byte{})
-	err := q.filterTemplate.Execute(buf, struct {
+	err := q.erc20SmartContractFilterTemplate.Execute(buf, struct {
 		ContractAddress string
 	}{
 		ContractAddress: contractAddrToMonitor,
