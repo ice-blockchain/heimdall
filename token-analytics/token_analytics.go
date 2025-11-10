@@ -9,9 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/go-multierror"
-	"github.com/ice-blockchain/heimdall/token-analytics/internal"
+	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
+	"github.com/ice-blockchain/heimdall/token-analytics/internal/quicknode"
 	appconfig "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	storagev3 "github.com/ice-blockchain/wintr/connectors/storage/v3"
@@ -27,7 +28,7 @@ func New(ctx context.Context) TokenAnalytics {
 	}
 	db := storage.MustConnect(ctx, fmt.Sprintf(sourceDDL, cfg.Workers), applicationYamlKey)
 	targetDB := storagev3.MustConnect(ctx, applicationYamlKey)
-	qn := internal.NewQuickNodeClient(ctx, applicationYamlKey)
+	qn := quicknode.NewClient(ctx, applicationYamlKey)
 	t := &tokenAnalytics{
 		ingestedDataDB:  db,
 		processedDataDB: targetDB,
@@ -41,11 +42,7 @@ func New(ctx context.Context) TokenAnalytics {
 			)
 		},
 	}
-	var err error
-	t.bondingCurveABI, err = abi.JSON(strings.NewReader(bondedCurveABI))
-	if err != nil {
-		log.Panic(errors.Wrapf(err, "failed to parse bonding curve abi"))
-	}
+
 	return t
 }
 
@@ -121,6 +118,44 @@ func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint)
 		resetVars(true)
 		log.Info("Iteration took %v", time.Since(lastIterationStartedAt))
 	}
+}
+
+func (t *tokenAnalytics) processEvent(ctx context.Context, event *txEvent) error {
+	err, parsedEv := bondingcurve.ProcessEvent(event.Topic0, event.Data)
+	if err != nil {
+		return err
+	}
+	if tokenCreatedEvent, ok := parsedEv.(*bondingcurve.LogTokenCreated); ok {
+		tokenCreatedEvent.Address = common.HexToAddress(event.Topics[1]) // Indexed
+		log.Info(fmt.Sprintf("Token created:%v %+v ", event.Address, tokenCreatedEvent))
+		if strings.EqualFold(event.Address, t.cfg.BondingCurveContract) {
+			return errors.Wrapf(t.createStreamForContractAddress(ctx, tokenCreatedEvent.Address.String()), "failed to create stream  fo monitor contract %v", tokenCreatedEvent.Address.String())
+		}
+	}
+
+	return nil
+}
+
+func (t *tokenAnalytics) createStreamForContractAddress(ctx context.Context, contractAddress string) error {
+	_, err := storage.Exec(ctx, t.ingestedDataDB, `INSERT INTO streams(contract_address) VALUES ($1);`, contractAddress)
+	if err != nil {
+		if storage.IsErr(err, storage.ErrDuplicate) {
+			return nil
+		}
+		return errors.Wrapf(err, "failed to check stream duplicate")
+	}
+	stream, err := t.quickNode.CreateStream(ctx, contractAddress, contractAddress)
+	if err != nil {
+		_, rollbackErr := storage.Exec(ctx, t.ingestedDataDB, `DELETE FROM streams WHERE contract_address = $1;`, contractAddress)
+		return errors.Wrapf(multierror.Append(err, rollbackErr).ErrorOrNil(), "failed to create stream on qn for %v", contractAddress)
+	}
+	_, err = storage.Exec(ctx, t.ingestedDataDB, `
+			UPDATE streams SET
+			    stream_id = $2,
+			    created_at = $3,
+			    name = $4
+			WHERE contract_address = $1;`, contractAddress, stream.ID, stream.CreatedAt, stream.Name)
+	return errors.Wrapf(err, "failed to update stream data for %v", contractAddress)
 }
 
 func (t *tokenAnalytics) fetchUnprocessedEvents(ctx context.Context, workerIdx uint, start *SavePoint) ([]*txEvent, error) {
