@@ -34,6 +34,7 @@ type (
 		Workers              uint   `yaml:"workers"`
 		BatchSize            uint   `yaml:"batchSize"`
 		BondingCurveContract string `yaml:"bondingCurveContract"`
+		StartBlock           uint64 `yaml:"startBlock"`
 	}
 	tokenAnalytics struct {
 		ingestedDataDB  *storage.DB

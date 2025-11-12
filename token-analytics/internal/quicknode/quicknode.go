@@ -32,7 +32,6 @@ func NewClient(ctx context.Context, applicationYamlKey string) Client {
 	}
 	q := &client{
 		bondingCurveSmartContractFilterTemplate: template.Must(template.New("bondingCurveSmartContractTemplate").Parse(bondingCurveSmartContractTemplate)),
-		erc20SmartContractFilterTemplate:        template.Must(template.New("erc20SmartContract").Parse(erc20SmartContract)),
 		httpClient:                              req.C().SetBaseURL("https://api.quicknode.com/"),
 		config:                                  &cfg,
 		streamDestination:                       conf.ConnConfig,
@@ -75,7 +74,7 @@ func (q *client) req(ctx context.Context) *req.Request {
 }
 
 func (q *client) CreateStream(ctx context.Context, streamName, contractAddrToMonitor string) (*Stream, error) {
-	filter, err := q.erc20SmartContractFilterFunc(contractAddrToMonitor)
+	filter, err := q.bondingCurveSmartContractFilterFunc(contractAddrToMonitor)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to load filter function")
 	}
@@ -85,7 +84,7 @@ func (q *client) CreateStream(ctx context.Context, streamName, contractAddrToMon
 	}
 	params := &createStreamReq{
 		Name:                  streamName,
-		Network:               "BNB Smart Chain Testnet", // TODO see whats the correct value; and use mainnet if its not development
+		Network:               q.config.QuickNode.Network,
 		Dataset:               "block_with_receipts",
 		FilterFunction:        base64.StdEncoding.EncodeToString(filter),
 		Region:                "usa_east",
@@ -119,10 +118,8 @@ func (q *client) CreateStream(ctx context.Context, streamName, contractAddrToMon
 		},
 		Status: "active",
 	}
-	// TODO: For now there are only a few events in blocks 9553982-9553986, remove once we have more events
-	if /*q.config.QuickNode.Network == "ethereum-sepolia" &&*/ q.config.QuickNode.StartBlock == 9553982 {
-		endBlock := uint(9553986)
-		params.EndRange = &endBlock
+	if q.config.QuickNode.EndBlock != nil {
+		params.EndRange = q.config.QuickNode.EndBlock
 	}
 	var resp *req.Response
 	if resp, err = q.req(ctx).SetBody(params).Post("/streams/rest/v1/streams"); err != nil {
@@ -140,9 +137,9 @@ func (q *client) CreateStream(ctx context.Context, streamName, contractAddrToMon
 	}
 }
 
-func (q *client) erc20SmartContractFilterFunc(contractAddrToMonitor string) ([]byte, error) {
+func (q *client) bondingCurveSmartContractFilterFunc(contractAddrToMonitor string) ([]byte, error) {
 	buf := bytes.NewBuffer([]byte{})
-	err := q.erc20SmartContractFilterTemplate.Execute(buf, struct {
+	err := q.bondingCurveSmartContractFilterTemplate.Execute(buf, struct {
 		ContractAddress string
 	}{
 		ContractAddress: contractAddrToMonitor,

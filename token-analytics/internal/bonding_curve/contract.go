@@ -79,7 +79,7 @@ type (
 		LpAmount *big.Int
 	}
 
-	LogLPClaimed struct {
+	LogLiquidityClaimed struct {
 		Event
 		PairId [32]byte
 		To     common.Address
@@ -91,6 +91,30 @@ type (
 		BaseToken  common.Address
 		OtherToken common.Address
 	}
+	LogTransfer struct {
+		Event
+		From   common.Address
+		To     common.Address
+		Amount *big.Int
+	}
+	LogOwnershipTransferred struct {
+		Event
+		PreviousOwner common.Address
+		NewOwner      common.Address
+	}
+	LogSlippageChecked struct {
+		Event
+		PairId    [32]byte
+		MinReturn *big.Int
+		ActualOut *big.Int
+	}
+	LogLiquidityLocked struct {
+		Event
+		PairId     [32]byte
+		LpToken    common.Address
+		Amount     *big.Int
+		UnlockTime *big.Int
+	}
 )
 
 var (
@@ -98,14 +122,16 @@ var (
 	//go:embed .abi/bonding_curve.json
 	bondingCurveABIJSON string
 
-	eventTokenCreated   = crypto.Keccak256Hash([]byte("BondedTokenCreated(address,string,string,uint256)"))
-	eventPairRegistered = crypto.Keccak256Hash([]byte("PairRegistered(bytes32 pairId, address baseToken, address otherToken)"))
-	eventSwapped        = crypto.Keccak256Hash([]byte("Swapped(address,bytes32,bool,uint256,uint256,uint256)"))
-	eventBought         = crypto.Keccak256Hash([]byte("Bought(address,bytes32,uint256,uint256,uint256)"))
-	eventSold           = crypto.Keccak256Hash([]byte("Bought(address,bytes32,uint256,uint256,uint256)"))
-	eventRecipientsSet  = crypto.Keccak256Hash([]byte("RecipientsSet(bytes32,address,address,address)"))
-	eventFeeAccrued     = crypto.Keccak256Hash([]byte("FeeAccrued(bytes32, address,uint256,uint256,uint256,uint256)"))
-	eventFeeTransfer    = crypto.Keccak256Hash([]byte("FeeTransfer(bytes32, address, uint256)"))
-	eventMigrated       = crypto.Keccak256Hash([]byte("Migrated(bytes32,address,uint256)"))
-	eventLPClaimed      = crypto.Keccak256Hash([]byte("LPClaimed(bytes32,address,uint256)"))
+	eventTokenCreated         = crypto.Keccak256Hash([]byte("BondedTokenCreated(address,string,string,uint256)"))
+	eventPairRegistered       = crypto.Keccak256Hash([]byte("PairRegistered(bytes32,address,address)"))
+	eventSwapped              = crypto.Keccak256Hash([]byte("Swapped(address,bytes32,bool,uint256,uint256,uint256)"))
+	eventRecipientsSet        = crypto.Keccak256Hash([]byte("RecipientsSet(bytes32,address,address,address)"))
+	eventFeeAccrued           = crypto.Keccak256Hash([]byte("FeeAccrued(bytes32,address,uint256,uint256,uint256,uint256)"))
+	eventFeeTransfer          = crypto.Keccak256Hash([]byte("FeeTransfer(bytes32,address,uint256)"))
+	eventMigrated             = crypto.Keccak256Hash([]byte("Migrated(bytes32,address,uint256)"))
+	eventLiquidityClaimed     = crypto.Keccak256Hash([]byte("LiquidityClaimed(bytes32,address,uint256)"))
+	eventTransfer             = crypto.Keccak256Hash([]byte("Transfer(address,address,uint256)"))
+	eventOwnershipTransferred = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
+	eventSlippageChecked      = crypto.Keccak256Hash([]byte("SlippageChecked(bytes32,uint256,uint256)"))
+	eventLiquidityLocked      = crypto.Keccak256Hash([]byte("LiquidityLocked(bytes32,address,uint256,uint256)"))
 )

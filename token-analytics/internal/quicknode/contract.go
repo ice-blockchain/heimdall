@@ -41,7 +41,9 @@ type (
 		APIKey string `yaml:"api-key" mapstructure:"api-key"`
 		// There is no sense to read history before BondingCurve is deployed - 1
 		StartBlock           uint   `yaml:"start-block" mapstructure:"start-block"`
+		EndBlock             *uint  `yaml:"end-block,omitempty" mapstructure:"end-block"`
 		StreamDestinationURL string `yaml:"stream-destination-url" mapstructure:"stream-destination-url"`
+		Network              string `yaml:"network" mapstructure:"network"`
 	}
 	createStreamReq struct {
 		Name                  string `json:"name"`
