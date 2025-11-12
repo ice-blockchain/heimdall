@@ -22,10 +22,16 @@ function main(payload) {
 
         return logs.length > 0
     })
-    data[0].block.transactions = data[0].block.transactions.filter(tx => txs[tx.hash] === true)
+    const relevantTransactions = data[0].block.transactions.filter(tx => txs[tx.hash] === true);
+    
+    relevantTransactions.forEach(tx => {
+        tx.blockHash = data[0].block.hash;
+        tx.blockTimestamp = data[0].block.timestamp;
+    });
+    
     return {
+        'transactions': relevantTransactions,
         'logs': filtered.map(receipt => receipt.logs).flat(2),
-        'block': data[0].block,
         'stream': metadata.stream_id
     };
 }

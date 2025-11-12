@@ -11,6 +11,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/go-multierror"
+	"github.com/redis/go-redis/v9"
+
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/quicknode"
 	appconfig "github.com/ice-blockchain/wintr/config"
@@ -86,10 +88,13 @@ func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint)
 			log.Error(errors.Wrapf(err, "failed to fetch new tx events %v", workerIdx))
 			iterationCancel()
 			resetVars(false)
+
+			continue
 		}
 		if len(eventsToProcess) == 0 {
 			time.Sleep(1 * time.Second)
 			iterationCancel()
+
 			continue
 		}
 		for _, event := range eventsToProcess {
@@ -97,6 +102,7 @@ func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint)
 				log.Error(errors.Wrapf(err, "failed to process tx event %+v", event))
 				resetVars(false)
 				iterationCancel()
+
 				continue
 			}
 			if event.BlockNumber > startPoint.BlockNumber {
@@ -121,17 +127,73 @@ func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint)
 }
 
 func (t *tokenAnalytics) processEvent(ctx context.Context, event *txEvent) error {
-	err, parsedEv := bondingcurve.ProcessEvent(event.Topic0, event.Data)
+	parsedEv, err := bondingcurve.ProcessEvent(event.Topic0, event.Data, event.Topics)
 	if err != nil {
 		return err
 	}
-	if tokenCreatedEvent, ok := parsedEv.(*bondingcurve.LogTokenCreated); ok {
-		tokenCreatedEvent.Address = common.HexToAddress(event.Topics[1]) // Indexed
-		log.Info(fmt.Sprintf("Token created:%v %+v ", event.Address, tokenCreatedEvent))
-		if strings.EqualFold(event.Address, t.cfg.BondingCurveContract) {
-			return errors.Wrapf(t.createStreamForContractAddress(ctx, tokenCreatedEvent.Address.String()), "failed to create stream  fo monitor contract %v", tokenCreatedEvent.Address.String())
-		}
+
+	switch ev := parsedEv.(type) {
+	case *bondingcurve.LogTokenCreated:
+		return t.handleTokenCreated(ctx, event, ev)
+	case *bondingcurve.LogTransfer:
+		return t.handleTransfer(ctx, event, ev)
+	case *bondingcurve.LogOwnershipTransferred:
+		return t.handleOwnershipTransferred(ctx, event, ev)
+	case *bondingcurve.LogTokenSwapped:
+		log.Info("Token swapped:%+v", ev)
+	case *bondingcurve.LogPairRegistered:
+		log.Info("Pair registered:%+v", ev)
+	case *bondingcurve.LogRecipientsSet:
+		log.Info("Recipients set:%+v", ev)
+	case *bondingcurve.LogMigrated:
+		log.Info("Migrated:%+v", ev)
+	case *bondingcurve.LogFeeAccrued:
+		log.Info("Fee accrued:%+v", ev)
+	case *bondingcurve.LogFeeTransfer:
+		log.Info("Fee transfer:%+v", ev)
+	case *bondingcurve.LogLiquidityClaimed:
+		log.Info("Liquidity claimed:%+v", ev)
+	case *bondingcurve.LogSlippageChecked:
+		log.Info("Slippage checked:%+v", ev)
+	case *bondingcurve.LogLiquidityLocked:
+		log.Info("Liquidity locked:%+v", ev)
 	}
+
+	return nil
+}
+
+func (t *tokenAnalytics) handleTokenCreated(ctx context.Context, event *txEvent, ev *bondingcurve.LogTokenCreated) error {
+	ev.Address = common.HexToAddress(event.Topics[1])
+	log.Info(fmt.Sprintf("Token created from BondingCurve:%v, token address:%v", event.Address, ev.Address.String()))
+
+	if strings.EqualFold(event.Address, t.cfg.BondingCurveContract) {
+		return errors.Wrapf(t.createStreamForContractAddress(ctx, ev.Address.String()),
+			"failed to create stream to monitor contract %v", ev.Address.String())
+	}
+
+	return nil
+}
+
+func (t *tokenAnalytics) handleTransfer(ctx context.Context, event *txEvent, ev *bondingcurve.LogTransfer) error {
+	if len(event.Topics) >= 3 {
+		ev.From = common.HexToAddress(event.Topics[1])
+		ev.To = common.HexToAddress(event.Topics[2])
+	}
+
+	log.Info(fmt.Sprintf("Transfer on token %v: from=%v, to=%v, amount=%v",
+		event.Address, ev.From.String(), ev.To.String(), ev.Amount))
+
+	return nil
+}
+
+func (t *tokenAnalytics) handleOwnershipTransferred(ctx context.Context, event *txEvent, ev *bondingcurve.LogOwnershipTransferred) error {
+	if len(event.Topics) >= 3 {
+		ev.PreviousOwner = common.HexToAddress(event.Topics[1])
+		ev.NewOwner = common.HexToAddress(event.Topics[2])
+	}
+
+	log.Info(fmt.Sprintf("OwnershipTransferred on token %v: from=%v, to=%v",
+		event.Address, ev.PreviousOwner.String(), ev.NewOwner.String()))
 
 	return nil
 }
@@ -179,13 +241,54 @@ func (t *tokenAnalytics) fetchUnprocessedEvents(ctx context.Context, workerIdx u
 }
 
 func (t *tokenAnalytics) getSavePoint(ctx context.Context, workerIdx uint) (*SavePoint, error) {
+	type savePointData struct {
+		BlockNumber      uint64 `redis:"block_number"`
+		TransactionIndex uint64 `redis:"transaction_index"`
+		LogIndex         uint64 `redis:"log_index"`
+	}
+	key := fmt.Sprintf("token_analytics:save_point:worker:%v", workerIdx)
+	var sp savePointData
+	err := t.processedDataDB.HGetAll(ctx, key).Scan(&sp)
+
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return &SavePoint{
+				BlockNumber:      t.cfg.StartBlock,
+				TransactionIndex: 0,
+				LogIndex:         0,
+			}, nil
+		}
+		return nil, errors.Wrapf(err, "failed to get save point for worker %v", workerIdx)
+	}
+
+	if sp.BlockNumber == 0 && sp.TransactionIndex == 0 && sp.LogIndex == 0 {
+		return &SavePoint{
+			BlockNumber:      t.cfg.StartBlock,
+			TransactionIndex: 0,
+			LogIndex:         0,
+		}, nil
+	}
+
 	return &SavePoint{
-		TransactionIndex: 0,
-		BlockNumber:      9553981,
-		LogIndex:         0,
+		BlockNumber:      sp.BlockNumber,
+		TransactionIndex: sp.TransactionIndex,
+		LogIndex:         sp.LogIndex,
 	}, nil
 }
 
 func (t *tokenAnalytics) setSavePoint(ctx context.Context, workerIdx uint, savePoint *SavePoint) error {
+	key := fmt.Sprintf("token_analytics:save_point:worker:%v", workerIdx)
+
+	err := t.processedDataDB.HSet(ctx, key, map[string]interface{}{
+		"block_number":      savePoint.BlockNumber,
+		"transaction_index": savePoint.TransactionIndex,
+		"log_index":         savePoint.LogIndex,
+		"updated_at":        time.Now().UnixNano(),
+	}).Err()
+
+	if err != nil {
+		return errors.Wrapf(err, "failed to set save point for worker %v", workerIdx)
+	}
+
 	return nil
 }
