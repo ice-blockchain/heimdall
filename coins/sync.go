@@ -368,7 +368,7 @@ func (s *coinSync) buildBatchUpdate(now *time.Time, coinsList []*coingecko.Coin,
 		if matchByDb {
 			params = append(params, id, coin.Decimals, coin.PriceUSD, coin.ID, coin.Network, coin.Name, coin.ContractAddress, coin.Symbol, coin.SymbolGroup(), coin.IconUrl)
 			placeholders = append(placeholders, fmt.Sprintf(""+
-				"(                  COALESCE((SELECT id FROM coins WHERE network = $%[5]v AND LOWER(contract_address) = LOWER($%[7]v)),$%[1]v),                $%[2]v::SMALLINT, $%[3]v::NUMERIC, $%[4]v, $%[5]v,         $%[6]v,  $%[7]v,              $%[8]v,  $%[9]v,          $%[10]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7, idx+8, idx+9))
+				"(                  COALESCE((SELECT id FROM coins WHERE network = $%[5]v AND LOWER(contract_address) = LOWER($%[7]v) LIMIT 1),$%[1]v),                $%[2]v::SMALLINT, $%[3]v::NUMERIC, $%[4]v, $%[5]v,         $%[6]v,  $%[7]v,              $%[8]v,  $%[9]v,          $%[10]v)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6, idx+7, idx+8, idx+9))
 
 		} else {
 			params = append(params, id, coin.Decimals, coin.PriceUSD, coin.ID, coin.Network, coin.Name, coin.ContractAddress, coin.Symbol, coin.SymbolGroup(), coin.IconUrl)
