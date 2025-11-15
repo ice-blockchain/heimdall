@@ -20,6 +20,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	networkMainnet = "bnbchain-mainnet"
+	networkTestnet = "bnbchain-testnet"
+)
+
 func NewClient(ctx context.Context, applicationYamlKey string) Client {
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
@@ -30,19 +35,26 @@ func NewClient(ctx context.Context, applicationYamlKey string) Client {
 	if err != nil {
 		log.Panic(errors.Wrapf(err, "failed to parse destination url"))
 	}
+
+	network := networkMainnet
+	if cfg.Development {
+		network = networkTestnet
+	}
+
 	q := &client{
 		bondingCurveSmartContractFilterTemplate: template.Must(template.New("bondingCurveSmartContractTemplate").Parse(bondingCurveSmartContractTemplate)),
 		httpClient:                              req.C().SetBaseURL("https://api.quicknode.com/"),
 		config:                                  &cfg,
 		streamDestination:                       conf.ConnConfig,
+		network:                                 network,
 	}
-	if err = q.bootstrap(ctx); err != nil {
-		log.Panic(errors.Wrapf(err, "failed to bootstrap quick node conn"))
+	if err = q.HealthCheck(ctx); err != nil {
+		log.Panic(errors.Wrapf(err, "failed to connect to QuickNode API"))
 	}
 	return q
 }
 
-func (q *client) bootstrap(ctx context.Context) error {
+func (q *client) HealthCheck(ctx context.Context) error {
 	if resp, err := q.req(ctx).Get("/streams/rest/v1/streams"); err != nil {
 		return errors.Wrapf(err, "failed to get /streams/rest/v1/streams")
 	} else if resp.GetStatusCode() >= http.StatusBadRequest {
@@ -68,9 +80,26 @@ func (q *client) req(ctx context.Context) *req.Request {
 		}).
 		SetRetryCount(5).
 		SetRetryCondition(func(resp *req.Response, err error) bool {
-			return err != nil || resp.GetStatusCode() >= http.StatusBadRequest
+			if err != nil {
+				return true
+			}
+
+			return isRetryableStatusCode(resp.GetStatusCode())
 		}).
 		SetHeader("x-api-key", q.config.QuickNode.APIKey)
+}
+
+func isRetryableStatusCode(statusCode int) bool {
+	switch statusCode {
+	case http.StatusTooManyRequests,
+		http.StatusInternalServerError,
+		http.StatusBadGateway,
+		http.StatusServiceUnavailable,
+		http.StatusGatewayTimeout:
+		return true
+	default:
+		return false
+	}
 }
 
 func (q *client) CreateStream(ctx context.Context, streamName, contractAddrToMonitor string) (*Stream, error) {
@@ -78,17 +107,23 @@ func (q *client) CreateStream(ctx context.Context, streamName, contractAddrToMon
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to load filter function")
 	}
+	var startRange *uint // For bonded tokens, startRange = nil means "start from current block"
+	if strings.EqualFold(contractAddrToMonitor, q.config.BondingCurveContract) {
+		val := q.config.QuickNode.StartBlock
+		startRange = &val
+	}
+
 	sslmode := "disable"
 	if strings.Contains(q.config.QuickNode.StreamDestinationURL, "sslmode=require") {
 		sslmode = "require"
 	}
 	params := &createStreamReq{
 		Name:                  streamName,
-		Network:               q.config.QuickNode.Network,
+		Network:               q.network,
 		Dataset:               "block_with_receipts",
 		FilterFunction:        base64.StdEncoding.EncodeToString(filter),
-		Region:                "usa_east",
-		StartRange:            q.config.QuickNode.StartBlock,
+		Region:                q.config.QuickNode.Region,
+		StartRange:            startRange,
 		DatasetBatchSize:      1,
 		IncludeStreamMetadata: "body",
 		Destination:           "postgres",
@@ -110,16 +145,13 @@ func (q *client) CreateStream(ctx context.Context, streamName, contractAddrToMon
 			Password:         q.streamDestination.Password,
 			Host:             q.streamDestination.Host,
 			Port:             q.streamDestination.Port,
-			TableName:        "incoming_data",
+			TableName:        "smart_contract_transactions",
 			Database:         q.streamDestination.Database,
 			SslMode:          sslmode,
 			MaxRetry:         5,
 			RetryIntervalSec: 5,
 		},
 		Status: "active",
-	}
-	if q.config.QuickNode.EndBlock != nil {
-		params.EndRange = q.config.QuickNode.EndBlock
 	}
 	var resp *req.Response
 	if resp, err = q.req(ctx).SetBody(params).Post("/streams/rest/v1/streams"); err != nil {

@@ -95,6 +95,10 @@ type (
 	NFTInWallets interface {
 		ListNFTs(ctx context.Context, walletAddr string, paginationToken string, limit uint) ([]coins.WalletNFT, *string, error)
 	}
+	TokenAnalyticsUserRepository interface {
+		UpsertUser(ctx context.Context, id, masterPubkey, username, displayName, avatar string, verified bool, ionConnectRelays []string) error
+		SetVerified(ctx context.Context, masterPubkey string) error
+	}
 	TwoFAOptionEnum     string
 	TwoFAOptionWithAddr struct {
 		opt  TwoFAOptionEnum
@@ -271,11 +275,13 @@ type (
 		appsRuntimeConfig          *AppsRuntimeConfig
 		deviceIdentificationClient deviceidentification.Client
 		ionNFT                     NFTInWallets
+		tokenAnalyticsRepo         TokenAnalyticsUserRepository
 	}
 	verifiedUsersSync struct {
-		db         *storage.DB
-		shutdown   func() error
-		privateKey string
+		db                 *storage.DB
+		shutdown           func() error
+		privateKey         string
+		tokenAnalyticsRepo TokenAnalyticsUserRepository
 	}
 	user struct {
 		CreatedAt                  *time.Time

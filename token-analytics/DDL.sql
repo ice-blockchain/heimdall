@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS transactions
     PRIMARY KEY (transaction_hash)
 );
 CREATE INDEX IF NOT EXISTS idx_transactions_from_address ON transactions (from_address);
+CREATE INDEX IF NOT EXISTS idx_transactions_mod_tx_idx ON transactions (MOD(transaction_index, %[1]v), block_number, transaction_index ASC);
 
 CREATE TABLE IF NOT EXISTS tx_logs
 (
@@ -58,10 +59,8 @@ CREATE TABLE IF NOT EXISTS tx_logs
     primary key (transaction_hash, log_index)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS tx_logs_i_ix ON tx_logs (i);
-CREATE INDEX IF NOT EXISTS tx_logs_mod_i_ix ON tx_logs (MOD(i, %[1]v), block_number, transaction_hash, log_index ASC);
 
-
-CREATE TABLE IF NOT EXISTS incoming_data (
+CREATE TABLE IF NOT EXISTS smart_contract_transactions (
     from_block_number BIGINT,
     to_block_number   BIGINT,
     network           TEXT,
@@ -70,7 +69,7 @@ CREATE TABLE IF NOT EXISTS incoming_data (
     PRIMARY KEY (from_block_number,to_block_number,network)
 );
 
-CREATE INDEX IF NOT EXISTS incoming_data_to_block_number_idx ON incoming_data (to_block_number);
+CREATE INDEX IF NOT EXISTS smart_contract_transactions_to_block_number_idx ON smart_contract_transactions (to_block_number);
 
 CREATE OR REPLACE FUNCTION trigger_move_incoming_logs()
     RETURNS TRIGGER AS $$
@@ -117,23 +116,24 @@ BEGIN
     INSERT INTO tx_logs(stream_id, address, topics, topic0, data, block_number, transaction_hash, log_index, removed)
     (SELECT
               NEW.data ->> 'stream',
-              elem->>'address' as address,
-              (SELECT t.topics from jsonb_to_record(elem) as t (topics TEXT[])) AS topics,
-              (elem->'topics'->>0) as topics,
-              elem->>'data' as data,
-              (elem->>'blockNumber')::BIGINT as block_number,
-              elem->>'transactionHash' as transaction_hash,
-              (elem->>'logIndex')::BIGINT as log_index,
-              (elem->>'removed')::BOOLEAN as removed
-              FROM jsonb_array_elements(NEW.data -> 'logs') as elem)
+              log_elem->>'address' as address,
+              (SELECT t.topics from jsonb_to_record(log_elem) as t (topics TEXT[])) AS topics,
+              (log_elem->'topics'->>0) as topic0,
+              log_elem->>'data' as data,
+              (tx_data->>'blockNumber')::BIGINT as block_number,
+              tx_data->>'hash' as transaction_hash,
+              (log_elem->>'logIndex')::BIGINT as log_index,
+              (log_elem->>'removed')::BOOLEAN as removed
+              FROM jsonb_array_elements(NEW.data -> 'transactions') as tx_data,
+                   jsonb_array_elements(tx_data -> 'logs') as log_elem)
     ON CONFLICT (transaction_hash, log_index) DO NOTHING;
-    DELETE FROM incoming_data WHERE to_block_number <= NEW.to_block_number;
+    DELETE FROM smart_contract_transactions WHERE to_block_number <= NEW.to_block_number;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE TRIGGER trigger_move_incoming_logs
-    AFTER INSERT ON incoming_data
+    AFTER INSERT ON smart_contract_transactions
     FOR EACH ROW
 EXECUTE FUNCTION trigger_move_incoming_logs();
 

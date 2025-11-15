@@ -16,6 +16,7 @@ import (
 type (
 	Client interface {
 		CreateStream(ctx context.Context, streamName, contractAddrToMonitor string) (*Stream, error)
+		HealthCheck(ctx context.Context) error
 	}
 	Stream struct {
 		ID        string     `json:"id"`
@@ -32,10 +33,13 @@ type (
 		bondingCurveSmartContractFilterTemplate *template.Template
 		erc20SmartContractFilterTemplate        *template.Template
 		streamDestination                       *pgx.ConnConfig
+		network                                 string
 	}
 
 	config struct {
-		QuickNode quickNodeCfg `yaml:"quicknode" mapstructure:"quicknode"`
+		QuickNode            quickNodeCfg `yaml:"quicknode" mapstructure:"quicknode"`
+		Development          bool         `yaml:"development" mapstructure:"development"`
+		BondingCurveContract string       `yaml:"bondingCurveContract" mapstructure:"bondingCurveContract"`
 	}
 	quickNodeCfg struct {
 		APIKey string `yaml:"api-key" mapstructure:"api-key"`
@@ -43,7 +47,7 @@ type (
 		StartBlock           uint   `yaml:"start-block" mapstructure:"start-block"`
 		EndBlock             *uint  `yaml:"end-block,omitempty" mapstructure:"end-block"`
 		StreamDestinationURL string `yaml:"stream-destination-url" mapstructure:"stream-destination-url"`
-		Network              string `yaml:"network" mapstructure:"network"`
+		Region               string `yaml:"region" mapstructure:"region"`
 	}
 	createStreamReq struct {
 		Name                  string `json:"name"`
@@ -51,7 +55,7 @@ type (
 		Dataset               string `json:"dataset"`
 		FilterFunction        string `json:"filter_function"`
 		Region                string `json:"region"`
-		StartRange            uint   `json:"start_range"`
+		StartRange            *uint  `json:"start_range,omitempty"`
 		EndRange              *uint  `json:"end_range,omitempty"`
 		DatasetBatchSize      int    `json:"dataset_batch_size"`
 		IncludeStreamMetadata string `json:"include_stream_metadata"`
@@ -78,6 +82,4 @@ type (
 var (
 	//go:embed .quicknode-streams-filters/bonding_curve_smart_contract.js
 	bondingCurveSmartContractTemplate string
-	//go:embed .quicknode-streams-filters/erc20_smart_contract.js
-	erc20SmartContract string
 )

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
 
@@ -77,6 +78,11 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 			       CASE WHEN $4 != '' THEN 
 			           (SELECT master_pubkey FROM social_profiles WHERE username = $4 LIMIT 1)
 			       ELSE NULL END AS referral_user_master_pubkey
+		),
+		old_profile AS (
+			SELECT created_at, updated_at, username, display_name, referral_master_pubkey, bio, avatar, referral_count
+			FROM social_profiles
+			WHERE master_pubkey = (SELECT current_user_master_pubkey FROM resolved_keys)
 		)
 		MERGE INTO social_profiles AS target
 		USING (
@@ -157,12 +163,33 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 			COALESCE((SELECT referral_profile.username FROM social_profiles referral_profile WHERE referral_profile.master_pubkey = target.referral_master_pubkey), '') as referral_username,
 			target.bio,
 			target.avatar,
-			target.referral_count
+			target.referral_count,
+			(SELECT u.id FROM users u WHERE u.master_pubkey = target.master_pubkey) as user_id,
+			(SELECT u.verified FROM users u WHERE u.master_pubkey = target.master_pubkey) as verified,
+			(SELECT u.ion_connect_relays FROM users u WHERE u.master_pubkey = target.master_pubkey) as ion_connect_relays,
+			(SELECT created_at FROM old_profile) as old_created_at,
+			(SELECT updated_at FROM old_profile) as old_updated_at,
+			(SELECT username FROM old_profile) as old_username,
+			(SELECT display_name FROM old_profile) as old_display_name,
+			(SELECT referral_master_pubkey FROM old_profile) as old_referral_master_pubkey,
+			(SELECT avatar FROM old_profile) as old_avatar,
+			(SELECT referral_count FROM old_profile) as old_referral_count
 	`
 	type resultProfile struct {
 		socialProfile
-		ReferralUsername string `db:"referral_username"`
+		ReferralUsername     string     `db:"referral_username"`
+		UserID               string     `db:"user_id"`
+		Verified             bool       `db:"verified"`
+		IONConnectRelays     []string   `db:"ion_connect_relays"`
+		OldCreatedAt         *time.Time `db:"old_created_at"`
+		OldUpdatedAt         *time.Time `db:"old_updated_at"`
+		OldUsername          *string    `db:"old_username"`
+		OldDisplayName       *string    `db:"old_display_name"`
+		OldReferralMasterKey *string    `db:"old_referral_master_pubkey"`
+		OldAvatar            *string    `db:"old_avatar"`
+		OldReferralCount     *uint64    `db:"old_referral_count"`
 	}
+
 	profile, err := storage.ExecOne[resultProfile](ctx, a.db, query, args...)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
@@ -195,11 +222,51 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 		return nil, errors.Wrapf(err, "failed to upsert social profile")
 	}
 
-	proofEvents, err := a.generateUsernameProofEvents(profile.MasterPubkey, profile.Username)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to generate username proof events for master pubkey %v", profile.MasterPubkey)
+	proofEvents, proofErr := a.generateUsernameProofEvents(profile.MasterPubkey, profile.Username)
+	if proofErr != nil {
+		return nil, errors.Wrapf(proofErr, "failed to generate username proof events")
 	}
-	result := &SocialProfile{
+	var result *multierror.Error
+	var avatarStr string
+	if profile.Avatar != nil {
+		avatarStr = *profile.Avatar
+	}
+	if syncErr := a.tokenAnalyticsRepo.UpsertUser(
+		ctx,
+		profile.UserID,
+		profile.MasterPubkey,
+		profile.Username,
+		profile.DisplayName,
+		avatarStr,
+		profile.Verified,
+		profile.IONConnectRelays,
+	); syncErr != nil {
+		result = multierror.Append(result, errors.Wrapf(syncErr, "failed to sync user to token-analytics"))
+
+		if profile.OldCreatedAt != nil {
+			rollbackQuery := `UPDATE social_profiles 
+				SET created_at = $1, updated_at = $2, username = $3, display_name = $4, 
+				    referral_master_pubkey = $5, bio = $6, avatar = $7, referral_count = $8,
+				    lookup = LOWER(TRIM(COALESCE($3, '') || ' ' || COALESCE($4, '')))
+				WHERE master_pubkey = $9`
+			if _, rbErr := storage.Exec(ctx, a.db, rollbackQuery,
+				profile.OldCreatedAt, profile.OldUpdatedAt, profile.OldUsername, profile.OldDisplayName,
+				profile.OldReferralMasterKey, profile.Bio, profile.OldAvatar,
+				profile.OldReferralCount, profile.MasterPubkey); rbErr != nil {
+				result = multierror.Append(result, errors.Wrapf(rbErr, "failed to rollback social profile"))
+			}
+		} else {
+			rollbackQuery := `DELETE FROM social_profiles WHERE master_pubkey = $1`
+			if _, rbErr := storage.Exec(ctx, a.db, rollbackQuery, profile.MasterPubkey); rbErr != nil {
+				result = multierror.Append(result, errors.Wrapf(rbErr, "failed to rollback social profile"))
+			}
+		}
+	}
+	if err := result.ErrorOrNil(); err != nil {
+		return nil, errors.Wrapf(err, "failed to upsert social profile")
+	}
+
+	return &SocialProfile{
 		Username:          profile.Username,
 		DisplayName:       profile.DisplayName,
 		Referral:          profile.ReferralUsername,
@@ -208,9 +275,7 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 		Bio:               profile.Bio,
 		Avatar:            profile.Avatar,
 		ReferralCount:     profile.ReferralCount,
-	}
-
-	return result, nil
+	}, nil
 }
 
 func (a *accounts) GetSocialProfile(ctx context.Context, userIDOrMasterKey string) (*SocialProfile, error) {
