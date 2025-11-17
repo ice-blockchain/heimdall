@@ -27,7 +27,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/ice-blockchain/go/src v0.0.0-20250625091122-356c0c7d1830
+	github.com/ice-blockchain/go/src v0.0.0-20251117100638-ebce142e0ce4
 	github.com/ice-blockchain/subzero v1.467.0
 	github.com/ice-blockchain/wintr v1.165.0
 	github.com/imroc/req/v3 v3.56.0
@@ -151,7 +151,7 @@ require (
 	github.com/gdamore/encoding v1.0.1 // indirect
 	github.com/gdamore/tcell/v2 v2.9.0 // indirect
 	github.com/georgysavva/scany/v2 v2.1.4 // indirect
-	github.com/getsentry/sentry-go v0.37.0 // indirect
+	github.com/getsentry/sentry-go v0.38.0 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect

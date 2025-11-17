@@ -109,8 +109,14 @@ func helperNewWebsocketHandler(t *testing.T, onMessage func([]byte, error) []byt
 func helperNewWebsocketServerHandler(t *testing.T, ctx context.Context, srv Server, received chan<- string) {
 	t.Helper()
 
+	helperNewWebsocketServerHandlerWithPath(t, ctx, srv, "/", received)
+}
+
+func helperNewWebsocketServerHandlerWithPath(t *testing.T, ctx context.Context, srv Server, path string, received chan<- string) {
+	t.Helper()
+
 	srv.MustListenAndServe(ctx, func(i Router) {
-		i.Websocket("/", nil, helperNewWebsocketHandler(t, func(msg []byte, err error) []byte {
+		i.Websocket(path, nil, helperNewWebsocketHandler(t, func(msg []byte, err error) []byte {
 			if msg == nil && err != nil {
 				msg = []byte("error: " + err.Error())
 			}

@@ -35,7 +35,7 @@ type (
 	}
 	Config struct {
 		TLS   *tls.Config `yaml:"-"`
-		Port  uint32      `yaml:"port-tcp"`
+		Port  uint32      `yaml:"port"`
 		Debug bool        `yaml:"debug"`
 	}
 
