@@ -8,6 +8,8 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/rcrowley/go-metrics"
+
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/quicknode"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	storagev3 "github.com/ice-blockchain/wintr/connectors/storage/v3"
@@ -17,7 +19,27 @@ import (
 type (
 	TokenAnalytics interface {
 		MustStart(ctx context.Context)
+		Close() error
+		Healthcheck(ctx context.Context) error
+		UpsertUser(ctx context.Context, id, masterPubkey, username, displayName, avatar string, verified bool, ionConnectRelays []string) error
+		SetVerified(ctx context.Context, masterPubkey string) error
 	}
+
+	User struct {
+		ID               string
+		MasterPubkey     string
+		Username         string
+		DisplayName      string
+		Avatar           string
+		Verified         bool
+		IONConnectRelays []string
+	}
+
+	SavePoint struct {
+		TransactionIndex uint64 `db:"transaction_index"`
+		BlockNumber      uint64 `db:"block_number"`
+	}
+	JSON map[string]any
 )
 
 var (
@@ -35,6 +57,7 @@ type (
 		BatchSize            uint   `yaml:"batchSize"`
 		BondingCurveContract string `yaml:"bondingCurveContract"`
 		StartBlock           uint64 `yaml:"startBlock"`
+		Region               string `yaml:"region"`
 	}
 	tokenAnalytics struct {
 		ingestedDataDB  *storage.DB
@@ -44,25 +67,25 @@ type (
 		wg              *sync.WaitGroup
 		bondingCurveABI abi.ABI
 		quickNode       quicknode.Client
+		metrics         metrics.Registry
 	}
 	txEvent struct {
-		*SavePoint
-		IngestedAt      *time.Time `db:"ingested_at"`
-		ProcessedAt     *time.Time `db:"processed_at"`
-		TransactionHash string     `db:"transaction_hash"`
-		Address         string     `db:"address"`
-		FromAddress     string     `db:"from_address"`
-		Data            string     `db:"data"`
-		Topics          []string   `db:"topics"`
-		Topic0          string     `db:"topic0"`
-		StreamID        string     `db:"stream_id"`
-		I               int        `db:"i"`
-		Removed         bool       `db:"removed"`
+		TransactionIndex uint64      `db:"transaction_index"`
+		BlockNumber      uint64      `db:"block_number"`
+		TransactionHash  string      `db:"transaction_hash"`
+		FromAddress      string      `db:"from_address"`
+		ToAddress        string      `db:"to_address"`
+		BlockTimestamp   *time.Time  `db:"block_timestamp"`
+		ChainID          string      `db:"chain_id"`
+		Value            string      `db:"value"`
+		Logs             txEventLogs `db:"logs"`
 	}
 
-	SavePoint struct {
-		TransactionIndex uint64 `db:"transaction_index"`
-		BlockNumber      uint64 `db:"block_number"`
-		LogIndex         uint64 `db:"log_index"`
+	txEventLogs   []JSON
+	savePointData struct {
+		WorkerIdx        uint   `redis:"-"`
+		BlockNumber      uint64 `redis:"block_number"`
+		TransactionIndex uint64 `redis:"transaction_index"`
+		UpdatedAt        int64  `redis:"updated_at"`
 	}
 )

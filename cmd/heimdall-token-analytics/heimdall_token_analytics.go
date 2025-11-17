@@ -47,13 +47,13 @@ func (s *service) Close(ctx context.Context) error {
 		return errors.Wrap(ctx.Err(), "could not close repository because context ended")
 	}
 
-	return nil
+	return s.tokenAnalytics.Close()
 }
 
 func (s *service) CheckHealth(ctx context.Context) error {
 	log.Debug("checking health...")
 
-	return nil
+	return s.tokenAnalytics.Healthcheck(ctx)
 }
 
 func (n *noAuth) VerifyToken(ctx context.Context, token string) (server.Token, error) {

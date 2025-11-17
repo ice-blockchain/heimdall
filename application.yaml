@@ -425,8 +425,8 @@ token-analytics:
   bondingCurveContract: 0x4012f49Be72057329754922603Dc35ADB8520274
   startBlock: 72173309
   quickNode:
-    network: bnbchain-testnet
     start-block: 72173309
+    region: usa_east
     # update to accessible over internet, ngrok tcp, or that 23... machine
     stream-destination-url: postgresql://root:pass@localhost:5442/ingested_data
     apiKey: "-"

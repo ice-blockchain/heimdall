@@ -6,6 +6,7 @@ import (
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/coins"
 	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
+	tokenanalytics "github.com/ice-blockchain/heimdall/token-analytics"
 )
 
 type (
@@ -13,6 +14,7 @@ type (
 		coinSyncer              coins.Sync
 		verifiedQueueRepository accounts.VerifiedUsersSync
 		relayLivenessCheck      relaymanagement.RelaysSyncer
+		tokenAnalytics          tokenanalytics.TokenAnalytics
 	}
 	noAuth struct{}
 )

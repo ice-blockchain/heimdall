@@ -23,6 +23,7 @@ import (
 	nftcontent "github.com/ice-blockchain/heimdall/nft-content"
 	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
 	"github.com/ice-blockchain/heimdall/server"
+	tokenanalytics "github.com/ice-blockchain/heimdall/token-analytics"
 	"github.com/ice-blockchain/subzero/validation"
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/log"
@@ -121,7 +122,8 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 		return appsRuntimeCfg.IONApp, Version(appsRuntimeCfg.IONApp.Version)
 	}
 
-	s.accounts = accounts.New(ctx, s.coins, s.relays, &appsRuntimeCfg)
+	s.tokenAnalytics = tokenanalytics.New(ctx)
+	s.accounts = accounts.New(ctx, s.coins, s.relays, &appsRuntimeCfg, s.tokenAnalytics)
 	s.validation = validation.New(ctx, validation.WithIONIdentityPublicKeys(func() []string {
 		return []string{s.accounts.PublicKey()}
 	}))
@@ -175,6 +177,7 @@ func (s *service) Close(ctx context.Context) error {
 		errors.Wrap(s.coins.Close(), "failed to close coins"),
 		errors.Wrap(s.hashtagStatistics.Close(), "failed to close hashtag statistics"),
 		errors.Wrap(s.nftContent.Close(), "failed to close nft content"),
+		errors.Wrap(s.tokenAnalytics.Close(), "failed to close token analytics"),
 	).ErrorOrNil()
 }
 
@@ -186,5 +189,6 @@ func (s *service) CheckHealth(ctx context.Context) error {
 		errors.Wrapf(s.coins.HealthCheck(ctx), "coins check failed"),
 		errors.Wrapf(s.hashtagStatistics.HealthCheck(ctx), "hashtag statistics check failed"),
 		errors.Wrapf(s.nftContent.HealthCheck(ctx), "nft content check failed"),
+		errors.Wrapf(s.tokenAnalytics.Healthcheck(ctx), "token analytics check failed"),
 	).ErrorOrNil()
 }
