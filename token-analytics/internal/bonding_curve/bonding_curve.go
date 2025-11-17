@@ -1,0 +1,338 @@
+// SPDX-License-Identifier: ice License 1.0
+
+package bondingcurve
+
+import (
+	_ "embed"
+	"encoding/hex"
+	"fmt"
+	"math/big"
+	"strings"
+
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/pkg/errors"
+
+	"github.com/ice-blockchain/wintr/log"
+)
+
+func init() {
+	var err error
+	bondingCurveABI, err = abi.JSON(strings.NewReader(bondingCurveABIJSON))
+	log.Panic(errors.Wrapf(err, "failed to parse bonding curve abi"))
+}
+
+func ProcessEvent(functionHex, data string, topics []string) (Event, error) {
+	switch functionHex {
+	case eventTokenCreated.Hex():
+		return tokenCreated(functionHex, data)
+	case eventSwapped.Hex():
+		return tokenSwapped(functionHex, data)
+	case eventPairRegistered.Hex():
+		return pairRegistered(functionHex, data)
+	case eventRecipientsSet.Hex():
+		return recipientsSet(functionHex, data)
+	case eventFeeAccrued.Hex():
+		return feeAccrued(functionHex, data)
+	case eventFeeTransfer.Hex():
+		return feeTransfer(functionHex, data)
+	case eventMigrated.Hex():
+		return migrated(functionHex, data)
+	case eventLiquidityClaimed.Hex():
+		return liquidityClaimed(functionHex, data)
+	case eventTransfer.Hex():
+		if len(topics) < 3 {
+			return nil, errors.Errorf("Transfer event requires at least 3 topics, got %d", len(topics))
+		}
+		return transfer(functionHex, data, topics[1], topics[2])
+	case eventOwnershipTransferred.Hex():
+		if len(topics) < 3 {
+			return nil, errors.Errorf("OwnershipTransferred event requires at least 3 topics, got %d", len(topics))
+		}
+		return ownershipTransferred(functionHex, topics[1], topics[2])
+	case eventSlippageChecked.Hex():
+		if len(topics) < 2 {
+			return nil, errors.Errorf("SlippageChecked event requires at least 2 topics, got %d", len(topics))
+		}
+		return slippageChecked(functionHex, data, topics[1])
+	case eventLiquidityLocked.Hex():
+		if len(topics) < 3 {
+			return nil, errors.Errorf("LiquidityLocked event requires at least 3 topics, got %d", len(topics))
+		}
+		return liquidityLocked(functionHex, data, topics[1], topics[2])
+	default:
+		log.Warn(fmt.Sprintf("Unknown event: %v, data: %v", functionHex, data))
+	}
+
+	return nil, nil
+}
+
+func decode[T any](abi abi.ABI, res T, name, data string) error {
+	if len(data) > 0 && strings.HasPrefix(data, "0x") {
+		binary, err := hex.DecodeString(data[2:])
+		if err != nil {
+			return errors.Wrapf(err, "failed to decode event data, invalid hex: %v", data[2:])
+		}
+		data = string(binary)
+	}
+	if err := abi.UnpackIntoInterface(res, name, []byte(data)); err != nil {
+		return errors.Wrapf(err, "failed to unpack BondedTokenCreated event")
+	}
+	return nil
+}
+
+func tokenCreated(signature, data string) (*LogTokenCreated, error) {
+	if signature != eventTokenCreated.Hex() {
+		return nil, errors.Errorf("invalid signature for BondedTokenCreated: expected %s, got %s", eventTokenCreated.Hex(), signature)
+	}
+	if data == "" || data == "0x" {
+		return nil, errors.Errorf("empty data for BondedTokenCreated event")
+	}
+
+	var tokenCreatedEvent LogTokenCreated
+	if err := decode(bondingCurveABI, &tokenCreatedEvent, "BondedTokenCreated", data); err != nil {
+		return nil, errors.Wrapf(err, "failed to unpack BondedTokenCreated event")
+	}
+	log.Info(fmt.Sprintf("Token created:%+v ", tokenCreatedEvent))
+
+	return &tokenCreatedEvent, nil
+}
+
+func pairRegistered(signature, data string) (*LogPairRegistered, error) {
+	if signature != eventPairRegistered.Hex() {
+		return nil, errors.Errorf("invalid signature for PairRegistered: expected %s, got %s", eventPairRegistered.Hex(), signature)
+	}
+	if data != "" && data != "0x" {
+		var pairRegisteredEvent LogPairRegistered
+		if err := decode(bondingCurveABI, &pairRegisteredEvent, "PairRegistered", data); err != nil {
+			return nil, errors.Wrapf(err, "failed to unpack PairRegistered event")
+		}
+		log.Info(fmt.Sprintf("Pair registered:%+v ", pairRegisteredEvent))
+		return &pairRegisteredEvent, nil
+	}
+	log.Info("Pair registered (empty data, all params indexed)")
+
+	return &LogPairRegistered{}, nil
+}
+
+func tokenSwapped(signature, data string) (*LogTokenSwapped, error) {
+	if signature != eventSwapped.Hex() {
+		return nil, errors.Errorf("invalid signature for Swapped: expected %s, got %s", eventSwapped.Hex(), signature)
+	}
+	if data == "" || data == "0x" {
+		return nil, errors.Errorf("empty data for Swapped event")
+	}
+	var tokenSwappedEvent LogTokenSwapped
+	if err := decode(bondingCurveABI, &tokenSwappedEvent, "Swapped", data); err != nil {
+		return nil, errors.Wrapf(err, "failed to unpack Swapped event")
+	}
+	log.Info(fmt.Sprintf("Token swapped:%+v ", tokenSwappedEvent))
+
+	return &tokenSwappedEvent, nil
+}
+
+func recipientsSet(signature, data string) (*LogRecipientsSet, error) {
+	if signature != eventRecipientsSet.Hex() {
+		return nil, errors.Errorf("invalid signature for RecipientsSet: expected %s, got %s", eventRecipientsSet.Hex(), signature)
+	}
+	if data == "" || data == "0x" {
+		return nil, errors.Errorf("empty data for RecipientsSet event")
+	}
+	var recipientsSetEvent LogRecipientsSet
+	if err := decode(bondingCurveABI, &recipientsSetEvent, "RecipientsSet", data); err != nil {
+		return nil, errors.Wrapf(err, "failed to unpack RecipientsSet event")
+	}
+	log.Info(fmt.Sprintf("Recipients set:%+v ", recipientsSetEvent))
+
+	return &recipientsSetEvent, nil
+}
+
+func feeAccrued(signature, data string) (*LogFeeAccrued, error) {
+	if signature != eventFeeAccrued.Hex() {
+		return nil, errors.Errorf("invalid signature for FeeAccrued: expected %s, got %s", eventFeeAccrued.Hex(), signature)
+	}
+	if data == "" || data == "0x" {
+		return nil, errors.Errorf("empty data for FeeAccrued event")
+	}
+	var feeAccruedEvent LogFeeAccrued
+	if err := decode(bondingCurveABI, &feeAccruedEvent, "FeeAccrued", data); err != nil {
+		return nil, errors.Wrapf(err, "failed to unpack FeeAccrued event")
+	}
+	log.Info(fmt.Sprintf("Fee accrued:%+v ", feeAccruedEvent))
+
+	return &feeAccruedEvent, nil
+}
+
+func feeTransfer(signature, data string) (*LogFeeTransfer, error) {
+	if signature != eventFeeTransfer.Hex() {
+		return nil, errors.Errorf("invalid signature for FeeTransfer: expected %s, got %s", eventFeeTransfer.Hex(), signature)
+	}
+	if data == "" || data == "0x" {
+		return nil, errors.Errorf("empty data for FeeTransfer event")
+	}
+	var feeTransferEvent LogFeeTransfer
+	if err := decode(bondingCurveABI, &feeTransferEvent, "FeeTransfer", data); err != nil {
+		return nil, errors.Wrapf(err, "failed to unpack FeeTransfer event")
+	}
+	log.Info(fmt.Sprintf("Fee transfer:%+v ", feeTransferEvent))
+
+	return &feeTransferEvent, nil
+}
+
+func migrated(signature, data string) (*LogMigrated, error) {
+	if signature != eventMigrated.Hex() {
+		return nil, errors.Errorf("invalid signature for Migrated: expected %s, got %s", eventMigrated.Hex(), signature)
+	}
+	if data == "" || data == "0x" {
+		return nil, errors.Errorf("empty data for Migrated event")
+	}
+	var migratedEvent LogMigrated
+	if err := decode(bondingCurveABI, &migratedEvent, "Migrated", data); err != nil {
+		return nil, errors.Wrapf(err, "failed to unpack Migrated event")
+	}
+	log.Info(fmt.Sprintf("Migrated:%+v ", migratedEvent))
+
+	return &migratedEvent, nil
+}
+
+func liquidityClaimed(signature, data string) (*LogLiquidityClaimed, error) {
+	if signature != eventLiquidityClaimed.Hex() {
+		return nil, errors.Errorf("invalid signature for LiquidityClaimed: expected %s, got %s", eventLiquidityClaimed.Hex(), signature)
+	}
+	if data == "" || data == "0x" {
+		return nil, errors.Errorf("empty data for LiquidityClaimed event")
+	}
+	var liquidityClaimedEvent LogLiquidityClaimed
+	if err := decode(bondingCurveABI, &liquidityClaimedEvent, "LiquidityClaimed", data); err != nil {
+		return nil, errors.Wrapf(err, "failed to unpack LiquidityClaimed event")
+	}
+	log.Info(fmt.Sprintf("Liquidity claimed:%+v ", liquidityClaimedEvent))
+
+	return &liquidityClaimedEvent, nil
+}
+
+func transfer(signature, data, from, to string) (*LogTransfer, error) {
+	if signature != eventTransfer.Hex() {
+		return nil, errors.Errorf("invalid signature for Transfer: expected %s, got %s", eventTransfer.Hex(), signature)
+	}
+	if from == "" || from == "0x" {
+		return nil, errors.Errorf("empty from address for Transfer event")
+	}
+	if to == "" || to == "0x" {
+		return nil, errors.Errorf("empty to address for Transfer event")
+	}
+	if data == "" || data == "0x" {
+		return nil, errors.Errorf("empty data for Transfer event")
+	}
+
+	var transferEvent LogTransfer
+	transferEvent.From = common.HexToAddress(from)
+	transferEvent.To = common.HexToAddress(to)
+
+	dataBytes, err := hex.DecodeString(strings.TrimPrefix(data, "0x"))
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to decode transfer data")
+	}
+	transferEvent.Amount = new(big.Int).SetBytes(dataBytes)
+
+	log.Info(fmt.Sprintf("Transfer: from=%v, to=%v, amount=%v",
+		transferEvent.From.Hex(), transferEvent.To.Hex(), transferEvent.Amount))
+
+	return &transferEvent, nil
+}
+
+func ownershipTransferred(signature, previousOwner, newOwner string) (*LogOwnershipTransferred, error) {
+	if signature != eventOwnershipTransferred.Hex() {
+		return nil, errors.Errorf("invalid signature for OwnershipTransferred: expected %s, got %s", eventOwnershipTransferred.Hex(), signature)
+	}
+	if previousOwner == "" || previousOwner == "0x" {
+		return nil, errors.Errorf("empty previousOwner for OwnershipTransferred event")
+	}
+	if newOwner == "" || newOwner == "0x" {
+		return nil, errors.Errorf("empty newOwner for OwnershipTransferred event")
+	}
+
+	var ownershipEvent LogOwnershipTransferred
+	ownershipEvent.PreviousOwner = common.HexToAddress(previousOwner)
+	ownershipEvent.NewOwner = common.HexToAddress(newOwner)
+
+	log.Info(fmt.Sprintf("OwnershipTransferred: previousOwner=%v, newOwner=%v",
+		ownershipEvent.PreviousOwner.Hex(), ownershipEvent.NewOwner.Hex()))
+
+	return &ownershipEvent, nil
+}
+
+func slippageChecked(signature, data, pairId string) (*LogSlippageChecked, error) {
+	if signature != eventSlippageChecked.Hex() {
+		return nil, errors.Errorf("invalid signature for SlippageChecked: expected %s, got %s", eventSlippageChecked.Hex(), signature)
+	}
+	if pairId == "" || pairId == "0x" {
+		return nil, errors.Errorf("empty pairId for SlippageChecked event")
+	}
+	if data == "" || data == "0x" {
+		return nil, errors.Errorf("empty data for SlippageChecked event")
+	}
+
+	var slippageEvent LogSlippageChecked
+	pairIdBytes, err := hex.DecodeString(strings.TrimPrefix(pairId, "0x"))
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to decode pairId")
+	}
+	copy(slippageEvent.PairId[:], pairIdBytes)
+
+	dataBytes, err := hex.DecodeString(strings.TrimPrefix(data, "0x"))
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to decode slippage data")
+	}
+
+	if len(dataBytes) < 64 {
+		return nil, errors.Errorf("insufficient data for SlippageChecked: expected 64 bytes, got %d", len(dataBytes))
+	}
+	slippageEvent.MinReturn = new(big.Int).SetBytes(dataBytes[0:32])
+	slippageEvent.ActualOut = new(big.Int).SetBytes(dataBytes[32:64])
+
+	log.Info(fmt.Sprintf("SlippageChecked: pairId=%x, minReturn=%v, actualOut=%v",
+		slippageEvent.PairId, slippageEvent.MinReturn, slippageEvent.ActualOut))
+
+	return &slippageEvent, nil
+}
+
+func liquidityLocked(signature, data, pairId, lpToken string) (*LogLiquidityLocked, error) {
+	if signature != eventLiquidityLocked.Hex() {
+		return nil, errors.Errorf("invalid signature for LiquidityLocked: expected %s, got %s", eventLiquidityLocked.Hex(), signature)
+	}
+	if pairId == "" || pairId == "0x" {
+		return nil, errors.Errorf("empty pairId for LiquidityLocked event")
+	}
+	if lpToken == "" || lpToken == "0x" {
+		return nil, errors.Errorf("empty lpToken for LiquidityLocked event")
+	}
+	if data == "" || data == "0x" {
+		return nil, errors.Errorf("empty data for LiquidityLocked event")
+	}
+
+	var liquidityEvent LogLiquidityLocked
+	pairIdBytes, err := hex.DecodeString(strings.TrimPrefix(pairId, "0x"))
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to decode pairId")
+	}
+	copy(liquidityEvent.PairId[:], pairIdBytes)
+
+	liquidityEvent.LpToken = common.HexToAddress(lpToken)
+
+	dataBytes, err := hex.DecodeString(strings.TrimPrefix(data, "0x"))
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to decode liquidity data")
+	}
+
+	if len(dataBytes) < 64 {
+		return nil, errors.Errorf("insufficient data for LiquidityLocked: expected 64 bytes, got %d", len(dataBytes))
+	}
+	liquidityEvent.Amount = new(big.Int).SetBytes(dataBytes[0:32])
+	liquidityEvent.UnlockTime = new(big.Int).SetBytes(dataBytes[32:64])
+
+	log.Info(fmt.Sprintf("LiquidityLocked: pairId=%x, lpToken=%v, amount=%v, unlockTime=%v",
+		liquidityEvent.PairId, liquidityEvent.LpToken.Hex(), liquidityEvent.Amount, liquidityEvent.UnlockTime))
+
+	return &liquidityEvent, nil
+}

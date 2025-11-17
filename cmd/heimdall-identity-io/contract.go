@@ -14,6 +14,7 @@ import (
 	hashtagstatistics "github.com/ice-blockchain/heimdall/hashtag-statistics"
 	nftcontent "github.com/ice-blockchain/heimdall/nft-content"
 	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
+	tokenanalytics "github.com/ice-blockchain/heimdall/token-analytics"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/subzero/validation"
 )
@@ -313,6 +314,7 @@ type (
 		following                 following.Following
 		deviceIdentificationProxy accounts.DeviceIdentificationProxy
 		validation                validation.Validator
+		tokenAnalytics            tokenanalytics.TokenAnalytics
 		cfg                       *config
 	}
 	config struct {

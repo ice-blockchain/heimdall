@@ -28,7 +28,7 @@ func NewDeviceIdentificationProxy(ctx context.Context, serviceVersion string) De
 	return deviceidentification.NewProxy(applicationYamlKey, serviceVersion)
 }
 
-func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *AppsRuntimeConfig) Accounts {
+func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *AppsRuntimeConfig, tokenAnalyticsRepo TokenAnalyticsUserRepository) Accounts {
 	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
 	cl := dfns.NewDfnsClient(ctx, db, applicationYamlKey, coinsRepo)
 
@@ -63,6 +63,7 @@ func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *App
 		privateKey:                 cfg.PrivateKey,
 		relaysRepo:                 relays,
 		appsRuntimeConfig:          runtimeConfig,
+		tokenAnalyticsRepo:         tokenAnalyticsRepo,
 	}
 	cl.RegisterPostProxyCallback(completeLoginUrl, acc.upsertUserFromLogin)
 	cl.RegisterPostProxyCallback(delegatedLoginUrl, acc.upsertUserFromLogin)
@@ -81,7 +82,7 @@ func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *App
 	return &acc
 }
 
-func NewVerifiedQueueRepository(ctx context.Context) VerifiedUsersSync {
+func NewVerifiedQueueRepository(ctx context.Context, tokenAnalyticsRepo TokenAnalyticsUserRepository) VerifiedUsersSync {
 	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
@@ -90,9 +91,10 @@ func NewVerifiedQueueRepository(ctx context.Context) VerifiedUsersSync {
 	}
 
 	vSync := verifiedUsersSync{
-		db:         db,
-		shutdown:   db.Close,
-		privateKey: cfg.PrivateKey,
+		db:                 db,
+		shutdown:           db.Close,
+		privateKey:         cfg.PrivateKey,
+		tokenAnalyticsRepo: tokenAnalyticsRepo,
 	}
 
 	return &vSync
