@@ -7,10 +7,10 @@ import (
 	_ "embed"
 	"text/template"
 
-	"github.com/ice-blockchain/wintr/time"
-
 	"github.com/imroc/req/v3"
 	"github.com/jackc/pgx/v5"
+
+	"github.com/ice-blockchain/wintr/time"
 )
 
 type (

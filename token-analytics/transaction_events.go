@@ -8,9 +8,10 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/pkg/errors"
+
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/wintr/log"
-	"github.com/pkg/errors"
 )
 
 func (t *tokenAnalytics) onTokenCreated(ctx context.Context, tx *txEvent, logEvent *JSON, ev *bondingcurve.LogTokenCreated) error {

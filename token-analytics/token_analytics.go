@@ -13,6 +13,7 @@ import (
 
 	"github.com/goccy/go-json"
 	"github.com/hashicorp/go-multierror"
+	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
@@ -21,7 +22,6 @@ import (
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	storagev3 "github.com/ice-blockchain/wintr/connectors/storage/v3"
 	"github.com/ice-blockchain/wintr/log"
-	"github.com/pkg/errors"
 )
 
 func New(ctx context.Context) TokenAnalytics {

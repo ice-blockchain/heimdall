@@ -13,11 +13,12 @@ import (
 	"time"
 
 	"github.com/goccy/go-json"
-	appcfg "github.com/ice-blockchain/wintr/config"
-	"github.com/ice-blockchain/wintr/log"
 	"github.com/imroc/req/v3"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pkg/errors"
+
+	appcfg "github.com/ice-blockchain/wintr/config"
+	"github.com/ice-blockchain/wintr/log"
 )
 
 const (

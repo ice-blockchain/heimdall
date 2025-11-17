@@ -6,10 +6,10 @@ import (
 	"context"
 	"fmt"
 
-	tokenanalytics "github.com/ice-blockchain/heimdall/token-analytics"
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/server"
+	tokenanalytics "github.com/ice-blockchain/heimdall/token-analytics"
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/log"
 )
