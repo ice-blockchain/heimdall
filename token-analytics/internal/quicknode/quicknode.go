@@ -39,6 +39,7 @@ func NewClient(ctx context.Context, applicationYamlKey string) Client {
 	network := networkMainnet
 	if cfg.Development {
 		network = networkTestnet
+		log.Warn("Using testnet network for QuickNode")
 	}
 
 	q := &client{
@@ -75,7 +76,7 @@ func (q *client) req(ctx context.Context) *req.Request {
 			case err != nil:
 				log.Error(errors.Wrapf(err, "faied to exec quick node request %v", resp.Request.URL.String()))
 			case resp.GetStatusCode() >= http.StatusBadRequest:
-				log.Error(errors.Errorf("quick node request failed %v: %v", resp.Request.URL.String(), resp.GetStatusCode()))
+				log.Error(errors.Errorf("quick node request failed %v: %v, body: %v", resp.Request.URL.String(), resp.GetStatusCode(), resp.String()))
 			}
 		}).
 		SetRetryCount(5).

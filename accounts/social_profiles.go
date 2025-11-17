@@ -4,12 +4,11 @@ package accounts
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/nbd-wtf/go-nostr"
-	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/subzero/model"
@@ -20,7 +19,7 @@ import (
 
 func (a *accounts) VerifyUsernameAvailability(ctx context.Context, username, loggedInUserID string) error {
 	if !isUsernameValid(username) {
-		return errors.Wrapf(ErrInvalidUsername, "username %v is invalid", username)
+		return fmt.Errorf("%w: username %v is invalid", ErrInvalidUsername, username)
 	}
 	username = strings.ToLower(username)
 	type row struct {
@@ -32,31 +31,31 @@ func (a *accounts) VerifyUsernameAvailability(ctx context.Context, username, log
 									JOIN users u ON sp.master_pubkey = u.master_pubkey 
 									WHERE sp.username = $1 LIMIT 1`, username)
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
-		return errors.Wrapf(err, "failed to check username availability")
+		return fmt.Errorf("%w: failed to check username availability", err)
 	}
 	if r == nil {
 		return nil
 	}
 	if r.ID == r.MasterPubkey && strings.HasPrefix(r.MasterPubkey, "reserved_") {
-		return errors.Wrap(ErrReserved, "username is reserved")
+		return fmt.Errorf("%w: username is reserved", ErrReserved)
 	}
 	if r.ID == loggedInUserID {
 		return nil
 	}
 
-	return errors.Wrapf(ErrDuplicate, "username %v already exists", username)
+	return fmt.Errorf("%w: username %v already exists", ErrDuplicate, username)
 }
 
 func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, username, displayName, referralUsername, bio, avatar, loggedInUserUserID string) (*SocialProfile, error) {
 	dbUsr, err := a.getUserByID(ctx, userIDOrMasterKey)
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
-		return nil, errors.Wrapf(err, "failed to read extra information about user %v", userIDOrMasterKey)
+		return nil, fmt.Errorf("%w: failed to read extra information about user %v", err, userIDOrMasterKey)
 	}
 	if dbUsr == nil || dbUsr.ID != loggedInUserUserID {
 		return nil, ErrUnauthorized
 	}
 	if username != "" && !isUsernameValid(username) {
-		return nil, errors.Wrapf(ErrInvalidUsername, "username %v is invalid", username)
+		return nil, fmt.Errorf("%w: username %v is invalid", ErrInvalidUsername, username)
 	}
 	if username != "" {
 		username = strings.ToLower(username)
@@ -160,20 +159,24 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 			target.username, 
 			target.display_name, 
 			target.referral_master_pubkey,
-			COALESCE((SELECT referral_profile.username FROM social_profiles referral_profile WHERE referral_profile.master_pubkey = target.referral_master_pubkey), '') as referral_username,
+			COALESCE(referral_profile.username, '') as referral_username,
 			target.bio,
 			target.avatar,
 			target.referral_count,
-			(SELECT u.id FROM users u WHERE u.master_pubkey = target.master_pubkey) as user_id,
-			(SELECT u.verified FROM users u WHERE u.master_pubkey = target.master_pubkey) as verified,
-			(SELECT u.ion_connect_relays FROM users u WHERE u.master_pubkey = target.master_pubkey) as ion_connect_relays,
-			(SELECT created_at FROM old_profile) as old_created_at,
-			(SELECT updated_at FROM old_profile) as old_updated_at,
-			(SELECT username FROM old_profile) as old_username,
-			(SELECT display_name FROM old_profile) as old_display_name,
-			(SELECT referral_master_pubkey FROM old_profile) as old_referral_master_pubkey,
-			(SELECT avatar FROM old_profile) as old_avatar,
-			(SELECT referral_count FROM old_profile) as old_referral_count
+			u.id as user_id,
+			u.verified,
+			u.ion_connect_relays,
+			old_profile.created_at as old_created_at,
+			old_profile.updated_at as old_updated_at,
+			old_profile.username as old_username,
+			old_profile.display_name as old_display_name,
+			old_profile.referral_master_pubkey as old_referral_master_pubkey,
+			old_profile.avatar as old_avatar,
+			old_profile.referral_count as old_referral_count
+		FROM target
+		LEFT JOIN social_profiles referral_profile ON referral_profile.master_pubkey = target.referral_master_pubkey
+		LEFT JOIN users u ON u.master_pubkey = target.master_pubkey
+		LEFT JOIN old_profile ON true
 	`
 	type resultProfile struct {
 		socialProfile
@@ -194,10 +197,10 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
 			if referralUsername != "" {
-				return nil, ErrWrongReferral
+				return nil, fmt.Errorf("%w: validation failed - operation was blocked", ErrWrongReferral)
 			}
 
-			return nil, errors.Wrap(ErrInvalidUsername, "validation failed - operation was blocked")
+			return nil, fmt.Errorf("%w: validation failed - operation was blocked", ErrInvalidUsername)
 		}
 		if storage.IsErr(err, storage.ErrDuplicate) {
 			type reserved struct {
@@ -210,23 +213,23 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 													  ON sp.master_pubkey = u.master_pubkey
 													  WHERE username = $1 LIMIT 1`, username)
 			if gErr != nil {
-				return nil, errors.Wrapf(gErr, "failed to get owner of conflicting username")
+				return nil, fmt.Errorf("%w: failed to get owner of conflicting username", gErr)
 			}
 			if row.ID == row.MasterPubkey && strings.HasPrefix(row.MasterPubkey, "reserved_") {
-				return nil, errors.Wrap(ErrReserved, "username is reserved")
+				return nil, fmt.Errorf("%w: username is reserved", ErrReserved)
 			}
 
-			return nil, errors.Wrap(ErrDuplicate, "username is already taken")
+			return nil, fmt.Errorf("%w: username is already taken", ErrDuplicate)
 		}
 
-		return nil, errors.Wrapf(err, "failed to upsert social profile")
+		return nil, fmt.Errorf("%w: failed to upsert social profile", err)
 	}
 
 	proofEvents, proofErr := a.generateUsernameProofEvents(profile.MasterPubkey, profile.Username)
 	if proofErr != nil {
-		return nil, errors.Wrapf(proofErr, "failed to generate username proof events")
+		return nil, fmt.Errorf("%w: failed to generate username proof events", proofErr)
 	}
-	var result *multierror.Error
+	var result error
 	var avatarStr string
 	if profile.Avatar != nil {
 		avatarStr = *profile.Avatar
@@ -241,29 +244,39 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 		profile.Verified,
 		profile.IONConnectRelays,
 	); syncErr != nil {
-		result = multierror.Append(result, errors.Wrapf(syncErr, "failed to sync user to token-analytics"))
+		result = errors.Join(result, fmt.Errorf("%w: failed to sync user to token-analytics", syncErr))
+
+		oldUsername := ""
+		if profile.OldUsername != nil {
+			oldUsername = *profile.OldUsername
+		}
+		oldDisplayName := ""
+		if profile.OldDisplayName != nil {
+			oldDisplayName = *profile.OldDisplayName
+		}
+		lookup := strings.ToLower(strings.TrimSpace(oldUsername + " " + oldDisplayName))
 
 		if profile.OldCreatedAt != nil {
 			rollbackQuery := `UPDATE social_profiles 
 				SET created_at = $1, updated_at = $2, username = $3, display_name = $4, 
 				    referral_master_pubkey = $5, bio = $6, avatar = $7, referral_count = $8,
-				    lookup = LOWER(TRIM(COALESCE($3, '') || ' ' || COALESCE($4, '')))
-				WHERE master_pubkey = $9`
+				    lookup = $9
+				WHERE master_pubkey = $10`
 			if _, rbErr := storage.Exec(ctx, a.db, rollbackQuery,
 				profile.OldCreatedAt, profile.OldUpdatedAt, profile.OldUsername, profile.OldDisplayName,
 				profile.OldReferralMasterKey, profile.Bio, profile.OldAvatar,
-				profile.OldReferralCount, profile.MasterPubkey); rbErr != nil {
-				result = multierror.Append(result, errors.Wrapf(rbErr, "failed to rollback social profile"))
+				profile.OldReferralCount, lookup, profile.MasterPubkey); rbErr != nil {
+				result = errors.Join(result, fmt.Errorf("%w: failed to rollback social profile", rbErr))
 			}
 		} else {
 			rollbackQuery := `DELETE FROM social_profiles WHERE master_pubkey = $1`
 			if _, rbErr := storage.Exec(ctx, a.db, rollbackQuery, profile.MasterPubkey); rbErr != nil {
-				result = multierror.Append(result, errors.Wrapf(rbErr, "failed to rollback social profile"))
+				result = errors.Join(result, fmt.Errorf("%w: failed to rollback social profile", rbErr))
 			}
 		}
 	}
-	if err := result.ErrorOrNil(); err != nil {
-		return nil, errors.Wrapf(err, "failed to upsert social profile")
+	if result != nil {
+		return nil, fmt.Errorf("%w: failed to upsert social profile", result)
 	}
 
 	return &SocialProfile{
@@ -284,7 +297,7 @@ func (a *accounts) GetSocialProfile(ctx context.Context, userIDOrMasterKey strin
 		if storage.IsErr(err, storage.ErrNotFound) {
 			return nil, ErrNotFound
 		}
-		return nil, errors.Wrapf(err, "failed to read extra information about user %v", userIDOrMasterKey)
+		return nil, fmt.Errorf("%w: failed to read extra information about user %v", err, userIDOrMasterKey)
 	}
 	type resultProfile struct {
 		socialProfile
@@ -306,7 +319,7 @@ func (a *accounts) GetSocialProfile(ctx context.Context, userIDOrMasterKey strin
 		if storage.IsErr(err, storage.ErrNotFound) {
 			return nil, ErrNotFound
 		}
-		return nil, errors.Wrapf(err, "failed to get social profile")
+		return nil, fmt.Errorf("%w: failed to get social profile", err)
 	}
 	res := &SocialProfile{
 		Username:      profile.Username,
@@ -405,7 +418,7 @@ func (a *accounts) SearchSocialProfiles(ctx context.Context, tpe SearchType, key
 
 	profiles, err := storage.Select[LiteUser](ctx, a.db, query, args...)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to search user profiles")
+		return nil, fmt.Errorf("%w: failed to search user profiles", err)
 	}
 	if len(profiles) == 0 {
 		return []*LiteUser{}, nil
@@ -417,7 +430,7 @@ func (a *accounts) SearchSocialProfiles(ctx context.Context, tpe SearchType, key
 func (a *accounts) generateUsernameProofEvents(masterPubkey, username string) ([]*model.Event, error) {
 	publicKey, err := model.GetPublicKey(a.privateKey)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get public key")
+		return nil, fmt.Errorf("%w: failed to get public key", err)
 	}
 	badgeDefinitionEvent := model.Event{
 		Event: nostr.Event{
@@ -432,7 +445,7 @@ func (a *accounts) generateUsernameProofEvents(masterPubkey, username string) ([
 		},
 	}
 	if err := badgeDefinitionEvent.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
-		return nil, errors.Wrapf(err, "failed to sign badge definition event")
+		return nil, fmt.Errorf("%w: failed to sign badge definition event", err)
 	}
 	badgeAwardEvent := model.Event{
 		Event: nostr.Event{
@@ -445,7 +458,7 @@ func (a *accounts) generateUsernameProofEvents(masterPubkey, username string) ([
 		},
 	}
 	if err := badgeAwardEvent.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
-		return nil, errors.Wrapf(err, "failed to sign badge award event")
+		return nil, fmt.Errorf("%w: failed to sign badge award event", err)
 	}
 
 	return []*model.Event{&badgeDefinitionEvent, &badgeAwardEvent}, nil

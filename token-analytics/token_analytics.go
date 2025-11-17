@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	stdlog "log"
+	"strings"
 	"sync"
 	"time"
 	stdlibtime "time"
@@ -93,13 +94,14 @@ func (t *tokenAnalytics) Healthcheck(ctx context.Context) error {
 }
 
 func (t *tokenAnalytics) UpsertUser(ctx context.Context, id, masterPubkey, username, displayName, avatar string, verified bool, ionConnectRelays []string) error {
+	lookup := strings.ToLower(strings.TrimSpace(username + " " + displayName))
+
 	_, err := storage.Exec(ctx, t.ingestedDataDB, `
 		INSERT INTO users (
 			created_at, updated_at, id, master_pubkey, username, 
 			display_name, avatar, lookup, ion_connect_relays, verified
 		) VALUES (
-			NOW(), NOW(), $1, $2, $3, $4, $5, 
-			LOWER(TRIM($3 || ' ' || COALESCE($4, ''))), $6, $7
+			NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8
 		)
 		ON CONFLICT (master_pubkey) 
 		DO UPDATE SET
@@ -108,10 +110,10 @@ func (t *tokenAnalytics) UpsertUser(ctx context.Context, id, masterPubkey, usern
 			username = EXCLUDED.username,
 			display_name = EXCLUDED.display_name,
 			avatar = EXCLUDED.avatar,
-			lookup = LOWER(TRIM(EXCLUDED.username || ' ' || COALESCE(EXCLUDED.display_name, ''))),
+			lookup = EXCLUDED.lookup,
 			ion_connect_relays = EXCLUDED.ion_connect_relays,
 			verified = EXCLUDED.verified
-	`, id, masterPubkey, username, displayName, avatar, ionConnectRelays, verified)
+	`, id, masterPubkey, username, displayName, avatar, lookup, ionConnectRelays, verified)
 
 	return errors.Wrapf(err, "failed to upsert user %v", masterPubkey)
 }

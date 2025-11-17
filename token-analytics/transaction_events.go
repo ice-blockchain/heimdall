@@ -28,6 +28,8 @@ func (t *tokenAnalytics) onTokenCreated(ctx context.Context, tx *txEvent, logEve
 			return errors.Wrapf(err, "failed to create stream to monitor contract %v", ev.Address.String())
 		}
 		log.Info(fmt.Sprintf("Successfully created stream for bonded token: %v", ev.Address.String()))
+	} else {
+		log.Debug(fmt.Sprintf("onTokenCreated: not bonded token, contract address: %v", ev.Address.String()))
 	}
 
 	return nil
