@@ -17,6 +17,7 @@ import (
 	"github.com/rcrowley/go-metrics"
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
+	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/quicknode"
 	appconfig "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
@@ -61,7 +62,7 @@ func New(ctx context.Context, bondingCurveContractAddress string) TokenAnalytics
 	}
 
 	qn := quicknode.NewClient(ctx, applicationYamlKey)
-
+	timescaleDB := questdb.MustConnect(ctx, applicationYamlKey)
 	registry := metrics.NewRegistry()
 	for workerIdx := range cfg.Workers {
 		workerPrefix := fmt.Sprintf("worker_%d_", workerIdx)
@@ -84,14 +85,18 @@ func New(ctx context.Context, bondingCurveContractAddress string) TokenAnalytics
 		bondingCurveContractAddress: bondingCurveContractAddress,
 		ingestedDataDB:              db,
 		processedDataDB:             targetDB,
+		timescaleDB:     timescaleDB,
 		wg:                          new(sync.WaitGroup),
 		cfg:                         &cfg,
 		quickNode:                   qn,
 		metrics:                     registry,
 		shutdown: func() error {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
 			return errors.Join(
-				db.Close(),
-				targetDB.Close(),
+				errors.Wrapf(db.Close(), "failed to close source db"),
+				errors.Wrapf(targetDB.Close(), "failed to close target db"),
+				errors.Wrapf(timescaleDB.Close(shutdownCtx), "failed to close timescale db"),
 			)
 		},
 	}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/rcrowley/go-metrics"
 
+	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/quicknode"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	storagev3 "github.com/ice-blockchain/wintr/connectors/storage/v3"
@@ -67,6 +68,7 @@ type (
 		bondingCurveContractAddress string
 		ingestedDataDB              *storage.DB
 		processedDataDB             storagev3.DB
+		timescaleDB     *questdb.DB
 		shutdown                    func() error
 		cfg                         *config
 		wg                          *sync.WaitGroup
