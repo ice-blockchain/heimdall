@@ -65,6 +65,11 @@ func loggerMiddleware() gin.HandlerFunc {
 			path = path + "?" + raw
 		}
 
+		if path == "/healthz" {
+			// Skip logging for health checks.
+			return
+		}
+
 		logArgs := []any{
 			"proto", c.Request.Proto,
 			"timestamp", start.Format("2006/01/02 - 15:04:05.999999999"),
@@ -149,6 +154,11 @@ func (s *httpServer) MustListenAndServe(ctx context.Context, attachRoutes func(R
 	var wg sync.WaitGroup
 
 	attachRoutes(&httpRouter{s.Router})
+	if s.Config.Debug {
+		for _, item := range s.Router.Routes() {
+			slog.InfoContext(ctx, "registered route", "method", item.Method, "path", item.Path, "handler", item.Handler)
+		}
+	}
 
 	done := make(chan error, 1)
 
