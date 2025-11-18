@@ -4,58 +4,88 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
+	"os"
+	"os/signal"
+	"runtime/debug"
+	"syscall"
 
-	"github.com/pkg/errors"
-
-	"github.com/ice-blockchain/heimdall/server"
 	tokenanalytics "github.com/ice-blockchain/heimdall/token-analytics"
-	appcfg "github.com/ice-blockchain/wintr/config"
-	"github.com/ice-blockchain/wintr/log"
+	"github.com/ice-blockchain/heimdall/token-analytics/server"
 )
 
-// @title						Service that syncs coins data from 3rd party
+func newContext() context.Context {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	c := make(chan os.Signal, 2)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		force := false
+		for sig := range c {
+			if force {
+				slog.InfoContext(ctx, "forced shutdown", "signal", sig.String())
+				os.Exit(2)
+			} else {
+				slog.InfoContext(ctx, "graceful shutdown", "signal", sig.String())
+				cancel()
+				force = true
+			}
+		}
+	}()
+
+	return ctx
+}
+
+// @title					Token Analytics Service API.
 // @version					latest
-// @description				It is responsible for syncing coins data.
+// @description				This service provides analytics data for various tokens.
 // @query.collection.format	multi
 // @schemes					https
-// @contact.name				ice.io
+// @contact.name			ice.io
 // @contact.url				https://ice.io
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	var cfg struct {
-		Version string `yaml:"version"`
-	}
+	var srv service
 
-	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
+	cfg := mustLoadConfig()
+	ctx := newContext()
 
-	log.Info(fmt.Sprintf("starting version `%v`...", cfg.Version))
-	server.New(&service{}, applicationYamlKey, "").ListenAndServe(ctx, cancel, new(noAuth))
+	slog.InfoContext(ctx, "starting service", "version", cfg.Version)
+
+	srv.Init(ctx, cfg)
+	srv.MustStart(ctx)
+	srv.Close(ctx)
 }
 
-func (s *service) RegisterRoutes(router *server.Router) {
+func (s *service) MustStart(ctx context.Context) {
+	// HTTP will block here until context is done.
+	s.httpServer.MustListenAndServe(ctx, s.RegisterRoutes)
 }
 
-func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
+func (s *service) Init(ctx context.Context, cfg *Config) {
+	s.httpServer = server.New(cfg.Server())
 	s.tokenAnalytics = tokenanalytics.New(ctx)
 	s.tokenAnalytics.MustStart(ctx)
 }
 
-func (s *service) Close(ctx context.Context) error {
-	if ctx.Err() != nil {
-		return errors.Wrap(ctx.Err(), "could not close repository because context ended")
-	}
-
+func (s *service) Close(context.Context) error {
 	return s.tokenAnalytics.Close()
 }
 
 func (s *service) CheckHealth(ctx context.Context) error {
-	log.Debug("checking health...")
-
 	return s.tokenAnalytics.Healthcheck(ctx)
 }
 
-func (n *noAuth) VerifyToken(ctx context.Context, token string) (server.Token, error) {
-	return nil, errors.Errorf("auth disabled")
+func readVersionString() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "unknown"
+	}
+
+	for _, setting := range info.Settings {
+		if setting.Key == "vcs.revision" {
+			return setting.Value
+		}
+	}
+
+	return "unknown"
 }
