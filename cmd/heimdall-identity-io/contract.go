@@ -317,7 +317,7 @@ type (
 		following                 following.Following
 		deviceIdentificationProxy accounts.DeviceIdentificationProxy
 		validation                validation.Validator
-		tokenAnalytics            tokenanalytics.TokenAnalytics
+		tokenAnalytics            tokenanalytics.UserRepository
 		cfg                       *config
 	}
 	config struct {

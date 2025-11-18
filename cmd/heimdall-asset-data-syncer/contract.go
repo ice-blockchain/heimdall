@@ -14,7 +14,7 @@ type (
 		coinSyncer              coins.Sync
 		verifiedQueueRepository accounts.VerifiedUsersSync
 		relayLivenessCheck      relaymanagement.RelaysSyncer
-		tokenAnalytics          tokenanalytics.TokenAnalytics
+		tokenAnalytics          tokenanalytics.UserRepository
 	}
 	noAuth struct{}
 )

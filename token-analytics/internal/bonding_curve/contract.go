@@ -30,23 +30,6 @@ type (
 		OutputAmount *big.Int
 		Fee          *big.Int
 	}
-	LogTokenBought struct {
-		Event
-		Buyer    common.Address
-		PairId   [32]byte
-		AmountIn *big.Int
-		TokenOut *big.Int
-		Fee      *big.Int
-	}
-
-	LogTokenSold struct {
-		Event
-		Seller   common.Address
-		PairId   [32]byte
-		AmountIn *big.Int
-		TokenOut *big.Int
-		Fee      *big.Int
-	}
 	LogRecipientsSet struct {
 		Event
 		PairId    [32]byte

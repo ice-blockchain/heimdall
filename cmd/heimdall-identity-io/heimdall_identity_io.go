@@ -121,9 +121,8 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	allValidConfigNames["apps-runtime_ion-app"] = func(_ *config, _ *Version) (any, Version) {
 		return appsRuntimeCfg.IONApp, Version(appsRuntimeCfg.IONApp.Version)
 	}
-
 	if false {
-		s.tokenAnalytics = tokenanalytics.New(ctx)
+		s.tokenAnalytics = tokenanalytics.NewUserRepository(ctx)
 	}
 	s.accounts = accounts.New(ctx, s.coins, s.relays, &appsRuntimeCfg, s.tokenAnalytics)
 	s.validation = validation.New(ctx, validation.WithIONIdentityPublicKeys(func() []string {

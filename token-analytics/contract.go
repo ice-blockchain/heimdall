@@ -25,11 +25,24 @@ type (
 		SetVerified(ctx context.Context, masterPubkey string) error
 	}
 
+	TokenAnalytics interface {
+		UserRepository
+		MustStart(ctx context.Context)
+		GetCommunityTokens(ctx context.Context, ionConnectAddresses []string, requestorMasterPubkey string) ([]*CommunityToken, error)
+	}
+
 	SavePoint struct {
 		TransactionIndex uint64 `db:"transaction_index"`
 		BlockNumber      uint64 `db:"block_number"`
 	}
 	JSON map[string]any
+)
+
+const (
+	TokenTypeProfile = "profile"
+	TokenTypePost    = "post"
+	TokenTypeArticle = "article"
+	TokenTypeVideo   = "video"
 )
 
 var (

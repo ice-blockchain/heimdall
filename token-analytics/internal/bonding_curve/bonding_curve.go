@@ -25,9 +25,17 @@ func init() {
 func ProcessEvent(functionHex, data string, topics []string) (Event, error) {
 	switch functionHex {
 	case eventTokenCreated.Hex():
-		return tokenCreated(functionHex, data)
+		if len(topics) < 2 {
+			return nil, errors.Errorf("TokenCreated event requires at least 2 topics, got %d", len(topics))
+		}
+
+		return tokenCreated(functionHex, data, topics[1])
 	case eventSwapped.Hex():
-		return tokenSwapped(functionHex, data)
+		if len(topics) < 2 {
+			return nil, errors.Errorf("Swapped event requires at least 2 topics, got %d", len(topics))
+		}
+
+		return tokenSwapped(functionHex, data, topics[1])
 	case eventPairRegistered.Hex():
 		return pairRegistered(functionHex, data)
 	case eventRecipientsSet.Hex():
@@ -81,7 +89,7 @@ func decode[T any](abi abi.ABI, res T, name, data string) error {
 	return nil
 }
 
-func tokenCreated(signature, data string) (*LogTokenCreated, error) {
+func tokenCreated(signature, data, tokenAddressTopic string) (*LogTokenCreated, error) {
 	if signature != eventTokenCreated.Hex() {
 		return nil, errors.Errorf("invalid signature for BondedTokenCreated: expected %s, got %s", eventTokenCreated.Hex(), signature)
 	}
@@ -93,6 +101,8 @@ func tokenCreated(signature, data string) (*LogTokenCreated, error) {
 	if err := decode(ABI, &tokenCreatedEvent, "BondedTokenCreated", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack BondedTokenCreated event")
 	}
+	tokenCreatedEvent.Address = common.HexToAddress(tokenAddressTopic)
+
 	log.Info(fmt.Sprintf("Token created:%+v ", tokenCreatedEvent))
 
 	return &tokenCreatedEvent, nil
@@ -115,7 +125,7 @@ func pairRegistered(signature, data string) (*LogPairRegistered, error) {
 	return &LogPairRegistered{}, nil
 }
 
-func tokenSwapped(signature, data string) (*LogTokenSwapped, error) {
+func tokenSwapped(signature, data, tokenAddressTopic string) (*LogTokenSwapped, error) {
 	if signature != eventSwapped.Hex() {
 		return nil, errors.Errorf("invalid signature for Swapped: expected %s, got %s", eventSwapped.Hex(), signature)
 	}
@@ -126,6 +136,8 @@ func tokenSwapped(signature, data string) (*LogTokenSwapped, error) {
 	if err := decode(ABI, &tokenSwappedEvent, "Swapped", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack Swapped event")
 	}
+	tokenSwappedEvent.Address = common.HexToAddress(tokenAddressTopic)
+
 	log.Info(fmt.Sprintf("Token swapped:%+v ", tokenSwappedEvent))
 
 	return &tokenSwappedEvent, nil

@@ -145,3 +145,103 @@ CREATE TABLE IF NOT EXISTS streams (
     created_at TIMESTAMP,
     PRIMARY KEY (contract_address)
 );
+
+CREATE TABLE IF NOT EXISTS tokens (
+    created_at              TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMP NOT NULL DEFAULT NOW(),
+    contract_address        TEXT NOT NULL,
+    ion_connect_address     TEXT, -- nostr 'a' tag for this token (e.g. "30023:article_master_pubkey:d_tag")
+    title                   TEXT NOT NULL,
+    ticker                  TEXT NOT NULL,
+    total_supply            NUMERIC(78, 0) NOT NULL, -- uint256 max
+    creator_master_pubkey   TEXT,
+    type                    TEXT NOT NULL, -- profile/post/video/article
+    description             TEXT,
+    image_url               TEXT,
+    market_cap_usd          NUMERIC(20, 2) DEFAULT 0,
+    price_usd               NUMERIC(20, 10) DEFAULT 0,
+    holders_count           BIGINT DEFAULT 0,
+    PRIMARY KEY (contract_address),
+    FOREIGN KEY (creator_master_pubkey) REFERENCES users(master_pubkey) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_tokens_creator ON tokens (creator_master_pubkey);
+CREATE INDEX IF NOT EXISTS idx_tokens_created_at ON tokens (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_tokens_ion_connect ON tokens (ion_connect_address);
+
+CREATE TABLE IF NOT EXISTS token_swaps (
+    created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    transaction_hash    TEXT NOT NULL,
+    contract_address    TEXT NOT NULL,
+    user_address        TEXT NOT NULL,
+    direction           BOOLEAN NOT NULL, -- true = buy, false = sell
+    input_amount        NUMERIC(78, 0) NOT NULL, -- base token amount (buy) or token amount (sell)
+    output_amount       NUMERIC(78, 0) NOT NULL, -- token amount (buy) or base token amount (sell)
+    price_usd           NUMERIC(20, 10) NOT NULL,
+    PRIMARY KEY (transaction_hash, contract_address, user_address),
+    FOREIGN KEY (contract_address) REFERENCES tokens(contract_address) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_token_swaps_contract_direction ON token_swaps (contract_address, direction, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS user_token_positions (
+    updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    master_pubkey       TEXT NOT NULL,
+    contract_address    TEXT NOT NULL,
+    amount              NUMERIC(78, 0) NOT NULL DEFAULT 0,
+    avg_buy_price_usd   NUMERIC(20, 10) DEFAULT 0,
+    total_invested_usd  NUMERIC(20, 2) DEFAULT 0,
+    PRIMARY KEY (master_pubkey, contract_address),
+    FOREIGN KEY (master_pubkey) REFERENCES users(master_pubkey) ON DELETE CASCADE,
+    FOREIGN KEY (contract_address) REFERENCES tokens(contract_address) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_token_positions_user ON user_token_positions (master_pubkey);
+CREATE INDEX IF NOT EXISTS idx_user_token_positions_token ON user_token_positions (contract_address);
+
+CREATE OR REPLACE FUNCTION update_token_holders_count_trigger()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        IF NEW.amount > 0 THEN
+            UPDATE tokens
+            SET holders_count = holders_count + 1,
+                updated_at = NOW()
+            WHERE contract_address = NEW.contract_address;
+        END IF;
+        RETURN NEW;
+    END IF;
+
+    IF TG_OP = 'UPDATE' THEN
+        IF OLD.amount > 0 AND NEW.amount = 0 THEN
+            UPDATE tokens
+            SET holders_count = GREATEST(holders_count - 1, 0),
+                updated_at = NOW()
+            WHERE contract_address = NEW.contract_address;
+        ELSIF OLD.amount = 0 AND NEW.amount > 0 THEN
+            UPDATE tokens
+            SET holders_count = holders_count + 1,
+                updated_at = NOW()
+            WHERE contract_address = NEW.contract_address;
+        END IF;
+        RETURN NEW;
+    END IF;
+
+    IF TG_OP = 'DELETE' THEN
+        IF OLD.amount > 0 THEN
+            UPDATE tokens
+            SET holders_count = GREATEST(holders_count - 1, 0),
+                updated_at = NOW()
+            WHERE contract_address = OLD.contract_address;
+        END IF;
+        RETURN OLD;
+    END IF;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER user_token_position_changed
+AFTER INSERT OR UPDATE OR DELETE ON user_token_positions
+FOR EACH ROW
+EXECUTE FUNCTION update_token_holders_count_trigger();

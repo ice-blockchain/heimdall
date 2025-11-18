@@ -5,10 +5,7 @@ package tokenanalytics
 import (
 	"context"
 	"fmt"
-	"strings"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/pkg/errors"
+	"math/big"
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/wintr/log"
@@ -36,86 +33,80 @@ func (t *tokenAnalytics) onTokenCreated(ctx context.Context, tx *txEvent, logEve
 	return nil
 }
 
-func (t *tokenAnalytics) onTransfer(ctx context.Context, tx *txEvent, logEvent *JSON, ev *bondingcurve.LogTransfer) error {
-	topics, _ := logEvent.getStringSlice("topics")
-	address, _ := logEvent.getString("address")
-
-	if len(topics) >= 3 {
-		ev.From = common.HexToAddress(topics[1])
-		ev.To = common.HexToAddress(topics[2])
-	}
-
-	log.Info(fmt.Sprintf("Transfer on token %v: from=%v, to=%v, amount=%v, tx:%v",
-		address, ev.From.String(), ev.To.String(), ev.Amount, tx.TransactionHash))
-
-	return nil
+func (t *tokenAnalytics) getMasterPubkeyByAddress(ctx context.Context, blockchainAddr string) (string, error) {
+	// TODO: Implement extraction of master_pubkey from transaction.
+	return blockchainAddr, nil
 }
 
-func (t *tokenAnalytics) onOwnershipTransferred(ctx context.Context, tx *txEvent, logEvent *JSON, ev *bondingcurve.LogOwnershipTransferred) error {
-	topics, _ := logEvent.getStringSlice("topics")
-	address, _ := logEvent.getString("address")
-
-	if len(topics) >= 3 {
-		ev.PreviousOwner = common.HexToAddress(topics[1])
-		ev.NewOwner = common.HexToAddress(topics[2])
-	}
-
-	log.Info(fmt.Sprintf("OwnershipTransferred on token %v: from=%v, to=%v, tx:%v",
-		address, ev.PreviousOwner.String(), ev.NewOwner.String(), tx.TransactionHash))
-
-	return nil
-}
-
-func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, logEvent *JSON, ev *bondingcurve.LogTokenSwapped) error {
-	log.Info("Token swapped:%+v, tx:%v", ev, tx.TransactionHash)
-
-	return nil
-}
-
-func (t *tokenAnalytics) onPairRegistered(ctx context.Context, tx *txEvent, logEvent *JSON, ev *bondingcurve.LogPairRegistered) error {
+func (t *tokenAnalytics) onPairRegistered(ctx context.Context, tx *txEvent, ev *bondingcurve.LogPairRegistered) error {
 	log.Info("Pair registered:%+v, tx:%v", ev, tx.TransactionHash)
 
 	return nil
 }
 
-func (t *tokenAnalytics) onRecipientsSet(ctx context.Context, tx *txEvent, logEvent *JSON, ev *bondingcurve.LogRecipientsSet) error {
+func (t *tokenAnalytics) onRecipientsSet(ctx context.Context, tx *txEvent, ev *bondingcurve.LogRecipientsSet) error {
 	log.Info("Recipients set:%+v, tx:%v", ev, tx.TransactionHash)
 
 	return nil
 }
 
-func (t *tokenAnalytics) onMigrated(ctx context.Context, tx *txEvent, logEvent *JSON, ev *bondingcurve.LogMigrated) error {
+func (t *tokenAnalytics) onMigrated(ctx context.Context, tx *txEvent, ev *bondingcurve.LogMigrated) error {
 	log.Info("Migrated:%+v, tx:%v", ev, tx.TransactionHash)
 
 	return nil
 }
 
-func (t *tokenAnalytics) onFeeAccrued(ctx context.Context, tx *txEvent, logEvent *JSON, ev *bondingcurve.LogFeeAccrued) error {
+func (t *tokenAnalytics) onFeeAccrued(ctx context.Context, tx *txEvent, ev *bondingcurve.LogFeeAccrued) error {
 	log.Info("Fee accrued:%+v, tx:%v", ev, tx.TransactionHash)
 
 	return nil
 }
 
-func (t *tokenAnalytics) onFeeTransfer(ctx context.Context, tx *txEvent, logEvent *JSON, ev *bondingcurve.LogFeeTransfer) error {
+func (t *tokenAnalytics) onFeeTransfer(ctx context.Context, tx *txEvent, ev *bondingcurve.LogFeeTransfer) error {
 	log.Info("Fee transfer:%+v, tx:%v", ev, tx.TransactionHash)
 
 	return nil
 }
 
-func (t *tokenAnalytics) onLiquidityClaimed(ctx context.Context, tx *txEvent, logEvent *JSON, ev *bondingcurve.LogLiquidityClaimed) error {
+func (t *tokenAnalytics) onLiquidityClaimed(ctx context.Context, tx *txEvent, ev *bondingcurve.LogLiquidityClaimed) error {
 	log.Info("Liquidity claimed:%+v, tx:%v", ev, tx.TransactionHash)
 
 	return nil
 }
 
-func (t *tokenAnalytics) onSlippageChecked(ctx context.Context, tx *txEvent, logEvent *JSON, ev *bondingcurve.LogSlippageChecked) error {
+func (t *tokenAnalytics) onSlippageChecked(ctx context.Context, tx *txEvent, ev *bondingcurve.LogSlippageChecked) error {
 	log.Info("Slippage checked:%+v, tx:%v", ev, tx.TransactionHash)
 
 	return nil
 }
 
-func (t *tokenAnalytics) onLiquidityLocked(ctx context.Context, tx *txEvent, logEvent *JSON, ev *bondingcurve.LogLiquidityLocked) error {
+func (t *tokenAnalytics) onLiquidityLocked(ctx context.Context, tx *txEvent, ev *bondingcurve.LogLiquidityLocked) error {
 	log.Info("Liquidity locked:%+v, tx:%v", ev, tx.TransactionHash)
 
 	return nil
+}
+
+func (t *tokenAnalytics) onTransfer(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTransfer) error {
+	log.Info(fmt.Sprintf("Transfer: from=%v, to=%v, amount=%v, tx:%v",
+		ev.From.String(), ev.To.String(), ev.Amount, tx.TransactionHash))
+
+	return nil
+}
+
+func (t *tokenAnalytics) onOwnershipTransferred(ctx context.Context, tx *txEvent, ev *bondingcurve.LogOwnershipTransferred) error {
+	log.Info(fmt.Sprintf("OwnershipTransferred: from=%v, to=%v, tx:%v",
+		ev.PreviousOwner.String(), ev.NewOwner.String(), tx.TransactionHash))
+
+	return nil
+}
+
+func bigIntToFloat(val *big.Int) float64 {
+	if val == nil {
+		return 0
+	}
+	f := new(big.Float).SetInt(val)
+	divisor := new(big.Float).SetFloat64(1e18)
+	f.Quo(f, divisor)
+	result, _ := f.Float64()
+	return result
 }
