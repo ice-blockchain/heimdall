@@ -36,12 +36,12 @@ func newContext() context.Context {
 	return ctx
 }
 
-// @title					Token Analytics Service API.
+// @title						Token Analytics Service API.
 // @version					latest
 // @description				This service provides analytics data for various tokens.
 // @query.collection.format	multi
 // @schemes					https
-// @contact.name			ice.io
+// @contact.name				ice.io
 // @contact.url				https://ice.io
 func main() {
 	var srv service

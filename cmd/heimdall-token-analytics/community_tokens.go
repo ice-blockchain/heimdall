@@ -48,11 +48,11 @@ type (
 //	@Description	Returns community tokens information for the given Ion Connect addresses.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			ionConnectAddress	query	[]string	true	"Ion Connect address of the user"	example(0x1234...,0x5678...)
-//	@Param			Authorization	header		string		true	"Auth token"
-//	@Success		200				{array}		model.TokenAnalytics
-//	@Failure		500				{object}	server.ResponseErrorBody
-//	@Failure		504				{object}	server.ResponseErrorBody	"if request times out"
+//	@Param			ionConnectAddress	query		[]string	true	"Ion Connect address of the user"	example(0x1234...,0x5678...)
+//	@Param			Authorization		header		string		true	"Auth token"
+//	@Success		200					{array}		model.TokenAnalytics
+//	@Failure		500					{object}	server.ResponseErrorBody
+//	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1/community-tokens [GET].
 func GetCommunityTokens(s *service) server.RequestHandler[TokenInfoRequest, []model.TokenAnalytics] {
 	return func(ctx context.Context, req *server.Request[TokenInfoRequest]) (*server.Response[[]model.TokenAnalytics], error) {
@@ -76,11 +76,11 @@ func GetCommunityTokens(s *service) server.RequestHandler[TokenInfoRequest, []mo
 //	@Description	Returns community tokens information for the given Ion Connect addresses.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			type 			path		string		true	"Type of data"			example("latest")
-//	@Param			keyword			query		string		false	"Search keyword"		example("bitcoin")
-//	@Param			limit			query		uint32		false	"Number of items to return"	example(10)
-//	@Param			offset			query		uint32		false	"Number of items to skip"		example(0)
-//	@Param			Authorization	header		string		true	"Auth token"
+//	@Param			type			path		string	true	"Type of data"				example("latest")
+//	@Param			keyword			query		string	false	"Search keyword"			example("bitcoin")
+//	@Param			limit			query		uint32	false	"Number of items to return"	example(10)
+//	@Param			offset			query		uint32	false	"Number of items to skip"	example(0)
+//	@Param			Authorization	header		string	true	"Auth token"
 //	@Success		200				{array}		model.TokenAnalytics
 //	@Failure		500				{object}	server.ResponseErrorBody
 //	@Failure		504				{object}	server.ResponseErrorBody	"if request times out"
@@ -107,8 +107,8 @@ func GetCommunityTokensByType(s *service) server.RequestHandler[TokenInfoRequest
 //	@Description	Creates a new session view for community tokens analytics.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			type			path		string		true	"Type of session view"		example("latest")
-//	@Param			Authorization	header		string		true	"Auth token"
+//	@Param			type			path		string	true	"Type of session view"	example("latest")
+//	@Param			Authorization	header		string	true	"Auth token"
 //	@Success		200				{object}	SessionViewCreateResponse
 //	@Failure		500				{object}	server.ResponseErrorBody
 //	@Failure		504				{object}	server.ResponseErrorBody	"if request times out"
@@ -129,12 +129,12 @@ func CreateCommunityTokensSessionView(s *service) server.RequestHandler[SessionV
 //	@Description	Returns community tokens information for a specific viewing session.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			type				path		string		true	"Type of data"				example("top")
-//	@Param			viewingSessionId	path		string		true	"Viewing session ID"		example("session_12345")
-//	@Param			keyword				query		string		false	"Search keyword"			example("bitcoin")
-//	@Param			limit				query		uint32		false	"Number of items to return"	example(10)
-//	@Param			offset				query		uint32		false	"Number of items to skip"	example(0)
-//	@Param			Authorization		header		string		true	"Auth token"
+//	@Param			type				path		string	true	"Type of data"				example("top")
+//	@Param			viewingSessionId	path		string	true	"Viewing session ID"		example("session_12345")
+//	@Param			keyword				query		string	false	"Search keyword"			example("bitcoin")
+//	@Param			limit				query		uint32	false	"Number of items to return"	example(10)
+//	@Param			offset				query		uint32	false	"Number of items to skip"	example(0)
+//	@Param			Authorization		header		string	true	"Auth token"
 //	@Success		200					{array}		model.TokenAnalytics
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
@@ -161,10 +161,10 @@ func GetCommunityTokensSessionByID(s *service) server.RequestHandler[TokenInfoRe
 //	@Description	Returns trade history for a specific community token address.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			ionConnectAddress	path		string		true	"Ion Connect address"		example("0x1234...")
-//	@Param			limit				query		uint32		false	"Number of items to return"	example(10)
-//	@Param			offset				query		uint32		false	"Number of items to skip"	example(0)
-//	@Param			Authorization		header		string		true	"Auth token"
+//	@Param			ionConnectAddress	path		string	true	"Ion Connect address"		example("0x1234...")
+//	@Param			limit				query		uint32	false	"Number of items to return"	example(10)
+//	@Param			offset				query		uint32	false	"Number of items to skip"	example(0)
+//	@Param			Authorization		header		string	true	"Auth token"
 //	@Success		200					{array}		model.Trade
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
