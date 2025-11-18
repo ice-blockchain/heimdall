@@ -166,7 +166,7 @@ func (r *Request[REQ]) parse(ctx *gin.Context) *Request[REQ] {
 		}
 		if tag.Get("form") != "" {
 			if tag.Get("formMultipart") == "" {
-				r.bindings[bindingFormMultipart] = struct{}{}
+				r.bindings[bindingQuery] = struct{}{}
 			}
 		}
 		if tag.Get("formMultipart") != "" {

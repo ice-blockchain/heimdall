@@ -85,3 +85,36 @@ func TestRequestHandler(t *testing.T) {
 		require.Equal(t, "bar", resp.Data.Foo)
 	})
 }
+
+func TestRequestBinding(t *testing.T) {
+	t.Parallel()
+
+	type RequestTestStruct struct {
+		Foo  []string `form:"foo"  required:"true"`
+		Item string   `uri:"item"  required:"true"`
+	}
+
+	r := helperNewRouter(t)
+	var (
+		ExpectedItem = "my_item"
+		ExpectedFoo  = []string{"a", "b", "c"}
+	)
+	r.GET("/ok/:item", RootHandler(func(ctx context.Context, r *Request[RequestTestStruct]) (*Response[int], error) {
+		var answer int = 42
+		require.NotNil(t, r.Data)
+		require.Equal(t, ExpectedItem, r.Data.Item)
+		require.ElementsMatch(t, ExpectedFoo, r.Data.Foo)
+		return OK(&answer), nil
+	}))
+
+	t.Run("OK", func(t *testing.T) {
+		resp := helperDoRequest[int](t, r, http.MethodGet, "/ok/"+ExpectedItem+"?foo=a&foo=b&foo=c", http.NoBody)
+		require.Equal(t, http.StatusOK, resp.Code)
+		require.NotNil(t, resp.Data)
+		require.Equal(t, 42, *resp.Data)
+	})
+	t.Run("Error", func(t *testing.T) {
+		resp := helperDoRequest[ResponseErrorBody](t, r, http.MethodGet, "/ok/"+ExpectedItem, http.NoBody)
+		require.Equal(t, http.StatusUnprocessableEntity, resp.Code)
+	})
+}
