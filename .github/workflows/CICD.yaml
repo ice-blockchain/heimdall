@@ -39,15 +39,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Find latest Go Version
-        id: findLatestGoVersion
-        run: |
-          LATEST_GO_VERSION=$(make latestGoVersion)
-          echo "::set-output name=latestGoVersion::$LATEST_GO_VERSION"
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
+          go-version-file: go.mod
       - name: Check License
         run: make checkLicense
       - name: Slack Notification For Failure/Cancellation
@@ -72,15 +67,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Find latest Go Version
-        id: findLatestGoVersion
-        run: |
-          LATEST_GO_VERSION=$(make latestGoVersion)
-          echo "::set-output name=latestGoVersion::$LATEST_GO_VERSION"
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
+          go-version-file: go.mod
       - name: Check If We're Up to Date with Everything
         run: make checkModVersion checkIfAllDependenciesAreUpToDate
       - name: Slack Notification For Failure/Cancellation
@@ -114,7 +104,7 @@ jobs:
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
+          go-version-file: go.mod
       - name: Check Auto Generated Files
         run: make checkGenerated
       - name: Slack Notification For Failure/Cancellation
@@ -141,15 +131,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Find latest Go Version
-        id: findLatestGoVersion
-        run: |
-          LATEST_GO_VERSION=$(make latestGoVersion)
-          echo "::set-output name=latestGoVersion::$LATEST_GO_VERSION"
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
+          go-version-file: go.mod
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
@@ -177,15 +162,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Find latest Go Version
-        id: findLatestGoVersion
-        run: |
-          LATEST_GO_VERSION=$(make latestGoVersion)
-          echo "::set-output name=latestGoVersion::$LATEST_GO_VERSION"
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
+          go-version-file: go.mod
       - name: Build all
         run: make build-all@ci/cd
       - name: Slack Notification For Failure/Cancellation
@@ -215,15 +195,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Find latest Go Version
-        id: findLatestGoVersion
-        run: |
-          LATEST_GO_VERSION=$(make latestGoVersion)
-          echo "::set-output name=latestGoVersion::$LATEST_GO_VERSION"
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
+          go-version-file: go.mod
       - name: Test ${{ matrix.package }}
         env:
           SMS_CLIENT_USER: ${{ secrets.SMS_CLIENT_USER }}
@@ -261,15 +236,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Find latest Go Version
-        id: findLatestGoVersion
-        run: |
-          LATEST_GO_VERSION=$(make latestGoVersion)
-          echo "::set-output name=latestGoVersion::$LATEST_GO_VERSION"
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
+          go-version-file: go.mod
       - name: Benchmark ${{ matrix.package }}
         env:
           SMS_CLIENT_USER: ${{ secrets.SMS_CLIENT_USER }}
@@ -309,15 +279,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Find latest Go Version
-        id: findLatestGoVersion
-        run: |
-          LATEST_GO_VERSION=$(make latestGoVersion)
-          echo "::set-output name=latestGoVersion::$LATEST_GO_VERSION"
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
+          go-version-file: go.mod
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
       - id: buildx
@@ -399,15 +364,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Find latest Go Version
-        id: findLatestGoVersion
-        run: |
-          LATEST_GO_VERSION=$(make latestGoVersion)
-          echo "::set-output name=latestGoVersion::$LATEST_GO_VERSION"
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
+          go-version-file: go.mod
       - name: Build Artefacts
         run: env GOOS=linux env GOARCH=amd64 make buildAllBinaries
       - name: Compute new Tag version
@@ -474,15 +434,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Find latest Go Version
-        id: findLatestGoVersion
-        run: |
-          LATEST_GO_VERSION=$(make latestGoVersion)
-          echo "::set-output name=latestGoVersion::$LATEST_GO_VERSION"
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
+          go-version-file: go.mod
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
       - id: buildx
