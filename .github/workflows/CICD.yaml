@@ -8,10 +8,31 @@ on:
   pull_request:
     branches:
       - master
+
 jobs:
+  go-download:
+    name: Download and cache go modules
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup GO
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Go mod download
+        run: go mod download
+        shell: bash
+      - name: Go mod tidy
+        run: go mod tidy
+        shell: bash
+
   verify-licensing:
     name: Verify Licensing
     if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push'  }}
+    needs: go-download
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -41,6 +62,7 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_FOOTER: |
             https://github.com/ice-blockchain/${{ github.event.repository.name }}
+
   verify-latest-versions-used:
     name: Verify Latest Versions
     if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push'  }}
@@ -73,9 +95,11 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_FOOTER: |
             https://github.com/ice-blockchain/${{ github.event.repository.name }}
+
   verify-auto-generated:
     name: Verify Auto Generated
     if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push'  }}
+    needs: go-download
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -105,8 +129,10 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_FOOTER: |
             https://github.com/ice-blockchain/${{ github.event.repository.name }}
+
   lint:
     name: Lint
+    needs: go-download
     if: ${{ false  }}
 #    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push'  }}
     runs-on: ubuntu-latest
@@ -140,9 +166,11 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_FOOTER: |
             https://github.com/ice-blockchain/${{ github.event.repository.name }}
+
   build:
     name: Build
     if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push'  }}
+    needs: go-download
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -172,6 +200,7 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_FOOTER: |
             https://github.com/ice-blockchain/${{ github.event.repository.name }}
+
   test:
     name: Test
     strategy:
@@ -179,6 +208,7 @@ jobs:
         package: [ "accounts", "server", "cmd/heimdall-identity-io", "cmd/heimdall-asset-data-syncer", "hashtag-statistics"]
     if: ${{ false  }}
 #    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push'  }}
+    needs: go-download
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -216,6 +246,7 @@ jobs:
           SLACK_FOOTER: |
             heimdall/${{ matrix.package }}
             https://github.com/ice-blockchain/${{ github.event.repository.name }}
+
   benchmark:
     name: Benchmark
     strategy:
@@ -223,6 +254,7 @@ jobs:
         package: [ "accounts", "server", "cmd/heimdall-identity-io", "cmd/heimdall-asset-data-syncer", "hashtag-statistics"]
     if: ${{ false  }}
 #    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push'  }}
+    needs: go-download
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -259,6 +291,7 @@ jobs:
           SLACK_FOOTER: |
             heimdall/${{ matrix.package }}
             https://github.com/ice-blockchain/${{ github.event.repository.name }}
+
   dockerfile:
     name: Verify Dockerfile
     strategy:
@@ -352,6 +385,7 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_FOOTER: |
             https://github.com/ice-blockchain/${{ github.event.repository.name }}
+
   release:
     needs: [PR]
     name: Release
@@ -504,7 +538,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Setting ENV variables for deployment
-        run: | 
+        run: |
           echo "APP_TAG=${{needs.release.outputs.nextTag}}" >> $GITHUB_ENV
       - name: Checkout the target `master` branch of `secret-infrastructure`
         uses: actions/checkout@v4
@@ -543,10 +577,10 @@ jobs:
           cd secret-infrastructure
           git config user.name "ice CI/CD Bot"
           git config user.email ice-cicd-bot@ice.vip
-          git add helm/heimdall-identity-io/staging/common-values.yaml 
-          git add helm/heimdall-asset-data-syncer/staging/common-values.yaml 
-          git add helm/heimdall-identity-io/testnet/common-values.yaml 
-          git add helm/heimdall-asset-data-syncer/testnet/common-values.yaml 
+          git add helm/heimdall-identity-io/staging/common-values.yaml
+          git add helm/heimdall-asset-data-syncer/staging/common-values.yaml
+          git add helm/heimdall-identity-io/testnet/common-values.yaml
+          git add helm/heimdall-asset-data-syncer/testnet/common-values.yaml
           git commit -m "Updated 'heimdall-identity-io' && 'heimdall-asset-data-syncer' tag version (${{env.APP_TAG}}) in application helm chart deployment manifests"
           git push --set-upstream origin master
       - name: Slack Notification For Success
