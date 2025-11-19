@@ -124,7 +124,8 @@ coverage: $(COVERAGE_FILE)
 
 test@ci/cd:
 	# TODO make -race work
-	go test -timeout 20m -tags=go_json,test -v -cover -coverprofile=$(COVERAGE_FILE) -covermode atomic
+	go tool gotestsum -f github-actions --rerun-fails=3 --packages="./..." --rerun-fails-run-root-test -- \
+		-timeout 20m -tags=go_json,test -cover -coverprofile=$(COVERAGE_FILE) -covermode atomic
 
 benchmark@ci/cd:
 	# TODO make -race work

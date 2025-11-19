@@ -318,7 +318,7 @@ jobs:
 
   PR:
 #    needs: [verify-licensing, verify-latest-versions-used, verify-auto-generated, lint, build, test, benchmark, dockerfile]
-    needs: [verify-licensing, verify-latest-versions-used, verify-auto-generated, build]
+    needs: [verify-licensing, verify-latest-versions-used, verify-auto-generated, test, build]
     name: PR
     if: ${{ always() && (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push' }}
     runs-on: ubuntu-latest
