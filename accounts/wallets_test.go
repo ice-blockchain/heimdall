@@ -304,23 +304,26 @@ func TestFetchWalletInfoForCoinsAggregation(t *testing.T) {
 		"verified": true,
 		"balance":  "1000000",
 	})
-	require.EqualValues(t, &CoinAggregation{
-		TotalBalance: big.NewInt(3000000),
-		Wallets: []*CoinInWallet{
-			{
-				Asset:    &assetUSDCOnSepolia,
-				WalletID: "wa-wallet1",
-				Network:  "EthereumSepolia",
-				CoinID:   "usdc_id",
-			},
-			{
-				Asset:    &assetUSDCOnBSC,
-				WalletID: "wa-wallet2",
-				Network:  "BscTestnet",
-				CoinID:   "usdc_on_bsc_id",
+	require.EqualValues(t,
+		&CoinAggregation{
+			TotalBalance: big.NewInt(3000000),
+			Wallets: []*CoinInWallet{
+				{
+					Asset:    &assetUSDCOnSepolia,
+					WalletID: "wa-wallet1",
+					Network:  "EthereumSepolia",
+					CoinID:   "usdc_id",
+				},
+				{
+					Asset:    &assetUSDCOnBSC,
+					WalletID: "wa-wallet2",
+					Network:  "BscTestnet",
+					CoinID:   "usdc_on_bsc_id",
+				},
 			},
 		},
-	}, aggregatedCoins["usdc"])
+		aggregatedCoins["usdc"],
+	)
 	assetION := dfns.Asset(map[string]any{
 		"kind":     "Native",
 		"symbol":   "ice",

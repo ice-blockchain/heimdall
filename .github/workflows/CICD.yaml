@@ -181,8 +181,7 @@ jobs:
     strategy:
       matrix:
         package: [ "accounts", "server", "cmd/heimdall-identity-io", "cmd/heimdall-asset-data-syncer", "hashtag-statistics"]
-    if: ${{ false  }}
-#    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push'  }}
+    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push'  }}
     needs: go-download
     runs-on: ubuntu-latest
     steps:
