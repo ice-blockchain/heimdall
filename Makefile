@@ -254,10 +254,8 @@ download-ip2location-sample:
 	rm -f sample.bin.db24.zip
 
 format-imports:
-	go install golang.org/x/tools/cmd/goimports@latest
-	go install github.com/daixiang0/gci@latest
-	gci write -s standard -s default -s "prefix(github.com/ice-blockchain)" ./..
-	goimports -w -local github.com/ice-blockchain ./..
+	go tool gci write -s standard -s default -s "prefix(github.com/ice-blockchain)" ./..
+	go tool goimports -w -local github.com/ice-blockchain ./..
 
 # examples: print-firebase-token-author, print-ice-token-admin
 print-%:
