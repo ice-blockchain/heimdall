@@ -10,8 +10,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ice-blockchain/heimdall/token-analytics/server/websocket"
-	"github.com/ice-blockchain/heimdall/token-analytics/server/websocket/fixture"
+	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server/websocket"
+	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server/websocket/fixture"
 )
 
 func TestServerHandleWebsocketHTTP2(t *testing.T) {

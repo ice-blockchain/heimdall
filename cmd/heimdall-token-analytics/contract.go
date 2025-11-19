@@ -5,8 +5,8 @@ package main
 import (
 	"errors"
 
-	tokenanalytics "github.com/ice-blockchain/heimdall/token-analytics"
-	"github.com/ice-blockchain/heimdall/token-analytics/server"
+	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server"
+	ta "github.com/ice-blockchain/heimdall/token-analytics"
 )
 
 type (
@@ -21,7 +21,7 @@ type (
 	}
 
 	service struct {
-		tokenAnalytics tokenanalytics.TokenAnalytics
+		tokenAnalytics ta.TokenAnalytics
 		httpServer     server.Server
 	}
 )

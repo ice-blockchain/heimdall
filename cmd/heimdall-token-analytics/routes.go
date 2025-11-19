@@ -12,8 +12,8 @@ import (
 	ginswagger "github.com/swaggo/gin-swagger"
 
 	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/api"
-	"github.com/ice-blockchain/heimdall/token-analytics/server"
-	"github.com/ice-blockchain/heimdall/token-analytics/server/websocket"
+	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server"
+	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server/websocket"
 )
 
 func (s *service) RegisterRoutes(router server.Router) {

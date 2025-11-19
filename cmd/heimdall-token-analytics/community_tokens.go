@@ -9,8 +9,8 @@ import (
 
 	"github.com/go-faker/faker/v4"
 
+	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server"
 	ta "github.com/ice-blockchain/heimdall/token-analytics"
-	"github.com/ice-blockchain/heimdall/token-analytics/server"
 )
 
 type (

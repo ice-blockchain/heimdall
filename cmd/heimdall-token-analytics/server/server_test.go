@@ -19,8 +19,8 @@ import (
 	"go.uber.org/goleak"
 
 	h2ec "github.com/ice-blockchain/go/src/net/http"
-	"github.com/ice-blockchain/heimdall/token-analytics/server/cert"
-	"github.com/ice-blockchain/heimdall/token-analytics/server/websocket"
+	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server/cert"
+	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server/websocket"
 )
 
 var (

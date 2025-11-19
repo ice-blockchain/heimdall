@@ -8,8 +8,8 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/ice-blockchain/heimdall/token-analytics/server"
-	"github.com/ice-blockchain/heimdall/token-analytics/server/cert"
+	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server"
+	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server/cert"
 	appcfg "github.com/ice-blockchain/wintr/config"
 )
 

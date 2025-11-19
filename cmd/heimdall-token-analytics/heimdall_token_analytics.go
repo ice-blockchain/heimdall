@@ -10,8 +10,8 @@ import (
 	"runtime/debug"
 	"syscall"
 
+	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server"
 	tokenanalytics "github.com/ice-blockchain/heimdall/token-analytics"
-	"github.com/ice-blockchain/heimdall/token-analytics/server"
 )
 
 func newContext() context.Context {
