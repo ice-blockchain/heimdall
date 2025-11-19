@@ -8,25 +8,41 @@ on:
   pull_request:
     branches:
       - master
+
 jobs:
-  verify-licensing:
-    name: Verify Licensing
-    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push'  }}
+  go-download:
+    name: Download and cache go modules
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Find latest Go Version
-        id: findLatestGoVersion
-        run: |
-          LATEST_GO_VERSION=$(make latestGoVersion)
-          echo "::set-output name=latestGoVersion::$LATEST_GO_VERSION"
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
+          go-version-file: go.mod
+      - name: Go mod download
+        run: go mod download
+        shell: bash
+      - name: Go mod tidy
+        run: go mod tidy
+        shell: bash
+
+  verify-licensing:
+    name: Verify Licensing
+    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push'  }}
+    needs: go-download
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup GO
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
       - name: Check License
         run: make checkLicense
       - name: Slack Notification For Failure/Cancellation
@@ -41,6 +57,7 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_FOOTER: |
             https://github.com/ice-blockchain/${{ github.event.repository.name }}
+
   verify-latest-versions-used:
     name: Verify Latest Versions
     if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push'  }}
@@ -50,15 +67,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Find latest Go Version
-        id: findLatestGoVersion
-        run: |
-          LATEST_GO_VERSION=$(make latestGoVersion)
-          echo "::set-output name=latestGoVersion::$LATEST_GO_VERSION"
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
+          go-version-file: go.mod
       - name: Check If We're Up to Date with Everything
         run: make checkModVersion checkIfAllDependenciesAreUpToDate
       - name: Slack Notification For Failure/Cancellation
@@ -73,24 +85,21 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_FOOTER: |
             https://github.com/ice-blockchain/${{ github.event.repository.name }}
+
   verify-auto-generated:
     name: Verify Auto Generated
     if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push'  }}
+    needs: go-download
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Find latest Go Version
-        id: findLatestGoVersion
-        run: |
-          LATEST_GO_VERSION=$(make latestGoVersion)
-          echo "::set-output name=latestGoVersion::$LATEST_GO_VERSION"
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
+          go-version-file: go.mod
       - name: Check Auto Generated Files
         run: make checkGenerated
       - name: Slack Notification For Failure/Cancellation
@@ -105,8 +114,10 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_FOOTER: |
             https://github.com/ice-blockchain/${{ github.event.repository.name }}
+
   lint:
     name: Lint
+    needs: go-download
     if: ${{ false  }}
 #    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push'  }}
     runs-on: ubuntu-latest
@@ -115,15 +126,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Find latest Go Version
-        id: findLatestGoVersion
-        run: |
-          LATEST_GO_VERSION=$(make latestGoVersion)
-          echo "::set-output name=latestGoVersion::$LATEST_GO_VERSION"
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
+          go-version-file: go.mod
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
@@ -140,24 +146,21 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_FOOTER: |
             https://github.com/ice-blockchain/${{ github.event.repository.name }}
+
   build:
     name: Build
     if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push'  }}
+    needs: go-download
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Find latest Go Version
-        id: findLatestGoVersion
-        run: |
-          LATEST_GO_VERSION=$(make latestGoVersion)
-          echo "::set-output name=latestGoVersion::$LATEST_GO_VERSION"
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
+          go-version-file: go.mod
       - name: Build all
         run: make build-all@ci/cd
       - name: Slack Notification For Failure/Cancellation
@@ -172,6 +175,7 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_FOOTER: |
             https://github.com/ice-blockchain/${{ github.event.repository.name }}
+
   test:
     name: Test
     strategy:
@@ -179,21 +183,17 @@ jobs:
         package: [ "accounts", "server", "cmd/heimdall-identity-io", "cmd/heimdall-asset-data-syncer", "hashtag-statistics"]
     if: ${{ false  }}
 #    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push'  }}
+    needs: go-download
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Find latest Go Version
-        id: findLatestGoVersion
-        run: |
-          LATEST_GO_VERSION=$(make latestGoVersion)
-          echo "::set-output name=latestGoVersion::$LATEST_GO_VERSION"
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
+          go-version-file: go.mod
       - name: Test ${{ matrix.package }}
         env:
           SMS_CLIENT_USER: ${{ secrets.SMS_CLIENT_USER }}
@@ -216,6 +216,7 @@ jobs:
           SLACK_FOOTER: |
             heimdall/${{ matrix.package }}
             https://github.com/ice-blockchain/${{ github.event.repository.name }}
+
   benchmark:
     name: Benchmark
     strategy:
@@ -223,21 +224,17 @@ jobs:
         package: [ "accounts", "server", "cmd/heimdall-identity-io", "cmd/heimdall-asset-data-syncer", "hashtag-statistics"]
     if: ${{ false  }}
 #    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push'  }}
+    needs: go-download
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Find latest Go Version
-        id: findLatestGoVersion
-        run: |
-          LATEST_GO_VERSION=$(make latestGoVersion)
-          echo "::set-output name=latestGoVersion::$LATEST_GO_VERSION"
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
+          go-version-file: go.mod
       - name: Benchmark ${{ matrix.package }}
         env:
           SMS_CLIENT_USER: ${{ secrets.SMS_CLIENT_USER }}
@@ -259,6 +256,7 @@ jobs:
           SLACK_FOOTER: |
             heimdall/${{ matrix.package }}
             https://github.com/ice-blockchain/${{ github.event.repository.name }}
+
   dockerfile:
     name: Verify Dockerfile
     strategy:
@@ -276,15 +274,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Find latest Go Version
-        id: findLatestGoVersion
-        run: |
-          LATEST_GO_VERSION=$(make latestGoVersion)
-          echo "::set-output name=latestGoVersion::$LATEST_GO_VERSION"
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
+          go-version-file: go.mod
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
       - id: buildx
@@ -352,6 +345,7 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_FOOTER: |
             https://github.com/ice-blockchain/${{ github.event.repository.name }}
+
   release:
     needs: [PR]
     name: Release
@@ -365,15 +359,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Find latest Go Version
-        id: findLatestGoVersion
-        run: |
-          LATEST_GO_VERSION=$(make latestGoVersion)
-          echo "::set-output name=latestGoVersion::$LATEST_GO_VERSION"
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
+          go-version-file: go.mod
       - name: Build Artefacts
         run: env GOOS=linux env GOARCH=amd64 make buildAllBinaries
       - name: Compute new Tag version
@@ -440,15 +429,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Find latest Go Version
-        id: findLatestGoVersion
-        run: |
-          LATEST_GO_VERSION=$(make latestGoVersion)
-          echo "::set-output name=latestGoVersion::$LATEST_GO_VERSION"
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.findLatestGoVersion.outputs.latestGoVersion }}
+          go-version-file: go.mod
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
       - id: buildx
@@ -504,7 +488,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Setting ENV variables for deployment
-        run: | 
+        run: |
           echo "APP_TAG=${{needs.release.outputs.nextTag}}" >> $GITHUB_ENV
       - name: Checkout the target `master` branch of `secret-infrastructure`
         uses: actions/checkout@v4
@@ -543,10 +527,10 @@ jobs:
           cd secret-infrastructure
           git config user.name "ice CI/CD Bot"
           git config user.email ice-cicd-bot@ice.vip
-          git add helm/heimdall-identity-io/staging/common-values.yaml 
-          git add helm/heimdall-asset-data-syncer/staging/common-values.yaml 
-          git add helm/heimdall-identity-io/testnet/common-values.yaml 
-          git add helm/heimdall-asset-data-syncer/testnet/common-values.yaml 
+          git add helm/heimdall-identity-io/staging/common-values.yaml
+          git add helm/heimdall-asset-data-syncer/staging/common-values.yaml
+          git add helm/heimdall-identity-io/testnet/common-values.yaml
+          git add helm/heimdall-asset-data-syncer/testnet/common-values.yaml
           git commit -m "Updated 'heimdall-identity-io' && 'heimdall-asset-data-syncer' tag version (${{env.APP_TAG}}) in application helm chart deployment manifests"
           git push --set-upstream origin master
       - name: Slack Notification For Success

@@ -1,0 +1,360 @@
+# SPDX-License-Identifier: ice License 1.0
+
+definitions:
+  main.SessionViewCreateResponse:
+    properties:
+      id:
+        example: session_12345
+        type: string
+      ttl:
+        example: 3600000
+        type: integer
+    type: object
+  server.ResponseErrorBody:
+    properties:
+      code:
+        example: SOMETHING_NOT_FOUND
+        type: string
+      error:
+        example: something is missing
+        type: string
+    type: object
+  tokenanalytics.Addresses:
+    properties:
+      blockchain:
+        type: string
+      ionConnect:
+        type: string
+    type: object
+  tokenanalytics.CommunityToken:
+    properties:
+      addresses:
+        $ref: '#/definitions/tokenanalytics.Addresses'
+      createdAt:
+        type: string
+      creator:
+        $ref: '#/definitions/tokenanalytics.User'
+      description:
+        type: string
+      imageUrl:
+        type: string
+      marketData:
+        $ref: '#/definitions/tokenanalytics.MarketData'
+      title:
+        type: string
+      type:
+        type: string
+    type: object
+  tokenanalytics.MarketData:
+    properties:
+      holders:
+        type: integer
+      marketCap:
+        type: integer
+      position:
+        $ref: '#/definitions/tokenanalytics.Position'
+      priceUSD:
+        type: number
+      ticker:
+        type: string
+      volume:
+        type: integer
+    type: object
+  tokenanalytics.Position:
+    properties:
+      amount:
+        type: integer
+      amountUSD:
+        type: number
+      pnl:
+        type: number
+      pnlPercentage:
+        type: number
+      rank:
+        type: integer
+    type: object
+  tokenanalytics.Trade:
+    properties:
+      creator:
+        $ref: '#/definitions/tokenanalytics.User'
+      position:
+        $ref: '#/definitions/tokenanalytics.TradePosition'
+    type: object
+  tokenanalytics.TradePosition:
+    properties:
+      addresses:
+        $ref: '#/definitions/tokenanalytics.Addresses'
+      amount:
+        type: integer
+      amountUSD:
+        type: number
+      balance:
+        type: integer
+      balanceUSD:
+        type: number
+      createdAt:
+        type: string
+      holder:
+        $ref: '#/definitions/tokenanalytics.User'
+      type:
+        type: string
+    type: object
+  tokenanalytics.User:
+    properties:
+      avatar:
+        type: string
+      display:
+        type: string
+      displayName:
+        type: string
+      id:
+        type: string
+      ionConnect:
+        type: string
+      ionConnectRelays:
+        items:
+          type: string
+        type: array
+      masterPubkey:
+        type: string
+      name:
+        type: string
+      verified:
+        type: boolean
+    type: object
+info:
+  contact:
+    name: ice.io
+    url: https://ice.io
+  description: This service provides analytics data for various tokens.
+  title: Token Analytics Service API.
+  version: latest
+paths:
+  /v1/community-tokens:
+    get:
+      description: Returns community tokens information for the given Ion Connect
+        addresses.
+      parameters:
+      - collectionFormat: multi
+        description: Ion Connect address of the user
+        example: 0x1234...,0x5678...
+        in: query
+        items:
+          type: string
+        name: ionConnectAddress
+        required: true
+        type: array
+      - description: Auth token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/tokenanalytics.CommunityToken'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      tags:
+      - Tokens
+  /v1/community-tokens/{ionConnectAddress}/latest-trades:
+    get:
+      description: Returns trade history for a specific community token address.
+      parameters:
+      - description: Ion Connect address
+        example: '"0x1234..."'
+        in: path
+        name: ionConnectAddress
+        required: true
+        type: string
+      - description: Number of items to return
+        example: 10
+        format: int32
+        in: query
+        name: limit
+        type: integer
+      - description: Number of items to skip
+        example: 0
+        format: int32
+        in: query
+        name: offset
+        type: integer
+      - description: Auth token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/tokenanalytics.Trade'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      tags:
+      - Tokens
+  /v1/community-tokens/{type}:
+    get:
+      description: Returns community tokens information for the given Ion Connect
+        addresses.
+      parameters:
+      - description: Type of data
+        example: '"latest"'
+        in: path
+        name: type
+        required: true
+        type: string
+      - description: Search keyword
+        example: '"bitcoin"'
+        in: query
+        name: keyword
+        type: string
+      - description: Number of items to return
+        example: 10
+        format: int32
+        in: query
+        name: limit
+        type: integer
+      - description: Number of items to skip
+        example: 0
+        format: int32
+        in: query
+        name: offset
+        type: integer
+      - description: Auth token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/tokenanalytics.CommunityToken'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      tags:
+      - Tokens
+  /v1/community-tokens/{type}/viewing-sessions:
+    post:
+      description: Creates a new session view for community tokens analytics.
+      parameters:
+      - description: Type of session view
+        example: '"latest"'
+        in: path
+        name: type
+        required: true
+        type: string
+      - description: Auth token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.SessionViewCreateResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      tags:
+      - Tokens
+  /v1/community-tokens/{type}/viewing-sessions/{viewingSessionId}:
+    get:
+      description: Returns community tokens information for a specific viewing session.
+      parameters:
+      - description: Type of data
+        example: '"top"'
+        in: path
+        name: type
+        required: true
+        type: string
+      - description: Viewing session ID
+        example: '"session_12345"'
+        in: path
+        name: viewingSessionId
+        required: true
+        type: string
+      - description: Search keyword
+        example: '"bitcoin"'
+        in: query
+        name: keyword
+        type: string
+      - description: Number of items to return
+        example: 10
+        format: int32
+        in: query
+        name: limit
+        type: integer
+      - description: Number of items to skip
+        example: 0
+        format: int32
+        in: query
+        name: offset
+        type: integer
+      - description: Auth token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/tokenanalytics.CommunityToken'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      tags:
+      - Tokens
+schemes:
+- https
+swagger: "2.0"

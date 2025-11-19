@@ -11,7 +11,7 @@ import (
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsflate"
 
-	"github.com/ice-blockchain/heimdall/token-analytics/pool"
+	"github.com/ice-blockchain/heimdall/pool"
 )
 
 type compressor struct {

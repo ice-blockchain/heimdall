@@ -10,8 +10,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ice-blockchain/heimdall/token-analytics/server/websocket"
-	"github.com/ice-blockchain/heimdall/token-analytics/server/websocket/fixture"
+	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server/websocket"
+	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server/websocket/fixture"
 )
 
 func TestServerHandleWebsocketHTTP2(t *testing.T) {
@@ -22,10 +22,12 @@ func TestServerHandleWebsocketHTTP2(t *testing.T) {
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(t.Context())
 
-	received := make(chan string, 1)
-	wg.Go(func() { helperNewWebsocketServerHandler(t, ctx, srv, received) })
+	const wsEndpointPath = "/ws_http2"
 
-	wsURL := "wss://localhost:" + strconv.Itoa(helperServerWaitForTCPPort(t, srv)) + "/"
+	received := make(chan string, 1)
+	wg.Go(func() { helperNewWebsocketServerHandlerWithPath(t, ctx, srv, wsEndpointPath, received) })
+
+	wsURL := "wss://localhost:" + strconv.Itoa(helperServerWaitForTCPPort(t, srv)) + wsEndpointPath
 
 	conn, err := fixture.NewWebsocketClientHTTP2(ctx, testInsecureClientHTTP2, wsURL)
 	require.NoError(t, err)

@@ -51,17 +51,16 @@ checkIfAllDependenciesAreUpToDate: updateAllDependencies
 	true;
 
 generate-swagger:
-	swag init --parseDependency --parseInternal -d ${SERVICE} -g $(shell echo "$${SERVICE##*/}" | sed 's/-/_/g').go -o ${SERVICE}/api;
+	go tool swag init --parseDependency --parseInternal -d ${SERVICE} -g $(shell echo "$${SERVICE##*/}" | sed 's/-/_/g').go -o ${SERVICE}/api;
 
 generate-swaggers:
-	go install github.com/swaggo/swag/cmd/swag@latest
 	set -xe; \
 	[ -d cmd ] && find ./cmd -mindepth 1 -maxdepth 1 -type d -print | grep -v 'fixture' | grep -v 'heimdall-asset-data-syncer' | grep -v 'scripts' | sed 's/\.\///g' | while read service; do \
 		env SERVICE=$${service} $(MAKE) generate-swagger; \
 	done;
 
 format-swagger:
-	swag fmt -d ${SERVICE} -g $(shell echo "$${SERVICE##*/}" | sed 's/-/_/g').go
+	go tool swag fmt -d ${SERVICE} -g $(shell echo "$${SERVICE##*/}" | sed 's/-/_/g').go
 
 format-swaggers:
 	set -xe; \

@@ -94,7 +94,7 @@ func buildTonTestTx(t *testing.T, target, amount string, version wallet.VersionC
 	api := mustInitTONClient(ctx, "https://ton-blockchain.github.io/testnet-global.config.json")
 	pubkey, _, err := ed25519.GenerateKey(nil)
 	require.NoError(t, err)
-	w, err := wallet.FromSigner(api, pubkey, version, func(ctx context.Context, cell *cell.Cell) ([]byte, error) {
+	w, err := wallet.FromSigner(api, pubkey, version, func(context.Context, *cell.Cell, uint32) ([]byte, error) {
 		return bytes.Repeat([]byte{0}, 64), nil
 	})
 	require.NoError(t, err)

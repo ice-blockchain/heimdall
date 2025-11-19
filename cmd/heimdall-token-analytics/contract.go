@@ -2,15 +2,34 @@
 
 package main
 
-import tokenanalytics "github.com/ice-blockchain/heimdall/token-analytics"
+import (
+	"errors"
+
+	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server"
+	ta "github.com/ice-blockchain/heimdall/token-analytics"
+)
 
 type (
-	service struct {
-		tokenAnalytics tokenanalytics.TokenAnalytics
+	Config struct {
+		Version     string `yaml:"version"`
+		Development bool   `yaml:"development"`
+		HTTPServer  struct {
+			CertPath string `yaml:"certPath"`
+			KeyPath  string `yaml:"keyPath"`
+			Port     uint32 `yaml:"port"`
+		} `yaml:"httpServer"`
 	}
-	noAuth struct{}
+
+	service struct {
+		tokenAnalytics ta.TokenAnalytics
+		httpServer     server.Server
+	}
 )
 
 const (
 	applicationYamlKey = "cmd/heimdall-token-analytics"
+)
+
+var (
+	errNoCertificateAvailable = errors.New("no certificate available")
 )
