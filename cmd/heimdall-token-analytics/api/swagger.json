@@ -762,7 +762,7 @@
                     "type": "integer"
                 },
                 "marketCap": {
-                    "type": "integer"
+                    "type": "number"
                 },
                 "position": {
                     "$ref": "#/definitions/tokenanalytics.Position"
@@ -774,7 +774,7 @@
                     "type": "string"
                 },
                 "volume": {
-                    "type": "integer"
+                    "type": "number"
                 }
             }
         },
@@ -908,9 +908,6 @@
                     "type": "string"
                 },
                 "display": {
-                    "type": "string"
-                },
-                "displayName": {
                     "type": "string"
                 },
                 "id": {

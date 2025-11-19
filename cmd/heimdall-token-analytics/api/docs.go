@@ -769,7 +769,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "marketCap": {
-                    "type": "integer"
+                    "type": "number"
                 },
                 "position": {
                     "$ref": "#/definitions/tokenanalytics.Position"
@@ -781,7 +781,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "volume": {
-                    "type": "integer"
+                    "type": "number"
                 }
             }
         },
@@ -915,9 +915,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "display": {
-                    "type": "string"
-                },
-                "displayName": {
                     "type": "string"
                 },
                 "id": {
