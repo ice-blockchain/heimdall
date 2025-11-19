@@ -180,7 +180,7 @@ jobs:
     name: Test
     strategy:
       matrix:
-        package: [ "accounts", "server", "cmd/heimdall-identity-io", "cmd/heimdall-asset-data-syncer", "cmd/heimdall-token-analytics", "hashtag-statistics"]
+        package: [ "accounts", "server", "cmd/heimdall-identity-io", "cmd/heimdall-asset-data-syncer", "cmd/heimdall-token-analytics", "token-analytics", "hashtag-statistics"]
     if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push'  }}
     needs: go-download
     runs-on: ubuntu-latest
