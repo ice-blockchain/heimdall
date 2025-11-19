@@ -33,7 +33,7 @@ func (s *service) RegisterRoutes(router server.Router) {
 	router.GET("/v1/community-tokens/:type/viewing-sessions/:viewingSessionId", server.RootHandler(s.GetCommunityTokensSessionByID))
 
 	// `:type` param here is `ionConnectAddress` actually but gin does not support having different param names for the same endpoint structure.
-	router.GET("/v1/community-tokens/address/:type/latest-trades", server.RootHandler(s.GetCommunityTokensTradesByAddress))
+	router.GET("/v1/community-tokens/:type/latest-trades", server.RootHandler(s.GetCommunityTokensTradesByAddress))
 
 	api.SwaggerInfo.Version = readVersionString()
 	router.GET("/docs", func(c *gin.Context) {
