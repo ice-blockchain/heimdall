@@ -4,7 +4,7 @@ package tokenanalytics
 
 import (
 	"context"
-	stderrors "errors"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -51,7 +51,7 @@ func (t *tokenAnalytics) calculateTokenMarketData(ctx context.Context, tx *txEve
 	key := fmt.Sprintf("position:%s", contractAddr)
 	oldBalance, err := t.processedDataDB.ZScore(ctx, key, masterPubkey).Result()
 	hadBalance := err == nil
-	if err != nil && !stderrors.Is(err, redis.Nil) {
+	if err != nil && !errors.Is(err, redis.Nil) {
 		return fmt.Errorf("failed to get current dragonfly balance for rollback: %w", err)
 	}
 	if ev.Direction { // buy
@@ -65,7 +65,7 @@ func (t *tokenAnalytics) calculateTokenMarketData(ctx context.Context, tx *txEve
 	}
 	if err := t.saveSwapAndUpdateData(ctx, tx, contractAddr, userAddr, ev, priceUSD); err != nil {
 		if rollbackErr := t.rollbackDragonflyPosition(ctx, key, masterPubkey, oldBalance, hadBalance); rollbackErr != nil {
-			return stderrors.Join(
+			return errors.Join(
 				fmt.Errorf("failed to save swap data for tx %v: %w", tx.TransactionHash, err),
 				rollbackErr,
 			)
@@ -186,7 +186,7 @@ func (t *tokenAnalytics) saveSwapAndUpdateData(ctx context.Context, tx *txEvent,
 
 func (t *tokenAnalytics) increaseDragonflyUserPosition(ctx context.Context, key, holderAddr string, amount *big.Int) error {
 	currentScore, err := t.processedDataDB.ZScore(ctx, key, holderAddr).Result()
-	if err != nil && !stderrors.Is(err, redis.Nil) {
+	if err != nil && !errors.Is(err, redis.Nil) {
 		return fmt.Errorf("failed to get current score for %v: %w", holderAddr, err)
 	}
 	newBalance := currentScore + bigIntToFloat(amount)
@@ -200,7 +200,7 @@ func (t *tokenAnalytics) increaseDragonflyUserPosition(ctx context.Context, key,
 
 func (t *tokenAnalytics) decreaseDragonflyUserPosition(ctx context.Context, key, holderAddr string, amount *big.Int) error {
 	currentScore, err := t.processedDataDB.ZScore(ctx, key, holderAddr).Result()
-	if err != nil && !stderrors.Is(err, redis.Nil) {
+	if err != nil && !errors.Is(err, redis.Nil) {
 		return fmt.Errorf("failed to get current score for %v: %w", holderAddr, err)
 	}
 	newBalance := currentScore - bigIntToFloat(amount)

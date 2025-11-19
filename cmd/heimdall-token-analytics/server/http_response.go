@@ -4,8 +4,6 @@ package server
 
 import (
 	"net/http"
-
-	"github.com/pkg/errors"
 )
 
 func BadRequest(err error, code string, dataArg ...map[string]any) *ResponseError {
@@ -54,7 +52,7 @@ func NotFound(err error, code string, dataArg ...map[string]any) *ResponseError 
 
 func Unexpected(err error) *ResponseError {
 	return &ResponseError{
-		Code: -1,
+		Code: http.StatusInternalServerError,
 		Data: &ResponseErrorBody{
 			Err:          err,
 			ErrorMessage: err.Error(),
@@ -66,7 +64,7 @@ func Unauthorized(err error, dataArg ...map[string]any) *ResponseError {
 	return &ResponseError{
 		Code: http.StatusUnauthorized,
 		Data: &ResponseErrorBody{
-			Err:          errors.Wrapf(err, "authorization failed"),
+			Err:          err,
 			ErrorMessage: err.Error(),
 			Code:         "INVALID_TOKEN",
 		},

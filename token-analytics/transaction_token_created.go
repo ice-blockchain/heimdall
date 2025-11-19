@@ -4,7 +4,7 @@ package tokenanalytics
 
 import (
 	"context"
-	stderrors "errors"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -34,7 +34,7 @@ func (t *tokenAnalytics) onTokenCreated(ctx context.Context, tx *txEvent, contra
 		if deleteErr := t.deleteTokenMetadata(ctx, tokenAddress); deleteErr != nil {
 			rollbackErr := fmt.Errorf("failed to rollback token metadata for %v after stream creation failure: %w", tokenAddress, deleteErr)
 
-			return stderrors.Join(streamErr, rollbackErr)
+			return errors.Join(streamErr, rollbackErr)
 		}
 
 		return streamErr
@@ -48,7 +48,7 @@ func (t *tokenAnalytics) saveTokenMetadata(ctx context.Context, tx *txEvent, ev 
 	contractAddress := strings.ToLower(ev.Address.Hex())
 	creatorAddress := strings.ToLower(ev.Creator.Hex())
 
-	// TODO: Extract ion_connect_address from tx.Input 'content' field after ABI update
+	// TODO: Extract ion_connect_address from tx.Input 'content' field after ABI update.
 	var ionConnectAddress *string
 	tokenType := TokenTypeProfile // Mock: default to profile
 
