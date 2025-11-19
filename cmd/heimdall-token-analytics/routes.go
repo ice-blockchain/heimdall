@@ -27,11 +27,13 @@ func (s *service) RegisterRoutes(router server.Router) {
 		c.Writer.WriteHeader(http.StatusOK)
 	})
 
-	router.GET("/v1/community-tokens", server.RootHandler(GetCommunityTokens(s)))
-	router.GET("/v1/community-tokens/:type", server.RootHandler(GetCommunityTokensByType(s)))
-	router.POST("/v1/community-tokens/:type/viewing-sessions", server.RootHandler(CreateCommunityTokensSessionView(s)))
-	router.GET("/v1/community-tokens/:type/viewing-sessions/:viewingSessionId", server.RootHandler(GetCommunityTokensSessionByID(s)))
-	router.GET("/v1/community-tokens/address/:ionConnectAddress/latest-trades", server.RootHandler(GetCommunityTokensTradesByAddress(s)))
+	router.GET("/v1/community-tokens", server.RootHandler(s.GetCommunityTokens))
+	router.GET("/v1/community-tokens/:type", server.RootHandler(s.GetCommunityTokensByType))
+	router.POST("/v1/community-tokens/:type/viewing-sessions", server.RootHandler(s.CreateCommunityTokensSessionView))
+	router.GET("/v1/community-tokens/:type/viewing-sessions/:viewingSessionId", server.RootHandler(s.GetCommunityTokensSessionByID))
+
+	// `:type` param here is `ionConnectAddress` actually but gin does not support having different param names for the same endpoint structure.
+	router.GET("/v1/community-tokens/address/:type/latest-trades", server.RootHandler(s.GetCommunityTokensTradesByAddress))
 
 	api.SwaggerInfo.Version = readVersionString()
 	router.GET("/docs", func(c *gin.Context) {

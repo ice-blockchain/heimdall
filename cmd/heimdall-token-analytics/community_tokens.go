@@ -38,7 +38,7 @@ type (
 	}
 	TradeRequest struct {
 		PaginationRequest
-		Address string `uri:"ionConnectAddress" required:"true" swaggerignore:"true"`
+		Address string `uri:"type" required:"true" swaggerignore:"true"` // Map `type` to `address`.
 	}
 )
 
@@ -54,20 +54,18 @@ type (
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1/community-tokens [GET].
-func GetCommunityTokens(s *service) server.RequestHandler[TokenInfoRequest, []ta.CommunityToken] {
-	return func(ctx context.Context, req *server.Request[TokenInfoRequest]) (*server.Response[[]ta.CommunityToken], error) {
-		var resp []ta.CommunityToken
-		for range 1 + rand.IntN(3) {
-			var e ta.CommunityToken
+func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[TokenInfoRequest]) (*server.Response[[]ta.CommunityToken], error) {
+	var resp []ta.CommunityToken
+	for range 1 + rand.IntN(3) {
+		var e ta.CommunityToken
 
-			if err := faker.FakeData(&e); err != nil {
-				return nil, fmt.Errorf("failed to fake data: %w", err)
-			}
-			resp = append(resp, e)
+		if err := faker.FakeData(&e); err != nil {
+			return nil, fmt.Errorf("failed to fake data: %w", err)
 		}
-
-		return server.OK(&resp), nil
+		resp = append(resp, e)
 	}
+
+	return server.OK(&resp), nil
 }
 
 // GetCommunityTokensByType godoc
@@ -85,20 +83,18 @@ func GetCommunityTokens(s *service) server.RequestHandler[TokenInfoRequest, []ta
 //	@Failure		500				{object}	server.ResponseErrorBody
 //	@Failure		504				{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1/community-tokens/{type} [GET].
-func GetCommunityTokensByType(s *service) server.RequestHandler[TokenInfoRequestByType, []ta.CommunityToken] {
-	return func(ctx context.Context, req *server.Request[TokenInfoRequestByType]) (*server.Response[[]ta.CommunityToken], error) {
-		var resp []ta.CommunityToken
-		for range 1 + rand.IntN(3) {
-			var e ta.CommunityToken
+func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoRequestByType]) (*server.Response[[]ta.CommunityToken], error) {
+	var resp []ta.CommunityToken
+	for range 1 + rand.IntN(3) {
+		var e ta.CommunityToken
 
-			if err := faker.FakeData(&e); err != nil {
-				return nil, fmt.Errorf("failed to fake data: %w", err)
-			}
-			resp = append(resp, e)
+		if err := faker.FakeData(&e); err != nil {
+			return nil, fmt.Errorf("failed to fake data: %w", err)
 		}
-
-		return server.OK(&resp), nil
+		resp = append(resp, e)
 	}
+
+	return server.OK(&resp), nil
 }
 
 // CreateCommunityTokensSessionView godoc
@@ -113,14 +109,12 @@ func GetCommunityTokensByType(s *service) server.RequestHandler[TokenInfoRequest
 //	@Failure		500				{object}	server.ResponseErrorBody
 //	@Failure		504				{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1/community-tokens/{type}/viewing-sessions [POST].
-func CreateCommunityTokensSessionView(s *service) server.RequestHandler[SessionViewCreateRequest, SessionViewCreateResponse] {
-	return func(ctx context.Context, req *server.Request[SessionViewCreateRequest]) (*server.Response[SessionViewCreateResponse], error) {
-		resp := SessionViewCreateResponse{
-			ID:        fmt.Sprintf("session_%08d", rand.Int64()),
-			TTLmillis: 3600000,
-		}
-		return server.OK(&resp), nil
+func (s *service) CreateCommunityTokensSessionView(ctx context.Context, req *server.Request[SessionViewCreateRequest]) (*server.Response[SessionViewCreateResponse], error) {
+	resp := SessionViewCreateResponse{
+		ID:        fmt.Sprintf("session_%08d", rand.Int64()),
+		TTLmillis: 3600000,
 	}
+	return server.OK(&resp), nil
 }
 
 // GetCommunityTokensSessionByID godoc
@@ -139,20 +133,18 @@ func CreateCommunityTokensSessionView(s *service) server.RequestHandler[SessionV
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1/community-tokens/{type}/viewing-sessions/{viewingSessionId} [GET].
-func GetCommunityTokensSessionByID(s *service) server.RequestHandler[TokenInfoRequestByTypeAndSessionID, []ta.CommunityToken] {
-	return func(ctx context.Context, req *server.Request[TokenInfoRequestByTypeAndSessionID]) (*server.Response[[]ta.CommunityToken], error) {
-		var resp []ta.CommunityToken
-		for range 1 + rand.IntN(3) {
-			var e ta.CommunityToken
+func (s *service) GetCommunityTokensSessionByID(ctx context.Context, req *server.Request[TokenInfoRequestByTypeAndSessionID]) (*server.Response[[]ta.CommunityToken], error) {
+	var resp []ta.CommunityToken
+	for range 1 + rand.IntN(3) {
+		var e ta.CommunityToken
 
-			if err := faker.FakeData(&e); err != nil {
-				return nil, fmt.Errorf("failed to fake data: %w", err)
-			}
-			resp = append(resp, e)
+		if err := faker.FakeData(&e); err != nil {
+			return nil, fmt.Errorf("failed to fake data: %w", err)
 		}
-
-		return server.OK(&resp), nil
+		resp = append(resp, e)
 	}
+
+	return server.OK(&resp), nil
 }
 
 // GetCommunityTokensTradesByAddress godoc
@@ -168,19 +160,17 @@ func GetCommunityTokensSessionByID(s *service) server.RequestHandler[TokenInfoRe
 //	@Success		200					{array}		ta.Trade
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
-//	@Router			/v1/community-tokens/address/{ionConnectAddress}/latest-trades [GET].
-func GetCommunityTokensTradesByAddress(s *service) server.RequestHandler[TradeRequest, []ta.Trade] {
-	return func(ctx context.Context, req *server.Request[TradeRequest]) (*server.Response[[]ta.Trade], error) {
-		var resp []ta.Trade
-		for range 1 + rand.IntN(3) {
-			var e ta.Trade
+//	@Router			/v1/community-tokens/{ionConnectAddress}/latest-trades [GET].
+func (s *service) GetCommunityTokensTradesByAddress(ctx context.Context, req *server.Request[TradeRequest]) (*server.Response[[]ta.Trade], error) {
+	var resp []ta.Trade
+	for range 1 + rand.IntN(3) {
+		var e ta.Trade
 
-			if err := faker.FakeData(&e); err != nil {
-				return nil, fmt.Errorf("failed to fake data: %w", err)
-			}
-			resp = append(resp, e)
+		if err := faker.FakeData(&e); err != nil {
+			return nil, fmt.Errorf("failed to fake data: %w", err)
 		}
-
-		return server.OK(&resp), nil
+		resp = append(resp, e)
 	}
+
+	return server.OK(&resp), nil
 }

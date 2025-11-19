@@ -75,7 +75,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/community-tokens/address/{ionConnectAddress}/latest-trades": {
+        "/v1/community-tokens/{ionConnectAddress}/latest-trades": {
             "get": {
                 "description": "Returns trade history for a specific community token address.",
                 "produces": [
