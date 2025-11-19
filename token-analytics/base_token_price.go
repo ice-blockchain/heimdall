@@ -1,10 +1,12 @@
+// SPDX-License-Identifier: ice License 1.0
+
 package tokenanalytics
 
 import (
 	"context"
 	"net/http"
 	"sync/atomic"
-	stdlibtime "time"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/goccy/go-json"
@@ -14,15 +16,15 @@ import (
 )
 
 func (t *tokenAnalytics) startIONPriceSyncer(ctx context.Context) {
-	ticker := stdlibtime.NewTicker(5 * stdlibtime.Second) //nolint:gosec,gomnd // Not an  issue.
+	ticker := time.NewTicker(5 * time.Second) //nolint:gosec,gomnd // Not an  issue.
 	defer ticker.Stop()
-	t.ionPrice = new(atomic.Pointer[float64])
+	t.ionPriceUSD = new(atomic.Pointer[float64])
 	log.Panic(errors.Wrap(t.syncIONPrice(ctx), "failed to syncIONPrice"))
 
 	for {
 		select {
 		case <-ticker.C:
-			reqCtx, cancel := context.WithTimeout(ctx, 30*stdlibtime.Second)
+			reqCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 			log.Error(errors.Wrap(t.syncIONPrice(reqCtx), "failed to syncIONPrice"))
 			cancel()
 		case <-ctx.Done():
@@ -36,7 +38,7 @@ func (t *tokenAnalytics) syncIONPrice(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to fetchIONPrice")
 	}
-	t.ionPrice.Store(&stats.Price)
+	t.ionPriceUSD.Store(&stats.Price)
 
 	return nil
 }
@@ -45,14 +47,14 @@ func fetchIONPrice(ctx context.Context) (*ionPricingStats, error) {
 	if resp, err := req.
 		SetContext(ctx).
 		SetRetryCount(25).
-		SetRetryInterval(func(resp *req.Response, attempt int) stdlibtime.Duration {
+		SetRetryInterval(func(resp *req.Response, attempt int) time.Duration {
 			switch {
 			case attempt <= 1:
-				return 100 * stdlibtime.Millisecond
+				return 100 * time.Millisecond
 			case attempt == 2:
-				return 1 * stdlibtime.Second
+				return 1 * time.Second
 			default:
-				return 5 * stdlibtime.Second
+				return 5 * time.Second
 			}
 		}).
 		SetRetryHook(func(resp *req.Response, err error) {

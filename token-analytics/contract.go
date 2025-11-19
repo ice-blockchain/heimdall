@@ -59,7 +59,7 @@ type (
 		bondingCurveABI abi.ABI
 		quickNode       quicknode.Client
 		metrics         metrics.Registry
-		ionPrice        *atomic.Pointer[float64]
+		ionPriceUSD     *atomic.Pointer[float64]
 		// TODO: xmap for latest creator token prices to calc content token price
 	}
 	txEvent struct {
