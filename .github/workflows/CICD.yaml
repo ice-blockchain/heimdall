@@ -180,9 +180,8 @@ jobs:
     name: Test
     strategy:
       matrix:
-        package: [ "accounts", "server", "cmd/heimdall-identity-io", "cmd/heimdall-asset-data-syncer", "hashtag-statistics"]
-    if: ${{ false  }}
-#    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push'  }}
+        package: [ "accounts", "server", "cmd/heimdall-identity-io", "cmd/heimdall-asset-data-syncer", "cmd/heimdall-token-analytics", "token-analytics", "hashtag-statistics"]
+    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push'  }}
     needs: go-download
     runs-on: ubuntu-latest
     steps:
@@ -319,7 +318,7 @@ jobs:
 
   PR:
 #    needs: [verify-licensing, verify-latest-versions-used, verify-auto-generated, lint, build, test, benchmark, dockerfile]
-    needs: [verify-licensing, verify-latest-versions-used, verify-auto-generated, build]
+    needs: [verify-licensing, verify-latest-versions-used, verify-auto-generated, test, build]
     name: PR
     if: ${{ always() && (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push' }}
     runs-on: ubuntu-latest

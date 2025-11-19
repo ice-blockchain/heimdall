@@ -7,6 +7,7 @@ import (
 	"io"
 	"math/big"
 	"net/http"
+	"sort"
 	"strings"
 	"testing"
 	stdlibtime "time"
@@ -304,23 +305,34 @@ func TestFetchWalletInfoForCoinsAggregation(t *testing.T) {
 		"verified": true,
 		"balance":  "1000000",
 	})
-	require.EqualValues(t, &CoinAggregation{
-		TotalBalance: big.NewInt(3000000),
-		Wallets: []*CoinInWallet{
-			{
-				Asset:    &assetUSDCOnSepolia,
-				WalletID: "wa-wallet1",
-				Network:  "EthereumSepolia",
-				CoinID:   "usdc_id",
-			},
-			{
-				Asset:    &assetUSDCOnBSC,
-				WalletID: "wa-wallet2",
-				Network:  "BscTestnet",
-				CoinID:   "usdc_on_bsc_id",
+
+	aggregatedCoinsUSDC, ok := aggregatedCoins["usdc"]
+	require.True(t, ok)
+
+	sort.Slice(aggregatedCoinsUSDC.Wallets, func(i, j int) bool {
+		return aggregatedCoinsUSDC.Wallets[i].Network > aggregatedCoinsUSDC.Wallets[j].Network
+	})
+
+	require.EqualValues(t,
+		&CoinAggregation{
+			TotalBalance: big.NewInt(3000000),
+			Wallets: []*CoinInWallet{
+				{
+					Asset:    &assetUSDCOnSepolia,
+					WalletID: "wa-wallet1",
+					Network:  "EthereumSepolia",
+					CoinID:   "usdc_id",
+				},
+				{
+					Asset:    &assetUSDCOnBSC,
+					WalletID: "wa-wallet2",
+					Network:  "BscTestnet",
+					CoinID:   "usdc_on_bsc_id",
+				},
 			},
 		},
-	}, aggregatedCoins["usdc"])
+		aggregatedCoinsUSDC,
+	)
 	assetION := dfns.Asset(map[string]any{
 		"kind":     "Native",
 		"symbol":   "ice",

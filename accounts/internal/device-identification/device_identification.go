@@ -174,7 +174,7 @@ func (c *client) validateVisitorData(ctx context.Context, now *time.Time, client
 	}
 	if event.Products.HighActivity != nil && event.Products.HighActivity.Data != nil {
 		if event.Products.HighActivity.Data.Result {
-			log.Warn(fmt.Sprintf("request %v: high activity detected %v/24h requests, more than 98% of other visitors", event.Products.Identification.Data.RequestId, event.Products.HighActivity.Data.DailyRequests))
+			log.Warn(fmt.Sprintf("request %v: high activity detected %v/24h requests, more than 98%% of other visitors", event.Products.Identification.Data.RequestId, event.Products.HighActivity.Data.DailyRequests))
 		}
 	}
 	if event.Products.Velocity != nil && event.Products.Velocity.Data != nil &&

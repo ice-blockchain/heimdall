@@ -35,6 +35,7 @@ func TestParseTX(t *testing.T) {
 				ReceiverAddress: to,
 				Sender:          "",
 				Amount:          "0.1",
+				Token:           "TON",
 				Network: &network{
 					NativeToken: "TON",
 					Icon:        "https://ton.org/download/ton_symbol.png",
@@ -57,6 +58,7 @@ func TestParseTX(t *testing.T) {
 		require.Equal(t, transferTransaction{
 			ReceiverAddress: "UQCwQ9ulI0FD0M6o7vVpvD7wPRlSYTZt2GtTyLnjBp6ZnybT",
 			Sender:          "",
+			Token:           "TON",
 			Amount:          "0.111",
 			Network: &network{
 				NativeToken: "TON",
