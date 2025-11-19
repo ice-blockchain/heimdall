@@ -15,11 +15,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Setup GO
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
       - name: Go mod download
@@ -36,11 +36,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Setup GO
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
       - name: Check License
@@ -64,11 +64,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Setup GO
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
       - name: Check If We're Up to Date with Everything
@@ -93,11 +93,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Setup GO
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
       - name: Check Auto Generated Files
@@ -123,11 +123,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Setup GO
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
       - name: golangci-lint
@@ -154,11 +154,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Setup GO
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
       - name: Build all
@@ -187,11 +187,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Setup GO
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
       - name: Test ${{ matrix.package }}
@@ -228,11 +228,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Setup GO
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
       - name: Benchmark ${{ matrix.package }}
@@ -271,11 +271,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Setup GO
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
       - name: Set up QEMU
@@ -316,6 +316,7 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_FOOTER: |
             ${{ matrix.service }}
+
   PR:
 #    needs: [verify-licensing, verify-latest-versions-used, verify-auto-generated, lint, build, test, benchmark, dockerfile]
     needs: [verify-licensing, verify-latest-versions-used, verify-auto-generated, build]
@@ -356,18 +357,18 @@ jobs:
     permissions: write-all
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Setup GO
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
       - name: Build Artefacts
         run: env GOOS=linux env GOARCH=amd64 make buildAllBinaries
       - name: Compute new Tag version
         id: compute_tag
-        uses: craig-day/compute-tag@v14
+        uses: craig-day/compute-tag@v18
         with:
           github_token: ${{ github.token }}
           version_type: minor
@@ -385,7 +386,7 @@ jobs:
           NEW_TAG_VERSION: ${{ steps.compute_tag.outputs.next_tag }}
       - name: Create Release
         id: create_release
-        uses: softprops/action-gh-release@v2.2.1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.check_tag.outputs.next_tag }}
           draft: false
@@ -396,6 +397,7 @@ jobs:
           files: |
             heimdall-identity-io.linux.amd64.bin
             heimdall-asset-data-syncer.linux.amd64.bin
+            heimdall-token-analytics.linux.amd64.bin
       - name: Slack Notification For Failure/Cancellation
         if: ${{ github.event_name == 'push' && (failure() || cancelled()) }}
         uses: rtCamp/action-slack-notify@v2
@@ -408,6 +410,7 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_FOOTER: |
             https://github.com/ice-blockchain/${{ github.event.repository.name }}
+
   push_docker:
     needs: [ release ]
     name: Push Docker
@@ -426,11 +429,11 @@ jobs:
     #    runs-on: self-hosted-ubuntu-latest-x64
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Setup GO
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
       - name: Set up QEMU
@@ -480,6 +483,7 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_FOOTER: |
             ${{ matrix.platform }} ${{ matrix.service }}
+
   trigger_deployment:
 #    needs: [ push_docker ]
     needs: [ release ]
@@ -491,7 +495,7 @@ jobs:
         run: |
           echo "APP_TAG=${{needs.release.outputs.nextTag}}" >> $GITHUB_ENV
       - name: Checkout the target `master` branch of `secret-infrastructure`
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: ice-blockchain/secret-infrastructure
           ref: master
