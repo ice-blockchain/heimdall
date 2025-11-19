@@ -38,12 +38,6 @@ func (t *tokenAnalytics) getMasterPubkeyByAddress(ctx context.Context, blockchai
 	return blockchainAddr, nil
 }
 
-func (t *tokenAnalytics) onPairRegistered(ctx context.Context, tx *txEvent, ev *bondingcurve.LogPairRegistered) error {
-	log.Info("Pair registered:%+v, tx:%v", ev, tx.TransactionHash)
-
-	return nil
-}
-
 func (t *tokenAnalytics) onRecipientsSet(ctx context.Context, tx *txEvent, ev *bondingcurve.LogRecipientsSet) error {
 	log.Info("Recipients set:%+v, tx:%v", ev, tx.TransactionHash)
 

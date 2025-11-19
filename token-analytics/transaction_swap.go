@@ -18,16 +18,26 @@ import (
 
 func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTokenSwapped) error {
 	contractAddr := strings.ToLower(ev.Address.Hex())
-	userAddr := strings.ToLower(tx.FromAddress)
+	userAddr := strings.ToLower(ev.Swapper.Hex())
 
-	// TODO: understand how to get/calculate the prices correctly according to the contract.
-	baseTokenToUSDMultiplier := 1.0
-	priceBaseToken := calculatePriceFromSwap(ev) // Price: how much base token per 1 community token
-	priceUSD := priceBaseToken * baseTokenToUSDMultiplier
+	if err := t.validateTokenBaseToken(ctx, contractAddr); err != nil {
+		return fmt.Errorf("failed to validate token base token: %w", err)
+	}
+	ionPriceUSD := t.ionPriceUSD.Load()
+	if ionPriceUSD == nil {
+		return fmt.Errorf("ION price not yet synced")
+	}
 
-	log.Info(fmt.Sprintf("Swap on token %v: direction=%v, price=%v USD, user=%v, tx:%v",
-		contractAddr, ev.Direction, priceUSD, userAddr, tx.TransactionHash))
+	priceInION := calculatePriceFromSwap(ev) // Price: how much ION per 1 community token
+	priceUSD := priceInION * (*ionPriceUSD)
 
+	log.Debug(fmt.Sprintf("Swap on token %v: direction=%v, price=%v USD (ION price: %v), user=%v, tx:%v",
+		contractAddr, ev.Direction, priceUSD, *ionPriceUSD, userAddr, tx.TransactionHash))
+
+	return t.calculateTokenMarketData(ctx, tx, contractAddr, userAddr, ev, priceUSD)
+}
+
+func (t *tokenAnalytics) calculateTokenMarketData(ctx context.Context, tx *txEvent, contractAddr, userAddr string, ev *bondingcurve.LogTokenSwapped, priceUSD float64) error {
 	var tokenAmount *big.Int
 	if ev.Direction { // buy
 		tokenAmount = ev.OutputAmount // User receives tokens
@@ -54,39 +64,45 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 		}
 	}
 	if err := t.saveSwapAndUpdateData(ctx, tx, contractAddr, userAddr, ev, priceUSD); err != nil {
-		var rollbackErr error
-		if hadBalance {
-			member := redis.Z{
-				Score:  oldBalance,
-				Member: masterPubkey,
-			}
-			if rbErr := t.processedDataDB.ZAdd(ctx, key, member).Err(); rbErr != nil {
-				rollbackErr = fmt.Errorf("failed to rollback dragonfly balance for %v: %w", masterPubkey, rbErr)
-			}
-		} else {
-			if rbErr := t.processedDataDB.ZRem(ctx, key, masterPubkey).Err(); rbErr != nil {
-				rollbackErr = fmt.Errorf("failed to rollback dragonfly balance removal for %v: %w", masterPubkey, rbErr)
-			}
-		}
-		if rollbackErr != nil {
+		if rollbackErr := t.rollbackDragonflyPosition(ctx, key, masterPubkey, oldBalance, hadBalance); rollbackErr != nil {
 			return stderrors.Join(
 				fmt.Errorf("failed to save swap data for tx %v: %w", tx.TransactionHash, err),
 				rollbackErr,
 			)
 		}
-
 		return fmt.Errorf("failed to save swap data for tx %v: %w", tx.TransactionHash, err)
 	}
 
 	return nil
 }
 
+func (t *tokenAnalytics) rollbackDragonflyPosition(ctx context.Context, key, masterPubkey string, oldBalance float64, hadBalance bool) error {
+	if hadBalance {
+		member := redis.Z{
+			Score:  oldBalance,
+			Member: masterPubkey,
+		}
+		if err := t.processedDataDB.ZAdd(ctx, key, member).Err(); err != nil {
+			return fmt.Errorf("failed to rollback dragonfly balance for %v: %w", masterPubkey, err)
+		}
+	} else {
+		if err := t.processedDataDB.ZRem(ctx, key, masterPubkey).Err(); err != nil {
+			return fmt.Errorf("failed to rollback dragonfly balance removal for %v: %w", masterPubkey, err)
+		}
+	}
+	return nil
+}
+
 func (t *tokenAnalytics) saveSwapAndUpdateData(ctx context.Context, tx *txEvent, contractAddr, userAddr string, ev *bondingcurve.LogTokenSwapped, priceUSD float64) error {
 	tokenAmount := ev.OutputAmount
 
-	baseTokenToUSDMultiplier := 1.0
+	ionPriceUSD := t.ionPriceUSD.Load()
+	if ionPriceUSD == nil {
+		return fmt.Errorf("ION price not yet synced")
+	}
+
 	costBaseToken := bigIntToFloat(ev.InputAmount)
-	costUSD := costBaseToken * baseTokenToUSDMultiplier
+	costUSD := costBaseToken * (*ionPriceUSD)
 
 	var volumeBaseToken float64
 	if ev.Direction { // buy
@@ -94,7 +110,7 @@ func (t *tokenAnalytics) saveSwapAndUpdateData(ctx context.Context, tx *txEvent,
 	} else { // sell
 		volumeBaseToken = bigIntToFloat(ev.OutputAmount)
 	}
-	marketCapDelta := volumeBaseToken * baseTokenToUSDMultiplier
+	marketCapDelta := volumeBaseToken * (*ionPriceUSD)
 	if !ev.Direction { // sell
 		marketCapDelta = -marketCapDelta
 	}
@@ -220,4 +236,29 @@ func calculatePriceFromSwap(ev *bondingcurve.LogTokenSwapped) float64 {
 	}
 
 	return 0
+}
+
+func (t *tokenAnalytics) validateTokenBaseToken(ctx context.Context, contractAddr string) error {
+	type baseTokenCheck struct {
+		BaseToken string `db:"base_token"`
+	}
+	rows, err := storage.Select[baseTokenCheck](ctx, t.ingestedDataDB,
+		`SELECT COALESCE(base_token, '') as base_token FROM tokens WHERE contract_address = $1`,
+		contractAddr)
+	if err != nil {
+		return fmt.Errorf("failed to check base_token for %v: %w", contractAddr, err)
+	}
+	if len(rows) == 0 {
+		return fmt.Errorf("token %v not found in database", contractAddr)
+	}
+
+	expectedIONAddress := strings.ToLower(t.cfg.IONTokenAddress)
+	actualBaseToken := strings.ToLower(rows[0].BaseToken)
+
+	if actualBaseToken == "" || actualBaseToken != expectedIONAddress {
+		return fmt.Errorf("token %v uses invalid base_token %v, expected ION token %v, swap rejected",
+			contractAddr, actualBaseToken, expectedIONAddress)
+	}
+
+	return nil
 }

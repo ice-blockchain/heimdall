@@ -46,7 +46,7 @@ func (t *tokenAnalytics) onTokenCreated(ctx context.Context, tx *txEvent, contra
 
 func (t *tokenAnalytics) saveTokenMetadata(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTokenCreated) error {
 	contractAddress := strings.ToLower(ev.Address.Hex())
-	creatorAddress := strings.ToLower(tx.FromAddress)
+	creatorAddress := strings.ToLower(ev.Creator.Hex())
 
 	// TODO: Extract ion_connect_address from tx.Input 'content' field after ABI update
 	var ionConnectAddress *string
@@ -63,7 +63,6 @@ func (t *tokenAnalytics) saveTokenMetadata(ctx context.Context, tx *txEvent, ev 
 			updated_at,
 			contract_address,
 			ion_connect_address,
-			title,
 			ticker,
 			total_supply,
 			creator_master_pubkey,
@@ -72,7 +71,6 @@ func (t *tokenAnalytics) saveTokenMetadata(ctx context.Context, tx *txEvent, ev 
 		SELECT 
 			$1, $1, $2, $3,
 			(SELECT username FROM user_data),
-			(SELECT username FROM user_data),
 			$5, $4, $6
 		ON CONFLICT (contract_address) 
 		DO UPDATE SET
@@ -80,7 +78,6 @@ func (t *tokenAnalytics) saveTokenMetadata(ctx context.Context, tx *txEvent, ev 
 			total_supply = EXCLUDED.total_supply,
 			creator_master_pubkey = EXCLUDED.creator_master_pubkey,
 			ion_connect_address = COALESCE(EXCLUDED.ion_connect_address, tokens.ion_connect_address),
-			title = COALESCE(EXCLUDED.title, tokens.title),
 			ticker = COALESCE(EXCLUDED.ticker, tokens.ticker)
 	`, tx.BlockTimestamp, contractAddress, ionConnectAddress, creatorAddress, ev.TotalSupply.String(), tokenType)
 

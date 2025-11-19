@@ -9,6 +9,7 @@ import (
 	"math/rand/v2"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/go-faker/faker/v4"
 
 	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server"
@@ -60,18 +61,16 @@ type (
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1/community-tokens [GET].
-func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[TokenInfoRequest]) (*server.Response[[]ta.CommunityToken], error) {
-	var resp []ta.CommunityToken
-	for range 1 + rand.IntN(3) {
-		var e ta.CommunityToken
-
-		if err := faker.FakeData(&e); err != nil {
-			return nil, fmt.Errorf("failed to fake data: %w", err)
-		}
-		resp = append(resp, e)
+func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[TokenInfoRequest]) (*server.Response[[]*ta.CommunityToken], error) {
+	if len(req.Data.Addresses) == 0 {
+		return nil, server.BadRequest(errors.New("ionConnectAddress[] is required"), invalidPropertiesErrorCode)
+	}
+	tokens, err := s.tokenAnalytics.GetCommunityTokens(ctx, req.Data.Addresses, "")
+	if err != nil {
+		return nil, server.Unexpected(fmt.Errorf("failed to get community tokens: %w", err))
 	}
 
-	return server.OK(&resp), nil
+	return server.OK(&tokens), nil
 }
 
 // GetCommunityTokensByType godoc

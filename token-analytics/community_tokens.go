@@ -23,18 +23,27 @@ func (t *tokenAnalytics) GetCommunityTokens(ctx context.Context, ionConnectAddre
 	query := `
 		SELECT 
 			t.contract_address,
-			COALESCE(t.ion_connect_address, '') as ion_connect_address,
+			t.ion_connect_address,
 			t.type,
-			t.title,
-			COALESCE(t.description, '') as description,
-			COALESCE(t.image_url, '') as image_url,
+			CASE 
+				WHEN t.type = 'profile' THEN profile_user.username
+				ELSE ''
+			END as title,
+			CASE 
+				WHEN t.type = 'profile' THEN COALESCE(profile_user.display_name, '')
+				ELSE ''
+			END as description,
+			CASE 
+				WHEN t.type = 'profile' THEN COALESCE(profile_user.avatar, '')
+				ELSE ''
+			END as image_url,
 			t.ticker,
 			t.total_supply,
 			COALESCE(t.creator_master_pubkey, '') as creator_master_pubkey,
-			u.username as creator_username,
-			COALESCE(u.display_name, '') as creator_display_name,
-			u.verified as creator_verified,
-			COALESCE(u.avatar, '') as creator_avatar,
+			creator.username as creator_username,
+			COALESCE(creator.display_name, '') as creator_display,
+			creator.verified as creator_verified,
+			COALESCE(creator.avatar, '') as creator_avatar,
 			COALESCE(t.market_cap_usd, 0) as market_cap_usd,
 			COALESCE(t.price_usd, 0) as price_usd,
 		COALESCE(
@@ -49,7 +58,8 @@ func (t *tokenAnalytics) GetCommunityTokens(ctx context.Context, ionConnectAddre
 			COALESCE((utp.amount::NUMERIC / 1e18) * t.price_usd, 0) as position_amount_usd,
 			COALESCE(utp.total_invested_usd, 0) as position_total_invested_usd
 		FROM tokens t
-		LEFT JOIN users u ON u.master_pubkey = t.creator_master_pubkey
+		LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
+		LEFT JOIN users profile_user ON profile_user.master_pubkey = t.creator_master_pubkey AND t.type = 'profile'
 		LEFT JOIN user_token_positions utp ON utp.contract_address = t.contract_address AND utp.master_pubkey = $2
 		WHERE t.ion_connect_address = ANY($1)
 		ORDER BY t.created_at DESC
@@ -66,7 +76,7 @@ func (t *tokenAnalytics) GetCommunityTokens(ctx context.Context, ionConnectAddre
 		TotalSupply              string  `db:"total_supply"`
 		CreatorMasterPubkey      string  `db:"creator_master_pubkey"`
 		CreatorUsername          string  `db:"creator_username"`
-		CreatorDisplayName       string  `db:"creator_display_name"`
+		CreatorDisplay           string  `db:"creator_display"`
 		CreatorVerified          bool    `db:"creator_verified"`
 		CreatorAvatar            string  `db:"creator_avatar"`
 		MarketCapUSD             float64 `db:"market_cap_usd"`
@@ -86,11 +96,11 @@ func (t *tokenAnalytics) GetCommunityTokens(ctx context.Context, ionConnectAddre
 	for _, row := range rows {
 		log.Debug(fmt.Sprintf("Row data: contract=%v, position_amount_usd=%v, position_invested=%v",
 			row.ContractAddress, row.PositionAmountUSD, row.PositionTotalInvestedUSD))
-		marketData := TokenMarketData{
+		marketData := MarketData{
 			Ticker:    row.Ticker,
 			MarketCap: row.MarketCapUSD,
 			Volume:    row.Volume24h,
-			Holders:   row.HoldersCount,
+			Holders:   uint64(row.HoldersCount),
 			PriceUSD:  row.PriceUSD,
 		}
 
@@ -100,7 +110,7 @@ func (t *tokenAnalytics) GetCommunityTokens(ctx context.Context, ionConnectAddre
 				return nil, errors.Wrapf(err, "failed to get user position ranking for token %v", row.ContractAddress)
 			}
 			if position != nil {
-				marketData.Position = position
+				marketData.Position = *position
 			}
 		}
 		creatorIONConnect := ""
@@ -113,16 +123,16 @@ func (t *tokenAnalytics) GetCommunityTokens(ctx context.Context, ionConnectAddre
 			Title:       row.Title,
 			Description: row.Description,
 			ImageURL:    row.ImageURL,
-			Addresses: TokenAddresses{
+			Addresses: Addresses{
 				Blockchain: row.ContractAddress,
-				IONConnect: row.IONConnectAddress,
+				IonConnect: row.IONConnectAddress,
 			},
-			Creator: TokenCreator{
-				Name:       row.CreatorUsername,
-				Display:    row.CreatorDisplayName,
+			Creator: User{
+				Username:   row.CreatorUsername,
+				Display:    row.CreatorDisplay,
 				Verified:   row.CreatorVerified,
 				Avatar:     row.CreatorAvatar,
-				IONConnect: creatorIONConnect,
+				IonConnect: creatorIONConnect,
 			},
 			MarketData: marketData,
 		}
@@ -132,7 +142,7 @@ func (t *tokenAnalytics) GetCommunityTokens(ctx context.Context, ionConnectAddre
 	return tokens, nil
 }
 
-func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, masterPubkey, contractAddress string, amountUSD, totalInvested float64) (*TokenUserPosition, error) {
+func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, masterPubkey, contractAddress string, amountUSD, totalInvested float64) (*Position, error) {
 	contractAddr := strings.ToLower(contractAddress)
 	key := fmt.Sprintf("position:%s", contractAddr)
 
@@ -163,9 +173,9 @@ func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, master
 	balanceWei := new(big.Float).Mul(balanceBigFloat, big.NewFloat(1e18))
 	balanceInt, _ := balanceWei.Int(nil)
 
-	return &TokenUserPosition{
-		Rank:          rank + 1,
-		Amount:        balanceInt.String(),
+	return &Position{
+		Rank:          uint64(rank + 1),
+		Amount:        balanceInt.Int64(),
 		AmountUSD:     amountUSD,
 		PnL:           pnl,
 		PnLPercentage: pnlPercentage,

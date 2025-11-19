@@ -28,6 +28,8 @@ type (
 
 const (
 	applicationYamlKey = "cmd/heimdall-token-analytics"
+
+	invalidPropertiesErrorCode = "INVALID_PROPERTIES"
 )
 
 var (

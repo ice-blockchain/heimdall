@@ -22,22 +22,26 @@ func init() {
 	log.Panic(errors.Wrapf(err, "failed to parse bonding curve abi"))
 }
 
-func ProcessEvent(functionHex, data string, topics []string) (Event, error) {
+func ProcessEvent(functionHex, data string, topics []string, contractAddress string) (Event, error) {
 	switch functionHex {
 	case eventTokenCreated.Hex():
 		if len(topics) < 2 {
 			return nil, errors.Errorf("TokenCreated event requires at least 2 topics, got %d", len(topics))
 		}
 
-		return tokenCreated(functionHex, data, topics[1])
+		return tokenCreated(functionHex, data, contractAddress, topics[1])
 	case eventSwapped.Hex():
-		if len(topics) < 2 {
-			return nil, errors.Errorf("Swapped event requires at least 2 topics, got %d", len(topics))
+		if len(topics) < 3 {
+			return nil, errors.Errorf("Swapped event requires at least 3 topics, got %d", len(topics))
 		}
 
-		return tokenSwapped(functionHex, data, topics[1])
+		return tokenSwapped(functionHex, data, contractAddress, topics[1], topics[2])
 	case eventPairRegistered.Hex():
-		return pairRegistered(functionHex, data)
+		if len(topics) < 4 {
+			return nil, errors.Errorf("PairRegistered event requires at least 4 topics, got %d", len(topics))
+		}
+
+		return pairRegistered(functionHex, data, topics[1], topics[2], topics[3])
 	case eventRecipientsSet.Hex():
 		return recipientsSet(functionHex, data)
 	case eventFeeAccrued.Hex():
@@ -89,7 +93,7 @@ func decode[T any](abi abi.ABI, res T, name, data string) error {
 	return nil
 }
 
-func tokenCreated(signature, data, tokenAddressTopic string) (*LogTokenCreated, error) {
+func tokenCreated(signature, data, contractAddress, creatorTopic string) (*LogTokenCreated, error) {
 	if signature != eventTokenCreated.Hex() {
 		return nil, errors.Errorf("invalid signature for BondedTokenCreated: expected %s, got %s", eventTokenCreated.Hex(), signature)
 	}
@@ -101,14 +105,16 @@ func tokenCreated(signature, data, tokenAddressTopic string) (*LogTokenCreated, 
 	if err := decode(ABI, &tokenCreatedEvent, "BondedTokenCreated", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack BondedTokenCreated event")
 	}
-	tokenCreatedEvent.Address = common.HexToAddress(tokenAddressTopic)
+	tokenCreatedEvent.Address = common.HexToAddress(contractAddress)
+	tokenCreatedEvent.Creator = common.HexToAddress(creatorTopic)
 
-	log.Info(fmt.Sprintf("Token created:%+v ", tokenCreatedEvent))
+	log.Debug(fmt.Sprintf("Token created: address=%v, creator=%v, totalSupply=%v",
+		tokenCreatedEvent.Address.Hex(), tokenCreatedEvent.Creator.Hex(), tokenCreatedEvent.TotalSupply))
 
 	return &tokenCreatedEvent, nil
 }
 
-func pairRegistered(signature, data string) (*LogPairRegistered, error) {
+func pairRegistered(signature, data, pairIdTopic, baseTokenTopic, otherTokenTopic string) (*LogPairRegistered, error) {
 	if signature != eventPairRegistered.Hex() {
 		return nil, errors.Errorf("invalid signature for PairRegistered: expected %s, got %s", eventPairRegistered.Hex(), signature)
 	}
@@ -122,10 +128,18 @@ func pairRegistered(signature, data string) (*LogPairRegistered, error) {
 	}
 	log.Info("Pair registered (empty data, all params indexed)")
 
-	return &LogPairRegistered{}, nil
+	var pairRegisteredEvent LogPairRegistered
+	pairRegisteredEvent.PairId = common.HexToHash(pairIdTopic)
+	pairRegisteredEvent.BaseToken = common.HexToAddress(baseTokenTopic)
+	pairRegisteredEvent.OtherToken = common.HexToAddress(otherTokenTopic)
+
+	log.Debug(fmt.Sprintf("Pair registered: pairId=%x, baseToken=%v, otherToken=%v",
+		pairRegisteredEvent.PairId, pairRegisteredEvent.BaseToken.Hex(), pairRegisteredEvent.OtherToken.Hex()))
+
+	return &pairRegisteredEvent, nil
 }
 
-func tokenSwapped(signature, data, tokenAddressTopic string) (*LogTokenSwapped, error) {
+func tokenSwapped(signature, data, contractAddress, swapperTopic, pairIdTopic string) (*LogTokenSwapped, error) {
 	if signature != eventSwapped.Hex() {
 		return nil, errors.Errorf("invalid signature for Swapped: expected %s, got %s", eventSwapped.Hex(), signature)
 	}
@@ -136,9 +150,13 @@ func tokenSwapped(signature, data, tokenAddressTopic string) (*LogTokenSwapped, 
 	if err := decode(ABI, &tokenSwappedEvent, "Swapped", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack Swapped event")
 	}
-	tokenSwappedEvent.Address = common.HexToAddress(tokenAddressTopic)
+	tokenSwappedEvent.Address = common.HexToAddress(contractAddress)
+	tokenSwappedEvent.Swapper = common.HexToAddress(swapperTopic)
+	tokenSwappedEvent.Pair = common.HexToHash(pairIdTopic)
 
-	log.Info(fmt.Sprintf("Token swapped:%+v ", tokenSwappedEvent))
+	log.Debug(fmt.Sprintf("Token swapped: token=%v, swapper=%v, pair=%v, direction=%v, inputAmount=%v, outputAmount=%v",
+		tokenSwappedEvent.Address.Hex(), tokenSwappedEvent.Swapper.Hex(), tokenSwappedEvent.Pair.Hex(),
+		tokenSwappedEvent.Direction, tokenSwappedEvent.InputAmount, tokenSwappedEvent.OutputAmount))
 
 	return &tokenSwappedEvent, nil
 }

@@ -1,5 +1,17 @@
 -- SPDX-License-Identifier: ice License 1.0
 
+DO $$ BEGIN
+    CREATE DOMAIN usd_amount AS NUMERIC(48, 18);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE DOMAIN uint256 AS NUMERIC(78, 0);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
 CREATE TABLE IF NOT EXISTS users
 (
     created_at           TIMESTAMP NOT NULL,
@@ -16,7 +28,6 @@ CREATE TABLE IF NOT EXISTS users
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users (created_at);
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX IF NOT EXISTS idx_users_lookup_gist ON users USING gist (lookup gist_trgm_ops);
 
 CREATE TABLE IF NOT EXISTS transactions
@@ -150,16 +161,14 @@ CREATE TABLE IF NOT EXISTS tokens (
     created_at              TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at              TIMESTAMP NOT NULL DEFAULT NOW(),
     contract_address        TEXT NOT NULL,
-    ion_connect_address     TEXT, -- nostr 'a' tag for this token (e.g. "30023:article_master_pubkey:d_tag")
-    title                   TEXT NOT NULL,
+    ion_connect_address     TEXT NOT NULL, -- nostr 'a' tag for this token (e.g. "30023:article_master_pubkey:d_tag")
     ticker                  TEXT NOT NULL,
-    total_supply            NUMERIC(78, 0) NOT NULL, -- uint256 max
+    total_supply            uint256 NOT NULL,
     creator_master_pubkey   TEXT,
     type                    TEXT NOT NULL, -- profile/post/video/article
-    description             TEXT,
-    image_url               TEXT,
-    market_cap_usd          NUMERIC(20, 2) DEFAULT 0,
-    price_usd               NUMERIC(20, 10) DEFAULT 0,
+    base_token              TEXT,
+    market_cap_usd          usd_amount DEFAULT 0,
+    price_usd               usd_amount DEFAULT 0,
     holders_count           BIGINT DEFAULT 0,
     PRIMARY KEY (contract_address),
     FOREIGN KEY (creator_master_pubkey) REFERENCES users(master_pubkey) ON DELETE CASCADE
@@ -175,9 +184,9 @@ CREATE TABLE IF NOT EXISTS token_swaps (
     contract_address    TEXT NOT NULL,
     user_address        TEXT NOT NULL,
     direction           BOOLEAN NOT NULL, -- true = buy, false = sell
-    input_amount        NUMERIC(78, 0) NOT NULL, -- base token amount (buy) or token amount (sell)
-    output_amount       NUMERIC(78, 0) NOT NULL, -- token amount (buy) or base token amount (sell)
-    price_usd           NUMERIC(20, 10) NOT NULL,
+    input_amount        uint256 NOT NULL, -- base token amount (buy) or token amount (sell)
+    output_amount       uint256 NOT NULL, -- token amount (buy) or base token amount (sell)
+    price_usd           usd_amount NOT NULL,
     PRIMARY KEY (transaction_hash, contract_address, user_address),
     FOREIGN KEY (contract_address) REFERENCES tokens(contract_address) ON DELETE CASCADE
 );
@@ -188,9 +197,9 @@ CREATE TABLE IF NOT EXISTS user_token_positions (
     updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
     master_pubkey       TEXT NOT NULL,
     contract_address    TEXT NOT NULL,
-    amount              NUMERIC(78, 0) NOT NULL DEFAULT 0,
-    avg_buy_price_usd   NUMERIC(20, 10) DEFAULT 0,
-    total_invested_usd  NUMERIC(20, 2) DEFAULT 0,
+    amount              uint256 NOT NULL DEFAULT 0,
+    avg_buy_price_usd   usd_amount DEFAULT 0,
+    total_invested_usd  usd_amount DEFAULT 0,
     PRIMARY KEY (master_pubkey, contract_address),
     FOREIGN KEY (master_pubkey) REFERENCES users(master_pubkey) ON DELETE CASCADE,
     FOREIGN KEY (contract_address) REFERENCES tokens(contract_address) ON DELETE CASCADE

@@ -26,7 +26,6 @@ type User struct {
 	ID               string   `json:"id,omitempty"`
 	MasterPubkey     string   `json:"masterPubkey,omitempty"`
 	Username         string   `json:"name,omitempty"`
-	DisplayName      string   `json:"displayName,omitempty"`
 	Display          string   `json:"display,omitempty"`
 	Avatar           string   `json:"avatar,omitempty"`
 	IonConnect       string   `json:"ionConnect,omitempty"`
@@ -36,15 +35,15 @@ type User struct {
 
 type MarketData struct {
 	Ticker    string   `json:"ticker,omitempty"`
-	MarketCap int      `json:"marketCap"`
-	Volume    int      `json:"volume"`
-	Holders   int      `json:"holders"`
+	MarketCap float64  `json:"marketCap"`
+	Volume    float64  `json:"volume"`
 	PriceUSD  float64  `json:"priceUSD"`
+	Holders   uint64   `json:"holders"`
 	Position  Position `json:"position,omitzero"`
 }
 
 type Position struct {
-	Rank          int     `json:"rank"`
+	Rank          uint64  `json:"rank"`
 	Amount        int64   `json:"amount"`
 	AmountUSD     float64 `json:"amountUSD"`
 	PnL           float64 `json:"pnl"`

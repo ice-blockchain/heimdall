@@ -12,7 +12,6 @@ import (
 	"time"
 	stdlibtime "time"
 
-	"github.com/cockroachdb/errors"
 	"github.com/goccy/go-json"
 	"github.com/rcrowley/go-metrics"
 
@@ -88,8 +87,8 @@ func New(ctx context.Context) TokenAnalytics {
 		metrics:         registry,
 		shutdown: func() error {
 			return errors.Join(
-				errors.Wrapf(db.Close(), "failed to close source db"),
-				errors.Wrapf(targetDB.Close(), "failed to close target db"),
+				db.Close(),
+				targetDB.Close(),
 			)
 		},
 	}
@@ -252,7 +251,7 @@ func (t *tokenAnalytics) processLog(ctx context.Context, tx *txEvent, logEvent *
 	topics, _ := logEvent.getStringSlice("topics")
 	address, _ := logEvent.getString("address")
 
-	parsedEv, err := bondingcurve.ProcessEvent(topic0, data, topics)
+	parsedEv, err := bondingcurve.ProcessEvent(topic0, data, topics, address)
 	if err != nil {
 		log.Error(fmt.Errorf("failed to process event topic0=%s, address=%s, data=%s: %w", topic0, address, data, err))
 		return err
@@ -295,13 +294,13 @@ func (t *tokenAnalytics) createStreamForContractAddress(ctx context.Context, con
 			log.Info("Stream already exists for bonded token: %v", contractAddress)
 			return nil
 		}
-		return errors.Wrapf(err, "failed to check stream duplicate")
+		return fmt.Errorf("failed to check stream duplicate: %w", err)
 	}
 
 	stream, err := t.quickNode.CreateStream(ctx, contractAddress, contractAddress)
 	if err != nil {
 		_, rollbackErr := storage.Exec(ctx, t.ingestedDataDB, `DELETE FROM streams WHERE contract_address = $1;`, contractAddress)
-		return errors.Wrapf(errors.Join(err, rollbackErr), "failed to create quicknode stream for %v", contractAddress)
+		return errors.Join(err, rollbackErr)
 	}
 
 	_, err = storage.Exec(ctx, t.ingestedDataDB, `
