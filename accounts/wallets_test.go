@@ -7,6 +7,7 @@ import (
 	"io"
 	"math/big"
 	"net/http"
+	"sort"
 	"strings"
 	"testing"
 	stdlibtime "time"
@@ -304,6 +305,14 @@ func TestFetchWalletInfoForCoinsAggregation(t *testing.T) {
 		"verified": true,
 		"balance":  "1000000",
 	})
+
+	aggregatedCoinsUSDC, ok := aggregatedCoins["usdc"]
+	require.True(t, ok)
+
+	sort.Slice(aggregatedCoinsUSDC.Wallets, func(i, j int) bool {
+		return aggregatedCoinsUSDC.Wallets[i].Network > aggregatedCoinsUSDC.Wallets[j].Network
+	})
+
 	require.EqualValues(t,
 		&CoinAggregation{
 			TotalBalance: big.NewInt(3000000),
@@ -322,7 +331,7 @@ func TestFetchWalletInfoForCoinsAggregation(t *testing.T) {
 				},
 			},
 		},
-		aggregatedCoins["usdc"],
+		aggregatedCoinsUSDC,
 	)
 	assetION := dfns.Asset(map[string]any{
 		"kind":     "Native",
