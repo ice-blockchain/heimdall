@@ -27,7 +27,7 @@ type (
 		HandleWS(ctx context.Context, stream websocket.ReaderWriter)
 	}
 	Router interface {
-		gin.IRoutes
+		gin.IRouter
 		Websocket(path string, httpHandler http.HandlerFunc, wsHandler WebsocketHandler)
 	}
 	Server interface {
