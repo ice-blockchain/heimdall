@@ -223,7 +223,6 @@ func StreamHandler[REQ, RESP any](fn StreamHandlerFunc[REQ, RESP]) gin.HandlerFu
 					Id:    event.ID,
 					Data:  event.Data,
 				})
-				ctx.Writer.Flush()
 			}
 			return true
 		})
