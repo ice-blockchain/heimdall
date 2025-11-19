@@ -423,6 +423,7 @@ token-analytics:
   workers: 10
   batchSize: 2
   bondingCurveContract: 0x4012f49Be72057329754922603Dc35ADB8520274
+  ionTokenAddress: 0x0000000000000000000000000000000000000000
   startBlock: 72173309
   quickNode:
     start-block: 72173309
