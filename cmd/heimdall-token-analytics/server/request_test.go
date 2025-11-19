@@ -6,11 +6,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
+	"time"
 
+	"github.com/gin-contrib/sse"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
@@ -116,5 +120,136 @@ func TestRequestBinding(t *testing.T) {
 	t.Run("Error", func(t *testing.T) {
 		resp := helperDoRequest[ResponseErrorBody](t, r, http.MethodGet, "/ok/"+ExpectedItem, http.NoBody)
 		require.Equal(t, http.StatusUnprocessableEntity, resp.Code)
+	})
+}
+
+type TestResponseRecorder struct {
+	*httptest.ResponseRecorder
+	closeChannel chan bool
+}
+
+func (r *TestResponseRecorder) CloseNotify() <-chan bool {
+	return r.closeChannel
+}
+
+func newTestResponseRecorder() *TestResponseRecorder {
+	return &TestResponseRecorder{
+		ResponseRecorder: httptest.NewRecorder(),
+		closeChannel:     make(chan bool, 1),
+	}
+}
+
+func TestRequestStreamEvents(t *testing.T) {
+	t.Parallel()
+
+	type RequestTestStruct struct {
+		Start int `form:"start"  required:"true"`
+	}
+
+	type EventPayload struct {
+		Value int `json:"value"`
+	}
+
+	const eventCount = 5
+	errSim := errors.New("simulated stream error")
+
+	r := helperNewRouter(t)
+	r.GET("/stream", StreamMiddleware(), StreamHandler(func(ctx context.Context, r *Request[RequestTestStruct]) (StreamEventEmitter[EventPayload], error) {
+		require.NotNil(t, r.Data)
+
+		return func(ctx context.Context) (<-chan StreamEvent[EventPayload], error) {
+			events := make(chan StreamEvent[EventPayload], eventCount)
+			go func() {
+				defer func() {
+					t.Logf("closing stream events")
+					close(events)
+				}()
+
+				t.Logf("starting to emit stream events from %d", r.Data.Start)
+				for i := range eventCount {
+					if r.Data.Start == 42 && i == 2 {
+						t.Logf("emitting error event")
+						events <- StreamEvent[EventPayload]{
+							Err: errSim,
+						}
+						return
+					}
+					select {
+					case <-ctx.Done():
+						t.Logf("stream context done: %v", ctx.Err())
+						return
+
+					case <-time.After(50 * time.Millisecond):
+						select {
+						case events <- StreamEvent[EventPayload]{
+							Type: "message",
+							ID:   fmt.Sprintf("id_%d", r.Data.Start+i),
+							Data: &EventPayload{Value: r.Data.Start + i},
+						}:
+							t.Logf("stream event sent: %d", r.Data.Start+i)
+
+						default:
+							t.Logf("stream event dropped: %d", r.Data.Start+i)
+							return
+						}
+					}
+				}
+			}()
+			return events, nil
+		}, nil
+	}))
+
+	t.Run("Stream all events", func(t *testing.T) {
+		const idxStart = 10
+		rr := newTestResponseRecorder()
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/stream?start="+strconv.Itoa(idxStart), http.NoBody)
+		require.NoError(t, err)
+
+		r.ServeHTTP(rr, req)
+		require.Equal(t, http.StatusOK, rr.Code)
+		require.Equal(t, sse.ContentType, rr.Header().Get("Content-Type"))
+
+		events, err := sse.Decode(rr.Body)
+		require.NoError(t, err)
+		require.Len(t, events, eventCount)
+
+		for i, event := range events {
+			require.Equal(t, "message", event.Event)
+			require.Equal(t, fmt.Sprintf("id_%d", idxStart+i), event.Id)
+			require.IsType(t, "", event.Data)
+
+			var payload EventPayload
+			err := json.Unmarshal([]byte(event.Data.(string)), &payload)
+			require.NoError(t, err)
+			require.Equal(t, idxStart+i, payload.Value)
+		}
+	})
+	t.Run("Error during events stream", func(t *testing.T) {
+		const idxStart = 42
+		rr := newTestResponseRecorder()
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/stream?start="+strconv.Itoa(idxStart), http.NoBody)
+		require.NoError(t, err)
+
+		r.ServeHTTP(rr, req)
+		require.Equal(t, http.StatusOK, rr.Code)
+		require.Equal(t, sse.ContentType, rr.Header().Get("Content-Type"))
+
+		events, err := sse.Decode(rr.Body)
+		require.NoError(t, err)
+		require.Len(t, events, 3) // 2 normal events + 1 error event.
+
+		for i, event := range events[:2] {
+			require.Equal(t, "message", event.Event)
+			require.Equal(t, fmt.Sprintf("id_%d", idxStart+i), event.Id)
+			require.IsType(t, "", event.Data)
+
+			var payload EventPayload
+			err := json.Unmarshal([]byte(event.Data.(string)), &payload)
+			require.NoError(t, err)
+			require.Equal(t, idxStart+i, payload.Value)
+		}
+
+		require.Equal(t, "error", events[2].Event)
+		require.EqualValues(t, events[2].Data, errSim.Error())
 	})
 }

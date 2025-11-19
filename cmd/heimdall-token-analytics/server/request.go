@@ -3,15 +3,18 @@
 package server
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
 
+	"github.com/gin-contrib/sse"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 )
@@ -33,7 +36,16 @@ type (
 	}
 	ResponseError Response[ResponseErrorBody]
 
-	RequestHandler[REQ any, RESP any] func(context.Context, *Request[REQ]) (*Response[RESP], error)
+	RequestHandlerFunc[REQ any, RESP any] func(context.Context, *Request[REQ]) (*Response[RESP], error)
+
+	StreamEvent[T any] struct {
+		Err  error  // Optional error associated with the event.
+		Data *T     // Data payload of the event.
+		Type string // Event type, e.g., "message", "update", "error", etc.
+		ID   string // Optional event ID for reconnection purposes.
+	}
+	StreamEventEmitter[RESP any]     func(context.Context) (<-chan StreamEvent[RESP], error)
+	StreamHandlerFunc[REQ, RESP any] func(context.Context, *Request[REQ]) (StreamEventEmitter[RESP], error)
 
 	ResponseErrorBody struct {
 		Err          error  `json:"-" swaggerignore:"true"`
@@ -89,21 +101,29 @@ func Raw(contentType string, responses ...[]byte) *Response[string] {
 	return &Response[string]{Code: http.StatusOK, ContentType: contentType, Raw: resp}
 }
 
-func RootHandler[REQ, RESP any](fn RequestHandler[REQ, RESP]) gin.HandlerFunc {
+func bindAndValidate[REQ any](ctx *gin.Context, r *Request[REQ]) (ok bool) {
+	bindErr := r.parse(ctx).bind()
+	if bindErr != nil {
+		Error(fmt.Errorf("request binding failed: %w", bindErr), ErrCodeRequestBindFailed, http.StatusUnprocessableEntity).
+			render(ctx)
+		return false
+	}
+
+	validationErr := r.validate()
+	if validationErr != nil {
+		Error(fmt.Errorf("request validation failed: %w", validationErr), ErrCodeRequestValidationFailed, http.StatusUnprocessableEntity).
+			render(ctx)
+		return false
+	}
+
+	return true
+}
+
+func RootHandler[REQ, RESP any](fn RequestHandlerFunc[REQ, RESP]) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var req Request[REQ]
 
-		bindErr := req.parse(ctx).bind()
-		if bindErr != nil {
-			Error(fmt.Errorf("request binding failed: %w", bindErr), ErrCodeRequestBindFailed, http.StatusUnprocessableEntity).
-				render(ctx)
-			return
-		}
-
-		validationErr := req.validate()
-		if validationErr != nil {
-			Error(fmt.Errorf("request validation failed: %w", validationErr), ErrCodeRequestValidationFailed, http.StatusUnprocessableEntity).
-				render(ctx)
+		if !bindAndValidate(ctx, &req) {
 			return
 		}
 
@@ -130,6 +150,84 @@ func RootHandler[REQ, RESP any](fn RequestHandler[REQ, RESP]) gin.HandlerFunc {
 		}
 
 		resp.render(ctx)
+	}
+}
+
+func StreamMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("Cache-Control", "no-cache")
+		c.Writer.Header().Set("Connection", "keep-alive")
+		c.Writer.Header().Set("Transfer-Encoding", "chunked")
+		c.Next()
+	}
+}
+
+func StreamHandler[REQ, RESP any](fn StreamHandlerFunc[REQ, RESP]) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var req Request[REQ]
+
+		if !bindAndValidate(ctx, &req) {
+			return
+		}
+
+		emitter, respErr := fn(ctx, &req)
+		if respErr != nil {
+			var respErrTyped *ResponseError
+			if errors.As(respErr, &respErrTyped) {
+				respErrTyped.render(ctx)
+				return
+			}
+
+			respErrTyped = Error(respErr, ErrCodeServerInternal, http.StatusInternalServerError)
+			respErrTyped.render(ctx)
+			return
+		}
+
+		if emitter == nil {
+			slog.WarnContext(ctx, "stream handler returned nil emitter without error",
+				"path", ctx.FullPath(),
+				"method", ctx.Request.Method,
+			)
+			ctx.Status(http.StatusNoContent)
+			return
+		}
+
+		source, err := emitter(ctx)
+		if err != nil {
+			respErrTyped := Error(fmt.Errorf("emitter failed: %w", err), ErrCodeServerInternal, http.StatusInternalServerError)
+			respErrTyped.render(ctx)
+			return
+		}
+
+		ctx.Stream(func(io.Writer) (keepOpen bool) {
+			for {
+				select {
+				case <-ctx.Request.Context().Done():
+					return false
+
+				case <-ctx.Done():
+					return false
+
+				case event, ok := <-source:
+					if !ok {
+						return false
+					}
+
+					if event.Err != nil {
+						ctx.Error(fmt.Errorf("stream event error: %w", event.Err))
+						ctx.SSEvent(cmp.Or(event.Type, "error"), event.Err.Error())
+						return false
+					}
+
+					ctx.Render(-1, sse.Event{
+						Event: event.Type,
+						Id:    event.ID,
+						Data:  event.Data,
+					})
+					ctx.Writer.Flush()
+				}
+			}
+		})
 	}
 }
 
