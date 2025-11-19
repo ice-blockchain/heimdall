@@ -4,9 +4,10 @@ CREATE TABLE IF NOT EXISTS trades (
     timestamp TIMESTAMP,
     pair_address SYMBOL CAPACITY 1000000 INDEX,
     contract_address VARCHAR,
-    content_ion_connect_address SYMBOL CAPACITY 1000000 INDEX,
-    price LONG,
-    amount LONG256,
+    ion_connect_address SYMBOL CAPACITY 1000000 INDEX,
+    base_price LONG,
+    base_amount DECIMAL(76,0),
+    amount DECIMAL(76,0),
     trade_type SYMBOL CAPACITY 2 CACHE,
     trader_address VARCHAR,
     transaction_hash VARCHAR

@@ -5,7 +5,6 @@ package tokenanalytics
 import (
 	"context"
 	_ "embed"
-	"math/big"
 	"sync"
 	"sync/atomic"
 
@@ -130,15 +129,16 @@ type (
 	}
 	tradeType string
 	trade     struct {
-		Timestamp                time.Time `db:"timestamp"`
-		PairAddress              string    `db:"pair_address"`
-		ContractAddress          string    `db:"contract_address"`
-		ContentIONConnectAddress string    `db:"content_ion_connect_address"`
-		Price                    uint64    `db:"price"`
-		Amount                   *big.Int  `db:"amount"`
-		Type                     tradeType `db:"trade_type"`
-		TraderAddress            string    `db:"trader_address"`
-		TransactionHash          string    `db:"transaction_hash"`
+		Timestamp                time.Time       `db:"timestamp"`
+		PairAddress              string          `db:"pair_address"`
+		ContractAddress          string          `db:"contract_address"`
+		ContentIONConnectAddress string          `db:"content_ion_connect_address"`
+		BasePrice                uint64          `db:"price"`
+		BaseAmount               questdb.Decimal `db:"base_amount"`
+		Amount                   questdb.Decimal `db:"amount"`
+		Type                     tradeType       `db:"trade_type"`
+		TraderAddress            string          `db:"trader_address"`
+		TransactionHash          string          `db:"transaction_hash"`
 	}
 )
 

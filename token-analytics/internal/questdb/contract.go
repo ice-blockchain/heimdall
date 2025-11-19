@@ -15,6 +15,7 @@ import (
 
 type (
 	LineSender = questdb.LineSender
+	Decimal    = questdb.Decimal
 	Querier    interface {
 		pgxscan.Querier
 	}

@@ -5,6 +5,7 @@ package questdb
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/cockroachdb/errors"
@@ -70,4 +71,12 @@ func Get[T any](ctx context.Context, db Querier, sql string, args ...any) (*T, e
 
 func Select[T any](ctx context.Context, db Querier, sql string, args ...any) ([]*T, error) {
 	return storage.Select[T](ctx, db, sql, args)
+}
+
+func NewDecimal(bi *big.Int) Decimal {
+	dec, err := questdb.NewDecimal(bi, 0)
+	if err != nil {
+		log.Panic(errors.Wrapf(err, "decimal %v exceeding 256 bits", bi.String()))
+	}
+	return dec
 }
