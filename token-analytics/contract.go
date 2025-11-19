@@ -46,7 +46,7 @@ type (
 	config struct {
 		Workers              uint   `yaml:"workers"`
 		BatchSize            uint   `yaml:"batchSize"`
-		BondingCurveContract string `yaml:"bondingCurveContract"`
+		BondingCurveContract string `yaml:"-"`
 		StartBlock           uint64 `yaml:"startBlock"`
 		Region               string `yaml:"region"`
 	}

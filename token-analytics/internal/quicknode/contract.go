@@ -39,7 +39,7 @@ type (
 	config struct {
 		QuickNode            quickNodeCfg `yaml:"quicknode" mapstructure:"quicknode"`
 		Development          bool         `yaml:"development" mapstructure:"development"`
-		BondingCurveContract string       `yaml:"bondingCurveContract" mapstructure:"bondingCurveContract"`
+		BondingCurveContract string       `yaml:"-"`
 	}
 	quickNodeCfg struct {
 		APIKey string `yaml:"api-key" mapstructure:"api-key"`

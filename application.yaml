@@ -418,11 +418,11 @@ apps-runtime:
     nsfwBlockThreshold: 0.5
     langDetectScoreThreshold: 0.5
     cdnBaseUrl: https://cdn.example.com/bogus
+    bondingCurveContract: 0x4012f49Be72057329754922603Dc35ADB8520274
     forYouSeenSkipsMultiplier: 1
 token-analytics:
   workers: 10
   batchSize: 2
-  bondingCurveContract: 0x4012f49Be72057329754922603Dc35ADB8520274
   startBlock: 72173309
   quickNode:
     start-block: 72173309

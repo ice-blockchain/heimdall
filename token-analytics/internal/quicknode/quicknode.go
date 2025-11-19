@@ -32,6 +32,7 @@ func NewClient(ctx context.Context, applicationYamlKey string) Client {
 	if cfg.QuickNode.APIKey == "" || cfg.QuickNode.APIKey == "-" {
 		cfg.QuickNode.APIKey = os.Getenv("QUICKNODE_API_KEY")
 	}
+	appcfg.MustLoadFromKey("bondingCurveContract", &cfg.BondingCurveContract)
 	conf, err := pgxpool.ParseConfig(cfg.QuickNode.StreamDestinationURL)
 	if err != nil {
 		log.Panic(errors.Wrapf(err, "failed to parse destination url"))

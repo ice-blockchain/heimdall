@@ -29,6 +29,8 @@ func New(ctx context.Context) TokenAnalytics {
 	if cfg.Workers == 0 {
 		cfg.Workers = 1
 	}
+	appconfig.MustLoadFromKey("bondingCurveContract", &cfg.BondingCurveContract)
+
 	db := storage.MustConnect(ctx, fmt.Sprintf(sourceDDL, cfg.Workers), applicationYamlKey)
 	targetDB := storagev3.MustConnect(ctx, applicationYamlKey)
 	qn := quicknode.NewClient(ctx, applicationYamlKey)

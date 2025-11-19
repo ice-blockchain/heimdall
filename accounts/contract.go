@@ -356,6 +356,7 @@ type (
 		ExcludeUnclassifiedFromExplore             bool    `yaml:"excludeUnclassifiedFromExplore" mapstructure:"excludeUnclassifiedFromExplore" json:"excludeUnclassifiedFromExplore"`
 		AllowNewRegistrations                      bool    `yaml:"allowNewRegistrations" mapstructure:"allowNewRegistrations" json:"allowNewRegistrations"`
 		EnableEarlyAccessRegistrations             bool    `yaml:"enableEarlyAccessRegistrations" mapstructure:"enableEarlyAccessRegistrations" json:"enableEarlyAccessRegistrations"`
+		BondingCurveContract                       string  `yaml:"bondingCurveContract" mapstructure:"bondingCurveContract" json:"bondingCurveContract"`
 		MaxEarlyAccessRegistrationsAllowedPerEmail int     `yaml:"maxEarlyAccessRegistrationsAllowedPerEmail" mapstructure:"maxEarlyAccessRegistrationsAllowedPerEmail" json:"maxEarlyAccessRegistrationsAllowedPerEmail"`
 	}
 )
