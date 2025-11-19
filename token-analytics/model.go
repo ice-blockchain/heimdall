@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: ice License 1.0
 
-package model
+package tokenanalytics
 
 import (
 	"time"
 )
 
-type TokenAnalytics struct {
+type CommunityToken struct {
 	Type        string     `json:"type,omitempty"`
 	Title       string     `json:"title,omitempty"`
 	Description string     `json:"description,omitempty"`
@@ -23,11 +23,15 @@ type Addresses struct {
 }
 
 type User struct {
-	Name       string `json:"name,omitempty"`
-	Display    string `json:"display,omitempty"`
-	Avatar     string `json:"avatar,omitempty"`
-	IonConnect string `json:"ionConnect,omitempty"`
-	Verified   bool   `json:"verified"`
+	ID               string   `json:"id,omitempty"`
+	MasterPubkey     string   `json:"masterPubkey,omitempty"`
+	Username         string   `json:"name,omitempty"`
+	DisplayName      string   `json:"displayName,omitempty"`
+	Display          string   `json:"display,omitempty"`
+	Avatar           string   `json:"avatar,omitempty"`
+	IonConnect       string   `json:"ionConnect,omitempty"`
+	Verified         bool     `json:"verified"`
+	IONConnectRelays []string `json:"ionConnectRelays,omitempty"`
 }
 
 type MarketData struct {

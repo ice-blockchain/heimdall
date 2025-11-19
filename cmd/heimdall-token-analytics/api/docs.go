@@ -56,7 +56,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.TokenAnalytics"
+                                "$ref": "#/definitions/tokenanalytics.CommunityToken"
                             }
                         }
                     },
@@ -123,7 +123,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Trade"
+                                "$ref": "#/definitions/tokenanalytics.Trade"
                             }
                         }
                     },
@@ -197,7 +197,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.TokenAnalytics"
+                                "$ref": "#/definitions/tokenanalytics.CommunityToken"
                             }
                         }
                     },
@@ -327,7 +327,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.TokenAnalytics"
+                                "$ref": "#/definitions/tokenanalytics.CommunityToken"
                             }
                         }
                     },
@@ -361,7 +361,20 @@ const docTemplate = `{
                 }
             }
         },
-        "model.Addresses": {
+        "server.ResponseErrorBody": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "SOMETHING_NOT_FOUND"
+                },
+                "error": {
+                    "type": "string",
+                    "example": "something is missing"
+                }
+            }
+        },
+        "tokenanalytics.Addresses": {
             "type": "object",
             "properties": {
                 "blockchain": {
@@ -372,7 +385,36 @@ const docTemplate = `{
                 }
             }
         },
-        "model.MarketData": {
+        "tokenanalytics.CommunityToken": {
+            "type": "object",
+            "properties": {
+                "addresses": {
+                    "$ref": "#/definitions/tokenanalytics.Addresses"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "creator": {
+                    "$ref": "#/definitions/tokenanalytics.User"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "imageUrl": {
+                    "type": "string"
+                },
+                "marketData": {
+                    "$ref": "#/definitions/tokenanalytics.MarketData"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "tokenanalytics.MarketData": {
             "type": "object",
             "properties": {
                 "holders": {
@@ -382,7 +424,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "position": {
-                    "$ref": "#/definitions/model.Position"
+                    "$ref": "#/definitions/tokenanalytics.Position"
                 },
                 "priceUSD": {
                     "type": "number"
@@ -395,7 +437,7 @@ const docTemplate = `{
                 }
             }
         },
-        "model.Position": {
+        "tokenanalytics.Position": {
             "type": "object",
             "properties": {
                 "amount": {
@@ -415,51 +457,22 @@ const docTemplate = `{
                 }
             }
         },
-        "model.TokenAnalytics": {
-            "type": "object",
-            "properties": {
-                "addresses": {
-                    "$ref": "#/definitions/model.Addresses"
-                },
-                "createdAt": {
-                    "type": "string"
-                },
-                "creator": {
-                    "$ref": "#/definitions/model.User"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "imageUrl": {
-                    "type": "string"
-                },
-                "marketData": {
-                    "$ref": "#/definitions/model.MarketData"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.Trade": {
+        "tokenanalytics.Trade": {
             "type": "object",
             "properties": {
                 "creator": {
-                    "$ref": "#/definitions/model.User"
+                    "$ref": "#/definitions/tokenanalytics.User"
                 },
                 "position": {
-                    "$ref": "#/definitions/model.TradePosition"
+                    "$ref": "#/definitions/tokenanalytics.TradePosition"
                 }
             }
         },
-        "model.TradePosition": {
+        "tokenanalytics.TradePosition": {
             "type": "object",
             "properties": {
                 "addresses": {
-                    "$ref": "#/definitions/model.Addresses"
+                    "$ref": "#/definitions/tokenanalytics.Addresses"
                 },
                 "amount": {
                     "type": "integer"
@@ -477,14 +490,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "holder": {
-                    "$ref": "#/definitions/model.User"
+                    "$ref": "#/definitions/tokenanalytics.User"
                 },
                 "type": {
                     "type": "string"
                 }
             }
         },
-        "model.User": {
+        "tokenanalytics.User": {
             "type": "object",
             "properties": {
                 "avatar": {
@@ -493,7 +506,22 @@ const docTemplate = `{
                 "display": {
                     "type": "string"
                 },
+                "displayName": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
                 "ionConnect": {
+                    "type": "string"
+                },
+                "ionConnectRelays": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "masterPubkey": {
                     "type": "string"
                 },
                 "name": {
@@ -501,19 +529,6 @@ const docTemplate = `{
                 },
                 "verified": {
                     "type": "boolean"
-                }
-            }
-        },
-        "server.ResponseErrorBody": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string",
-                    "example": "SOMETHING_NOT_FOUND"
-                },
-                "error": {
-                    "type": "string",
-                    "example": "something is missing"
                 }
             }
         }

@@ -10,21 +10,49 @@ definitions:
         example: 3600000
         type: integer
     type: object
-  model.Addresses:
+  server.ResponseErrorBody:
+    properties:
+      code:
+        example: SOMETHING_NOT_FOUND
+        type: string
+      error:
+        example: something is missing
+        type: string
+    type: object
+  tokenanalytics.Addresses:
     properties:
       blockchain:
         type: string
       ionConnect:
         type: string
     type: object
-  model.MarketData:
+  tokenanalytics.CommunityToken:
+    properties:
+      addresses:
+        $ref: '#/definitions/tokenanalytics.Addresses'
+      createdAt:
+        type: string
+      creator:
+        $ref: '#/definitions/tokenanalytics.User'
+      description:
+        type: string
+      imageUrl:
+        type: string
+      marketData:
+        $ref: '#/definitions/tokenanalytics.MarketData'
+      title:
+        type: string
+      type:
+        type: string
+    type: object
+  tokenanalytics.MarketData:
     properties:
       holders:
         type: integer
       marketCap:
         type: integer
       position:
-        $ref: '#/definitions/model.Position'
+        $ref: '#/definitions/tokenanalytics.Position'
       priceUSD:
         type: number
       ticker:
@@ -32,7 +60,7 @@ definitions:
       volume:
         type: integer
     type: object
-  model.Position:
+  tokenanalytics.Position:
     properties:
       amount:
         type: integer
@@ -45,36 +73,17 @@ definitions:
       rank:
         type: integer
     type: object
-  model.TokenAnalytics:
-    properties:
-      addresses:
-        $ref: '#/definitions/model.Addresses'
-      createdAt:
-        type: string
-      creator:
-        $ref: '#/definitions/model.User'
-      description:
-        type: string
-      imageUrl:
-        type: string
-      marketData:
-        $ref: '#/definitions/model.MarketData'
-      title:
-        type: string
-      type:
-        type: string
-    type: object
-  model.Trade:
+  tokenanalytics.Trade:
     properties:
       creator:
-        $ref: '#/definitions/model.User'
+        $ref: '#/definitions/tokenanalytics.User'
       position:
-        $ref: '#/definitions/model.TradePosition'
+        $ref: '#/definitions/tokenanalytics.TradePosition'
     type: object
-  model.TradePosition:
+  tokenanalytics.TradePosition:
     properties:
       addresses:
-        $ref: '#/definitions/model.Addresses'
+        $ref: '#/definitions/tokenanalytics.Addresses'
       amount:
         type: integer
       amountUSD:
@@ -86,31 +95,32 @@ definitions:
       createdAt:
         type: string
       holder:
-        $ref: '#/definitions/model.User'
+        $ref: '#/definitions/tokenanalytics.User'
       type:
         type: string
     type: object
-  model.User:
+  tokenanalytics.User:
     properties:
       avatar:
         type: string
       display:
         type: string
+      displayName:
+        type: string
+      id:
+        type: string
       ionConnect:
+        type: string
+      ionConnectRelays:
+        items:
+          type: string
+        type: array
+      masterPubkey:
         type: string
       name:
         type: string
       verified:
         type: boolean
-    type: object
-  server.ResponseErrorBody:
-    properties:
-      code:
-        example: SOMETHING_NOT_FOUND
-        type: string
-      error:
-        example: something is missing
-        type: string
     type: object
 info:
   contact:
@@ -146,7 +156,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/model.TokenAnalytics'
+              $ref: '#/definitions/tokenanalytics.CommunityToken'
             type: array
         "500":
           description: Internal Server Error
@@ -198,7 +208,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/model.TokenAnalytics'
+              $ref: '#/definitions/tokenanalytics.CommunityToken'
             type: array
         "500":
           description: Internal Server Error
@@ -287,7 +297,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/model.TokenAnalytics'
+              $ref: '#/definitions/tokenanalytics.CommunityToken'
             type: array
         "500":
           description: Internal Server Error
@@ -333,7 +343,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/model.Trade'
+              $ref: '#/definitions/tokenanalytics.Trade'
             type: array
         "500":
           description: Internal Server Error

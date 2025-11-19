@@ -25,16 +25,6 @@ type (
 		SetVerified(ctx context.Context, masterPubkey string) error
 	}
 
-	User struct {
-		ID               string
-		MasterPubkey     string
-		Username         string
-		DisplayName      string
-		Avatar           string
-		Verified         bool
-		IONConnectRelays []string
-	}
-
 	SavePoint struct {
 		TransactionIndex uint64 `db:"transaction_index"`
 		BlockNumber      uint64 `db:"block_number"`

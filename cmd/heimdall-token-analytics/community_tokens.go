@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-faker/faker/v4"
 
-	"github.com/ice-blockchain/heimdall/token-analytics/model"
+	ta "github.com/ice-blockchain/heimdall/token-analytics"
 	"github.com/ice-blockchain/heimdall/token-analytics/server"
 )
 
@@ -50,15 +50,15 @@ type (
 //	@Produce		json
 //	@Param			ionConnectAddress	query		[]string	true	"Ion Connect address of the user"	example(0x1234...,0x5678...)
 //	@Param			Authorization		header		string		true	"Auth token"
-//	@Success		200					{array}		model.TokenAnalytics
+//	@Success		200					{array}		ta.CommunityToken
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1/community-tokens [GET].
-func GetCommunityTokens(s *service) server.RequestHandler[TokenInfoRequest, []model.TokenAnalytics] {
-	return func(ctx context.Context, req *server.Request[TokenInfoRequest]) (*server.Response[[]model.TokenAnalytics], error) {
-		var resp []model.TokenAnalytics
+func GetCommunityTokens(s *service) server.RequestHandler[TokenInfoRequest, []ta.CommunityToken] {
+	return func(ctx context.Context, req *server.Request[TokenInfoRequest]) (*server.Response[[]ta.CommunityToken], error) {
+		var resp []ta.CommunityToken
 		for range 1 + rand.IntN(3) {
-			var e model.TokenAnalytics
+			var e ta.CommunityToken
 
 			if err := faker.FakeData(&e); err != nil {
 				return nil, fmt.Errorf("failed to fake data: %w", err)
@@ -81,15 +81,15 @@ func GetCommunityTokens(s *service) server.RequestHandler[TokenInfoRequest, []mo
 //	@Param			limit			query		uint32	false	"Number of items to return"	example(10)
 //	@Param			offset			query		uint32	false	"Number of items to skip"	example(0)
 //	@Param			Authorization	header		string	true	"Auth token"
-//	@Success		200				{array}		model.TokenAnalytics
+//	@Success		200				{array}		ta.CommunityToken
 //	@Failure		500				{object}	server.ResponseErrorBody
 //	@Failure		504				{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1/community-tokens/{type} [GET].
-func GetCommunityTokensByType(s *service) server.RequestHandler[TokenInfoRequestByType, []model.TokenAnalytics] {
-	return func(ctx context.Context, req *server.Request[TokenInfoRequestByType]) (*server.Response[[]model.TokenAnalytics], error) {
-		var resp []model.TokenAnalytics
+func GetCommunityTokensByType(s *service) server.RequestHandler[TokenInfoRequestByType, []ta.CommunityToken] {
+	return func(ctx context.Context, req *server.Request[TokenInfoRequestByType]) (*server.Response[[]ta.CommunityToken], error) {
+		var resp []ta.CommunityToken
 		for range 1 + rand.IntN(3) {
-			var e model.TokenAnalytics
+			var e ta.CommunityToken
 
 			if err := faker.FakeData(&e); err != nil {
 				return nil, fmt.Errorf("failed to fake data: %w", err)
@@ -135,15 +135,15 @@ func CreateCommunityTokensSessionView(s *service) server.RequestHandler[SessionV
 //	@Param			limit				query		uint32	false	"Number of items to return"	example(10)
 //	@Param			offset				query		uint32	false	"Number of items to skip"	example(0)
 //	@Param			Authorization		header		string	true	"Auth token"
-//	@Success		200					{array}		model.TokenAnalytics
+//	@Success		200					{array}		ta.CommunityToken
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1/community-tokens/{type}/viewing-sessions/{viewingSessionId} [GET].
-func GetCommunityTokensSessionByID(s *service) server.RequestHandler[TokenInfoRequestByTypeAndSessionID, []model.TokenAnalytics] {
-	return func(ctx context.Context, req *server.Request[TokenInfoRequestByTypeAndSessionID]) (*server.Response[[]model.TokenAnalytics], error) {
-		var resp []model.TokenAnalytics
+func GetCommunityTokensSessionByID(s *service) server.RequestHandler[TokenInfoRequestByTypeAndSessionID, []ta.CommunityToken] {
+	return func(ctx context.Context, req *server.Request[TokenInfoRequestByTypeAndSessionID]) (*server.Response[[]ta.CommunityToken], error) {
+		var resp []ta.CommunityToken
 		for range 1 + rand.IntN(3) {
-			var e model.TokenAnalytics
+			var e ta.CommunityToken
 
 			if err := faker.FakeData(&e); err != nil {
 				return nil, fmt.Errorf("failed to fake data: %w", err)
@@ -165,15 +165,15 @@ func GetCommunityTokensSessionByID(s *service) server.RequestHandler[TokenInfoRe
 //	@Param			limit				query		uint32	false	"Number of items to return"	example(10)
 //	@Param			offset				query		uint32	false	"Number of items to skip"	example(0)
 //	@Param			Authorization		header		string	true	"Auth token"
-//	@Success		200					{array}		model.Trade
+//	@Success		200					{array}		ta.Trade
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1/community-tokens/address/{ionConnectAddress}/latest-trades [GET].
-func GetCommunityTokensTradesByAddress(s *service) server.RequestHandler[TradeRequest, []model.Trade] {
-	return func(ctx context.Context, req *server.Request[TradeRequest]) (*server.Response[[]model.Trade], error) {
-		var resp []model.Trade
+func GetCommunityTokensTradesByAddress(s *service) server.RequestHandler[TradeRequest, []ta.Trade] {
+	return func(ctx context.Context, req *server.Request[TradeRequest]) (*server.Response[[]ta.Trade], error) {
+		var resp []ta.Trade
 		for range 1 + rand.IntN(3) {
-			var e model.Trade
+			var e ta.Trade
 
 			if err := faker.FakeData(&e); err != nil {
 				return nil, fmt.Errorf("failed to fake data: %w", err)
