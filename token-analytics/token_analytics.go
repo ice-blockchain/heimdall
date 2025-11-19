@@ -11,9 +11,8 @@ import (
 	"time"
 	stdlibtime "time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/goccy/go-json"
-	"github.com/hashicorp/go-multierror"
-	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
@@ -60,15 +59,15 @@ func New(ctx context.Context) TokenAnalytics {
 		quickNode:       qn,
 		metrics:         registry,
 		shutdown: func() error {
-			return multierror.Append(
+			return errors.Join(
 				errors.Wrapf(db.Close(), "failed to close source db"),
 				errors.Wrapf(targetDB.Close(), "failed to close target db"),
-			).ErrorOrNil()
+			)
 		},
 	}
 
 	go metrics.LogScaled(registry, 10*stdlibtime.Second, 1*stdlibtime.Millisecond, t) // TODO: 10 secs for test, change to 1-15 mminutes.
-
+	go t.startIONPriceSyncer(ctx)
 	return t
 }
 
@@ -260,16 +259,27 @@ func (t *tokenAnalytics) processLog(ctx context.Context, tx *txEvent, logEvent *
 }
 
 func (t *tokenAnalytics) createStreamForContractAddress(ctx context.Context, contractAddress string) error {
+	_, err := storage.Exec(ctx, t.ingestedDataDB, `INSERT INTO streams(contract_address) VALUES ($1);`, contractAddress)
+	if err != nil {
+		if storage.IsErr(err, storage.ErrDuplicate) {
+			log.Info("Stream already exists for bonded token: %v", contractAddress)
+			return nil
+		}
+		return errors.Wrapf(err, "failed to check stream duplicate")
+	}
+
 	stream, err := t.quickNode.CreateStream(ctx, contractAddress, contractAddress)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create quicknode stream for %v", contractAddress)
+		_, rollbackErr := storage.Exec(ctx, t.ingestedDataDB, `DELETE FROM streams WHERE contract_address = $1;`, contractAddress)
+		return errors.Wrapf(errors.Join(err, rollbackErr), "failed to create quicknode stream for %v", contractAddress)
 	}
 
 	_, err = storage.Exec(ctx, t.ingestedDataDB, `
-		INSERT INTO streams(contract_address, stream_id, name, created_at) 
-		VALUES ($1, $2, $3, $4)
-		ON CONFLICT (contract_address) DO NOTHING;
-	`, contractAddress, stream.ID, stream.Name, stream.CreatedAt)
+      UPDATE streams SET
+          stream_id = $2,
+          created_at = $3,
+          name = $4
+      WHERE contract_address = $1;`, contractAddress, stream.ID, stream.CreatedAt, stream.Name)
 	if err != nil {
 		return errors.Wrapf(err, "failed to insert stream for %v", contractAddress)
 	}

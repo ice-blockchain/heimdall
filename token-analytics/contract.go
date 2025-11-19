@@ -6,6 +6,7 @@ import (
 	"context"
 	_ "embed"
 	"sync"
+	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/rcrowley/go-metrics"
@@ -58,6 +59,8 @@ type (
 		bondingCurveABI abi.ABI
 		quickNode       quicknode.Client
 		metrics         metrics.Registry
+		ionPriceUSD     *atomic.Pointer[float64]
+		// TODO: xmap for latest creator token prices to calc content token price
 	}
 	txEvent struct {
 		TransactionIndex uint64      `db:"transaction_index"`
@@ -77,5 +80,14 @@ type (
 		BlockNumber      uint64 `redis:"block_number"`
 		TransactionIndex uint64 `redis:"transaction_index"`
 		UpdatedAt        int64  `redis:"updated_at"`
+	}
+
+	ionPricingStats struct {
+		CirculatingSupply     float64 `json:"circulatingSupply"`
+		TotalSupply           float64 `json:"totalSupply"`
+		Price                 float64 `json:"price"`
+		MarketCap             float64 `json:"marketCap"`
+		TradingVolume24       float64 `json:"24hTradingVolume"`
+		FullyDilutedMarketCap float64 `json:"fullyDilutedMarketCap"`
 	}
 )
