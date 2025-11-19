@@ -34,7 +34,7 @@ func (s *service) RegisterRoutes(router server.Router) {
 	tokensV1.POST("/:type/viewing-sessions", server.RootHandler(s.CreateCommunityTokensSessionView))
 	tokensV1.GET("/:type/viewing-sessions/:viewingSessionId", server.RootHandler(s.GetCommunityTokensSessionByID))
 
-	// `:type` param here is `ionConnectAddress` actually but gin does not support having different param names for the same endpoint structure.
+	// `:type` param here is `:ionConnectAddress` actually because gin does not support having different param names for the same endpoint structure.
 	tokensV1.GET("/:type/latest-trades", server.RootHandler(s.GetCommunityTokensTradesByAddress))
 
 	api.SwaggerInfo.Version = readVersionString()
@@ -43,6 +43,19 @@ func (s *service) RegisterRoutes(router server.Router) {
 	})
 	router.GET("/docs/swagger/*any", ginswagger.WrapHandler(swaggerfiles.Handler))
 
+	s.RegisterStreams(router)
+}
+
+func (s *service) RegisterStreams(router server.Router) {
+	tokenStreamsV1 := router.Group("/v1sse/community-tokens", server.StreamMiddleware())
+	tokenStreamsV1.GET("/", server.StreamHandler(s.StreamCommunityTokens))
+	tokenStreamsV1.GET("/:type", server.StreamHandler(s.StreamCommunityTokensByType))
+
+	// `:type` is the `:ionConnectAddress` bellow.
+	tokenStreamsV1.GET("/:type/top-holders", server.StreamHandler(s.StreamCommunityTokensTopHolders))
+	tokenStreamsV1.GET("/:type/latest-trades", server.StreamHandler(s.StreamCommunityTokensLatestTrades))
+	tokenStreamsV1.GET("/:type/trading-stats", server.StreamHandler(s.StreamCommunityTokensTradingStats))
+	tokenStreamsV1.GET("/:type/ohlcv", server.StreamHandler(s.StreamCommunityTokensOHLCV))
 }
 
 func (s *service) HandleWS(ctx context.Context, stream websocket.ReaderWriter) {

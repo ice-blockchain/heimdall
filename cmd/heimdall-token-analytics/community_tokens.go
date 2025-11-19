@@ -5,7 +5,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math/rand/v2"
+	"time"
 
 	"github.com/go-faker/faker/v4"
 
@@ -39,6 +41,10 @@ type (
 	TradeRequest struct {
 		PaginationRequest
 		Address string `uri:"type" required:"true" swaggerignore:"true"` // Map `type` to `address`.
+	}
+	NotifyRequest struct {
+		Interval string `form:"interval" required:"true" swaggerignore:"true"` // e.g., "1m", "5m", "1h", etc.
+		Address  string `uri:"type" required:"true" swaggerignore:"true"`      // Map `type` to `address`.
 	}
 )
 
@@ -173,4 +179,148 @@ func (s *service) GetCommunityTokensTradesByAddress(ctx context.Context, req *se
 	}
 
 	return server.OK(&resp), nil
+}
+
+func newFakeStreamOf[T any]() (server.StreamEventEmitter[T], error) {
+	return func(ctx context.Context) (<-chan server.StreamEvent[T], error) {
+		events := make(chan server.StreamEvent[T])
+		fire := make(chan struct{}, 1)
+		ticker := time.NewTicker(time.Minute)
+
+		fire <- struct{}{}
+
+		go func() {
+			defer close(events)
+			defer ticker.Stop()
+
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					select {
+					case fire <- struct{}{}:
+					default:
+					}
+				case <-fire:
+					var e T
+
+					slog.DebugContext(ctx, "emitting fake stream event", "type", fmt.Sprintf("%T", e))
+					if err := faker.FakeData(&e); err != nil {
+						events <- server.StreamEvent[T]{Err: fmt.Errorf("failed to fake stream data: %w", err)}
+						return
+					}
+					events <- server.StreamEvent[T]{Data: &e, Type: "message"}
+				}
+			}
+		}()
+
+		return events, nil
+	}, nil
+}
+
+// StreamCommunityTokens godoc
+//
+//	@Schemes
+//	@Description	Streams community tokens information for the given Ion Connect addresses.
+//	@Tags			sse
+//	@Produce		text/event-stream
+//	@Param			ionConnectAddress	query		[]string	true	"Ion Connect address of the user"	example(0x1234...,0x5678...)
+//	@Param			Authorization		header		string		true	"Auth token"
+//	@Success		200					{object}	ta.CommunityToken
+//	@Failure		500					{object}	server.ResponseErrorBody
+//	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Router			/v1sse/community-tokens [GET].
+func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request[TokenInfoRequest]) (server.StreamEventEmitter[ta.CommunityToken], error) {
+	return newFakeStreamOf[ta.CommunityToken]()
+}
+
+// StreamCommunityTokensByType godoc
+//
+//	@Schemes
+//	@Description	Streams community tokens information for the given type.
+//	@Tags			sse
+//	@Produce		text/event-stream
+//	@Param			type			path		string	true	"Type of data"				example("latest")
+//	@Param			keyword			query		string	false	"Search keyword"			example("bitcoin")
+//	@Param			limit			query		uint32	false	"Number of items to return"	example(10)
+//	@Param			offset			query		uint32	false	"Number of items to skip"	example(0)
+//	@Param			Authorization	header		string	true	"Auth token"
+//	@Success		200				{object}	ta.CommunityToken
+//	@Failure		500				{object}	server.ResponseErrorBody
+//	@Failure		504				{object}	server.ResponseErrorBody	"if request times out"
+//	@Router			/v1sse/community-tokens/{type} [GET].
+func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoRequestByType]) (server.StreamEventEmitter[ta.CommunityToken], error) {
+	return newFakeStreamOf[ta.CommunityToken]()
+}
+
+// StreamCommunityTokensTopHolders godoc
+//
+//	@Schemes
+//	@Description	Streams top holders information for a specific community token address.
+//	@Tags			sse
+//	@Produce		text/event-stream
+//	@Param			ionConnectAddress	path		string	true	"Ion Connect address"		example("0x1234...")
+//	@Param			limit				query		uint32	false	"Number of items to return"	example(10)
+//	@Param			offset				query		uint32	false	"Number of items to skip"	example(0)
+//	@Param			Authorization		header		string	true	"Auth token"
+//	@Success		200					{object}	ta.Trade
+//	@Failure		500					{object}	server.ResponseErrorBody
+//	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Router			/v1sse/community-tokens/{ionConnectAddress}/top-holders [GET].
+func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *server.Request[TradeRequest]) (server.StreamEventEmitter[ta.Trade], error) {
+	return newFakeStreamOf[ta.Trade]()
+}
+
+// StreamCommunityTokensLatestTrades godoc
+//
+//	@Schemes
+//	@Description	Streams latest trades for a specific community token address.
+//	@Tags			sse
+//	@Produce		text/event-stream
+//	@Param			ionConnectAddress	path		string	true	"Ion Connect address"		example("0x1234...")
+//	@Param			limit				query		uint32	false	"Number of items to return"	example(10)
+//	@Param			offset				query		uint32	false	"Number of items to skip"	example(0)
+//	@Param			Authorization		header		string	true	"Auth token"
+//	@Success		200					{object}	ta.Trade
+//	@Failure		500					{object}	server.ResponseErrorBody
+//	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Router			/v1sse/community-tokens/{ionConnectAddress}/latest-trades [GET].
+func (s *service) StreamCommunityTokensLatestTrades(ctx context.Context, req *server.Request[TradeRequest]) (server.StreamEventEmitter[ta.Trade], error) {
+	return newFakeStreamOf[ta.Trade]()
+}
+
+// StreamCommunityTokensTradingStats godoc
+//
+//	@Schemes
+//	@Description	Streams trading statistics for a specific community token address.
+//	@Tags			sse
+//	@Produce		text/event-stream
+//	@Param			ionConnectAddress	path		string	true	"Ion Connect address"		example("0x1234...")
+//	@Param			limit				query		uint32	false	"Number of items to return"	example(10)
+//	@Param			offset				query		uint32	false	"Number of items to skip"	example(0)
+//	@Param			Authorization		header		string	true	"Auth token"
+//	@Success		200					{object}	ta.TradeStats
+//	@Failure		500					{object}	server.ResponseErrorBody
+//	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Router			/v1sse/community-tokens/{ionConnectAddress}/trading-stats [GET].
+func (s *service) StreamCommunityTokensTradingStats(ctx context.Context, req *server.Request[TradeRequest]) (server.StreamEventEmitter[ta.TradeStats], error) {
+	return newFakeStreamOf[ta.TradeStats]()
+}
+
+// StreamCommunityTokensOHLCV godoc
+//
+//	@Schemes
+//	@Description	Streams OHLCV (Open, High, Low, Close, Volume) data for a specific community token address.
+//	@Tags			sse
+//	@Produce		text/event-stream
+//	@Param			ionConnectAddress	path		string	true	"Ion Connect address"	example("0x1234...")
+//	@Param			interval			query		string	true	"Time interval"			example("1m")
+//	@Param			Authorization		header		string	true	"Auth token"
+//	@Success		200					{object}	ta.OHLCV
+//	@Failure		500					{object}	server.ResponseErrorBody
+//	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Router			/v1sse/community-tokens/{ionConnectAddress}/ohlcv [GET].
+func (s *service) StreamCommunityTokensOHLCV(ctx context.Context, req *server.Request[NotifyRequest]) (server.StreamEventEmitter[ta.OHLCV], error) {
+	return newFakeStreamOf[ta.OHLCV]()
 }

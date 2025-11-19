@@ -345,6 +345,377 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/v1sse/community-tokens": {
+            "get": {
+                "description": "Streams community tokens information for the given Ion Connect addresses.",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "sse"
+                ],
+                "parameters": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
+                        "example": "0x1234...,0x5678...",
+                        "description": "Ion Connect address of the user",
+                        "name": "ionConnectAddress",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Auth token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/tokenanalytics.CommunityToken"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1sse/community-tokens/{ionConnectAddress}/latest-trades": {
+            "get": {
+                "description": "Streams latest trades for a specific community token address.",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "sse"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"0x1234...\"",
+                        "description": "Ion Connect address",
+                        "name": "ionConnectAddress",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 10,
+                        "description": "Number of items to return",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 0,
+                        "description": "Number of items to skip",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Auth token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/tokenanalytics.Trade"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1sse/community-tokens/{ionConnectAddress}/ohlcv": {
+            "get": {
+                "description": "Streams OHLCV (Open, High, Low, Close, Volume) data for a specific community token address.",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "sse"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"0x1234...\"",
+                        "description": "Ion Connect address",
+                        "name": "ionConnectAddress",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"1m\"",
+                        "description": "Time interval",
+                        "name": "interval",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Auth token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/tokenanalytics.OHLCV"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1sse/community-tokens/{ionConnectAddress}/top-holders": {
+            "get": {
+                "description": "Streams top holders information for a specific community token address.",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "sse"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"0x1234...\"",
+                        "description": "Ion Connect address",
+                        "name": "ionConnectAddress",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 10,
+                        "description": "Number of items to return",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 0,
+                        "description": "Number of items to skip",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Auth token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/tokenanalytics.Trade"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1sse/community-tokens/{ionConnectAddress}/trading-stats": {
+            "get": {
+                "description": "Streams trading statistics for a specific community token address.",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "sse"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"0x1234...\"",
+                        "description": "Ion Connect address",
+                        "name": "ionConnectAddress",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 10,
+                        "description": "Number of items to return",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 0,
+                        "description": "Number of items to skip",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Auth token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/tokenanalytics.TradeStats"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1sse/community-tokens/{type}": {
+            "get": {
+                "description": "Streams community tokens information for the given type.",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "sse"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"latest\"",
+                        "description": "Type of data",
+                        "name": "type",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"bitcoin\"",
+                        "description": "Search keyword",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 10,
+                        "description": "Number of items to return",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 0,
+                        "description": "Number of items to skip",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Auth token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/tokenanalytics.CommunityToken"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -437,6 +808,29 @@ const docTemplate = `{
                 }
             }
         },
+        "tokenanalytics.OHLCV": {
+            "type": "object",
+            "properties": {
+                "close": {
+                    "type": "number"
+                },
+                "high": {
+                    "type": "number"
+                },
+                "low": {
+                    "type": "number"
+                },
+                "open": {
+                    "type": "number"
+                },
+                "timestamp": {
+                    "type": "integer"
+                },
+                "volume": {
+                    "type": "number"
+                }
+            }
+        },
         "tokenanalytics.Position": {
             "type": "object",
             "properties": {
@@ -494,6 +888,46 @@ const docTemplate = `{
                 },
                 "type": {
                     "type": "string"
+                }
+            }
+        },
+        "tokenanalytics.TradeStats": {
+            "type": "object",
+            "properties": {
+                "1h": {
+                    "$ref": "#/definitions/tokenanalytics.TradeStatsAggregate"
+                },
+                "24h": {
+                    "$ref": "#/definitions/tokenanalytics.TradeStatsAggregate"
+                },
+                "5m": {
+                    "$ref": "#/definitions/tokenanalytics.TradeStatsAggregate"
+                },
+                "6h": {
+                    "$ref": "#/definitions/tokenanalytics.TradeStatsAggregate"
+                }
+            }
+        },
+        "tokenanalytics.TradeStatsAggregate": {
+            "type": "object",
+            "properties": {
+                "buysTotalAmountUSD": {
+                    "type": "number"
+                },
+                "netBuy": {
+                    "type": "number"
+                },
+                "numberOfBuys": {
+                    "type": "integer"
+                },
+                "numberOfSells": {
+                    "type": "integer"
+                },
+                "sellsTotalAmountUSD": {
+                    "type": "number"
+                },
+                "volumeUSD": {
+                    "type": "number"
                 }
             }
         },

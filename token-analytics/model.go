@@ -66,3 +66,28 @@ type Trade struct {
 	Creator  User          `json:"creator,omitzero"`
 	Position TradePosition `json:"position,omitzero"`
 }
+
+type TradeStatsAggregate struct {
+	VolumeUSD           float64 `json:"volumeUSD"`
+	NumberOfBuys        int64   `json:"numberOfBuys"`
+	BuysTotalAmountUSD  float64 `json:"buysTotalAmountUSD"`
+	NumberOfSells       int64   `json:"numberOfSells"`
+	SellsTotalAmountUSD float64 `json:"sellsTotalAmountUSD"`
+	NetBuy              float64 `json:"netBuy"`
+}
+
+type TradeStats struct {
+	Bucket5Min    TradeStatsAggregate `json:"5m,omitzero"`
+	Bucket1Hour   TradeStatsAggregate `json:"1h,omitzero"`
+	Bucket6Hours  TradeStatsAggregate `json:"6h,omitzero"`
+	Bucket24Hours TradeStatsAggregate `json:"24h,omitzero"`
+}
+
+type OHLCV struct {
+	Timestamp int64   `json:"timestamp"`
+	Open      float64 `json:"open"`
+	High      float64 `json:"high"`
+	Low       float64 `json:"low"`
+	Close     float64 `json:"close"`
+	Volume    float64 `json:"volume"`
+}
