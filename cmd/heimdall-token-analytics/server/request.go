@@ -200,33 +200,32 @@ func StreamHandler[REQ, RESP any](fn StreamHandlerFunc[REQ, RESP]) gin.HandlerFu
 		}
 
 		ctx.Stream(func(io.Writer) (keepOpen bool) {
-			for {
-				select {
-				case <-ctx.Request.Context().Done():
+			select {
+			case <-ctx.Request.Context().Done():
+				return false
+
+			case <-ctx.Done():
+				return false
+
+			case event, ok := <-source:
+				if !ok {
 					return false
-
-				case <-ctx.Done():
-					return false
-
-				case event, ok := <-source:
-					if !ok {
-						return false
-					}
-
-					if event.Err != nil {
-						ctx.Error(fmt.Errorf("stream event error: %w", event.Err))
-						ctx.SSEvent(cmp.Or(event.Type, "error"), event.Err.Error())
-						return false
-					}
-
-					ctx.Render(-1, sse.Event{
-						Event: event.Type,
-						Id:    event.ID,
-						Data:  event.Data,
-					})
-					ctx.Writer.Flush()
 				}
+
+				if event.Err != nil {
+					ctx.Error(fmt.Errorf("stream event error: %w", event.Err))
+					ctx.SSEvent(cmp.Or(event.Type, "error"), event.Err.Error())
+					return false
+				}
+
+				ctx.Render(-1, sse.Event{
+					Event: event.Type,
+					Id:    event.ID,
+					Data:  event.Data,
+				})
+				ctx.Writer.Flush()
 			}
+			return true
 		})
 	}
 }
