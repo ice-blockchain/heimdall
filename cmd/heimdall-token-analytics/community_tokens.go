@@ -40,7 +40,6 @@ type (
 		TTLmillis uint64 `json:"ttl" example:"3600000"`
 	}
 	TradeRequest struct {
-		PaginationRequest
 		Address string `uri:"type" required:"true" swaggerignore:"true"` // Map `type` to `address`.
 	}
 	OHLCVRequest struct {
@@ -292,16 +291,14 @@ func (s *service) StreamCommunityTokensLatestTrades(ctx context.Context, req *se
 //	@Description	Streams trading statistics for a specific community token address.
 //	@Tags			sse
 //	@Produce		text/event-stream
-//	@Param			ionConnectAddress	path		string	true	"Ion Connect address"		example("0x1234...")
-//	@Param			limit				query		uint32	false	"Number of items to return"	example(10)
-//	@Param			offset				query		uint32	false	"Number of items to skip"	example(0)
+//	@Param			ionConnectAddress	path		string	true	"Ion Connect address"	example("0x1234...")
 //	@Param			Authorization		header		string	true	"Auth token"
 //	@Success		200					{object}	ta.TradeStats
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1sse/community-tokens/{ionConnectAddress}/trading-stats [GET].
 func (s *service) StreamCommunityTokensTradingStats(ctx context.Context, req *server.Request[TradeRequest]) (server.StreamEventEmitter[ta.TradeStats], error) {
-	return newFakeStreamOf[ta.TradeStats]()
+	return s.tradingStatsStream(req.Data.Address)
 }
 
 // StreamCommunityTokensOHLCV godoc
@@ -377,6 +374,50 @@ func (s *service) ohlcvStream(ionContentAddress string, intervalStr string) (ser
 						Data: recent,
 						Type: "message",
 						ID:   fmt.Sprintf("ohlcv_%v", recent.Timestamp),
+					}
+				}
+			}
+		}()
+		return events, nil
+	}, nil
+}
+
+func (s *service) tradingStatsStream(ionContentAddress string) (server.StreamEventEmitter[ta.TradeStats], error) {
+	return func(ctx context.Context) (<-chan server.StreamEvent[ta.TradeStats], error) {
+		events := make(chan server.StreamEvent[ta.TradeStats], 1)
+		now := time.Now()
+		stats, err := s.tokenAnalytics.GetTradingStats(ctx, now, ionContentAddress)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get initial trading stats for %v", ionContentAddress)
+		}
+		events <- server.StreamEvent[ta.TradeStats]{
+			Err:  nil,
+			Data: stats,
+			Type: "message",
+		}
+		ticker := time.NewTicker(5 * time.Second) // TODO: cfg?
+		go func() {
+			defer close(events)
+			defer ticker.Stop()
+			for ctx.Err() == nil {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					now = time.Now()
+					stats, err = s.tokenAnalytics.UpdateTradingStats(ctx, now, ionContentAddress)
+					if err != nil {
+						events <- server.StreamEvent[ta.TradeStats]{
+							Err:  err,
+							Data: nil,
+							Type: "error",
+						}
+						return
+					}
+					events <- server.StreamEvent[ta.TradeStats]{
+						Err:  nil,
+						Data: stats,
+						Type: "message",
 					}
 				}
 			}

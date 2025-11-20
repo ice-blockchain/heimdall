@@ -67,19 +67,20 @@ type Trade struct {
 }
 
 type TradeStatsAggregate struct {
-	VolumeUSD           float64 `json:"volumeUSD"`
-	NumberOfBuys        uint64  `json:"numberOfBuys"`
-	BuysTotalAmountUSD  float64 `json:"buysTotalAmountUSD"`
-	NumberOfSells       int64   `json:"numberOfSells"`
-	SellsTotalAmountUSD float64 `json:"sellsTotalAmountUSD"`
-	NetBuy              float64 `json:"netBuy"`
+	AggregationInterval string  `json:"-" db:"aggregation_interval" redis:"-"`
+	VolumeUSD           float64 `json:"volumeUSD" db:"volume_usd" redis:"volume_usd"`
+	NumberOfBuys        uint64  `json:"numberOfBuys" db:"number_of_buys" redis:"number_of_buys"`
+	BuysTotalAmountUSD  float64 `json:"buysTotalAmountUSD" db:"buys_total_amount_usd" redis:"buys_total_amount_usd"`
+	NumberOfSells       int64   `json:"numberOfSells" db:"number_of_sells" redis:"number_of_sells"`
+	SellsTotalAmountUSD float64 `json:"sellsTotalAmountUSD" db:"sells_total_amount_usd" redis:"sells_total_amount_usd"`
+	NetBuy              float64 `json:"netBuy" redis:"net_buy"`
 }
 
 type TradeStats struct {
-	Bucket5Min    TradeStatsAggregate `json:"5m,omitzero"`
-	Bucket1Hour   TradeStatsAggregate `json:"1h,omitzero"`
-	Bucket6Hours  TradeStatsAggregate `json:"6h,omitzero"`
-	Bucket24Hours TradeStatsAggregate `json:"24h,omitzero"`
+	Bucket5Min    *TradeStatsAggregate `json:"5m,omitzero"`
+	Bucket1Hour   *TradeStatsAggregate `json:"1h,omitzero"`
+	Bucket6Hours  *TradeStatsAggregate `json:"6h,omitzero"`
+	Bucket24Hours *TradeStatsAggregate `json:"24h,omitzero"`
 }
 
 type OHLCV struct {

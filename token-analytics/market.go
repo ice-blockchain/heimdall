@@ -9,11 +9,13 @@ import (
 	"math/big"
 	stdlibtime "time"
 
-	"github.com/pkg/errors"
+	"github.com/cockroachdb/errors"
+	"github.com/redis/go-redis/v9"
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
+	storagev3 "github.com/ice-blockchain/wintr/connectors/storage/v3"
 	"github.com/ice-blockchain/wintr/time"
 )
 
@@ -163,4 +165,131 @@ func (t *tokenAnalytics) GetOHLVCRecent(ctx context.Context, now stdlibtime.Time
 		Close:     recentOhlcvData.Close,
 		Volume:    recentOhlcvData.Volume,
 	}, nil
+}
+
+func (t *tokenAnalytics) GetTradingStats(ctx context.Context, now stdlibtime.Time, ionContentAddress string) (*TradeStats, error) {
+	min5, err := storagev3.Get[TradeStatsAggregate](ctx, t.processedDataDB, tradingStatsCacheKey(ionContentAddress, "5m"))
+	if err != nil || len(min5) == 0 {
+		return t.UpdateTradingStats(ctx, now, ionContentAddress)
+	}
+	hour1, err := storagev3.Get[TradeStatsAggregate](ctx, t.processedDataDB, tradingStatsCacheKey(ionContentAddress, "1h"))
+	if err != nil || len(hour1) == 0 {
+		return t.UpdateTradingStats(ctx, now, ionContentAddress)
+	}
+	hour6, err := storagev3.Get[TradeStatsAggregate](ctx, t.processedDataDB, tradingStatsCacheKey(ionContentAddress, "6h"))
+	if err != nil || len(hour6) == 0 {
+		return t.UpdateTradingStats(ctx, now, ionContentAddress)
+	}
+	hour24, err := storagev3.Get[TradeStatsAggregate](ctx, t.processedDataDB, tradingStatsCacheKey(ionContentAddress, "24h"))
+	if err != nil || len(hour24) == 0 {
+		return t.UpdateTradingStats(ctx, now, ionContentAddress)
+	}
+	return &TradeStats{
+		Bucket5Min:    min5[0],
+		Bucket1Hour:   hour1[0],
+		Bucket6Hours:  hour6[0],
+		Bucket24Hours: hour24[0],
+	}, nil
+}
+
+func tradingStatsCacheKey(ionConnectAddr, interval string) string {
+	return fmt.Sprintf("trading_stats:%v:%v", ionConnectAddr, interval)
+}
+
+func (t *tokenAnalytics) UpdateTradingStats(ctx context.Context, now stdlibtime.Time, ionConnectAddress string) (*TradeStats, error) {
+	stats, err := t.fetchTradingStats(ctx, now, ionConnectAddress)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to update trading stats")
+	}
+	if responses, txErr := t.processedDataDB.TxPipelined(ctx, func(pipeliner redis.Pipeliner) error {
+		if pErr := pipeliner.HSet(ctx, tradingStatsCacheKey(ionConnectAddress, "5m"), storagev3.SerializeValue(stats.Bucket5Min)...).Err(); pErr != nil {
+			return pErr
+		}
+		if pErr := pipeliner.HSet(ctx, tradingStatsCacheKey(ionConnectAddress, "1h"), storagev3.SerializeValue(stats.Bucket1Hour)...).Err(); pErr != nil {
+			return pErr
+		}
+		if pErr := pipeliner.HSet(ctx, tradingStatsCacheKey(ionConnectAddress, "6h"), storagev3.SerializeValue(stats.Bucket6Hours)...).Err(); pErr != nil {
+			return pErr
+		}
+		if pErr := pipeliner.HSet(ctx, tradingStatsCacheKey(ionConnectAddress, "24h"), storagev3.SerializeValue(stats.Bucket24Hours)...).Err(); pErr != nil {
+			return pErr
+		}
+		return nil
+	}); txErr != nil {
+		return nil, errors.Wrapf(txErr, "failed to update trading stats cache for %v", ionConnectAddress)
+	} else {
+		for _, response := range responses {
+			if rerr := response.Err(); rerr != nil {
+				err = errors.Join(err, errors.Wrapf(rerr, "failed to `%v`", response.FullName()))
+			}
+		}
+	}
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to update trading stats in cache for %v", ionConnectAddress)
+	}
+	return stats, nil
+}
+
+func (t *tokenAnalytics) fetchTradingStats(ctx context.Context, now stdlibtime.Time, ionContentAddress string) (res *TradeStats, err error) {
+	sql := `SELECT
+              '5m' as aggregation_interval,
+              COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount * price_in_usd ELSE 0 END)/1e18::DECIMAL(76,18),0) AS buys_total_amount_usd,
+              COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount * price_in_usd ELSE 0 END)/1e18::DECIMAL(76,18),0) AS sells_total_amount_usd,
+              COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                    AS number_of_buys,
+              COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                   AS number_of_sells,
+              COALESCE(SUM(amount * price_in_usd)/1e18::DECIMAL(76,18),0)                                             AS volume_usd
+       FROM trades
+       WHERE timestamp >= dateadd('m', -5, $2) AND ion_connect_address = $1
+       UNION ALL (
+            SELECT
+                   '1h' as aggregation_interval,
+                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount * price_in_usd ELSE 0 END)/1e18::DECIMAL(76,18),0)  AS buys_total_amount_usd,
+                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount * price_in_usd ELSE 0 END)/1e18::DECIMAL(76,18),0) AS sells_total_amount_usd,
+                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                      AS number_of_buys,
+                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                     AS number_of_sells,
+                   COALESCE(SUM(amount * price_in_usd)/1e18::DECIMAL(76,18),0)                                               AS volume_usd
+            FROM trades
+            WHERE timestamp >= dateadd('h', -1, $2) AND ion_connect_address = $1
+       )
+       UNION ALL (
+            SELECT
+                   '6h' as aggregation_interval,
+                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount * price_in_usd ELSE 0 END)/1e18::DECIMAL(76,18),0)  AS buys_total_amount_usd,
+                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount * price_in_usd ELSE 0 END)/1e18::DECIMAL(76,18),0) AS sells_total_amount_usd,
+                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                      AS number_of_buys,
+                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                     AS number_of_sells,
+                   COALESCE(SUM(amount * price_in_usd)/1e18::DECIMAL(76,18),0)                                               AS volume_usd
+            FROM trades
+            WHERE timestamp >= dateadd('h', -6, $2) AND ion_connect_address = $1
+       )
+       UNION ALL (
+            SELECT
+                   '24h' as aggregation_interval,
+                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount * price_in_usd ELSE 0 END)/1e18::DECIMAL(76,18),0)  AS buys_total_amount_usd,
+                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount * price_in_usd ELSE 0 END)/1e18::DECIMAL(76,18),0) AS sells_total_amount_usd,
+                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                      AS number_of_buys,
+                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                     AS number_of_sells,
+                   COALESCE(SUM(amount * price_in_usd)/1e18::DECIMAL(76,18),0)                                               AS volume_usd
+            FROM trades
+            WHERE timestamp >= dateadd('h', -24, $2) AND ion_connect_address = $1
+       )`
+	aggregates, err := questdb.Select[TradeStatsAggregate](ctx, t.questDB, sql, ionContentAddress, time.New(now))
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to fetch trading stats for %v", ionContentAddress)
+	}
+	res = new(TradeStats)
+	for i := range aggregates {
+		aggregates[i].NetBuy = aggregates[i].BuysTotalAmountUSD - aggregates[i].SellsTotalAmountUSD
+		switch aggregates[i].AggregationInterval {
+		case "5m":
+			res.Bucket5Min = aggregates[i]
+		case "1h":
+			res.Bucket1Hour = aggregates[i]
+		case "6h":
+			res.Bucket6Hours = aggregates[i]
+		case "24h":
+			res.Bucket24Hours = aggregates[i]
+		}
+	}
+	return res, nil
 }
