@@ -335,7 +335,8 @@ type (
 		} `yaml:"requiredAppVersions" mapstructure:"requiredAppVersions"`
 		TokenizedCommunities struct {
 			BondingCurveSmartContractAddress string  `yaml:"bondingCurveSmartContractAddress" mapstructure:"bondingCurveSmartContractAddress"`
-			Version                          Version `yaml:"version" mapstructure:"version"`
+			AddressVersion                   Version `yaml:"addressVersion" mapstructure:"addressVersion"`
+			ABIVersion                       Version `yaml:"abiVersion" mapstructure:"abiVersion"`
 		} `yaml:"tokenizedCommunities" mapstructure:"tokenizedCommunities"`
 	}
 )
@@ -368,13 +369,13 @@ var (
 				return errors.Wrapf(err, "failed to parse `%v` cfg as JSON", configNameTokenizedCommunitiesBondingCurveSmartContractABI), Version(0)
 			}
 
-			return rawJSONBody, cfg.TokenizedCommunities.Version
+			return rawJSONBody, cfg.TokenizedCommunities.ABIVersion
 		},
 		configNameTokenizedCommunitiesBondingCurveSmartContractAddress: func(cfg *config, ver *Version) (any, Version) {
 			if ver == nil {
 				return errors.Wrapf(errVersionRequired, "version required for %s", configNameTokenizedCommunitiesBondingCurveSmartContractAddress), Version(0)
 			}
-			return cfg.TokenizedCommunities.BondingCurveSmartContractAddress, cfg.TokenizedCommunities.Version
+			return cfg.TokenizedCommunities.BondingCurveSmartContractAddress, cfg.TokenizedCommunities.AddressVersion
 		},
 	}
 	errVersionRequired           = errors.New("version required")
