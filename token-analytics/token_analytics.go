@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	stdlog "log"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -490,7 +491,7 @@ func initializeWorkersConfig(ctx context.Context, db *storage.DB, workers uint) 
 		VALUES ('workers', $1)
 		ON CONFLICT (key) 
 		DO UPDATE SET value = EXCLUDED.value
-	`, fmt.Sprintf("%d", workers))
+	`, strconv.FormatUint(uint64(workers), 10))
 	if err != nil {
 		return fmt.Errorf("failed to set workers in global table: %w", err)
 	}
