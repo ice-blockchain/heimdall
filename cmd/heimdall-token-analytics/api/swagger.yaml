@@ -60,6 +60,21 @@ definitions:
       volume:
         type: integer
     type: object
+  tokenanalytics.OHLCV:
+    properties:
+      close:
+        type: number
+      high:
+        type: number
+      low:
+        type: number
+      open:
+        type: number
+      timestamp:
+        type: integer
+      volume:
+        type: number
+    type: object
   tokenanalytics.Position:
     properties:
       amount:
@@ -98,6 +113,32 @@ definitions:
         $ref: '#/definitions/tokenanalytics.User'
       type:
         type: string
+    type: object
+  tokenanalytics.TradeStats:
+    properties:
+      1h:
+        $ref: '#/definitions/tokenanalytics.TradeStatsAggregate'
+      5m:
+        $ref: '#/definitions/tokenanalytics.TradeStatsAggregate'
+      6h:
+        $ref: '#/definitions/tokenanalytics.TradeStatsAggregate'
+      24h:
+        $ref: '#/definitions/tokenanalytics.TradeStatsAggregate'
+    type: object
+  tokenanalytics.TradeStatsAggregate:
+    properties:
+      buysTotalAmountUSD:
+        type: number
+      netBuy:
+        type: number
+      numberOfBuys:
+        type: integer
+      numberOfSells:
+        type: integer
+      sellsTotalAmountUSD:
+        type: number
+      volumeUSD:
+        type: number
     type: object
   tokenanalytics.User:
     properties:
@@ -355,6 +396,246 @@ paths:
             $ref: '#/definitions/server.ResponseErrorBody'
       tags:
       - Tokens
+  /v1sse/community-tokens:
+    get:
+      description: Streams community tokens information for the given Ion Connect
+        addresses.
+      parameters:
+      - collectionFormat: multi
+        description: Ion Connect address of the user
+        example: 0x1234...,0x5678...
+        in: query
+        items:
+          type: string
+        name: ionConnectAddress
+        required: true
+        type: array
+      - description: Auth token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/tokenanalytics.CommunityToken'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      tags:
+      - sse
+  /v1sse/community-tokens/{ionConnectAddress}/latest-trades:
+    get:
+      description: Streams latest trades for a specific community token address.
+      parameters:
+      - description: Ion Connect address
+        example: '"0x1234..."'
+        in: path
+        name: ionConnectAddress
+        required: true
+        type: string
+      - description: Number of items to return
+        example: 10
+        format: int32
+        in: query
+        name: limit
+        type: integer
+      - description: Number of items to skip
+        example: 0
+        format: int32
+        in: query
+        name: offset
+        type: integer
+      - description: Auth token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/tokenanalytics.Trade'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      tags:
+      - sse
+  /v1sse/community-tokens/{ionConnectAddress}/ohlcv:
+    get:
+      description: Streams OHLCV (Open, High, Low, Close, Volume) data for a specific
+        community token address.
+      parameters:
+      - description: Ion Connect address
+        example: '"0x1234..."'
+        in: path
+        name: ionConnectAddress
+        required: true
+        type: string
+      - description: Time interval
+        example: '"1m"'
+        in: query
+        name: interval
+        required: true
+        type: string
+      - description: Auth token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/tokenanalytics.OHLCV'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      tags:
+      - sse
+  /v1sse/community-tokens/{ionConnectAddress}/top-holders:
+    get:
+      description: Streams top holders information for a specific community token
+        address.
+      parameters:
+      - description: Ion Connect address
+        example: '"0x1234..."'
+        in: path
+        name: ionConnectAddress
+        required: true
+        type: string
+      - description: Number of items to return
+        example: 10
+        format: int32
+        in: query
+        name: limit
+        type: integer
+      - description: Number of items to skip
+        example: 0
+        format: int32
+        in: query
+        name: offset
+        type: integer
+      - description: Auth token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/tokenanalytics.Trade'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      tags:
+      - sse
+  /v1sse/community-tokens/{ionConnectAddress}/trading-stats:
+    get:
+      description: Streams trading statistics for a specific community token address.
+      parameters:
+      - description: Ion Connect address
+        example: '"0x1234..."'
+        in: path
+        name: ionConnectAddress
+        required: true
+        type: string
+      - description: Number of items to return
+        example: 10
+        format: int32
+        in: query
+        name: limit
+        type: integer
+      - description: Number of items to skip
+        example: 0
+        format: int32
+        in: query
+        name: offset
+        type: integer
+      - description: Auth token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/tokenanalytics.TradeStats'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      tags:
+      - sse
+  /v1sse/community-tokens/{type}:
+    get:
+      description: Streams community tokens information for the given type.
+      parameters:
+      - description: Type of data
+        example: '"latest"'
+        in: path
+        name: type
+        required: true
+        type: string
+      - description: Auth token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/tokenanalytics.CommunityToken'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      tags:
+      - sse
 schemes:
 - https
 swagger: "2.0"

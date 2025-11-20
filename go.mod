@@ -19,6 +19,7 @@ require (
 	github.com/dfns/dfns-sdk-go v1.0.1
 	github.com/ethereum/go-ethereum v1.16.7
 	github.com/fingerprintjs/fingerprint-pro-server-api-go-sdk/v7 v7.9.0
+	github.com/gin-contrib/sse v1.1.0
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-faker/faker/v4 v4.7.0
 	github.com/gobwas/httphead v0.1.0
@@ -154,7 +155,6 @@ require (
 	github.com/gdamore/tcell/v2 v2.10.0 // indirect
 	github.com/georgysavva/scany/v2 v2.1.4 // indirect
 	github.com/getsentry/sentry-go v0.38.0 // indirect
-	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
