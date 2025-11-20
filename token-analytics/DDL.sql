@@ -255,25 +255,33 @@ AFTER INSERT OR UPDATE OR DELETE ON user_token_positions
 FOR EACH ROW
 EXECUTE FUNCTION update_token_holders_count_trigger();
 
-CREATE TABLE IF NOT EXISTS global (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-);
+CREATE TABLE IF NOT EXISTS global_settings (
+    value TEXT NOT NULL,
+    key TEXT PRIMARY KEY
+) WITH (FILLFACTOR = 70);
 
 CREATE OR REPLACE FUNCTION create_transactions_mod_index()
 RETURNS void AS $$
 DECLARE
     workers_count INT;
+    existing_index_def TEXT;
+    expected_index_def TEXT;
 BEGIN
-    SELECT value::INT INTO workers_count FROM global WHERE key = 'workers';
+    SELECT value::INT INTO workers_count FROM global_settings WHERE key = 'workers';
     
     IF workers_count IS NULL THEN
-        RAISE NOTICE 'Workers count not found in global table, skipping index creation';
-
         RETURN;
     END IF;
 
-    DROP INDEX IF EXISTS idx_transactions_mod_tx_idx;    
-    EXECUTE format('CREATE INDEX IF NOT EXISTS idx_transactions_mod_tx_idx ON transactions (MOD(transaction_index, %s), block_number, transaction_index ASC)', workers_count);
+    SELECT pg_get_indexdef(indexrelid) INTO existing_index_def
+    FROM pg_stat_user_indexes
+    WHERE indexrelname = 'idx_transactions_mod_tx_idx';
+    
+    expected_index_def := format('CREATE INDEX idx_transactions_mod_tx_idx ON public.transactions USING btree (mod(transaction_index, %s), block_number, transaction_index)', workers_count);
+    
+    IF existing_index_def IS NULL OR existing_index_def != expected_index_def THEN
+        DROP INDEX IF EXISTS idx_transactions_mod_tx_idx;    
+        EXECUTE format('CREATE INDEX idx_transactions_mod_tx_idx ON transactions (MOD(transaction_index, %s), block_number, transaction_index ASC)', workers_count);
+    END IF;
 END;
 $$ LANGUAGE plpgsql;

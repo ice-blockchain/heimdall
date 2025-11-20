@@ -487,13 +487,13 @@ func (j *JSON) getStringSlice(key string) ([]string, bool) {
 
 func initializeWorkersConfig(ctx context.Context, db *storage.DB, workers uint) error {
 	_, err := storage.Exec(ctx, db, `
-		INSERT INTO global (key, value)
+		INSERT INTO global_settings (key, value)
 		VALUES ('workers', $1)
 		ON CONFLICT (key) 
 		DO UPDATE SET value = EXCLUDED.value
 	`, strconv.FormatUint(uint64(workers), 10))
 	if err != nil {
-		return fmt.Errorf("failed to set workers in global table: %w", err)
+		return fmt.Errorf("failed to set workers in global_settings table: %w", err)
 	}
 	_, err = storage.Exec(ctx, db, `SELECT create_transactions_mod_index()`)
 	if err != nil {
