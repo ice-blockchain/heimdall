@@ -241,10 +241,7 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 //	@Description	Streams community tokens information for the given type.
 //	@Tags			sse
 //	@Produce		text/event-stream
-//	@Param			type			path		string	true	"Type of data"				example("latest")
-//	@Param			keyword			query		string	false	"Search keyword"			example("bitcoin")
-//	@Param			limit			query		uint32	false	"Number of items to return"	example(10)
-//	@Param			offset			query		uint32	false	"Number of items to skip"	example(0)
+//	@Param			type			path		string	true	"Type of data"	example("latest")
 //	@Param			Authorization	header		string	true	"Auth token"
 //	@Success		200				{object}	ta.CommunityToken
 //	@Failure		500				{object}	server.ResponseErrorBody

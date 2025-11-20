@@ -69,7 +69,7 @@ type Trade struct {
 
 type TradeStatsAggregate struct {
 	VolumeUSD           float64 `json:"volumeUSD"`
-	NumberOfBuys        int64   `json:"numberOfBuys"`
+	NumberOfBuys        uint64  `json:"numberOfBuys"`
 	BuysTotalAmountUSD  float64 `json:"buysTotalAmountUSD"`
 	NumberOfSells       int64   `json:"numberOfSells"`
 	SellsTotalAmountUSD float64 `json:"sellsTotalAmountUSD"`

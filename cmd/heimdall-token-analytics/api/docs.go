@@ -666,29 +666,6 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "example": "\"bitcoin\"",
-                        "description": "Search keyword",
-                        "name": "keyword",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "format": "int32",
-                        "example": 10,
-                        "description": "Number of items to return",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "format": "int32",
-                        "example": 0,
-                        "description": "Number of items to skip",
-                        "name": "offset",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
                         "description": "Auth token",
                         "name": "Authorization",
                         "in": "header",
