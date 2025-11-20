@@ -25,7 +25,6 @@ type (
 		HealthCheck(ctx context.Context) error
 		UpsertUser(ctx context.Context, id, masterPubkey, username, displayName, avatar string, verified bool, ionConnectRelays []string) error
 		SetVerified(ctx context.Context, masterPubkey string) error
-		GetOHLVC(ctx context.Context, ionContentAddress string, interval Interval, startPoint stdlibtime.Time) (res []*OHLCV, lastTs stdlibtime.Time, err error)
 	}
 
 	TokenAnalytics interface {
@@ -34,6 +33,8 @@ type (
 		UserRepository
 		MustStart(ctx context.Context)
 		GetCommunityTokens(ctx context.Context, ionConnectAddresses []string, requestorMasterPubkey string) ([]*CommunityToken, error)
+		GetOHLVCHistory(ctx context.Context, now, startPoint stdlibtime.Time, ionContentAddress string, interval Interval) (res []*OHLCV, err error)
+		GetOHLVCRecent(ctx context.Context, now stdlibtime.Time, ionContentAddress string, interval Interval) (*OHLCV, error)
 	}
 
 	SavePoint struct {
@@ -91,7 +92,7 @@ type (
 		bondingCurveContractAddress string
 		ingestedDataDB              *storage.DB
 		processedDataDB             storagev3.DB
-		timescaleDB     *questdb.DB
+		questDB                     *questdb.DB
 		shutdown                    func() error
 		cfg                         *config
 		wg                          *sync.WaitGroup
@@ -163,14 +164,5 @@ type (
 		Type                     tradeType       `db:"trade_type"`
 		TraderAddress            string          `db:"trader_address"`
 		TransactionHash          string          `db:"transaction_hash"`
-	}
-	ohlcv struct {
-		Timestamp         time.Time `db:"timestamp"`
-		IonConnectAddress time.Time `db:"ion_connect_address"`
-		Open              float64   `db:"open"`
-		High              float64   `db:"high"`
-		Low               float64   `db:"low"`
-		Close             float64   `db:"close"`
-		Volume            float64   `db:"volume"`
 	}
 )

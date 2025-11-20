@@ -4,7 +4,6 @@ package tokenanalytics
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	stdlog "log"
 	"strconv"
@@ -13,6 +12,7 @@ import (
 	"time"
 	stdlibtime "time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/goccy/go-json"
 	"github.com/rcrowley/go-metrics"
 
@@ -66,26 +66,26 @@ func New(ctx context.Context, bondingCurveContractAddress string) TokenAnalytics
 	registry := metrics.NewRegistry()
 	for workerIdx := range cfg.Workers {
 		workerPrefix := fmt.Sprintf("worker_%d_", workerIdx)
-		log.Panic(fmt.Errorf("failed to register worker %d iteration timer: %w", workerIdx,
-			registry.Register(workerPrefix+"iteration",
-				metrics.NewCustomTimer(metrics.NewHistogram(metrics.NewExpDecaySample(10_000, 0.015)), metrics.NewMeter()))))
-		log.Panic(fmt.Errorf("failed to register worker %d events meter: %w", workerIdx,
-			registry.Register(workerPrefix+"events_processed", metrics.NewMeter())))
-		log.Panic(fmt.Errorf("failed to register worker %d errors meter: %w", workerIdx,
-			registry.Register(workerPrefix+"errors", metrics.NewMeter())))
-		log.Panic(fmt.Errorf("failed to register worker %d block_number gauge: %w", workerIdx,
-			registry.Register(workerPrefix+"block_number", metrics.NewGauge())))
-		log.Panic(fmt.Errorf("failed to register worker %d transaction_index gauge: %w", workerIdx,
-			registry.Register(workerPrefix+"transaction_index", metrics.NewGauge())))
+		log.Panic(errors.Wrapf(registry.Register(workerPrefix+"iteration",
+			metrics.NewCustomTimer(metrics.NewHistogram(metrics.NewExpDecaySample(10_000, 0.015)), metrics.NewMeter())),
+			"failed to register worker %d iteration timer", workerIdx))
+		log.Panic(errors.Wrapf(registry.Register(workerPrefix+"events_processed", metrics.NewMeter()),
+			"failed to register worker %d events meter", workerIdx))
+		log.Panic(errors.Wrapf(registry.Register(workerPrefix+"errors", metrics.NewMeter()),
+			"failed to register worker %d errors meter", workerIdx))
+		log.Panic(errors.Wrapf(registry.Register(workerPrefix+"block_number", metrics.NewGauge()),
+			"failed to register worker %d block_number gauge", workerIdx))
+		log.Panic(errors.Wrapf(registry.Register(workerPrefix+"transaction_index", metrics.NewGauge()),
+			"failed to register worker %d transaction_index gauge", workerIdx))
 	}
-	log.Panic(fmt.Errorf("failed to register stream creator iterations meter: %w",
-		registry.Register("stream_creator_iterations", metrics.NewMeter())))
+	log.Panic(errors.Wrapf(registry.Register("stream_creator_iterations", metrics.NewMeter()),
+		"failed to register stream creator iterations meter"))
 
 	t := &tokenAnalytics{
 		bondingCurveContractAddress: bondingCurveContractAddress,
 		ingestedDataDB:              db,
 		processedDataDB:             targetDB,
-		timescaleDB:     timescaleDB,
+		questDB:                     timescaleDB,
 		wg:                          new(sync.WaitGroup),
 		cfg:                         &cfg,
 		quickNode:                   qn,
@@ -367,7 +367,7 @@ func (t *tokenAnalytics) fetchUnprocessedEvents(ctx context.Context, workerIdx u
 
 	events, err := storage.Select[txEvent](ctx, t.ingestedDataDB, sql, start.BlockNumber, start.TransactionIndex)
 
-	return events, fmt.Errorf("failed to fetch events for worker:%v: %w", workerIdx, err)
+	return events, errors.Wrapf(err, "failed to fetch events for worker:%v", workerIdx)
 }
 
 func (s *savePointData) Key() string {

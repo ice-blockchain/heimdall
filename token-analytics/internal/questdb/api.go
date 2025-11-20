@@ -65,12 +65,12 @@ func Write[T StructMarshaller](ctx context.Context, client *DB, items ...T) (err
 	return errors.Wrapf(sender.Flush(ctx), "flush failed")
 }
 
-func Get[T any](ctx context.Context, db Querier, sql string, args ...any) (*T, error) {
-	return storage.Get[T](ctx, db, sql, args)
+func Get[T any](ctx context.Context, db *DB, sql string, args ...any) (*T, error) {
+	return storage.Get[T](ctx, db.db, sql, args...)
 }
 
-func Select[T any](ctx context.Context, db Querier, sql string, args ...any) ([]*T, error) {
-	return storage.Select[T](ctx, db, sql, args)
+func Select[T any](ctx context.Context, db *DB, sql string, args ...any) ([]*T, error) {
+	return storage.Select[T](ctx, db.db, sql, args...)
 }
 
 func NewDecimal(bi *big.Int) Decimal {
