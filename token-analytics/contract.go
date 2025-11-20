@@ -5,8 +5,10 @@ package tokenanalytics
 import (
 	"context"
 	_ "embed"
+	"math/big"
 	"sync"
 	"sync/atomic"
+	stdlibtime "time"
 
 	"github.com/rcrowley/go-metrics"
 
@@ -23,6 +25,7 @@ type (
 		HealthCheck(ctx context.Context) error
 		UpsertUser(ctx context.Context, id, masterPubkey, username, displayName, avatar string, verified bool, ionConnectRelays []string) error
 		SetVerified(ctx context.Context, masterPubkey string) error
+		GetOHLVC(ctx context.Context, ionContentAddress string, interval Interval, startPoint stdlibtime.Time) (res []*OHLCV, lastTs stdlibtime.Time, err error)
 	}
 
 	TokenAnalytics interface {
@@ -38,6 +41,9 @@ type (
 		BlockNumber      uint64 `db:"block_number"`
 	}
 	JSON map[string]any
+
+	Interval   string
+	WindowSize stdlibtime.Duration
 )
 
 const (
@@ -49,11 +55,28 @@ const (
 
 var (
 	//go:embed DDL.sql
-	sourceDDL string
+	sourceDDL      string
+	validIntervals = map[Interval]WindowSize{
+		Interval("1m"):  WindowSize(1 * stdlibtime.Hour),
+		Interval("2m"):  WindowSize(1 * stdlibtime.Hour),
+		Interval("3m"):  WindowSize(1 * stdlibtime.Hour),
+		Interval("5m"):  WindowSize(12 * stdlibtime.Hour),
+		Interval("10m"): WindowSize(12 * stdlibtime.Hour),
+		Interval("15m"): WindowSize(12 * stdlibtime.Hour),
+		Interval("30m"): WindowSize(24 * stdlibtime.Hour),
+		Interval("45m"): WindowSize(24 * stdlibtime.Hour),
+		Interval("1h"):  WindowSize(24 * stdlibtime.Hour),
+		Interval("2h"):  WindowSize(48 * stdlibtime.Hour),
+		Interval("3h"):  WindowSize(48 * stdlibtime.Hour),
+		Interval("4h"):  WindowSize(48 * stdlibtime.Hour),
+		Interval("24h"): WindowSize(30 * 24 * stdlibtime.Hour),
+	}
 )
 
 const (
 	applicationYamlKey = "token-analytics"
+	tradeTypeBuy       = tradeType("buy")
+	tradeTypeSell      = tradeType("sell")
 )
 
 type (
@@ -133,16 +156,21 @@ type (
 		PairAddress              string          `db:"pair_address"`
 		ContractAddress          string          `db:"contract_address"`
 		ContentIONConnectAddress string          `db:"content_ion_connect_address"`
-		BasePrice                uint64          `db:"price"`
+		BasePriceInUsd           float64         `db:"base_price_in_usd"`
 		BaseAmount               questdb.Decimal `db:"base_amount"`
 		Amount                   questdb.Decimal `db:"amount"`
+		PriceInUsd               *big.Float      `db:"price_in_usd"`
 		Type                     tradeType       `db:"trade_type"`
 		TraderAddress            string          `db:"trader_address"`
 		TransactionHash          string          `db:"transaction_hash"`
 	}
-)
-
-const (
-	tradeTypeBuy  = tradeType("buy")
-	tradeTypeSell = tradeType("sell")
+	ohlcv struct {
+		Timestamp         time.Time `db:"timestamp"`
+		IonConnectAddress time.Time `db:"ion_connect_address"`
+		Open              float64   `db:"open"`
+		High              float64   `db:"high"`
+		Low               float64   `db:"low"`
+		Close             float64   `db:"close"`
+		Volume            float64   `db:"volume"`
+	}
 )

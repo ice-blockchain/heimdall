@@ -83,7 +83,7 @@ type TradeStats struct {
 }
 
 type OHLCV struct {
-	Timestamp int64   `json:"timestamp"`
+	Timestamp uint64   `json:"timestamp"`
 	Open      float64 `json:"open"`
 	High      float64 `json:"high"`
 	Low       float64 `json:"low"`

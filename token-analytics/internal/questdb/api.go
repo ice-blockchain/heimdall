@@ -55,7 +55,7 @@ func Write[T StructMarshaller](ctx context.Context, client *DB, items ...T) (err
 	}
 	defer func() {
 		clerr := errors.Wrapf(sender.Close(ctx), "failed to close sender back to pool")
-		if err == nil {
+		if err == nil && clerr != nil {
 			err = clerr
 		}
 	}()

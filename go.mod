@@ -19,7 +19,7 @@ require (
 	github.com/dfns/dfns-sdk-go v1.0.1
 	github.com/ethereum/go-ethereum v1.16.7
 	github.com/fingerprintjs/fingerprint-pro-server-api-go-sdk/v7 v7.9.0
-	github.com/gin-contrib/sse v1.1.0
+	github.com/georgysavva/scany/v2 v2.1.4
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-faker/faker/v4 v4.7.0
 	github.com/gobwas/httphead v0.1.0
@@ -31,8 +31,8 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ice-blockchain/go/src v0.0.0-20251117100638-ebce142e0ce4
-	github.com/ice-blockchain/subzero v1.469.0
-	github.com/ice-blockchain/wintr v1.167.0
+	github.com/ice-blockchain/subzero v1.468.0
+	github.com/ice-blockchain/wintr v1.166.0
 	github.com/imroc/req/v3 v3.56.0
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/jellydator/ttlcache/v3 v3.4.0
@@ -40,6 +40,7 @@ require (
 	github.com/libdns/cloudflare v0.2.2
 	github.com/nbd-wtf/go-nostr v0.52.3
 	github.com/pkg/errors v0.9.1
+	github.com/questdb/go-questdb-client/v4 v4.1.0
 	github.com/quic-go/quic-go v0.56.0
 	github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9
 	github.com/redis/go-redis/v9 v9.17.0
@@ -154,8 +155,8 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.11 // indirect
 	github.com/gdamore/encoding v1.0.1 // indirect
 	github.com/gdamore/tcell/v2 v2.10.0 // indirect
-	github.com/georgysavva/scany/v2 v2.1.4 // indirect
 	github.com/getsentry/sentry-go v0.38.0 // indirect
+	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect

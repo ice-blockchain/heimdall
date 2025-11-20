@@ -39,6 +39,14 @@ type (
 		Debug bool        `yaml:"debug"`
 	}
 
+	StreamEvent[T any] struct {
+		Err  error  // Optional error associated with the event.
+		Data *T     // Data payload of the event.
+		Type string // Event type, e.g., "message", "update", "error", etc.
+		ID   string // Optional event ID for reconnection purposes.
+	}
+	StreamEventEmitter[RESP any] func(context.Context) (<-chan StreamEvent[RESP], error)
+
 	httpServer struct {
 		Router *gin.Engine
 		Config *Config

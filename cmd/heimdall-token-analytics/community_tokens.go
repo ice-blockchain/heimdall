@@ -5,13 +5,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"math/rand/v2"
-	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/go-faker/faker/v4"
-
 	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server"
 	ta "github.com/ice-blockchain/heimdall/token-analytics"
 )
@@ -319,4 +316,63 @@ func (s *service) StreamCommunityTokensTradingStats(ctx context.Context, req *se
 //	@Router			/v1sse/community-tokens/{ionConnectAddress}/ohlcv [GET].
 func (s *service) StreamCommunityTokensOHLCV(ctx context.Context, req *server.Request[OHLCVRequest]) (server.StreamEventEmitter[ta.OHLCV], error) {
 	return newFakeStreamOf[ta.OHLCV]()
+}
+
+func (s *service) ohlcvStream(ionContentAddress string, intervalStr string) (server.StreamEventEmitter[ta.OHLCV], error) {
+	interval := ta.Interval(intervalStr)
+	if err := interval.Validate(); err != nil {
+		return nil, errors.Wrapf(err, "invalid interval")
+	}
+	return func(ctx context.Context) (<-chan server.StreamEvent[ta.OHLCV], error) {
+		events := make(chan server.StreamEvent[ta.OHLCV], 100) // buffered to populate initial data in candlechart without blocking
+		now := time.Now()
+		start := now.Add(-time.Duration(interval.WindowSize()))
+		ohlcvs, lastTs, err := s.tokenAnalytics.GetOHLVC(ctx, ionContentAddress, interval, start)
+		if err != nil {
+			events <- server.StreamEvent[ta.OHLCV]{
+				Err:  err,
+				Data: nil,
+				Type: "error",
+				ID:   fmt.Sprintf("ohlcv_%v", start.UnixNano()),
+			}
+		}
+		for i := range ohlcvs {
+			events <- server.StreamEvent[ta.OHLCV]{
+				Err:  nil,
+				Data: ohlcvs[i],
+				Type: "message",
+				ID:   fmt.Sprintf("ohlcv_%v", ohlcvs[i].Timestamp),
+			}
+		}
+		ticker := time.NewTicker(interval.Duration())
+		go func() {
+			defer close(events)
+			defer ticker.Stop()
+			for ctx.Err() == nil {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					ohlcvs, lastTs, err = s.tokenAnalytics.GetOHLVC(ctx, ionContentAddress, interval, lastTs)
+					if err != nil {
+						events <- server.StreamEvent[ta.OHLCV]{
+							Err:  err,
+							Data: nil,
+							Type: "error",
+							ID:   fmt.Sprintf("ohlcv_%v", lastTs.UnixNano()),
+						}
+					}
+					for i := range ohlcvs {
+						events <- server.StreamEvent[ta.OHLCV]{
+							Err:  nil,
+							Data: ohlcvs[i],
+							Type: "message",
+							ID:   fmt.Sprintf("ohlcv_%v", ohlcvs[i].Timestamp),
+						}
+					}
+				}
+			}
+		}()
+		return events, nil
+	}, nil
 }
