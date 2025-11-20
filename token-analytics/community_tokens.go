@@ -25,18 +25,9 @@ func (t *tokenAnalytics) GetCommunityTokens(ctx context.Context, ionConnectAddre
 			t.contract_address,
 			t.ion_connect_address,
 			t.type,
-			CASE 
-				WHEN t.type = 'profile' THEN profile_user.username
-				ELSE ''
-			END as title,
-			CASE 
-				WHEN t.type = 'profile' THEN COALESCE(profile_user.display_name, '')
-				ELSE ''
-			END as description,
-			CASE 
-				WHEN t.type = 'profile' THEN COALESCE(profile_user.avatar, '')
-				ELSE ''
-			END as image_url,
+			profile_user.username as title,
+			COALESCE(profile_user.display_name, '') as description,
+			COALESCE(profile_user.avatar, '') as image_url,
 			t.ticker,
 			t.total_supply,
 			COALESCE(t.creator_master_pubkey, '') as creator_master_pubkey,
@@ -59,33 +50,11 @@ func (t *tokenAnalytics) GetCommunityTokens(ctx context.Context, ionConnectAddre
 			COALESCE(utp.total_invested_usd, 0) as position_total_invested_usd
 		FROM tokens t
 		LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
-		LEFT JOIN users profile_user ON profile_user.master_pubkey = t.creator_master_pubkey AND t.type = 'profile'
+		LEFT JOIN users profile_user ON profile_user.master_pubkey = t.creator_master_pubkey
 		LEFT JOIN user_token_positions utp ON utp.contract_address = t.contract_address AND utp.master_pubkey = $2
 		WHERE t.ion_connect_address = ANY($1)
 		ORDER BY t.created_at DESC
 	`
-
-	type tokenRow struct {
-		ContractAddress          string  `db:"contract_address"`
-		IONConnectAddress        string  `db:"ion_connect_address"`
-		Type                     string  `db:"type"`
-		Title                    string  `db:"title"`
-		Description              string  `db:"description"`
-		ImageURL                 string  `db:"image_url"`
-		Ticker                   string  `db:"ticker"`
-		TotalSupply              string  `db:"total_supply"`
-		CreatorMasterPubkey      string  `db:"creator_master_pubkey"`
-		CreatorUsername          string  `db:"creator_username"`
-		CreatorDisplay           string  `db:"creator_display"`
-		CreatorVerified          bool    `db:"creator_verified"`
-		CreatorAvatar            string  `db:"creator_avatar"`
-		MarketCapUSD             float64 `db:"market_cap_usd"`
-		PriceUSD                 float64 `db:"price_usd"`
-		Volume24h                float64 `db:"volume_24h"`
-		HoldersCount             int64   `db:"holders_count"`
-		PositionAmountUSD        float64 `db:"position_amount_usd"`
-		PositionTotalInvestedUSD float64 `db:"position_total_invested_usd"`
-	}
 
 	rows, err := storage.Select[tokenRow](ctx, t.ingestedDataDB, query, ionConnectAddresses, requestorMasterPubkey)
 	if err != nil {

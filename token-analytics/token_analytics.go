@@ -30,10 +30,7 @@ func TokenizedCommunitiesBondingCurveSmartContractABI() string {
 func NewUserRepository(ctx context.Context) UserRepository {
 	var cfg config
 	appconfig.MustLoadFromKey(applicationYamlKey, &cfg)
-	if cfg.Workers == 0 {
-		cfg.Workers = 1
-	}
-	db := storage.MustConnect(ctx, fmt.Sprintf(sourceDDL, cfg.Workers), applicationYamlKey)
+	db := storage.MustConnect(ctx, sourceDDL, applicationYamlKey)
 	targetDB := storagev3.MustConnect(ctx, applicationYamlKey)
 
 	return &tokenAnalytics{
@@ -56,8 +53,12 @@ func New(ctx context.Context) TokenAnalytics {
 	if cfg.Workers == 0 {
 		cfg.Workers = 1
 	}
-	db := storage.MustConnect(ctx, fmt.Sprintf(sourceDDL, cfg.Workers), applicationYamlKey)
+	db := storage.MustConnect(ctx, sourceDDL, applicationYamlKey)
 	targetDB := storagev3.MustConnect(ctx, applicationYamlKey)
+	if err := initializeWorkersConfig(ctx, db, cfg.Workers); err != nil {
+		log.Panic(fmt.Errorf("failed to initialize workers config: %w", err))
+	}
+
 	qn := quicknode.NewClient(ctx, applicationYamlKey)
 
 	registry := metrics.NewRegistry()
@@ -481,4 +482,22 @@ func (j *JSON) getStringSlice(key string) ([]string, bool) {
 	}
 
 	return result, true
+}
+
+func initializeWorkersConfig(ctx context.Context, db *storage.DB, workers uint) error {
+	_, err := storage.Exec(ctx, db, `
+		INSERT INTO global (key, value)
+		VALUES ('workers', $1)
+		ON CONFLICT (key) 
+		DO UPDATE SET value = EXCLUDED.value
+	`, fmt.Sprintf("%d", workers))
+	if err != nil {
+		return fmt.Errorf("failed to set workers in global table: %w", err)
+	}
+	_, err = storage.Exec(ctx, db, `SELECT create_transactions_mod_index()`)
+	if err != nil {
+		return fmt.Errorf("failed to create transactions mod index: %w", err)
+	}
+
+	return nil
 }

@@ -100,4 +100,26 @@ type (
 		TradingVolume24       float64 `json:"24hTradingVolume"`
 		FullyDilutedMarketCap float64 `json:"fullyDilutedMarketCap"`
 	}
+
+	tokenRow struct {
+		ContractAddress          string  `db:"contract_address"`
+		IONConnectAddress        string  `db:"ion_connect_address"`
+		Type                     string  `db:"type"`
+		Title                    string  `db:"title"`
+		Description              string  `db:"description"`
+		ImageURL                 string  `db:"image_url"`
+		Ticker                   string  `db:"ticker"`
+		TotalSupply              string  `db:"total_supply"`
+		CreatorMasterPubkey      string  `db:"creator_master_pubkey"`
+		CreatorUsername          string  `db:"creator_username"`
+		CreatorDisplay           string  `db:"creator_display"`
+		CreatorVerified          bool    `db:"creator_verified"`
+		CreatorAvatar            string  `db:"creator_avatar"`
+		MarketCapUSD             float64 `db:"market_cap_usd"`
+		PriceUSD                 float64 `db:"price_usd"`
+		Volume24h                float64 `db:"volume_24h"`
+		HoldersCount             int64   `db:"holders_count"`
+		PositionAmountUSD        float64 `db:"position_amount_usd"`
+		PositionTotalInvestedUSD float64 `db:"position_total_invested_usd"`
+	}
 )

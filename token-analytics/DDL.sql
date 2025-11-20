@@ -53,7 +53,6 @@ CREATE TABLE IF NOT EXISTS transactions
     PRIMARY KEY (transaction_hash)
 );
 CREATE INDEX IF NOT EXISTS idx_transactions_from_address ON transactions (from_address);
-CREATE INDEX IF NOT EXISTS idx_transactions_mod_tx_idx ON transactions (MOD(transaction_index, %[1]v), block_number, transaction_index ASC);
 
 CREATE TABLE IF NOT EXISTS tx_logs
 (
@@ -255,3 +254,26 @@ CREATE TRIGGER user_token_position_changed
 AFTER INSERT OR UPDATE OR DELETE ON user_token_positions
 FOR EACH ROW
 EXECUTE FUNCTION update_token_holders_count_trigger();
+
+CREATE TABLE IF NOT EXISTS global (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+CREATE OR REPLACE FUNCTION create_transactions_mod_index()
+RETURNS void AS $$
+DECLARE
+    workers_count INT;
+BEGIN
+    SELECT value::INT INTO workers_count FROM global WHERE key = 'workers';
+    
+    IF workers_count IS NULL THEN
+        RAISE NOTICE 'Workers count not found in global table, skipping index creation';
+
+        RETURN;
+    END IF;
+
+    DROP INDEX IF EXISTS idx_transactions_mod_tx_idx;    
+    EXECUTE format('CREATE INDEX IF NOT EXISTS idx_transactions_mod_tx_idx ON transactions (MOD(transaction_index, %s), block_number, transaction_index ASC)', workers_count);
+END;
+$$ LANGUAGE plpgsql;
