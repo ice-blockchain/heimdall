@@ -50,7 +50,7 @@ definitions:
       holders:
         type: integer
       marketCap:
-        type: integer
+        type: number
       position:
         $ref: '#/definitions/tokenanalytics.Position'
       priceUSD:
@@ -58,7 +58,7 @@ definitions:
       ticker:
         type: string
       volume:
-        type: integer
+        type: number
     type: object
   tokenanalytics.OHLCV:
     properties:
@@ -145,8 +145,6 @@ definitions:
       avatar:
         type: string
       display:
-        type: string
-      displayName:
         type: string
       id:
         type: string

@@ -1,5 +1,17 @@
 -- SPDX-License-Identifier: ice License 1.0
 
+DO $$ BEGIN
+    CREATE DOMAIN usd_amount AS NUMERIC(48, 18);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE DOMAIN uint256 AS NUMERIC(78, 0);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
 CREATE TABLE IF NOT EXISTS users
 (
     created_at           TIMESTAMP NOT NULL,
@@ -41,7 +53,6 @@ CREATE TABLE IF NOT EXISTS transactions
     PRIMARY KEY (transaction_hash)
 );
 CREATE INDEX IF NOT EXISTS idx_transactions_from_address ON transactions (from_address);
-CREATE INDEX IF NOT EXISTS idx_transactions_mod_tx_idx ON transactions (MOD(transaction_index, %[1]v), block_number, transaction_index ASC);
 
 CREATE TABLE IF NOT EXISTS tx_logs
 (
@@ -145,3 +156,132 @@ CREATE TABLE IF NOT EXISTS streams (
     created_at TIMESTAMP,
     PRIMARY KEY (contract_address)
 );
+
+CREATE TABLE IF NOT EXISTS tokens (
+    created_at              TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMP NOT NULL DEFAULT NOW(),
+    contract_address        TEXT NOT NULL,
+    ion_connect_address     TEXT NOT NULL, -- nostr 'a' tag for this token (e.g. "30023:article_master_pubkey:d_tag")
+    ticker                  TEXT NOT NULL,
+    total_supply            uint256 NOT NULL,
+    creator_master_pubkey   TEXT,
+    type                    TEXT NOT NULL, -- profile/post/video/article
+    base_token              TEXT,
+    market_cap_usd          usd_amount DEFAULT 0,
+    price_usd               usd_amount DEFAULT 0,
+    holders_count           BIGINT DEFAULT 0,
+    PRIMARY KEY (contract_address),
+    FOREIGN KEY (creator_master_pubkey) REFERENCES users(master_pubkey) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_tokens_creator ON tokens (creator_master_pubkey);
+CREATE INDEX IF NOT EXISTS idx_tokens_created_at ON tokens (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_tokens_ion_connect ON tokens (ion_connect_address);
+
+CREATE TABLE IF NOT EXISTS token_swaps (
+    created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    transaction_hash    TEXT NOT NULL,
+    contract_address    TEXT NOT NULL,
+    user_address        TEXT NOT NULL,
+    direction           BOOLEAN NOT NULL, -- true = buy, false = sell
+    input_amount        uint256 NOT NULL, -- base token amount (buy) or token amount (sell)
+    output_amount       uint256 NOT NULL, -- token amount (buy) or base token amount (sell)
+    price_usd           usd_amount NOT NULL,
+    PRIMARY KEY (transaction_hash, contract_address, user_address),
+    FOREIGN KEY (contract_address) REFERENCES tokens(contract_address) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_token_swaps_contract_direction ON token_swaps (contract_address, direction, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS user_token_positions (
+    updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    master_pubkey       TEXT NOT NULL,
+    contract_address    TEXT NOT NULL,
+    amount              uint256 NOT NULL DEFAULT 0,
+    avg_buy_price_usd   usd_amount DEFAULT 0,
+    total_invested_usd  usd_amount DEFAULT 0,
+    PRIMARY KEY (master_pubkey, contract_address),
+    FOREIGN KEY (master_pubkey) REFERENCES users(master_pubkey) ON DELETE CASCADE,
+    FOREIGN KEY (contract_address) REFERENCES tokens(contract_address) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_token_positions_user ON user_token_positions (master_pubkey);
+CREATE INDEX IF NOT EXISTS idx_user_token_positions_token ON user_token_positions (contract_address);
+
+CREATE OR REPLACE FUNCTION update_token_holders_count_trigger()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        IF NEW.amount > 0 THEN
+            UPDATE tokens
+            SET holders_count = holders_count + 1,
+                updated_at = NOW()
+            WHERE contract_address = NEW.contract_address;
+        END IF;
+        RETURN NEW;
+    END IF;
+
+    IF TG_OP = 'UPDATE' THEN
+        IF OLD.amount > 0 AND NEW.amount = 0 THEN
+            UPDATE tokens
+            SET holders_count = GREATEST(holders_count - 1, 0),
+                updated_at = NOW()
+            WHERE contract_address = NEW.contract_address;
+        ELSIF OLD.amount = 0 AND NEW.amount > 0 THEN
+            UPDATE tokens
+            SET holders_count = holders_count + 1,
+                updated_at = NOW()
+            WHERE contract_address = NEW.contract_address;
+        END IF;
+        RETURN NEW;
+    END IF;
+
+    IF TG_OP = 'DELETE' THEN
+        IF OLD.amount > 0 THEN
+            UPDATE tokens
+            SET holders_count = GREATEST(holders_count - 1, 0),
+                updated_at = NOW()
+            WHERE contract_address = OLD.contract_address;
+        END IF;
+        RETURN OLD;
+    END IF;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER user_token_position_changed
+AFTER INSERT OR UPDATE OR DELETE ON user_token_positions
+FOR EACH ROW
+EXECUTE FUNCTION update_token_holders_count_trigger();
+
+CREATE TABLE IF NOT EXISTS global_settings (
+    value TEXT NOT NULL,
+    key TEXT PRIMARY KEY
+) WITH (FILLFACTOR = 70);
+
+CREATE OR REPLACE FUNCTION create_transactions_mod_index()
+RETURNS void AS $$
+DECLARE
+    workers_count INT;
+    existing_index_def TEXT;
+    expected_index_def TEXT;
+BEGIN
+    SELECT value::INT INTO workers_count FROM global_settings WHERE key = 'workers';
+    
+    IF workers_count IS NULL THEN
+        RETURN;
+    END IF;
+
+    SELECT pg_get_indexdef(indexrelid) INTO existing_index_def
+    FROM pg_stat_user_indexes
+    WHERE indexrelname = 'idx_transactions_mod_tx_idx';
+    
+    expected_index_def := format('CREATE INDEX idx_transactions_mod_tx_idx ON public.transactions USING btree (mod(transaction_index, %s), block_number, transaction_index)', workers_count);
+    
+    IF existing_index_def IS NULL OR existing_index_def != expected_index_def THEN
+        DROP INDEX IF EXISTS idx_transactions_mod_tx_idx;    
+        EXECUTE format('CREATE INDEX idx_transactions_mod_tx_idx ON transactions (MOD(transaction_index, %s), block_number, transaction_index ASC)', workers_count);
+    END IF;
+END;
+$$ LANGUAGE plpgsql;

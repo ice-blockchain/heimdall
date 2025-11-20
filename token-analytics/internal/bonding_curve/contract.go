@@ -16,6 +16,7 @@ type (
 	LogTokenCreated struct {
 		Event
 		Address     common.Address
+		Creator     common.Address
 		Name        string
 		Symbol      string
 		TotalSupply *big.Int
@@ -23,33 +24,17 @@ type (
 	LogTokenSwapped struct {
 		Event
 		Address      common.Address
-		Pair         [32]byte
+		Swapper      common.Address
+		Pair         common.Hash
 		Direction    bool
 		TotalSupply  *big.Int
 		InputAmount  *big.Int
 		OutputAmount *big.Int
 		Fee          *big.Int
 	}
-	LogTokenBought struct {
-		Event
-		Buyer    common.Address
-		PairId   [32]byte
-		AmountIn *big.Int
-		TokenOut *big.Int
-		Fee      *big.Int
-	}
-
-	LogTokenSold struct {
-		Event
-		Seller   common.Address
-		PairId   [32]byte
-		AmountIn *big.Int
-		TokenOut *big.Int
-		Fee      *big.Int
-	}
 	LogRecipientsSet struct {
 		Event
-		PairId    [32]byte
+		PairId    common.Hash
 		Creator   common.Address
 		Affiliate common.Address
 		Burn      common.Address
@@ -57,7 +42,7 @@ type (
 
 	LogFeeAccrued struct {
 		Event
-		PairId      [32]byte
+		PairId      common.Hash
 		Payer       common.Address
 		Fee         *big.Int
 		ToCreator   *big.Int
@@ -67,27 +52,27 @@ type (
 
 	LogFeeTransfer struct {
 		Event
-		PairId [32]byte
+		PairId common.Hash
 		To     common.Address
 		Amount *big.Int
 	}
 
 	LogMigrated struct {
 		Event
-		PairId   [32]byte
+		PairId   common.Hash
 		Pair     common.Address
 		LpAmount *big.Int
 	}
 
 	LogLiquidityClaimed struct {
 		Event
-		PairId [32]byte
+		PairId common.Hash
 		To     common.Address
 		Amount *big.Int
 	}
 	LogPairRegistered struct {
 		Event
-		PairId     [32]byte
+		PairId     common.Hash
 		BaseToken  common.Address
 		OtherToken common.Address
 	}
@@ -104,13 +89,13 @@ type (
 	}
 	LogSlippageChecked struct {
 		Event
-		PairId    [32]byte
+		PairId    common.Hash
 		MinReturn *big.Int
 		ActualOut *big.Int
 	}
 	LogLiquidityLocked struct {
 		Event
-		PairId     [32]byte
+		PairId     common.Hash
 		LpToken    common.Address
 		Amount     *big.Int
 		UnlockTime *big.Int

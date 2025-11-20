@@ -12,6 +12,10 @@ cmd/heimdall-identity-io:
   requiredAppVersions:
     android: 9.9.9
     ios: 9.9.9
+  tokenizedCommunities:
+    bondingCurveSmartContractAddress: 0x4012f49Be72057329754922603Dc35ADB8520274
+    addressVersion: 1
+    abiVersion: 1
   assetLinks: '[]'
   appleAppSiteAssociation: '{
   "applinks": {
@@ -51,6 +55,10 @@ cmd/heimdall-token-analytics:
     port: 8888
     certPath: cmd/heimdall-identity-io/.testdata/localhost.crt
     keyPath: cmd/heimdall-identity-io/.testdata/localhost.key
+  tokenizedCommunities:
+    bondingCurveSmartContractAddress: 0x4012f49Be72057329754922603Dc35ADB8520274
+    addressVersion: 1
+    abiVersion: 1
 accounts:
   delegated_relying_party:
     auth:
@@ -422,7 +430,7 @@ apps-runtime:
 token-analytics:
   workers: 10
   batchSize: 2
-  bondingCurveContract: 0x4012f49Be72057329754922603Dc35ADB8520274
+  ionTokenAddress: 0x0000000000000000000000000000000000000000
   startBlock: 72173309
   quickNode:
     start-block: 72173309

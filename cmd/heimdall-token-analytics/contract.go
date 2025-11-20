@@ -18,6 +18,9 @@ type (
 			KeyPath  string `yaml:"keyPath"`
 			Port     uint32 `yaml:"port"`
 		} `yaml:"httpServer"`
+		TokenizedCommunities struct {
+			BondingCurveSmartContractAddress string `yaml:"bondingCurveSmartContractAddress" mapstructure:"bondingCurveSmartContractAddress"`
+		} `yaml:"tokenizedCommunities" mapstructure:"tokenizedCommunities"`
 	}
 
 	service struct {
@@ -28,6 +31,8 @@ type (
 
 const (
 	applicationYamlKey = "cmd/heimdall-token-analytics"
+
+	invalidPropertiesErrorCode = "INVALID_PROPERTIES"
 )
 
 var (

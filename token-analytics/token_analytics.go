@@ -4,14 +4,15 @@ package tokenanalytics
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	stdlog "log"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 	stdlibtime "time"
 
-	"github.com/cockroachdb/errors"
 	"github.com/goccy/go-json"
 	"github.com/rcrowley/go-metrics"
 
@@ -27,45 +28,70 @@ func TokenizedCommunitiesBondingCurveSmartContractABI() string {
 	return bondingcurve.ABIJSON
 }
 
-func New(ctx context.Context) TokenAnalytics {
+func NewUserRepository(ctx context.Context) UserRepository {
+	var cfg config
+	appconfig.MustLoadFromKey(applicationYamlKey, &cfg)
+	db := storage.MustConnect(ctx, sourceDDL, applicationYamlKey)
+	targetDB := storagev3.MustConnect(ctx, applicationYamlKey)
+
+	return &tokenAnalytics{
+		ingestedDataDB:  db,
+		processedDataDB: targetDB,
+		wg:              new(sync.WaitGroup),
+		cfg:             &cfg,
+		shutdown: func() error {
+			return errors.Join(
+				db.Close(),
+				targetDB.Close(),
+			)
+		},
+	}
+}
+
+func New(ctx context.Context, bondingCurveContractAddress string) TokenAnalytics {
 	var cfg config
 	appconfig.MustLoadFromKey(applicationYamlKey, &cfg)
 	if cfg.Workers == 0 {
 		cfg.Workers = 1
 	}
-	db := storage.MustConnect(ctx, fmt.Sprintf(sourceDDL, cfg.Workers), applicationYamlKey)
+	db := storage.MustConnect(ctx, sourceDDL, applicationYamlKey)
 	targetDB := storagev3.MustConnect(ctx, applicationYamlKey)
+	if err := initializeWorkersConfig(ctx, db, cfg.Workers); err != nil {
+		log.Panic(fmt.Errorf("failed to initialize workers config: %w", err))
+	}
+
 	qn := quicknode.NewClient(ctx, applicationYamlKey)
 
 	registry := metrics.NewRegistry()
 	for workerIdx := range cfg.Workers {
 		workerPrefix := fmt.Sprintf("worker_%d_", workerIdx)
-		log.Panic(errors.Wrapf(registry.Register(workerPrefix+"iteration",
-			metrics.NewCustomTimer(metrics.NewHistogram(metrics.NewExpDecaySample(10_000, 0.015)), metrics.NewMeter())),
-			"failed to register worker %d iteration timer", workerIdx))
-		log.Panic(errors.Wrapf(registry.Register(workerPrefix+"events_processed", metrics.NewMeter()),
-			"failed to register worker %d events meter", workerIdx))
-		log.Panic(errors.Wrapf(registry.Register(workerPrefix+"errors", metrics.NewMeter()),
-			"failed to register worker %d errors meter", workerIdx))
-		log.Panic(errors.Wrapf(registry.Register(workerPrefix+"block_number", metrics.NewGauge()),
-			"failed to register worker %d block_number gauge", workerIdx))
-		log.Panic(errors.Wrapf(registry.Register(workerPrefix+"transaction_index", metrics.NewGauge()),
-			"failed to register worker %d transaction_index gauge", workerIdx))
+		log.Panic(fmt.Errorf("failed to register worker %d iteration timer: %w", workerIdx,
+			registry.Register(workerPrefix+"iteration",
+				metrics.NewCustomTimer(metrics.NewHistogram(metrics.NewExpDecaySample(10_000, 0.015)), metrics.NewMeter()))))
+		log.Panic(fmt.Errorf("failed to register worker %d events meter: %w", workerIdx,
+			registry.Register(workerPrefix+"events_processed", metrics.NewMeter())))
+		log.Panic(fmt.Errorf("failed to register worker %d errors meter: %w", workerIdx,
+			registry.Register(workerPrefix+"errors", metrics.NewMeter())))
+		log.Panic(fmt.Errorf("failed to register worker %d block_number gauge: %w", workerIdx,
+			registry.Register(workerPrefix+"block_number", metrics.NewGauge())))
+		log.Panic(fmt.Errorf("failed to register worker %d transaction_index gauge: %w", workerIdx,
+			registry.Register(workerPrefix+"transaction_index", metrics.NewGauge())))
 	}
-	log.Panic(errors.Wrapf(registry.Register("stream_creator_iterations", metrics.NewMeter()),
-		"failed to register stream creator iterations meter"))
+	log.Panic(fmt.Errorf("failed to register stream creator iterations meter: %w",
+		registry.Register("stream_creator_iterations", metrics.NewMeter())))
 
 	t := &tokenAnalytics{
-		ingestedDataDB:  db,
-		processedDataDB: targetDB,
-		wg:              new(sync.WaitGroup),
-		cfg:             &cfg,
-		quickNode:       qn,
-		metrics:         registry,
+		bondingCurveContractAddress: bondingCurveContractAddress,
+		ingestedDataDB:              db,
+		processedDataDB:             targetDB,
+		wg:                          new(sync.WaitGroup),
+		cfg:                         &cfg,
+		quickNode:                   qn,
+		metrics:                     registry,
 		shutdown: func() error {
 			return errors.Join(
-				errors.Wrapf(db.Close(), "failed to close source db"),
-				errors.Wrapf(targetDB.Close(), "failed to close target db"),
+				db.Close(),
+				targetDB.Close(),
 			)
 		},
 	}
@@ -84,13 +110,15 @@ func (t *tokenAnalytics) Close() error {
 
 func (t *tokenAnalytics) HealthCheck(ctx context.Context) error {
 	if err := t.ingestedDataDB.Ping(ctx); err != nil {
-		return errors.Wrap(err, "database connection failed")
+		return fmt.Errorf("database connection failed: %w", err)
 	}
 	if err := t.processedDataDB.Ping(ctx).Err(); err != nil {
-		return errors.Wrap(err, "redis connection failed")
+		return fmt.Errorf("redis connection failed: %w", err)
 	}
-	if err := t.quickNode.HealthCheck(ctx); err != nil {
-		return errors.Wrap(err, "quicknode api unavailable")
+	if t.quickNode != nil {
+		if err := t.quickNode.HealthCheck(ctx); err != nil {
+			return fmt.Errorf("quicknode api unavailable: %w", err)
+		}
 	}
 
 	return nil
@@ -118,7 +146,7 @@ func (t *tokenAnalytics) UpsertUser(ctx context.Context, id, masterPubkey, usern
 			verified = EXCLUDED.verified
 	`, id, masterPubkey, username, displayName, avatar, lookup, ionConnectRelays, verified)
 
-	return errors.Wrapf(err, "failed to upsert user %v", masterPubkey)
+	return fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err)
 }
 
 func (t *tokenAnalytics) SetVerified(ctx context.Context, masterPubkey string) error {
@@ -128,7 +156,7 @@ func (t *tokenAnalytics) SetVerified(ctx context.Context, masterPubkey string) e
 		WHERE master_pubkey = $1
 	`, masterPubkey)
 
-	return errors.Wrapf(err, "failed to set verified for user %v", masterPubkey)
+	return fmt.Errorf("failed to set verified for user %v: %w", masterPubkey, err)
 }
 
 func (t *tokenAnalytics) MustStart(ctx context.Context) {
@@ -153,7 +181,7 @@ func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint)
 	)
 	startPoint, err := t.getSavePoint(ctx, workerIdx)
 	if err != nil {
-		log.Panic(errors.Wrapf(err, "failed to get save point for worker %d", workerIdx))
+		log.Panic(fmt.Errorf("failed to get save point for worker %d: %w", workerIdx, err))
 	}
 	log.Info(fmt.Sprintf("Worker %d started from block %d", workerIdx, startPoint.BlockNumber))
 
@@ -169,7 +197,7 @@ func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint)
 		iterationCtx, iterationCancel := context.WithTimeout(ctx, 30*time.Second)
 		eventsToProcess, err = t.fetchUnprocessedEvents(iterationCtx, workerIdx, startPoint)
 		if err != nil {
-			log.Error(errors.Wrapf(err, "[worker %d] failed to fetch new tx events", workerIdx))
+			log.Error(fmt.Errorf("[worker %d] failed to fetch new tx events: %w", workerIdx, err))
 			iterationCancel()
 			resetVars(false)
 
@@ -185,7 +213,7 @@ func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint)
 		for _, tx := range eventsToProcess {
 			for _, logEvent := range tx.Logs {
 				if err = t.processLog(iterationCtx, tx, &logEvent); err != nil {
-					log.Error(errors.Wrapf(err, "[worker %d] failed to process log %+v in tx %v", workerIdx, logEvent, tx.TransactionHash))
+					log.Error(fmt.Errorf("[worker %d] failed to process log %+v in tx %v: %w", workerIdx, logEvent, tx.TransactionHash, err))
 					errorsMeter.Mark(1)
 
 					continue
@@ -204,7 +232,7 @@ func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint)
 		}
 
 		if err = t.setSavePoint(iterationCtx, workerIdx, startPoint); err != nil {
-			log.Error(errors.Wrapf(err, "[worker %d] failed to save point", workerIdx))
+			log.Error(fmt.Errorf("[worker %d] failed to save point: %w", workerIdx, err))
 			resetVars(false)
 			iterationCancel()
 
@@ -226,37 +254,37 @@ func (t *tokenAnalytics) processLog(ctx context.Context, tx *txEvent, logEvent *
 	topics, _ := logEvent.getStringSlice("topics")
 	address, _ := logEvent.getString("address")
 
-	parsedEv, err := bondingcurve.ProcessEvent(topic0, data, topics)
+	parsedEv, err := bondingcurve.ProcessEvent(topic0, data, topics, address)
 	if err != nil {
-		log.Error(errors.Wrapf(err, "failed to process event topic0=%s, address=%s, data=%s", topic0, address, data))
+		log.Error(fmt.Errorf("failed to process event topic0=%s, address=%s, data=%s: %w", topic0, address, data, err))
 		return err
 	}
 
 	switch ev := parsedEv.(type) {
 	case *bondingcurve.LogTokenCreated:
-		return t.onTokenCreated(ctx, tx, logEvent, ev)
+		return t.onTokenCreated(ctx, tx, address, ev)
 	case *bondingcurve.LogTransfer:
-		return t.onTransfer(ctx, tx, logEvent, ev)
+		return t.onTransfer(ctx, tx, ev)
 	case *bondingcurve.LogOwnershipTransferred:
-		return t.onOwnershipTransferred(ctx, tx, logEvent, ev)
+		return t.onOwnershipTransferred(ctx, tx, ev)
 	case *bondingcurve.LogTokenSwapped:
-		return t.onSwap(ctx, tx, logEvent, ev)
+		return t.onSwap(ctx, tx, ev)
 	case *bondingcurve.LogPairRegistered:
-		return t.onPairRegistered(ctx, tx, logEvent, ev)
+		return t.onPairRegistered(ctx, tx, ev)
 	case *bondingcurve.LogRecipientsSet:
-		return t.onRecipientsSet(ctx, tx, logEvent, ev)
+		return t.onRecipientsSet(ctx, tx, ev)
 	case *bondingcurve.LogMigrated:
-		return t.onMigrated(ctx, tx, logEvent, ev)
+		return t.onMigrated(ctx, tx, ev)
 	case *bondingcurve.LogFeeAccrued:
-		return t.onFeeAccrued(ctx, tx, logEvent, ev)
+		return t.onFeeAccrued(ctx, tx, ev)
 	case *bondingcurve.LogFeeTransfer:
-		return t.onFeeTransfer(ctx, tx, logEvent, ev)
+		return t.onFeeTransfer(ctx, tx, ev)
 	case *bondingcurve.LogLiquidityClaimed:
-		return t.onLiquidityClaimed(ctx, tx, logEvent, ev)
+		return t.onLiquidityClaimed(ctx, tx, ev)
 	case *bondingcurve.LogSlippageChecked:
-		return t.onSlippageChecked(ctx, tx, logEvent, ev)
+		return t.onSlippageChecked(ctx, tx, ev)
 	case *bondingcurve.LogLiquidityLocked:
-		return t.onLiquidityLocked(ctx, tx, logEvent, ev)
+		return t.onLiquidityLocked(ctx, tx, ev)
 	}
 
 	return nil
@@ -269,13 +297,13 @@ func (t *tokenAnalytics) createStreamForContractAddress(ctx context.Context, con
 			log.Info("Stream already exists for bonded token: %v", contractAddress)
 			return nil
 		}
-		return errors.Wrapf(err, "failed to check stream duplicate")
+		return fmt.Errorf("failed to check stream duplicate: %w", err)
 	}
 
 	stream, err := t.quickNode.CreateStream(ctx, contractAddress, contractAddress)
 	if err != nil {
 		_, rollbackErr := storage.Exec(ctx, t.ingestedDataDB, `DELETE FROM streams WHERE contract_address = $1;`, contractAddress)
-		return errors.Wrapf(errors.Join(err, rollbackErr), "failed to create quicknode stream for %v", contractAddress)
+		return errors.Join(err, rollbackErr)
 	}
 
 	_, err = storage.Exec(ctx, t.ingestedDataDB, `
@@ -285,7 +313,7 @@ func (t *tokenAnalytics) createStreamForContractAddress(ctx context.Context, con
           name = $4
       WHERE contract_address = $1;`, contractAddress, stream.ID, stream.CreatedAt, stream.Name)
 	if err != nil {
-		return errors.Wrapf(err, "failed to insert stream for %v", contractAddress)
+		return fmt.Errorf("failed to insert stream for %v: %w", contractAddress, err)
 	}
 
 	log.Info("Stream created for bonded token: %v (ID: %v)", contractAddress, stream.ID)
@@ -334,7 +362,7 @@ func (t *tokenAnalytics) fetchUnprocessedEvents(ctx context.Context, workerIdx u
 
 	events, err := storage.Select[txEvent](ctx, t.ingestedDataDB, sql, start.BlockNumber, start.TransactionIndex)
 
-	return events, errors.Wrapf(err, "failed to fetch events for worker:%v", workerIdx)
+	return events, fmt.Errorf("failed to fetch events for worker:%v: %w", workerIdx, err)
 }
 
 func (s *savePointData) Key() string {
@@ -345,7 +373,7 @@ func (t *tokenAnalytics) getSavePoint(ctx context.Context, workerIdx uint) (*Sav
 	key := fmt.Sprintf("token_analytics:save_point:worker:%v", workerIdx)
 	results, err := storagev3.Get[savePointData](ctx, t.processedDataDB, key)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get save point for worker %v", workerIdx)
+		return nil, fmt.Errorf("failed to get save point for worker %v: %w", workerIdx, err)
 	}
 
 	if len(results) == 0 || results[0] == nil || (results[0].BlockNumber == 0 && results[0].TransactionIndex == 0) {
@@ -368,11 +396,11 @@ func (t *tokenAnalytics) getSavePoint(ctx context.Context, workerIdx uint) (*Sav
 func (t *tokenAnalytics) setSavePoint(ctx context.Context, workerIdx uint, newSavePoint *SavePoint) error {
 	currentSavePoint, err := t.getSavePoint(ctx, workerIdx)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get current save point for validation")
+		return fmt.Errorf("failed to get current save point for validation: %w", err)
 	}
 
 	if !isValidSavePointProgression(currentSavePoint, newSavePoint) {
-		return errors.Errorf(
+		return fmt.Errorf(
 			"save point regression detected for worker %d: current(block=%d,tx=%d) -> new(block=%d,tx=%d)",
 			workerIdx,
 			currentSavePoint.BlockNumber, currentSavePoint.TransactionIndex,
@@ -388,7 +416,7 @@ func (t *tokenAnalytics) setSavePoint(ctx context.Context, workerIdx uint, newSa
 	}
 
 	if err := storagev3.Set(ctx, t.processedDataDB, sp); err != nil {
-		return errors.Wrapf(err, "failed to set save point for worker %v", workerIdx)
+		return fmt.Errorf("failed to set save point for worker %v: %w", workerIdx, err)
 	}
 
 	return nil
@@ -409,7 +437,7 @@ func (l *txEventLogs) Scan(src any) error {
 	if !isBytes {
 		val, isStr := src.(string)
 		if !isStr {
-			return errors.Errorf("unexpected type for src:%#v(%T)", src, src)
+			return fmt.Errorf("unexpected type for src:%#v(%T)", src, src)
 		}
 		if val == "" || val == "[]" {
 			*l = make(txEventLogs, 0)
@@ -419,7 +447,10 @@ func (l *txEventLogs) Scan(src any) error {
 		valBytes = []byte(val)
 	}
 	if len(valBytes) > 2 {
-		return errors.Wrapf(json.UnmarshalContext(context.Background(), valBytes, l), "failed to json.UnmarshalContext(%v,*txEventLogs)", string(valBytes))
+		if err := json.Unmarshal(valBytes, l); err != nil {
+			return fmt.Errorf("failed to json.Unmarshal(%v,*txEventLogs): %w", string(valBytes), err)
+		}
+		return nil
 	}
 	*l = make(txEventLogs, 0)
 
@@ -453,4 +484,22 @@ func (j *JSON) getStringSlice(key string) ([]string, bool) {
 	}
 
 	return result, true
+}
+
+func initializeWorkersConfig(ctx context.Context, db *storage.DB, workers uint) error {
+	_, err := storage.Exec(ctx, db, `
+		INSERT INTO global_settings (key, value)
+		VALUES ('workers', $1)
+		ON CONFLICT (key) 
+		DO UPDATE SET value = EXCLUDED.value
+	`, strconv.FormatUint(uint64(workers), 10))
+	if err != nil {
+		return fmt.Errorf("failed to set workers in global_settings table: %w", err)
+	}
+	_, err = storage.Exec(ctx, db, `SELECT create_transactions_mod_index()`)
+	if err != nil {
+		return fmt.Errorf("failed to create transactions mod index: %w", err)
+	}
+
+	return nil
 }
