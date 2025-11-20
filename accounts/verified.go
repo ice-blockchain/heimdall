@@ -53,8 +53,10 @@ func (a *verifiedUsersSync) ProcessNextVerifiedUsersQueue(ctx context.Context) e
 			}
 			return errors.Wrap(err, "failed to get and process verified user")
 		}
-		if syncErr := a.tokenAnalyticsRepo.SetVerified(ctx, userData.MasterPubKey); syncErr != nil {
-			return errors.Wrapf(syncErr, "failed to sync verified status to token-analytics for user %v", userData.MasterPubKey)
+		if false {
+			if syncErr := a.tokenAnalyticsRepo.SetVerified(ctx, userData.MasterPubKey); syncErr != nil {
+				return errors.Wrapf(syncErr, "failed to sync verified status to token-analytics for user %v", userData.MasterPubKey)
+			}
 		}
 		verificationEvents, err := generateVerificationEvents(a.privateKey, userData.MasterPubKey)
 		if err != nil {
