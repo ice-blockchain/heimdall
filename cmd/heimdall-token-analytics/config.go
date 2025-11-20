@@ -13,30 +13,50 @@ import (
 	appcfg "github.com/ice-blockchain/wintr/config"
 )
 
-func loadTLSConfig(certFile, keyFile, pullCAFile string) (*tls.Config, error) {
+func loadTLSConfigFromPEM(certPEM, keyPEM, pullCAPEM string) (*tls.Config, error) {
+	cert, err := tls.X509KeyPair([]byte(certPEM), []byte(keyPEM))
+	if err != nil {
+		return nil, err
+	}
+
+	return buildTLSConfig(cert, pullCAPEM, nil)
+}
+
+func loadTLSConfigFromFiles(certFile, keyFile, pullCAFile string) (*tls.Config, error) {
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
 		return nil, err
 	}
+
+	var pullCAData string
+	if pullCAFile != "" {
+		pull, err := os.ReadFile(pullCAFile)
+		if err != nil {
+			return nil, err
+		}
+		pullCAData = string(pull)
+	}
+
+	return buildTLSConfig(cert, pullCAData, nil)
+}
+
+func buildTLSConfig(cert tls.Certificate, caPEM string, pool *x509.CertPool) (*tls.Config, error) {
+	var err error
 
 	cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
 	if err != nil {
 		return nil, err
 	}
 
-	var pool *x509.CertPool
-
-	if pullCAFile != "" {
-		pull, err := os.ReadFile(pullCAFile)
-		if err != nil {
-			return nil, err
-		}
-
+	if caPEM != "" && pool == nil {
 		pool = x509.NewCertPool()
-		pool.AppendCertsFromPEM(pull)
+		pool.AppendCertsFromPEM([]byte(caPEM))
 	}
 
-	config := &tls.Config{MinVersion: tls.VersionTLS13}
+	config := &tls.Config{
+		MinVersion: tls.VersionTLS13,
+		ClientCAs:  pool,
+	}
 	config.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 		if err := info.SupportsCertificate(&cert); err == nil {
 			return &cert, nil
@@ -47,6 +67,11 @@ func loadTLSConfig(certFile, keyFile, pullCAFile string) (*tls.Config, error) {
 	}
 
 	return config, nil
+}
+
+func pathExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil || !os.IsNotExist(err)
 }
 
 func mustLoadConfig() *Config {
@@ -65,8 +90,14 @@ func (c *Config) Server() *server.Config {
 	if (c.HTTPServer.CertPath == "" || c.HTTPServer.KeyPath == "") && c.Development {
 		slog.Warn("using development self-signed certificate")
 		tlsConf = cert.MustGenerateTLSConfigSelfSigned("localhost")
+	} else if pathExists(c.HTTPServer.CertPath) && pathExists(c.HTTPServer.KeyPath) {
+		slog.Info("loading TLS config from certificate files")
+		tlsConf, err = loadTLSConfigFromFiles(c.HTTPServer.CertPath, c.HTTPServer.KeyPath, "")
+	} else if c.HTTPServer.CertPath != "" && c.HTTPServer.KeyPath != "" {
+		slog.Info("loading TLS config from PEM data")
+		tlsConf, err = loadTLSConfigFromPEM(c.HTTPServer.CertPath, c.HTTPServer.KeyPath, "")
 	} else {
-		tlsConf, err = loadTLSConfig(c.HTTPServer.CertPath, c.HTTPServer.KeyPath, "")
+		err = errNoCertificateAvailable
 	}
 
 	if err != nil {
