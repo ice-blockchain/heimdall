@@ -364,7 +364,7 @@ var (
 			if ver == nil {
 				return errors.Wrapf(errVersionRequired, "version required for %s", configNameTokenizedCommunitiesBondingCurveSmartContractABI), Version(0)
 			}
-			var rawJSONBody map[string]any
+			var rawJSONBody any
 			if err := json.Unmarshal([]byte(tokenanalytics.TokenizedCommunitiesBondingCurveSmartContractABI()), &rawJSONBody); err != nil {
 				return errors.Wrapf(err, "failed to parse `%v` cfg as JSON", configNameTokenizedCommunitiesBondingCurveSmartContractABI), Version(0)
 			}
