@@ -108,8 +108,8 @@ func tokenCreated(signature, data, contractAddress, creatorTopic string) (*LogTo
 	tokenCreatedEvent.Address = common.HexToAddress(contractAddress)
 	tokenCreatedEvent.Creator = common.HexToAddress(creatorTopic)
 
-	log.Debug(fmt.Sprintf("Token created: address=%v, creator=%v, totalSupply=%v",
-		tokenCreatedEvent.Address.Hex(), tokenCreatedEvent.Creator.Hex(), tokenCreatedEvent.TotalSupply))
+	log.Debug(fmt.Sprintf("Token created: address=%v, totalSupply=%v",
+		tokenCreatedEvent.Address.Hex(), tokenCreatedEvent.TotalSupply))
 
 	return &tokenCreatedEvent, nil
 }

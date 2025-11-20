@@ -63,7 +63,7 @@ func (s *service) MustStart(ctx context.Context) {
 
 func (s *service) Init(ctx context.Context, cfg *Config) {
 	s.httpServer = server.New(cfg.Server())
-	s.tokenAnalytics = tokenanalytics.New(ctx)
+	s.tokenAnalytics = tokenanalytics.New(ctx, cfg.TokenizedCommunities.BondingCurveSmartContractAddress)
 	s.tokenAnalytics.MustStart(ctx)
 }
 

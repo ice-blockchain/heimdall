@@ -18,7 +18,7 @@ import (
 )
 
 func (t *tokenAnalytics) onTokenCreated(ctx context.Context, tx *txEvent, contractAddress string, ev *bondingcurve.LogTokenCreated) error {
-	if !strings.EqualFold(contractAddress, t.cfg.BondingCurveContract) {
+	if !strings.EqualFold(contractAddress, t.bondingCurveContractAddress) {
 		log.Debug(fmt.Sprintf("Ignoring TokenCreated from non-BondingCurve contract: %v", contractAddress))
 
 		return nil
@@ -46,7 +46,7 @@ func (t *tokenAnalytics) onTokenCreated(ctx context.Context, tx *txEvent, contra
 
 func (t *tokenAnalytics) saveTokenMetadata(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTokenCreated) error {
 	contractAddress := strings.ToLower(ev.Address.Hex())
-	creatorAddress := strings.ToLower(ev.Creator.Hex())
+	creatorAddress := strings.ToLower(tx.FromAddress)
 
 	// TODO: Extract ion_connect_address from tx.Input 'content' field after ABI update.
 	var ionConnectAddress *string
@@ -80,8 +80,11 @@ func (t *tokenAnalytics) saveTokenMetadata(ctx context.Context, tx *txEvent, ev 
 			ion_connect_address = COALESCE(EXCLUDED.ion_connect_address, tokens.ion_connect_address),
 			ticker = COALESCE(EXCLUDED.ticker, tokens.ticker)
 	`, tx.BlockTimestamp, contractAddress, ionConnectAddress, creatorAddress, ev.TotalSupply.String(), tokenType)
+	if err != nil {
+		return fmt.Errorf("failed to insert token %v: %w", contractAddress, err)
+	}
 
-	return fmt.Errorf("failed to insert token %v: %w", contractAddress, err)
+	return nil
 }
 
 // TODO: use this function to extract token type from ion connect address after abi update.

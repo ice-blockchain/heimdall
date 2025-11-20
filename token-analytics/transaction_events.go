@@ -6,36 +6,10 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-	"strings"
-
-	"github.com/cockroachdb/errors"
-	"github.com/ethereum/go-ethereum/common"
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/wintr/log"
 )
-
-func (t *tokenAnalytics) onTokenCreated(ctx context.Context, tx *txEvent, logEvent *JSON, ev *bondingcurve.LogTokenCreated) error {
-	topics, _ := logEvent.getStringSlice("topics")
-	address, _ := logEvent.getString("address")
-
-	if len(topics) > 1 {
-		ev.Address = common.HexToAddress(topics[1])
-	}
-	log.Info(fmt.Sprintf("Token created from BondingCurve:%v, token address:%v, tx:%v", address, ev.Address.String(), tx.TransactionHash))
-
-	if strings.EqualFold(address, TokenizedCommunitiesBondingCurveSmartContractABI()) {
-		log.Info(fmt.Sprintf("Creating stream for bonded token: %v", ev.Address.String()))
-		if err := t.createStreamForContractAddress(ctx, ev.Address.String()); err != nil {
-			return errors.Wrapf(err, "failed to create stream to monitor contract %v", ev.Address.String())
-		}
-		log.Info(fmt.Sprintf("Successfully created stream for bonded token: %v", ev.Address.String()))
-	} else {
-		log.Debug(fmt.Sprintf("onTokenCreated: not bonded token, contract address: %v", ev.Address.String()))
-	}
-
-	return nil
-}
 
 func (t *tokenAnalytics) getMasterPubkeyByAddress(ctx context.Context, blockchainAddr string) (string, error) {
 	// TODO: Implement extraction of master_pubkey from transaction.

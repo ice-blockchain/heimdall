@@ -48,7 +48,7 @@ func NewUserRepository(ctx context.Context) UserRepository {
 	}
 }
 
-func New(ctx context.Context) TokenAnalytics {
+func New(ctx context.Context, bondingCurveContractAddress string) TokenAnalytics {
 	var cfg config
 	appconfig.MustLoadFromKey(applicationYamlKey, &cfg)
 	if cfg.Workers == 0 {
@@ -81,12 +81,13 @@ func New(ctx context.Context) TokenAnalytics {
 		registry.Register("stream_creator_iterations", metrics.NewMeter())))
 
 	t := &tokenAnalytics{
-		ingestedDataDB:  db,
-		processedDataDB: targetDB,
-		wg:              new(sync.WaitGroup),
-		cfg:             &cfg,
-		quickNode:       qn,
-		metrics:         registry,
+		bondingCurveContractAddress: bondingCurveContractAddress,
+		ingestedDataDB:              db,
+		processedDataDB:             targetDB,
+		wg:                          new(sync.WaitGroup),
+		cfg:                         &cfg,
+		quickNode:                   qn,
+		metrics:                     registry,
 		shutdown: func() error {
 			return errors.Join(
 				db.Close(),

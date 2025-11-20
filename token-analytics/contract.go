@@ -17,8 +17,7 @@ import (
 )
 
 type (
-	TokenAnalytics interface {
-		MustStart(ctx context.Context)
+	UserRepository interface {
 		Close() error
 		HealthCheck(ctx context.Context) error
 		UpsertUser(ctx context.Context, id, masterPubkey, username, displayName, avatar string, verified bool, ionConnectRelays []string) error
@@ -26,6 +25,8 @@ type (
 	}
 
 	TokenAnalytics interface {
+		Close() error
+		HealthCheck(ctx context.Context) error
 		UserRepository
 		MustStart(ctx context.Context)
 		GetCommunityTokens(ctx context.Context, ionConnectAddresses []string, requestorMasterPubkey string) ([]*CommunityToken, error)
@@ -56,20 +57,22 @@ const (
 
 type (
 	config struct {
-		Workers    uint   `yaml:"workers"`
-		BatchSize  uint   `yaml:"batchSize"`
-		StartBlock uint64 `yaml:"startBlock"`
-		Region     string `yaml:"region"`
+		Workers         uint   `yaml:"workers"`
+		BatchSize       uint   `yaml:"batchSize"`
+		StartBlock      uint64 `yaml:"startBlock"`
+		Region          string `yaml:"region"`
+		IONTokenAddress string `yaml:"ionTokenAddress"`
 	}
 	tokenAnalytics struct {
-		ingestedDataDB  *storage.DB
-		processedDataDB storagev3.DB
-		shutdown        func() error
-		cfg             *config
-		wg              *sync.WaitGroup
-		quickNode       quicknode.Client
-		metrics         metrics.Registry
-		ionPriceUSD     *atomic.Pointer[float64]
+		bondingCurveContractAddress string
+		ingestedDataDB              *storage.DB
+		processedDataDB             storagev3.DB
+		shutdown                    func() error
+		cfg                         *config
+		wg                          *sync.WaitGroup
+		quickNode                   quicknode.Client
+		metrics                     metrics.Registry
+		ionPriceUSD                 *atomic.Pointer[float64]
 		// TODO: xmap for latest creator token prices to calc content token price
 	}
 	txEvent struct {
