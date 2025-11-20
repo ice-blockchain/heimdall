@@ -23,6 +23,10 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
+func TokenizedCommunitiesBondingCurveSmartContractABI() string {
+	return bondingcurve.ABIJSON
+}
+
 func New(ctx context.Context) TokenAnalytics {
 	var cfg config
 	appconfig.MustLoadFromKey(applicationYamlKey, &cfg)
@@ -78,7 +82,7 @@ func (t *tokenAnalytics) Close() error {
 	return t.shutdown()
 }
 
-func (t *tokenAnalytics) Healthcheck(ctx context.Context) error {
+func (t *tokenAnalytics) HealthCheck(ctx context.Context) error {
 	if err := t.ingestedDataDB.Ping(ctx); err != nil {
 		return errors.Wrap(err, "database connection failed")
 	}

@@ -72,7 +72,7 @@ func (s *service) Close(context.Context) error {
 }
 
 func (s *service) CheckHealth(ctx context.Context) error {
-	return s.tokenAnalytics.Healthcheck(ctx)
+	return s.tokenAnalytics.HealthCheck(ctx)
 }
 
 func readVersionString() string {

@@ -118,9 +118,9 @@ type (
 )
 
 var (
-	bondingCurveABI abi.ABI
+	ABI abi.ABI
 	//go:embed .abi/bonding_curve.json
-	bondingCurveABIJSON string
+	ABIJSON string
 
 	eventTokenCreated         = crypto.Keccak256Hash([]byte("BondedTokenCreated(address,string,string,uint256)"))
 	eventPairRegistered       = crypto.Keccak256Hash([]byte("PairRegistered(bytes32,address,address)"))

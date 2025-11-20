@@ -23,7 +23,7 @@ func (t *tokenAnalytics) onTokenCreated(ctx context.Context, tx *txEvent, logEve
 	}
 	log.Info(fmt.Sprintf("Token created from BondingCurve:%v, token address:%v, tx:%v", address, ev.Address.String(), tx.TransactionHash))
 
-	if strings.EqualFold(address, t.cfg.BondingCurveContract) {
+	if strings.EqualFold(address, TokenizedCommunitiesBondingCurveSmartContractABI()) {
 		log.Info(fmt.Sprintf("Creating stream for bonded token: %v", ev.Address.String()))
 		if err := t.createStreamForContractAddress(ctx, ev.Address.String()); err != nil {
 			return errors.Wrapf(err, "failed to create stream to monitor contract %v", ev.Address.String())

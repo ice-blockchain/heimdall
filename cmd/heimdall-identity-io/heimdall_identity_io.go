@@ -189,6 +189,6 @@ func (s *service) CheckHealth(ctx context.Context) error {
 		errors.Wrapf(s.coins.HealthCheck(ctx), "coins check failed"),
 		errors.Wrapf(s.hashtagStatistics.HealthCheck(ctx), "hashtag statistics check failed"),
 		errors.Wrapf(s.nftContent.HealthCheck(ctx), "nft content check failed"),
-		errors.Wrapf(s.tokenAnalytics.Healthcheck(ctx), "token analytics check failed"),
+		errors.Wrapf(s.tokenAnalytics.HealthCheck(ctx), "token analytics check failed"),
 	).ErrorOrNil()
 }

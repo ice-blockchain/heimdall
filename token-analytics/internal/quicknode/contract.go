@@ -37,9 +37,8 @@ type (
 	}
 
 	config struct {
-		QuickNode            quickNodeCfg `yaml:"quicknode" mapstructure:"quicknode"`
-		Development          bool         `yaml:"development" mapstructure:"development"`
-		BondingCurveContract string       `yaml:"bondingCurveContract" mapstructure:"bondingCurveContract"`
+		QuickNode   quickNodeCfg `yaml:"quicknode" mapstructure:"quicknode"`
+		Development bool         `yaml:"development" mapstructure:"development"`
 	}
 	quickNodeCfg struct {
 		APIKey string `yaml:"api-key" mapstructure:"api-key"`
@@ -81,5 +80,5 @@ type (
 
 var (
 	//go:embed .quicknode-streams-filters/bonding_curve_smart_contract.js
-	bondingCurveSmartContractTemplate string
+	bondingCurveSmartContractFilterTemplate string
 )

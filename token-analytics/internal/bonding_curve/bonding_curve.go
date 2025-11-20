@@ -18,7 +18,7 @@ import (
 
 func init() {
 	var err error
-	bondingCurveABI, err = abi.JSON(strings.NewReader(bondingCurveABIJSON))
+	ABI, err = abi.JSON(strings.NewReader(ABIJSON))
 	log.Panic(errors.Wrapf(err, "failed to parse bonding curve abi"))
 }
 
@@ -90,7 +90,7 @@ func tokenCreated(signature, data string) (*LogTokenCreated, error) {
 	}
 
 	var tokenCreatedEvent LogTokenCreated
-	if err := decode(bondingCurveABI, &tokenCreatedEvent, "BondedTokenCreated", data); err != nil {
+	if err := decode(ABI, &tokenCreatedEvent, "BondedTokenCreated", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack BondedTokenCreated event")
 	}
 	log.Info(fmt.Sprintf("Token created:%+v ", tokenCreatedEvent))
@@ -104,7 +104,7 @@ func pairRegistered(signature, data string) (*LogPairRegistered, error) {
 	}
 	if data != "" && data != "0x" {
 		var pairRegisteredEvent LogPairRegistered
-		if err := decode(bondingCurveABI, &pairRegisteredEvent, "PairRegistered", data); err != nil {
+		if err := decode(ABI, &pairRegisteredEvent, "PairRegistered", data); err != nil {
 			return nil, errors.Wrapf(err, "failed to unpack PairRegistered event")
 		}
 		log.Info(fmt.Sprintf("Pair registered:%+v ", pairRegisteredEvent))
@@ -123,7 +123,7 @@ func tokenSwapped(signature, data string) (*LogTokenSwapped, error) {
 		return nil, errors.Errorf("empty data for Swapped event")
 	}
 	var tokenSwappedEvent LogTokenSwapped
-	if err := decode(bondingCurveABI, &tokenSwappedEvent, "Swapped", data); err != nil {
+	if err := decode(ABI, &tokenSwappedEvent, "Swapped", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack Swapped event")
 	}
 	log.Info(fmt.Sprintf("Token swapped:%+v ", tokenSwappedEvent))
@@ -139,7 +139,7 @@ func recipientsSet(signature, data string) (*LogRecipientsSet, error) {
 		return nil, errors.Errorf("empty data for RecipientsSet event")
 	}
 	var recipientsSetEvent LogRecipientsSet
-	if err := decode(bondingCurveABI, &recipientsSetEvent, "RecipientsSet", data); err != nil {
+	if err := decode(ABI, &recipientsSetEvent, "RecipientsSet", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack RecipientsSet event")
 	}
 	log.Info(fmt.Sprintf("Recipients set:%+v ", recipientsSetEvent))
@@ -155,7 +155,7 @@ func feeAccrued(signature, data string) (*LogFeeAccrued, error) {
 		return nil, errors.Errorf("empty data for FeeAccrued event")
 	}
 	var feeAccruedEvent LogFeeAccrued
-	if err := decode(bondingCurveABI, &feeAccruedEvent, "FeeAccrued", data); err != nil {
+	if err := decode(ABI, &feeAccruedEvent, "FeeAccrued", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack FeeAccrued event")
 	}
 	log.Info(fmt.Sprintf("Fee accrued:%+v ", feeAccruedEvent))
@@ -171,7 +171,7 @@ func feeTransfer(signature, data string) (*LogFeeTransfer, error) {
 		return nil, errors.Errorf("empty data for FeeTransfer event")
 	}
 	var feeTransferEvent LogFeeTransfer
-	if err := decode(bondingCurveABI, &feeTransferEvent, "FeeTransfer", data); err != nil {
+	if err := decode(ABI, &feeTransferEvent, "FeeTransfer", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack FeeTransfer event")
 	}
 	log.Info(fmt.Sprintf("Fee transfer:%+v ", feeTransferEvent))
@@ -187,7 +187,7 @@ func migrated(signature, data string) (*LogMigrated, error) {
 		return nil, errors.Errorf("empty data for Migrated event")
 	}
 	var migratedEvent LogMigrated
-	if err := decode(bondingCurveABI, &migratedEvent, "Migrated", data); err != nil {
+	if err := decode(ABI, &migratedEvent, "Migrated", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack Migrated event")
 	}
 	log.Info(fmt.Sprintf("Migrated:%+v ", migratedEvent))
@@ -203,7 +203,7 @@ func liquidityClaimed(signature, data string) (*LogLiquidityClaimed, error) {
 		return nil, errors.Errorf("empty data for LiquidityClaimed event")
 	}
 	var liquidityClaimedEvent LogLiquidityClaimed
-	if err := decode(bondingCurveABI, &liquidityClaimedEvent, "LiquidityClaimed", data); err != nil {
+	if err := decode(ABI, &liquidityClaimedEvent, "LiquidityClaimed", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack LiquidityClaimed event")
 	}
 	log.Info(fmt.Sprintf("Liquidity claimed:%+v ", liquidityClaimedEvent))

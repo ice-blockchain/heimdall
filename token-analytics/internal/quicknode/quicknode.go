@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pkg/errors"
 
+	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/log"
 )
@@ -44,7 +45,7 @@ func NewClient(ctx context.Context, applicationYamlKey string) Client {
 	}
 
 	q := &client{
-		bondingCurveSmartContractFilterTemplate: template.Must(template.New("bondingCurveSmartContractTemplate").Parse(bondingCurveSmartContractTemplate)),
+		bondingCurveSmartContractFilterTemplate: template.Must(template.New("bondingCurveSmartContractFilterTemplate").Parse(bondingCurveSmartContractFilterTemplate)),
 		httpClient:                              req.C().SetBaseURL("https://api.quicknode.com/"),
 		config:                                  &cfg,
 		streamDestination:                       conf.ConnConfig,
@@ -110,7 +111,7 @@ func (q *client) CreateStream(ctx context.Context, streamName, contractAddrToMon
 		return nil, errors.Wrapf(err, "failed to load filter function")
 	}
 	var startRange *uint // For bonded tokens, startRange = nil means "start from current block"
-	if strings.EqualFold(contractAddrToMonitor, q.config.BondingCurveContract) {
+	if strings.EqualFold(contractAddrToMonitor, bondingcurve.ABIJSON) {
 		val := q.config.QuickNode.StartBlock
 		startRange = &val
 	}

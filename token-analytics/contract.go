@@ -8,7 +8,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/rcrowley/go-metrics"
 
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/quicknode"
@@ -21,7 +20,7 @@ type (
 	TokenAnalytics interface {
 		MustStart(ctx context.Context)
 		Close() error
-		Healthcheck(ctx context.Context) error
+		HealthCheck(ctx context.Context) error
 		UpsertUser(ctx context.Context, id, masterPubkey, username, displayName, avatar string, verified bool, ionConnectRelays []string) error
 		SetVerified(ctx context.Context, masterPubkey string) error
 	}
@@ -44,11 +43,10 @@ const (
 
 type (
 	config struct {
-		Workers              uint   `yaml:"workers"`
-		BatchSize            uint   `yaml:"batchSize"`
-		BondingCurveContract string `yaml:"bondingCurveContract"`
-		StartBlock           uint64 `yaml:"startBlock"`
-		Region               string `yaml:"region"`
+		Workers    uint   `yaml:"workers"`
+		BatchSize  uint   `yaml:"batchSize"`
+		StartBlock uint64 `yaml:"startBlock"`
+		Region     string `yaml:"region"`
 	}
 	tokenAnalytics struct {
 		ingestedDataDB  *storage.DB
@@ -56,7 +54,6 @@ type (
 		shutdown        func() error
 		cfg             *config
 		wg              *sync.WaitGroup
-		bondingCurveABI abi.ABI
 		quickNode       quicknode.Client
 		metrics         metrics.Registry
 		ionPriceUSD     *atomic.Pointer[float64]

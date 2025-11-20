@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
+	"github.com/goccy/go-json"
 
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/coins"
@@ -294,14 +295,16 @@ const (
 	registrationsDisabled      = "REGISTRATIONS_DISABLED"
 	reserved                   = "RESERVED"
 
-	configNameRequiredAndroidAppVersion       = "required_android_app_version"
-	configNameRequiredIOSAppVersion           = "required_ios_app_version"
-	configNameRequiredMacOSAppVersion         = "required_macos_app_version"
-	configNameRequiredWindowsAppVersion       = "required_windows_app_version"
-	configNameRequiredLinuxAppVersion         = "required_linux_app_version"
-	configNameServicePubkeys                  = "service_pubkeys"
-	runtimeConfigApplicationYamlKey           = "apps-runtime"
-	configNameBlacklistedCountriesForPhone2FA = "blacklisted_countries_phone2fa"
+	configNameRequiredAndroidAppVersion                            = "required_android_app_version"
+	configNameRequiredIOSAppVersion                                = "required_ios_app_version"
+	configNameRequiredMacOSAppVersion                              = "required_macos_app_version"
+	configNameRequiredWindowsAppVersion                            = "required_windows_app_version"
+	configNameRequiredLinuxAppVersion                              = "required_linux_app_version"
+	configNameServicePubkeys                                       = "service_pubkeys"
+	runtimeConfigApplicationYamlKey                                = "apps-runtime"
+	configNameBlacklistedCountriesForPhone2FA                      = "blacklisted_countries_phone2fa"
+	configNameTokenizedCommunitiesBondingCurveSmartContractABI     = "tokenized_communities_bonding_curve_smart_contract_abi"
+	configNameTokenizedCommunitiesBondingCurveSmartContractAddress = "tokenized_communities_bonding_curve_smart_contract_address"
 )
 
 type (
@@ -330,6 +333,10 @@ type (
 			Windows string `yaml:"windows" mapstructure:"windows"`
 			Linux   string `yaml:"linux" mapstructure:"linux"`
 		} `yaml:"requiredAppVersions" mapstructure:"requiredAppVersions"`
+		TokenizedCommunities struct {
+			BondingCurveSmartContractAddress string  `yaml:"bondingCurveSmartContractAddress" mapstructure:"bondingCurveSmartContractAddress"`
+			Version                          Version `yaml:"version" mapstructure:"version"`
+		} `yaml:"tokenizedCommunities" mapstructure:"tokenizedCommunities"`
 	}
 )
 
@@ -351,6 +358,23 @@ var (
 				return errors.Wrapf(errVersionRequired, "version required for %s", configNameBlacklistedCountriesForPhone2FA), Version(0)
 			}
 			return blacklistedCountriesPhone2FA, Version(1)
+		},
+		configNameTokenizedCommunitiesBondingCurveSmartContractABI: func(cfg *config, ver *Version) (any, Version) {
+			if ver == nil {
+				return errors.Wrapf(errVersionRequired, "version required for %s", configNameTokenizedCommunitiesBondingCurveSmartContractABI), Version(0)
+			}
+			var rawJSONBody map[string]any
+			if err := json.Unmarshal([]byte(tokenanalytics.TokenizedCommunitiesBondingCurveSmartContractABI()), &rawJSONBody); err != nil {
+				return errors.Wrapf(err, "failed to parse `%v` cfg as JSON", configNameTokenizedCommunitiesBondingCurveSmartContractABI), Version(0)
+			}
+
+			return rawJSONBody, cfg.TokenizedCommunities.Version
+		},
+		configNameTokenizedCommunitiesBondingCurveSmartContractAddress: func(cfg *config, ver *Version) (any, Version) {
+			if ver == nil {
+				return errors.Wrapf(errVersionRequired, "version required for %s", configNameTokenizedCommunitiesBondingCurveSmartContractAddress), Version(0)
+			}
+			return cfg.TokenizedCommunities.BondingCurveSmartContractAddress, cfg.TokenizedCommunities.Version
 		},
 	}
 	errVersionRequired           = errors.New("version required")
