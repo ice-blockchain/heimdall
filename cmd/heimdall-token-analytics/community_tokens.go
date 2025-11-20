@@ -42,7 +42,7 @@ type (
 		PaginationRequest
 		Address string `uri:"type" required:"true" swaggerignore:"true"` // Map `type` to `address`.
 	}
-	NotifyRequest struct {
+	OHLCVRequest struct {
 		Interval string `form:"interval" required:"true" swaggerignore:"true"` // e.g., "1m", "5m", "1h", etc.
 		Address  string `uri:"type" required:"true" swaggerignore:"true"`      // Map `type` to `address`.
 	}
@@ -318,6 +318,6 @@ func (s *service) StreamCommunityTokensTradingStats(ctx context.Context, req *se
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1sse/community-tokens/{ionConnectAddress}/ohlcv [GET].
-func (s *service) StreamCommunityTokensOHLCV(ctx context.Context, req *server.Request[NotifyRequest]) (server.StreamEventEmitter[ta.OHLCV], error) {
+func (s *service) StreamCommunityTokensOHLCV(ctx context.Context, req *server.Request[OHLCVRequest]) (server.StreamEventEmitter[ta.OHLCV], error) {
 	return newFakeStreamOf[ta.OHLCV]()
 }
