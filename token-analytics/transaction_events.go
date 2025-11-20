@@ -6,6 +6,10 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"strings"
+
+	"github.com/cockroachdb/errors"
+	"github.com/ethereum/go-ethereum/common"
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/wintr/log"
