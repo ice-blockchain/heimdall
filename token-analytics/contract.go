@@ -5,11 +5,14 @@ package tokenanalytics
 import (
 	"context"
 	_ "embed"
+	"math/big"
 	"sync"
 	"sync/atomic"
+	stdlibtime "time"
 
 	"github.com/rcrowley/go-metrics"
 
+	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/quicknode"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	storagev3 "github.com/ice-blockchain/wintr/connectors/storage/v3"
@@ -30,6 +33,8 @@ type (
 		UserRepository
 		MustStart(ctx context.Context)
 		GetCommunityTokens(ctx context.Context, ionConnectAddresses []string, requestorMasterPubkey string) ([]*CommunityToken, error)
+		GetOHLVCHistory(ctx context.Context, now, startPoint stdlibtime.Time, ionContentAddress string, interval Interval) (res []*OHLCV, err error)
+		GetOHLVCRecent(ctx context.Context, now stdlibtime.Time, ionContentAddress string, interval Interval) (*OHLCV, error)
 	}
 
 	SavePoint struct {
@@ -37,6 +42,9 @@ type (
 		BlockNumber      uint64 `db:"block_number"`
 	}
 	JSON map[string]any
+
+	Interval   string
+	WindowSize stdlibtime.Duration
 )
 
 const (
@@ -48,11 +56,28 @@ const (
 
 var (
 	//go:embed DDL.sql
-	sourceDDL string
+	sourceDDL      string
+	validIntervals = map[Interval]WindowSize{
+		Interval("1m"):  WindowSize(1 * stdlibtime.Hour),
+		Interval("2m"):  WindowSize(1 * stdlibtime.Hour),
+		Interval("3m"):  WindowSize(1 * stdlibtime.Hour),
+		Interval("5m"):  WindowSize(12 * stdlibtime.Hour),
+		Interval("10m"): WindowSize(12 * stdlibtime.Hour),
+		Interval("15m"): WindowSize(12 * stdlibtime.Hour),
+		Interval("30m"): WindowSize(24 * stdlibtime.Hour),
+		Interval("45m"): WindowSize(24 * stdlibtime.Hour),
+		Interval("1h"):  WindowSize(24 * stdlibtime.Hour),
+		Interval("2h"):  WindowSize(48 * stdlibtime.Hour),
+		Interval("3h"):  WindowSize(48 * stdlibtime.Hour),
+		Interval("4h"):  WindowSize(48 * stdlibtime.Hour),
+		Interval("24h"): WindowSize(30 * 24 * stdlibtime.Hour),
+	}
 )
 
 const (
 	applicationYamlKey = "token-analytics"
+	tradeTypeBuy       = tradeType("buy")
+	tradeTypeSell      = tradeType("sell")
 )
 
 type (
@@ -67,6 +92,7 @@ type (
 		bondingCurveContractAddress string
 		ingestedDataDB              *storage.DB
 		processedDataDB             storagev3.DB
+		questDB                     *questdb.DB
 		shutdown                    func() error
 		cfg                         *config
 		wg                          *sync.WaitGroup
@@ -124,5 +150,19 @@ type (
 		HoldersCount             int64   `db:"holders_count"`
 		PositionAmountUSD        float64 `db:"position_amount_usd"`
 		PositionTotalInvestedUSD float64 `db:"position_total_invested_usd"`
+	}
+	tradeType string
+	trade     struct {
+		Timestamp                time.Time       `db:"timestamp"`
+		PairAddress              string          `db:"pair_address"`
+		ContractAddress          string          `db:"contract_address"`
+		ContentIONConnectAddress string          `db:"content_ion_connect_address"`
+		BasePriceInUsd           float64         `db:"base_price_in_usd"`
+		BaseAmount               questdb.Decimal `db:"base_amount"`
+		Amount                   questdb.Decimal `db:"amount"`
+		PriceInUsd               *big.Float      `db:"price_in_usd"`
+		Type                     tradeType       `db:"trade_type"`
+		TraderAddress            string          `db:"trader_address"`
+		TransactionHash          string          `db:"transaction_hash"`
 	}
 )

@@ -250,7 +250,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER user_token_position_changed
+CREATE OR REPLACE TRIGGER user_token_position_changed
 AFTER INSERT OR UPDATE OR DELETE ON user_token_positions
 FOR EACH ROW
 EXECUTE FUNCTION update_token_holders_count_trigger();
@@ -268,7 +268,7 @@ DECLARE
     expected_index_def TEXT;
 BEGIN
     SELECT value::INT INTO workers_count FROM global_settings WHERE key = 'workers';
-    
+
     IF workers_count IS NULL THEN
         RETURN;
     END IF;
@@ -276,11 +276,11 @@ BEGIN
     SELECT pg_get_indexdef(indexrelid) INTO existing_index_def
     FROM pg_stat_user_indexes
     WHERE indexrelname = 'idx_transactions_mod_tx_idx';
-    
+
     expected_index_def := format('CREATE INDEX idx_transactions_mod_tx_idx ON public.transactions USING btree (mod(transaction_index, %s), block_number, transaction_index)', workers_count);
-    
+
     IF existing_index_def IS NULL OR existing_index_def != expected_index_def THEN
-        DROP INDEX IF EXISTS idx_transactions_mod_tx_idx;    
+        DROP INDEX IF EXISTS idx_transactions_mod_tx_idx;
         EXECUTE format('CREATE INDEX idx_transactions_mod_tx_idx ON transactions (MOD(transaction_index, %s), block_number, transaction_index ASC)', workers_count);
     END IF;
 END;

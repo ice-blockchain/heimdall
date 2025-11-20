@@ -83,10 +83,11 @@ type TradeStats struct {
 }
 
 type OHLCV struct {
-	Timestamp int64   `json:"timestamp"`
-	Open      float64 `json:"open"`
-	High      float64 `json:"high"`
-	Low       float64 `json:"low"`
-	Close     float64 `json:"close"`
-	Volume    float64 `json:"volume"`
+	Timestamp         uint64  `json:"timestamp" db:"timestamp"`
+	IONConnectAddress string  `json:"-" db:"ion_connect_address"`
+	Open              float64 `json:"open" db:"open"`
+	High              float64 `json:"high" db:"high"`
+	Low               float64 `json:"low" db:"low"`
+	Close             float64 `json:"close" db:"close"`
+	Volume            float64 `json:"volume" db:"volume"`
 }

@@ -19,7 +19,10 @@ import (
 func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTokenSwapped) error {
 	contractAddr := strings.ToLower(ev.Address.Hex())
 	userAddr := strings.ToLower(ev.Swapper.Hex())
-
+	// TODO: move down to the flow once pg processing stable
+	if err := t.registerTrade(ctx, tx, ev); err != nil {
+		return fmt.Errorf("failed to save trade in questdb %v ]]: %w", userAddr, err)
+	}
 	if err := t.validateTokenBaseToken(ctx, contractAddr); err != nil {
 		return fmt.Errorf("failed to validate token base token: %w", err)
 	}
@@ -63,7 +66,7 @@ func (t *tokenAnalytics) calculateTokenMarketData(ctx context.Context, tx *txEve
 			return fmt.Errorf("failed to decrease dragonfly balance for %v (master_pubkey: %v): %w", userAddr, masterPubkey, err)
 		}
 	}
-	if err := t.saveSwapAndUpdateData(ctx, tx, contractAddr, userAddr, ev, priceUSD); err != nil {
+	if err = t.saveSwapAndUpdateData(ctx, tx, contractAddr, userAddr, ev, priceUSD); err != nil {
 		if rollbackErr := t.rollbackDragonflyPosition(ctx, key, masterPubkey, oldBalance, hadBalance); rollbackErr != nil {
 			return errors.Join(
 				fmt.Errorf("failed to save swap data for tx %v: %w", tx.TransactionHash, err),
