@@ -170,6 +170,9 @@ func (t *tokenAnalytics) MustStart(ctx context.Context) {
 			t.runEventsProcessor(ctx, workerIdx)
 		})
 	}
+
+	go t.runMaterializedViewRefreshWorker(ctx)
+	go t.runVolumeWorker(ctx)
 }
 
 func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint) {

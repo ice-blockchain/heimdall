@@ -26,18 +26,19 @@ type (
 	}
 	TokenInfoRequestByType struct {
 		PaginationRequest
-		Type string `uri:"type" required:"true" swaggerignore:"true"`
+		Type string `uri:"type" binding:"required,oneof=top trending" swaggerignore:"true"`
 	}
 	TokenInfoRequestByTypeAndSessionID struct {
 		TokenInfoRequestByType
 		SessionID string `uri:"viewingSessionId" required:"true" swaggerignore:"true"`
+		Keyword   string `form:"keyword" swaggerignore:"true"`
 	}
 	SessionViewCreateRequest struct {
-		Type string `uri:"type" required:"true" swaggerignore:"true"`
+		Type string `uri:"type" binding:"required,oneof=top trending" swaggerignore:"true"`
 	}
 	SessionViewCreateResponse struct {
-		ID        string `json:"id" example:"session_12345"`
-		TTLmillis uint64 `json:"ttl" example:"3600000"`
+		ID  string `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
+		TTL uint64 `json:"ttl" example:"1800" description:"Session TTL in seconds"` // Session TTL in seconds
 	}
 	TradeRequest struct {
 		Address string `uri:"type" required:"true" swaggerignore:"true"` // Map `type` to `address`.
@@ -114,9 +115,16 @@ func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Requ
 //	@Failure		504				{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1/community-tokens/{type}/viewing-sessions [POST].
 func (s *service) CreateCommunityTokensSessionView(ctx context.Context, req *server.Request[SessionViewCreateRequest]) (*server.Response[SessionViewCreateResponse], error) {
+	clientIP := req.Context.ClientIP()
+	deviceKey := req.Token.GetDeviceKey()
+	sessionID, ttl, err := s.tokenAnalytics.CreateViewingSession(ctx, req.Data.Type, clientIP, deviceKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create viewing session: %w", err)
+	}
+
 	resp := SessionViewCreateResponse{
-		ID:        fmt.Sprintf("session_%08d", rand.Int64()),
-		TTLmillis: 3600000,
+		ID:  sessionID,
+		TTL: ttl,
 	}
 	return server.OK(&resp), nil
 }
@@ -128,7 +136,7 @@ func (s *service) CreateCommunityTokensSessionView(ctx context.Context, req *ser
 //	@Tags			Tokens
 //	@Produce		json
 //	@Param			type				path		string	true	"Type of data"				example("top")
-//	@Param			viewingSessionId	path		string	true	"Viewing session ID"		example("session_12345")
+//	@Param			viewingSessionId	path		string	true	"Viewing session ID"		example("550e8400-e29b-41d4-a716-446655440000")
 //	@Param			keyword				query		string	false	"Search keyword"			example("bitcoin")
 //	@Param			limit				query		uint32	false	"Number of items to return"	example(10)
 //	@Param			offset				query		uint32	false	"Number of items to skip"	example(0)
@@ -138,14 +146,20 @@ func (s *service) CreateCommunityTokensSessionView(ctx context.Context, req *ser
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1/community-tokens/{type}/viewing-sessions/{viewingSessionId} [GET].
 func (s *service) GetCommunityTokensSessionByID(ctx context.Context, req *server.Request[TokenInfoRequestByTypeAndSessionID]) (*server.Response[[]ta.CommunityToken], error) {
-	var resp []ta.CommunityToken
-	for range 1 + rand.IntN(3) {
-		var e ta.CommunityToken
-
-		if err := faker.FakeData(&e); err != nil {
-			return nil, fmt.Errorf("failed to fake data: %w", err)
+	limit := int64(req.Data.Limit)
+	if limit == 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	offset := int64(req.Data.Offset)
+	resp, err := s.tokenAnalytics.GetTokensFromViewingSession(ctx, req.Data.Type, req.Data.SessionID, req.Data.Keyword, limit, offset)
+	if err != nil {
+		if errors.Is(err, ta.ErrSessionNotFound) {
+			return nil, server.NotFound(ta.ErrSessionNotFound, sessionNotFoundErrorCode)
 		}
-		resp = append(resp, e)
+		return nil, fmt.Errorf("failed to get tokens from viewing session: %w", err)
 	}
 
 	return server.OK(&resp), nil

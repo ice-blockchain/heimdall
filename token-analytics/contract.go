@@ -5,6 +5,7 @@ package tokenanalytics
 import (
 	"context"
 	_ "embed"
+	"errors"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -37,12 +38,23 @@ type (
 		GetOHLVCRecent(ctx context.Context, now stdlibtime.Time, ionContentAddress string, interval Interval) (*OHLCV, error)
 		GetTradingStats(ctx context.Context, now stdlibtime.Time, ionContentAddress string) (*TradeStats, error)
 		UpdateTradingStats(ctx context.Context, now stdlibtime.Time, ionConnectAddress string) (*TradeStats, error)
+		CreateViewingSession(ctx context.Context, sessionType, clientIP, deviceKey string) (sessionID string, ttl uint64, err error)
+		GetTokensFromViewingSession(ctx context.Context, sessionType, sessionID, keyword string, limit, offset int64) ([]CommunityToken, error)
 	}
 
 	SavePoint struct {
 		TransactionIndex uint64 `db:"transaction_index"`
 		BlockNumber      uint64 `db:"block_number"`
 	}
+
+	ViewingSession struct {
+		ID        string `redis:"id"`
+		Type      string `redis:"type"`
+		UserIP    string `redis:"user_ip"`
+		CreatedAt int64  `redis:"created_at"`
+		TTL       int64  `redis:"ttl"`
+	}
+
 	JSON map[string]any
 
 	Interval   string
@@ -80,6 +92,23 @@ const (
 	applicationYamlKey = "token-analytics"
 	tradeTypeBuy       = tradeType("buy")
 	tradeTypeSell      = tradeType("sell")
+
+	volumeUpdateInterval                     = 1 * stdlibtime.Minute
+	volume24hMaterializedViewRefreshInterval = 30 * stdlibtime.Second
+
+	globalTopSetKey         = "token_analytics:global:top"
+	globalTrendingSetKey    = "token_analytics:global:trending"
+	userSessionKeyPrefix    = "token_analytics:session:%s:%s"  // {type}:{sessionID}
+	userIdentifierMapPrefix = "token_analytics:user_map:%s:%s" // {type}:{IP:DeviceKey} -> sessionID
+
+	sessionTypeTop      = "top"
+	sessionTypeTrending = "trending"
+
+	defaultViewingSessionTTL = 30 * stdlibtime.Minute
+)
+
+var (
+	ErrSessionNotFound = errors.New("session not found")
 )
 
 type (
@@ -133,25 +162,31 @@ type (
 	}
 
 	tokenRow struct {
-		ContractAddress          string  `db:"contract_address"`
-		IONConnectAddress        string  `db:"ion_connect_address"`
-		Type                     string  `db:"type"`
-		Title                    string  `db:"title"`
-		Description              string  `db:"description"`
-		ImageURL                 string  `db:"image_url"`
-		Ticker                   string  `db:"ticker"`
-		TotalSupply              string  `db:"total_supply"`
-		CreatorMasterPubkey      string  `db:"creator_master_pubkey"`
-		CreatorUsername          string  `db:"creator_username"`
-		CreatorDisplay           string  `db:"creator_display"`
-		CreatorVerified          bool    `db:"creator_verified"`
-		CreatorAvatar            string  `db:"creator_avatar"`
-		MarketCapUSD             float64 `db:"market_cap_usd"`
-		PriceUSD                 float64 `db:"price_usd"`
-		Volume24h                float64 `db:"volume_24h"`
-		HoldersCount             int64   `db:"holders_count"`
-		PositionAmountUSD        float64 `db:"position_amount_usd"`
-		PositionTotalInvestedUSD float64 `db:"position_total_invested_usd"`
+		ContractAddress          string     `db:"contract_address"`
+		IONConnectAddress        string     `db:"ion_connect_address"`
+		Type                     string     `db:"type"`
+		Title                    string     `db:"title"`
+		Description              string     `db:"description"`
+		ImageURL                 string     `db:"image_url"`
+		Ticker                   string     `db:"ticker"`
+		TotalSupply              string     `db:"total_supply"`
+		CreatorMasterPubkey      string     `db:"creator_master_pubkey"`
+		CreatorUsername          string     `db:"creator_username"`
+		CreatorDisplay           string     `db:"creator_display"`
+		CreatorVerified          bool       `db:"creator_verified"`
+		CreatorAvatar            string     `db:"creator_avatar"`
+		CreatedAt                *time.Time `db:"created_at"`
+		PriceUSD                 float64    `db:"price_usd"`
+		HoldersCount             int64      `db:"holders_count"`
+		MarketCapUSD             float64    `db:"market_cap_usd"`
+		Volume24h                float64    `db:"volume_24h"`
+		PositionAmountUSD        float64    `db:"position_amount_usd"`
+		PositionTotalInvestedUSD float64    `db:"position_total_invested_usd"`
+	}
+
+	tokenVolume24h struct {
+		TokenAddress string  `db:"token_address"`
+		Volume24h    float64 `db:"volume_24h"`
 	}
 	tradeType string
 	trade     struct {

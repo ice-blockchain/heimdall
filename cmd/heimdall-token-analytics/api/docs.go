@@ -284,7 +284,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "example": "\"session_12345\"",
+                        "example": "\"550e8400-e29b-41d4-a716-446655440000\"",
                         "description": "Viewing session ID",
                         "name": "viewingSessionId",
                         "in": "path",
@@ -685,11 +685,12 @@ const docTemplate = `{
             "properties": {
                 "id": {
                     "type": "string",
-                    "example": "session_12345"
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
                 "ttl": {
+                    "description": "Session TTL in seconds",
                     "type": "integer",
-                    "example": 3600000
+                    "example": 1800
                 }
             }
         },
