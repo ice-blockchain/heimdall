@@ -66,7 +66,7 @@ func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[To
 	}
 	tokens, err := s.tokenAnalytics.GetCommunityTokens(ctx, req.Data.Addresses, "")
 	if err != nil {
-		return nil, server.Unexpected(fmt.Errorf("failed to get community tokens: %w", err))
+		return nil, fmt.Errorf("failed to get community tokens: %w", err)
 	}
 
 	return server.OK(&tokens), nil

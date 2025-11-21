@@ -17,6 +17,8 @@ import (
 )
 
 func (s *service) RegisterRoutes(router server.Router) {
+	router.Use(server.NIP42AuthMiddleware())
+
 	router.GET("/healthz", func(c *gin.Context) {
 		err := s.CheckHealth(c)
 		if err != nil {
