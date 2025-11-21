@@ -13,6 +13,28 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
+func (t *tokenAnalytics) runMaterializedViewRefreshWorker(ctx context.Context) {
+	ticker := time.NewTicker(volume24hMaterializedViewRefreshInterval)
+	defer ticker.Stop()
+
+	log.Info("Materialized view refresh worker started, refreshing every 30 seconds")
+	if err := t.refreshMaterializedView(ctx); err != nil {
+		log.Error(fmt.Errorf("failed to refresh materialized view on startup: %w", err))
+	}
+	for ctx.Err() == nil {
+		select {
+		case <-ctx.Done():
+			log.Info("Materialized view refresh worker stopped")
+
+			return
+		case <-ticker.C:
+			if err := t.refreshMaterializedView(ctx); err != nil {
+				log.Error(fmt.Errorf("failed to refresh materialized view: %w", err))
+			}
+		}
+	}
+}
+
 func (t *tokenAnalytics) runVolumeWorker(ctx context.Context) {
 	ticker := time.NewTicker(volumeUpdateInterval)
 	defer ticker.Stop()
@@ -34,42 +56,41 @@ func (t *tokenAnalytics) runVolumeWorker(ctx context.Context) {
 	}
 }
 
+func (t *tokenAnalytics) refreshMaterializedView(ctx context.Context) error {
+	startTime := time.Now()
+	if _, err := storage.Exec(ctx, t.ingestedDataDB, "SELECT refresh_token_volumes_24h()"); err != nil {
+		return fmt.Errorf("failed to refresh materialized view: %w", err)
+	}
+	duration := time.Since(startTime)
+	log.Debug(fmt.Sprintf("Refreshed materialized view in %v", duration))
+
+	return nil
+}
+
 func (t *tokenAnalytics) updateTrendingVolumes(ctx context.Context) error {
 	startTime := time.Now()
-
 	const batchSize = 10000
 	totalUpdated := 0
 	lastAddress := ""
 
 	for ctx.Err() == nil {
-		baseQuery := `
-			SELECT 
-				contract_address as token_address,
-				COALESCE(SUM(
-					CASE 
-						WHEN direction = true THEN input_amount::numeric * price_usd
-						ELSE output_amount::numeric * price_usd
-					END
-				), 0) as volume_24h
-			FROM token_swaps
-			WHERE 
-				created_at >= NOW() - INTERVAL '24 hours'
-		`
 		var query string
 		var volumes []*tokenVolume24h
 		var args []any
 		var err error
 		if lastAddress == "" {
-			query = baseQuery + `
-				GROUP BY contract_address
+			query = `
+				SELECT contract_address as token_address, volume_24h
+				FROM token_volumes_24h
 				ORDER BY contract_address
 				LIMIT $1
 			`
 			args = append(args, batchSize)
 		} else {
-			query = baseQuery + `
-				AND contract_address > $1
-				GROUP BY contract_address
+			query = `
+				SELECT contract_address as token_address, volume_24h
+				FROM token_volumes_24h
+				WHERE contract_address > $1
 				ORDER BY contract_address
 				LIMIT $2
 			`
@@ -82,7 +103,7 @@ func (t *tokenAnalytics) updateTrendingVolumes(ctx context.Context) error {
 		if len(volumes) == 0 {
 			break
 		}
-		pipe := t.processedDataDB.Pipeline()
+		pipe := t.processedDataDB.TxPipeline()
 		for _, vol := range volumes {
 			pipe.ZAdd(ctx, globalTrendingSetKey, redis.Z{
 				Score:  vol.Volume24h,

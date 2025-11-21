@@ -38,7 +38,7 @@ type (
 		GetOHLVCRecent(ctx context.Context, now stdlibtime.Time, ionContentAddress string, interval Interval) (*OHLCV, error)
 		GetTradingStats(ctx context.Context, now stdlibtime.Time, ionContentAddress string) (*TradeStats, error)
 		UpdateTradingStats(ctx context.Context, now stdlibtime.Time, ionConnectAddress string) (*TradeStats, error)
-		CreateViewingSession(ctx context.Context, sessionType, userIP string) (sessionID string, ttl int64, err error)
+		CreateViewingSession(ctx context.Context, sessionType, userIP string) (sessionID string, ttl uint64, err error)
 		GetTokensFromViewingSession(ctx context.Context, sessionType, sessionID, keyword string, limit, offset int64) ([]CommunityToken, error)
 	}
 
@@ -93,7 +93,8 @@ const (
 	tradeTypeBuy       = tradeType("buy")
 	tradeTypeSell      = tradeType("sell")
 
-	volumeUpdateInterval = 1 * stdlibtime.Minute
+	volumeUpdateInterval                     = 1 * stdlibtime.Minute
+	volume24hMaterializedViewRefreshInterval = 30 * stdlibtime.Second
 
 	globalTopSetKey        = "token_analytics:global:top"
 	globalTrendingSetKey   = "token_analytics:global:trending"
@@ -103,7 +104,7 @@ const (
 	sessionTypeTop      = "top"
 	sessionTypeTrending = "trending"
 
-	sessionTTL = 30 * stdlibtime.Minute
+	defaultViewingSessionTTL = 30 * stdlibtime.Minute
 )
 
 var (

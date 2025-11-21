@@ -13,7 +13,7 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
-func (t *tokenAnalytics) CreateViewingSession(ctx context.Context, sessionType, userIP string) (string, int64, error) {
+func (t *tokenAnalytics) CreateViewingSession(ctx context.Context, sessionType, userIP string) (string, uint64, error) {
 	ipMapKey := fmt.Sprintf(userIPSessionMapPrefix, sessionType, userIP)
 	oldSessionID, _ := t.processedDataDB.Get(ctx, ipMapKey).Result()
 	if oldSessionID != "" {
@@ -29,18 +29,18 @@ func (t *tokenAnalytics) CreateViewingSession(ctx context.Context, sessionType, 
 	} else {
 		globalKey = globalTrendingSetKey
 	}
-	pipe := t.processedDataDB.Pipeline()
+	pipe := t.processedDataDB.TxPipeline()
 	pipe.ZUnionStore(ctx, sessionKey, &redis.ZStore{Keys: []string{globalKey}})
-	pipe.Expire(ctx, sessionKey, sessionTTL)
-	pipe.Set(ctx, ipMapKey, sessionID, sessionTTL)
+	pipe.Expire(ctx, sessionKey, defaultViewingSessionTTL)
+	pipe.Set(ctx, ipMapKey, sessionID, defaultViewingSessionTTL)
 	if _, err := pipe.Exec(ctx); err != nil {
 		return "", 0, fmt.Errorf("failed to create viewing session: %w", err)
 	}
 
-	ttlMillis := int64(sessionTTL.Milliseconds())
-	log.Debug(fmt.Sprintf("Created viewing session: sessionID=%s, type=%s, IP=%s, TTL=%v", sessionID, sessionType, userIP, sessionTTL))
+	ttlSeconds := uint64(defaultViewingSessionTTL.Seconds())
+	log.Debug(fmt.Sprintf("Created viewing session: sessionID=%s, type=%s, IP=%s, TTL=%v", sessionID, sessionType, userIP, defaultViewingSessionTTL))
 
-	return sessionID, ttlMillis, nil
+	return sessionID, ttlSeconds, nil
 }
 
 func (t *tokenAnalytics) GetTokensFromViewingSession(ctx context.Context, sessionType, sessionID, keyword string, limit, offset int64) ([]CommunityToken, error) {

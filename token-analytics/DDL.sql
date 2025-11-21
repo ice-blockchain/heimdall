@@ -285,3 +285,24 @@ BEGIN
     END IF;
 END;
 $$ LANGUAGE plpgsql;
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS token_volumes_24h AS
+SELECT 
+    contract_address,
+    COALESCE(SUM(
+        CASE 
+            WHEN direction = true THEN input_amount::numeric * price_usd
+            ELSE output_amount::numeric * price_usd
+        END
+    ), 0) as volume_24h,
+    MAX(created_at) as last_updated
+FROM token_swaps
+WHERE created_at >= NOW() - INTERVAL '24 hours'
+GROUP BY contract_address;
+
+CREATE OR REPLACE FUNCTION refresh_token_volumes_24h()
+RETURNS void AS $$
+BEGIN
+    REFRESH MATERIALIZED VIEW token_volumes_24h;
+END;
+$$ LANGUAGE plpgsql;

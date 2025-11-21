@@ -26,7 +26,7 @@ type (
 	}
 	TokenInfoRequestByType struct {
 		PaginationRequest
-		Type string `uri:"type" required:"true" swaggerignore:"true"`
+		Type string `uri:"type" binding:"required,oneof=top trending" swaggerignore:"true"`
 	}
 	TokenInfoRequestByTypeAndSessionID struct {
 		TokenInfoRequestByType
@@ -38,7 +38,7 @@ type (
 	}
 	SessionViewCreateResponse struct {
 		ID  string `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
-		TTL int64  `json:"ttl" example:"1800000"`
+		TTL uint64 `json:"ttl" example:"1800" description:"Session TTL in seconds"` // Session TTL in seconds
 	}
 	TradeRequest struct {
 		Address string `uri:"type" required:"true" swaggerignore:"true"` // Map `type` to `address`.
@@ -148,6 +148,9 @@ func (s *service) GetCommunityTokensSessionByID(ctx context.Context, req *server
 	limit := int64(req.Data.Limit)
 	if limit == 0 {
 		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
 	}
 	offset := int64(req.Data.Offset)
 	resp, err := s.tokenAnalytics.GetTokensFromViewingSession(ctx, req.Data.Type, req.Data.SessionID, req.Data.Keyword, limit, offset)

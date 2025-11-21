@@ -171,6 +171,7 @@ func (t *tokenAnalytics) MustStart(ctx context.Context) {
 		})
 	}
 
+	go t.runMaterializedViewRefreshWorker(ctx)
 	go t.runVolumeWorker(ctx)
 }
 
