@@ -26,7 +26,13 @@ type (
 	}
 	TokenInfoRequestByType struct {
 		PaginationRequest
-		Type string `uri:"type" binding:"required,oneof=top trending" swaggerignore:"true"`
+		Type    string `uri:"type" binding:"required,oneof=top trending" swaggerignore:"true"`
+		Keyword string `form:"keyword" swaggerignore:"true"`
+	}
+	TokenInfoRequestByLatest struct {
+		PaginationRequest
+		Type    string `uri:"type" required:"true" binding:"oneof=latest" swaggerignore:"true"`
+		Keyword string `form:"keyword" swaggerignore:"true"`
 	}
 	TokenInfoRequestByTypeAndSessionID struct {
 		TokenInfoRequestByType
@@ -65,7 +71,7 @@ func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[To
 	if len(req.Data.Addresses) == 0 {
 		return nil, server.BadRequest(errors.New("ionConnectAddress[] is required"), invalidPropertiesErrorCode)
 	}
-	tokens, err := s.tokenAnalytics.GetCommunityTokens(ctx, req.Data.Addresses, "")
+	tokens, err := s.tokenAnalytics.GetCommunityTokensByIonConnectAddresses(ctx, req.Data.Addresses, req.Token.GetMasterPublicKey())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get community tokens: %w", err)
 	}
@@ -88,18 +94,17 @@ func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[To
 //	@Failure		500				{object}	server.ResponseErrorBody
 //	@Failure		504				{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1/community-tokens/{type} [GET].
-func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoRequestByType]) (*server.Response[[]ta.CommunityToken], error) {
-	var resp []ta.CommunityToken
-	for range 1 + rand.IntN(3) {
-		var e ta.CommunityToken
-
-		if err := faker.FakeData(&e); err != nil {
-			return nil, fmt.Errorf("failed to fake data: %w", err)
-		}
-		resp = append(resp, e)
+func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoRequestByLatest]) (*server.Response[[]*ta.CommunityToken], error) {
+	limit := req.Data.Limit
+	if limit == 0 {
+		limit = 10
+	}
+	tokens, err := s.tokenAnalytics.GetCommunityTokensByType(ctx, req.Data.Type, req.Data.Keyword, limit, req.Data.Offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get community tokens by type: %w", err)
 	}
 
-	return server.OK(&resp), nil
+	return server.OK(&tokens), nil
 }
 
 // CreateCommunityTokensSessionView godoc
