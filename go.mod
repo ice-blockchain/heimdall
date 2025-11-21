@@ -5,7 +5,6 @@ go 1.25.4
 replace (
 	github.com/dgraph-io/ristretto => github.com/dgraph-io/ristretto v0.1.0
 	github.com/nbd-wtf/go-nostr => github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5
-	github.com/quic-go/qpack => github.com/quic-go/qpack v0.5.1
 )
 
 require (
@@ -42,7 +41,7 @@ require (
 	github.com/nbd-wtf/go-nostr v0.52.3
 	github.com/pkg/errors v0.9.1
 	github.com/questdb/go-questdb-client/v4 v4.1.0
-	github.com/quic-go/quic-go v0.56.0
+	github.com/quic-go/quic-go v0.57.0
 	github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9
 	github.com/redis/go-redis/v9 v9.17.0
 	github.com/stretchr/testify v1.11.1
