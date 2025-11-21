@@ -159,24 +159,20 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 			target.username, 
 			target.display_name, 
 			target.referral_master_pubkey,
-			COALESCE(referral_profile.username, '') as referral_username,
+			COALESCE((SELECT referral_profile.username FROM social_profiles referral_profile WHERE referral_profile.master_pubkey = target.referral_master_pubkey), '') as referral_username,
 			target.bio,
 			target.avatar,
 			target.referral_count,
-			u.id as user_id,
-			u.verified,
-			u.ion_connect_relays,
-			old_profile.created_at as old_created_at,
-			old_profile.updated_at as old_updated_at,
-			old_profile.username as old_username,
-			old_profile.display_name as old_display_name,
-			old_profile.referral_master_pubkey as old_referral_master_pubkey,
-			old_profile.avatar as old_avatar,
-			old_profile.referral_count as old_referral_count
-		FROM target
-		LEFT JOIN social_profiles referral_profile ON referral_profile.master_pubkey = target.referral_master_pubkey
-		LEFT JOIN users u ON u.master_pubkey = target.master_pubkey
-		LEFT JOIN old_profile ON true
+			(SELECT u.id FROM users u WHERE u.master_pubkey = target.master_pubkey) as user_id,
+			(SELECT u.verified FROM users u WHERE u.master_pubkey = target.master_pubkey) as verified,
+			(SELECT u.ion_connect_relays FROM users u WHERE u.master_pubkey = target.master_pubkey) as ion_connect_relays,
+			(SELECT created_at FROM old_profile) as old_created_at,
+			(SELECT updated_at FROM old_profile) as old_updated_at,
+			(SELECT username FROM old_profile) as old_username,
+			(SELECT display_name FROM old_profile) as old_display_name,
+			(SELECT referral_master_pubkey FROM old_profile) as old_referral_master_pubkey,
+			(SELECT avatar FROM old_profile) as old_avatar,
+			(SELECT referral_count FROM old_profile) as old_referral_count
 	`
 	type resultProfile struct {
 		socialProfile
