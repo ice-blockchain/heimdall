@@ -96,7 +96,7 @@ type (
 		ListNFTs(ctx context.Context, walletAddr string, paginationToken string, limit uint) ([]coins.WalletNFT, *string, error)
 	}
 	TokenAnalyticsUserRepository interface {
-		UpsertUser(ctx context.Context, id, masterPubkey, username, displayName, avatar string, verified bool, ionConnectRelays []string) error
+		UpsertUser(ctx context.Context, id, masterPubkey, blockchainAddress, username, displayName, avatar string, verified bool, ionConnectRelays []string) error
 		SetVerified(ctx context.Context, masterPubkey string) error
 	}
 	TwoFAOptionEnum     string

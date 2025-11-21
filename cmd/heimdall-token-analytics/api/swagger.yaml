@@ -113,7 +113,7 @@ definitions:
       holder:
         $ref: '#/definitions/tokenanalytics.User'
       type:
-        type: string
+        $ref: '#/definitions/tokenanalytics.TradeType'
     type: object
   tokenanalytics.TradeStats:
     properties:
@@ -141,6 +141,14 @@ definitions:
       volumeUSD:
         type: number
     type: object
+  tokenanalytics.TradeType:
+    enum:
+    - buy
+    - sell
+    type: string
+    x-enum-varnames:
+    - tradeTypeBuy
+    - tradeTypeSell
   tokenanalytics.User:
     properties:
       avatar:
@@ -233,7 +241,6 @@ paths:
       - description: Auth token
         in: header
         name: Authorization
-        required: true
         type: string
       produces:
       - application/json

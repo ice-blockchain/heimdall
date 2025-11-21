@@ -129,15 +129,19 @@ func (t *tokenAnalytics) HealthCheck(ctx context.Context) error {
 	return nil
 }
 
-func (t *tokenAnalytics) UpsertUser(ctx context.Context, id, masterPubkey, username, displayName, avatar string, verified bool, ionConnectRelays []string) error {
+func (t *tokenAnalytics) UpdateBlockchainAddress(ctx context.Context, masterPubkey, blockchainAddress string) error {
+	return nil // TODO: implement
+}
+
+func (t *tokenAnalytics) UpsertUser(ctx context.Context, id, masterPubkey, blockchainAddress, username, displayName, avatar string, verified bool, ionConnectRelays []string) error {
 	lookup := strings.ToLower(strings.TrimSpace(username + " " + displayName))
 
 	_, err := storage.Exec(ctx, t.ingestedDataDB, `
 		INSERT INTO users (
-			created_at, updated_at, id, master_pubkey, username, 
+			created_at, updated_at, id, master_pubkey, blockchain_address, username, 
 			display_name, avatar, lookup, ion_connect_relays, verified
 		) VALUES (
-			NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8
+			NOW(), NOW(), $1, $2,$9, $3, $4, $5, $6, $7, $8
 		)
 		ON CONFLICT (master_pubkey) 
 		DO UPDATE SET
@@ -149,7 +153,7 @@ func (t *tokenAnalytics) UpsertUser(ctx context.Context, id, masterPubkey, usern
 			lookup = EXCLUDED.lookup,
 			ion_connect_relays = EXCLUDED.ion_connect_relays,
 			verified = EXCLUDED.verified
-	`, id, masterPubkey, username, displayName, avatar, lookup, ionConnectRelays, verified)
+	`, id, masterPubkey, username, displayName, avatar, lookup, ionConnectRelays, verified, blockchainAddress)
 
 	return fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err)
 }
