@@ -394,11 +394,15 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 	case req.URL.Path == delegatedLoginUrl:
 		extendErrBody, extendErr = c.exchangeRefreshTokenToUsername(req)
 	case req.URL.Path == initUserSignatureUrl:
-		extendErrBody, extendErr = c.issueUserActionForSignatureIfManualBroadcastNeeded(req)
+		if false { // Manual broadcast from BE disabled for now
+			extendErrBody, extendErr = c.issueUserActionForSignatureIfManualBroadcastNeeded(req)
+		}
 	case broadcastTransactionUrlRegexp.MatchString(req.URL.Path):
-		rb := &proxyResponseBody{ResponseWriter: rw, Body: respBody}
-		if extendErrBody, extendErr = c.checkIfNeedToBroadcastTX(req, rb, userAction); extendErr == nil && extendErrBody == nil && respBody.Len() > 0 {
-			return http.StatusOK, respBody
+		if false { // Manual broadcast from BE disabled for now.
+			rb := &proxyResponseBody{ResponseWriter: rw, Body: respBody}
+			if extendErrBody, extendErr = c.checkIfNeedToBroadcastTX(req, rb, userAction); extendErr == nil && extendErrBody == nil && respBody.Len() > 0 {
+				return http.StatusOK, respBody
+			}
 		}
 	}
 	if extendErr != nil && extendErrBody != nil {
@@ -671,9 +675,12 @@ func (c *dfnsClient) issueUserActionForSignatureIfManualBroadcastNeeded(req *htt
 }
 
 func (c *dfnsClient) checkIfNeedToBroadcastTX(req *http.Request, rw http.ResponseWriter, userAction string) (*DfnsInternalError, error) {
+	if true {
+		return nil, nil // Disable that manual broadcast logic, as its not used for now
+	}
 	ctx := context.WithValue(req.Context(), AuthHeaderCtxValue, req.Header.Get("Authorization"))
 	ctx = context.WithValue(ctx, UserActionCtxValue, userAction)
-	walletID := strings.ReplaceAll(strings.ReplaceAll(req.URL.Path, "/wallets/", ""), "/transactions", "")
+	walletID := strings.ReplaceAll(strings.ReplaceAll(req.URL.Path, "/wallets/", ""), "/transactions/broadcast", "")
 	wallet, err := c.GetWallet(req.Context(), walletID)
 	if err != nil {
 		log.Error(errors.Wrapf(err, "failed to get wallet with id %v", walletID))
