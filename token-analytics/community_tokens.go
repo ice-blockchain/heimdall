@@ -137,9 +137,7 @@ func (t *tokenAnalytics) GetCommunityTokensByType(ctx context.Context, tokenType
 				   AND created_at > NOW() - INTERVAL '24 hours'), 
 				0
 			) as volume_24h,
-			COALESCE(t.holders_count, 0) as holders_count,
-			0 as position_amount_usd,
-			0 as position_total_invested_usd
+			COALESCE(t.holders_count, 0) as holders_count
 		FROM tokens t
 		LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
 		WHERE 1=1
