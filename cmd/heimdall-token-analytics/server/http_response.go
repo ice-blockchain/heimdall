@@ -6,91 +6,58 @@ import (
 	"net/http"
 )
 
-func BadRequest(err error, code string, dataArg ...map[string]any) *ResponseError {
-	return &ResponseError{
+func Error(err error, errCode string, httpCode int) *ResponseError {
+	resp := ResponseError{
 		Data: &ResponseErrorBody{
 			Err:          err,
 			ErrorMessage: err.Error(),
-			Code:         code,
+			Code:         errCode,
 		},
-		Code: http.StatusBadRequest,
+		Code: httpCode,
 	}
+	return &resp
+}
+
+func OK[RESP any](responses ...*RESP) *Response[RESP] {
+	var resp *RESP
+	if len(responses) == 1 {
+		resp = responses[0]
+	}
+
+	return &Response[RESP]{Code: http.StatusOK, Data: resp}
+}
+
+func Raw(contentType string, responses ...[]byte) *Response[string] {
+	var resp []byte
+	if len(responses) == 1 {
+		resp = responses[0]
+	}
+
+	return &Response[string]{Code: http.StatusOK, ContentType: contentType, Raw: resp}
+}
+
+func BadRequest(err error, code string, dataArg ...map[string]any) *ResponseError {
+	return Error(err, code, http.StatusBadRequest)
 }
 
 func UnprocessableEntity(err error, code string, dataArg ...map[string]any) *ResponseError {
-	return &ResponseError{
-		Data: &ResponseErrorBody{
-			Err:          err,
-			ErrorMessage: err.Error(),
-			Code:         code,
-		},
-		Code: http.StatusUnprocessableEntity,
-	}
+	return Error(err, code, http.StatusUnprocessableEntity)
 }
 
 func Conflict(err error, code string, dataArg ...map[string]any) *ResponseError {
-	return &ResponseError{
-		Data: &ResponseErrorBody{
-			Err:          err,
-			ErrorMessage: err.Error(),
-			Code:         code,
-		},
-		Code: http.StatusConflict,
-	}
+	return Error(err, code, http.StatusConflict)
 }
 
 func NotFound(err error, code string, dataArg ...map[string]any) *ResponseError {
-	return &ResponseError{
-		Data: &ResponseErrorBody{
-			Err:          err,
-			ErrorMessage: err.Error(),
-			Code:         code,
-		},
-		Code: http.StatusNotFound,
-	}
-}
-
-func Unexpected(err error) *ResponseError {
-	return &ResponseError{
-		Code: http.StatusInternalServerError,
-		Data: &ResponseErrorBody{
-			Err:          err,
-			ErrorMessage: err.Error(),
-		},
-	}
+	return Error(err, code, http.StatusNotFound)
 }
 
 func Unauthorized(err error, dataArg ...map[string]any) *ResponseError {
-	return &ResponseError{
-		Code: http.StatusUnauthorized,
-		Data: &ResponseErrorBody{
-			Err:          err,
-			ErrorMessage: err.Error(),
-			Code:         "INVALID_TOKEN",
-		},
-	}
+	return Error(err, "INVALID_TOKEN", http.StatusUnauthorized)
 }
 
 func Forbidden(err error, dataArg ...map[string]any) *ResponseError {
-	return &ResponseError{
-		Code: http.StatusForbidden,
-		Data: &ResponseErrorBody{
-			Err:          err,
-			ErrorMessage: err.Error(),
-			Code:         "OPERATION_NOT_ALLOWED",
-		},
-	}
-}
-
-func ForbiddenWithCode(err error, code string, dataArg ...map[string]any) *ResponseError {
-	return &ResponseError{
-		Code: http.StatusForbidden,
-		Data: &ResponseErrorBody{
-			Err:          err,
-			ErrorMessage: err.Error(),
-			Code:         code,
-		},
-	}
+	return Error(err, "OPERATION_NOT_ALLOWED", http.StatusForbidden)
 }
 
 func NoContent() *Response[any] {

@@ -32,8 +32,10 @@ func helperUnmarshalResponse[T any](t *testing.T, resp *httptest.ResponseRecorde
 	result.Data = new(T)
 	result.Code = resp.Code
 
-	err := json.Unmarshal(resp.Body.Bytes(), result.Data)
-	require.NoError(t, err, "failed to unmarshal response: %s", resp.Body.String())
+	if resp.Body.Len() > 0 {
+		err := json.Unmarshal(resp.Body.Bytes(), result.Data)
+		require.NoError(t, err, "failed to unmarshal response: %s", resp.Body.String())
+	}
 
 	return &result
 }
@@ -41,8 +43,17 @@ func helperUnmarshalResponse[T any](t *testing.T, resp *httptest.ResponseRecorde
 func helperDoRequest[T any](t *testing.T, handler http.Handler, method, path string, body io.Reader) *Response[T] {
 	t.Helper()
 
+	return helperDoRequestWithAuth[T](t, handler, "", method, path, body)
+}
+
+func helperDoRequestWithAuth[T any](t *testing.T, handler http.Handler, token, method, path string, body io.Reader) *Response[T] {
+	t.Helper()
+
 	w := httptest.NewRecorder()
 	req, err := http.NewRequestWithContext(t.Context(), method, path, body)
+	if token != "" {
+		req.Header.Set("Authorization", token)
+	}
 	require.NoError(t, err, "failed to create request")
 
 	handler.ServeHTTP(w, req)
@@ -251,5 +262,37 @@ func TestRequestStreamEvents(t *testing.T) {
 
 		require.Equal(t, "error", events[2].Event)
 		require.EqualValues(t, events[2].Data, errSim.Error())
+	})
+}
+
+func TestRequestParseAuth(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Parse with no auth required", func(t *testing.T) {
+		type RequestTestStruct struct {
+			NoAuthRequired
+			Foo string `form:"foo" required:"true"`
+		}
+
+		var req Request[RequestTestStruct]
+
+		req.parse(nil)
+
+		require.True(t, req.allowUnauthorized)
+		require.Contains(t, req.bindings, bindingQuery)
+		require.Equal(t, []string{"Foo"}, req.requiredFields)
+	})
+	t.Run("Parse regular", func(t *testing.T) {
+		type RequestTestStruct struct {
+			Foo int `form:"foo" required:"true"`
+		}
+
+		var req Request[RequestTestStruct]
+
+		req.parse(nil)
+
+		require.False(t, req.allowUnauthorized)
+		require.Contains(t, req.bindings, bindingQuery)
+		require.Equal(t, []string{"Foo"}, req.requiredFields)
 	})
 }

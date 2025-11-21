@@ -81,6 +81,10 @@ func loggerMiddleware() gin.HandlerFunc {
 			"body_size", c.Writer.Size(),
 		}
 
+		if token := authGetToken(c); token != nil {
+			logArgs = append(logArgs, "user_masterkey", token.GetMasterPublicKey())
+		}
+
 		if errorStr := c.Errors.ByType(gin.ErrorTypePrivate).String(); errorStr != "" {
 			logArgs = append(logArgs, "error", errorStr)
 		}
