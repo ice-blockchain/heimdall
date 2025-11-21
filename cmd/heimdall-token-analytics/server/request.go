@@ -21,8 +21,10 @@ import (
 
 type (
 	Request[REQ any] struct {
-		Data              *REQ
-		Context           *gin.Context
+		Data    *REQ         // The request data payload.
+		Context *gin.Context // The Gin context for the request.
+		Token   Token        // Optional authentication token information.
+
 		bindings          map[requestDataBinding]struct{}
 		requiredFields    []string
 		allowUnauthorized bool
@@ -64,42 +66,13 @@ const (
 )
 
 var (
-	_ error = &ResponseError{}
+	_               error = &ResponseError{}
+	errAuthRequired       = errors.New("authentication required")
 
 	ErrCodeRequestBindFailed       = "STRUCTURE_VALIDATION_FAILED"
 	ErrCodeRequestValidationFailed = "MISSING_PROPERTIES"
 	ErrCodeServerInternal          = "INTERNAL_SERVER_ERROR"
 )
-
-func Error(err error, errCode string, httpCode int) *ResponseError {
-	resp := ResponseError{
-		Data: &ResponseErrorBody{
-			Err:          err,
-			ErrorMessage: err.Error(),
-			Code:         errCode,
-		},
-		Code: httpCode,
-	}
-	return &resp
-}
-
-func OK[RESP any](responses ...*RESP) *Response[RESP] {
-	var resp *RESP
-	if len(responses) == 1 {
-		resp = responses[0]
-	}
-
-	return &Response[RESP]{Code: http.StatusOK, Data: resp}
-}
-
-func Raw(contentType string, responses ...[]byte) *Response[string] {
-	var resp []byte
-	if len(responses) == 1 {
-		resp = responses[0]
-	}
-
-	return &Response[string]{Code: http.StatusOK, ContentType: contentType, Raw: resp}
-}
 
 func bindAndValidate[REQ any](ctx *gin.Context, r *Request[REQ]) (ok bool) {
 	bindErr := r.parse(ctx).bind()
@@ -114,6 +87,13 @@ func bindAndValidate[REQ any](ctx *gin.Context, r *Request[REQ]) (ok bool) {
 		Error(fmt.Errorf("request validation failed: %w", validationErr), ErrCodeRequestValidationFailed, http.StatusUnprocessableEntity).
 			render(ctx)
 		return false
+	}
+
+	if authIsEnabled(ctx) {
+		if (r.Token == nil || r.Token.GetMasterPublicKey() == "") && !r.allowUnauthorized {
+			Forbidden(errAuthRequired).render(ctx)
+			return false
+		}
 	}
 
 	return true
@@ -233,6 +213,7 @@ func (r *Request[REQ]) parse(ctx *gin.Context) *Request[REQ] {
 	r.Context = ctx
 	r.bindings = make(map[requestDataBinding]struct{}, 5)
 	r.Data = new(REQ)
+	r.Token = authGetToken(ctx)
 
 	elem := reflect.TypeOf(r.Data).Elem()
 	if elem.Kind() != reflect.Struct {
@@ -248,8 +229,9 @@ func (r *Request[REQ]) parse(ctx *gin.Context) *Request[REQ] {
 		if tag.Get("required") == enabled {
 			r.requiredFields = append(r.requiredFields, field.Name)
 		}
-		if tag.Get("allowUnauthorized") == enabled {
-			r.allowUnauthorized = true
+		if field.Anonymous && field.Type.Kind() == reflect.Struct {
+			var m NoAuthRequired
+			r.allowUnauthorized = r.allowUnauthorized || field.Type == reflect.TypeOf(m)
 		}
 		if jsonTag := tag.Get("json"); jsonTag != "" && jsonTag != "-" {
 			r.bindings[bindingJSON] = struct{}{}
