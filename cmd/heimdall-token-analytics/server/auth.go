@@ -17,6 +17,7 @@ import (
 type (
 	Token interface {
 		GetMasterPublicKey() string
+		GetDeviceKey() string
 	}
 
 	// NoAuthRequired is a marker struct to indicate that no authentication is required for the request.
@@ -45,6 +46,10 @@ var (
 
 func (a *authContextNIP42) GetMasterPublicKey() string {
 	return a.MasterPubKey
+}
+
+func (a *authContextNIP42) GetDeviceKey() string {
+	return a.Event.PubKey
 }
 
 func authGetToken(ctx *gin.Context) Token {
