@@ -15,10 +15,15 @@ import (
 
 func (t *tokenAnalytics) CreateViewingSession(ctx context.Context, sessionType, userIP string) (string, uint64, error) {
 	ipMapKey := fmt.Sprintf(userIPSessionMapPrefix, sessionType, userIP)
-	oldSessionID, _ := t.processedDataDB.Get(ctx, ipMapKey).Result()
+	oldSessionID, err := t.processedDataDB.Get(ctx, ipMapKey).Result()
+	if err != nil && err != redis.Nil {
+		return "", 0, fmt.Errorf("failed to get old session ID: %w", err)
+	}
 	if oldSessionID != "" {
 		oldSessionKey := fmt.Sprintf(userSessionKeyPrefix, sessionType, oldSessionID)
-		t.processedDataDB.Del(ctx, oldSessionKey)
+		if err := t.processedDataDB.Del(ctx, oldSessionKey).Err(); err != nil {
+			return "", 0, fmt.Errorf("failed to delete old session key: %w", err)
+		}
 	}
 	sessionID := uuid.New().String()
 	sessionKey := fmt.Sprintf(userSessionKeyPrefix, sessionType, sessionID)
