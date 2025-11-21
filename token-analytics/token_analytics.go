@@ -499,11 +499,21 @@ func initializeWorkersConfig(ctx context.Context, db *storage.DB, workers uint) 
 		DO UPDATE SET value = EXCLUDED.value
 	`, strconv.FormatUint(uint64(workers), 10))
 	if err != nil {
-		return fmt.Errorf("failed to set workers in global_settings table: %w", err)
+		if storage.IsErr(err, storage.ErrReadOnly) {
+			err = nil
+		}
+		if err != nil {
+			return fmt.Errorf("failed to set workers in global_settings table: %w", err)
+		}
 	}
 	_, err = storage.Exec(ctx, db, `SELECT create_transactions_mod_index()`)
 	if err != nil {
-		return fmt.Errorf("failed to create transactions mod index: %w", err)
+		if storage.IsErr(err, storage.ErrReadOnly) {
+			err = nil
+		}
+		if err != nil {
+			return fmt.Errorf("failed to create transactions mod index: %w", err)
+		}
 	}
 
 	return nil
