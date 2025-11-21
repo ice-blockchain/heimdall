@@ -37,37 +37,69 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	log.Debug(fmt.Sprintf("Swap on token %v: direction=%v, price=%v USD (ION price: %v), user=%v, tx:%v",
 		contractAddr, ev.Direction, priceUSD, *ionPriceUSD, userAddr, tx.TransactionHash))
 
-	return t.calculateTokenMarketData(ctx, tx, contractAddr, userAddr, ev, priceUSD)
+	return t.calculateTokenMarketDataAndUserPosition(ctx, tx, contractAddr, userAddr, ev, priceUSD)
 }
 
-func (t *tokenAnalytics) calculateTokenMarketData(ctx context.Context, tx *txEvent, contractAddr, userAddr string, ev *bondingcurve.LogTokenSwapped, priceUSD float64) error {
-	var tokenAmount *big.Int
-	if ev.Direction { // buy
-		tokenAmount = ev.OutputAmount // User receives tokens
-	} else { // sell
-		tokenAmount = ev.InputAmount // User sends tokens
-	}
+func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Context, tx *txEvent, contractAddr, userAddr string, ev *bondingcurve.LogTokenSwapped, priceUSD float64) error {
 	masterPubkey, err := t.getMasterPubkeyByAddress(ctx, userAddr)
 	if err != nil {
 		return fmt.Errorf("failed to get master_pubkey for user %v: %w", userAddr, err)
 	}
-	key := fmt.Sprintf("position:%s", contractAddr)
-	oldBalance, err := t.processedDataDB.ZScore(ctx, key, masterPubkey).Result()
-	hadBalance := err == nil
-	if err != nil && !errors.Is(err, redis.Nil) {
-		return fmt.Errorf("failed to get current dragonfly balance for rollback: %w", err)
+	var tokenAmount *big.Int
+	var sign float64
+	if ev.Direction { // buy
+		tokenAmount = ev.OutputAmount // User receives tokens
+		sign = 1.0
+	} else { // sell
+		tokenAmount = ev.InputAmount // User sends tokens
+		sign = -1.0
 	}
+	deltaMarketCapUSD := sign * bigIntToFloat(tokenAmount) * priceUSD
+	if err = t.saveSwapAndUpdateData(ctx, tx, contractAddr, userAddr, ev, priceUSD, deltaMarketCapUSD); err != nil {
+		return fmt.Errorf("failed to get master_pubkey for user %v: %w", userAddr, err)
+	}
+	key := fmt.Sprintf("position:%s", contractAddr)
 	if ev.Direction { // buy
 		if err := t.increaseDragonflyUserPosition(ctx, key, masterPubkey, tokenAmount); err != nil {
+			if rollbackErr := t.rollbackPostgreSQLSwap(ctx, tx.TransactionHash, contractAddr); rollbackErr != nil {
+				return errors.Join(
+					fmt.Errorf("failed to increase dragonfly balance: %w", err),
+					rollbackErr,
+				)
+			}
+
 			return fmt.Errorf("failed to increase dragonfly balance for %v (master_pubkey: %v): %w", userAddr, masterPubkey, err)
 		}
 	} else { // sell
 		if err := t.decreaseDragonflyUserPosition(ctx, key, masterPubkey, tokenAmount); err != nil {
+			if rollbackErr := t.rollbackPostgreSQLSwap(ctx, tx.TransactionHash, contractAddr); rollbackErr != nil {
+				return errors.Join(
+					fmt.Errorf("failed to decrease dragonfly balance: %w", err),
+					rollbackErr,
+				)
+			}
+
 			return fmt.Errorf("failed to decrease dragonfly balance for %v (master_pubkey: %v): %w", userAddr, masterPubkey, err)
 		}
 	}
-	if err = t.saveSwapAndUpdateData(ctx, tx, contractAddr, userAddr, ev, priceUSD); err != nil {
-		if rollbackErr := t.rollbackDragonflyPosition(ctx, key, masterPubkey, oldBalance, hadBalance); rollbackErr != nil {
+
+	if err := t.processedDataDB.ZIncrBy(ctx, globalTopSetKey, deltaMarketCapUSD, contractAddr).Err(); err != nil {
+		if ev.Direction { // was buy → rollback with decrease
+			if rollbackErr := t.decreaseDragonflyUserPosition(ctx, key, masterPubkey, tokenAmount); rollbackErr != nil {
+				return errors.Join(
+					fmt.Errorf("failed to update market cap: %w", err),
+					fmt.Errorf("failed to rollback user position: %w", rollbackErr),
+				)
+			}
+		} else { // was sell → rollback with increase
+			if rollbackErr := t.increaseDragonflyUserPosition(ctx, key, masterPubkey, tokenAmount); rollbackErr != nil {
+				return errors.Join(
+					fmt.Errorf("failed to update market cap: %w", err),
+					fmt.Errorf("failed to rollback user position: %w", rollbackErr),
+				)
+			}
+		}
+		if rollbackErr := t.rollbackPostgreSQLSwap(ctx, tx.TransactionHash, contractAddr); rollbackErr != nil {
 			return errors.Join(
 				fmt.Errorf("failed to save swap data for tx %v: %w", tx.TransactionHash, err),
 				rollbackErr,
@@ -79,26 +111,16 @@ func (t *tokenAnalytics) calculateTokenMarketData(ctx context.Context, tx *txEve
 	return nil
 }
 
-func (t *tokenAnalytics) rollbackDragonflyPosition(ctx context.Context, key, masterPubkey string, oldBalance float64, hadBalance bool) error {
-	if hadBalance {
-		member := redis.Z{
-			Score:  oldBalance,
-			Member: masterPubkey,
-		}
-		if err := t.processedDataDB.ZAdd(ctx, key, member).Err(); err != nil {
-			return fmt.Errorf("failed to rollback dragonfly balance for %v: %w", masterPubkey, err)
-		}
-	} else {
-		if err := t.processedDataDB.ZRem(ctx, key, masterPubkey).Err(); err != nil {
-			return fmt.Errorf("failed to rollback dragonfly balance removal for %v: %w", masterPubkey, err)
-		}
+func (t *tokenAnalytics) rollbackPostgreSQLSwap(ctx context.Context, txHash, contractAddr string) error {
+	query := `DELETE FROM token_swaps WHERE transaction_hash = $1 AND contract_address = $2`
+	if _, err := t.ingestedDataDB.Exec(ctx, query, txHash, contractAddr); err != nil {
+		return fmt.Errorf("failed to rollback PostgreSQL swap for tx %v: %w", txHash, err)
 	}
+
 	return nil
 }
 
-func (t *tokenAnalytics) saveSwapAndUpdateData(ctx context.Context, tx *txEvent, contractAddr, userAddr string, ev *bondingcurve.LogTokenSwapped, priceUSD float64) error {
-	tokenAmount := ev.OutputAmount
-
+func (t *tokenAnalytics) saveSwapAndUpdateData(ctx context.Context, tx *txEvent, contractAddr, userAddr string, ev *bondingcurve.LogTokenSwapped, priceUSD, deltaMarketCapUSD float64) error {
 	ionPriceUSD := t.ionPriceUSD.Load()
 	if ionPriceUSD == nil {
 		return fmt.Errorf("ION price not yet synced")
@@ -106,17 +128,6 @@ func (t *tokenAnalytics) saveSwapAndUpdateData(ctx context.Context, tx *txEvent,
 
 	costBaseToken := bigIntToFloat(ev.InputAmount)
 	costUSD := costBaseToken * (*ionPriceUSD)
-
-	var volumeBaseToken float64
-	if ev.Direction { // buy
-		volumeBaseToken = bigIntToFloat(ev.InputAmount)
-	} else { // sell
-		volumeBaseToken = bigIntToFloat(ev.OutputAmount)
-	}
-	marketCapDelta := volumeBaseToken * (*ionPriceUSD)
-	if !ev.Direction { // sell
-		marketCapDelta = -marketCapDelta
-	}
 	positionCTE := ""
 	args := []interface{}{
 		tx.BlockTimestamp,
@@ -128,8 +139,8 @@ func (t *tokenAnalytics) saveSwapAndUpdateData(ctx context.Context, tx *txEvent,
 		ev.OutputAmount.String(),
 		priceUSD,
 		priceUSD,
-		marketCapDelta,
-		tokenAmount.String(),
+		deltaMarketCapUSD,
+		ev.OutputAmount.String(),
 	}
 
 	if ev.Direction { // BUY

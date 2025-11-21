@@ -33,6 +33,7 @@ const (
 	applicationYamlKey = "cmd/heimdall-token-analytics"
 
 	invalidPropertiesErrorCode = "INVALID_PROPERTIES"
+	sessionNotFoundErrorCode   = "SESSION_NOT_FOUND"
 )
 
 var (
