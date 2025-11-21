@@ -71,7 +71,7 @@ type TradeStatsAggregate struct {
 	VolumeUSD           float64 `json:"volumeUSD" db:"volume_usd" redis:"volume_usd"`
 	NumberOfBuys        uint64  `json:"numberOfBuys" db:"number_of_buys" redis:"number_of_buys"`
 	BuysTotalAmountUSD  float64 `json:"buysTotalAmountUSD" db:"buys_total_amount_usd" redis:"buys_total_amount_usd"`
-	NumberOfSells       int64   `json:"numberOfSells" db:"number_of_sells" redis:"number_of_sells"`
+	NumberOfSells       uint64  `json:"numberOfSells" db:"number_of_sells" redis:"number_of_sells"`
 	SellsTotalAmountUSD float64 `json:"sellsTotalAmountUSD" db:"sells_total_amount_usd" redis:"sells_total_amount_usd"`
 	NetBuy              float64 `json:"netBuy" redis:"net_buy"`
 }

@@ -349,7 +349,7 @@ func (s *service) ohlcvStream(ionContentAddress string, intervalStr string) (ser
 			Type: "message",
 			ID:   fmt.Sprintf("ohlcv_%v", recent.Timestamp),
 		}
-		ticker := time.NewTicker(5 * time.Second) // TODO: cfg?
+		ticker := time.NewTicker(1 * time.Second) // TODO: cfg?
 		go func() {
 			defer close(events)
 			defer ticker.Stop()
@@ -395,7 +395,7 @@ func (s *service) tradingStatsStream(ionContentAddress string) (server.StreamEve
 			Data: stats,
 			Type: "message",
 		}
-		ticker := time.NewTicker(5 * time.Second) // TODO: cfg?
+		ticker := time.NewTicker(1 * time.Second) // TODO: cfg?
 		go func() {
 			defer close(events)
 			defer ticker.Stop()
