@@ -7,7 +7,8 @@ definitions:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       ttl:
-        example: 1800000
+        description: Session TTL in seconds
+        example: 1800
         type: integer
     type: object
   server.ResponseErrorBody:
