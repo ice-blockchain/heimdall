@@ -116,7 +116,8 @@ func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Requ
 //	@Router			/v1/community-tokens/{type}/viewing-sessions [POST].
 func (s *service) CreateCommunityTokensSessionView(ctx context.Context, req *server.Request[SessionViewCreateRequest]) (*server.Response[SessionViewCreateResponse], error) {
 	clientIP := req.Context.ClientIP()
-	sessionID, ttl, err := s.tokenAnalytics.CreateViewingSession(ctx, req.Data.Type, clientIP)
+	deviceKey := req.Token.GetDeviceKey()
+	sessionID, ttl, err := s.tokenAnalytics.CreateViewingSession(ctx, req.Data.Type, clientIP, deviceKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create viewing session: %w", err)
 	}
