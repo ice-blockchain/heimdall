@@ -303,7 +303,6 @@ func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *serv
 		events <- server.StreamEvent[[]*ta.TopHolderPosition]{
 			Type: "message",
 			Data: &holders,
-			ID:   fmt.Sprintf("top-holders-%d", time.Now().UnixNano()),
 		}
 
 		emptyHolders := make([]*ta.TopHolderPosition, 0)
@@ -329,14 +328,12 @@ func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *serv
 							Err:  err,
 							Data: nil,
 							Type: "error",
-							ID:   fmt.Sprintf("top-holders-error-%d", time.Now().UnixNano()),
 						}
 						return
 					}
 					events <- server.StreamEvent[[]*ta.TopHolderPosition]{
 						Type: "message",
 						Data: &holders,
-						ID:   fmt.Sprintf("top-holders-%d", time.Now().UnixNano()),
 					}
 				}
 			}

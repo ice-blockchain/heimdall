@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -72,40 +71,40 @@ func Test_buildTopHolderPositions(t *testing.T) {
 
 		result := buildTopHolderPositions(contractAddr, rankings, rows)
 		require.Len(t, result, 3)
-		assert.Equal(t, uint64(1), result[0].Position.Rank)
-		assert.Equal(t, "holder1", result[0].Position.Holder.Username)
-		assert.Equal(t, "pubkey1", result[0].Position.Holder.MasterPubkey)
-		assert.Equal(t, uint64(1.0005e18), result[0].Position.Amount)
-		assert.Equal(t, 1.50075, result[0].Position.AmountUSD)  // 1.0005 tokens * 1.5 USD
-		assert.Equal(t, 1.0005, result[0].Position.SupplyShare) // 1.0005 / 100 * 100
-		assert.Equal(t, "0:pubkey1:", result[0].Position.Holder.IonConnect)
-		assert.True(t, result[0].Position.Holder.Verified)
+		require.Equal(t, uint64(1), result[0].Position.Rank)
+		require.Equal(t, "holder1", result[0].Position.Holder.Username)
+		require.Equal(t, "pubkey1", result[0].Position.Holder.MasterPubkey)
+		require.Equal(t, uint64(1.0005e18), result[0].Position.Amount)
+		require.Equal(t, 1.50075, result[0].Position.AmountUSD)  // 1.0005 tokens * 1.5 USD
+		require.Equal(t, 1.0005, result[0].Position.SupplyShare) // 1.0005 / 100 * 100
+		require.Equal(t, "0:pubkey1:", result[0].Position.Holder.IonConnect)
+		require.True(t, result[0].Position.Holder.Verified)
 
-		assert.Equal(t, "creator_user", result[0].Creator.Username)
-		assert.Equal(t, "Creator Name", result[0].Creator.Display)
-		assert.Equal(t, "0:creator_pubkey:", result[0].Creator.IonConnect)
-		assert.True(t, result[0].Creator.Verified)
+		require.Equal(t, "creator_user", result[0].Creator.Username)
+		require.Equal(t, "Creator Name", result[0].Creator.Display)
+		require.Equal(t, "0:creator_pubkey:", result[0].Creator.IonConnect)
+		require.True(t, result[0].Creator.Verified)
 
-		assert.Equal(t, uint64(2), result[1].Position.Rank)
-		assert.Equal(t, "holder2", result[1].Position.Holder.Username)
-		assert.Equal(t, uint64(5.0025e17), result[1].Position.Amount)
-		assert.Equal(t, 0.750375, result[1].Position.AmountUSD)  // 0.50025 tokens * 1.5 USD
-		assert.Equal(t, 0.50025, result[1].Position.SupplyShare) // 0.50025 / 100 * 100
-		assert.False(t, result[1].Position.Holder.Verified)
+		require.Equal(t, uint64(2), result[1].Position.Rank)
+		require.Equal(t, "holder2", result[1].Position.Holder.Username)
+		require.Equal(t, uint64(5.0025e17), result[1].Position.Amount)
+		require.Equal(t, 0.750375, result[1].Position.AmountUSD)  // 0.50025 tokens * 1.5 USD
+		require.Equal(t, 0.50025, result[1].Position.SupplyShare) // 0.50025 / 100 * 100
+		require.False(t, result[1].Position.Holder.Verified)
 
-		assert.Equal(t, uint64(3), result[2].Position.Rank)
-		assert.Equal(t, "holder3", result[2].Position.Holder.Username)
-		assert.Equal(t, uint64(1.0e17), result[2].Position.Amount)
-		assert.Equal(t, 0.15000000000000002, result[2].Position.AmountUSD) // 0.1 tokens * 1.5 USD
-		assert.Equal(t, 0.1, result[2].Position.SupplyShare)               // 0.1 / 100 * 100
-		assert.Empty(t, result[2].Position.Holder.Avatar)
+		require.Equal(t, uint64(3), result[2].Position.Rank)
+		require.Equal(t, "holder3", result[2].Position.Holder.Username)
+		require.Equal(t, uint64(1.0e17), result[2].Position.Amount)
+		require.Equal(t, 0.15000000000000002, result[2].Position.AmountUSD) // 0.1 tokens * 1.5 USD
+		require.Equal(t, 0.1, result[2].Position.SupplyShare)               // 0.1 / 100 * 100
+		require.Empty(t, result[2].Position.Holder.Avatar)
 	})
 
 	t.Run("should handle empty rankings", func(t *testing.T) {
 		t.Parallel()
 		rankings := []redis.Z{}
 		rows := []*holderWithTokenData{}
-		assert.Empty(t, buildTopHolderPositions(contractAddr, rankings, rows))
+		require.Empty(t, buildTopHolderPositions(contractAddr, rankings, rows))
 	})
 
 	t.Run("should skip holder when data not found in rows", func(t *testing.T) {
@@ -136,8 +135,8 @@ func Test_buildTopHolderPositions(t *testing.T) {
 
 		result := buildTopHolderPositions(contractAddr, rankings, rows)
 		require.Len(t, result, 2)
-		assert.Equal(t, "user1", result[0].Position.Holder.Username)
-		assert.Equal(t, "user3", result[1].Position.Holder.Username)
+		require.Equal(t, "user1", result[0].Position.Holder.Username)
+		require.Equal(t, "user3", result[1].Position.Holder.Username)
 	})
 
 	t.Run("should calculate correct supply share percentages", func(t *testing.T) {
@@ -181,8 +180,8 @@ func Test_buildTopHolderPositions(t *testing.T) {
 		result := buildTopHolderPositions(contractAddr, rankings, rows)
 
 		require.Len(t, result, 3)
-		assert.Equal(t, 50.0, result[0].Position.SupplyShare)
-		assert.Equal(t, 30.0, result[1].Position.SupplyShare)
-		assert.Equal(t, 20.0, result[2].Position.SupplyShare)
+		require.Equal(t, 50.0, result[0].Position.SupplyShare)
+		require.Equal(t, 30.0, result[1].Position.SupplyShare)
+		require.Equal(t, 20.0, result[2].Position.SupplyShare)
 	})
 }
