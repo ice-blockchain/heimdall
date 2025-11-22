@@ -616,7 +616,7 @@ paths:
       description: Streams community tokens information for the given type.
       parameters:
       - description: Type of data
-        example: '"latest"'
+        example: '"latest","featured"'
         in: path
         name: type
         required: true

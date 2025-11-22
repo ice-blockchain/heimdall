@@ -637,7 +637,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "example": "\"latest\"",
+                        "example": "\"latest\",\"featured\"",
                         "description": "Type of data",
                         "name": "type",
                         "in": "path",
