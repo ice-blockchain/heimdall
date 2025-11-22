@@ -33,7 +33,8 @@ type (
 		HealthCheck(ctx context.Context) error
 		UserRepository
 		MustStart(ctx context.Context)
-		GetCommunityTokens(ctx context.Context, ionConnectAddresses []string, requestorMasterPubkey string) ([]*CommunityToken, error)
+		GetCommunityTokensByIonConnectAddresses(ctx context.Context, ionConnectAddresses []string, requestorMasterPubkey string) ([]*CommunityToken, error)
+		GetCommunityTokensByType(ctx context.Context, tokenType, keyword string, limit, offset uint32) ([]*CommunityToken, error)
 		GetOHLVCHistory(ctx context.Context, now, startPoint stdlibtime.Time, ionContentAddress string, interval Interval) (res []*OHLCV, err error)
 		GetOHLVCRecent(ctx context.Context, now stdlibtime.Time, ionContentAddress string, interval Interval) (*OHLCV, error)
 		GetTradingStats(ctx context.Context, now stdlibtime.Time, ionContentAddress string) (*TradeStats, error)
@@ -162,6 +163,7 @@ type (
 	}
 
 	tokenRow struct {
+		CreatedAt                *time.Time `db:"created_at"`
 		ContractAddress          string     `db:"contract_address"`
 		IONConnectAddress        string     `db:"ion_connect_address"`
 		Type                     string     `db:"type"`
@@ -173,15 +175,14 @@ type (
 		CreatorMasterPubkey      string     `db:"creator_master_pubkey"`
 		CreatorUsername          string     `db:"creator_username"`
 		CreatorDisplay           string     `db:"creator_display"`
-		CreatorVerified          bool       `db:"creator_verified"`
 		CreatorAvatar            string     `db:"creator_avatar"`
-		CreatedAt                *time.Time `db:"created_at"`
-		PriceUSD                 float64    `db:"price_usd"`
-		HoldersCount             int64      `db:"holders_count"`
 		MarketCapUSD             float64    `db:"market_cap_usd"`
+		PriceUSD                 float64    `db:"price_usd"`
 		Volume24h                float64    `db:"volume_24h"`
 		PositionAmountUSD        float64    `db:"position_amount_usd"`
 		PositionTotalInvestedUSD float64    `db:"position_total_invested_usd"`
+		HoldersCount             int64      `db:"holders_count"`
+		CreatorVerified          bool       `db:"creator_verified"`
 	}
 
 	tokenVolume24h struct {
