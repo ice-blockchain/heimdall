@@ -545,14 +545,6 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "integer",
-                        "format": "int32",
-                        "example": 0,
-                        "description": "Number of items to skip",
-                        "name": "offset",
-                        "in": "query"
-                    },
-                    {
                         "type": "string",
                         "description": "Auth token",
                         "name": "Authorization",
@@ -564,7 +556,10 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/tokenanalytics.Trade"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/tokenanalytics.TopHolderPosition"
+                            }
                         }
                     },
                     "500": {
@@ -747,6 +742,26 @@ const docTemplate = `{
                 }
             }
         },
+        "tokenanalytics.HolderPosition": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer"
+                },
+                "amountUSD": {
+                    "type": "number"
+                },
+                "holder": {
+                    "$ref": "#/definitions/tokenanalytics.User"
+                },
+                "rank": {
+                    "type": "integer"
+                },
+                "supplyShare": {
+                    "type": "number"
+                }
+            }
+        },
         "tokenanalytics.MarketData": {
             "type": "object",
             "properties": {
@@ -810,6 +825,17 @@ const docTemplate = `{
                 },
                 "rank": {
                     "type": "integer"
+                }
+            }
+        },
+        "tokenanalytics.TopHolderPosition": {
+            "type": "object",
+            "properties": {
+                "creator": {
+                    "$ref": "#/definitions/tokenanalytics.User"
+                },
+                "position": {
+                    "$ref": "#/definitions/tokenanalytics.HolderPosition"
                 }
             }
         },
@@ -913,9 +939,6 @@ const docTemplate = `{
                 "display": {
                     "type": "string"
                 },
-                "id": {
-                    "type": "string"
-                },
                 "ionConnect": {
                     "type": "string"
                 },
@@ -924,9 +947,6 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
-                },
-                "masterPubkey": {
-                    "type": "string"
                 },
                 "name": {
                     "type": "string"
