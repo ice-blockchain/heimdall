@@ -70,6 +70,11 @@ const (
 	TokenTypePost    = "post"
 	TokenTypeArticle = "article"
 	TokenTypeVideo   = "video"
+
+	TokenTypeLatest   = "latest"
+	TokenTypeFeatured = "featured"
+	TokenTypeTop      = "top"
+	TokenTypeTrending = "trending"
 )
 
 var (

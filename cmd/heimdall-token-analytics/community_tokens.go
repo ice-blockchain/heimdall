@@ -25,12 +25,7 @@ type (
 	}
 	TokenInfoRequestByType struct {
 		PaginationRequest
-		Type    string `uri:"type" binding:"required,oneof=top trending" swaggerignore:"true"`
-		Keyword string `form:"keyword" swaggerignore:"true"`
-	}
-	TokenInfoRequestByLatest struct {
-		PaginationRequest
-		Type    string `uri:"type" required:"true" binding:"oneof=latest" swaggerignore:"true"`
+		Type    string `uri:"type" required:"true" swaggerignore:"true"`
 		Keyword string `form:"keyword" swaggerignore:"true"`
 	}
 	TokenInfoRequestByTypeAndSessionID struct {
@@ -98,7 +93,14 @@ func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[To
 //	@Failure		500				{object}	server.ResponseErrorBody
 //	@Failure		504				{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1/community-tokens/{type} [GET].
-func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoRequestByLatest]) (*server.Response[[]*ta.CommunityToken], error) {
+func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoRequestByType]) (*server.Response[[]*ta.CommunityToken], error) {
+	validTypes := map[string]bool{
+		ta.TokenTypeLatest: true,
+	}
+	if !validTypes[req.Data.Type] {
+		return nil, server.BadRequest(fmt.Errorf("invalid type: must be %s", ta.TokenTypeLatest), invalidPropertiesErrorCode)
+	}
+
 	limit := req.Data.Limit
 	if limit == 0 {
 		limit = 10
@@ -322,14 +324,22 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 //	@Description	Streams community tokens information for the given type.
 //	@Tags			sse
 //	@Produce		text/event-stream
-//	@Param			type			path		string	true	"Type of data"	example("latest")
+//	@Param			type			path		string	true	"Type of data"	example("latest","featured")
 //	@Param			Authorization	header		string	true	"Auth token"
 //	@Success		200				{object}	ta.CommunityToken
 //	@Failure		500				{object}	server.ResponseErrorBody
 //	@Failure		504				{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1sse/community-tokens/{type} [GET].
-func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoRequestByLatest]) (server.StreamEventEmitter[ta.CommunityToken], error) {
-	limit := uint32(10) // TODO: remove when subscription/notify is ready.
+func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoRequestByType]) (server.StreamEventEmitter[ta.CommunityToken], error) {
+	validTypes := map[string]bool{
+		ta.TokenTypeLatest:   true,
+		ta.TokenTypeFeatured: true,
+	}
+	if !validTypes[req.Data.Type] {
+		return nil, server.BadRequest(fmt.Errorf("invalid type: must be one of %s, %s", ta.TokenTypeLatest, ta.TokenTypeFeatured), invalidPropertiesErrorCode)
+	}
+
+	limit := uint32(100) // TODO: remove when subscription/notify is ready.
 	return func(ctx context.Context) (<-chan server.StreamEvent[ta.CommunityToken], error) {
 		events := make(chan server.StreamEvent[ta.CommunityToken], 100)
 

@@ -216,6 +216,15 @@ CREATE INDEX IF NOT EXISTS idx_user_token_positions_user ON user_token_positions
 CREATE INDEX IF NOT EXISTS idx_user_token_positions_token ON user_token_positions (contract_address);
 CREATE INDEX IF NOT EXISTS idx_user_token_positions_ion_connect ON user_token_positions (ion_connect_address);
 
+CREATE TABLE IF NOT EXISTS tokens_featured (
+    created_at              TIMESTAMP NOT NULL DEFAULT NOW(),
+    ion_connect_address     TEXT NOT NULL,
+    PRIMARY KEY (ion_connect_address),
+    FOREIGN KEY (ion_connect_address) REFERENCES tokens(ion_connect_address) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_tokens_featured_created_at ON tokens_featured (created_at DESC);
+
 CREATE OR REPLACE FUNCTION update_token_holders_count_trigger()
 RETURNS TRIGGER AS $$
 BEGIN
