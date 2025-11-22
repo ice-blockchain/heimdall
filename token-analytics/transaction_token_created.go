@@ -72,12 +72,12 @@ func (t *tokenAnalytics) saveTokenMetadata(ctx context.Context, tx *txEvent, ev 
 			$1, $1, $2, $3,
 			(SELECT username FROM user_data),
 			$5, $4, $6
-		ON CONFLICT (contract_address) 
+		ON CONFLICT (ion_connect_address) 
 		DO UPDATE SET
 			updated_at = EXCLUDED.updated_at,
 			total_supply = EXCLUDED.total_supply,
 			creator_master_pubkey = EXCLUDED.creator_master_pubkey,
-			ion_connect_address = COALESCE(EXCLUDED.ion_connect_address, tokens.ion_connect_address),
+			contract_address = EXCLUDED.contract_address,
 			ticker = COALESCE(EXCLUDED.ticker, tokens.ticker)
 	`, tx.BlockTimestamp, contractAddress, ionConnectAddress, creatorAddress, ev.TotalSupply.String(), tokenType)
 	if err != nil {

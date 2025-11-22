@@ -49,6 +49,10 @@ type (
 		PaginationRequest
 		Address string `uri:"type" required:"true" swaggerignore:"true"` // Map `type` to `address`.
 	}
+	TopHoldersRequest struct {
+		Address string `uri:"type" required:"true" swaggerignore:"true"`
+		Limit   uint32 `form:"limit" swaggerignore:"true"`
+	}
 	OHLCVRequest struct {
 		Interval string `form:"interval" required:"true" swaggerignore:"true"` // e.g., "1m", "5m", "1h", etc.
 		Address  string `uri:"type" required:"true" swaggerignore:"true"`      // Map `type` to `address`.
@@ -275,14 +279,71 @@ func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.R
 //	@Produce		text/event-stream
 //	@Param			ionConnectAddress	path		string	true	"Ion Connect address"		example("0x1234...")
 //	@Param			limit				query		uint32	false	"Number of items to return"	example(10)
-//	@Param			offset				query		uint32	false	"Number of items to skip"	example(0)
 //	@Param			Authorization		header		string	true	"Auth token"
-//	@Success		200					{object}	ta.Trade
+//	@Success		200					{object}	[]ta.TopHolderPosition
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1sse/community-tokens/{ionConnectAddress}/top-holders [GET].
-func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *server.Request[TradeRequest]) (server.StreamEventEmitter[ta.Trade], error) {
-	return newFakeStreamOf[ta.Trade]()
+func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *server.Request[TopHoldersRequest]) (server.StreamEventEmitter[[]*ta.TopHolderPosition], error) {
+	ionConnectAddress := req.Data.Address
+	limit := req.Data.Limit
+	if limit == 0 {
+		limit = 10
+	}
+	if limit > 200 {
+		limit = 200
+	}
+
+	return func(ctx context.Context) (<-chan server.StreamEvent[[]*ta.TopHolderPosition], error) {
+		events := make(chan server.StreamEvent[[]*ta.TopHolderPosition], 2)
+		holders, err := s.tokenAnalytics.GetTopHolders(ctx, ionConnectAddress, int64(limit))
+		if err != nil {
+			return nil, fmt.Errorf("failed to get initial top holders: %w", err)
+		}
+		events <- server.StreamEvent[[]*ta.TopHolderPosition]{
+			Type: "message",
+			Data: &holders,
+			ID:   fmt.Sprintf("top-holders-%d", time.Now().UnixNano()),
+		}
+
+		emptyHolders := make([]*ta.TopHolderPosition, 0)
+		events <- server.StreamEvent[[]*ta.TopHolderPosition]{
+			Type: "eose",
+			Data: &emptyHolders,
+			ID:   "end-of-snapshot",
+		}
+
+		ticker := time.NewTicker(1 * time.Second)
+		go func() {
+			defer close(events)
+			defer ticker.Stop()
+
+			for ctx.Err() == nil {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					holders, err := s.tokenAnalytics.GetTopHolders(ctx, ionConnectAddress, int64(limit))
+					if err != nil {
+						events <- server.StreamEvent[[]*ta.TopHolderPosition]{
+							Err:  err,
+							Data: nil,
+							Type: "error",
+							ID:   fmt.Sprintf("top-holders-error-%d", time.Now().UnixNano()),
+						}
+						return
+					}
+					events <- server.StreamEvent[[]*ta.TopHolderPosition]{
+						Type: "message",
+						Data: &holders,
+						ID:   fmt.Sprintf("top-holders-%d", time.Now().UnixNano()),
+					}
+				}
+			}
+		}()
+
+		return events, nil
+	}, nil
 }
 
 // StreamCommunityTokensLatestTrades godoc

@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -41,7 +40,7 @@ func (t *tokenAnalytics) GetCommunityTokensByIonConnectAddresses(ctx context.Con
 		COALESCE(
 			(SELECT SUM((input_amount::NUMERIC / 1e18) * price_usd)
 			 FROM token_swaps 
-			 WHERE token_swaps.contract_address = t.contract_address 
+			 WHERE token_swaps.ion_connect_address = t.ion_connect_address 
 			   AND direction = false 
 			   AND created_at > NOW() - INTERVAL '24 hours'), 
 			0
@@ -51,7 +50,7 @@ func (t *tokenAnalytics) GetCommunityTokensByIonConnectAddresses(ctx context.Con
 			COALESCE(utp.total_invested_usd, 0) as position_total_invested_usd
 		FROM tokens t
 		LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
-		LEFT JOIN user_token_positions utp ON utp.contract_address = t.contract_address AND utp.master_pubkey = $2
+		LEFT JOIN user_token_positions utp ON utp.ion_connect_address = t.ion_connect_address AND utp.master_pubkey = $2
 		WHERE t.ion_connect_address = ANY($1)
 		ORDER BY t.created_at DESC
 	`
@@ -74,9 +73,9 @@ func (t *tokenAnalytics) GetCommunityTokensByIonConnectAddresses(ctx context.Con
 		}
 
 		if row.PositionAmountUSD > 0 {
-			position, err := t.getUserTokenPositionRanking(ctx, requestorMasterPubkey, row.ContractAddress, row.PositionAmountUSD, row.PositionTotalInvestedUSD)
+			position, err := t.getUserTokenPositionRanking(ctx, requestorMasterPubkey, row.IONConnectAddress, row.PositionAmountUSD, row.PositionTotalInvestedUSD)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to get user position ranking for token %v", row.ContractAddress)
+				return nil, errors.Wrapf(err, "failed to get user position ranking for token %v", row.IONConnectAddress)
 			}
 			if position != nil {
 				marketData.Position = *position
@@ -191,10 +190,8 @@ func (t *tokenAnalytics) GetCommunityTokensByType(ctx context.Context, tokenType
 	return tokens, nil
 }
 
-func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, masterPubkey, contractAddress string, amountUSD, totalInvested float64) (*Position, error) {
-	contractAddr := strings.ToLower(contractAddress)
-	key := fmt.Sprintf("position:%s", contractAddr)
-
+func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, masterPubkey, ionConnectAddress string, amountUSD, totalInvested float64) (*Position, error) {
+	key := fmt.Sprintf("position:%s", ionConnectAddress)
 	balanceFloat, err := t.processedDataDB.ZScore(ctx, key, masterPubkey).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
@@ -316,7 +313,7 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, ionConnectAddress 
 					IonConnect: swaps[i].IONConnectAddress,
 				},
 				CreatedAt:  *swaps[i].CreatedAt.Time,
-				Type:       typ,
+				Type:       string(typ),
 				Amount:     tokenAmount,
 				AmountUSD:  amountUSD,
 				Balance:    swaps[i].Balance,
