@@ -252,7 +252,68 @@ func newFakeStreamOf[T any]() (server.StreamEventEmitter[T], error) {
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1sse/community-tokens [GET].
 func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request[TokenInfoRequest]) (server.StreamEventEmitter[ta.CommunityToken], error) {
-	return newFakeStreamOf[ta.CommunityToken]()
+	if len(req.Data.Addresses) == 0 {
+		return nil, server.BadRequest(errors.New("ionConnectAddress[] is required"), invalidPropertiesErrorCode)
+	}
+
+	return func(ctx context.Context) (<-chan server.StreamEvent[ta.CommunityToken], error) {
+		events := make(chan server.StreamEvent[ta.CommunityToken], 100)
+
+		sendData := func() bool {
+			tokens, err := s.tokenAnalytics.GetCommunityTokensByIonConnectAddresses(ctx, req.Data.Addresses, req.Token.GetMasterPublicKey())
+			if err != nil {
+				slog.ErrorContext(ctx, "failed to get community tokens for streaming", "error", err, "addresses", req.Data.Addresses)
+				events <- server.StreamEvent[ta.CommunityToken]{
+					Type: "error",
+					Data: nil,
+					Err:  err,
+					ID:   fmt.Sprintf("error-%d", time.Now().UnixNano()),
+				}
+
+				return false
+			}
+			for _, token := range tokens {
+				events <- server.StreamEvent[ta.CommunityToken]{
+					Type: "message",
+					Data: token,
+					ID:   fmt.Sprintf("token-%d", time.Now().UnixNano()),
+				}
+			}
+			slog.DebugContext(ctx, "sent community tokens update", "count", len(tokens))
+
+			return true
+		}
+
+		ticker := time.NewTicker(1 * time.Second)
+		go func() {
+			defer close(events)
+			defer ticker.Stop()
+
+			if !sendData() {
+				slog.ErrorContext(ctx, "initial data send failed for community tokens stream")
+
+				return
+			}
+
+			for ctx.Err() == nil {
+				select {
+				case <-ctx.Done():
+					slog.DebugContext(ctx, "community tokens stream context cancelled")
+
+					return
+
+				case <-ticker.C:
+					if !sendData() {
+						slog.ErrorContext(ctx, "periodic data send failed for community tokens stream")
+
+						return
+					}
+				}
+			}
+		}()
+
+		return events, nil
+	}, nil
 }
 
 // StreamCommunityTokensByType godoc
@@ -267,8 +328,64 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 //	@Failure		500				{object}	server.ResponseErrorBody
 //	@Failure		504				{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1sse/community-tokens/{type} [GET].
-func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoRequestByType]) (server.StreamEventEmitter[ta.CommunityToken], error) {
-	return newFakeStreamOf[ta.CommunityToken]()
+func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoRequestByLatest]) (server.StreamEventEmitter[ta.CommunityToken], error) {
+	limit := uint32(10) // TODO: remove when subscription/notify is ready.
+	return func(ctx context.Context) (<-chan server.StreamEvent[ta.CommunityToken], error) {
+		events := make(chan server.StreamEvent[ta.CommunityToken], 100)
+
+		sendData := func() bool {
+			tokens, err := s.tokenAnalytics.GetCommunityTokensByType(ctx, req.Data.Type, "", limit, req.Data.Offset)
+			if err != nil {
+				slog.ErrorContext(ctx, "failed to get community tokens by type for streaming", "error", err, "type", req.Data.Type)
+				events <- server.StreamEvent[ta.CommunityToken]{
+					Type: "error",
+					Data: nil,
+					Err:  err,
+					ID:   fmt.Sprintf("error-%d", time.Now().UnixNano()),
+				}
+
+				return false
+			}
+			for _, token := range tokens {
+				events <- server.StreamEvent[ta.CommunityToken]{
+					Type: "message",
+					Data: token,
+					ID:   fmt.Sprintf("token-%d", time.Now().UnixNano()),
+				}
+			}
+			slog.DebugContext(ctx, "sent community tokens by type update", "type", req.Data.Type, "count", len(tokens))
+
+			return true
+		}
+
+		ticker := time.NewTicker(1 * time.Second)
+		go func() {
+			defer close(events)
+			defer ticker.Stop()
+			if !sendData() {
+				slog.ErrorContext(ctx, "initial data send failed for community tokens by type stream", "type", req.Data.Type)
+				return
+			}
+
+			for ctx.Err() == nil {
+				select {
+				case <-ctx.Done():
+					slog.DebugContext(ctx, "community tokens by type stream context cancelled", "type", req.Data.Type)
+
+					return
+
+				case <-ticker.C:
+					if !sendData() {
+						slog.ErrorContext(ctx, "periodic data send failed for community tokens by type stream", "type", req.Data.Type)
+
+						return
+					}
+				}
+			}
+		}()
+
+		return events, nil
+	}, nil
 }
 
 // StreamCommunityTokensTopHolders godoc
