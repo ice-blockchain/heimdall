@@ -329,7 +329,7 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 //	@Description	Streams community tokens information for the given type.
 //	@Tags			sse
 //	@Produce		text/event-stream
-//	@Param			type				path		string	true	"Type of data"	example("latest","featured","top","trending")
+//	@Param			type				path		string	true	"Type of data"										example("latest","featured","top","trending")
 //	@Param			viewingSessionId	query		string	false	"Viewing session ID (required for top/trending)"	example("550e8400-e29b-41d4-a716-446655440000")
 //	@Param			Authorization		header		string	true	"Auth token"
 //	@Success		200					{array}		ta.CommunityToken
