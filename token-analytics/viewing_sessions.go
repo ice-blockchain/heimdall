@@ -50,7 +50,7 @@ func (t *tokenAnalytics) CreateViewingSession(ctx context.Context, sessionType, 
 	return sessionID, ttlSeconds, nil
 }
 
-func (t *tokenAnalytics) GetTokensFromViewingSession(ctx context.Context, sessionType, sessionID, keyword string, limit, offset int64) ([]CommunityToken, error) {
+func (t *tokenAnalytics) GetTokensFromViewingSession(ctx context.Context, sessionType, sessionID, keyword string, limit, offset uint64) ([]*CommunityToken, error) {
 	sessionKey := fmt.Sprintf(userSessionKeyPrefix, sessionType, sessionID)
 	exists, err := t.processedDataDB.Exists(ctx, sessionKey).Result()
 	if err != nil {
@@ -63,12 +63,12 @@ func (t *tokenAnalytics) GetTokensFromViewingSession(ctx context.Context, sessio
 	if keyword != "" {
 		return t.getTokensWithKeywordFilter(ctx, sessionKey, sessionType, keyword, limit, offset)
 	}
-	tokenData, err := t.processedDataDB.ZRevRangeWithScores(ctx, sessionKey, offset, offset+limit-1).Result()
+	tokenData, err := t.processedDataDB.ZRevRangeWithScores(ctx, sessionKey, int64(offset), int64(offset+limit-1)).Result()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tokens from viewing session: %w", err)
 	}
 	if len(tokenData) == 0 {
-		return make([]CommunityToken, 0), nil
+		return make([]*CommunityToken, 0), nil
 	}
 	tokenAddresses := make([]string, len(tokenData))
 	scoresMap := make(map[string]float64, len(tokenData))
@@ -85,24 +85,24 @@ func (t *tokenAnalytics) GetTokensFromViewingSession(ctx context.Context, sessio
 	return tokens, nil
 }
 
-func (t *tokenAnalytics) getTokensWithKeywordFilter(ctx context.Context, sessionKey, sessionType, keyword string, limit, offset int64) ([]CommunityToken, error) {
+func (t *tokenAnalytics) getTokensWithKeywordFilter(ctx context.Context, sessionKey, sessionType, keyword string, limit, offset uint64) ([]*CommunityToken, error) {
 	matchedAddresses, err := t.searchTokensByCreatorLookup(ctx, keyword)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search tokens by creator username: %w", err)
 	}
 	if len(matchedAddresses) == 0 {
-		return make([]CommunityToken, 0), nil
+		return make([]*CommunityToken, 0), nil
 	}
 	filteredAddresses, err := t.filterTokensBySession(ctx, sessionKey, matchedAddresses)
 	if err != nil {
 		return nil, err
 	}
 	if len(filteredAddresses) == 0 {
-		return make([]CommunityToken, 0), nil
+		return make([]*CommunityToken, 0), nil
 	}
-	paginatedAddresses := applyPagination(filteredAddresses, limit, offset)
+	paginatedAddresses := applyPagination(filteredAddresses, int64(limit), int64(offset))
 	if len(paginatedAddresses) == 0 {
-		return make([]CommunityToken, 0), nil
+		return make([]*CommunityToken, 0), nil
 	}
 
 	tokens, err := t.getTokenDetailsWithScores(ctx, sessionKey, sessionType, paginatedAddresses)
@@ -113,7 +113,7 @@ func (t *tokenAnalytics) getTokensWithKeywordFilter(ctx context.Context, session
 	return tokens, nil
 }
 
-func (t *tokenAnalytics) getTokenDetailsWithScores(ctx context.Context, sessionKey, sessionType string, ionConnectAddresses []string) ([]CommunityToken, error) {
+func (t *tokenAnalytics) getTokenDetailsWithScores(ctx context.Context, sessionKey, sessionType string, ionConnectAddresses []string) ([]*CommunityToken, error) {
 	scoresMap := make(map[string]float64)
 	for _, addr := range ionConnectAddresses {
 		score, err := t.processedDataDB.ZScore(ctx, sessionKey, addr).Result()
@@ -126,9 +126,9 @@ func (t *tokenAnalytics) getTokenDetailsWithScores(ctx context.Context, sessionK
 	return t.getTokenDetailsWithScoresMap(ctx, sessionType, ionConnectAddresses, scoresMap)
 }
 
-func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessionType string, ionConnectAddresses []string, scoresMap map[string]float64) ([]CommunityToken, error) {
+func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessionType string, ionConnectAddresses []string, scoresMap map[string]float64) ([]*CommunityToken, error) {
 	if len(ionConnectAddresses) == 0 {
-		return []CommunityToken{}, nil
+		return []*CommunityToken{}, nil
 	}
 	query := `
 		SELECT 
@@ -165,7 +165,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 	if err != nil {
 		return nil, err
 	}
-	result := make([]CommunityToken, 0, len(ionConnectAddresses))
+	result := make([]*CommunityToken, 0, len(ionConnectAddresses))
 	for _, addr := range ionConnectAddresses {
 		token, exists := tokensMap[addr]
 		if !exists {
@@ -180,7 +180,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 			marketCap = additionalMetrics[addr]
 		}
 
-		result = append(result, CommunityToken{
+		result = append(result, &CommunityToken{
 			Type:        token.Type,
 			Title:       token.Title,
 			Description: token.Description,

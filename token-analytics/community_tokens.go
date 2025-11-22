@@ -110,18 +110,18 @@ func (t *tokenAnalytics) GetCommunityTokensByIonConnectAddresses(ctx context.Con
 	return tokens, nil
 }
 
-func (t *tokenAnalytics) GetCommunityTokensByType(ctx context.Context, tokenType, keyword string, limit, offset uint32) ([]*CommunityToken, error) {
+func (t *tokenAnalytics) GetCommunityTokensByType(ctx context.Context, tokenType, keyword string, limit, offset uint64) ([]*CommunityToken, error) {
 	switch tokenType {
 	case TokenTypeLatest:
 		return t.getCommunityTokensByLatest(ctx, keyword, limit, offset)
 	case TokenTypeFeatured:
 		return t.getCommunityTokensByFeatured(ctx, limit, offset)
+	default:
+		return nil, errors.New("unsupported token type")
 	}
-
-	return nil, nil
 }
 
-func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword string, limit, offset uint32) ([]*CommunityToken, error) {
+func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword string, limit, offset uint64) ([]*CommunityToken, error) {
 	query := `
 		SELECT 
 			t.contract_address,
@@ -201,7 +201,7 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 	return tokens, nil
 }
 
-func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit, offset uint32) ([]*CommunityToken, error) {
+func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit, offset uint64) ([]*CommunityToken, error) {
 	query := `
 		SELECT 
 			t.contract_address,
