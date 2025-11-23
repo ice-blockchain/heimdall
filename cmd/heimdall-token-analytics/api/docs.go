@@ -113,7 +113,8 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Auth token",
                         "name": "Authorization",
-                        "in": "header"
+                        "in": "header",
+                        "required": true
                     }
                 ],
                 "responses": {

@@ -241,6 +241,7 @@ paths:
       - description: Auth token
         in: header
         name: Authorization
+        required: true
         type: string
       produces:
       - application/json
