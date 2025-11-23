@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
@@ -17,9 +18,10 @@ import (
 )
 
 func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTokenSwapped) error {
+	// TODO: Extract ionConnectAddress from transaction data.
+	ionConnectAddress := "TODO:" + uuid.New().String()
 	contractAddr := strings.ToLower(ev.Address.Hex())
 	userAddr := strings.ToLower(ev.Swapper.Hex())
-	// TODO: move down to the flow once pg processing stable
 	if err := t.registerTrade(ctx, tx, ev); err != nil {
 		return fmt.Errorf("failed to save trade in questdb %v ]]: %w", userAddr, err)
 	}
@@ -37,10 +39,10 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	log.Debug(fmt.Sprintf("Swap on token %v: direction=%v, price=%v USD (ION price: %v), user=%v, tx:%v",
 		contractAddr, ev.Direction, priceUSD, *ionPriceUSD, userAddr, tx.TransactionHash))
 
-	return t.calculateTokenMarketDataAndUserPosition(ctx, tx, contractAddr, userAddr, ev, priceUSD)
+	return t.calculateTokenMarketDataAndUserPosition(ctx, tx, contractAddr, ionConnectAddress, userAddr, ev, priceUSD)
 }
 
-func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Context, tx *txEvent, contractAddr, userAddr string, ev *bondingcurve.LogTokenSwapped, priceUSD float64) error {
+func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Context, tx *txEvent, contractAddr, ionConnectAddress, userAddr string, ev *bondingcurve.LogTokenSwapped, priceUSD float64) error {
 	masterPubkey, err := t.getMasterPubkeyByAddress(ctx, userAddr)
 	if err != nil {
 		return fmt.Errorf("failed to get master_pubkey for user %v: %w", userAddr, err)
@@ -55,13 +57,13 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 		sign = -1.0
 	}
 	deltaMarketCapUSD := sign * bigIntToFloat(tokenAmount) * priceUSD
-	if err = t.saveSwapAndUpdateData(ctx, tx, contractAddr, userAddr, ev, priceUSD, deltaMarketCapUSD); err != nil {
-		return fmt.Errorf("failed to get master_pubkey for user %v: %w", userAddr, err)
+	if err = t.saveSwapAndUpdateData(ctx, tx, contractAddr, ionConnectAddress, userAddr, ev, priceUSD, deltaMarketCapUSD); err != nil {
+		return fmt.Errorf("failed to save swap data: %w", err)
 	}
-	key := fmt.Sprintf("position:%s", contractAddr)
+	key := fmt.Sprintf("position:%s", ionConnectAddress)
 	if ev.Direction { // buy
 		if err := t.increaseDragonflyUserPosition(ctx, key, masterPubkey, tokenAmount); err != nil {
-			if rollbackErr := t.rollbackPostgreSQLSwap(ctx, tx.TransactionHash, contractAddr); rollbackErr != nil {
+			if rollbackErr := t.rollbackPostgreSQLSwap(ctx, tx.TransactionHash, ionConnectAddress); rollbackErr != nil {
 				return errors.Join(
 					fmt.Errorf("failed to increase dragonfly balance: %w", err),
 					rollbackErr,
@@ -72,7 +74,7 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 		}
 	} else { // sell
 		if err := t.decreaseDragonflyUserPosition(ctx, key, masterPubkey, tokenAmount); err != nil {
-			if rollbackErr := t.rollbackPostgreSQLSwap(ctx, tx.TransactionHash, contractAddr); rollbackErr != nil {
+			if rollbackErr := t.rollbackPostgreSQLSwap(ctx, tx.TransactionHash, ionConnectAddress); rollbackErr != nil {
 				return errors.Join(
 					fmt.Errorf("failed to decrease dragonfly balance: %w", err),
 					rollbackErr,
@@ -83,7 +85,7 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 		}
 	}
 
-	if err := t.processedDataDB.ZIncrBy(ctx, globalTopSetKey, deltaMarketCapUSD, contractAddr).Err(); err != nil {
+	if err := t.processedDataDB.ZIncrBy(ctx, globalTopSetKey, deltaMarketCapUSD, ionConnectAddress).Err(); err != nil {
 		if ev.Direction { // was buy → rollback with decrease
 			if rollbackErr := t.decreaseDragonflyUserPosition(ctx, key, masterPubkey, tokenAmount); rollbackErr != nil {
 				return errors.Join(
@@ -99,7 +101,7 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 				)
 			}
 		}
-		if rollbackErr := t.rollbackPostgreSQLSwap(ctx, tx.TransactionHash, contractAddr); rollbackErr != nil {
+		if rollbackErr := t.rollbackPostgreSQLSwap(ctx, tx.TransactionHash, ionConnectAddress); rollbackErr != nil {
 			return errors.Join(
 				fmt.Errorf("failed to save swap data for tx %v: %w", tx.TransactionHash, err),
 				rollbackErr,
@@ -111,16 +113,16 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 	return nil
 }
 
-func (t *tokenAnalytics) rollbackPostgreSQLSwap(ctx context.Context, txHash, contractAddr string) error {
-	query := `DELETE FROM token_swaps WHERE transaction_hash = $1 AND contract_address = $2`
-	if _, err := t.ingestedDataDB.Exec(ctx, query, txHash, contractAddr); err != nil {
+func (t *tokenAnalytics) rollbackPostgreSQLSwap(ctx context.Context, txHash, ionConnectAddress string) error {
+	query := `DELETE FROM token_swaps WHERE transaction_hash = $1 AND ion_connect_address = $2`
+	if _, err := t.ingestedDataDB.Exec(ctx, query, txHash, ionConnectAddress); err != nil {
 		return fmt.Errorf("failed to rollback PostgreSQL swap for tx %v: %w", txHash, err)
 	}
 
 	return nil
 }
 
-func (t *tokenAnalytics) saveSwapAndUpdateData(ctx context.Context, tx *txEvent, contractAddr, userAddr string, ev *bondingcurve.LogTokenSwapped, priceUSD, deltaMarketCapUSD float64) error {
+func (t *tokenAnalytics) saveSwapAndUpdateData(ctx context.Context, tx *txEvent, contractAddr, ionConnectAddress, userAddr string, ev *bondingcurve.LogTokenSwapped, priceUSD, deltaMarketCapUSD float64) error {
 	ionPriceUSD := t.ionPriceUSD.Load()
 	if ionPriceUSD == nil {
 		return fmt.Errorf("ION price not yet synced")
@@ -133,6 +135,7 @@ func (t *tokenAnalytics) saveSwapAndUpdateData(ctx context.Context, tx *txEvent,
 		tx.BlockTimestamp,
 		tx.TransactionHash,
 		contractAddr,
+		ionConnectAddress,
 		userAddr,
 		ev.Direction,
 		ev.InputAmount.String(),
@@ -146,10 +149,10 @@ func (t *tokenAnalytics) saveSwapAndUpdateData(ctx context.Context, tx *txEvent,
 	if ev.Direction { // BUY
 		positionCTE = `upsert_position AS (
 			INSERT INTO user_token_positions (
-				master_pubkey, contract_address, amount, 
+				master_pubkey, contract_address, ion_connect_address, amount, 
 				avg_buy_price_usd, total_invested_usd, updated_at
-			) VALUES ($4, $3, $11, $9, $12, NOW())
-			ON CONFLICT (master_pubkey, contract_address) DO UPDATE SET
+			) VALUES ($5, $3, $4, $12, $10, $13, NOW())
+			ON CONFLICT (master_pubkey, ion_connect_address) DO UPDATE SET
 				amount = user_token_positions.amount + EXCLUDED.amount,
 				total_invested_usd = user_token_positions.total_invested_usd + EXCLUDED.total_invested_usd,
 				avg_buy_price_usd = (user_token_positions.total_invested_usd + EXCLUDED.total_invested_usd) / 
@@ -162,9 +165,9 @@ func (t *tokenAnalytics) saveSwapAndUpdateData(ctx context.Context, tx *txEvent,
 		positionCTE = `update_position AS (
 			UPDATE user_token_positions 
 			SET 
-				amount = GREATEST(amount - $11, 0),
+				amount = GREATEST(amount - $12, 0),
 				updated_at = NOW()
-			WHERE master_pubkey = $4 AND contract_address = $3
+			WHERE master_pubkey = $5 AND ion_connect_address = $4
 			RETURNING 1
 		)`
 	}
@@ -172,19 +175,19 @@ func (t *tokenAnalytics) saveSwapAndUpdateData(ctx context.Context, tx *txEvent,
 	query := `
 	WITH insert_swap AS (
 		INSERT INTO token_swaps (
-			created_at, transaction_hash, contract_address, user_address,
+			created_at, transaction_hash, contract_address, ion_connect_address, user_address,
 			direction, input_amount, output_amount, price_usd
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		ON CONFLICT (transaction_hash, contract_address, user_address) DO NOTHING
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		ON CONFLICT (transaction_hash, ion_connect_address, user_address) DO NOTHING
 		RETURNING 1
 	),
 	update_market AS (
 		UPDATE tokens
 		SET 
-			price_usd = $9,
-			market_cap_usd = GREATEST(market_cap_usd + $10, 0),
+			price_usd = $10,
+			market_cap_usd = GREATEST(market_cap_usd + $11, 0),
 			updated_at = NOW()
-		WHERE contract_address = $3
+		WHERE ion_connect_address = $4
 		RETURNING 1
 	),
 	` + positionCTE + `

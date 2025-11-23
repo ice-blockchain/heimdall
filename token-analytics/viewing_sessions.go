@@ -113,9 +113,9 @@ func (t *tokenAnalytics) getTokensWithKeywordFilter(ctx context.Context, session
 	return tokens, nil
 }
 
-func (t *tokenAnalytics) getTokenDetailsWithScores(ctx context.Context, sessionKey, sessionType string, contractAddresses []string) ([]CommunityToken, error) {
+func (t *tokenAnalytics) getTokenDetailsWithScores(ctx context.Context, sessionKey, sessionType string, ionConnectAddresses []string) ([]CommunityToken, error) {
 	scoresMap := make(map[string]float64)
-	for _, addr := range contractAddresses {
+	for _, addr := range ionConnectAddresses {
 		score, err := t.processedDataDB.ZScore(ctx, sessionKey, addr).Result()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get score for token %s: %w", addr, err)
@@ -123,11 +123,11 @@ func (t *tokenAnalytics) getTokenDetailsWithScores(ctx context.Context, sessionK
 		scoresMap[addr] = score
 	}
 
-	return t.getTokenDetailsWithScoresMap(ctx, sessionType, contractAddresses, scoresMap)
+	return t.getTokenDetailsWithScoresMap(ctx, sessionType, ionConnectAddresses, scoresMap)
 }
 
-func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessionType string, contractAddresses []string, scoresMap map[string]float64) ([]CommunityToken, error) {
-	if len(contractAddresses) == 0 {
+func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessionType string, ionConnectAddresses []string, scoresMap map[string]float64) ([]CommunityToken, error) {
+	if len(ionConnectAddresses) == 0 {
 		return []CommunityToken{}, nil
 	}
 	query := `
@@ -151,22 +151,22 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 		COALESCE(t.market_cap_usd, 0) as market_cap_usd
 		FROM tokens t
 		LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
-		WHERE t.contract_address = ANY($1)
+		WHERE t.ion_connect_address = ANY($1)
 	`
-	tokensPtr, err := storage.Select[tokenRow](ctx, t.ingestedDataDB, query, contractAddresses)
+	tokensPtr, err := storage.Select[tokenRow](ctx, t.ingestedDataDB, query, ionConnectAddresses)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get token details: %w", err)
 	}
 	tokensMap := make(map[string]*tokenRow)
 	for i := range tokensPtr {
-		tokensMap[tokensPtr[i].ContractAddress] = tokensPtr[i]
+		tokensMap[tokensPtr[i].IONConnectAddress] = tokensPtr[i]
 	}
-	additionalMetrics, err := t.fetchAdditionalMetricsFromRedis(ctx, sessionType, contractAddresses)
+	additionalMetrics, err := t.fetchAdditionalMetricsFromRedis(ctx, sessionType, ionConnectAddresses)
 	if err != nil {
 		return nil, err
 	}
-	result := make([]CommunityToken, 0, len(contractAddresses))
-	for _, addr := range contractAddresses {
+	result := make([]CommunityToken, 0, len(ionConnectAddresses))
+	for _, addr := range ionConnectAddresses {
 		token, exists := tokensMap[addr]
 		if !exists {
 			continue
@@ -210,24 +210,24 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 	return result, nil
 }
 
-func (t *tokenAnalytics) fetchAdditionalMetricsFromRedis(ctx context.Context, sessionType string, contractAddresses []string) (map[string]int, error) {
+func (t *tokenAnalytics) fetchAdditionalMetricsFromRedis(ctx context.Context, sessionType string, ionConnectAddresses []string) (map[string]int, error) {
 	pipe := t.processedDataDB.Pipeline()
-	cmds := make(map[string]*redis.FloatCmd, len(contractAddresses))
+	cmds := make(map[string]*redis.FloatCmd, len(ionConnectAddresses))
 	if sessionType == sessionTypeTop {
 		// For "top": need to fetch volume from global trending set
-		for _, addr := range contractAddresses {
+		for _, addr := range ionConnectAddresses {
 			cmds[addr] = pipe.ZScore(ctx, globalTrendingSetKey, addr)
 		}
 	} else {
 		// For "trending": need to fetch market cap from global top set
-		for _, addr := range contractAddresses {
+		for _, addr := range ionConnectAddresses {
 			cmds[addr] = pipe.ZScore(ctx, globalTopSetKey, addr)
 		}
 	}
 	if _, err := pipe.Exec(ctx); err != nil && err != redis.Nil {
 		return nil, fmt.Errorf("failed to fetch metrics from Redis: %w", err)
 	}
-	result := make(map[string]int, len(contractAddresses))
+	result := make(map[string]int, len(ionConnectAddresses))
 	for addr, cmd := range cmds {
 		if score, err := cmd.Result(); err == nil {
 			result[addr] = int(score)
@@ -239,14 +239,14 @@ func (t *tokenAnalytics) fetchAdditionalMetricsFromRedis(ctx context.Context, se
 
 func (t *tokenAnalytics) searchTokensByCreatorLookup(ctx context.Context, keyword string) ([]string, error) {
 	searchQuery := `
-		SELECT t.contract_address
+		SELECT t.ion_connect_address
 		FROM tokens t
 		INNER JOIN users u ON u.master_pubkey = t.creator_master_pubkey
 		WHERE u.lookup ILIKE $1
 	`
 	searchPattern := "%" + keyword + "%"
 	type tokenAddr struct {
-		ContractAddress string `db:"contract_address"`
+		IONConnectAddress string `db:"ion_connect_address"`
 	}
 	matchedTokens, err := storage.Select[tokenAddr](ctx, t.ingestedDataDB, searchQuery, searchPattern)
 	if err != nil {
@@ -254,7 +254,7 @@ func (t *tokenAnalytics) searchTokensByCreatorLookup(ctx context.Context, keywor
 	}
 	addresses := make([]string, len(matchedTokens))
 	for i, mt := range matchedTokens {
-		addresses[i] = mt.ContractAddress
+		addresses[i] = mt.IONConnectAddress
 	}
 	return addresses, nil
 }

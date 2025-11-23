@@ -46,6 +46,19 @@ definitions:
       type:
         type: string
     type: object
+  tokenanalytics.HolderPosition:
+    properties:
+      amount:
+        type: integer
+      amountUSD:
+        type: number
+      holder:
+        $ref: '#/definitions/tokenanalytics.User'
+      rank:
+        type: integer
+      supplyShare:
+        type: number
+    type: object
   tokenanalytics.MarketData:
     properties:
       holders:
@@ -88,6 +101,13 @@ definitions:
         type: number
       rank:
         type: integer
+    type: object
+  tokenanalytics.TopHolderPosition:
+    properties:
+      creator:
+        $ref: '#/definitions/tokenanalytics.User'
+      position:
+        $ref: '#/definitions/tokenanalytics.HolderPosition'
     type: object
   tokenanalytics.Trade:
     properties:
@@ -155,16 +175,12 @@ definitions:
         type: string
       display:
         type: string
-      id:
-        type: string
       ionConnect:
         type: string
       ionConnectRelays:
         items:
           type: string
         type: array
-      masterPubkey:
-        type: string
       name:
         type: string
       verified:
@@ -539,12 +555,6 @@ paths:
         in: query
         name: limit
         type: integer
-      - description: Number of items to skip
-        example: 0
-        format: int32
-        in: query
-        name: offset
-        type: integer
       - description: Auth token
         in: header
         name: Authorization
@@ -556,7 +566,9 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/tokenanalytics.Trade'
+            items:
+              $ref: '#/definitions/tokenanalytics.TopHolderPosition'
+            type: array
         "500":
           description: Internal Server Error
           schema:

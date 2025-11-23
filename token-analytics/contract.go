@@ -43,6 +43,7 @@ type (
 		UpdateTradingStats(ctx context.Context, now stdlibtime.Time, ionConnectAddress string) (*TradeStats, error)
 		CreateViewingSession(ctx context.Context, sessionType, clientIP, deviceKey string) (sessionID string, ttl uint64, err error)
 		GetTokensFromViewingSession(ctx context.Context, sessionType, sessionID, keyword string, limit, offset int64) ([]CommunityToken, error)
+		GetTopHolders(ctx context.Context, ionConnectAddress string, limit int64) ([]*TopHolderPosition, error)
 	}
 
 	SavePoint struct {
@@ -226,5 +227,20 @@ type (
 		Type                     TradeType       `db:"trade_type"`
 		TraderAddress            string          `db:"trader_address"`
 		TransactionHash          string          `db:"transaction_hash"`
+	}
+
+	holderWithTokenData struct {
+		CreatorMasterPubkey string  `db:"creator_master_pubkey"`
+		CreatorUsername     string  `db:"creator_username"`
+		CreatorDisplay      string  `db:"creator_display"`
+		CreatorAvatar       string  `db:"creator_avatar"`
+		TotalSupply         string  `db:"total_supply"`
+		HolderMasterPubkey  string  `db:"holder_master_pubkey"`
+		HolderUsername      string  `db:"holder_username"`
+		HolderDisplay       string  `db:"holder_display"`
+		HolderAvatar        string  `db:"holder_avatar"`
+		PriceUSD            float64 `db:"price_usd"`
+		CreatorVerified     bool    `db:"creator_verified"`
+		HolderVerified      bool    `db:"holder_verified"`
 	}
 )
