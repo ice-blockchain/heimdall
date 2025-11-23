@@ -163,7 +163,7 @@ CREATE TABLE IF NOT EXISTS streams (
 CREATE TABLE IF NOT EXISTS tokens (
     created_at              TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at              TIMESTAMP NOT NULL DEFAULT NOW(),
-    contract_address        TEXT NOT NULL,
+    contract_address        TEXT NOT NULL UNIQUE,
     ion_connect_address     TEXT NOT NULL, -- nostr 'a' tag for this token (e.g. "30023:article_master_pubkey:d_tag")
     ticker                  TEXT NOT NULL,
     total_supply            uint256 NOT NULL,
@@ -173,44 +173,48 @@ CREATE TABLE IF NOT EXISTS tokens (
     market_cap_usd          usd_amount DEFAULT 0,
     price_usd               usd_amount DEFAULT 0,
     holders_count           BIGINT DEFAULT 0,
-    PRIMARY KEY (contract_address),
+    PRIMARY KEY (ion_connect_address),
     FOREIGN KEY (creator_master_pubkey) REFERENCES users(master_pubkey) ON DELETE CASCADE
 );
 
+CREATE INDEX IF NOT EXISTS idx_tokens_contract_address ON tokens (contract_address);
 CREATE INDEX IF NOT EXISTS idx_tokens_creator ON tokens (creator_master_pubkey);
 CREATE INDEX IF NOT EXISTS idx_tokens_created_at ON tokens (created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_tokens_ion_connect ON tokens (ion_connect_address);
 
 CREATE TABLE IF NOT EXISTS token_swaps (
     created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
     transaction_hash    TEXT NOT NULL,
     contract_address    TEXT NOT NULL,
+    ion_connect_address TEXT NOT NULL,
     user_address        TEXT NOT NULL,
     direction           BOOLEAN NOT NULL, -- true = buy, false = sell
     input_amount        uint256 NOT NULL, -- base token amount (buy) or token amount (sell)
     output_amount       uint256 NOT NULL, -- token amount (buy) or base token amount (sell)
     price_usd           usd_amount NOT NULL,
     PRIMARY KEY (transaction_hash, contract_address, user_address),
-    FOREIGN KEY (contract_address) REFERENCES tokens(contract_address) ON DELETE CASCADE
+    FOREIGN KEY (ion_connect_address) REFERENCES tokens(ion_connect_address) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_token_swaps_contract_direction ON token_swaps (contract_address, direction, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_token_swaps_ion_connect ON token_swaps (ion_connect_address, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_token_swaps_user_address ON token_swaps (user_address);
 
 CREATE TABLE IF NOT EXISTS user_token_positions (
     updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
     master_pubkey       TEXT NOT NULL,
     contract_address    TEXT NOT NULL,
+    ion_connect_address TEXT NOT NULL,
     amount              uint256 NOT NULL DEFAULT 0,
     avg_buy_price_usd   usd_amount DEFAULT 0,
     total_invested_usd  usd_amount DEFAULT 0,
     PRIMARY KEY (master_pubkey, contract_address),
     FOREIGN KEY (master_pubkey) REFERENCES users(master_pubkey) ON DELETE CASCADE,
-    FOREIGN KEY (contract_address) REFERENCES tokens(contract_address) ON DELETE CASCADE
+    FOREIGN KEY (ion_connect_address) REFERENCES tokens(ion_connect_address) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_token_positions_user ON user_token_positions (master_pubkey);
 CREATE INDEX IF NOT EXISTS idx_user_token_positions_token ON user_token_positions (contract_address);
+CREATE INDEX IF NOT EXISTS idx_user_token_positions_ion_connect ON user_token_positions (ion_connect_address);
 
 CREATE OR REPLACE FUNCTION update_token_holders_count_trigger()
 RETURNS TRIGGER AS $$
@@ -220,7 +224,7 @@ BEGIN
             UPDATE tokens
             SET holders_count = holders_count + 1,
                 updated_at = NOW()
-            WHERE contract_address = NEW.contract_address;
+            WHERE ion_connect_address = NEW.ion_connect_address;
         END IF;
         RETURN NEW;
     END IF;
@@ -230,12 +234,12 @@ BEGIN
             UPDATE tokens
             SET holders_count = GREATEST(holders_count - 1, 0),
                 updated_at = NOW()
-            WHERE contract_address = NEW.contract_address;
+            WHERE ion_connect_address = NEW.ion_connect_address;
         ELSIF OLD.amount = 0 AND NEW.amount > 0 THEN
             UPDATE tokens
             SET holders_count = holders_count + 1,
                 updated_at = NOW()
-            WHERE contract_address = NEW.contract_address;
+            WHERE ion_connect_address = NEW.ion_connect_address;
         END IF;
         RETURN NEW;
     END IF;
@@ -245,7 +249,7 @@ BEGIN
             UPDATE tokens
             SET holders_count = GREATEST(holders_count - 1, 0),
                 updated_at = NOW()
-            WHERE contract_address = OLD.contract_address;
+            WHERE ion_connect_address = OLD.ion_connect_address;
         END IF;
         RETURN OLD;
     END IF;
@@ -292,7 +296,7 @@ $$ LANGUAGE plpgsql;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS token_volumes_24h AS
 SELECT
-    contract_address,
+    ion_connect_address,
     COALESCE(SUM(
         CASE
             WHEN direction = true THEN input_amount::numeric * price_usd
@@ -302,7 +306,7 @@ SELECT
     MAX(created_at) as last_updated
 FROM token_swaps
 WHERE created_at >= NOW() - INTERVAL '24 hours'
-GROUP BY contract_address;
+GROUP BY ion_connect_address;
 
 CREATE OR REPLACE FUNCTION refresh_token_volumes_24h()
 RETURNS void AS $$
