@@ -274,7 +274,6 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 					Type: "error",
 					Data: nil,
 					Err:  err,
-					ID:   fmt.Sprintf("error-%d", time.Now().UnixNano()),
 				}
 
 				return false
@@ -283,7 +282,6 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 				events <- server.StreamEvent[ta.CommunityToken]{
 					Type: "message",
 					Data: token,
-					ID:   fmt.Sprintf("token-%d", time.Now().UnixNano()),
 				}
 			}
 			slog.DebugContext(ctx, "sent community tokens update", "count", len(tokens))
@@ -453,7 +451,6 @@ func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *serv
 		events <- server.StreamEvent[[]*ta.TopHolderPosition]{
 			Type: "eose",
 			Data: &emptyHolders,
-			ID:   "end-of-snapshot",
 		}
 
 		ticker := time.NewTicker(1 * time.Second)
