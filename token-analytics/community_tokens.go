@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/redis/go-redis/v9"
@@ -228,4 +229,100 @@ func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, master
 		PnL:           pnl,
 		PnLPercentage: pnlPercentage,
 	}, nil
+}
+
+func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, ionConnectAddress string, limit, offset uint32, startFrom *time.Time) ([]*Trade, time.Time, error) {
+	args := []any{ionConnectAddress}
+	timeClause := ""
+	if startFrom != nil {
+		args = append(args, startFrom)
+		timeClause = "AND token_swaps.created_at > $2"
+	}
+	sql := fmt.Sprintf(`
+		SELECT token_swaps.*,
+		    tokens.ion_connect_address,   
+			
+		    COALESCE(tokens.creator_master_pubkey, '') as creator_master_pubkey,
+			COALESCE(creator.username,'') as creator_username,
+			COALESCE(creator.display_name, '') as creator_display,
+			COALESCE(creator.verified, false) as creator_verified,
+			COALESCE(creator.avatar, '') as creator_avatar,
+			
+			COALESCE(holder.master_pubkey, '') as holder_master_pubkey,
+			COALESCE(holder.username,'') as holder_username,
+			COALESCE(holder.display_name, '') as holder_display,
+			COALESCE(holder.verified, FALSE) as holder_verified,
+			COALESCE(holder.avatar, '') as holder_avatar,
+			
+			COALESCE((utp.amount/1e18)::DECIMAL, 0) as balance,
+			COALESCE((utp.amount/1e18)::DECIMAL*tokens.price_usd,0) as balance_usd
+		FROM token_swaps 
+		JOIN tokens ON token_swaps.contract_address = tokens.contract_address
+		LEFT JOIN users creator ON creator.master_pubkey = tokens.creator_master_pubkey
+		LEFT JOIN users holder  ON holder.blockchain_address = token_swaps.user_address
+		LEFT JOIN user_token_positions utp ON utp.contract_address = token_swaps.contract_address AND utp.master_pubkey = token_swaps.user_address
+			WHERE tokens.ion_connect_address = $1 %[3]v
+		ORDER BY token_swaps.created_at DESC
+		LIMIT %[1]v OFFSET %[2]v
+	`, limit, offset, timeClause)
+	swaps, err := storage.Select[tokenSwap](ctx, t.ingestedDataDB, sql, args...)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return []*Trade{}, time.Now(), nil
+		}
+		return nil, time.Time{}, errors.Wrap(err, "failed to fetch latest trades")
+	}
+	trades := make([]*Trade, len(swaps))
+	var maxTs time.Time
+	for i := range swaps {
+		if i == 0 {
+			maxTs = *swaps[i].CreatedAt.Time
+		}
+		var creatorIONConnect, holderIONConnect = "", ""
+		if swaps[i].CreatorMasterPubkey != "" {
+			creatorIONConnect = fmt.Sprintf("0:%s:", swaps[i].CreatorMasterPubkey)
+		}
+		if swaps[i].HolderMasterPubkey != "" {
+			holderIONConnect = fmt.Sprintf("0:%s:", swaps[i].HolderMasterPubkey)
+		}
+		var tokenAmount uint64
+		var typ TradeType
+		if swaps[i].Direction {
+			typ = tradeTypeBuy
+			tokenAmount = swaps[i].Output // User receives tokens
+		} else {
+			typ = tradeTypeSell
+			tokenAmount = swaps[i].Input // User sends tokens
+		}
+		amountUSD, _ := new(big.Float).Mul(new(big.Float).SetFloat64(swaps[i].PriceUSD), new(big.Float).SetUint64(tokenAmount)).Float64()
+		trades[i] = &Trade{
+			Creator: User{
+				Username:   swaps[i].CreatorUsername,
+				Display:    swaps[i].CreatorDisplay,
+				Verified:   swaps[i].CreatorVerified,
+				Avatar:     swaps[i].CreatorAvatar,
+				IonConnect: creatorIONConnect,
+			},
+			Position: TradePosition{
+				Holder: User{
+					Username:   swaps[i].HolderUsername,
+					Display:    swaps[i].HolderDisplay,
+					Verified:   swaps[i].HolderVerified,
+					Avatar:     swaps[i].HolderAvatar,
+					IonConnect: holderIONConnect,
+				},
+				Addresses: Addresses{
+					Blockchain: swaps[i].ContractAddress,
+					IonConnect: swaps[i].IONConnectAddress,
+				},
+				CreatedAt:  *swaps[i].CreatedAt.Time,
+				Type:       typ,
+				Amount:     tokenAmount,
+				AmountUSD:  amountUSD,
+				Balance:    swaps[i].Balance,
+				BalanceUSD: swaps[i].BalanceUSD,
+			},
+		}
+	}
+	return trades, maxTs, nil
 }

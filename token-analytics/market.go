@@ -81,7 +81,7 @@ func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, ev *bon
 	return errors.Wrapf(err, "failed to insert trading data into questdb")
 }
 
-func buyOrSell(ev *bondingcurve.LogTokenSwapped) (trade tradeType, baseTokenAmount, creatorOrContentTokenAmount questdb.Decimal, priceInBase *big.Float) {
+func buyOrSell(ev *bondingcurve.LogTokenSwapped) (trade TradeType, baseTokenAmount, creatorOrContentTokenAmount questdb.Decimal, priceInBase *big.Float) {
 	input := questdb.NewDecimal(ev.InputAmount)
 	output := questdb.NewDecimal(ev.OutputAmount)
 	// Price calculation: how much base token per 1 community token

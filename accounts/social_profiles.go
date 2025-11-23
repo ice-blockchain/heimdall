@@ -235,6 +235,7 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 			ctx,
 			profile.UserID,
 			profile.MasterPubkey,
+			profile.UserID, // TODO: update from kind0 / when bsc wallet created.
 			profile.Username,
 			profile.DisplayName,
 			avatarStr,

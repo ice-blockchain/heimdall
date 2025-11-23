@@ -842,7 +842,7 @@
                     "$ref": "#/definitions/tokenanalytics.User"
                 },
                 "type": {
-                    "type": "string"
+                    "$ref": "#/definitions/tokenanalytics.TradeType"
                 }
             }
         },
@@ -885,6 +885,17 @@
                     "type": "number"
                 }
             }
+        },
+        "tokenanalytics.TradeType": {
+            "type": "string",
+            "enum": [
+                "buy",
+                "sell"
+            ],
+            "x-enum-varnames": [
+                "tradeTypeBuy",
+                "tradeTypeSell"
+            ]
         },
         "tokenanalytics.User": {
             "type": "object",

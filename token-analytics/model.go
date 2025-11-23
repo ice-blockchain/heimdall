@@ -54,10 +54,10 @@ type TradePosition struct {
 	Holder     User      `json:"holder,omitzero"`
 	Addresses  Addresses `json:"addresses,omitzero"`
 	CreatedAt  time.Time `json:"createdAt,omitzero"`
-	Type       string    `json:"type,omitempty"`
-	Amount     int64     `json:"amount"`
+	Type       TradeType `json:"type,omitempty"`
+	Amount     uint64    `json:"amount"`
 	AmountUSD  float64   `json:"amountUSD"`
-	Balance    int64     `json:"balance"`
+	Balance    uint64    `json:"balance"`
 	BalanceUSD float64   `json:"balanceUSD"`
 }
 

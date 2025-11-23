@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS users
     updated_at           TIMESTAMP NOT NULL,
     id                   TEXT NOT NULL,
     master_pubkey        TEXT NOT NULL,
+    blockchain_address   TEXT NOT NULL,
     username             TEXT NOT NULL,
     display_name         TEXT,
     avatar               TEXT,
@@ -28,6 +29,8 @@ CREATE TABLE IF NOT EXISTS users
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users (created_at);
+CREATE INDEX IF NOT EXISTS idx_users_blockchain_address ON users (blockchain_address);
+CREATE INDEX IF NOT EXISTS idx_users_master_pubkey ON users (master_pubkey);
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX IF NOT EXISTS idx_users_lookup_gist ON users USING gist (lookup gist_trgm_ops);
 
@@ -192,6 +195,7 @@ CREATE TABLE IF NOT EXISTS token_swaps (
 );
 
 CREATE INDEX IF NOT EXISTS idx_token_swaps_contract_direction ON token_swaps (contract_address, direction, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_token_swaps_user_address ON token_swaps (user_address);
 
 CREATE TABLE IF NOT EXISTS user_token_positions (
     updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -287,10 +291,10 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS token_volumes_24h AS
-SELECT 
+SELECT
     contract_address,
     COALESCE(SUM(
-        CASE 
+        CASE
             WHEN direction = true THEN input_amount::numeric * price_usd
             ELSE output_amount::numeric * price_usd
         END

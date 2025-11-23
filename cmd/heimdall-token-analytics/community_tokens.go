@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"math/rand/v2"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -47,6 +46,7 @@ type (
 		TTL uint64 `json:"ttl" example:"1800" description:"Session TTL in seconds"` // Session TTL in seconds
 	}
 	TradeRequest struct {
+		PaginationRequest
 		Address string `uri:"type" required:"true" swaggerignore:"true"` // Map `type` to `address`.
 	}
 	OHLCVRequest struct {
@@ -184,15 +184,14 @@ func (s *service) GetCommunityTokensSessionByID(ctx context.Context, req *server
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1/community-tokens/{ionConnectAddress}/latest-trades [GET].
-func (s *service) GetCommunityTokensTradesByAddress(ctx context.Context, req *server.Request[TradeRequest]) (*server.Response[[]ta.Trade], error) {
-	var resp []ta.Trade
-	for range 1 + rand.IntN(3) {
-		var e ta.Trade
-
-		if err := faker.FakeData(&e); err != nil {
-			return nil, fmt.Errorf("failed to fake data: %w", err)
-		}
-		resp = append(resp, e)
+func (s *service) GetCommunityTokensTradesByAddress(ctx context.Context, req *server.Request[TradeRequest]) (*server.Response[[]*ta.Trade], error) {
+	limit := req.Data.Limit
+	if limit == 0 {
+		limit = 50
+	}
+	resp, _, err := s.tokenAnalytics.GetLatestTrades(ctx, req.Data.Address, limit, req.Data.Offset, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get latest trades: %w", err)
 	}
 
 	return server.OK(&resp), nil
@@ -301,7 +300,7 @@ func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *serv
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1sse/community-tokens/{ionConnectAddress}/latest-trades [GET].
 func (s *service) StreamCommunityTokensLatestTrades(ctx context.Context, req *server.Request[TradeRequest]) (server.StreamEventEmitter[ta.Trade], error) {
-	return newFakeStreamOf[ta.Trade]()
+	return s.latestTradesStream(req.Data.Address, req.Data.Limit, 0)
 }
 
 // StreamCommunityTokensTradingStats godoc
@@ -437,6 +436,52 @@ func (s *service) tradingStatsStream(ionContentAddress string) (server.StreamEve
 						Err:  nil,
 						Data: stats,
 						Type: "message",
+					}
+				}
+			}
+		}()
+		return events, nil
+	}, nil
+}
+func (s *service) latestTradesStream(ionContentAddress string, limit, offset uint32) (server.StreamEventEmitter[ta.Trade], error) {
+	return func(ctx context.Context) (<-chan server.StreamEvent[ta.Trade], error) {
+		events := make(chan server.StreamEvent[ta.Trade], limit)
+		trades, lastTs, err := s.tokenAnalytics.GetLatestTrades(ctx, ionContentAddress, limit, offset, nil)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get initial last trades %v", ionContentAddress)
+		}
+		for _, t := range trades {
+			events <- server.StreamEvent[ta.Trade]{
+				Err:  nil,
+				Data: t,
+				Type: "message",
+			}
+		}
+
+		ticker := time.NewTicker(1 * time.Second) // TODO: cfg?
+		go func() {
+			defer close(events)
+			defer ticker.Stop()
+			for ctx.Err() == nil {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					trades, lastTs, err = s.tokenAnalytics.GetLatestTrades(ctx, ionContentAddress, limit, 0, &lastTs)
+					if err != nil {
+						events <- server.StreamEvent[ta.Trade]{
+							Err:  err,
+							Data: nil,
+							Type: "error",
+						}
+						return
+					}
+					for _, t := range trades {
+						events <- server.StreamEvent[ta.Trade]{
+							Err:  nil,
+							Data: t,
+							Type: "message",
+						}
 					}
 				}
 			}

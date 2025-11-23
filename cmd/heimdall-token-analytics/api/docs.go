@@ -849,7 +849,7 @@ const docTemplate = `{
                     "$ref": "#/definitions/tokenanalytics.User"
                 },
                 "type": {
-                    "type": "string"
+                    "$ref": "#/definitions/tokenanalytics.TradeType"
                 }
             }
         },
@@ -892,6 +892,17 @@ const docTemplate = `{
                     "type": "number"
                 }
             }
+        },
+        "tokenanalytics.TradeType": {
+            "type": "string",
+            "enum": [
+                "buy",
+                "sell"
+            ],
+            "x-enum-varnames": [
+                "tradeTypeBuy",
+                "tradeTypeSell"
+            ]
         },
         "tokenanalytics.User": {
             "type": "object",
