@@ -312,7 +312,7 @@ func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, master
 	}, nil
 }
 
-func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, ionConnectAddress string, limit, offset uint32, startFrom *time.Time) ([]*Trade, time.Time, error) {
+func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, ionConnectAddress string, limit, offset uint64, startFrom *time.Time) ([]*Trade, time.Time, error) {
 	args := []any{ionConnectAddress}
 	timeClause := ""
 	if startFrom != nil {

@@ -36,7 +36,7 @@ type (
 		MustStart(ctx context.Context)
 		GetCommunityTokensByIonConnectAddresses(ctx context.Context, ionConnectAddresses []string, requestorMasterPubkey string) ([]*CommunityToken, error)
 		GetCommunityTokensByType(ctx context.Context, tokenType, keyword string, limit, offset uint64) ([]*CommunityToken, error)
-		GetLatestTrades(ctx context.Context, ionConnectAddress string, limit, offset uint32, startFrom *stdlibtime.Time) (trades []*Trade, maxTs stdlibtime.Time, err error)
+		GetLatestTrades(ctx context.Context, ionConnectAddress string, limit, offset uint64, startFrom *stdlibtime.Time) (trades []*Trade, maxTs stdlibtime.Time, err error)
 		GetOHLVCHistory(ctx context.Context, now, startPoint stdlibtime.Time, ionContentAddress string, interval Interval) (res []*OHLCV, err error)
 		GetOHLVCRecent(ctx context.Context, now stdlibtime.Time, ionContentAddress string, interval Interval) (*OHLCV, error)
 		GetTradingStats(ctx context.Context, now stdlibtime.Time, ionContentAddress string) (*TradeStats, error)

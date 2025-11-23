@@ -645,7 +645,7 @@ func (s *service) tradingStatsStream(ionContentAddress string) (server.StreamEve
 		return events, nil
 	}, nil
 }
-func (s *service) latestTradesStream(ionContentAddress string, limit, offset uint32) (server.StreamEventEmitter[ta.Trade], error) {
+func (s *service) latestTradesStream(ionContentAddress string, limit, offset uint64) (server.StreamEventEmitter[ta.Trade], error) {
 	return func(ctx context.Context) (<-chan server.StreamEvent[ta.Trade], error) {
 		events := make(chan server.StreamEvent[ta.Trade], limit)
 		trades, lastTs, err := s.tokenAnalytics.GetLatestTrades(ctx, ionContentAddress, limit, offset, nil)
