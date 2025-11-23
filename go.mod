@@ -3,7 +3,6 @@ module github.com/ice-blockchain/heimdall
 go 1.25.4
 
 replace (
-	github.com/dgraph-io/ristretto => github.com/dgraph-io/ristretto v0.1.0
 	github.com/nbd-wtf/go-nostr => github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5
 	github.com/quic-go/qpack => github.com/quic-go/qpack v0.5.1
 	github.com/quic-go/quic-go => github.com/quic-go/quic-go v0.56.0
@@ -23,7 +22,6 @@ require (
 	github.com/georgysavva/scany/v2 v2.1.4
 	github.com/gin-contrib/sse v1.1.0
 	github.com/gin-gonic/gin v1.11.0
-	github.com/go-faker/faker/v4 v4.7.0
 	github.com/gobwas/httphead v0.1.0
 	github.com/gobwas/ws v1.4.0
 	github.com/goccy/go-json v0.10.5
@@ -114,7 +112,6 @@ require (
 	github.com/bzick/tokenizer v1.4.10 // indirect
 	github.com/caddyserver/zerossl v0.1.3 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
-	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/cncf/xds/go v0.0.0-20251110193048-8bfbf64dc13e // indirect
@@ -134,8 +131,8 @@ require (
 	github.com/dchenk/go-render-quill v0.0.0-20211110010230-f51106477162 // indirect
 	github.com/decred/dcrd/crypto/blake256 v1.1.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
-	github.com/dgraph-io/badger/v3 v3.2103.5 // indirect
-	github.com/dgraph-io/ristretto v1.0.1 // indirect
+	github.com/dgraph-io/badger/v4 v4.8.0 // indirect
+	github.com/dgraph-io/ristretto/v2 v2.3.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/dkorunic/betteralign v0.8.0 // indirect
@@ -143,7 +140,7 @@ require (
 	github.com/docker/docker v28.5.2+incompatible // indirect
 	github.com/docker/go-connections v0.6.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
-	github.com/dundee/gdu/v5 v5.32.0 // indirect
+	github.com/dundee/gdu/v5 v5.32.1-0.20251122214524-1e808241bb71 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.9.1 // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.36.0 // indirect
@@ -180,11 +177,8 @@ require (
 	github.com/goccy/go-yaml v1.18.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
-	github.com/golang/glog v1.2.5 // indirect
-	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/golang/mock v1.7.0-rc.1 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/addlicense v1.2.0 // indirect
 	github.com/google/flatbuffers v25.9.23+incompatible // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
@@ -293,7 +287,6 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	github.com/zeebo/blake3 v0.2.4 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
-	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.38.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.63.0 // indirect

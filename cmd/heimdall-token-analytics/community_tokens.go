@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/go-faker/faker/v4"
 
 	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server"
 	ta "github.com/ice-blockchain/heimdall/token-analytics"
@@ -206,44 +205,6 @@ func (s *service) GetCommunityTokensTradesByAddress(ctx context.Context, req *se
 	}
 
 	return server.OK(&resp), nil
-}
-
-func newFakeStreamOf[T any]() (server.StreamEventEmitter[T], error) {
-	return func(ctx context.Context) (<-chan server.StreamEvent[T], error) {
-		events := make(chan server.StreamEvent[T])
-		fire := make(chan struct{}, 1)
-		ticker := time.NewTicker(time.Minute)
-
-		fire <- struct{}{}
-
-		go func() {
-			defer close(events)
-			defer ticker.Stop()
-
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-ticker.C:
-					select {
-					case fire <- struct{}{}:
-					default:
-					}
-				case <-fire:
-					var e T
-
-					slog.DebugContext(ctx, "emitting fake stream event", "type", fmt.Sprintf("%T", e))
-					if err := faker.FakeData(&e); err != nil {
-						events <- server.StreamEvent[T]{Err: fmt.Errorf("failed to fake stream data: %w", err)}
-						return
-					}
-					events <- server.StreamEvent[T]{Data: &e, Type: "message"}
-				}
-			}
-		}()
-
-		return events, nil
-	}, nil
 }
 
 // StreamCommunityTokens godoc
