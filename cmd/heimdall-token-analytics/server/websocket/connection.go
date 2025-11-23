@@ -170,6 +170,7 @@ func (w *connection) WriteMessage(messageType int, data []byte) (err error) {
 		w.wrErr = wErr
 		w.wrErrMx.Unlock()
 		if isConnClosedErr(wErr) {
+			w.Close()
 			wErr = nil
 		}
 
@@ -225,6 +226,11 @@ func (w *connection) Writer(ctx context.Context) {
 func (w *connection) Reader(ctx context.Context) {
 	for ctx.Err() == nil {
 		msgType, msgBytes, err := w.ReadMessage()
+		if isConnClosedErr(err) {
+			w.Close()
+			break
+		}
+
 		select {
 		case <-w.closeChannel:
 			return
@@ -237,10 +243,6 @@ func (w *connection) Reader(ctx context.Context) {
 			Data: msgBytes,
 			Err:  err,
 		}:
-		}
-
-		if isConnClosedErr(err) {
-			return
 		}
 	}
 }
@@ -356,6 +358,8 @@ func isConnClosedErr(err error) bool {
 	return err != nil &&
 		(errors.Is(err, syscall.EPIPE) ||
 			errors.Is(err, syscall.ECONNRESET) ||
+			errors.Is(err, net.ErrClosed) ||
+			errors.Is(err, io.EOF) ||
 			errors.Is(err, h2ec.Http2errClientDisconnected) ||
 			errors.Is(err, h2ec.Http2errStreamClosed) ||
 			strings.Contains(err.Error(), "convert stream error 386759528") ||

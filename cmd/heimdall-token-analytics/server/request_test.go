@@ -11,12 +11,17 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/gin-contrib/sse"
 	"github.com/gin-gonic/gin"
+	wsClient "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server/websocket"
 )
 
 func helperNewRouter(t *testing.T) *gin.Engine {
@@ -295,4 +300,86 @@ func TestRequestParseAuth(t *testing.T) {
 		require.Contains(t, req.bindings, bindingQuery)
 		require.Equal(t, []string{"Foo"}, req.requiredFields)
 	})
+}
+
+func TestRequestWebsocketReadWrite(t *testing.T) {
+	t.Parallel()
+
+	type RequestTestStruct struct {
+		Foo int `form:"foo"`
+	}
+
+	type EventPayload struct {
+		Msg string `json:"msg"`
+	}
+
+	var wg sync.WaitGroup
+	r := helperNewRouter(t)
+	r.GET("/ws", WebsocketHandler(func(ctx context.Context, r *Request[RequestTestStruct]) (WebsocketEventEmitter[EventPayload], error) {
+		require.NotNil(t, r.Data)
+
+		return func(ctx context.Context, ws websocket.AsyncRead) (<-chan WebsocketEvent[EventPayload], error) {
+			events := make(chan WebsocketEvent[EventPayload], 1)
+			wg.Go(func() {
+				defer close(events)
+
+				for ctx.Err() == nil {
+					select {
+					case <-ctx.Done():
+						t.Logf("websocket context done: %v", ctx.Err())
+						return
+
+					case <-ws.Done():
+						t.Logf("websocket connection closed")
+						return
+
+					case msg, ok := <-ws.ReadQ():
+						require.True(t, ok)
+						t.Logf("received websocket message: %q", string(msg.Data))
+						select {
+						case events <- WebsocketEvent[EventPayload]{
+							Data: &EventPayload{Msg: string(msg.Data)},
+						}:
+							t.Logf("websocket event sent: %q", string(msg.Data))
+
+						default:
+							t.Logf("websocket event dropped: %q", string(msg.Data))
+							return
+						}
+					}
+				}
+			})
+			return events, nil
+		}, nil
+	}))
+
+	testServer := httptest.NewServer(r)
+
+	d := wsClient.Dialer{}
+	wsURL := "ws" + strings.TrimPrefix(testServer.URL, "http") + "/ws"
+	conn, _, err := d.DialContext(t.Context(), wsURL, nil)
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+
+	t.Run("Read and Write", func(t *testing.T) {
+		const eventCount = 7
+
+		for i := range eventCount {
+			payload := fmt.Sprintf("hello-%d", i)
+			require.NoError(t, conn.WriteMessage(wsClient.TextMessage, []byte(payload)))
+
+			_, recvBack, err := conn.ReadMessage()
+			t.Logf("received back message: %s", string(recvBack))
+			require.NoError(t, err)
+
+			var event EventPayload
+			err = json.Unmarshal(recvBack, &event)
+			require.NoError(t, err)
+			require.Equal(t, payload, event.Msg)
+		}
+	})
+
+	require.NoError(t, conn.Close())
+	testServer.Close()
+	wg.Wait()
 }
