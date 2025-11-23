@@ -110,7 +110,18 @@ func (t *tokenAnalytics) GetCommunityTokensByIonConnectAddresses(ctx context.Con
 	return tokens, nil
 }
 
-func (t *tokenAnalytics) GetCommunityTokensByType(ctx context.Context, tokenType, keyword string, limit, offset uint32) ([]*CommunityToken, error) {
+func (t *tokenAnalytics) GetCommunityTokensByType(ctx context.Context, tokenType, keyword string, limit, offset uint64) ([]*CommunityToken, error) {
+	switch tokenType {
+	case TokenTypeLatest:
+		return t.getCommunityTokensByLatest(ctx, keyword, limit, offset)
+	case TokenTypeFeatured:
+		return t.getCommunityTokensByFeatured(ctx, limit, offset)
+	default:
+		return nil, errors.New("unsupported token type")
+	}
+}
+
+func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword string, limit, offset uint64) ([]*CommunityToken, error) {
 	query := `
 		SELECT 
 			t.contract_address,
@@ -190,6 +201,79 @@ func (t *tokenAnalytics) GetCommunityTokensByType(ctx context.Context, tokenType
 	return tokens, nil
 }
 
+func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit, offset uint64) ([]*CommunityToken, error) {
+	query := `
+		SELECT 
+			t.contract_address,
+			t.ion_connect_address,
+			t.type,
+			t.created_at,
+			creator.username as title,
+			COALESCE(creator.display_name, '') as description,
+			COALESCE(creator.avatar, '') as image_url,
+			t.ticker,
+			t.total_supply,
+			COALESCE(t.creator_master_pubkey, '') as creator_master_pubkey,
+			creator.username as creator_username,
+			COALESCE(creator.display_name, '') as creator_display,
+			creator.verified as creator_verified,
+			COALESCE(creator.avatar, '') as creator_avatar,
+			COALESCE(t.market_cap_usd, 0) as market_cap_usd,
+			COALESCE(t.price_usd, 0) as price_usd,
+			COALESCE(
+				(SELECT SUM((input_amount::NUMERIC / 1e18) * price_usd)
+				 FROM token_swaps 
+				 WHERE token_swaps.contract_address = t.contract_address 
+				   AND direction = false 
+				   AND created_at > NOW() - INTERVAL '24 hours'), 
+				0
+			) as volume_24h,
+			COALESCE(t.holders_count, 0) as holders_count
+		FROM tokens t
+		INNER JOIN tokens_featured tf ON tf.ion_connect_address = t.ion_connect_address
+		LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
+		ORDER BY tf.created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+	args := []interface{}{limit, offset}
+	rows, err := storage.Select[tokenRow](ctx, t.ingestedDataDB, query, args...)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch featured community tokens")
+	}
+
+	tokens := make([]*CommunityToken, 0, len(rows))
+	for _, row := range rows {
+		token := &CommunityToken{
+			Type:        row.Type,
+			Title:       row.Title,
+			Description: row.Description,
+			ImageURL:    row.ImageURL,
+			CreatedAt:   *row.CreatedAt.Time,
+			Addresses: Addresses{
+				Blockchain: row.ContractAddress,
+				IonConnect: row.IONConnectAddress,
+			},
+			Creator: User{
+				Username:   row.CreatorUsername,
+				Display:    row.CreatorDisplay,
+				Verified:   row.CreatorVerified,
+				Avatar:     row.CreatorAvatar,
+				IonConnect: fmt.Sprintf("0:%s:", row.CreatorMasterPubkey),
+			},
+			MarketData: MarketData{
+				Ticker:    row.Ticker,
+				MarketCap: row.MarketCapUSD,
+				Volume:    row.Volume24h,
+				Holders:   uint64(row.HoldersCount),
+				PriceUSD:  row.PriceUSD,
+			},
+		}
+		tokens = append(tokens, token)
+	}
+
+	return tokens, nil
+}
+
 func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, masterPubkey, ionConnectAddress string, amountUSD, totalInvested float64) (*Position, error) {
 	key := fmt.Sprintf("position:%s", ionConnectAddress)
 	balanceFloat, err := t.processedDataDB.ZScore(ctx, key, masterPubkey).Result()
@@ -228,7 +312,7 @@ func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, master
 	}, nil
 }
 
-func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, ionConnectAddress string, limit, offset uint32, startFrom *time.Time) ([]*Trade, time.Time, error) {
+func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, ionConnectAddress string, limit, offset uint64, startFrom *time.Time) ([]*Trade, time.Time, error) {
 	args := []any{ionConnectAddress}
 	timeClause := ""
 	if startFrom != nil {

@@ -637,11 +637,18 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "example": "\"latest\"",
+                        "example": "\"latest\",\"featured\",\"top\",\"trending\"",
                         "description": "Type of data",
                         "name": "type",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"550e8400-e29b-41d4-a716-446655440000\"",
+                        "description": "Viewing session ID (required for top/trending)",
+                        "name": "viewingSessionId",
+                        "in": "query"
                     },
                     {
                         "type": "string",
@@ -655,7 +662,16 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/tokenanalytics.CommunityToken"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/tokenanalytics.CommunityToken"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     },
                     "500": {

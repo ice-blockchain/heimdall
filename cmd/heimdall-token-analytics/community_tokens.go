@@ -17,26 +17,26 @@ import (
 
 type (
 	PaginationRequest struct {
-		Limit  uint32 `form:"limit"  swaggerignore:"true"`
-		Offset uint32 `form:"offset" swaggerignore:"true"`
+		Limit  uint64 `form:"limit"  swaggerignore:"true"`
+		Offset uint64 `form:"offset" swaggerignore:"true"`
 	}
 	TokenInfoRequest struct {
 		Addresses []string `form:"ionConnectAddress" required:"true" swaggerignore:"true"`
 	}
 	TokenInfoRequestByType struct {
 		PaginationRequest
-		Type    string `uri:"type" binding:"required,oneof=top trending" swaggerignore:"true"`
-		Keyword string `form:"keyword" swaggerignore:"true"`
-	}
-	TokenInfoRequestByLatest struct {
-		PaginationRequest
-		Type    string `uri:"type" required:"true" binding:"oneof=latest" swaggerignore:"true"`
+		Type    string `uri:"type" required:"true" swaggerignore:"true"`
 		Keyword string `form:"keyword" swaggerignore:"true"`
 	}
 	TokenInfoRequestByTypeAndSessionID struct {
 		TokenInfoRequestByType
 		SessionID string `uri:"viewingSessionId" required:"true" swaggerignore:"true"`
 		Keyword   string `form:"keyword" swaggerignore:"true"`
+	}
+	TokenInfoStreamTypeAndSessionQuery struct {
+		PaginationRequest
+		Type      string `uri:"type" required:"true" swaggerignore:"true"`
+		SessionID string `form:"viewingSessionId" swaggerignore:"true"`
 	}
 	SessionViewCreateRequest struct {
 		Type string `uri:"type" binding:"required,oneof=top trending" swaggerignore:"true"`
@@ -98,7 +98,14 @@ func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[To
 //	@Failure		500				{object}	server.ResponseErrorBody
 //	@Failure		504				{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1/community-tokens/{type} [GET].
-func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoRequestByLatest]) (*server.Response[[]*ta.CommunityToken], error) {
+func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoRequestByType]) (*server.Response[[]*ta.CommunityToken], error) {
+	validTypes := map[string]bool{
+		ta.TokenTypeLatest: true,
+	}
+	if !validTypes[req.Data.Type] {
+		return nil, server.BadRequest(fmt.Errorf("invalid type: must be %s", ta.TokenTypeLatest), invalidPropertiesErrorCode)
+	}
+
 	limit := req.Data.Limit
 	if limit == 0 {
 		limit = 10
@@ -154,15 +161,15 @@ func (s *service) CreateCommunityTokensSessionView(ctx context.Context, req *ser
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1/community-tokens/{type}/viewing-sessions/{viewingSessionId} [GET].
-func (s *service) GetCommunityTokensSessionByID(ctx context.Context, req *server.Request[TokenInfoRequestByTypeAndSessionID]) (*server.Response[[]ta.CommunityToken], error) {
-	limit := int64(req.Data.Limit)
+func (s *service) GetCommunityTokensSessionByID(ctx context.Context, req *server.Request[TokenInfoRequestByTypeAndSessionID]) (*server.Response[[]*ta.CommunityToken], error) {
+	limit := req.Data.Limit
 	if limit == 0 {
 		limit = 10
 	}
 	if limit > 100 {
 		limit = 100
 	}
-	offset := int64(req.Data.Offset)
+	offset := req.Data.Offset
 	resp, err := s.tokenAnalytics.GetTokensFromViewingSession(ctx, req.Data.Type, req.Data.SessionID, req.Data.Keyword, limit, offset)
 	if err != nil {
 		if errors.Is(err, ta.ErrSessionNotFound) {
@@ -252,7 +259,66 @@ func newFakeStreamOf[T any]() (server.StreamEventEmitter[T], error) {
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1sse/community-tokens [GET].
 func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request[TokenInfoRequest]) (server.StreamEventEmitter[ta.CommunityToken], error) {
-	return newFakeStreamOf[ta.CommunityToken]()
+	if len(req.Data.Addresses) == 0 {
+		return nil, server.BadRequest(errors.New("ionConnectAddress[] is required"), invalidPropertiesErrorCode)
+	}
+
+	return func(ctx context.Context) (<-chan server.StreamEvent[ta.CommunityToken], error) {
+		events := make(chan server.StreamEvent[ta.CommunityToken], 100)
+
+		sendData := func() bool {
+			tokens, err := s.tokenAnalytics.GetCommunityTokensByIonConnectAddresses(ctx, req.Data.Addresses, req.Token.GetMasterPublicKey())
+			if err != nil {
+				slog.ErrorContext(ctx, "failed to get community tokens for streaming", "error", err, "addresses", req.Data.Addresses)
+				events <- server.StreamEvent[ta.CommunityToken]{
+					Type: "error",
+					Data: nil,
+					Err:  err,
+				}
+
+				return false
+			}
+			for _, token := range tokens {
+				events <- server.StreamEvent[ta.CommunityToken]{
+					Type: "message",
+					Data: token,
+				}
+			}
+			slog.DebugContext(ctx, "sent community tokens update", "count", len(tokens))
+
+			return true
+		}
+
+		ticker := time.NewTicker(1 * time.Second)
+		go func() {
+			defer close(events)
+			defer ticker.Stop()
+
+			if !sendData() {
+				slog.ErrorContext(ctx, "initial data send failed for community tokens stream")
+
+				return
+			}
+
+			for ctx.Err() == nil {
+				select {
+				case <-ctx.Done():
+					slog.DebugContext(ctx, "community tokens stream context cancelled")
+
+					return
+
+				case <-ticker.C:
+					if !sendData() {
+						slog.ErrorContext(ctx, "periodic data send failed for community tokens stream")
+
+						return
+					}
+				}
+			}
+		}()
+
+		return events, nil
+	}, nil
 }
 
 // StreamCommunityTokensByType godoc
@@ -261,14 +327,90 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 //	@Description	Streams community tokens information for the given type.
 //	@Tags			sse
 //	@Produce		text/event-stream
-//	@Param			type			path		string	true	"Type of data"	example("latest")
-//	@Param			Authorization	header		string	true	"Auth token"
-//	@Success		200				{object}	ta.CommunityToken
-//	@Failure		500				{object}	server.ResponseErrorBody
-//	@Failure		504				{object}	server.ResponseErrorBody	"if request times out"
+//	@Param			type				path		string	true	"Type of data"										example("latest","featured","top","trending")
+//	@Param			viewingSessionId	query		string	false	"Viewing session ID (required for top/trending)"	example("550e8400-e29b-41d4-a716-446655440000")
+//	@Param			Authorization		header		string	true	"Auth token"
+//	@Success		200					{array}		ta.CommunityToken
+//	@Failure		400					{object}	server.ResponseErrorBody
+//	@Failure		500					{object}	server.ResponseErrorBody
+//	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
 //	@Router			/v1sse/community-tokens/{type} [GET].
-func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoRequestByType]) (server.StreamEventEmitter[ta.CommunityToken], error) {
-	return newFakeStreamOf[ta.CommunityToken]()
+func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoStreamTypeAndSessionQuery]) (server.StreamEventEmitter[[]*ta.CommunityToken], error) {
+	validTypes := map[string]bool{
+		ta.TokenTypeLatest:   true,
+		ta.TokenTypeFeatured: true,
+		ta.TokenTypeTop:      true,
+		ta.TokenTypeTrending: true,
+	}
+	if !validTypes[req.Data.Type] {
+		return nil, server.BadRequest(fmt.Errorf("invalid type: must be one of %s, %s, %s, %s", ta.TokenTypeLatest, ta.TokenTypeFeatured, ta.TokenTypeTop, ta.TokenTypeTrending), invalidPropertiesErrorCode)
+	}
+
+	if (req.Data.Type == ta.TokenTypeTop || req.Data.Type == ta.TokenTypeTrending) && req.Data.SessionID == "" {
+		return nil, server.BadRequest(errors.New("viewingSessionId is required for top and trending types"), invalidPropertiesErrorCode)
+	}
+
+	limit := uint64(100)
+	return func(ctx context.Context) (<-chan server.StreamEvent[[]*ta.CommunityToken], error) {
+		events := make(chan server.StreamEvent[[]*ta.CommunityToken], 100)
+
+		sendData := func() bool {
+			var tokens []*ta.CommunityToken
+			var err error
+			if (req.Data.Type == ta.TokenTypeTop || req.Data.Type == ta.TokenTypeTrending) && req.Data.SessionID != "" {
+				tokens, err = s.tokenAnalytics.GetTokensFromViewingSession(ctx, req.Data.Type, req.Data.SessionID, "", limit, 0)
+			} else {
+				tokens, err = s.tokenAnalytics.GetCommunityTokensByType(ctx, req.Data.Type, "", limit, 0)
+			}
+
+			if err != nil {
+				slog.ErrorContext(ctx, "failed to get community tokens for streaming", "error", err, "type", req.Data.Type, "sessionID", req.Data.SessionID)
+				events <- server.StreamEvent[[]*ta.CommunityToken]{
+					Type: "error",
+					Data: nil,
+					Err:  err,
+				}
+
+				return false
+			}
+
+			events <- server.StreamEvent[[]*ta.CommunityToken]{
+				Type: "message",
+				Data: &tokens,
+			}
+			slog.DebugContext(ctx, "sent community tokens update", "type", req.Data.Type, "sessionID", req.Data.SessionID, "count", len(tokens))
+
+			return true
+		}
+
+		ticker := time.NewTicker(1 * time.Second)
+		go func() {
+			defer close(events)
+			defer ticker.Stop()
+			if !sendData() {
+				slog.ErrorContext(ctx, "initial data send failed for community tokens stream", "type", req.Data.Type, "sessionID", req.Data.SessionID)
+				return
+			}
+
+			for ctx.Err() == nil {
+				select {
+				case <-ctx.Done():
+					slog.DebugContext(ctx, "community tokens stream context cancelled", "type", req.Data.Type, "sessionID", req.Data.SessionID)
+
+					return
+
+				case <-ticker.C:
+					if !sendData() {
+						slog.ErrorContext(ctx, "periodic data send failed for community tokens stream", "type", req.Data.Type, "sessionID", req.Data.SessionID)
+
+						return
+					}
+				}
+			}
+		}()
+
+		return events, nil
+	}, nil
 }
 
 // StreamCommunityTokensTopHolders godoc
@@ -309,7 +451,6 @@ func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *serv
 		events <- server.StreamEvent[[]*ta.TopHolderPosition]{
 			Type: "eose",
 			Data: &emptyHolders,
-			ID:   "end-of-snapshot",
 		}
 
 		ticker := time.NewTicker(1 * time.Second)
@@ -501,7 +642,7 @@ func (s *service) tradingStatsStream(ionContentAddress string) (server.StreamEve
 		return events, nil
 	}, nil
 }
-func (s *service) latestTradesStream(ionContentAddress string, limit, offset uint32) (server.StreamEventEmitter[ta.Trade], error) {
+func (s *service) latestTradesStream(ionContentAddress string, limit, offset uint64) (server.StreamEventEmitter[ta.Trade], error) {
 	return func(ctx context.Context) (<-chan server.StreamEvent[ta.Trade], error) {
 		events := make(chan server.StreamEvent[ta.Trade], limit)
 		trades, lastTs, err := s.tokenAnalytics.GetLatestTrades(ctx, ionContentAddress, limit, offset, nil)

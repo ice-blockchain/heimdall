@@ -616,10 +616,15 @@ paths:
       description: Streams community tokens information for the given type.
       parameters:
       - description: Type of data
-        example: '"latest"'
+        example: '"latest","featured","top","trending"'
         in: path
         name: type
         required: true
+        type: string
+      - description: Viewing session ID (required for top/trending)
+        example: '"550e8400-e29b-41d4-a716-446655440000"'
+        in: query
+        name: viewingSessionId
         type: string
       - description: Auth token
         in: header
@@ -632,7 +637,13 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/tokenanalytics.CommunityToken'
+            items:
+              $ref: '#/definitions/tokenanalytics.CommunityToken'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
         "500":
           description: Internal Server Error
           schema:
