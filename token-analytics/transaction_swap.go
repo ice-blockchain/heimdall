@@ -4,7 +4,6 @@ package tokenanalytics
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -20,10 +19,15 @@ import (
 func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTokenSwapped) error {
 	userAddr := strings.ToLower(ev.Swapper.Hex())
 
-	ionConnectAddress, err := extractIonConnectAddressFromTxInput(tx.Input)
-	if err != nil {
-		return fmt.Errorf("failed to extract ion_connect_address from tx.Input: %w", err)
+	ionConnectAddressParam, ok := ev.Params["toToken"]
+	if !ok {
+		return fmt.Errorf("failed to extract ion_connect_address from tx.Input: toToken param not found")
 	}
+	ionConnectAddressBytes, ok := ionConnectAddressParam.([]byte)
+	if !ok {
+		return fmt.Errorf("failed to extract ion_connect_address from tx.Input: toToken is not bytes")
+	}
+	ionConnectAddress := string(ionConnectAddressBytes)
 	type tokenByIonConnect struct {
 		ContractAddress string `db:"contract_address"`
 	}
@@ -340,37 +344,4 @@ func calculatePriceFromSwap(ev *bondingcurve.LogTokenSwapped) float64 {
 
 func keyUserPositionOfToken(ionConnectAddress string) string {
 	return fmt.Sprintf("position:%s", ionConnectAddress)
-}
-
-func extractIonConnectAddressFromTxInput(txInput string) (string, error) {
-	if txInput == "" || len(txInput) < 10 {
-		return "", fmt.Errorf("tx.Input is empty or too short")
-	}
-	inputHex := strings.TrimPrefix(txInput, "0x")
-	if len(inputHex) < 8 {
-		return "", fmt.Errorf("tx.Input too short for method selector")
-	}
-	inputData, err := hex.DecodeString(inputHex[8:]) // Skip method selector (4 bytes = 8 hex chars)
-	if err != nil {
-		return "", fmt.Errorf("failed to decode tx.Input: %w", err)
-	}
-	if len(inputData) < 128 {
-		return "", fmt.Errorf("tx.Input too short for ABI decoding: %d bytes", len(inputData))
-	}
-
-	toTokenOffset := new(big.Int).SetBytes(inputData[32:64]).Uint64()
-	if uint64(len(inputData)) < toTokenOffset+32 {
-		return "", fmt.Errorf("toToken offset out of bounds: %d", toTokenOffset)
-	}
-
-	toTokenLength := new(big.Int).SetBytes(inputData[toTokenOffset : toTokenOffset+32]).Uint64()
-	toTokenStart := toTokenOffset + 32
-	toTokenEnd := toTokenStart + toTokenLength
-
-	if uint64(len(inputData)) < toTokenEnd {
-		return "", fmt.Errorf("toToken data out of bounds")
-	}
-	toTokenBytes := inputData[toTokenStart:toTokenEnd]
-
-	return string(toTokenBytes), nil
 }

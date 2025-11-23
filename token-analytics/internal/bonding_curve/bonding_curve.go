@@ -142,7 +142,24 @@ func tokenSwapped(signature, data, contractAddress, swapperTopic, pairIdTopic, t
 	tokenSwappedEvent.Address = common.HexToAddress(contractAddress)
 	tokenSwappedEvent.Swapper = common.HexToAddress(swapperTopic)
 	tokenSwappedEvent.Pair = common.HexToHash(pairIdTopic)
+	if len(txInput) < 10 {
+		return nil, errors.Errorf("swap: tx input too short")
+	}
+	tokenSwapParams := make(map[string]any)
+	decodedTxInput, err := hex.DecodeString(txInput[10:])
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse tx input hex: %v", txInput[10:])
+	}
 
+	method, ok := ABI.Methods["swap"]
+	if !ok {
+		return nil, errors.Errorf("failed to find swap method in bonding curve abi")
+	}
+	err = method.Inputs.UnpackIntoMap(tokenSwapParams, decodedTxInput)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse tx input")
+	}
+	tokenSwappedEvent.Params = tokenSwapParams
 	log.Debug(fmt.Sprintf("Token swapped: token=%v, swapper=%v, pair=%v, direction=%v",
 		tokenSwappedEvent.Address.Hex(), tokenSwappedEvent.Swapper.Hex(), tokenSwappedEvent.Pair.Hex(),
 		tokenSwappedEvent.Direction))

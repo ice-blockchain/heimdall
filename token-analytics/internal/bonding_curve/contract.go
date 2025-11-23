@@ -31,6 +31,7 @@ type (
 		InputAmount  *big.Int
 		OutputAmount *big.Int
 		Fee          *big.Int
+		Params       map[string]any
 	}
 	LogRecipientsSet struct {
 		Event
