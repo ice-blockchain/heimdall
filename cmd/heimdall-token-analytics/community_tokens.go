@@ -179,7 +179,7 @@ func (s *service) GetCommunityTokensSessionByID(ctx context.Context, req *server
 //	@Param			ionConnectAddress	path		string	true	"Ion Connect address"		example("0x1234...")
 //	@Param			limit				query		uint32	false	"Number of items to return"	example(10)
 //	@Param			offset				query		uint32	false	"Number of items to skip"	example(0)
-//	@Param			Authorization		header		string	false	"Auth token"
+//	@Param			Authorization		header		string	true	"Auth token"
 //	@Success		200					{array}		ta.Trade
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
