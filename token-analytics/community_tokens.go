@@ -313,7 +313,7 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, ionConnectAddress 
 					IonConnect: swaps[i].IONConnectAddress,
 				},
 				CreatedAt:  *swaps[i].CreatedAt.Time,
-				Type:       string(typ),
+				Type:       typ,
 				Amount:     tokenAmount,
 				AmountUSD:  amountUSD,
 				Balance:    swaps[i].Balance,

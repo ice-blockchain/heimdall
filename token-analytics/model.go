@@ -54,7 +54,7 @@ type (
 		Holder     User      `json:"holder,omitzero"`
 		Addresses  Addresses `json:"addresses,omitzero"`
 		CreatedAt  time.Time `json:"createdAt,omitzero"`
-		Type       string    `json:"type,omitempty"`
+		Type       TradeType `json:"type,omitempty"`
 		Amount     uint64    `json:"amount"`
 		AmountUSD  float64   `json:"amountUSD"`
 		Balance    uint64    `json:"balance"`
