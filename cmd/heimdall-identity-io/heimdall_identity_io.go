@@ -174,6 +174,7 @@ func (s *service) Close(ctx context.Context) error {
 	return multierror.Append(
 		errors.Wrap(s.accounts.Close(), "failed to close accounts"),
 		errors.Wrap(s.coins.Close(), "failed to close coins"),
+		errors.Wrap(s.following.Close(), "failed to close following"),
 		errors.Wrap(s.hashtagStatistics.Close(), "failed to close hashtag statistics"),
 		errors.Wrap(s.nftContent.Close(), "failed to close nft content"),
 		errors.Wrap(s.tokenAnalytics.Close(), "failed to close token analytics"),
@@ -187,6 +188,7 @@ func (s *service) CheckHealth(ctx context.Context) error {
 		errors.Wrapf(s.accounts.HealthCheck(ctx), "accounts check failed"),
 		errors.Wrapf(s.coins.HealthCheck(ctx), "coins check failed"),
 		errors.Wrapf(s.hashtagStatistics.HealthCheck(ctx), "hashtag statistics check failed"),
+		errors.Wrapf(s.following.HealthCheck(ctx), "following check failed"),
 		errors.Wrapf(s.nftContent.HealthCheck(ctx), "nft content check failed"),
 		errors.Wrapf(s.tokenAnalytics.HealthCheck(ctx), "token analytics check failed"),
 	).ErrorOrNil()

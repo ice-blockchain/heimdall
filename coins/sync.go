@@ -55,8 +55,8 @@ func (s *coinSync) Close() error {
 }
 
 func (s *coinSync) HealthCheck(ctx context.Context) error {
-	if err := s.db.Ping(ctx); err != nil {
-		return errors.Wrap(err, "[health-check] failed to ping DB")
+	if err := s.db.Ping(ctx); err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
+		return errors.Wrap(err, "[health-check] coin sync: failed to ping DB")
 	}
 	return nil
 }

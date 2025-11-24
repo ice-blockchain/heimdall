@@ -62,5 +62,8 @@ func (f *following) Close() error {
 }
 
 func (f *following) HealthCheck(ctx context.Context) error {
-	return errors.Wrap(f.db.Ping(ctx), "failed to ping database")
+	if err := f.db.Ping(ctx); err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
+		return errors.Wrap(err, "[health-check] following: failed to ping DB")
+	}
+	return nil
 }
