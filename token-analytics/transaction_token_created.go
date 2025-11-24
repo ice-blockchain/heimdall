@@ -46,13 +46,17 @@ func (t *tokenAnalytics) onTokenCreated(ctx context.Context, tx *txEvent, contra
 
 func (t *tokenAnalytics) saveTokenMetadata(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTokenCreated) error {
 	contractAddress := strings.ToLower(ev.Address.Hex())
-	creatorAddress := strings.ToLower(tx.FromAddress)
 
-	// TODO: Extract ion_connect_address from tx.Input 'content' field after ABI update.
-	var ionConnectAddress *string
-	tokenType := TokenTypeProfile // Mock: default to profile
+	ionConnectAddress := ev.IonConnectAddress
+	if ionConnectAddress == "" {
+		return fmt.Errorf("ion_connect_address is empty for token %s", contractAddress)
+	}
+	tokenType, creatorMasterPubkey, err := parseTokenType(ionConnectAddress)
+	if err != nil {
+		return fmt.Errorf("failed to parse ion_connect_address %s: %w", ionConnectAddress, err)
+	}
 
-	_, err := storage.Exec(ctx, t.ingestedDataDB, `
+	_, err = storage.Exec(ctx, t.ingestedDataDB, `
 		WITH user_data AS (
 			SELECT username 
 			FROM users 
@@ -79,7 +83,7 @@ func (t *tokenAnalytics) saveTokenMetadata(ctx context.Context, tx *txEvent, ev 
 			creator_master_pubkey = EXCLUDED.creator_master_pubkey,
 			contract_address = EXCLUDED.contract_address,
 			ticker = COALESCE(EXCLUDED.ticker, tokens.ticker)
-	`, tx.BlockTimestamp, contractAddress, ionConnectAddress, creatorAddress, ev.TotalSupply.String(), tokenType)
+	`, tx.BlockTimestamp, contractAddress, ionConnectAddress, creatorMasterPubkey, ev.TotalSupply.String(), tokenType)
 	if err != nil {
 		return fmt.Errorf("failed to insert token %v: %w", contractAddress, err)
 	}
@@ -87,28 +91,31 @@ func (t *tokenAnalytics) saveTokenMetadata(ctx context.Context, tx *txEvent, ev 
 	return nil
 }
 
-// TODO: use this function to extract token type from ion connect address after abi update.
-func parseTokenType(ionConnectAddress string) (string, error) {
+func parseTokenType(ionConnectAddress string) (tokenType, masterPubkey string, err error) {
 	parts := strings.Split(ionConnectAddress, ":")
-	if len(parts) < 1 || parts[0] == "" {
-		return "", fmt.Errorf("invalid ION Connect address format: %s", ionConnectAddress)
+	if len(parts) < 2 {
+		return "", "", fmt.Errorf("invalid ION Connect address format (expected kind:masterpubkey:dtag): %s", ionConnectAddress)
 	}
+	if parts[0] == "" || parts[1] == "" {
+		return "", "", fmt.Errorf("invalid ION Connect address format (empty kind or masterpubkey): %s", ionConnectAddress)
+	}
+	masterPubkey = parts[1]
 	kind, err := strconv.Atoi(parts[0])
 	if err != nil {
-		return "", fmt.Errorf("failed to parse kind from ION Connect address '%s': %w", ionConnectAddress, err)
+		return "", "", fmt.Errorf("failed to parse kind from ION Connect address '%s': %w", ionConnectAddress, err)
 	}
 	switch kind {
 	case nostr.KindProfileMetadata:
-		return TokenTypeProfile, nil
+		return TokenTypeProfile, masterPubkey, nil
 	case nostr.KindTextNote:
-		return TokenTypePost, nil
+		return TokenTypePost, masterPubkey, nil
 	case nostr.KindArticle:
-		return TokenTypeArticle, nil
+		return TokenTypeArticle, masterPubkey, nil
 	case model.CustomIONKindEditableTextNote:
 		// TODO: take some type from tx as no other way to detect video?
-		return TokenTypePost, nil
+		return TokenTypePost, masterPubkey, nil
 	default:
-		return "", fmt.Errorf("unknown nostr kind %d for ION Connect address '%s'", kind, ionConnectAddress)
+		return "", "", fmt.Errorf("unknown nostr kind %d for ION Connect address '%s'", kind, ionConnectAddress)
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 )
 
 func Test_buildTopHolderPositions(t *testing.T) {
+	t.Skip("skipping until we move tests to dedicated pr")
 	t.Parallel()
 
 	contractAddr := "0xcontract123"

@@ -60,14 +60,14 @@ func (t *trade) Marshal(client questdb.LineSender) questdb.At {
 		DecimalColumnFromString("price_in_usd", t.PriceInUsd.String())
 }
 
-func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTokenSwapped) error {
+func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTokenSwapped, ionConnectAddress string) error {
 	tradeTyp, baseAmount, amount, priceInBase := buyOrSell(ev)
 	basePrice := t.ionPriceUSD.Load()
 	tradeData := &trade{
 		Timestamp:                *tx.BlockTimestamp,
 		PairAddress:              hex.EncodeToString(ev.Pair[:]),
 		ContractAddress:          ev.Address.String(),
-		ContentIONConnectAddress: "TODO",
+		ContentIONConnectAddress: ionConnectAddress,
 		BasePriceInUsd:           *basePrice,
 		BaseAmount:               baseAmount,
 		Amount:                   amount,
@@ -88,12 +88,12 @@ func buyOrSell(ev *bondingcurve.LogTokenSwapped) (trade TradeType, baseTokenAmou
 	// For buy: price = input (base token) / output (community tokens)
 	// For sell: price = output (base token) / input (community tokens)
 	priceInBaseFloat := new(big.Float)
-	if ev.Direction { // buy
+	if !ev.Direction { // buy (Direction=false)
 		if ev.OutputAmount.Sign() > 0 {
 			priceInBaseFloat.Quo(new(big.Float).SetInt(ev.InputAmount), new(big.Float).SetInt(ev.OutputAmount))
 		}
 		return tradeTypeBuy, input, output, priceInBaseFloat
-	} else { // sell
+	} else { // sell (Direction=true)
 		if ev.InputAmount.Sign() > 0 {
 			priceInBaseFloat.Quo(new(big.Float).SetInt(ev.OutputAmount), new(big.Float).SetInt(ev.InputAmount))
 		}

@@ -16,7 +16,7 @@ func (t *tokenAnalytics) onPairRegistered(ctx context.Context, tx *txEvent, ev *
 	tokenAddress := strings.ToLower(ev.OtherToken.Hex())
 	baseTokenAddress := strings.ToLower(ev.BaseToken.Hex())
 
-	log.Debug(fmt.Sprintf("Pair registered for token %v with base token %v, tx:%v",
+	log.Debug(fmt.Sprintf("Pair registered: token=%v, baseToken=%v, tx:%v",
 		tokenAddress, baseTokenAddress, tx.TransactionHash))
 
 	_, err := storage.Exec(ctx, t.ingestedDataDB, `
@@ -29,7 +29,8 @@ func (t *tokenAnalytics) onPairRegistered(ctx context.Context, tx *txEvent, ev *
 		return fmt.Errorf("failed to update base_token for %v: %w", tokenAddress, err)
 	}
 
-	log.Debug(fmt.Sprintf("Successfully updated base_token=%v for token %v", baseTokenAddress, tokenAddress))
+	log.Debug(fmt.Sprintf("Successfully updated base_token=%v for token %v",
+		baseTokenAddress, tokenAddress))
 
 	return nil
 }

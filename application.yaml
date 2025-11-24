@@ -55,10 +55,6 @@ cmd/heimdall-token-analytics:
     port: 8888
     certPath: cmd/heimdall-identity-io/.testdata/localhost.crt
     keyPath: cmd/heimdall-identity-io/.testdata/localhost.key
-  tokenizedCommunities:
-    bondingCurveSmartContractAddress: 0x4012f49Be72057329754922603Dc35ADB8520274
-    addressVersion: 1
-    abiVersion: 1
 accounts:
   delegated_relying_party:
     auth:
@@ -430,12 +426,13 @@ apps-runtime:
 token-analytics:
   workers: 10
   batchSize: 2
+  bondingCurve:
+    smartContractAddress: 0x4012f49Be72057329754922603Dc35ADB8520274
   ionTokenAddress: 0x0000000000000000000000000000000000000000
   quickNode:
     startBlock: 72173309
-    region: usa_east
     # update to accessible over internet, ngrok tcp, or that 23... machine
-    stream-destination-url: postgresql://root:pass@localhost:5442/ingested_data
+    streamDestinationUrl: postgresql://root:pass@localhost:5442/ingested_data
     apiKey: "-"
   questdb:
     writeUrl: http::addr=localhost:9000

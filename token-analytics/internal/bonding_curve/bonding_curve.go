@@ -22,7 +22,7 @@ func init() {
 	log.Panic(errors.Wrapf(err, "failed to parse bonding curve abi"))
 }
 
-func ProcessEvent(functionHex, data string, topics []string, contractAddress string) (Event, error) {
+func ProcessEvent(functionHex, data string, topics []string, contractAddress, txInput string) (Event, error) {
 	switch functionHex {
 	case eventTokenCreated.Hex():
 		if len(topics) < 2 {
@@ -35,7 +35,7 @@ func ProcessEvent(functionHex, data string, topics []string, contractAddress str
 			return nil, errors.Errorf("Swapped event requires at least 3 topics, got %d", len(topics))
 		}
 
-		return tokenSwapped(functionHex, data, contractAddress, topics[1], topics[2])
+		return tokenSwapped(functionHex, data, contractAddress, topics[1], topics[2], txInput)
 	case eventPairRegistered.Hex():
 		if len(topics) < 4 {
 			return nil, errors.Errorf("PairRegistered event requires at least 4 topics, got %d", len(topics))
@@ -52,16 +52,6 @@ func ProcessEvent(functionHex, data string, topics []string, contractAddress str
 		return migrated(functionHex, data)
 	case eventLiquidityClaimed.Hex():
 		return liquidityClaimed(functionHex, data)
-	case eventTransfer.Hex():
-		if len(topics) < 3 {
-			return nil, errors.Errorf("Transfer event requires at least 3 topics, got %d", len(topics))
-		}
-		return transfer(functionHex, data, topics[1], topics[2])
-	case eventOwnershipTransferred.Hex():
-		if len(topics) < 3 {
-			return nil, errors.Errorf("OwnershipTransferred event requires at least 3 topics, got %d", len(topics))
-		}
-		return ownershipTransferred(functionHex, topics[1], topics[2])
 	case eventSlippageChecked.Hex():
 		if len(topics) < 2 {
 			return nil, errors.Errorf("SlippageChecked event requires at least 2 topics, got %d", len(topics))
@@ -93,7 +83,7 @@ func decode[T any](abi abi.ABI, res T, name, data string) error {
 	return nil
 }
 
-func tokenCreated(signature, data, contractAddress, creatorTopic string) (*LogTokenCreated, error) {
+func tokenCreated(signature, data, contractAddress, erc20TokenTopic string) (*LogTokenCreated, error) {
 	if signature != eventTokenCreated.Hex() {
 		return nil, errors.Errorf("invalid signature for BondedTokenCreated: expected %s, got %s", eventTokenCreated.Hex(), signature)
 	}
@@ -105,11 +95,10 @@ func tokenCreated(signature, data, contractAddress, creatorTopic string) (*LogTo
 	if err := decode(ABI, &tokenCreatedEvent, "BondedTokenCreated", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack BondedTokenCreated event")
 	}
-	tokenCreatedEvent.Address = common.HexToAddress(contractAddress)
-	tokenCreatedEvent.Creator = common.HexToAddress(creatorTopic)
+	tokenCreatedEvent.Address = common.HexToAddress(erc20TokenTopic)
 
-	log.Debug(fmt.Sprintf("Token created: address=%v, totalSupply=%v",
-		tokenCreatedEvent.Address.Hex(), tokenCreatedEvent.TotalSupply))
+	log.Debug(fmt.Sprintf("Token created: address=%v, ionConnectAddress=%s, totalSupply=%v",
+		tokenCreatedEvent.Address.Hex(), tokenCreatedEvent.IonConnectAddress, tokenCreatedEvent.TotalSupply))
 
 	return &tokenCreatedEvent, nil
 }
@@ -139,7 +128,7 @@ func pairRegistered(signature, data, pairIdTopic, baseTokenTopic, otherTokenTopi
 	return &pairRegisteredEvent, nil
 }
 
-func tokenSwapped(signature, data, contractAddress, swapperTopic, pairIdTopic string) (*LogTokenSwapped, error) {
+func tokenSwapped(signature, data, contractAddress, swapperTopic, pairIdTopic, txInput string) (*LogTokenSwapped, error) {
 	if signature != eventSwapped.Hex() {
 		return nil, errors.Errorf("invalid signature for Swapped: expected %s, got %s", eventSwapped.Hex(), signature)
 	}
@@ -153,10 +142,27 @@ func tokenSwapped(signature, data, contractAddress, swapperTopic, pairIdTopic st
 	tokenSwappedEvent.Address = common.HexToAddress(contractAddress)
 	tokenSwappedEvent.Swapper = common.HexToAddress(swapperTopic)
 	tokenSwappedEvent.Pair = common.HexToHash(pairIdTopic)
+	if len(txInput) < 10 {
+		return nil, errors.Errorf("swap: tx input too short")
+	}
+	tokenSwapParams := make(map[string]any)
+	decodedTxInput, err := hex.DecodeString(txInput[10:])
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse tx input hex: %v", txInput[10:])
+	}
 
-	log.Debug(fmt.Sprintf("Token swapped: token=%v, swapper=%v, pair=%v, direction=%v, inputAmount=%v, outputAmount=%v",
+	method, ok := ABI.Methods["swap"]
+	if !ok {
+		return nil, errors.Errorf("failed to find swap method in bonding curve abi")
+	}
+	err = method.Inputs.UnpackIntoMap(tokenSwapParams, decodedTxInput)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse tx input")
+	}
+	tokenSwappedEvent.Params = tokenSwapParams
+	log.Debug(fmt.Sprintf("Token swapped: token=%v, swapper=%v, pair=%v, direction=%v",
 		tokenSwappedEvent.Address.Hex(), tokenSwappedEvent.Swapper.Hex(), tokenSwappedEvent.Pair.Hex(),
-		tokenSwappedEvent.Direction, tokenSwappedEvent.InputAmount, tokenSwappedEvent.OutputAmount))
+		tokenSwappedEvent.Direction))
 
 	return &tokenSwappedEvent, nil
 }
@@ -239,57 +245,6 @@ func liquidityClaimed(signature, data string) (*LogLiquidityClaimed, error) {
 	log.Info(fmt.Sprintf("Liquidity claimed:%+v ", liquidityClaimedEvent))
 
 	return &liquidityClaimedEvent, nil
-}
-
-func transfer(signature, data, from, to string) (*LogTransfer, error) {
-	if signature != eventTransfer.Hex() {
-		return nil, errors.Errorf("invalid signature for Transfer: expected %s, got %s", eventTransfer.Hex(), signature)
-	}
-	if from == "" || from == "0x" {
-		return nil, errors.Errorf("empty from address for Transfer event")
-	}
-	if to == "" || to == "0x" {
-		return nil, errors.Errorf("empty to address for Transfer event")
-	}
-	if data == "" || data == "0x" {
-		return nil, errors.Errorf("empty data for Transfer event")
-	}
-
-	var transferEvent LogTransfer
-	transferEvent.From = common.HexToAddress(from)
-	transferEvent.To = common.HexToAddress(to)
-
-	dataBytes, err := hex.DecodeString(strings.TrimPrefix(data, "0x"))
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to decode transfer data")
-	}
-	transferEvent.Amount = new(big.Int).SetBytes(dataBytes)
-
-	log.Info(fmt.Sprintf("Transfer: from=%v, to=%v, amount=%v",
-		transferEvent.From.Hex(), transferEvent.To.Hex(), transferEvent.Amount))
-
-	return &transferEvent, nil
-}
-
-func ownershipTransferred(signature, previousOwner, newOwner string) (*LogOwnershipTransferred, error) {
-	if signature != eventOwnershipTransferred.Hex() {
-		return nil, errors.Errorf("invalid signature for OwnershipTransferred: expected %s, got %s", eventOwnershipTransferred.Hex(), signature)
-	}
-	if previousOwner == "" || previousOwner == "0x" {
-		return nil, errors.Errorf("empty previousOwner for OwnershipTransferred event")
-	}
-	if newOwner == "" || newOwner == "0x" {
-		return nil, errors.Errorf("empty newOwner for OwnershipTransferred event")
-	}
-
-	var ownershipEvent LogOwnershipTransferred
-	ownershipEvent.PreviousOwner = common.HexToAddress(previousOwner)
-	ownershipEvent.NewOwner = common.HexToAddress(newOwner)
-
-	log.Info(fmt.Sprintf("OwnershipTransferred: previousOwner=%v, newOwner=%v",
-		ownershipEvent.PreviousOwner.Hex(), ownershipEvent.NewOwner.Hex()))
-
-	return &ownershipEvent, nil
 }
 
 func slippageChecked(signature, data, pairId string) (*LogSlippageChecked, error) {

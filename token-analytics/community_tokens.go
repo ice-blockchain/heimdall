@@ -73,7 +73,8 @@ func (t *tokenAnalytics) GetCommunityTokensByIonConnectAddresses(ctx context.Con
 		}
 
 		if row.PositionAmountUSD > 0 {
-			position, err := t.getUserTokenPositionRanking(ctx, requestorMasterPubkey, row.IONConnectAddress, row.PositionAmountUSD, row.PositionTotalInvestedUSD)
+			userIonConnect := fmt.Sprintf("0:%s:", requestorMasterPubkey)
+			position, err := t.getUserTokenPositionRanking(ctx, userIonConnect, row.IONConnectAddress, row.PositionAmountUSD, row.PositionTotalInvestedUSD)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get user position ranking for token %v", row.IONConnectAddress)
 			}
@@ -274,9 +275,9 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 	return tokens, nil
 }
 
-func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, masterPubkey, ionConnectAddress string, amountUSD, totalInvested float64) (*Position, error) {
-	key := fmt.Sprintf("position:%s", ionConnectAddress)
-	balanceFloat, err := t.processedDataDB.ZScore(ctx, key, masterPubkey).Result()
+func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, userIonConnect, tokenIonConnectAddress string, amountUSD, totalInvested float64) (*Position, error) {
+	key := keyUserPositionOfToken(tokenIonConnectAddress)
+	balanceFloat, err := t.processedDataDB.ZScore(ctx, key, userIonConnect).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return nil, nil
@@ -286,7 +287,7 @@ func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, master
 	if balanceFloat == 0 {
 		return nil, nil
 	}
-	rank, err := t.processedDataDB.ZRevRank(ctx, key, masterPubkey).Result()
+	rank, err := t.processedDataDB.ZRevRank(ctx, key, userIonConnect).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			rank = 0
@@ -320,15 +321,21 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, ionConnectAddress 
 		timeClause = "AND token_swaps.created_at > $2"
 	}
 	sql := fmt.Sprintf(`
-		SELECT token_swaps.*,
-		    tokens.ion_connect_address,   
-			
+		SELECT token_swaps.created_at,
+		    token_swaps.transaction_hash,
+		    token_swaps.contract_address,
+		    token_swaps.ion_connect_address,
+		    token_swaps.user_address,
+		    token_swaps.direction,
+		    token_swaps.input_amount,
+		    token_swaps.output_amount,
+		    token_swaps.price_usd,
 		    COALESCE(tokens.creator_master_pubkey, '') as creator_master_pubkey,
 			COALESCE(creator.username,'') as creator_username,
 			COALESCE(creator.display_name, '') as creator_display,
 			COALESCE(creator.verified, false) as creator_verified,
 			COALESCE(creator.avatar, '') as creator_avatar,
-			
+
 			COALESCE(holder.master_pubkey, '') as holder_master_pubkey,
 			COALESCE(holder.username,'') as holder_username,
 			COALESCE(holder.display_name, '') as holder_display,
@@ -341,7 +348,7 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, ionConnectAddress 
 		JOIN tokens ON token_swaps.contract_address = tokens.contract_address
 		LEFT JOIN users creator ON creator.master_pubkey = tokens.creator_master_pubkey
 		LEFT JOIN users holder  ON holder.blockchain_address = token_swaps.user_address
-		LEFT JOIN user_token_positions utp ON utp.contract_address = token_swaps.contract_address AND utp.master_pubkey = token_swaps.user_address
+		LEFT JOIN user_token_positions utp ON utp.ion_connect_address = token_swaps.ion_connect_address AND utp.master_pubkey = token_swaps.user_address
 			WHERE tokens.ion_connect_address = $1 %[3]v
 		ORDER BY token_swaps.created_at DESC
 		LIMIT %[1]v OFFSET %[2]v
@@ -368,10 +375,10 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, ionConnectAddress 
 		}
 		var tokenAmount uint64
 		var typ TradeType
-		if swaps[i].Direction {
+		if !swaps[i].Direction { // Direction=false is buy
 			typ = tradeTypeBuy
 			tokenAmount = swaps[i].Output // User receives tokens
-		} else {
+		} else { // Direction=true is sell
 			typ = tradeTypeSell
 			tokenAmount = swaps[i].Input // User sends tokens
 		}
