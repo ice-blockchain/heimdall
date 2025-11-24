@@ -5,7 +5,6 @@ package tokenanalytics
 import (
 	"context"
 	"net/http"
-	"sync/atomic"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -18,7 +17,6 @@ import (
 func (t *tokenAnalytics) startIONPriceSyncer(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Second) //nolint:gosec,gomnd // Not an  issue.
 	defer ticker.Stop()
-	t.ionPriceUSD = new(atomic.Pointer[float64])
 	log.Panic(errors.Wrap(t.syncIONPrice(ctx), "failed to syncIONPrice"))
 
 	for {

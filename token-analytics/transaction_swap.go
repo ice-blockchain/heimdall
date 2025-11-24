@@ -56,13 +56,10 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 
 	log.Debug(fmt.Sprintf("onSwap: contractAddress=%s, userAddr=%s", contractAddress, userAddr))
 
-	if err := t.registerTrade(ctx, tx, ev); err != nil {
+	if err := t.registerTrade(ctx, tx, ev, ionConnectAddress); err != nil {
 		return fmt.Errorf("failed to save trade in questdb %v ]]: %w", userAddr, err)
 	}
 	ionPriceUSD := t.ionPriceUSD.Load()
-	if ionPriceUSD == nil {
-		return fmt.Errorf("ION price not yet synced")
-	}
 
 	priceInION := calculatePriceFromSwap(ev) // Price: how much ION per 1 community token
 	priceUSD := priceInION * (*ionPriceUSD)

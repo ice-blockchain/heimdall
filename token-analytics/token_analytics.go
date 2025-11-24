@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	stdlibtime "time"
 
@@ -102,8 +103,10 @@ func New(ctx context.Context, bondingCurveContractAddress string) TokenAnalytics
 			)
 		},
 	}
+	t.ionPriceUSD = new(atomic.Pointer[float64])
 
 	go metrics.LogScaled(registry, 10*stdlibtime.Second, 1*stdlibtime.Millisecond, t) // TODO: 10 secs for test, change to 1-15 mminutes.
+	log.Panic(errors.Wrapf(t.syncIONPrice(ctx), "failed to sync ion price on startup"))
 	go t.startIONPriceSyncer(ctx)
 	return t
 }
