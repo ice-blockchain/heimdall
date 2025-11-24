@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -65,7 +66,7 @@ func loggerMiddleware() gin.HandlerFunc {
 			path = path + "?" + raw
 		}
 
-		if path == "/healthz" {
+		if strings.HasPrefix(path, "/health") {
 			// Skip logging for health checks.
 			return
 		}

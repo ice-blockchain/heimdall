@@ -16,18 +16,21 @@ import (
 	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server/websocket"
 )
 
+func (s *service) httpHealthCheckHandler(c *gin.Context) {
+	err := s.CheckHealth(c)
+	if err != nil {
+		slog.ErrorContext(c, "health check failed", "error", err)
+		c.Writer.WriteHeader(http.StatusServiceUnavailable)
+		return
+	}
+	c.Writer.WriteHeader(http.StatusOK)
+}
+
 func (s *service) RegisterRoutes(router server.Router) {
 	router.Use(server.NIP42AuthMiddleware())
 
-	router.GET("/healthz", func(c *gin.Context) {
-		err := s.CheckHealth(c)
-		if err != nil {
-			slog.ErrorContext(c, "health check failed", "error", err)
-			c.Writer.WriteHeader(http.StatusServiceUnavailable)
-			return
-		}
-		c.Writer.WriteHeader(http.StatusOK)
-	})
+	router.GET("/healthz", s.httpHealthCheckHandler)
+	router.GET("/health-check", s.httpHealthCheckHandler)
 
 	tokensV1 := router.Group("/v1/community-tokens")
 

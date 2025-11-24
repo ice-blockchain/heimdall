@@ -28,6 +28,10 @@ func (c *DB) Close(ctx context.Context) error {
 	)
 }
 
+func (c *DB) Ping(ctx context.Context) error {
+	return c.db.Ping(ctx)
+}
+
 func MustConnect(ctx context.Context, applicationYamlKey string) *DB {
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)

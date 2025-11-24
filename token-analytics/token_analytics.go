@@ -65,7 +65,7 @@ func New(ctx context.Context) TokenAnalytics {
 	}
 
 	qn := quicknode.NewClient(ctx, applicationYamlKey)
-	timescaleDB := questdb.MustConnect(ctx, applicationYamlKey)
+	questDB := questdb.MustConnect(ctx, applicationYamlKey)
 	registry := metrics.NewRegistry()
 	for workerIdx := range cfg.Workers {
 		workerPrefix := fmt.Sprintf("worker_%d_", workerIdx)
@@ -88,7 +88,7 @@ func New(ctx context.Context) TokenAnalytics {
 		bondingCurveContractAddress: cfg.BondingCurve.SmartContractAddress,
 		ingestedDataDB:              db,
 		processedDataDB:             targetDB,
-		questDB:                     timescaleDB,
+		questDB:                     questDB,
 		wg:                          new(sync.WaitGroup),
 		cfg:                         &cfg,
 		quickNode:                   qn,
@@ -99,7 +99,7 @@ func New(ctx context.Context) TokenAnalytics {
 			return errors.Join(
 				errors.Wrapf(db.Close(), "failed to close source db"),
 				errors.Wrapf(targetDB.Close(), "failed to close target db"),
-				errors.Wrapf(timescaleDB.Close(shutdownCtx), "failed to close timescale db"),
+				errors.Wrapf(questDB.Close(shutdownCtx), "failed to close timescale db"),
 			)
 		},
 	}
@@ -119,8 +119,11 @@ func (t *tokenAnalytics) Close() error {
 }
 
 func (t *tokenAnalytics) HealthCheck(ctx context.Context) error {
-	if err := t.ingestedDataDB.Ping(ctx); err != nil {
+	if err := t.ingestedDataDB.Ping(ctx); err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
 		return fmt.Errorf("database connection failed: %w", err)
+	}
+	if err := t.questDB.Ping(ctx); err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
+		return fmt.Errorf("questDB database connection failed: %w", err)
 	}
 	if err := t.processedDataDB.Ping(ctx).Err(); err != nil {
 		return fmt.Errorf("redis connection failed: %w", err)
