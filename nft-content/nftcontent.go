@@ -323,7 +323,10 @@ func (n *nftContent) Close() error {
 }
 
 func (n *nftContent) HealthCheck(ctx context.Context) error {
-	return errors.Wrap(n.db.Ping(ctx), "failed to ping database")
+	if err := n.db.Ping(ctx); err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
+		return errors.Wrap(err, "[health-check] nft content: failed to ping DB")
+	}
+	return nil
 }
 
 func (n *nftContent) ListNFTs(ctx context.Context, walletAddr string, paginationToken string, limit uint) ([]WalletNFT, *string, error) {

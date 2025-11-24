@@ -151,8 +151,8 @@ func (i *hashtagStatisticsRepository) Close() error {
 }
 
 func (h *hashtagStatisticsRepository) HealthCheck(ctx context.Context) error {
-	if err := h.db.Ping(ctx); err != nil {
-		return errors.Wrap(err, "[health-check] failed to ping DB")
+	if err := h.db.Ping(ctx); err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
+		return errors.Wrap(err, "[health-check] hash tags: failed to ping DB")
 	}
 	return nil
 }

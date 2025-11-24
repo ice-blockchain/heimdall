@@ -58,8 +58,8 @@ func (c *coinsRepository) GetFees(network string) *Fee {
 }
 
 func (c *coinsRepository) HealthCheck(ctx context.Context) error {
-	if err := c.db.Ping(ctx); err != nil {
-		return errors.Wrap(err, "[health-check] failed to ping DB")
+	if err := c.db.Ping(ctx); err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
+		return errors.Wrap(err, "[health-check] coins: failed to ping DB")
 	}
 	return nil
 }

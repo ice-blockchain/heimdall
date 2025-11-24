@@ -109,15 +109,15 @@ func (a *verifiedUsersSync) Close() error {
 }
 
 func (a *accounts) HealthCheck(ctx context.Context) error {
-	if err := a.db.Ping(ctx); err != nil {
-		return errors.Wrap(err, "[health-check] failed to ping DB")
+	if err := a.db.Ping(ctx); err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
+		return errors.Wrap(err, "[health-check] accounts: failed to ping DB")
 	}
 	return nil
 }
 
 func (a *verifiedUsersSync) HealthCheck(ctx context.Context) error {
-	if err := a.db.Ping(ctx); err != nil {
-		return errors.Wrap(err, "[health-check] failed to ping DB")
+	if err := a.db.Ping(ctx); err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
+		return errors.Wrap(err, "[health-check] verified users: failed to ping DB")
 	}
 	return nil
 }
