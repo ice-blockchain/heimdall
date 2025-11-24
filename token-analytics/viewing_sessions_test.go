@@ -352,12 +352,9 @@ func TestApplyPagination(t *testing.T) {
 }
 
 func TestSearchTokensByCreatorLookup(t *testing.T) {
-	t.Parallel()
-
-	ctx := t.Context()
-
 	t.Run("finds_tokens_by_creator_username", func(t *testing.T) {
-		t.Parallel()
+		ctx := t.Context()
+		cleanupAllTestData(ctx)
 
 		helperInsertTestUser(t, ctx, testDB, "search_creator1", "satoshi_nakamoto", "Satoshi", "", true)
 		helperInsertTestUser(t, ctx, testDB, "search_creator2", "vitalik_buterin", "Vitalik", "", true)
@@ -390,7 +387,8 @@ func TestSearchTokensByCreatorLookup(t *testing.T) {
 	})
 
 	t.Run("returns_empty_for_no_match", func(t *testing.T) {
-		t.Parallel()
+		ctx := t.Context()
+		cleanupAllTestData(ctx)
 
 		ta := &tokenAnalytics{
 			ingestedDataDB: testDB,
@@ -402,7 +400,8 @@ func TestSearchTokensByCreatorLookup(t *testing.T) {
 	})
 
 	t.Run("is_case_insensitive", func(t *testing.T) {
-		t.Parallel()
+		ctx := t.Context()
+		cleanupAllTestData(ctx)
 
 		helperInsertTestUser(t, ctx, testDB, "case_creator", "CamelCaseUser", "Camel User", "", false)
 		token := "30001:case_creator:case_token"

@@ -12,7 +12,6 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/ice-blockchain/heimdall/token-analytics/fixture"
-	// "github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
@@ -111,14 +110,5 @@ func cleanupAllTestData(ctx context.Context) {
 	if err := testContainers.FlushDragonfly(ctx, testRedis.Unwrap()); err != nil {
 		println("Warning: failed to flush Dragonfly:", err.Error())
 	}
-
-	// TODO: Clean QuestDB later
-	// testIntervals := []string{"1m", "5m"}
-	// for _, interval := range testIntervals {
-	// 	tableName := "ohlcv_" + interval
-	// 	query := "TRUNCATE TABLE " + tableName
-	// 	if _, err := questdb.Exec(ctx, testQuestDB, query); err != nil {
-	// 		println("Warning: failed to truncate", tableName+":", err.Error())
-	// 	}
-	// }
+	// TODO: Clean QuestDB later.
 }

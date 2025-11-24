@@ -21,13 +21,14 @@ import (
 const bondingCurveAddr = "0x8d86c992ce7812a64101da9b2531d5f378d682e2"
 
 func TestOnSwap(t *testing.T) {
-	t.Skip("skipping integration test for now as it requires questdb connection")
-	t.Parallel()
+	t.Skip()
+	// Note: Not using t.Parallel() because QuestDB pool is shared across subtests
 
 	ionPrice := 0.1 // $0.1 per ION
 	ta := &tokenAnalytics{
-		ingestedDataDB:              testDB,
-		processedDataDB:             testRedis,
+		ingestedDataDB:  testDB,
+		processedDataDB: testRedis,
+		// questDB:                     testQuestDB,
 		bondingCurveContractAddress: bondingCurveAddr,
 		cfg: &config{
 			IONTokenAddress: "0xfffe00ab26d8d121a51717306adbebc70b8b7247",
@@ -37,8 +38,8 @@ func TestOnSwap(t *testing.T) {
 	ta.ionPriceUSD.Store(&ionPrice)
 
 	t.Run("processes_buy_swap_successfully", func(t *testing.T) {
-		t.Parallel()
 		ctx := t.Context()
+		cleanupAllTestData(ctx)
 
 		contractAddress := "0x4be0f647afd324dfe58b3af90d0e91cc3ff89f67"
 		ionConnectAddr := "30023:testpubkey123:article1"
@@ -168,8 +169,8 @@ func TestOnSwap(t *testing.T) {
 	})
 
 	t.Run("processes_sell_swap_successfully", func(t *testing.T) {
-		t.Parallel()
 		ctx := t.Context()
+		cleanupAllTestData(ctx)
 
 		contractAddress := "0x7307ea7ab4a7e5bcba1bf18c9495d08107d9f0d8"
 		ionConnectAddr := "30023:sellerpubkey456:post2"
@@ -309,8 +310,8 @@ func TestOnSwap(t *testing.T) {
 	})
 
 	t.Run("updates_market_cap_correctly", func(t *testing.T) {
-		t.Parallel()
 		ctx := t.Context()
+		cleanupAllTestData(ctx)
 
 		contractAddress := "0xabc123def456789012345678901234567890abcd"
 		ionConnectAddr := "30023:marketpubkey:video1"
@@ -385,8 +386,8 @@ func TestOnSwap(t *testing.T) {
 	})
 
 	t.Run("rejects_swap_with_invalid_base_token", func(t *testing.T) {
-		t.Parallel()
 		ctx := t.Context()
+		cleanupAllTestData(ctx)
 
 		// Test data
 		contractAddress := "0xbadtoken1234567890123456789012345678abcd"

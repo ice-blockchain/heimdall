@@ -8,14 +8,12 @@ import (
 	"testing"
 	"time"
 
-	// "github.com/questdb/go-questdb-client/v4"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	// questdbpkg "github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
@@ -153,10 +151,6 @@ func SetupTestContainers(ctx context.Context) (*TestContainers, Cleanup, error) 
 	tc.QuestDBPGAddr = fmt.Sprintf("host=%s port=%s user=admin password=quest dbname=qdb sslmode=disable",
 		questdbHTTPHost, questdbPGPort.Port())
 
-	// Get QuestDB ILP (InfluxDB Line Protocol) address for writes
-	// QuestDB supports ILP over HTTP on port 9000 or TCP on port 9009
-	// Format for HTTP: http::addr=host:port;
-	// Using HTTP for better compatibility with testcontainers
 	tc.QuestDBWriteAddr = fmt.Sprintf("http::addr=%s:%s", questdbHTTPHost, questdbHTTPPort.Port())
 
 	return tc, cleanup, nil
@@ -190,29 +184,25 @@ func (tc *TestContainers) ConnectDragonfly(ctx context.Context) (*redis.Client, 
 	return client, nil
 }
 
-// TODO: ConnectQuestDB - temporarily disabled
-// ConnectQuestDB creates a full questdb.DB connection (PostgreSQL + ILP writer)
-// func (tc *TestContainers) ConnectQuestDB(ctx context.Context, ddl string) (*questdbpkg.DB, error) {
-// 	// Create PostgreSQL wire protocol connection for reads
-// 	pgCfg := &storage.Cfg{
+// func (tc *TestContainers) ConnectQuestDB(ctx context.Context, ddl string, runDDL bool) (*storage.DB, *questdbclient.LineSenderPool, error) {
+// 	cfg := &storage.Cfg{
 // 		PrimaryURL:               tc.QuestDBPGAddr,
-// 		ReplicaURLs:              []string{tc.QuestDBPGAddr}, // Use primary as replica to avoid divide by zero
-// 		RunDDL:                   true,
+// 		ReplicaURLs:              []string{tc.QuestDBPGAddr},
+// 		RunDDL:                   runDDL,
 // 		SkipSettingsVerification: true,
 // 	}
-// 	pgCfg.Credentials.User = "admin"
-// 	pgCfg.Credentials.Password = "quest"
+// 	cfg.Credentials.User = "admin"
+// 	cfg.Credentials.Password = "quest"
+// 	pgDB := storage.MustConnectWithCfg(ctx, cfg, ddl)
 
-// 	pgConn := storage.MustConnectWithCfg(ctx, pgCfg, ddl)
-
-// 	// Create ILP writer connection
-// 	questdbConn, err := questdb.PoolFromConf(tc.QuestDBWriteAddr)
+// 	confStr := tc.QuestDBWriteAddr + ";"
+// 	ilpPool, err := questdbclient.PoolFromConf(confStr)
 // 	if err != nil {
-// 		return nil, fmt.Errorf("failed to create questdb writer pool: %w", err)
+// 		_ = pgDB.Close()
+// 		return nil, nil, fmt.Errorf("failed to create questdb ILP pool: %w", err)
 // 	}
 
-// 	// Create full questdb.DB
-// 	return questdb.NewTestDBWithWriter(pgConn, questdbConn), nil
+// 	return pgDB, ilpPool, nil
 // }
 
 func (tc *TestContainers) FlushDragonfly(ctx context.Context, client *redis.Client) error {
