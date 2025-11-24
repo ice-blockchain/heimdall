@@ -294,8 +294,8 @@ github.com/gdamore/tcell/v2 v2.11.0 h1:ntVCx4v2M7ev2hMuAHad5ZRPymfpxb8VR3X3VRz+/
 github.com/gdamore/tcell/v2 v2.11.0/go.mod h1:pytyB+bE6zrRVf6u/ZMWX9AZqSVcW4bpimuDiR5k2mU=
 github.com/georgysavva/scany/v2 v2.1.4 h1:nrzHEJ4oQVRoiKmocRqA1IyGOmM/GQOEsg9UjMR5Ip4=
 github.com/georgysavva/scany/v2 v2.1.4/go.mod h1:fqp9yHZzM/PFVa3/rYEC57VmDx+KDch0LoqrJzkvtos=
-github.com/getsentry/sentry-go v0.38.0 h1:S8Xui7gLeAvXINVLMOaX94HnsDf1GexnfXGSNC4+KQs=
-github.com/getsentry/sentry-go v0.38.0/go.mod h1:eRXCoh3uvmjQLY6qu63BjUZnaBu5L5WhMV1RwYO8W5s=
+github.com/getsentry/sentry-go v0.39.0 h1:uhnexj8PNCyCve37GSqxXOeXHh4cJNLNNB4w70Jtgo0=
+github.com/getsentry/sentry-go v0.39.0/go.mod h1:eRXCoh3uvmjQLY6qu63BjUZnaBu5L5WhMV1RwYO8W5s=
 github.com/gin-contrib/gzip v0.0.6 h1:NjcunTcGAj5CO1gn4N8jHOSIeRFHIbn51z6K+xaN4d4=
 github.com/gin-contrib/gzip v0.0.6/go.mod h1:QOJlmV2xmayAjkNS2Y8NQsMneuRShOU/kjovCXNuzzk=
 github.com/gin-contrib/pprof v1.5.3 h1:Bj5SxJ3kQDVez/s/+f9+meedJIqLS+xlkIVDe/lcvgM=
@@ -463,8 +463,8 @@ github.com/ice-blockchain/go/src v0.0.0-20251117100638-ebce142e0ce4 h1:MuIvX5Cpk
 github.com/ice-blockchain/go/src v0.0.0-20251117100638-ebce142e0ce4/go.mod h1:pVzkmaIwkLaJ5cKPHPtuKyxaXiTsa/V7kbbgLmsr4Hw=
 github.com/ice-blockchain/subzero v1.469.0 h1:ABkSXKk6bfEdaw+mjDYfBpV6URnt+j8k2JV7NEtNubE=
 github.com/ice-blockchain/subzero v1.469.0/go.mod h1:SZofWa/WqZPdey78bWgd7dNmgPv63AQEcQIDCTzHMrE=
-github.com/ice-blockchain/wintr v1.167.0 h1:Aqm4LNtoLiDQv8uXPJyVJjQfrraLvw/BBlLXw+5ndSc=
-github.com/ice-blockchain/wintr v1.167.0/go.mod h1:nVpw45H6O7BMCPNRHzZS6xpiIGnmWV9VsC91HUJCQ60=
+github.com/ice-blockchain/wintr v1.168.0 h1:ouFqszOp9zk+6Da3J8MInljkJo4FArtS9HvEsXO4k8M=
+github.com/ice-blockchain/wintr v1.168.0/go.mod h1:lSYGxs1jlVHALxbtA2U8mJzTSrXnxxehfdUv5Cq4AvU=
 github.com/icholy/digest v1.1.0 h1:HfGg9Irj7i+IX1o1QAmPfIBNu/Q5A5Tu3n/MED9k9H4=
 github.com/icholy/digest v1.1.0/go.mod h1:QNrsSGQ5v7v9cReDI0+eyjsXGUoRSUZQHeQ5C4XLa0Y=
 github.com/imroc/req/v3 v3.56.0 h1:t6YdqqerYBXhZ9+VjqsQs5wlKxdUNEvsgBhxWc1AEEo=

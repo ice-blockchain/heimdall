@@ -32,7 +32,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ice-blockchain/go/src v0.0.0-20251117100638-ebce142e0ce4
 	github.com/ice-blockchain/subzero v1.469.0
-	github.com/ice-blockchain/wintr v1.167.0
+	github.com/ice-blockchain/wintr v1.168.0
 	github.com/imroc/req/v3 v3.56.0
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/jellydator/ttlcache/v3 v3.4.0
@@ -154,7 +154,7 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.11 // indirect
 	github.com/gdamore/encoding v1.0.1 // indirect
 	github.com/gdamore/tcell/v2 v2.11.0 // indirect
-	github.com/getsentry/sentry-go v0.38.0 // indirect
+	github.com/getsentry/sentry-go v0.39.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
