@@ -51,7 +51,7 @@ func NewUserRepository(ctx context.Context) UserRepository {
 	}
 }
 
-func New(ctx context.Context, bondingCurveContractAddress string) TokenAnalytics {
+func New(ctx context.Context) TokenAnalytics {
 	var cfg config
 
 	appconfig.MustLoadFromKey(applicationYamlKey, &cfg)
@@ -85,7 +85,7 @@ func New(ctx context.Context, bondingCurveContractAddress string) TokenAnalytics
 		"failed to register stream creator iterations meter"))
 
 	t := &tokenAnalytics{
-		bondingCurveContractAddress: bondingCurveContractAddress,
+		bondingCurveContractAddress: cfg.BondingCurve.SmartContractAddress,
 		ingestedDataDB:              db,
 		processedDataDB:             targetDB,
 		questDB:                     timescaleDB,

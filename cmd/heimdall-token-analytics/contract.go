@@ -18,9 +18,6 @@ type (
 			KeyPath  string `yaml:"keyPath"`
 			Port     uint32 `yaml:"port"`
 		} `yaml:"httpServer"`
-		TokenizedCommunities struct {
-			BondingCurveSmartContractAddress string `yaml:"bondingCurveSmartContractAddress" mapstructure:"bondingCurveSmartContractAddress"`
-		} `yaml:"tokenizedCommunities" mapstructure:"tokenizedCommunities"`
 	}
 
 	service struct {

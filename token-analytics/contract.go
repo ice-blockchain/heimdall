@@ -125,6 +125,9 @@ type (
 		Workers         uint   `yaml:"workers"`
 		BatchSize       uint   `yaml:"batchSize"`
 		IONTokenAddress string `yaml:"ionTokenAddress"`
+		BondingCurve    struct {
+			SmartContractAddress string `yaml:"smartContractAddress"`
+		} `yaml:"bondingCurve" mapstructure:"bondingCurve"`
 	}
 	tokenAnalytics struct {
 		bondingCurveContractAddress string
