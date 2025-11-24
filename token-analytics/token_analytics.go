@@ -31,6 +31,7 @@ func TokenizedCommunitiesBondingCurveSmartContractABI() string {
 
 func NewUserRepository(ctx context.Context) UserRepository {
 	var cfg config
+
 	appconfig.MustLoadFromKey(applicationYamlKey, &cfg)
 	db := storage.MustConnect(ctx, sourceDDL, applicationYamlKey)
 	targetDB := storagev3.MustConnect(ctx, applicationYamlKey)
@@ -51,6 +52,7 @@ func NewUserRepository(ctx context.Context) UserRepository {
 
 func New(ctx context.Context, bondingCurveContractAddress string) TokenAnalytics {
 	var cfg config
+
 	appconfig.MustLoadFromKey(applicationYamlKey, &cfg)
 	if cfg.Workers == 0 {
 		cfg.Workers = 1
@@ -389,7 +391,7 @@ func (t *tokenAnalytics) getSavePoint(ctx context.Context, workerIdx uint) (*Sav
 	}
 
 	if len(results) == 0 || results[0] == nil || (results[0].BlockNumber == 0 && results[0].TransactionIndex == 0) {
-		startBlock := t.cfg.StartBlock
+		startBlock, _ := t.quickNode.CurrentBlockRange()
 		if startBlock > 0 {
 			startBlock--
 		}
