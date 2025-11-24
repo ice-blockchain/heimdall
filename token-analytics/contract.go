@@ -26,13 +26,11 @@ type (
 		HealthCheck(ctx context.Context) error
 		UpsertUser(ctx context.Context, id, masterPubkey, blockchainAddress, username, displayName, avatar string, verified bool, ionConnectRelays []string) error
 		SetVerified(ctx context.Context, masterPubkey string) error
-		UpdateBlockchainAddress(ctx context.Context, masterPubkey, blockchainAddress string) error
 	}
 
 	TokenAnalytics interface {
 		Close() error
 		HealthCheck(ctx context.Context) error
-		UserRepository
 		MustStart(ctx context.Context)
 		GetCommunityTokensByIonConnectAddresses(ctx context.Context, ionConnectAddresses []string, requestorMasterPubkey string) ([]*CommunityToken, error)
 		GetCommunityTokensByType(ctx context.Context, tokenType, keyword string, limit, offset uint64) ([]*CommunityToken, error)
@@ -141,6 +139,11 @@ type (
 		ionPriceUSD     *atomic.Pointer[float64]
 		// TODO: xmap for latest creator token prices to calc content token price
 		bondingCurveContractAddress string
+	}
+	tokenAnalyticsUsers struct {
+		ingestedDataDB *storage.DB
+		shutdown       func() error
+		cfg            *config
 	}
 	txEvent struct {
 		BlockTimestamp   *time.Time  `db:"block_timestamp"`

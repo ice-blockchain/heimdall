@@ -230,52 +230,50 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 	if profile.Avatar != nil {
 		avatarStr = *profile.Avatar
 	}
-	if false {
-		if syncErr := a.tokenAnalyticsRepo.UpsertUser(
-			ctx,
-			profile.UserID,
-			profile.MasterPubkey,
-			profile.UserID, // TODO: update from kind0 / when bsc wallet created.
-			profile.Username,
-			profile.DisplayName,
-			avatarStr,
-			profile.Verified,
-			profile.IONConnectRelays,
-		); syncErr != nil {
-			result = errors.Join(result, fmt.Errorf("%w: failed to sync user to token-analytics", syncErr))
+	if syncErr := a.tokenAnalyticsRepo.UpsertUser(
+		ctx,
+		profile.UserID,
+		profile.MasterPubkey,
+		profile.UserID, // TODO: update from kind0 / when bsc wallet created.
+		profile.Username,
+		profile.DisplayName,
+		avatarStr,
+		profile.Verified,
+		profile.IONConnectRelays,
+	); syncErr != nil {
+		result = errors.Join(result, fmt.Errorf("%w: failed to sync user to token-analytics", syncErr))
 
-			oldUsername := ""
-			if profile.OldUsername != nil {
-				oldUsername = *profile.OldUsername
-			}
-			oldDisplayName := ""
-			if profile.OldDisplayName != nil {
-				oldDisplayName = *profile.OldDisplayName
-			}
-			lookup := strings.ToLower(strings.TrimSpace(oldUsername + " " + oldDisplayName))
+		oldUsername := ""
+		if profile.OldUsername != nil {
+			oldUsername = *profile.OldUsername
+		}
+		oldDisplayName := ""
+		if profile.OldDisplayName != nil {
+			oldDisplayName = *profile.OldDisplayName
+		}
+		lookup := strings.ToLower(strings.TrimSpace(oldUsername + " " + oldDisplayName))
 
-			if profile.OldCreatedAt != nil {
-				rollbackQuery := `UPDATE social_profiles 
+		if profile.OldCreatedAt != nil {
+			rollbackQuery := `UPDATE social_profiles 
 				SET created_at = $1, updated_at = $2, username = $3, display_name = $4, 
 				    referral_master_pubkey = $5, bio = $6, avatar = $7, referral_count = $8,
 				    lookup = $9
 				WHERE master_pubkey = $10`
-				if _, rbErr := storage.Exec(ctx, a.db, rollbackQuery,
-					profile.OldCreatedAt, profile.OldUpdatedAt, profile.OldUsername, profile.OldDisplayName,
-					profile.OldReferralMasterKey, profile.Bio, profile.OldAvatar,
-					profile.OldReferralCount, lookup, profile.MasterPubkey); rbErr != nil {
-					result = errors.Join(result, fmt.Errorf("%w: failed to rollback social profile", rbErr))
-				}
-			} else {
-				rollbackQuery := `DELETE FROM social_profiles WHERE master_pubkey = $1`
-				if _, rbErr := storage.Exec(ctx, a.db, rollbackQuery, profile.MasterPubkey); rbErr != nil {
-					result = errors.Join(result, fmt.Errorf("%w: failed to rollback social profile", rbErr))
-				}
+			if _, rbErr := storage.Exec(ctx, a.db, rollbackQuery,
+				profile.OldCreatedAt, profile.OldUpdatedAt, profile.OldUsername, profile.OldDisplayName,
+				profile.OldReferralMasterKey, profile.Bio, profile.OldAvatar,
+				profile.OldReferralCount, lookup, profile.MasterPubkey); rbErr != nil {
+				result = errors.Join(result, fmt.Errorf("%w: failed to rollback social profile", rbErr))
+			}
+		} else {
+			rollbackQuery := `DELETE FROM social_profiles WHERE master_pubkey = $1`
+			if _, rbErr := storage.Exec(ctx, a.db, rollbackQuery, profile.MasterPubkey); rbErr != nil {
+				result = errors.Join(result, fmt.Errorf("%w: failed to rollback social profile", rbErr))
 			}
 		}
-		if result != nil {
-			return nil, fmt.Errorf("%w: failed to upsert social profile", result)
-		}
+	}
+	if result != nil {
+		return nil, fmt.Errorf("%w: failed to upsert social profile", result)
 	}
 
 	return &SocialProfile{
