@@ -122,37 +122,37 @@ var (
 
 type (
 	config struct {
-		Workers         uint   `yaml:"workers"`
-		BatchSize       uint   `yaml:"batchSize"`
 		IONTokenAddress string `yaml:"ionTokenAddress"`
 		BondingCurve    struct {
 			SmartContractAddress string `yaml:"smartContractAddress"`
 		} `yaml:"bondingCurve" mapstructure:"bondingCurve"`
+		Workers   uint `yaml:"workers"`
+		BatchSize uint `yaml:"batchSize"`
 	}
 	tokenAnalytics struct {
-		bondingCurveContractAddress string
-		ingestedDataDB              *storage.DB
-		processedDataDB             storagev3.DB
-		questDB                     *questdb.DB
-		shutdown                    func() error
-		cfg                         *config
-		wg                          *sync.WaitGroup
-		quickNode                   quicknode.Client
-		metrics                     metrics.Registry
-		ionPriceUSD                 *atomic.Pointer[float64]
+		processedDataDB storagev3.DB
+		quickNode       quicknode.Client
+		metrics         metrics.Registry
+		ingestedDataDB  *storage.DB
+		questDB         *questdb.DB
+		shutdown        func() error
+		cfg             *config
+		wg              *sync.WaitGroup
+		ionPriceUSD     *atomic.Pointer[float64]
 		// TODO: xmap for latest creator token prices to calc content token price
+		bondingCurveContractAddress string
 	}
 	txEvent struct {
-		TransactionIndex uint64      `db:"transaction_index"`
-		BlockNumber      uint64      `db:"block_number"`
+		BlockTimestamp   *time.Time  `db:"block_timestamp"`
 		TransactionHash  string      `db:"transaction_hash"`
 		FromAddress      string      `db:"from_address"`
 		ToAddress        string      `db:"to_address"`
-		BlockTimestamp   *time.Time  `db:"block_timestamp"`
 		ChainID          string      `db:"chain_id"`
 		Value            string      `db:"value"`
 		Input            string      `db:"input"`
 		Logs             txEventLogs `db:"logs"`
+		TransactionIndex uint64      `db:"transaction_index"`
+		BlockNumber      uint64      `db:"block_number"`
 	}
 
 	txEventLogs   []JSON
@@ -205,35 +205,35 @@ type (
 		ContractAddress     string     `db:"contract_address"`
 		IONConnectAddress   string     `db:"ion_connect_address"`
 		UserAddress         string     `db:"user_address"`
-		Direction           bool       `db:"direction"`
 		CreatorMasterPubkey string     `db:"creator_master_pubkey"`
 		CreatorUsername     string     `db:"creator_username"`
 		CreatorDisplay      string     `db:"creator_display"`
-		CreatorVerified     bool       `db:"creator_verified"`
 		CreatorAvatar       string     `db:"creator_avatar"`
 		HolderMasterPubkey  string     `db:"holder_master_pubkey"`
 		HolderUsername      string     `db:"holder_username"`
 		HolderDisplay       string     `db:"holder_display"`
-		HolderVerified      bool       `db:"holder_verified"`
 		HolderAvatar        string     `db:"holder_avatar"`
 		Input               uint64     `db:"input_amount"`
 		Output              uint64     `db:"output_amount"`
 		PriceUSD            float64    `db:"price_usd"`
 		BalanceUSD          float64    `db:"balance_usd"`
 		Balance             uint64     `db:"balance"`
+		Direction           bool       `db:"direction"`
+		CreatorVerified     bool       `db:"creator_verified"`
+		HolderVerified      bool       `db:"holder_verified"`
 	}
 	trade struct {
 		Timestamp                time.Time       `db:"timestamp"`
+		PriceInUsd               *big.Float      `db:"price_in_usd"`
 		PairAddress              string          `db:"pair_address"`
 		ContractAddress          string          `db:"contract_address"`
 		ContentIONConnectAddress string          `db:"content_ion_connect_address"`
-		BasePriceInUsd           float64         `db:"base_price_in_usd"`
-		BaseAmount               questdb.Decimal `db:"base_amount"`
-		Amount                   questdb.Decimal `db:"amount"`
-		PriceInUsd               *big.Float      `db:"price_in_usd"`
 		Type                     TradeType       `db:"trade_type"`
 		TraderAddress            string          `db:"trader_address"`
 		TransactionHash          string          `db:"transaction_hash"`
+		BasePriceInUsd           float64         `db:"base_price_in_usd"`
+		BaseAmount               questdb.Decimal `db:"base_amount"`
+		Amount                   questdb.Decimal `db:"amount"`
 	}
 
 	holderWithTokenData struct {

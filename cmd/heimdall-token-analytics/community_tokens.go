@@ -28,9 +28,9 @@ type (
 		PaginationRequest
 	}
 	TokenInfoRequestByTypeAndSessionID struct {
-		TokenInfoRequestByType
 		SessionID string `uri:"viewingSessionId" required:"true" swaggerignore:"true"`
 		Keyword   string `form:"keyword" swaggerignore:"true"`
+		TokenInfoRequestByType
 	}
 	TokenInfoStreamTypeAndSessionQuery struct {
 		Type      string `uri:"type" required:"true" swaggerignore:"true"`
