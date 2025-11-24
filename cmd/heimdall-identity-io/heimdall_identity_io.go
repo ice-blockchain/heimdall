@@ -121,9 +121,7 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	allValidConfigNames["apps-runtime_ion-app"] = func(_ *config, _ *Version) (any, Version) {
 		return appsRuntimeCfg.IONApp, Version(appsRuntimeCfg.IONApp.Version)
 	}
-	if false {
-		s.tokenAnalytics = tokenanalytics.NewUserRepository(ctx)
-	}
+	s.tokenAnalytics = tokenanalytics.NewUserRepository(ctx)
 	s.accounts = accounts.New(ctx, s.coins, s.relays, &appsRuntimeCfg, s.tokenAnalytics)
 	s.validation = validation.New(ctx, validation.WithIONIdentityPublicKeys(func() []string {
 		return []string{s.accounts.PublicKey()}
@@ -178,7 +176,7 @@ func (s *service) Close(ctx context.Context) error {
 		errors.Wrap(s.coins.Close(), "failed to close coins"),
 		errors.Wrap(s.hashtagStatistics.Close(), "failed to close hashtag statistics"),
 		errors.Wrap(s.nftContent.Close(), "failed to close nft content"),
-		// errors.Wrap(s.tokenAnalytics.Close(), "failed to close token analytics"),
+		errors.Wrap(s.tokenAnalytics.Close(), "failed to close token analytics"),
 	).ErrorOrNil()
 }
 
@@ -190,6 +188,6 @@ func (s *service) CheckHealth(ctx context.Context) error {
 		errors.Wrapf(s.coins.HealthCheck(ctx), "coins check failed"),
 		errors.Wrapf(s.hashtagStatistics.HealthCheck(ctx), "hashtag statistics check failed"),
 		errors.Wrapf(s.nftContent.HealthCheck(ctx), "nft content check failed"),
-		// errors.Wrapf(s.tokenAnalytics.HealthCheck(ctx), "token analytics check failed"),
+		errors.Wrapf(s.tokenAnalytics.HealthCheck(ctx), "token analytics check failed"),
 	).ErrorOrNil()
 }

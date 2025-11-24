@@ -45,9 +45,7 @@ func (s *service) RegisterRoutes(router *server.Router) {
 
 func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	s.coinSyncer = coins.MustStartSyncer(ctx, cancel)
-	if false {
-		s.tokenAnalytics = tokenanalytics.NewUserRepository(ctx)
-	}
+	s.tokenAnalytics = tokenanalytics.NewUserRepository(ctx)
 	s.verifiedQueueRepository = accounts.NewVerifiedQueueRepository(ctx, s.tokenAnalytics)
 	s.relayLivenessCheck = relaymanagement.NewRelaysSync(ctx)
 
@@ -62,7 +60,7 @@ func (s *service) Close(ctx context.Context) error {
 	err := multierror.Append(
 		errors.Wrapf(s.coinSyncer.Close(), "failed to close coin syncer"),
 		errors.Wrapf(s.verifiedQueueRepository.Close(), "failed to close verifiedQueueRepository"),
-		// errors.Wrapf(s.tokenAnalytics.Close(), "failed to close tokenAnalytics"),
+		errors.Wrapf(s.tokenAnalytics.Close(), "failed to close tokenAnalytics"),
 	).ErrorOrNil()
 
 	return errors.Wrapf(err, "failed to close services")
@@ -74,7 +72,7 @@ func (s *service) CheckHealth(ctx context.Context) error {
 	return multierror.Append(
 		errors.Wrapf(s.coinSyncer.HealthCheck(ctx), "coins sync check failed"),
 		errors.Wrapf(s.verifiedQueueRepository.HealthCheck(ctx), "verifiedQueueRepository check failed"),
-		// errors.Wrapf(s.tokenAnalytics.HealthCheck(ctx), "tokenAnalytics check failed"),
+		errors.Wrapf(s.tokenAnalytics.HealthCheck(ctx), "tokenAnalytics check failed"),
 	).ErrorOrNil()
 }
 

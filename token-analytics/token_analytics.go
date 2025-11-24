@@ -35,17 +35,13 @@ func NewUserRepository(ctx context.Context) UserRepository {
 
 	appconfig.MustLoadFromKey(applicationYamlKey, &cfg)
 	db := storage.MustConnect(ctx, sourceDDL, applicationYamlKey)
-	targetDB := storagev3.MustConnect(ctx, applicationYamlKey)
 
-	return &tokenAnalytics{
-		ingestedDataDB:  db,
-		processedDataDB: targetDB,
-		wg:              new(sync.WaitGroup),
-		cfg:             &cfg,
+	return &tokenAnalyticsUsers{
+		ingestedDataDB: db,
+		cfg:            &cfg,
 		shutdown: func() error {
 			return errors.Join(
 				db.Close(),
-				targetDB.Close(),
 			)
 		},
 	}
@@ -118,6 +114,18 @@ func (t *tokenAnalytics) Close() error {
 	return t.shutdown()
 }
 
+func (t *tokenAnalyticsUsers) HealthCheck(ctx context.Context) error {
+	if err := t.ingestedDataDB.Ping(ctx); err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
+		return fmt.Errorf("database connection failed: %w", err)
+	}
+
+	return nil
+}
+
+func (t *tokenAnalyticsUsers) Close() error {
+	return t.shutdown()
+}
+
 func (t *tokenAnalytics) HealthCheck(ctx context.Context) error {
 	if err := t.ingestedDataDB.Ping(ctx); err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
 		return fmt.Errorf("database connection failed: %w", err)
@@ -128,20 +136,14 @@ func (t *tokenAnalytics) HealthCheck(ctx context.Context) error {
 	if err := t.processedDataDB.Ping(ctx).Err(); err != nil {
 		return fmt.Errorf("redis connection failed: %w", err)
 	}
-	if t.quickNode != nil {
-		if err := t.quickNode.HealthCheck(ctx); err != nil {
-			return fmt.Errorf("quicknode api unavailable: %w", err)
-		}
+	if err := t.quickNode.HealthCheck(ctx); err != nil {
+		return fmt.Errorf("quicknode api unavailable: %w", err)
 	}
 
 	return nil
 }
 
-func (t *tokenAnalytics) UpdateBlockchainAddress(ctx context.Context, masterPubkey, blockchainAddress string) error {
-	return nil // TODO: implement
-}
-
-func (t *tokenAnalytics) UpsertUser(ctx context.Context, id, masterPubkey, blockchainAddress, username, displayName, avatar string, verified bool, ionConnectRelays []string) error {
+func (t *tokenAnalyticsUsers) UpsertUser(ctx context.Context, id, masterPubkey, blockchainAddress, username, displayName, avatar string, verified bool, ionConnectRelays []string) error {
 	lookup := strings.ToLower(strings.TrimSpace(username + " " + displayName))
 
 	_, err := storage.Exec(ctx, t.ingestedDataDB, `
@@ -149,7 +151,7 @@ func (t *tokenAnalytics) UpsertUser(ctx context.Context, id, masterPubkey, block
 			created_at, updated_at, id, master_pubkey, blockchain_address, username, 
 			display_name, avatar, lookup, ion_connect_relays, verified
 		) VALUES (
-			NOW(), NOW(), $1, $2,$9, $3, $4, $5, $6, $7, $8
+			NOW(), NOW(), $1, $2, $9, $3, $4, $5, $6, $7, $8
 		)
 		ON CONFLICT (master_pubkey) 
 		DO UPDATE SET
@@ -162,18 +164,24 @@ func (t *tokenAnalytics) UpsertUser(ctx context.Context, id, masterPubkey, block
 			ion_connect_relays = EXCLUDED.ion_connect_relays,
 			verified = EXCLUDED.verified
 	`, id, masterPubkey, username, displayName, avatar, lookup, ionConnectRelays, verified, blockchainAddress)
+	if err != nil {
+		return fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err)
+	}
 
-	return fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err)
+	return nil
 }
 
-func (t *tokenAnalytics) SetVerified(ctx context.Context, masterPubkey string) error {
+func (t *tokenAnalyticsUsers) SetVerified(ctx context.Context, masterPubkey string) error {
 	_, err := storage.Exec(ctx, t.ingestedDataDB, `
 		UPDATE users 
 		SET verified = true, updated_at = NOW()
 		WHERE master_pubkey = $1
 	`, masterPubkey)
+	if err != nil {
+		return fmt.Errorf("failed to set verified for user %v: %w", masterPubkey, err)
+	}
 
-	return fmt.Errorf("failed to set verified for user %v: %w", masterPubkey, err)
+	return nil
 }
 
 func (t *tokenAnalytics) MustStart(ctx context.Context) {
