@@ -119,7 +119,7 @@ func (t *tokenAnalytics) Close() error {
 }
 
 func (t *tokenAnalytics) HealthCheck(ctx context.Context) error {
-	if err := t.ingestedDataDB.Ping(ctx); err != nil {
+	if err := t.ingestedDataDB.Ping(ctx); err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
 		return fmt.Errorf("database connection failed: %w", err)
 	}
 	if err := t.processedDataDB.Ping(ctx).Err(); err != nil {
