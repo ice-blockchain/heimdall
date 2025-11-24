@@ -34,7 +34,7 @@ func TestServerHandleWebsocketHTTP2(t *testing.T) {
 	require.NotNil(t, conn)
 
 	const payload = "hello-http2"
-	require.NoError(t, conn.WriteMessage(ctx, websocket.MessageTypeText, []byte(payload)))
+	require.NoError(t, conn.WriteMessage(websocket.MessageTypeText, []byte(payload)))
 
 	got := <-received
 	require.Equal(t, payload, got)

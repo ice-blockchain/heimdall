@@ -11,13 +11,13 @@ import (
 
 type (
 	Config struct {
-		Version     string `yaml:"version"`
-		Development bool   `yaml:"development"`
-		HTTPServer  struct {
+		Version    string `yaml:"version"`
+		HTTPServer struct {
 			CertPath string `yaml:"certPath"`
 			KeyPath  string `yaml:"keyPath"`
 			Port     uint32 `yaml:"port"`
 		} `yaml:"httpServer"`
+		Development bool `yaml:"development"`
 	}
 
 	service struct {

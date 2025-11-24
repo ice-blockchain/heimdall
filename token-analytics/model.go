@@ -29,8 +29,8 @@ type (
 		Display          string   `json:"display,omitempty"`
 		Avatar           string   `json:"avatar,omitempty"`
 		IonConnect       string   `json:"ionConnect,omitempty"`
-		Verified         bool     `json:"verified"`
 		IONConnectRelays []string `json:"ionConnectRelays,omitempty"`
+		Verified         bool     `json:"verified"`
 	}
 
 	MarketData struct {
@@ -51,10 +51,10 @@ type (
 	}
 
 	TradePosition struct {
-		Holder     User      `json:"holder,omitzero"`
-		Addresses  Addresses `json:"addresses,omitzero"`
 		CreatedAt  time.Time `json:"createdAt,omitzero"`
+		Addresses  Addresses `json:"addresses,omitzero"`
 		Type       TradeType `json:"type,omitempty"`
+		Holder     User      `json:"holder,omitzero"`
 		Amount     uint64    `json:"amount"`
 		AmountUSD  float64   `json:"amountUSD"`
 		Balance    uint64    `json:"balance"`
@@ -84,8 +84,8 @@ type (
 	}
 
 	OHLCV struct {
-		Timestamp         uint64  `json:"timestamp" db:"timestamp"`
 		IONConnectAddress string  `json:"-" db:"ion_connect_address"`
+		Timestamp         uint64  `json:"timestamp" db:"timestamp"`
 		Open              float64 `json:"open" db:"open"`
 		High              float64 `json:"high" db:"high"`
 		Low               float64 `json:"low" db:"low"`

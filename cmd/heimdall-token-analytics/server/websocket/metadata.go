@@ -36,7 +36,3 @@ func (m *metadataHander) Delete(key string) (any, bool) {
 func (m *metadataHander) Clear() {
 	m.m.Clear()
 }
-
-func (w *metadataHander) Metadata() MetaData {
-	return w
-}

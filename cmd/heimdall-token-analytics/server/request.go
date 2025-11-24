@@ -13,10 +13,13 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-contrib/sse"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
+
+	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server/websocket"
 )
 
 type (
@@ -46,8 +49,13 @@ type (
 		Type string // Event type, e.g., "message", "update", "error", etc.
 		ID   string // Optional event ID for reconnection purposes.
 	}
+
 	StreamEventEmitter[RESP any]     func(context.Context) (<-chan StreamEvent[RESP], error)
 	StreamHandlerFunc[REQ, RESP any] func(context.Context, *Request[REQ]) (StreamEventEmitter[RESP], error)
+
+	WebsocketEvent[RESP any]            = StreamEvent[RESP]
+	WebsocketEventEmitter[RESP any]     func(context.Context, websocket.AsyncRead) (<-chan WebsocketEvent[RESP], error)
+	WebsocketHandlerFunc[REQ, RESP any] func(context.Context, *Request[REQ]) (WebsocketEventEmitter[RESP], error)
 
 	ResponseErrorBody struct {
 		Err          error  `json:"-" swaggerignore:"true"`
@@ -99,6 +107,16 @@ func bindAndValidate[REQ any](ctx *gin.Context, r *Request[REQ]) (ok bool) {
 	return true
 }
 
+func handleRequestError(ctx *gin.Context, err error) {
+	var respErrTyped *ResponseError
+
+	if !errors.As(err, &respErrTyped) {
+		respErrTyped = Error(err, ErrCodeServerInternal, http.StatusInternalServerError)
+	}
+
+	respErrTyped.render(ctx)
+}
+
 func RootHandler[REQ, RESP any](fn RequestHandlerFunc[REQ, RESP]) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var req Request[REQ]
@@ -109,14 +127,7 @@ func RootHandler[REQ, RESP any](fn RequestHandlerFunc[REQ, RESP]) gin.HandlerFun
 
 		resp, respErr := fn(ctx, &req)
 		if respErr != nil {
-			var respErrTyped *ResponseError
-			if errors.As(respErr, &respErrTyped) {
-				respErrTyped.render(ctx)
-				return
-			}
-
-			respErrTyped = Error(respErr, ErrCodeServerInternal, http.StatusInternalServerError)
-			respErrTyped.render(ctx)
+			handleRequestError(ctx, respErr)
 			return
 		}
 
@@ -142,6 +153,76 @@ func StreamMiddleware() gin.HandlerFunc {
 	}
 }
 
+func WebsocketHandler[REQ, RESP any](fn WebsocketHandlerFunc[REQ, RESP]) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var req Request[REQ]
+
+		if !bindAndValidate(ctx, &req) {
+			return
+		}
+
+		ws, err := websocket.Upgrade(ctx.Writer, ctx.Request, &websocket.Config{
+			WriteTimeout: time.Second * 30,
+			ReadTimeout:  time.Second * 30,
+		})
+		if err != nil {
+			handleRequestError(ctx, fmt.Errorf("websocket upgrade error: %w", err))
+			return
+		}
+		defer ws.Close()
+
+		emitter, respErr := fn(ctx, &req)
+		if respErr != nil {
+			ctx.Error(fmt.Errorf("websocket handler error: %w", respErr))
+			// Do not send HTTP response as the websocket is already upgraded.
+			return
+		}
+
+		if emitter == nil {
+			slog.WarnContext(ctx, "websocket handler returned nil emitter without error",
+				"path", ctx.FullPath(),
+				"method", ctx.Request.Method,
+			)
+			return
+		}
+
+		// We use only async reader, without writer here, as we control writing below.
+		go ws.Reader(ctx)
+
+		source, err := emitter(ctx, ws)
+		for ctx.Err() == nil {
+			select {
+			case <-ctx.Done():
+				return
+
+			case <-ws.Done():
+				return
+
+			case event, ok := <-source:
+				if !ok {
+					return
+				}
+
+				if event.Err != nil {
+					var errObject = map[string]string{
+						"error": event.Err.Error(),
+					}
+
+					ctx.Error(fmt.Errorf("websocket event error: %w", event.Err))
+					websocket.WriteJSONMessage(ws, errObject)
+					return
+				}
+
+				writeErr := websocket.WriteJSONMessage(ws, event.Data)
+				if writeErr != nil {
+					ctx.Error(fmt.Errorf("websocket write message error: %w", writeErr))
+					return
+				}
+			}
+		}
+	}
+}
+
 func StreamHandler[REQ, RESP any](fn StreamHandlerFunc[REQ, RESP]) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var req Request[REQ]
@@ -152,14 +233,7 @@ func StreamHandler[REQ, RESP any](fn StreamHandlerFunc[REQ, RESP]) gin.HandlerFu
 
 		emitter, respErr := fn(ctx, &req)
 		if respErr != nil {
-			var respErrTyped *ResponseError
-			if errors.As(respErr, &respErrTyped) {
-				respErrTyped.render(ctx)
-				return
-			}
-
-			respErrTyped = Error(respErr, ErrCodeServerInternal, http.StatusInternalServerError)
-			respErrTyped.render(ctx)
+			handleRequestError(ctx, respErr)
 			return
 		}
 

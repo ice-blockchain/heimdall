@@ -3,7 +3,6 @@
 package main
 
 import (
-	"context"
 	"log/slog"
 	"net/http"
 
@@ -13,7 +12,6 @@ import (
 
 	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/api"
 	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server"
-	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server/websocket"
 )
 
 func (s *service) httpHealthCheckHandler(c *gin.Context) {
@@ -26,7 +24,7 @@ func (s *service) httpHealthCheckHandler(c *gin.Context) {
 	c.Writer.WriteHeader(http.StatusOK)
 }
 
-func (s *service) RegisterRoutes(router server.Router) {
+func (s *service) RegisterRoutes(router gin.IRouter) {
 	router.Use(server.NIP42AuthMiddleware())
 
 	router.GET("/healthz", s.httpHealthCheckHandler)
@@ -51,7 +49,7 @@ func (s *service) RegisterRoutes(router server.Router) {
 	s.RegisterStreams(router)
 }
 
-func (s *service) RegisterStreams(router server.Router) {
+func (s *service) RegisterStreams(router gin.IRouter) {
 	tokenStreamsV1 := router.Group("/v1sse/community-tokens", server.StreamMiddleware())
 	tokenStreamsV1.GET("/", server.StreamHandler(s.StreamCommunityTokens))
 	tokenStreamsV1.GET("/:type", server.StreamHandler(s.StreamCommunityTokensByType))
@@ -61,8 +59,4 @@ func (s *service) RegisterStreams(router server.Router) {
 	tokenStreamsV1.GET("/:type/latest-trades", server.StreamHandler(s.StreamCommunityTokensLatestTrades))
 	tokenStreamsV1.GET("/:type/trading-stats", server.StreamHandler(s.StreamCommunityTokensTradingStats))
 	tokenStreamsV1.GET("/:type/ohlcv", server.StreamHandler(s.StreamCommunityTokensOHLCV))
-}
-
-func (s *service) HandleWS(ctx context.Context, stream websocket.ReaderWriter) {
-	// TBD.
 }

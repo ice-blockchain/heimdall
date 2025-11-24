@@ -130,7 +130,7 @@ func negotiateMaybe(in httphead.Option, dest []httphead.Option, f func(httphead.
 		return nil, err
 	}
 	if opt.Size() > 0 {
-		dest = append(dest, opt) //nolint:revive // .
+		dest = append(dest, opt)
 	}
 
 	return dest, nil
