@@ -6,6 +6,9 @@ import (
 	"bytes"
 	"compress/flate"
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"iter"
 	"log/slog"
@@ -17,7 +20,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cockroachdb/errors"
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsflate"
 	"github.com/gobwas/ws/wsutil"
@@ -26,58 +28,66 @@ import (
 )
 
 type (
-	Handler interface {
-		HandleWS(ctx context.Context, stream Connection)
-	}
-	Reader interface {
-		Metadata() MetaData
-		ReadMessage() (messageType int, p []byte, err error)
-	}
-	Writer interface {
-		Metadata() MetaData
-		WriteMessage(ctx context.Context, messageType int, data []byte) error
-	}
-	ReaderWriter interface {
-		Reader
-		Writer
-	}
-
-	MetaData interface {
+	Metadata interface {
 		Set(key string, value any)
 		Get(key string) (value any, exists bool)
 		Range() iter.Seq2[string, any]
 		Delete(key string) (oldValue any, loaded bool)
 		Clear()
 	}
-	Connection interface {
-		Writer
-		Reader
+	AsyncRead interface {
+		Metadata() Metadata
+		ReadQ() <-chan Frame
+		Done() <-chan struct{}
+	}
+	AsyncWrite interface {
+		Metadata() Metadata
+		WriteQ() chan<- Frame
+		Done() <-chan struct{}
+	}
+	AsyncReadWrite interface {
+		AsyncRead
+		AsyncWrite
 		io.Closer
+	}
+	Connection interface {
+		AsyncReadWrite
 
-		Write(ctx context.Context)
+		Writer(ctx context.Context)
+		Reader(ctx context.Context)
+
+		// WriteMessage writes a single message with the given message type and data to the websocket connection.
+		// It does not use internal channels and buffers.
+		WriteMessage(messageType int, data []byte) (err error)
+
+		// ReadMessage reads a single message from the websocket connection.
+		// It does not use internal channels and buffers.
+		ReadMessage() (messageType int, p []byte, err error)
+	}
+	Frame struct {
+		Type int    // MessageTypeText or MessageTypeBinary.
+		Data []byte // Payload data.
+		Err  error  // Error encountered while reading/writing the frame.
 	}
 	Config struct {
-		handshake    ws.Handshake
-		WriteTimeout time.Duration
-		ReadTimeout  time.Duration
+		handshake    ws.Handshake  // Handshake information from the upgrade request.
+		WriteTimeout time.Duration // Write timeout duration.
+		ReadTimeout  time.Duration // Read timeout duration.
 	}
 
+	framer     func(int, []byte) (ws.Frame, error)
 	connection struct {
-		conn         net.Conn
-		wrErr        error
-		out          chan wsWrite
-		closeChannel chan struct{}
-		framer       func(int, []byte) (ws.Frame, error)
-		metadataHander
-		writeTimeout time.Duration
-		readTimeout  time.Duration
-		wrErrMx      sync.Mutex
-		closed       atomic.Bool
-	}
-
-	wsWrite struct {
-		data   []byte
-		opCode int
+		conn           net.Conn      // Underlying websocket connection.
+		wrErr          error         // Last write error.
+		out            chan Frame    // Outgoing message channel.
+		in             chan Frame    // Incoming message channel.
+		closeChannel   chan struct{} // Channel to signal closure.
+		framer         framer        // Function to create frames, with compression if needed.
+		metadataHander Metadata      // Metadata storage.
+		writeTimeout   time.Duration // Write timeout duration.
+		readTimeout    time.Duration // Read timeout duration.
+		wrErrMx        sync.Mutex    // Mutex to protect wrErr.
+		closed         atomic.Bool   // Indicates if the connection is closed.
 	}
 )
 
@@ -88,19 +98,20 @@ const (
 	// Binary message.
 	MessageTypeBinary = int(ws.OpBinary)
 
-	// Buffer up to 50 messages before WriteMessage calls start to block.
-	websocketWriteBufferSize = 50
+	// Buffer up to 50 messages before reader/writer goroutines block.
+	websocketChanBufferSize = 50
 	// Compress messages larger than this threshold.
 	websocketCompressThresholdBytes = 256
 	// Interval between pings to the client to keep the connection alive.
 	websocketPingInterval = time.Minute
 )
 
-func newConnection(ctx context.Context, conn net.Conn, conf *Config) *connection {
+func newConnection(_ context.Context, conn net.Conn, conf *Config) *connection {
 	wt := &connection{
 		conn:         conn,
 		closeChannel: make(chan struct{}, 1),
-		out:          make(chan wsWrite, websocketWriteBufferSize),
+		out:          make(chan Frame, websocketChanBufferSize),
+		in:           make(chan Frame, websocketChanBufferSize),
 		readTimeout:  conf.ReadTimeout,
 		writeTimeout: conf.WriteTimeout,
 		framer: func(opCode int, data []byte) (ws.Frame, error) {
@@ -137,18 +148,18 @@ func (w *connection) initExtensions(handshake ws.Handshake) {
 	}
 }
 
-func (w *connection) writeMessageToWebsocket(messageType int, data []byte) (err error) {
-	if w.Closed() {
-		return nil
-	}
+func (w *connection) Done() <-chan struct{} {
+	return w.closeChannel
+}
 
+func (w *connection) WriteMessage(messageType int, data []byte) (err error) {
 	select {
 	case <-w.closeChannel:
 		return nil
 	default:
 		frame, err := w.framer(messageType, data)
 		if err != nil {
-			return errors.Wrap(err, "failed to create websocket frame")
+			return fmt.Errorf("failed to create websocket frame: %w", err)
 		}
 
 		if w.writeTimeout > 0 {
@@ -163,7 +174,7 @@ func (w *connection) writeMessageToWebsocket(messageType int, data []byte) (err 
 		}
 
 		if err = errors.Join(err, wErr); err != nil {
-			return errors.Wrap(err, "failed to write data to websocket")
+			return fmt.Errorf("websocket write failed: %w", err)
 		}
 
 		if flusher, ok := w.conn.(http.Flusher); ok {
@@ -174,38 +185,9 @@ func (w *connection) writeMessageToWebsocket(messageType int, data []byte) (err 
 	}
 }
 
-func (w *connection) WriteMessage(ctx context.Context, messageType int, data []byte) error {
-	select {
-	case <-w.closeChannel:
-		return nil
-
-	case <-ctx.Done():
-		return ctx.Err()
-
-	default:
-		w.wrErrMx.Lock()
-		if isConnClosedErr(w.wrErr) {
-			w.wrErrMx.Unlock()
-			return w.Close()
-		}
-		w.wrErrMx.Unlock()
-		select {
-		case w.out <- wsWrite{
-			opCode: messageType,
-			data:   data,
-		}:
-		case <-ctx.Done():
-			return errors.Wrapf(ctx.Err(), "cannot write message type %d with size %d to websocket",
-				messageType, len(data))
-		}
-	}
-
-	return nil
-}
-
-// Write listens on the out channel and writes messages to the websocket connection.
+// Writer listens on the out channel and writes messages to the websocket connection.
 // It's lanched as a separate goroutine from the server's HandleWS method.
-func (w *connection) Write(ctx context.Context) {
+func (w *connection) Writer(ctx context.Context) {
 	pingTicker := time.NewTicker(websocketPingInterval)
 	defer pingTicker.Stop()
 
@@ -219,9 +201,8 @@ func (w *connection) Write(ctx context.Context) {
 
 		case <-pingTicker.C:
 			select {
-			case w.out <- wsWrite{
-				opCode: int(ws.OpPing),
-				data:   nil,
+			case w.out <- Frame{
+				Type: int(ws.OpPing),
 			}:
 			default:
 				// If the out channel is full, we skip sending the ping to avoid blocking.
@@ -232,11 +213,44 @@ func (w *connection) Write(ctx context.Context) {
 				return
 			}
 
-			if err := w.writeMessageToWebsocket(msg.opCode, msg.data); err != nil {
+			if err := w.WriteMessage(msg.Type, msg.Data); err != nil {
 				slog.ErrorContext(ctx, "failed to write message to websocket", "error", err)
 			}
 		}
 	}
+}
+
+// Reader listens on the websocket connection and reads messages into the in channel.
+// It's lanched as a separate goroutine from the server's HandleWS method.
+func (w *connection) Reader(ctx context.Context) {
+	for ctx.Err() == nil {
+		msgType, msgBytes, err := w.ReadMessage()
+		select {
+		case <-w.closeChannel:
+			return
+
+		case <-ctx.Done():
+			return
+
+		case w.in <- Frame{
+			Type: msgType,
+			Data: msgBytes,
+			Err:  err,
+		}:
+		}
+
+		if isConnClosedErr(err) {
+			return
+		}
+	}
+}
+
+func (w *connection) ReadQ() <-chan Frame {
+	return w.in
+}
+
+func (w *connection) WriteQ() chan<- Frame {
+	return w.out
 }
 
 func (w *connection) readFrame() ([]byte, ws.OpCode, error) {
@@ -334,6 +348,10 @@ func (w *connection) Close() error {
 	return errors.Join(wErr, clErr)
 }
 
+func (w *connection) Metadata() Metadata {
+	return w.metadataHander
+}
+
 func isConnClosedErr(err error) bool {
 	return err != nil &&
 		(errors.Is(err, syscall.EPIPE) ||
@@ -343,4 +361,12 @@ func isConnClosedErr(err error) bool {
 			strings.Contains(err.Error(), "convert stream error 386759528") ||
 			strings.Contains(err.Error(), "canceled by remote with error code 256") ||
 			strings.Contains(err.Error(), "use of closed network connection"))
+}
+
+func WriteJSONMessage(conn Connection, v any) error {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return fmt.Errorf("json marshal error: %w", err)
+	}
+	return conn.WriteMessage(MessageTypeText, data)
 }

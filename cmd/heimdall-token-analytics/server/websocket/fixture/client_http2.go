@@ -93,54 +93,35 @@ func newH2WebsocketClient(_ context.Context, conn net.Conn) *h2WebsocketClient {
 	}
 }
 
-func (w *h2WebsocketClient) writeMessageToWebsocket(messageType int, data []byte) error {
-	select {
-	case <-w.closeChannel:
-		return nil
-
-	default:
-		var err error
-		w.closeMx.Lock()
-		if w.closed {
-			w.closeMx.Unlock()
-			return nil
-		}
+func (w *h2WebsocketClient) WriteMessage(messageType int, data []byte) error {
+	var err error
+	w.closeMx.Lock()
+	if w.closed {
 		w.closeMx.Unlock()
-		wErr := wsutil.WriteClientMessage(w.conn, ws.OpCode(messageType), data)
-		if isConnClosedErr(wErr) {
-			wErr = nil
-		}
-		if err = errors.Join(err, wErr); err != nil {
-			return fmt.Errorf("failed to write data to websocket: %w", err)
-		}
-
-		if flusher, ok := w.conn.(http.Flusher); ok {
-			flusher.Flush()
-		}
 		return nil
 	}
+	w.closeMx.Unlock()
+
+	wErr := wsutil.WriteClientMessage(w.conn, ws.OpCode(messageType), data)
+	if isConnClosedErr(wErr) {
+		wErr = nil
+	}
+	if err = errors.Join(err, wErr); err != nil {
+		return fmt.Errorf("failed to write data to websocket: %w", err)
+	}
+
+	if flusher, ok := w.conn.(http.Flusher); ok {
+		flusher.Flush()
+	}
+	return nil
 }
 
-func (w *h2WebsocketClient) Write(ctx context.Context) {
+func (w *h2WebsocketClient) Writer(ctx context.Context) {
 	<-ctx.Done()
 }
 
-func (w *h2WebsocketClient) WriteMessage(ctx context.Context, messageType int, data []byte) error {
-	select {
-	case <-w.closeChannel:
-		return nil
-
-	case <-ctx.Done():
-		return ctx.Err()
-
-	default:
-		err := w.writeMessageToWebsocket(messageType, data)
-		if err == nil {
-			return nil
-		}
-
-		return fmt.Errorf("client: failed to write message to websocket: %w", err)
-	}
+func (w *h2WebsocketClient) Reader(ctx context.Context) {
+	<-ctx.Done()
 }
 
 func (w *h2WebsocketClient) ReadMessage() (messageType int, p []byte, err error) {
@@ -176,8 +157,22 @@ func (w *h2WebsocketClient) Close() error {
 	return errors.Join(wErr, err)
 }
 
-func (c *h2WebsocketClient) Metadata() websocket.MetaData {
+func (c *h2WebsocketClient) Metadata() websocket.Metadata {
 	slog.Error("meta data not implemented for http2 websocket client fixture")
+	return nil
+}
+
+func (c *h2WebsocketClient) Done() <-chan struct{} {
+	return c.closeChannel
+}
+
+func (c *h2WebsocketClient) WriteQ() chan<- websocket.Frame {
+	slog.Error("write q not implemented for http2 websocket client fixture")
+	return nil
+}
+
+func (c *h2WebsocketClient) ReadQ() <-chan websocket.Frame {
+	slog.Error("read q not implemented for http2 websocket client fixture")
 	return nil
 }
 
@@ -222,7 +217,7 @@ func NewWebsocketClientHTTP2(ctx context.Context, httpClient *h2ec.Client, urlSt
 	c := newH2WebsocketClient(ctx, newH2Stream(bodyw, rsp))
 	go func() {
 		defer c.Close()
-		c.Write(ctx)
+		c.Writer(ctx)
 	}()
 
 	return c, nil

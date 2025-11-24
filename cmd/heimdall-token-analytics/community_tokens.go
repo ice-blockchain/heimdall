@@ -23,9 +23,9 @@ type (
 		Addresses []string `form:"ionConnectAddress" required:"true" swaggerignore:"true"`
 	}
 	TokenInfoRequestByType struct {
-		PaginationRequest
 		Type    string `uri:"type" required:"true" swaggerignore:"true"`
 		Keyword string `form:"keyword" swaggerignore:"true"`
+		PaginationRequest
 	}
 	TokenInfoRequestByTypeAndSessionID struct {
 		TokenInfoRequestByType
@@ -33,9 +33,9 @@ type (
 		Keyword   string `form:"keyword" swaggerignore:"true"`
 	}
 	TokenInfoStreamTypeAndSessionQuery struct {
-		PaginationRequest
 		Type      string `uri:"type" required:"true" swaggerignore:"true"`
 		SessionID string `form:"viewingSessionId" swaggerignore:"true"`
+		PaginationRequest
 	}
 	SessionViewCreateRequest struct {
 		Type string `uri:"type" binding:"required,oneof=top trending" swaggerignore:"true"`
@@ -45,8 +45,8 @@ type (
 		TTL uint64 `json:"ttl" example:"1800" description:"Session TTL in seconds"` // Session TTL in seconds
 	}
 	TradeRequest struct {
-		PaginationRequest
 		Address string `uri:"type" required:"true" swaggerignore:"true"` // Map `type` to `address`.
+		PaginationRequest
 	}
 	TopHoldersRequest struct {
 		Address string `uri:"type" required:"true" swaggerignore:"true"`

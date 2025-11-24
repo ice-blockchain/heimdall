@@ -70,39 +70,27 @@ func helperNewServer(t *testing.T, port uint32) *httpServer {
 	return srv
 }
 
-type dummyWebsocketHandler struct {
-	onMessage func(req []byte, err error) (resp []byte)
-	testingT  testing.TB
-}
-
-func (d *dummyWebsocketHandler) HandleWS(ctx context.Context, stream websocket.ReaderWriter) {
-	d.testingT.Helper()
-
-	for ctx.Err() == nil {
-		t, msgBytes, err := stream.ReadMessage()
-		if err != nil {
-			d.testingT.Logf("read message error: %v", err)
-			d.onMessage(nil, err)
-			break
-		}
-		d.testingT.Logf("received message: %s with opcode %v", string(msgBytes), t)
-		if len(msgBytes) > 0 && t == websocket.MessageTypeText {
-			resp := d.onMessage(msgBytes, err)
-			if len(resp) > 0 {
-				d.testingT.Logf("sending response: %s", string(resp))
-				err = stream.WriteMessage(ctx, websocket.MessageTypeText, resp)
-				require.NoError(d.testingT, err)
-			}
-		}
-	}
-}
-
-func helperNewWebsocketHandler(t *testing.T, onMessage func([]byte, error) []byte) WebsocketHandler {
+func helperNewWebsocketHandler(t *testing.T, onMessage func([]byte, error) []byte) websocket.HandlerFunc {
 	t.Helper()
 
-	return &dummyWebsocketHandler{
-		onMessage: onMessage,
-		testingT:  t,
+	return func(ctx *gin.Context, stream websocket.Connection) {
+		for ctx.Err() == nil {
+			msgType, msgBytes, err := stream.ReadMessage()
+			if err != nil {
+				t.Logf("read message error: %v", err)
+				onMessage(nil, err)
+				break
+			}
+			t.Logf("received message: %s with opcode %v", string(msgBytes), msgType)
+			if len(msgBytes) > 0 && msgType == websocket.MessageTypeText {
+				resp := onMessage(msgBytes, err)
+				if len(resp) > 0 {
+					t.Logf("sending response: %s", string(resp))
+					err = stream.WriteMessage(websocket.MessageTypeText, resp)
+					require.NoError(t, err)
+				}
+			}
+		}
 	}
 }
 
@@ -115,8 +103,8 @@ func helperNewWebsocketServerHandler(t *testing.T, ctx context.Context, srv Serv
 func helperNewWebsocketServerHandlerWithPath(t *testing.T, ctx context.Context, srv Server, path string, received chan<- string) {
 	t.Helper()
 
-	srv.MustListenAndServe(ctx, func(i Router) {
-		i.Websocket(path, nil, helperNewWebsocketHandler(t, func(msg []byte, err error) []byte {
+	srv.MustListenAndServe(ctx, func(i gin.IRouter) {
+		websocket.Handler(i, path, helperNewWebsocketHandler(t, func(msg []byte, err error) []byte {
 			if msg == nil && err != nil {
 				msg = []byte("error: " + err.Error())
 			}
@@ -139,7 +127,7 @@ func TestServerListenClose(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 
 	wg.Go(func() {
-		srv.MustListenAndServe(ctx, func(i Router) {
+		srv.MustListenAndServe(ctx, func(i gin.IRouter) {
 			i.GET("/health", func(c *gin.Context) {
 				c.JSON(http.StatusOK, gin.H{"status": "ok"})
 			})

@@ -8,7 +8,6 @@ import (
 	"io"
 	"log/slog"
 	"net"
-	"net/http"
 	"slices"
 	"strconv"
 	"strings"
@@ -20,19 +19,11 @@ import (
 	"github.com/gin-gonic/gin"
 
 	h2ec "github.com/ice-blockchain/go/src/net/http"
-	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server/websocket"
 )
 
 type (
-	WebsocketHandler interface {
-		HandleWS(ctx context.Context, stream websocket.ReaderWriter)
-	}
-	Router interface {
-		gin.IRouter
-		Websocket(path string, httpHandler http.HandlerFunc, wsHandler WebsocketHandler)
-	}
 	Server interface {
-		MustListenAndServe(ctx context.Context, attachRoutes func(Router))
+		MustListenAndServe(ctx context.Context, attachRoutes func(gin.IRouter))
 	}
 	Config struct {
 		TLS   *tls.Config `yaml:"-"`
@@ -43,9 +34,6 @@ type (
 	httpServer struct {
 		Router *gin.Engine
 		Config *Config
-	}
-	httpRouter struct {
-		*gin.Engine
 	}
 )
 
@@ -155,10 +143,10 @@ func (s *httpServer) ListenHTTP(ctx context.Context, ch chan<- error) error {
 	return nil
 }
 
-func (s *httpServer) MustListenAndServe(ctx context.Context, attachRoutes func(Router)) {
+func (s *httpServer) MustListenAndServe(ctx context.Context, attachRoutes func(gin.IRouter)) {
 	var wg sync.WaitGroup
 
-	attachRoutes(&httpRouter{s.Router})
+	attachRoutes(s.Router)
 	if s.Config.Debug {
 		for _, item := range s.Router.Routes() {
 			slog.InfoContext(ctx, "registered route", "method", item.Method, "path", item.Path, "handler", item.Handler)
@@ -179,45 +167,4 @@ func (s *httpServer) MustListenAndServe(ctx context.Context, attachRoutes func(R
 	if err != nil {
 		slog.ErrorContext(ctx, "server shutdown with error", "error", err)
 	}
-}
-
-func (r *httpRouter) Websocket(path string, httpHandler http.HandlerFunc, wsHandler WebsocketHandler) {
-	r.Any(path, func(c *gin.Context) {
-		var wsocket websocket.Connection
-		var err error
-
-		if c.Request.Header.Get("Upgrade") == "websocket" || (c.Request.Method == http.MethodConnect && c.Request.Proto == "websocket") {
-			wsocket, err = websocket.Upgrade(c.Writer, c.Request, &websocket.Config{
-				WriteTimeout: time.Second * 30,
-				ReadTimeout:  time.Second * 30,
-			})
-		}
-
-		if err != nil {
-			slog.ErrorContext(c.Request.Context(), "failed to upgrade to websocket", "error", err, "remote_addr", c.ClientIP())
-			c.Writer.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		if wsocket != nil {
-			go func() {
-				defer func() {
-					if clErr := wsocket.Close(); clErr != nil {
-						slog.ErrorContext(c, "failed to close websocket connection", "error", clErr, "remote_addr", c.ClientIP())
-					}
-				}()
-				go wsocket.Write(c)
-				wsHandler.HandleWS(c, wsocket)
-			}()
-
-			return
-		}
-
-		if httpHandler != nil {
-			httpHandler.ServeHTTP(c.Writer, c.Request)
-			return
-		}
-
-		c.Writer.WriteHeader(http.StatusMethodNotAllowed)
-	})
 }
