@@ -214,7 +214,15 @@ func helperInsertTestUser(t *testing.T, ctx context.Context, db *storage.DB, mas
 	query := `
 		INSERT INTO users (created_at, updated_at, id, master_pubkey, blockchain_address, ion_connect_address, username, display_name, avatar, lookup, verified)
 		VALUES (NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9)
-		ON CONFLICT (master_pubkey) DO NOTHING
+		ON CONFLICT (master_pubkey) DO UPDATE SET
+			blockchain_address = EXCLUDED.blockchain_address,
+			ion_connect_address = EXCLUDED.ion_connect_address,
+			username = EXCLUDED.username,
+			display_name = EXCLUDED.display_name,
+			avatar = EXCLUDED.avatar,
+			lookup = EXCLUDED.lookup,
+			verified = EXCLUDED.verified,
+			updated_at = NOW()
 	`
 	_, err := storage.Exec(ctx, db, query,
 		masterPubkey,
@@ -364,7 +372,6 @@ func helperCreateGlobalTrendingSet(t *testing.T, ctx context.Context, tokens map
 }
 
 func TestGetCommunityTokensByType(t *testing.T) {
-	t.Parallel()
 	ctx := t.Context()
 
 	ta := &tokenAnalytics{

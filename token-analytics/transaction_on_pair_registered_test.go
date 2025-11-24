@@ -15,8 +15,6 @@ import (
 )
 
 func TestOnPairRegistered(t *testing.T) {
-	t.Parallel()
-
 	baseTokenAddr := "0x2c73996babf1a06c2c057177353293f7ca0907c8"                  // ION token (from real event)
 	tokenAddr := "0x7307ea7ab4a7e5bcba1bf18c9495d08107d9f0d8"                      // Community token (from real event)
 	pairId := "0xc481c7a805798bc81ca4cbf0803d38bd785357f2ab3b22b70e42dedc13046e15" // From real event
