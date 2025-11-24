@@ -16,7 +16,7 @@ import (
 )
 
 func (t *tokenAnalytics) GetTopHolders(ctx context.Context, ionConnectAddress string, limit int64) ([]*TopHolderPosition, error) {
-	key := fmt.Sprintf("position:%s", ionConnectAddress)
+	key := keyUserPositionOfToken(ionConnectAddress)
 	result, err := t.processedDataDB.ZRevRangeWithScores(ctx, key, 0, limit-1).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
@@ -28,10 +28,10 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, ionConnectAddress st
 	if len(result) == 0 {
 		return []*TopHolderPosition{}, nil
 	}
-	masterPubkeys := make([]string, 0, len(result))
+	userIonConnects := make([]string, 0, len(result))
 	for _, z := range result {
-		if masterPubkey, ok := z.Member.(string); ok {
-			masterPubkeys = append(masterPubkeys, masterPubkey)
+		if userIonConnect, ok := z.Member.(string); ok {
+			userIonConnects = append(userIonConnects, userIonConnect)
 		}
 	}
 
@@ -48,13 +48,14 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, ionConnectAddress st
 			holder.username as holder_username,
 			COALESCE(holder.display_name, '') as holder_display,
 			holder.verified as holder_verified,
-			COALESCE(holder.avatar, '') as holder_avatar
+			COALESCE(holder.avatar, '') as holder_avatar,
+			holder.ion_connect_address as holder_ion_connect
 		FROM tokens t
 		LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
-		JOIN users holder ON holder.master_pubkey = ANY($2)
+		JOIN users holder ON holder.ion_connect_address = ANY($2)
 		WHERE t.ion_connect_address = $1
 	`
-	rows, err := storage.Select[holderWithTokenData](ctx, t.ingestedDataDB, query, ionConnectAddress, masterPubkeys)
+	rows, err := storage.Select[holderWithTokenData](ctx, t.ingestedDataDB, query, ionConnectAddress, userIonConnects)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch holders data")
 	}
@@ -68,23 +69,22 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, ionConnectAddress st
 func buildTopHolderPositions(ionConnectAddress string, rankings []redis.Z, rows []*holderWithTokenData) []*TopHolderPosition {
 	holderDataMap := make(map[string]*holderWithTokenData)
 	for i := range rows {
-		holderDataMap[rows[i].HolderMasterPubkey] = rows[i]
+		holderDataMap[rows[i].HolderIonConnect] = rows[i]
 	}
 	holders := make([]*TopHolderPosition, 0, len(rankings))
 	for rank, z := range rankings {
-		masterPubkey, ok := z.Member.(string)
+		userIonConnect, ok := z.Member.(string)
 		if !ok {
 			continue
 		}
-		holderData, exists := holderDataMap[masterPubkey]
+		holderData, exists := holderDataMap[userIonConnect]
 		if !exists {
-			log.Warn(fmt.Sprintf("User data not found for master_pubkey: %v", masterPubkey))
+			log.Warn(fmt.Sprintf("User data not found for user ion_connect: %v", userIonConnect))
 
 			continue
 		}
-		amountEther := z.Score
-		amountWei := uint64(amountEther * 1e18)
-		amountUSD := amountEther * holderData.PriceUSD
+		amountTokens := z.Score
+		amountUSD := amountTokens * holderData.PriceUSD
 
 		totalSupplyBigInt, ok := new(big.Int).SetString(holderData.TotalSupply, 10)
 		if !ok {
@@ -95,7 +95,7 @@ func buildTopHolderPositions(ionConnectAddress string, rankings []redis.Z, rows 
 
 		supplyShare := 0.0
 		if totalSupplyFloat > 0 {
-			supplyShare = (amountEther / totalSupplyFloat) * 100.0
+			supplyShare = (amountTokens / totalSupplyFloat) * 100.0
 		}
 		holder := &TopHolderPosition{
 			Creator: User{
@@ -107,15 +107,15 @@ func buildTopHolderPositions(ionConnectAddress string, rankings []redis.Z, rows 
 			},
 			Position: HolderPosition{
 				Holder: User{
-					MasterPubkey: masterPubkey,
+					MasterPubkey: holderData.HolderMasterPubkey,
 					Username:     holderData.HolderUsername,
 					Display:      holderData.HolderDisplay,
 					Verified:     holderData.HolderVerified,
 					Avatar:       holderData.HolderAvatar,
-					IonConnect:   fmt.Sprintf("%v:%s:", nostr.KindProfileMetadata, masterPubkey),
+					IonConnect:   userIonConnect,
 				},
 				Rank:        uint64(rank + 1),
-				Amount:      amountWei,
+				Amount:      uint64(amountTokens),
 				AmountUSD:   amountUSD,
 				SupplyShare: supplyShare,
 			},

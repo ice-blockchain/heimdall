@@ -4,17 +4,11 @@ package tokenanalytics
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/wintr/log"
 )
-
-func (t *tokenAnalytics) getMasterPubkeyByAddress(ctx context.Context, blockchainAddr string) (string, error) {
-	// TODO: Implement extraction of master_pubkey from transaction.
-	return blockchainAddr, nil
-}
 
 func (t *tokenAnalytics) onRecipientsSet(ctx context.Context, tx *txEvent, ev *bondingcurve.LogRecipientsSet) error {
 	log.Info("Recipients set:%+v, tx:%v", ev, tx.TransactionHash)
@@ -58,16 +52,26 @@ func (t *tokenAnalytics) onLiquidityLocked(ctx context.Context, tx *txEvent, ev 
 	return nil
 }
 
-func (t *tokenAnalytics) onTransfer(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTransfer) error {
-	log.Info(fmt.Sprintf("Transfer: from=%v, to=%v, amount=%v, tx:%v",
-		ev.From.String(), ev.To.String(), ev.Amount, tx.TransactionHash))
+func (t *tokenAnalytics) onFeeWaived(ctx context.Context, tx *txEvent, ev *bondingcurve.LogFeeWaived) error {
+	log.Info("Fee waived:%+v, tx:%v", ev, tx.TransactionHash)
 
 	return nil
 }
 
-func (t *tokenAnalytics) onOwnershipTransferred(ctx context.Context, tx *txEvent, ev *bondingcurve.LogOwnershipTransferred) error {
-	log.Info(fmt.Sprintf("OwnershipTransferred: from=%v, to=%v, tx:%v",
-		ev.PreviousOwner.String(), ev.NewOwner.String(), tx.TransactionHash))
+func (t *tokenAnalytics) onRefundIssued(ctx context.Context, tx *txEvent, ev *bondingcurve.LogRefundIssued) error {
+	log.Info("Refund issued:%+v, tx:%v", ev, tx.TransactionHash)
+
+	return nil
+}
+
+func (t *tokenAnalytics) onRouteSelected(ctx context.Context, tx *txEvent, ev *bondingcurve.LogRouteSelected) error {
+	log.Info("Route selected:%+v, tx:%v", ev, tx.TransactionHash)
+
+	return nil
+}
+
+func (t *tokenAnalytics) onVerificationChecked(ctx context.Context, tx *txEvent, ev *bondingcurve.LogVerificationChecked) error {
+	log.Info("Verification checked:%+v, tx:%v", ev, tx.TransactionHash)
 
 	return nil
 }

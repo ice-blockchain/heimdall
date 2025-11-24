@@ -148,6 +148,7 @@ type (
 		BlockTimestamp   *time.Time  `db:"block_timestamp"`
 		ChainID          string      `db:"chain_id"`
 		Value            string      `db:"value"`
+		Input            string      `db:"input"`
 		Logs             txEventLogs `db:"logs"`
 	}
 
@@ -242,6 +243,7 @@ type (
 		HolderUsername      string  `db:"holder_username"`
 		HolderDisplay       string  `db:"holder_display"`
 		HolderAvatar        string  `db:"holder_avatar"`
+		HolderIonConnect    string  `db:"holder_ion_connect"`
 		PriceUSD            float64 `db:"price_usd"`
 		CreatorVerified     bool    `db:"creator_verified"`
 		HolderVerified      bool    `db:"holder_verified"`

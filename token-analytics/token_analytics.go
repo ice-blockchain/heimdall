@@ -268,7 +268,7 @@ func (t *tokenAnalytics) processLog(ctx context.Context, tx *txEvent, logEvent *
 	topics, _ := logEvent.getStringSlice("topics")
 	address, _ := logEvent.getString("address")
 
-	parsedEv, err := bondingcurve.ProcessEvent(topic0, data, topics, address)
+	parsedEv, err := bondingcurve.ProcessEvent(topic0, data, topics, address, tx.Input)
 	if err != nil {
 		log.Error(fmt.Errorf("failed to process event topic0=%s, address=%s, data=%s: %w", topic0, address, data, err))
 		return err
@@ -277,10 +277,6 @@ func (t *tokenAnalytics) processLog(ctx context.Context, tx *txEvent, logEvent *
 	switch ev := parsedEv.(type) {
 	case *bondingcurve.LogTokenCreated:
 		return t.onTokenCreated(ctx, tx, address, ev)
-	case *bondingcurve.LogTransfer:
-		return t.onTransfer(ctx, tx, ev)
-	case *bondingcurve.LogOwnershipTransferred:
-		return t.onOwnershipTransferred(ctx, tx, ev)
 	case *bondingcurve.LogTokenSwapped:
 		return t.onSwap(ctx, tx, ev)
 	case *bondingcurve.LogPairRegistered:
@@ -293,12 +289,20 @@ func (t *tokenAnalytics) processLog(ctx context.Context, tx *txEvent, logEvent *
 		return t.onFeeAccrued(ctx, tx, ev)
 	case *bondingcurve.LogFeeTransfer:
 		return t.onFeeTransfer(ctx, tx, ev)
+	case *bondingcurve.LogFeeWaived:
+		return t.onFeeWaived(ctx, tx, ev)
 	case *bondingcurve.LogLiquidityClaimed:
 		return t.onLiquidityClaimed(ctx, tx, ev)
 	case *bondingcurve.LogSlippageChecked:
 		return t.onSlippageChecked(ctx, tx, ev)
 	case *bondingcurve.LogLiquidityLocked:
 		return t.onLiquidityLocked(ctx, tx, ev)
+	case *bondingcurve.LogRefundIssued:
+		return t.onRefundIssued(ctx, tx, ev)
+	case *bondingcurve.LogRouteSelected:
+		return t.onRouteSelected(ctx, tx, ev)
+	case *bondingcurve.LogVerificationChecked:
+		return t.onVerificationChecked(ctx, tx, ev)
 	}
 
 	return nil
@@ -347,6 +351,7 @@ func (t *tokenAnalytics) fetchUnprocessedEvents(ctx context.Context, workerIdx u
 			t.block_timestamp,
 			t.chain_id,
 			t.value,
+			t.input,
 			t.block_number,
 			t.transaction_index,
 			COALESCE(
@@ -370,7 +375,7 @@ func (t *tokenAnalytics) fetchUnprocessedEvents(ctx context.Context, workerIdx u
 		WHERE MOD(t.transaction_index, %[1]v) = %[2]v 
 			AND (t.block_number, t.transaction_index) > ($1, $2)
 		GROUP BY t.transaction_hash, t.from_address, t.to_address, t.block_timestamp, 
-				 t.chain_id, t.value, t.block_number, t.transaction_index
+				 t.chain_id, t.value, t.input, t.block_number, t.transaction_index
 		ORDER BY t.block_number, t.transaction_index
 		LIMIT %[3]v;`, t.cfg.Workers, workerIdx, t.cfg.BatchSize)
 

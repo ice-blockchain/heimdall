@@ -16,19 +16,19 @@ import (
 func (t *tokenAnalytics) CreateViewingSession(ctx context.Context, sessionType, clientIP, deviceKey string) (string, uint64, error) {
 	userIdentifier := fmt.Sprintf("%s:%s", clientIP, deviceKey)
 
-	userMapKey := fmt.Sprintf(userIdentifierMapPrefix, sessionType, userIdentifier)
-	oldSessionID, err := t.processedDataDB.Get(ctx, userMapKey).Result()
+	mapKey := userMapKey(sessionType, userIdentifier)
+	oldSessionID, err := t.processedDataDB.Get(ctx, mapKey).Result()
 	if err != nil && err != redis.Nil {
 		return "", 0, fmt.Errorf("failed to get old session ID: %w", err)
 	}
 	if oldSessionID != "" {
-		oldSessionKey := fmt.Sprintf(userSessionKeyPrefix, sessionType, oldSessionID)
+		oldSessionKey := sessionKey(sessionType, oldSessionID)
 		if err := t.processedDataDB.Del(ctx, oldSessionKey).Err(); err != nil {
 			return "", 0, fmt.Errorf("failed to delete old session key: %w", err)
 		}
 	}
 	sessionID := uuid.New().String()
-	sessionKey := fmt.Sprintf(userSessionKeyPrefix, sessionType, sessionID)
+	sessKey := sessionKey(sessionType, sessionID)
 
 	var globalKey string
 	if sessionType == sessionTypeTop {
@@ -37,9 +37,9 @@ func (t *tokenAnalytics) CreateViewingSession(ctx context.Context, sessionType, 
 		globalKey = globalTrendingSetKey
 	}
 	pipe := t.processedDataDB.TxPipeline()
-	pipe.ZUnionStore(ctx, sessionKey, &redis.ZStore{Keys: []string{globalKey}})
-	pipe.Expire(ctx, sessionKey, defaultViewingSessionTTL)
-	pipe.Set(ctx, userMapKey, sessionID, defaultViewingSessionTTL)
+	pipe.ZUnionStore(ctx, sessKey, &redis.ZStore{Keys: []string{globalKey}})
+	pipe.Expire(ctx, sessKey, defaultViewingSessionTTL)
+	pipe.Set(ctx, mapKey, sessionID, defaultViewingSessionTTL)
 	if _, err := pipe.Exec(ctx); err != nil {
 		return "", 0, fmt.Errorf("failed to create viewing session: %w", err)
 	}
@@ -51,8 +51,8 @@ func (t *tokenAnalytics) CreateViewingSession(ctx context.Context, sessionType, 
 }
 
 func (t *tokenAnalytics) GetTokensFromViewingSession(ctx context.Context, sessionType, sessionID, keyword string, limit, offset uint64) ([]*CommunityToken, error) {
-	sessionKey := fmt.Sprintf(userSessionKeyPrefix, sessionType, sessionID)
-	exists, err := t.processedDataDB.Exists(ctx, sessionKey).Result()
+	sessKey := sessionKey(sessionType, sessionID)
+	exists, err := t.processedDataDB.Exists(ctx, sessKey).Result()
 	if err != nil {
 		return nil, fmt.Errorf("failed to check session existence: %w", err)
 	}
@@ -61,9 +61,9 @@ func (t *tokenAnalytics) GetTokensFromViewingSession(ctx context.Context, sessio
 	}
 
 	if keyword != "" {
-		return t.getTokensWithKeywordFilter(ctx, sessionKey, sessionType, keyword, limit, offset)
+		return t.getTokensWithKeywordFilter(ctx, sessKey, sessionType, keyword, limit, offset)
 	}
-	tokenData, err := t.processedDataDB.ZRevRangeWithScores(ctx, sessionKey, int64(offset), int64(offset+limit-1)).Result()
+	tokenData, err := t.processedDataDB.ZRevRangeWithScores(ctx, sessKey, int64(offset), int64(offset+limit-1)).Result()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tokens from viewing session: %w", err)
 	}
@@ -289,4 +289,12 @@ func applyPagination(addresses []string, limit, offset int64) []string {
 	}
 
 	return addresses[start:end]
+}
+
+func sessionKey(sessionType, sessionID string) string {
+	return fmt.Sprintf(userSessionKeyPrefix, sessionType, sessionID)
+}
+
+func userMapKey(sessionType, userIdentifier string) string {
+	return fmt.Sprintf(userIdentifierMapPrefix, sessionType, userIdentifier)
 }
