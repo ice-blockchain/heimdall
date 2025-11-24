@@ -502,9 +502,7 @@ jobs:
           path: secret-infrastructure
           fetch-depth: 0
       - name: Update application tag versions
-        uses: mikefarah/yq@master
-        with:
-          cmd: |
+        run: |
             SERVICES="heimdall-identity-io heimdall-asset-data-syncer heimdall-token-analytics"
             ENVIRONMENTS="staging testnet"
             set -xe
