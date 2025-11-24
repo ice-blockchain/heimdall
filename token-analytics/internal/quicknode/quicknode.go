@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"math"
 	"net/http"
 	"os"
 	"strings"
@@ -29,8 +30,10 @@ const (
 
 func NewClient(ctx context.Context, applicationYamlKey string) Client {
 	var cfg config
+
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	if cfg.QuickNode.APIKey == "" || cfg.QuickNode.APIKey == "-" {
+		log.Warn("Using QUICKNODE_API_KEY from environment variable as api key is not set in config")
 		cfg.QuickNode.APIKey = os.Getenv("QUICKNODE_API_KEY")
 	}
 	conf, err := pgxpool.ParseConfig(cfg.QuickNode.StreamDestinationURL)
@@ -55,6 +58,14 @@ func NewClient(ctx context.Context, applicationYamlKey string) Client {
 		log.Panic(errors.Wrapf(err, "failed to connect to QuickNode API"))
 	}
 	return q
+}
+
+func (q *client) CurrentBlockRange() (startBlock, endBlock uint64) {
+	startBlock, endBlock = q.config.QuickNode.StartBlock, math.MaxUint64
+	if x := q.config.QuickNode.EndBlock; x != nil {
+		endBlock = uint64(*x)
+	}
+	return startBlock, endBlock
 }
 
 func (q *client) HealthCheck(ctx context.Context) error {
@@ -110,7 +121,7 @@ func (q *client) CreateStream(ctx context.Context, streamName, contractAddrToMon
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to load filter function")
 	}
-	var startRange *uint // For bonded tokens, startRange = nil means "start from current block"
+	var startRange *uint64 // For bonded tokens, startRange = nil means "start from current block"
 	if strings.EqualFold(contractAddrToMonitor, bondingcurve.ABIJSON) {
 		val := q.config.QuickNode.StartBlock
 		startRange = &val

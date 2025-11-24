@@ -17,6 +17,7 @@ type (
 	Client interface {
 		CreateStream(ctx context.Context, streamName, contractAddrToMonitor string) (*Stream, error)
 		HealthCheck(ctx context.Context) error
+		CurrentBlockRange() (startBlock, endBlock uint64)
 	}
 	Stream struct {
 		ID        string     `json:"id"`
@@ -37,32 +38,32 @@ type (
 	}
 
 	config struct {
-		QuickNode   quickNodeCfg `yaml:"quicknode" mapstructure:"quicknode"`
+		QuickNode   quickNodeCfg `yaml:"quicknode"   mapstructure:"quicknode"`
 		Development bool         `yaml:"development" mapstructure:"development"`
 	}
 	quickNodeCfg struct {
-		APIKey string `yaml:"api-key" mapstructure:"api-key"`
+		APIKey string `yaml:"apiKey" mapstructure:"apiKey"`
 		// There is no sense to read history before BondingCurve is deployed - 1
-		StartBlock           uint   `yaml:"start-block" mapstructure:"start-block"`
-		EndBlock             *uint  `yaml:"end-block,omitempty" mapstructure:"end-block"`
-		StreamDestinationURL string `yaml:"stream-destination-url" mapstructure:"stream-destination-url"`
-		Region               string `yaml:"region" mapstructure:"region"`
+		StartBlock           uint64  `yaml:"startBlock"           mapstructure:"startBlock"`
+		EndBlock             *uint64 `yaml:"endBlock,omitempty"   mapstructure:"endBlock"`
+		StreamDestinationURL string  `yaml:"streamDestinationUrl" mapstructure:"streamDestinationUrl"`
+		Region               string  `yaml:"region"               mapstructure:"region"`
 	}
 	createStreamReq struct {
-		Name                  string `json:"name"`
-		Network               string `json:"network"`
-		Dataset               string `json:"dataset"`
-		FilterFunction        string `json:"filter_function"`
-		Region                string `json:"region"`
-		StartRange            *uint  `json:"start_range,omitempty"`
-		EndRange              *uint  `json:"end_range,omitempty"`
-		DatasetBatchSize      int    `json:"dataset_batch_size"`
-		IncludeStreamMetadata string `json:"include_stream_metadata"`
-		Destination           string `json:"destination"`
-		FixBlockReorgs        int    `json:"fix_block_reorgs"`
-		KeepDistanceFromTip   int    `json:"keep_distance_from_tip"`
-		ElasticBatchEnabled   bool   `json:"elastic_batch_enabled"`
-		NotificationEmail     string `json:"notification_email"`
+		Name                  string  `json:"name"`
+		Network               string  `json:"network"`
+		Dataset               string  `json:"dataset"`
+		FilterFunction        string  `json:"filter_function"`
+		Region                string  `json:"region"`
+		StartRange            *uint64 `json:"start_range,omitempty"`
+		EndRange              *uint64 `json:"end_range,omitempty"`
+		DatasetBatchSize      int     `json:"dataset_batch_size"`
+		IncludeStreamMetadata string  `json:"include_stream_metadata"`
+		Destination           string  `json:"destination"`
+		FixBlockReorgs        int     `json:"fix_block_reorgs"`
+		KeepDistanceFromTip   int     `json:"keep_distance_from_tip"`
+		ElasticBatchEnabled   bool    `json:"elastic_batch_enabled"`
+		NotificationEmail     string  `json:"notification_email"`
 		DestinationAttributes struct {
 			Username         string `json:"username"`
 			Password         string `json:"password"`

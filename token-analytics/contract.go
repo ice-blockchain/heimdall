@@ -124,8 +124,6 @@ type (
 	config struct {
 		Workers         uint   `yaml:"workers"`
 		BatchSize       uint   `yaml:"batchSize"`
-		StartBlock      uint64 `yaml:"startBlock"`
-		Region          string `yaml:"region"`
 		IONTokenAddress string `yaml:"ionTokenAddress"`
 	}
 	tokenAnalytics struct {

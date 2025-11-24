@@ -77,7 +77,7 @@ func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, ev *bon
 		PriceInUsd:               new(big.Float).Mul(priceInBase, new(big.Float).SetFloat64(*basePrice)),
 	}
 
-	err := questdb.Write[*trade](ctx, t.questDB, tradeData)
+	err := questdb.Write(ctx, t.questDB, tradeData)
 	return errors.Wrapf(err, "failed to insert trading data into questdb")
 }
 
