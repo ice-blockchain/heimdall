@@ -47,8 +47,7 @@ type (
 		StartBlock           uint64  `yaml:"startBlock"           mapstructure:"startBlock"`
 		EndBlock             *uint64 `yaml:"endBlock,omitempty"   mapstructure:"endBlock"`
 		StreamDestinationURL string  `yaml:"streamDestinationUrl" mapstructure:"streamDestinationUrl"`
-		Region               string  `yaml:"region"               mapstructure:"region"`
-	}
+		}
 	createStreamReq struct {
 		Name                  string  `json:"name"`
 		Network               string  `json:"network"`

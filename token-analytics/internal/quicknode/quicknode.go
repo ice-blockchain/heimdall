@@ -136,7 +136,7 @@ func (q *client) CreateStream(ctx context.Context, streamName, contractAddrToMon
 		Network:               q.network,
 		Dataset:               "block_with_receipts",
 		FilterFunction:        base64.StdEncoding.EncodeToString(filter),
-		Region:                q.config.QuickNode.Region,
+		Region:                "usa_east",
 		StartRange:            startRange,
 		DatasetBatchSize:      1,
 		IncludeStreamMetadata: "body",
