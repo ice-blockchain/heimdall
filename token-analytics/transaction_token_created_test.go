@@ -109,9 +109,7 @@ func TestSaveTokenMetadata(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	ta := &tokenAnalytics{
-		ingestedDataDB: testDB,
-	}
+	ta := New(ctx).(*tokenAnalytics)
 
 	t.Run("successfully saves token metadata with valid ionConnectAddress", func(t *testing.T) {
 		t.Parallel()

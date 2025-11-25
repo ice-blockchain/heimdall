@@ -49,15 +49,15 @@ func (t *trade) Time() stdlibtime.Time {
 func (t *trade) Marshal(client questdb.LineSender) questdb.At {
 	return client.Table("trades").
 		Symbol("pair_address", t.PairAddress).
-		Symbol("contract_address", t.ContractAddress).
 		Symbol("ion_connect_address", t.ContentIONConnectAddress).
 		Symbol("trade_type", string(t.Type)).
-		Symbol("trader_address", t.TraderAddress).
-		Symbol("transaction_hash", t.TransactionHash).
 		DecimalColumnFromString("base_price_in_usd", fmt.Sprintf("%.18f", t.BasePriceInUsd)).
 		DecimalColumn("base_amount", t.BaseAmount).
 		DecimalColumn("amount", t.Amount).
-		DecimalColumnFromString("price_in_usd", t.PriceInUsd.String())
+		DecimalColumnFromString("price_in_usd", t.PriceInUsd.String()).
+		StringColumn("trader_address", t.TraderAddress).
+		StringColumn("transaction_hash", t.TransactionHash).
+		StringColumn("contract_address", t.ContractAddress)
 }
 
 func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTokenSwapped, ionConnectAddress string) error {
@@ -72,7 +72,7 @@ func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, ev *bon
 		BaseAmount:               baseAmount,
 		Amount:                   amount,
 		Type:                     tradeTyp,
-		TraderAddress:            ev.Address.String(),
+		TraderAddress:            ev.Swapper.String(),
 		TransactionHash:          tx.TransactionHash,
 		PriceInUsd:               new(big.Float).Mul(priceInBase, new(big.Float).SetFloat64(*basePrice)),
 	}

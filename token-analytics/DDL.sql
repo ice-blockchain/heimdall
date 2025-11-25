@@ -1,5 +1,7 @@
 -- SPDX-License-Identifier: ice License 1.0
 
+SELECT pg_advisory_xact_lock(1753772468014996478);
+
 DO $$ BEGIN
     CREATE DOMAIN usd_amount AS NUMERIC(48, 18);
 EXCEPTION

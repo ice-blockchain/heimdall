@@ -65,7 +65,7 @@ func New(ctx context.Context) TokenAnalytics {
 	}
 
 	qn := quicknode.NewClient(ctx, applicationYamlKey)
-	timescaleDB := questdb.MustConnect(ctx, applicationYamlKey)
+	timescaleDB := questdb.MustConnect(ctx, db, applicationYamlKey)
 	registry := metrics.NewRegistry()
 	for workerIdx := range cfg.Workers {
 		workerPrefix := fmt.Sprintf("worker_%d_", workerIdx)
@@ -106,7 +106,11 @@ func New(ctx context.Context) TokenAnalytics {
 	t.ionPriceUSD = new(atomic.Pointer[float64])
 
 	go metrics.LogScaled(registry, 10*stdlibtime.Second, 1*stdlibtime.Millisecond, t) // TODO: 10 secs for test, change to 1-15 mminutes.
-	log.Panic(errors.Wrapf(t.syncIONPrice(ctx), "failed to sync ion price on startup"))
+	if err := t.syncIONPrice(ctx); err != nil {
+		if !errors.Is(err, context.Canceled) {
+			log.Panic(errors.Wrapf(err, "failed to sync ion price on startup"))
+		}
+	}
 	go t.startIONPriceSyncer(ctx)
 	return t
 }

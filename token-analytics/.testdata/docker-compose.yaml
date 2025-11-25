@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: ice License 1.0
+
+version: '3.8'
+
+services:
+  dragonflydb:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly
+    container_name: ta_dragonflydb
+    ports:
+      - "6379:6379"  # Expose port 6379 for Redis-compatible access
+    #volumes:
+    #  - dragonfly_data:/data
+    environment:
+      - DRAGONFLYDB_REDIS_MODE=true  # Enable Redis compatibility mode
+  postgres:
+    image: postgres
+    restart: always
+    container_name: ta_postgres
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: ingested_data
+    ports:
+      - "5445:5432"
+    depends_on:
+      - dragonflydb
+      - questdb
+  questdb:
+    image: questdb/questdb:latest
+    container_name: ta_questdb
+    ports:
+      - "8812:8812" # PSQL
+      - "9000:9000" # InfluxDB line protocol
+    #volumes:
+    #  - questdb_data:/var/lib/questdb
+    environment:
+      - QDB_ROOT=/var/lib/questdb
+      - QDB_PG_PASSWORD=pass
+      - QDB_PG_USER=root
+      - QDB_PG_READONLY_USER_ENABLED=true
+      - QDB_PG_READONLY_PASSWORD=read-user
+      - QDB_PG_READONLY_USER=read-pass
+      - QDB_LINE_HTTP_USER=root
+      - QDB_LINE_HTTP_PASSWORD=pass
+      - QDB_HTTP_MIN_ENABLED=true # ENABLE HEALTH HTTP API
+      - QDB_INFLUXDB_ENABLED=true # ENABLE INFLUXDB LINE PROTOCOL
+      - QDB_HTTP_ENABLED=true
+      - QDB_MIN_HTTP_ENABLED=true
+      - QDB_PG_ENABLED=true
+      - QDB_LINE_HTTP_ENABLED=true
+      - QDB_PG_NET_CONNECTION_LIMIT=100
+      - QDB_PG_NET_CONNECTION_TIMEOUT=30000
+      - QDB_PG_NET_CONNECTION_QUEUE_TIMEOUT=30000
+      - QDB_LINE_AUTO_CREATE_NEW_COLUMNS=FALSE
+      - QDB_LINE_AUTO_CREATE_NEW_TABLES=FALSE
+      - QDB_LINE_HTTP_CONNECTION_POOL_INITIAL_CAPACITY=20
+      - QDB_LINE_HTTP_NET_CONNECTION_TIMEOUT=30000
+      - QDB_LINE_SHARED_WORKER_COUNT=4
+      - QDB_LINE_HTTP_KEEP_ALIVE_TIMEOUT=10
+      - QDB_LINE_HTTP_KEEP_ALIVE_MAX=10000
+      - QDB_LINE_QUERY_TIMEOUT_SEC=30
+      - QDB_LINE_TCP_NET_CONNECTION_TIMEOUT=30000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9003/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  dragonfly_data:
+  questdb_data:

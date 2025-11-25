@@ -28,7 +28,7 @@ func (c *DB) Close(ctx context.Context) error {
 	)
 }
 
-func MustConnect(ctx context.Context, applicationYamlKey string) *DB {
+func MustConnect(ctx context.Context, db *storage.DB, applicationYamlKey string) *DB {
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	if !strings.Contains(cfg.QuestDB.WriteURL, "username=") {
@@ -41,7 +41,21 @@ func MustConnect(ctx context.Context, applicationYamlKey string) *DB {
 	if err != nil {
 		log.Panic(errors.Wrapf(err, "failed to connect questdb (influx)"))
 	}
+	var lock storage.Mutex = storage.NewMutex(db, "questdb_migration_lock")
+	ddl := ddlForQuestDB
+	if errLocked := lock.Lock(ctx); errLocked != nil {
+		if errors.Is(errLocked, storage.ErrMutexNotLocked) {
+			ddl = ""
+			errLocked = nil
+		}
+		if errLocked != nil {
+			log.Panic(errors.Wrapf(errLocked, "failed to lock questdb migration"))
+		}
+	}
 	pgxConn := storage.MustConnectWithCfg(ctx, cfg.QuestDB.PostgresConn, ddl)
+	if ddl != "" {
+		lock.Unlock(ctx)
+	}
 	return &DB{
 		db:     pgxConn,
 		writer: questdbConn,

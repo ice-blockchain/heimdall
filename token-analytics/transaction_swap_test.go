@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
-	"sync/atomic"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -23,18 +22,9 @@ const bondingCurveAddr = "0x8d86c992ce7812a64101da9b2531d5f378d682e2"
 func TestOnSwap(t *testing.T) {
 	t.Skip()
 	// Note: Not using t.Parallel() because QuestDB pool is shared across subtests
-
+	ctx := t.Context()
 	ionPrice := 0.1 // $0.1 per ION
-	ta := &tokenAnalytics{
-		ingestedDataDB:  testDB,
-		processedDataDB: testRedis,
-		// questDB:                     testQuestDB,
-		bondingCurveContractAddress: bondingCurveAddr,
-		cfg: &config{
-			IONTokenAddress: "0xfffe00ab26d8d121a51717306adbebc70b8b7247",
-		},
-		ionPriceUSD: &atomic.Pointer[float64]{},
-	}
+	ta := New(ctx).(*tokenAnalytics)
 	ta.ionPriceUSD.Store(&ionPrice)
 
 	t.Run("processes_buy_swap_successfully", func(t *testing.T) {

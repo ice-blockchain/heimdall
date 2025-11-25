@@ -28,9 +28,7 @@ func TestCreateViewingSession(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, int64(2), globalCount, "global top set should have 2 tokens before CreateViewingSession")
 
-		ta := &tokenAnalytics{
-			processedDataDB: testRedis,
-		}
+		ta := New(ctx).(*tokenAnalytics)
 
 		sessionID, ttlSeconds, err := ta.CreateViewingSession(ctx, "top", "192.168.1.1", "device123")
 		require.NoError(t, err)
@@ -117,9 +115,7 @@ func TestCreateViewingSession(t *testing.T) {
 			token5: 1000.0,
 		})
 
-		ta := &tokenAnalytics{
-			processedDataDB: testRedis,
-		}
+		ta := New(ctx).(*tokenAnalytics)
 
 		sessionID1, _, err := ta.CreateViewingSession(ctx, "top", "192.168.1.100", "device_a")
 		require.NoError(t, err)
@@ -168,10 +164,7 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 			token2IonConnect: 50.0,
 		})
 
-		ta := &tokenAnalytics{
-			ingestedDataDB:  testDB,
-			processedDataDB: testRedis,
-		}
+		ta := New(ctx).(*tokenAnalytics)
 
 		tokens, err := ta.GetTokensFromViewingSession(ctx, "top", sessionID, "", 10, 0)
 		require.NoError(t, err)
@@ -191,10 +184,7 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 
 	t.Run("returns_error_for_non_existent_session", func(t *testing.T) {
 
-		ta := &tokenAnalytics{
-			ingestedDataDB:  testDB,
-			processedDataDB: testRedis,
-		}
+		ta := New(ctx).(*tokenAnalytics)
 
 		_, err := ta.GetTokensFromViewingSession(ctx, "top", "non-existent-session", "", 10, 0)
 		require.Error(t, err)
@@ -233,10 +223,7 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 			token3: 1.0,
 		})
 
-		ta := &tokenAnalytics{
-			ingestedDataDB:  testDB,
-			processedDataDB: testRedis,
-		}
+		ta := New(ctx).(*tokenAnalytics)
 
 		tokens, err := ta.GetTokensFromViewingSession(ctx, "top", sessionID, "", 2, 0)
 		require.NoError(t, err)
@@ -293,10 +280,7 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 			tokenCharlie: 200.0,
 		})
 
-		ta := &tokenAnalytics{
-			ingestedDataDB:  testDB,
-			processedDataDB: testRedis,
-		}
+		ta := New(ctx).(*tokenAnalytics)
 
 		tokens, err := ta.GetTokensFromViewingSession(ctx, "trending", sessionID, "alice", 10, 0)
 		require.NoError(t, err)
@@ -366,9 +350,7 @@ func TestSearchTokensByCreatorLookup(t *testing.T) {
 		helperInsertTestToken(t, ctx, testDB, "0xsearch2", token2, "ETH", "30001", "search_creator2",
 			"2000000000000000000000", 500.0, 2000.0, 50)
 
-		ta := &tokenAnalytics{
-			ingestedDataDB: testDB,
-		}
+		ta := New(ctx).(*tokenAnalytics)
 
 		addresses, err := ta.searchTokensByCreatorLookup(ctx, "satoshi")
 		require.NoError(t, err)
@@ -390,9 +372,7 @@ func TestSearchTokensByCreatorLookup(t *testing.T) {
 		ctx := t.Context()
 		cleanupAllTestData(ctx)
 
-		ta := &tokenAnalytics{
-			ingestedDataDB: testDB,
-		}
+		ta := New(ctx).(*tokenAnalytics)
 
 		addresses, err := ta.searchTokensByCreatorLookup(ctx, "nonexistent_user_xyz")
 		require.NoError(t, err)
@@ -408,9 +388,7 @@ func TestSearchTokensByCreatorLookup(t *testing.T) {
 		helperInsertTestToken(t, ctx, testDB, "0xcase", token, "CASE", "30001", "case_creator",
 			"1000000000000000000000", 100.0, 1.0, 1)
 
-		ta := &tokenAnalytics{
-			ingestedDataDB: testDB,
-		}
+		ta := New(ctx).(*tokenAnalytics)
 
 		addresses1, err := ta.searchTokensByCreatorLookup(ctx, "camelcase")
 		require.NoError(t, err)
@@ -446,9 +424,7 @@ func TestFilterTokensBySession(t *testing.T) {
 		require.NoError(t, err)
 		defer testRedis.Del(ctx, sessKey)
 
-		ta := &tokenAnalytics{
-			processedDataDB: testRedis,
-		}
+		ta := New(ctx).(*tokenAnalytics)
 
 		candidates := []string{"token1", "token_not_in_session", "token3", "another_missing"}
 		filtered, err := ta.filterTokensBySession(ctx, sessKey, candidates)
@@ -467,9 +443,7 @@ func TestFilterTokensBySession(t *testing.T) {
 		require.NoError(t, err)
 		defer testRedis.Del(ctx, sessKey)
 
-		ta := &tokenAnalytics{
-			processedDataDB: testRedis,
-		}
+		ta := New(ctx).(*tokenAnalytics)
 
 		candidates := []string{"token_a", "token_b", "token_c"}
 		filtered, err := ta.filterTokensBySession(ctx, sessKey, candidates)
@@ -489,9 +463,7 @@ func TestFilterTokensBySession(t *testing.T) {
 		require.NoError(t, err)
 		defer testRedis.Del(ctx, sessKey)
 
-		ta := &tokenAnalytics{
-			processedDataDB: testRedis,
-		}
+		ta := New(ctx).(*tokenAnalytics)
 
 		candidates := []string{"token_all1", "token_all2", "token_all3"}
 		filtered, err := ta.filterTokensBySession(ctx, sessKey, candidates)
