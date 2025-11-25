@@ -203,7 +203,7 @@ CREATE TABLE IF NOT EXISTS user_token_positions (
     updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
     master_pubkey       TEXT NOT NULL,
     contract_address    TEXT NOT NULL,
-    ion_connect_address TEXT NOT NULL UNIQUE,
+    ion_connect_address TEXT NOT NULL,
     amount              uint256 NOT NULL DEFAULT 0,
     avg_buy_price_usd   usd_amount DEFAULT 0,
     total_invested_usd  usd_amount DEFAULT 0,
