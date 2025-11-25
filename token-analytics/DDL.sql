@@ -174,8 +174,10 @@ CREATE TABLE IF NOT EXISTS tokens (
     market_cap_usd          usd_amount DEFAULT 0,
     price_usd               usd_amount DEFAULT 0,
     holders_count           BIGINT DEFAULT 0,
+    tx_log_id               BIGINT,
     PRIMARY KEY (contract_address),
-    FOREIGN KEY (creator_master_pubkey) REFERENCES users(master_pubkey) ON DELETE CASCADE
+    FOREIGN KEY (creator_master_pubkey) REFERENCES users(master_pubkey) ON DELETE CASCADE,
+    FOREIGN KEY (tx_log_id) REFERENCES tx_logs(i) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_tokens_creator ON tokens (creator_master_pubkey);
@@ -190,9 +192,12 @@ CREATE TABLE IF NOT EXISTS token_swaps (
     direction           BOOLEAN NOT NULL, -- true = buy, false = sell
     input_amount        uint256 NOT NULL, -- base token amount (buy) or token amount (sell)
     output_amount       uint256 NOT NULL, -- token amount (buy) or base token amount (sell)
+    fee                 uint256 NOT NULL DEFAULT 0,
     price_usd           usd_amount NOT NULL,
+    tx_log_id           BIGINT,
     PRIMARY KEY (transaction_hash, contract_address, user_address),
-    FOREIGN KEY (contract_address) REFERENCES tokens(contract_address) ON DELETE CASCADE
+    FOREIGN KEY (contract_address) REFERENCES tokens(contract_address) ON DELETE CASCADE,
+    FOREIGN KEY (tx_log_id) REFERENCES tx_logs(i) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_token_swaps_contract ON token_swaps (contract_address, created_at DESC);
@@ -329,10 +334,26 @@ CREATE TABLE IF NOT EXISTS base_token_prices (
     token_symbol        TEXT NOT NULL,
     price_usd           usd_amount NOT NULL,
     updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (token_address, token_symbol)
+    PRIMARY KEY (token_address)
 );
 
-CREATE INDEX IF NOT EXISTS idx_base_token_prices_symbol ON base_token_prices (token_symbol);
+CREATE TABLE IF NOT EXISTS base_token_price_history (
+    created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    token_address       TEXT NOT NULL,
+    price_usd           usd_amount NOT NULL,
+    PRIMARY KEY (token_address, created_at),
+    FOREIGN KEY (token_address) REFERENCES base_token_prices(token_address) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS token_price_history (
+    created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    contract_address    TEXT NOT NULL,
+    price_usd           usd_amount NOT NULL,
+    tx_log_id           BIGINT,
+    PRIMARY KEY (contract_address, created_at),
+    FOREIGN KEY (contract_address) REFERENCES tokens(contract_address) ON DELETE CASCADE,
+    FOREIGN KEY (tx_log_id) REFERENCES tx_logs(i) ON DELETE SET NULL
+);
 
 CREATE OR REPLACE FUNCTION decode_base_token_from_input(tx_input TEXT) -- Decode baseToken parameter from swap() transaction input
 RETURNS TEXT AS $$
@@ -470,7 +491,8 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 CREATE OR REPLACE FUNCTION process_bonded_token_created(
     p_topics TEXT[],
     p_data TEXT,
-    p_block_timestamp TIMESTAMP
+    p_block_timestamp TIMESTAMP,
+    p_tx_log_id BIGINT
 ) RETURNS VOID AS $$
 DECLARE
     v_token_address TEXT;
@@ -523,18 +545,19 @@ BEGIN
     
     INSERT INTO tokens (
         created_at, updated_at, contract_address, ion_connect_address,
-        ticker, total_supply, creator_master_pubkey, type
+        ticker, total_supply, creator_master_pubkey, type, tx_log_id
     )
     VALUES (
         p_block_timestamp, p_block_timestamp, v_token_address, v_ion_connect_address,
-        COALESCE(v_username, ''), v_total_supply, v_creator_master_pubkey, v_token_type
+        COALESCE(v_username, ''), v_total_supply, v_creator_master_pubkey, v_token_type, p_tx_log_id
     )
     ON CONFLICT (ion_connect_address) DO UPDATE SET
         updated_at = EXCLUDED.updated_at,
         total_supply = EXCLUDED.total_supply,
         creator_master_pubkey = EXCLUDED.creator_master_pubkey,
         contract_address = EXCLUDED.contract_address,
-        ticker = COALESCE(EXCLUDED.ticker, tokens.ticker);
+        ticker = COALESCE(EXCLUDED.ticker, tokens.ticker),
+        tx_log_id = COALESCE(EXCLUDED.tx_log_id, tokens.tx_log_id);
     
     RAISE DEBUG 'TokenCreated processed: token=%', v_token_address;
 END;
@@ -568,7 +591,8 @@ CREATE OR REPLACE FUNCTION process_swapped(
     p_topics TEXT[],
     p_data TEXT,
     p_tx_input TEXT,
-    p_block_timestamp TIMESTAMP
+    p_block_timestamp TIMESTAMP,
+    p_tx_log_id BIGINT
 ) RETURNS VOID AS $$
 DECLARE
     v_swapper TEXT;
@@ -576,6 +600,7 @@ DECLARE
     v_direction BOOLEAN;
     v_input_amount NUMERIC;
     v_output_amount NUMERIC;
+    v_fee NUMERIC;
     v_price_usd usd_amount;
     v_ion_price_usd usd_amount;
     v_token_ion_connect TEXT;
@@ -587,6 +612,7 @@ DECLARE
     v_token_amount NUMERIC;
     v_sign NUMERIC;
     v_cost_usd usd_amount;
+    v_old_price_usd usd_amount;
 BEGIN
     IF array_length(p_topics, 1) < 3 THEN
         RETURN;
@@ -596,6 +622,7 @@ BEGIN
     v_direction := (decode_uint256(p_data, 0) != 0);
     v_input_amount := decode_uint256(p_data, 1);
     v_output_amount := decode_uint256(p_data, 2);
+    v_fee := decode_uint256(p_data, 3);
     
     
     v_token_ion_connect := decode_to_token_from_input(p_tx_input); -- Extract toToken and baseToken from tx input
@@ -606,7 +633,7 @@ BEGIN
         RETURN;
     END IF;
     
-    SELECT contract_address, base_token INTO v_token_address, v_other_token
+    SELECT contract_address, base_token, price_usd INTO v_token_address, v_other_token, v_old_price_usd
     FROM tokens
     WHERE ion_connect_address = v_token_ion_connect;
     
@@ -645,11 +672,11 @@ BEGIN
     
     INSERT INTO token_swaps (
         created_at, transaction_hash, contract_address, ion_connect_address,
-        user_address, direction, input_amount, output_amount, price_usd
+        user_address, direction, input_amount, output_amount, fee, price_usd, tx_log_id
     )
     VALUES (
         p_block_timestamp, p_transaction_hash, v_token_address, v_token_ion_connect,
-        v_user_address, v_direction, v_input_amount, v_output_amount, v_price_usd
+        v_user_address, v_direction, v_input_amount, v_output_amount, v_fee, v_price_usd, p_tx_log_id
     )
     ON CONFLICT (transaction_hash, contract_address, user_address) DO NOTHING;
     
@@ -668,6 +695,16 @@ BEGIN
         market_cap_usd = GREATEST(market_cap_usd + v_delta_market_cap, 0),
         updated_at = p_block_timestamp
     WHERE contract_address = v_token_address;
+    
+    IF v_old_price_usd IS NULL OR v_old_price_usd != v_price_usd THEN
+        INSERT INTO token_price_history (
+            created_at, contract_address, price_usd, tx_log_id
+        )
+        VALUES (
+            p_block_timestamp, v_token_address, v_price_usd, p_tx_log_id
+        )
+        ON CONFLICT (contract_address, created_at) DO NOTHING;
+    END IF;
     
     SELECT master_pubkey INTO v_user_master_pubkey
     FROM users
@@ -714,11 +751,11 @@ BEGIN
     
     CASE NEW.topic0
         WHEN '0xcaa54a9b9817e12b67fd790dabf6f963cb9a083290c5c06c052ea18bb9b29427' THEN -- BondedTokenCreated
-            PERFORM process_bonded_token_created(NEW.topics, NEW.data, v_block_timestamp);
+            PERFORM process_bonded_token_created(NEW.topics, NEW.data, v_block_timestamp, NEW.i);
         WHEN '0x157b5bda8c36b5ae40a6f0d041dce8790309b04707aa024e9a73ee87287372b4' THEN -- PairRegistered
             PERFORM process_pair_registered(NEW.topics, v_block_timestamp);
         WHEN '0xe4a3738af8db2ebbadd5b857bb8d2e0e6650fade69486571ff038a2a81433ca0' THEN -- Swapped
-            PERFORM process_swapped(NEW.transaction_hash, NEW.topics, NEW.data, v_tx_input, v_block_timestamp);
+            PERFORM process_swapped(NEW.transaction_hash, NEW.topics, NEW.data, v_tx_input, v_block_timestamp, NEW.i);
         ELSE
             NULL;
     END CASE;
@@ -727,8 +764,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS tx_log_event_trigger ON tx_logs;
-CREATE TRIGGER tx_log_event_trigger
+CREATE OR REPLACE TRIGGER tx_log_event_trigger
     AFTER INSERT ON tx_logs
     FOR EACH ROW
 EXECUTE FUNCTION process_tx_log_event();

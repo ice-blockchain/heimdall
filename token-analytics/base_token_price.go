@@ -47,11 +47,24 @@ func (t *tokenAnalytics) syncIONPrice(ctx context.Context) error {
 	}
 	t.ionPriceUSD.Store(&stats.Price)
 	_, err = storage.Exec(ctx, t.ingestedDataDB, `
-		INSERT INTO base_token_prices (token_address, token_symbol, price_usd, updated_at)
-		VALUES ($1, $2, $3, NOW())
-		ON CONFLICT (token_address, token_symbol) DO UPDATE SET
-			price_usd = EXCLUDED.price_usd,
-			updated_at = EXCLUDED.updated_at
+		WITH old_price AS (
+			SELECT price_usd
+			FROM base_token_prices
+			WHERE token_address = $1
+		),
+		updated AS (
+			INSERT INTO base_token_prices (token_address, token_symbol, price_usd, updated_at)
+			VALUES ($1, $2, $3, NOW())
+			ON CONFLICT (token_address) DO UPDATE SET
+				price_usd = EXCLUDED.price_usd,
+				updated_at = EXCLUDED.updated_at,
+				token_symbol = EXCLUDED.token_symbol
+			RETURNING price_usd
+		)
+		INSERT INTO base_token_price_history (token_address, price_usd, created_at)
+		SELECT $1, $3, NOW()
+		WHERE NOT EXISTS (SELECT 1 FROM old_price)
+		   OR (SELECT price_usd FROM old_price) != $3
 	`, t.cfg.IONTokenAddress, "ION", stats.Price)
 
 	if err != nil {
