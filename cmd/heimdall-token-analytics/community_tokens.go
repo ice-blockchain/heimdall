@@ -65,10 +65,11 @@ type (
 //	@Tags			Tokens
 //	@Produce		json
 //	@Param			ionConnectAddress	query		[]string	true	"Ion Connect address of the user"	example(0x1234...,0x5678...)
-//	@Param			Authorization		header		string		true	"Auth token"
 //	@Success		200					{array}		ta.CommunityToken
+//	@Failure		401					{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Security		Nostr
 //	@Router			/v1/community-tokens [GET].
 func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[TokenInfoRequest]) (*server.Response[[]*ta.CommunityToken], error) {
 	if len(req.Data.Addresses) == 0 {
@@ -88,14 +89,15 @@ func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[To
 //	@Description	Returns community tokens information for the given Ion Connect addresses.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			type			path		string	true	"Type of data"				example("latest")
-//	@Param			keyword			query		string	false	"Search keyword"			example("bitcoin")
-//	@Param			limit			query		uint32	false	"Number of items to return"	example(10)
-//	@Param			offset			query		uint32	false	"Number of items to skip"	example(0)
-//	@Param			Authorization	header		string	true	"Auth token"
-//	@Success		200				{array}		ta.CommunityToken
-//	@Failure		500				{object}	server.ResponseErrorBody
-//	@Failure		504				{object}	server.ResponseErrorBody	"if request times out"
+//	@Param			type	path		string	true	"Type of data"				example("latest")
+//	@Param			keyword	query		string	false	"Search keyword"			example("bitcoin")
+//	@Param			limit	query		uint32	false	"Number of items to return"	example(10)
+//	@Param			offset	query		uint32	false	"Number of items to skip"	example(0)
+//	@Success		200		{array}		ta.CommunityToken
+//	@Failure		401		{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		500		{object}	server.ResponseErrorBody
+//	@Failure		504		{object}	server.ResponseErrorBody	"if request times out"
+//	@Security		Nostr
 //	@Router			/v1/community-tokens/{type} [GET].
 func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoRequestByType]) (*server.Response[[]*ta.CommunityToken], error) {
 	validTypes := map[string]bool{
@@ -123,11 +125,12 @@ func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Requ
 //	@Description	Creates a new session view for community tokens analytics.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			type			path		string	true	"Type of session view"	example("latest")
-//	@Param			Authorization	header		string	true	"Auth token"
-//	@Success		200				{object}	SessionViewCreateResponse
-//	@Failure		500				{object}	server.ResponseErrorBody
-//	@Failure		504				{object}	server.ResponseErrorBody	"if request times out"
+//	@Param			type	path		string	true	"Type of session view"	example("latest")
+//	@Success		200		{object}	SessionViewCreateResponse
+//	@Failure		401		{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		500		{object}	server.ResponseErrorBody
+//	@Failure		504		{object}	server.ResponseErrorBody	"if request times out"
+//	@Security		Nostr
 //	@Router			/v1/community-tokens/{type}/viewing-sessions [POST].
 func (s *service) CreateCommunityTokensSessionView(ctx context.Context, req *server.Request[SessionViewCreateRequest]) (*server.Response[SessionViewCreateResponse], error) {
 	clientIP := req.Context.ClientIP()
@@ -155,10 +158,11 @@ func (s *service) CreateCommunityTokensSessionView(ctx context.Context, req *ser
 //	@Param			keyword				query		string	false	"Search keyword"			example("bitcoin")
 //	@Param			limit				query		uint32	false	"Number of items to return"	example(10)
 //	@Param			offset				query		uint32	false	"Number of items to skip"	example(0)
-//	@Param			Authorization		header		string	true	"Auth token"
 //	@Success		200					{array}		ta.CommunityToken
+//	@Failure		401					{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Security		Nostr
 //	@Router			/v1/community-tokens/{type}/viewing-sessions/{viewingSessionId} [GET].
 func (s *service) GetCommunityTokensSessionByID(ctx context.Context, req *server.Request[TokenInfoRequestByTypeAndSessionID]) (*server.Response[[]*ta.CommunityToken], error) {
 	limit := req.Data.Limit
@@ -189,10 +193,11 @@ func (s *service) GetCommunityTokensSessionByID(ctx context.Context, req *server
 //	@Param			ionConnectAddress	path		string	true	"Ion Connect address"		example("0x1234...")
 //	@Param			limit				query		uint32	false	"Number of items to return"	example(10)
 //	@Param			offset				query		uint32	false	"Number of items to skip"	example(0)
-//	@Param			Authorization		header		string	true	"Auth token"
 //	@Success		200					{array}		ta.Trade
+//	@Failure		401					{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Security		Nostr
 //	@Router			/v1/community-tokens/{ionConnectAddress}/latest-trades [GET].
 func (s *service) GetCommunityTokensTradesByAddress(ctx context.Context, req *server.Request[TradeRequest]) (*server.Response[[]*ta.Trade], error) {
 	limit := req.Data.Limit
@@ -211,14 +216,16 @@ func (s *service) GetCommunityTokensTradesByAddress(ctx context.Context, req *se
 //
 //	@Schemes
 //	@Description	Streams community tokens information for the given Ion Connect addresses.
-//	@Tags			sse
-//	@Produce		text/event-stream
+//	@Tags			stream
+//	@Produce		json
 //	@Param			ionConnectAddress	query		[]string	true	"Ion Connect address of the user"	example(0x1234...,0x5678...)
-//	@Param			Authorization		header		string		true	"Auth token"
 //	@Success		200					{object}	ta.CommunityToken
+//	@Failure		401					{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Security		Nostr
 //	@Router			/v1sse/community-tokens [GET].
+//	@Router			/v1ws/community-tokens [GET].
 func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request[TokenInfoRequest]) (server.StreamEventEmitter[ta.CommunityToken], error) {
 	if len(req.Data.Addresses) == 0 {
 		return nil, server.BadRequest(errors.New("ionConnectAddress[] is required"), invalidPropertiesErrorCode)
@@ -286,16 +293,18 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 //
 //	@Schemes
 //	@Description	Streams community tokens information for the given type.
-//	@Tags			sse
-//	@Produce		text/event-stream
+//	@Tags			stream
+//	@Produce		json
 //	@Param			type				path		string	true	"Type of data"										example("latest","featured","top","trending")
 //	@Param			viewingSessionId	query		string	false	"Viewing session ID (required for top/trending)"	example("550e8400-e29b-41d4-a716-446655440000")
-//	@Param			Authorization		header		string	true	"Auth token"
 //	@Success		200					{array}		ta.CommunityToken
 //	@Failure		400					{object}	server.ResponseErrorBody
+//	@Failure		401					{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Security		Nostr
 //	@Router			/v1sse/community-tokens/{type} [GET].
+//	@Router			/v1ws/community-tokens/{type} [GET].
 func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoStreamTypeAndSessionQuery]) (server.StreamEventEmitter[[]*ta.CommunityToken], error) {
 	validTypes := map[string]bool{
 		ta.TokenTypeLatest:   true,
@@ -378,15 +387,17 @@ func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.R
 //
 //	@Schemes
 //	@Description	Streams top holders information for a specific community token address.
-//	@Tags			sse
-//	@Produce		text/event-stream
+//	@Tags			stream
+//	@Produce		json
 //	@Param			ionConnectAddress	path		string	true	"Ion Connect address"		example("0x1234...")
 //	@Param			limit				query		uint32	false	"Number of items to return"	example(10)
-//	@Param			Authorization		header		string	true	"Auth token"
 //	@Success		200					{object}	[]ta.TopHolderPosition
+//	@Failure		401					{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Security		Nostr
 //	@Router			/v1sse/community-tokens/{ionConnectAddress}/top-holders [GET].
+//	@Router			/v1ws/community-tokens/{ionConnectAddress}/top-holders [GET].
 func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *server.Request[TopHoldersRequest]) (server.StreamEventEmitter[[]*ta.TopHolderPosition], error) {
 	ionConnectAddress := req.Data.Address
 	limit := req.Data.Limit
@@ -449,16 +460,18 @@ func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *serv
 //
 //	@Schemes
 //	@Description	Streams latest trades for a specific community token address.
-//	@Tags			sse
-//	@Produce		text/event-stream
+//	@Tags			stream
+//	@Produce		json
 //	@Param			ionConnectAddress	path		string	true	"Ion Connect address"		example("0x1234...")
 //	@Param			limit				query		uint32	false	"Number of items to return"	example(10)
 //	@Param			offset				query		uint32	false	"Number of items to skip"	example(0)
-//	@Param			Authorization		header		string	true	"Auth token"
 //	@Success		200					{object}	ta.Trade
+//	@Failure		401					{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Security		Nostr
 //	@Router			/v1sse/community-tokens/{ionConnectAddress}/latest-trades [GET].
+//	@Router			/v1ws/community-tokens/{ionConnectAddress}/latest-trades [GET].
 func (s *service) StreamCommunityTokensLatestTrades(ctx context.Context, req *server.Request[TradeRequest]) (server.StreamEventEmitter[ta.Trade], error) {
 	return s.latestTradesStream(req.Data.Address, req.Data.Limit, 0)
 }
@@ -467,14 +480,16 @@ func (s *service) StreamCommunityTokensLatestTrades(ctx context.Context, req *se
 //
 //	@Schemes
 //	@Description	Streams trading statistics for a specific community token address.
-//	@Tags			sse
-//	@Produce		text/event-stream
+//	@Tags			stream
+//	@Produce		json
 //	@Param			ionConnectAddress	path		string	true	"Ion Connect address"	example("0x1234...")
-//	@Param			Authorization		header		string	true	"Auth token"
 //	@Success		200					{object}	ta.TradeStats
+//	@Failure		401					{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Security		Nostr
 //	@Router			/v1sse/community-tokens/{ionConnectAddress}/trading-stats [GET].
+//	@Router			/v1ws/community-tokens/{ionConnectAddress}/trading-stats [GET].
 func (s *service) StreamCommunityTokensTradingStats(ctx context.Context, req *server.Request[TradeRequest]) (server.StreamEventEmitter[ta.TradeStats], error) {
 	return s.tradingStatsStream(req.Data.Address)
 }
@@ -483,15 +498,17 @@ func (s *service) StreamCommunityTokensTradingStats(ctx context.Context, req *se
 //
 //	@Schemes
 //	@Description	Streams OHLCV (Open, High, Low, Close, Volume) data for a specific community token address.
-//	@Tags			sse
-//	@Produce		text/event-stream
+//	@Tags			stream
+//	@Produce		json
 //	@Param			ionConnectAddress	path		string	true	"Ion Connect address"	example("0x1234...")
 //	@Param			interval			query		string	true	"Time interval"			example("1m")
-//	@Param			Authorization		header		string	true	"Auth token"
 //	@Success		200					{object}	ta.OHLCV
+//	@Failure		401					{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Security		Nostr
 //	@Router			/v1sse/community-tokens/{ionConnectAddress}/ohlcv [GET].
+//	@Router			/v1ws/community-tokens/{ionConnectAddress}/ohlcv [GET].
 func (s *service) StreamCommunityTokensOHLCV(ctx context.Context, req *server.Request[OHLCVRequest]) (server.StreamEventEmitter[ta.OHLCV], error) {
 	return s.ohlcvStream(req.Data.Address, req.Data.Interval)
 }
@@ -603,6 +620,7 @@ func (s *service) tradingStatsStream(ionContentAddress string) (server.StreamEve
 		return events, nil
 	}, nil
 }
+
 func (s *service) latestTradesStream(ionContentAddress string, limit, offset uint64) (server.StreamEventEmitter[ta.Trade], error) {
 	return func(ctx context.Context) (<-chan server.StreamEvent[ta.Trade], error) {
 		events := make(chan server.StreamEvent[ta.Trade], limit)

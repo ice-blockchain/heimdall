@@ -56,6 +56,8 @@ type (
 		Writer(ctx context.Context)
 		Reader(ctx context.Context)
 
+		Ping() error
+
 		// WriteMessage writes a single message with the given message type and data to the websocket connection.
 		// It does not use internal channels and buffers.
 		WriteMessage(messageType int, data []byte) (err error)
@@ -104,6 +106,10 @@ const (
 	websocketCompressThresholdBytes = 256
 	// Interval between pings to the client to keep the connection alive.
 	websocketPingInterval = time.Minute
+)
+
+var (
+	ErrClosed = errors.New("websocket connection is closed")
 )
 
 func newConnection(_ context.Context, conn net.Conn, conf *Config) *connection {
@@ -184,6 +190,14 @@ func (w *connection) WriteMessage(messageType int, data []byte) (err error) {
 
 		return nil
 	}
+}
+
+func (w *connection) Ping() error {
+	if w.Closed() {
+		return ErrClosed
+	}
+
+	return w.WriteMessage(int(ws.OpPing), nil)
 }
 
 // Writer listens on the out channel and writes messages to the websocket connection.
@@ -297,7 +311,7 @@ func (w *connection) readFrame() ([]byte, ws.OpCode, error) {
 		return bts, hdr.OpCode, err
 	}
 
-	return nil, 0, errors.New("websocket connection closed")
+	return nil, 0, ErrClosed
 }
 
 func (w *connection) ReadMessage() (messageType int, p []byte, err error) {

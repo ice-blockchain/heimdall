@@ -24,9 +24,10 @@ import (
 
 type (
 	Request[REQ any] struct {
-		Data    *REQ         // The request data payload.
-		Context *gin.Context // The Gin context for the request.
-		Token   Token        // Optional authentication token information.
+		Data    *REQ                 // The request data payload.
+		Context *gin.Context         // The Gin context for the request.
+		Token   Token                // Optional authentication token information.
+		WS      websocket.Connection // Optional websocket connection stream, if applicable.
 
 		bindings          map[requestDataBinding]struct{}
 		requiredFields    []string
@@ -77,9 +78,10 @@ var (
 	_               error = &ResponseError{}
 	errAuthRequired       = errors.New("authentication required")
 
-	ErrCodeRequestBindFailed       = "STRUCTURE_VALIDATION_FAILED"
-	ErrCodeRequestValidationFailed = "MISSING_PROPERTIES"
-	ErrCodeServerInternal          = "INTERNAL_SERVER_ERROR"
+	ErrCodeRequestBindFailed         = "STRUCTURE_VALIDATION_FAILED"
+	ErrCodeRequestValidationFailed   = "MISSING_PROPERTIES"
+	ErrCodeServerInternal            = "INTERNAL_SERVER_ERROR"
+	ErrCodeServerWebsocketReadFailed = "WEBSOCKET_READ_FAILED"
 )
 
 func bindAndValidate[REQ any](ctx *gin.Context, r *Request[REQ]) (ok bool) {
@@ -153,7 +155,25 @@ func StreamMiddleware() gin.HandlerFunc {
 	}
 }
 
+func Stream2WebsocketHandler[REQ, RESP any](fn StreamHandlerFunc[REQ, RESP]) WebsocketHandlerFunc[REQ, RESP] {
+	return func(ctx context.Context, req *Request[REQ]) (WebsocketEventEmitter[RESP], error) {
+		emitter, err := fn(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+
+		if emitter == nil {
+			return nil, nil
+		}
+
+		return func(ctx context.Context, _ websocket.AsyncRead) (<-chan WebsocketEvent[RESP], error) {
+			return emitter(ctx)
+		}, nil
+	}
+}
+
 func WebsocketHandler[REQ, RESP any](fn WebsocketHandlerFunc[REQ, RESP]) gin.HandlerFunc {
+	const pingInterval = 30 * time.Second
 	return func(ctx *gin.Context) {
 		var req Request[REQ]
 
@@ -161,7 +181,8 @@ func WebsocketHandler[REQ, RESP any](fn WebsocketHandlerFunc[REQ, RESP]) gin.Han
 			return
 		}
 
-		ws, err := websocket.Upgrade(ctx.Writer, ctx.Request, &websocket.Config{
+		var err error
+		req.WS, err = websocket.Upgrade(ctx.Writer, ctx.Request, &websocket.Config{
 			WriteTimeout: time.Second * 30,
 			ReadTimeout:  time.Second * 30,
 		})
@@ -169,7 +190,7 @@ func WebsocketHandler[REQ, RESP any](fn WebsocketHandlerFunc[REQ, RESP]) gin.Han
 			handleRequestError(ctx, fmt.Errorf("websocket upgrade error: %w", err))
 			return
 		}
-		defer ws.Close()
+		defer req.WS.Close()
 
 		emitter, respErr := fn(ctx, &req)
 		if respErr != nil {
@@ -187,16 +208,27 @@ func WebsocketHandler[REQ, RESP any](fn WebsocketHandlerFunc[REQ, RESP]) gin.Han
 		}
 
 		// We use only async reader, without writer here, as we control writing below.
-		go ws.Reader(ctx)
+		go req.WS.Reader(ctx)
 
-		source, err := emitter(ctx, ws)
+		pinger := time.NewTicker(pingInterval)
+		defer pinger.Stop()
+		var lastEvent time.Time
+
+		source, err := emitter(ctx, req.WS)
 		for ctx.Err() == nil {
 			select {
 			case <-ctx.Done():
 				return
 
-			case <-ws.Done():
+			case <-req.WS.Done():
 				return
+
+			case <-pinger.C:
+				if lastEvent.IsZero() || time.Since(lastEvent) >= pingInterval {
+					if err := req.WS.Ping(); err != nil {
+						slog.DebugContext(ctx, "websocket ping error", "error", err)
+					}
+				}
 
 			case event, ok := <-source:
 				if !ok {
@@ -204,20 +236,23 @@ func WebsocketHandler[REQ, RESP any](fn WebsocketHandlerFunc[REQ, RESP]) gin.Han
 				}
 
 				if event.Err != nil {
-					var errObject = map[string]string{
-						"error": event.Err.Error(),
+					errResp := ResponseErrorBody{
+						Err:          event.Err,
+						ErrorMessage: event.Err.Error(),
+						Code:         ErrCodeServerWebsocketReadFailed,
 					}
 
 					ctx.Error(fmt.Errorf("websocket event error: %w", event.Err))
-					websocket.WriteJSONMessage(ws, errObject)
+					websocket.WriteJSONMessage(req.WS, &errResp)
 					return
 				}
 
-				writeErr := websocket.WriteJSONMessage(ws, event.Data)
+				writeErr := websocket.WriteJSONMessage(req.WS, event.Data)
 				if writeErr != nil {
 					ctx.Error(fmt.Errorf("websocket write message error: %w", writeErr))
 					return
 				}
+				lastEvent = time.Now()
 			}
 		}
 	}
