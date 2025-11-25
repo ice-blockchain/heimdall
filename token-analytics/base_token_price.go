@@ -11,6 +11,7 @@ import (
 	"github.com/goccy/go-json"
 	"github.com/imroc/req/v3"
 
+	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 )
 
@@ -23,7 +24,15 @@ func (t *tokenAnalytics) startIONPriceSyncer(ctx context.Context) {
 		select {
 		case <-ticker.C:
 			reqCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-			log.Error(errors.Wrap(t.syncIONPrice(reqCtx), "failed to syncIONPrice"))
+			err := t.syncIONPrice(reqCtx)
+			if err != nil {
+				if storage.IsErr(err, storage.ErrReadOnly) {
+					cancel()
+
+					return
+				}
+				log.Error(errors.Wrap(err, "failed to syncIONPrice"))
+			}
 			cancel()
 		case <-ctx.Done():
 			return
@@ -37,6 +46,21 @@ func (t *tokenAnalytics) syncIONPrice(ctx context.Context) error {
 		return errors.Wrap(err, "failed to fetchIONPrice")
 	}
 	t.ionPriceUSD.Store(&stats.Price)
+	_, err = storage.Exec(ctx, t.ingestedDataDB, `
+		INSERT INTO base_token_prices (token_address, token_symbol, price_usd, updated_at)
+		VALUES ($1, $2, $3, NOW())
+		ON CONFLICT (token_address, token_symbol) DO UPDATE SET
+			price_usd = EXCLUDED.price_usd,
+			updated_at = EXCLUDED.updated_at
+	`, t.cfg.IONTokenAddress, "ION", stats.Price)
+
+	if err != nil {
+		if storage.IsErr(err, storage.ErrReadOnly) {
+			return storage.ErrReadOnly
+		}
+
+		return errors.Wrap(err, "failed to save ION price to database")
+	}
 
 	return nil
 }

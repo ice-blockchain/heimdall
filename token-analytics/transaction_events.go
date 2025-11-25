@@ -76,6 +76,12 @@ func (t *tokenAnalytics) onVerificationChecked(ctx context.Context, tx *txEvent,
 	return nil
 }
 
+func (t *tokenAnalytics) onPairRegistered(ctx context.Context, tx *txEvent, ev *bondingcurve.LogPairRegistered) error {
+	log.Info("Pair registered:%+v, tx:%v", ev, tx.TransactionHash)
+
+	return nil
+}
+
 func bigIntToFloat(val *big.Int) float64 {
 	if val == nil {
 		return 0

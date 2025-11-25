@@ -95,13 +95,13 @@ func New(ctx context.Context) TokenAnalytics {
 			return errors.Join(
 				errors.Wrapf(db.Close(), "failed to close source db"),
 				errors.Wrapf(targetDB.Close(), "failed to close target db"),
-				errors.Wrapf(questDB.Close(shutdownCtx), "failed to close timescale db"),
+				errors.Wrapf(questDB.Close(shutdownCtx), "failed to close questdb"),
 			)
 		},
 	}
 	t.ionPriceUSD = new(atomic.Pointer[float64])
 
-	go metrics.LogScaled(registry, 10*stdlibtime.Second, 1*stdlibtime.Millisecond, t) // TODO: 10 secs for test, change to 1-15 mminutes.
+	go metrics.LogScaled(registry, 5*stdlibtime.Minute, 1*stdlibtime.Second, t)
 	log.Panic(errors.Wrapf(t.syncIONPrice(ctx), "failed to sync ion price on startup"))
 	go t.startIONPriceSyncer(ctx)
 	return t
@@ -290,7 +290,7 @@ func (t *tokenAnalytics) processLog(ctx context.Context, tx *txEvent, logEvent *
 
 	switch ev := parsedEv.(type) {
 	case *bondingcurve.LogTokenCreated:
-		return t.onTokenCreated(ctx, tx, address, ev)
+		return t.onTokenCreated(ctx, address, ev)
 	case *bondingcurve.LogTokenSwapped:
 		return t.onSwap(ctx, tx, ev)
 	case *bondingcurve.LogPairRegistered:
@@ -325,6 +325,9 @@ func (t *tokenAnalytics) processLog(ctx context.Context, tx *txEvent, logEvent *
 func (t *tokenAnalytics) createStreamForContractAddress(ctx context.Context, contractAddress string) error {
 	_, err := storage.Exec(ctx, t.ingestedDataDB, `INSERT INTO streams(contract_address) VALUES ($1);`, contractAddress)
 	if err != nil {
+		if storage.IsErr(err, storage.ErrReadOnly) {
+			return nil
+		}
 		if storage.IsErr(err, storage.ErrDuplicate) {
 			log.Info("Stream already exists for bonded token: %v", contractAddress)
 			return nil
