@@ -10,7 +10,7 @@ replace (
 
 require (
 	dario.cat/mergo v1.0.2
-	github.com/alitto/pond/v2 v2.5.0
+	github.com/alitto/pond/v2 v2.6.0
 	github.com/btcsuite/btcd v0.25.0
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.10
 	github.com/caddyserver/certmagic v0.25.0
