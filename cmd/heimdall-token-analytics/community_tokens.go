@@ -142,8 +142,8 @@ func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Requ
 //	@Description	Creates a new session view for community tokens analytics.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			externalAddressOrViewType	path		string	true	"View type"	Enums(top,trending,bondingCurveProgress)	example("top")
-//	@Param			type						query		string	false	"Token type filter"	Enums(profile,post,video,article)	example("profile")
+//	@Param			externalAddressOrViewType	path		string	true	"View type"			Enums(top,trending,bondingCurveProgress)	example("top")
+//	@Param			type						query		string	false	"Token type filter"	Enums(profile,post,video,article)			example("profile")
 //	@Success		200							{object}	SessionViewCreateResponse
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500							{object}	server.ResponseErrorBody
@@ -171,11 +171,11 @@ func (s *service) CreateCommunityTokensSessionView(ctx context.Context, req *ser
 //	@Description	Returns community tokens information for a specific viewing session.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			externalAddressOrViewType	path		string	true	"View type"	Enums(top,trending,bondingCurveProgress)	example("top")
-//	@Param			viewingSessionId			path		string	true	"Viewing session ID"									example("550e8400-e29b-41d4-a716-446655440000")
-//	@Param			keyword						query		string	false	"Search keyword"										example("bitcoin")
-//	@Param			limit						query		uint32	false	"Number of items to return"								example(10)
-//	@Param			offset						query		uint32	false	"Number of items to skip"								example(0)
+//	@Param			externalAddressOrViewType	path		string	true	"View type"					Enums(top,trending,bondingCurveProgress)	example("top")
+//	@Param			viewingSessionId			path		string	true	"Viewing session ID"		example("550e8400-e29b-41d4-a716-446655440000")
+//	@Param			keyword						query		string	false	"Search keyword"			example("bitcoin")
+//	@Param			limit						query		uint32	false	"Number of items to return"	example(10)
+//	@Param			offset						query		uint32	false	"Number of items to skip"	example(0)
 //	@Success		200							{array}		ta.CommunityToken
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500							{object}	server.ResponseErrorBody
@@ -237,8 +237,8 @@ func (s *service) GetCommunityTokensTradesByAddress(ctx context.Context, req *se
 //	@Tags			Tokens
 //	@Accept			json
 //	@Produce		json
-//	@Param			externalAddressOrViewType	path	string						true	"External address"
-//	@Param			body						body	ExternalDataRequestBody		true	"External token data"
+//	@Param			externalAddressOrViewType	path	string					true	"External address"
+//	@Param			body						body	ExternalDataRequestBody	true	"External token data"
 //	@Success		200							"OK - Data synced successfully"
 //	@Failure		400							{object}	server.ResponseErrorBody	"if request body is invalid"
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"

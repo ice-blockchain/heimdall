@@ -1,6 +1,30 @@
 # SPDX-License-Identifier: ice License 1.0
 
 definitions:
+  main.ExternalDataRequestBody:
+    properties:
+      creatorAvatar:
+        example: https://example.com/avatar.png
+        type: string
+      creatorDisplayName:
+        example: John Doe
+        type: string
+      creatorUsername:
+        example: johndoe
+        type: string
+      creatorVerified:
+        example: true
+        type: boolean
+      tokenDescription:
+        example: This is a description
+        type: string
+      tokenImageUrl:
+        example: https://example.com/image.png
+        type: string
+      tokenTitle:
+        example: My Awesome Post
+        type: string
+    type: object
   main.SessionViewCreateResponse:
     properties:
       id:
@@ -310,20 +334,30 @@ paths:
       - Tokens
   /v1/community-tokens/{externalAddressOrViewType}/external-data:
     put:
-      description: Syncs external information for a community token (e.g., Twitter
-        data scraping). Backend only.
+      consumes:
+      - application/json
+      description: Syncs external information for a community token.
       parameters:
       - description: External address
-        example: '"0x1234..."'
         in: path
         name: externalAddressOrViewType
         required: true
         type: string
+      - description: External token data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/main.ExternalDataRequestBody'
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: OK - Data synced successfully
+        "400":
+          description: if request body is invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
         "401":
           description: if auth token is missing or invalid
           schema:
@@ -391,13 +425,22 @@ paths:
     post:
       description: Creates a new session view for community tokens analytics.
       parameters:
-      - description: View type (top, trending, or bondingCurveProgress)
+      - description: View type
+        enum:
+        - top
+        - trending
+        - bondingCurveProgress
         example: '"top"'
         in: path
         name: externalAddressOrViewType
         required: true
         type: string
-      - description: Token type filter (profile, post, video, or article)
+      - description: Token type filter
+        enum:
+        - profile
+        - post
+        - video
+        - article
         example: '"profile"'
         in: query
         name: type
@@ -429,7 +472,11 @@ paths:
     get:
       description: Returns community tokens information for a specific viewing session.
       parameters:
-      - description: View type (top, trending, or bondingCurveProgress)
+      - description: View type
+        enum:
+        - top
+        - trending
+        - bondingCurveProgress
         example: '"top"'
         in: path
         name: externalAddressOrViewType

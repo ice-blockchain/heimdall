@@ -167,7 +167,10 @@ const docTemplate = `{
         },
         "/v1/community-tokens/{externalAddressOrViewType}/external-data": {
             "put": {
-                "description": "Syncs external information for a community token (e.g., Twitter data scraping). Backend only.",
+                "description": "Syncs external information for a community token.",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
@@ -177,16 +180,30 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "example": "\"0x1234...\"",
                         "description": "External address",
                         "name": "externalAddressOrViewType",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "External token data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.ExternalDataRequestBody"
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK"
+                        "description": "OK - Data synced successfully"
+                    },
+                    "400": {
+                        "description": "if request body is invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
                     },
                     "401": {
                         "description": "if auth token is missing or invalid",
@@ -296,17 +313,28 @@ const docTemplate = `{
                 ],
                 "parameters": [
                     {
+                        "enum": [
+                            "top",
+                            "trending",
+                            "bondingCurveProgress"
+                        ],
                         "type": "string",
                         "example": "\"top\"",
-                        "description": "View type (top, trending, or bondingCurveProgress)",
+                        "description": "View type",
                         "name": "externalAddressOrViewType",
                         "in": "path",
                         "required": true
                     },
                     {
+                        "enum": [
+                            "profile",
+                            "post",
+                            "video",
+                            "article"
+                        ],
                         "type": "string",
                         "example": "\"profile\"",
-                        "description": "Token type filter (profile, post, video, or article)",
+                        "description": "Token type filter",
                         "name": "type",
                         "in": "query"
                     }
@@ -355,9 +383,14 @@ const docTemplate = `{
                 ],
                 "parameters": [
                     {
+                        "enum": [
+                            "top",
+                            "trending",
+                            "bondingCurveProgress"
+                        ],
                         "type": "string",
                         "example": "\"top\"",
-                        "description": "View type (top, trending, or bondingCurveProgress)",
+                        "description": "View type",
                         "name": "externalAddressOrViewType",
                         "in": "path",
                         "required": true
@@ -1196,6 +1229,39 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "main.ExternalDataRequestBody": {
+            "type": "object",
+            "properties": {
+                "creatorAvatar": {
+                    "type": "string",
+                    "example": "https://example.com/avatar.png"
+                },
+                "creatorDisplayName": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "creatorUsername": {
+                    "type": "string",
+                    "example": "johndoe"
+                },
+                "creatorVerified": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "tokenDescription": {
+                    "type": "string",
+                    "example": "This is a description"
+                },
+                "tokenImageUrl": {
+                    "type": "string",
+                    "example": "https://example.com/image.png"
+                },
+                "tokenTitle": {
+                    "type": "string",
+                    "example": "My Awesome Post"
+                }
+            }
+        },
         "main.SessionViewCreateResponse": {
             "type": "object",
             "properties": {
