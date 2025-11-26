@@ -13,10 +13,10 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/goccy/go-json"
 	"github.com/imroc/req/v3"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/pkg/errors"
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	appcfg "github.com/ice-blockchain/wintr/config"
@@ -26,6 +26,12 @@ import (
 const (
 	networkMainnet = "bnbchain-mainnet"
 	networkTestnet = "bnbchain-testnet"
+)
+
+const (
+	reqRetryCountMax = 20
+	reqRetryWaitMin  = 100 * time.Millisecond
+	reqRetryWaitMax  = 15 * time.Second
 )
 
 func NewClient(ctx context.Context, applicationYamlKey string) Client {
@@ -54,7 +60,7 @@ func NewClient(ctx context.Context, applicationYamlKey string) Client {
 		streamDestination:                       conf.ConnConfig,
 		network:                                 network,
 	}
-	if err = q.HealthCheck(ctx); err != nil {
+	if err = q.HealthCheck(ctx, true); err != nil {
 		log.Panic(errors.Wrapf(err, "failed to connect to QuickNode API"))
 	}
 	return q
@@ -68,22 +74,48 @@ func (q *client) CurrentBlockRange() (startBlock, endBlock uint64) {
 	return startBlock, endBlock
 }
 
-func (q *client) HealthCheck(ctx context.Context) error {
-	if resp, err := q.req(ctx).Get("/streams/rest/v1/streams"); err != nil {
+func (q *client) HealthCheckStream(ctx context.Context) error {
+	resp, err := q.req(ctx).Get("/streams/rest/v1/streams")
+	if err != nil {
 		return errors.Wrapf(err, "failed to get /streams/rest/v1/streams")
-	} else if resp.GetStatusCode() >= http.StatusBadRequest {
-		return errors.Errorf("failed get /streams/rest/v1/streams with %v", resp.GetStatusCode())
-	} else if _, err2 := resp.ToBytes(); err2 != nil {
-		return errors.Wrapf(err2, "failed to read body of /streams/rest/v1/streams")
-	} else {
-		return nil
 	}
+
+	switch resp.GetStatusCode() {
+	case http.StatusOK:
+
+	case http.StatusTooManyRequests:
+		// Should not happen, but log it just in case.
+		log.Warn("quicknode stream api rate limited")
+
+	default:
+		return errors.Errorf("quicknode stream api unavailable, status code: %v", resp.GetStatusCode())
+	}
+	return nil
+}
+
+func (q *client) HealthCheckBasic(ctx context.Context) error {
+	resp, err := q.httpClient.R().SetContext(ctx).Get("/health") // Do not need retry/api key for basic health check.
+	switch {
+	case err != nil:
+		return errors.Wrapf(err, "failed to get /health")
+
+	case resp.GetStatusCode() != http.StatusOK:
+		return errors.Errorf("quicknode unavailable, status code: %v", resp.GetStatusCode())
+	}
+	return nil
+}
+
+func (q *client) HealthCheck(ctx context.Context, streamApi bool) error {
+	if streamApi {
+		return q.HealthCheckStream(ctx)
+	}
+	return q.HealthCheckBasic(ctx)
 }
 
 func (q *client) req(ctx context.Context) *req.Request {
 	return q.httpClient.R().
 		SetContext(ctx).
-		SetRetryBackoffInterval(100*time.Millisecond, 10*time.Second).
+		SetRetryBackoffInterval(reqRetryWaitMin, reqRetryWaitMax).
 		SetRetryHook(func(resp *req.Response, err error) {
 			switch {
 			case err != nil:
@@ -92,7 +124,7 @@ func (q *client) req(ctx context.Context) *req.Request {
 				log.Error(errors.Errorf("quick node request failed %v: %v, body: %v", resp.Request.URL.String(), resp.GetStatusCode(), resp.String()))
 			}
 		}).
-		SetRetryCount(5).
+		SetRetryCount(reqRetryCountMax).
 		SetRetryCondition(func(resp *req.Response, err error) bool {
 			if err != nil {
 				return true

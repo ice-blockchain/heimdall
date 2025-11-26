@@ -16,7 +16,7 @@ import (
 type (
 	Client interface {
 		CreateStream(ctx context.Context, streamName, contractAddrToMonitor string) (*Stream, error)
-		HealthCheck(ctx context.Context) error
+		HealthCheck(ctx context.Context, streamApi bool) error
 		CurrentBlockRange() (startBlock, endBlock uint64)
 	}
 	Stream struct {
