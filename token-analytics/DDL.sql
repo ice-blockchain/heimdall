@@ -360,6 +360,10 @@ BEGIN
     -- baseToken is parameter index 0 (offset to bytes data)
     base_token_offset_bytes := decode_uint256('0x' || hex_clean, 0)::INT;
     
+    IF base_token_offset_bytes = 0 THEN
+        RETURN NULL;
+    END IF;
+    
     base_token_length_bytes := decode_uint256('0x' || hex_clean, base_token_offset_bytes / 32)::INT;
     
     IF base_token_length_bytes = 0 OR base_token_length_bytes > 32 THEN
@@ -391,6 +395,10 @@ BEGIN
     
     -- toToken is parameter index 1 (second parameter, after baseToken at index 0)
     to_token_offset_bytes := decode_uint256('0x' || hex_clean, 1)::INT;
+    
+    IF to_token_offset_bytes = 0 THEN
+        RETURN '';
+    END IF;
     
     to_token_length_bytes := decode_uint256('0x' || hex_clean, to_token_offset_bytes / 32)::INT;
     IF to_token_length_bytes = 0 THEN
