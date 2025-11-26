@@ -30,6 +30,12 @@ func (s *service) RegisterRoutes(router gin.IRouter) {
 	router.GET("/healthz", s.httpHealthCheckHandler)
 	router.GET("/health-check", s.httpHealthCheckHandler)
 
+	s.RegisterREST(router)
+	s.RegisterStreams(router)
+	s.RegisterWS(router)
+}
+
+func (s *service) RegisterREST(router gin.IRouter) {
 	tokensV1 := router.Group("/v1/community-tokens")
 
 	tokensV1.GET("/", server.RootHandler(s.GetCommunityTokens))
@@ -45,8 +51,6 @@ func (s *service) RegisterRoutes(router gin.IRouter) {
 		c.Redirect(http.StatusFound, "/docs/swagger/index.html")
 	})
 	router.GET("/docs/swagger/*any", ginswagger.WrapHandler(swaggerfiles.Handler))
-
-	s.RegisterStreams(router)
 }
 
 func (s *service) RegisterStreams(router gin.IRouter) {
@@ -59,4 +63,16 @@ func (s *service) RegisterStreams(router gin.IRouter) {
 	tokenStreamsV1.GET("/:type/latest-trades", server.StreamHandler(s.StreamCommunityTokensLatestTrades))
 	tokenStreamsV1.GET("/:type/trading-stats", server.StreamHandler(s.StreamCommunityTokensTradingStats))
 	tokenStreamsV1.GET("/:type/ohlcv", server.StreamHandler(s.StreamCommunityTokensOHLCV))
+}
+
+func (s *service) RegisterWS(router gin.IRouter) {
+	tokenWebsocketV1 := router.Group("/v1ws/community-tokens")
+	tokenWebsocketV1.GET("/", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokens)))
+	tokenWebsocketV1.GET("/:type", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokensByType)))
+
+	// `:type` is the `:ionConnectAddress` bellow.
+	tokenWebsocketV1.GET("/:type/top-holders", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokensTopHolders)))
+	tokenWebsocketV1.GET("/:type/latest-trades", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokensLatestTrades)))
+	tokenWebsocketV1.GET("/:type/trading-stats", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokensTradingStats)))
+	tokenWebsocketV1.GET("/:type/ohlcv", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokensOHLCV)))
 }

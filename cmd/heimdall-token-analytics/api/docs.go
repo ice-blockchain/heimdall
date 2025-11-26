@@ -35,18 +35,10 @@ const docTemplate = `{
                         "items": {
                             "type": "string"
                         },
-                        "collectionFormat": "multi",
                         "example": "0x1234...,0x5678...",
                         "description": "Ion Connect address of the user",
                         "name": "ionConnectAddress",
                         "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Auth token",
-                        "name": "Authorization",
-                        "in": "header",
                         "required": true
                     }
                 ],
@@ -58,6 +50,12 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/tokenanalytics.CommunityToken"
                             }
+                        }
+                    },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     },
                     "500": {
@@ -72,7 +70,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    }
+                ]
             }
         },
         "/v1/community-tokens/{ionConnectAddress}/latest-trades": {
@@ -108,13 +111,6 @@ const docTemplate = `{
                         "description": "Number of items to skip",
                         "name": "offset",
                         "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Auth token",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
                     }
                 ],
                 "responses": {
@@ -125,6 +121,12 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/tokenanalytics.Trade"
                             }
+                        }
+                    },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     },
                     "500": {
@@ -139,7 +141,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    }
+                ]
             }
         },
         "/v1/community-tokens/{type}": {
@@ -182,13 +189,6 @@ const docTemplate = `{
                         "description": "Number of items to skip",
                         "name": "offset",
                         "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Auth token",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
                     }
                 ],
                 "responses": {
@@ -199,6 +199,12 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/tokenanalytics.CommunityToken"
                             }
+                        }
+                    },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     },
                     "500": {
@@ -213,7 +219,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    }
+                ]
             }
         },
         "/v1/community-tokens/{type}/viewing-sessions": {
@@ -233,13 +244,6 @@ const docTemplate = `{
                         "name": "type",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Auth token",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
                     }
                 ],
                 "responses": {
@@ -247,6 +251,12 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/main.SessionViewCreateResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     },
                     "500": {
@@ -261,7 +271,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    }
+                ]
             }
         },
         "/v1/community-tokens/{type}/viewing-sessions/{viewingSessionId}": {
@@ -312,13 +327,6 @@ const docTemplate = `{
                         "description": "Number of items to skip",
                         "name": "offset",
                         "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Auth token",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
                     }
                 ],
                 "responses": {
@@ -331,6 +339,12 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -343,17 +357,22 @@ const docTemplate = `{
                             "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    }
+                ]
             }
         },
         "/v1sse/community-tokens": {
             "get": {
                 "description": "Streams community tokens information for the given Ion Connect addresses.",
                 "produces": [
-                    "text/event-stream"
+                    "application/json"
                 ],
                 "tags": [
-                    "sse"
+                    "stream"
                 ],
                 "parameters": [
                     {
@@ -361,18 +380,10 @@ const docTemplate = `{
                         "items": {
                             "type": "string"
                         },
-                        "collectionFormat": "multi",
                         "example": "0x1234...,0x5678...",
                         "description": "Ion Connect address of the user",
                         "name": "ionConnectAddress",
                         "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Auth token",
-                        "name": "Authorization",
-                        "in": "header",
                         "required": true
                     }
                 ],
@@ -383,6 +394,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/tokenanalytics.CommunityToken"
                         }
                     },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -395,17 +412,22 @@ const docTemplate = `{
                             "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    }
+                ]
             }
         },
         "/v1sse/community-tokens/{ionConnectAddress}/latest-trades": {
             "get": {
                 "description": "Streams latest trades for a specific community token address.",
                 "produces": [
-                    "text/event-stream"
+                    "application/json"
                 ],
                 "tags": [
-                    "sse"
+                    "stream"
                 ],
                 "parameters": [
                     {
@@ -431,13 +453,6 @@ const docTemplate = `{
                         "description": "Number of items to skip",
                         "name": "offset",
                         "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Auth token",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
                     }
                 ],
                 "responses": {
@@ -445,6 +460,12 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/tokenanalytics.Trade"
+                        }
+                    },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     },
                     "500": {
@@ -459,17 +480,22 @@ const docTemplate = `{
                             "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    }
+                ]
             }
         },
         "/v1sse/community-tokens/{ionConnectAddress}/ohlcv": {
             "get": {
                 "description": "Streams OHLCV (Open, High, Low, Close, Volume) data for a specific community token address.",
                 "produces": [
-                    "text/event-stream"
+                    "application/json"
                 ],
                 "tags": [
-                    "sse"
+                    "stream"
                 ],
                 "parameters": [
                     {
@@ -487,13 +513,6 @@ const docTemplate = `{
                         "name": "interval",
                         "in": "query",
                         "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Auth token",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
                     }
                 ],
                 "responses": {
@@ -501,6 +520,12 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/tokenanalytics.OHLCV"
+                        }
+                    },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     },
                     "500": {
@@ -515,17 +540,260 @@ const docTemplate = `{
                             "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    }
+                ]
             }
         },
         "/v1sse/community-tokens/{ionConnectAddress}/top-holders": {
             "get": {
                 "description": "Streams top holders information for a specific community token address.",
                 "produces": [
-                    "text/event-stream"
+                    "application/json"
                 ],
                 "tags": [
-                    "sse"
+                    "stream"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"0x1234...\"",
+                        "description": "Ion Connect address",
+                        "name": "ionConnectAddress",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 10,
+                        "description": "Number of items to return",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/tokenanalytics.TopHolderPosition"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    }
+                ]
+            }
+        },
+        "/v1sse/community-tokens/{ionConnectAddress}/trading-stats": {
+            "get": {
+                "description": "Streams trading statistics for a specific community token address.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "stream"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"0x1234...\"",
+                        "description": "Ion Connect address",
+                        "name": "ionConnectAddress",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/tokenanalytics.TradeStats"
+                        }
+                    },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    }
+                ]
+            }
+        },
+        "/v1sse/community-tokens/{type}": {
+            "get": {
+                "description": "Streams community tokens information for the given type.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "stream"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"latest\",\"featured\",\"top\",\"trending\"",
+                        "description": "Type of data",
+                        "name": "type",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"550e8400-e29b-41d4-a716-446655440000\"",
+                        "description": "Viewing session ID (required for top/trending)",
+                        "name": "viewingSessionId",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/tokenanalytics.CommunityToken"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    }
+                ]
+            }
+        },
+        "/v1ws/community-tokens": {
+            "get": {
+                "description": "Streams community tokens information for the given Ion Connect addresses.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "stream"
+                ],
+                "parameters": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "example": "0x1234...,0x5678...",
+                        "description": "Ion Connect address of the user",
+                        "name": "ionConnectAddress",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/tokenanalytics.CommunityToken"
+                        }
+                    },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    }
+                ]
+            }
+        },
+        "/v1ws/community-tokens/{ionConnectAddress}/latest-trades": {
+            "get": {
+                "description": "Streams latest trades for a specific community token address.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "stream"
                 ],
                 "parameters": [
                     {
@@ -545,21 +813,25 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "string",
-                        "description": "Auth token",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 0,
+                        "description": "Number of items to skip",
+                        "name": "offset",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/tokenanalytics.TopHolderPosition"
-                            }
+                            "$ref": "#/definitions/tokenanalytics.Trade"
+                        }
+                    },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     },
                     "500": {
@@ -574,17 +846,22 @@ const docTemplate = `{
                             "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    }
+                ]
             }
         },
-        "/v1sse/community-tokens/{ionConnectAddress}/trading-stats": {
+        "/v1ws/community-tokens/{ionConnectAddress}/ohlcv": {
             "get": {
-                "description": "Streams trading statistics for a specific community token address.",
+                "description": "Streams OHLCV (Open, High, Low, Close, Volume) data for a specific community token address.",
                 "produces": [
-                    "text/event-stream"
+                    "application/json"
                 ],
                 "tags": [
-                    "sse"
+                    "stream"
                 ],
                 "parameters": [
                     {
@@ -597,9 +874,10 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Auth token",
-                        "name": "Authorization",
-                        "in": "header",
+                        "example": "\"1m\"",
+                        "description": "Time interval",
+                        "name": "interval",
+                        "in": "query",
                         "required": true
                     }
                 ],
@@ -607,7 +885,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/tokenanalytics.TradeStats"
+                            "$ref": "#/definitions/tokenanalytics.OHLCV"
+                        }
+                    },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     },
                     "500": {
@@ -622,17 +906,137 @@ const docTemplate = `{
                             "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    }
+                ]
             }
         },
-        "/v1sse/community-tokens/{type}": {
+        "/v1ws/community-tokens/{ionConnectAddress}/top-holders": {
+            "get": {
+                "description": "Streams top holders information for a specific community token address.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "stream"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"0x1234...\"",
+                        "description": "Ion Connect address",
+                        "name": "ionConnectAddress",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 10,
+                        "description": "Number of items to return",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/tokenanalytics.TopHolderPosition"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    }
+                ]
+            }
+        },
+        "/v1ws/community-tokens/{ionConnectAddress}/trading-stats": {
+            "get": {
+                "description": "Streams trading statistics for a specific community token address.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "stream"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"0x1234...\"",
+                        "description": "Ion Connect address",
+                        "name": "ionConnectAddress",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/tokenanalytics.TradeStats"
+                        }
+                    },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    }
+                ]
+            }
+        },
+        "/v1ws/community-tokens/{type}": {
             "get": {
                 "description": "Streams community tokens information for the given type.",
                 "produces": [
-                    "text/event-stream"
+                    "application/json"
                 ],
                 "tags": [
-                    "sse"
+                    "stream"
                 ],
                 "parameters": [
                     {
@@ -649,13 +1053,6 @@ const docTemplate = `{
                         "description": "Viewing session ID (required for top/trending)",
                         "name": "viewingSessionId",
                         "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Auth token",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
                     }
                 ],
                 "responses": {
@@ -674,6 +1071,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -686,7 +1089,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    }
+                ]
             }
         }
     },
@@ -972,6 +1380,14 @@ const docTemplate = `{
                 }
             }
         }
+    },
+    "securityDefinitions": {
+        "Nostr": {
+            "description": "Type \"Nostr\" followed by a space and your Nostr NIP-42 compatible base64-encoded event.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
     }
 }`
 
@@ -982,7 +1398,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "",
 	Schemes:          []string{"https"},
 	Title:            "Token Analytics Service API.",
-	Description:      "This service provides analytics data for various tokens.",
+	Description:      "This service provides analytics data for various tokens.\nURLs starting with /v1/sse return Server-Sent Events (SSE) for real-time updates.\nURLs starting with /v1/ws utilize WebSockets for bidirectional communication.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

@@ -223,6 +223,10 @@ func NewWebsocketClientHTTP2(ctx context.Context, httpClient *h2ec.Client, urlSt
 	return c, nil
 }
 
+func (c *h2WebsocketClient) Ping() error {
+	return c.WriteMessage(int(ws.OpPing), nil)
+}
+
 func isConnClosedErr(err error) bool {
 	return err != nil &&
 		(errors.Is(err, syscall.EPIPE) ||

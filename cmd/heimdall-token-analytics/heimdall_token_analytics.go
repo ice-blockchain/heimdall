@@ -39,10 +39,16 @@ func newContext() context.Context {
 // @title						Token Analytics Service API.
 // @version					latest
 // @description				This service provides analytics data for various tokens.
-// @query.collection.format	multi
+// @description				URLs starting with /v1/sse return Server-Sent Events (SSE) for real-time updates.
+// @description				URLs starting with /v1/ws utilize WebSockets for bidirectional communication.
+// @query.collection.format	multic
 // @schemes					https
 // @contact.name				ice.io
 // @contact.url				https://ice.io
+// @securityDefinitions.apikey	Nostr
+// @in							header
+// @name						Authorization
+// @description				Type "Nostr" followed by a space and your Nostr NIP-42 compatible base64-encoded event.
 func main() {
 	var srv service
 

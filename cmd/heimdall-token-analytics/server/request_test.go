@@ -383,3 +383,109 @@ func TestRequestWebsocketReadWrite(t *testing.T) {
 	testServer.Close()
 	wg.Wait()
 }
+
+func TestRequestSameHandlerStreamWebsocket(t *testing.T) {
+	t.Parallel()
+
+	type RequestTestStruct struct {
+		Start int `form:"start" required:"true"`
+	}
+
+	type EventPayload struct {
+		Msg   string `json:"msg"`
+		Value int    `json:"magic"`
+	}
+
+	var wg sync.WaitGroup
+
+	const eventCount = 4
+	serverStreamHandler := func(ctx context.Context, r *Request[RequestTestStruct]) (StreamEventEmitter[EventPayload], error) {
+		require.NotNil(t, r.Data)
+
+		return func(ctx context.Context) (<-chan StreamEvent[EventPayload], error) {
+			events := make(chan StreamEvent[EventPayload], eventCount)
+			go func() {
+				defer func() {
+					t.Logf("closing stream events")
+					close(events)
+				}()
+
+				t.Logf("starting to emit stream events from %d", r.Data.Start)
+				for i := range eventCount {
+					select {
+					case <-ctx.Done():
+						t.Logf("stream context done: %v", ctx.Err())
+						return
+
+					case <-time.After(50 * time.Millisecond):
+						select {
+						case events <- StreamEvent[EventPayload]{
+							Type: "message",
+							ID:   fmt.Sprintf("id_%d", r.Data.Start+i),
+							Data: &EventPayload{Value: r.Data.Start + i},
+						}:
+							t.Logf("stream event sent: %d", r.Data.Start+i)
+
+						default:
+							t.Logf("stream event dropped: %d", r.Data.Start+i)
+							return
+						}
+					}
+				}
+			}()
+			return events, nil
+		}, nil
+	}
+
+	r := helperNewRouter(t)
+	r.GET("/stream", StreamMiddleware(), StreamHandler(serverStreamHandler))
+	r.GET("/ws", WebsocketHandler(Stream2WebsocketHandler(serverStreamHandler)))
+
+	testServer := httptest.NewServer(r)
+
+	t.Run("Websocket", func(t *testing.T) {
+		d := wsClient.Dialer{}
+		wsURL := "ws" + strings.TrimPrefix(testServer.URL, "http") + "/ws?start=100"
+		conn, _, err := d.DialContext(t.Context(), wsURL, nil)
+		require.NoError(t, err)
+		require.NotNil(t, conn)
+
+		for i := range eventCount {
+			_, recvBack, err := conn.ReadMessage()
+			t.Logf("received back message: %s", string(recvBack))
+			require.NoError(t, err)
+
+			var event EventPayload
+			err = json.Unmarshal(recvBack, &event)
+			require.NoError(t, err)
+			require.EqualValues(t, 100+i, event.Value)
+		}
+
+		require.NoError(t, conn.Close())
+	})
+	t.Run("Stream", func(t *testing.T) {
+		rr := newTestResponseRecorder()
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/stream?start=200", http.NoBody)
+		require.NoError(t, err)
+
+		r.ServeHTTP(rr, req)
+		require.Equal(t, http.StatusOK, rr.Code)
+		require.Equal(t, sse.ContentType, rr.Header().Get("Content-Type"))
+
+		events, err := sse.Decode(rr.Body)
+		require.NoError(t, err)
+		require.Len(t, events, eventCount)
+
+		for i, event := range events {
+			require.IsType(t, "", event.Data)
+
+			var payload EventPayload
+			err := json.Unmarshal([]byte(event.Data.(string)), &payload)
+			require.NoError(t, err)
+			require.EqualValues(t, 200+i, payload.Value)
+		}
+	})
+
+	testServer.Close()
+	wg.Wait()
+}

@@ -190,7 +190,10 @@ info:
   contact:
     name: ice.io
     url: https://ice.io
-  description: This service provides analytics data for various tokens.
+  description: |-
+    This service provides analytics data for various tokens.
+    URLs starting with /v1/sse return Server-Sent Events (SSE) for real-time updates.
+    URLs starting with /v1/ws utilize WebSockets for bidirectional communication.
   title: Token Analytics Service API.
   version: latest
 paths:
@@ -199,8 +202,7 @@ paths:
       description: Returns community tokens information for the given Ion Connect
         addresses.
       parameters:
-      - collectionFormat: multi
-        description: Ion Connect address of the user
+      - description: Ion Connect address of the user
         example: 0x1234...,0x5678...
         in: query
         items:
@@ -208,11 +210,6 @@ paths:
         name: ionConnectAddress
         required: true
         type: array
-      - description: Auth token
-        in: header
-        name: Authorization
-        required: true
-        type: string
       produces:
       - application/json
       responses:
@@ -222,6 +219,10 @@ paths:
             items:
               $ref: '#/definitions/tokenanalytics.CommunityToken'
             type: array
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
         "500":
           description: Internal Server Error
           schema:
@@ -230,6 +231,8 @@ paths:
           description: if request times out
           schema:
             $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
       tags:
       - Tokens
   /v1/community-tokens/{ionConnectAddress}/latest-trades:
@@ -254,11 +257,6 @@ paths:
         in: query
         name: offset
         type: integer
-      - description: Auth token
-        in: header
-        name: Authorization
-        required: true
-        type: string
       produces:
       - application/json
       responses:
@@ -268,6 +266,10 @@ paths:
             items:
               $ref: '#/definitions/tokenanalytics.Trade'
             type: array
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
         "500":
           description: Internal Server Error
           schema:
@@ -276,6 +278,8 @@ paths:
           description: if request times out
           schema:
             $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
       tags:
       - Tokens
   /v1/community-tokens/{type}:
@@ -306,11 +310,6 @@ paths:
         in: query
         name: offset
         type: integer
-      - description: Auth token
-        in: header
-        name: Authorization
-        required: true
-        type: string
       produces:
       - application/json
       responses:
@@ -320,6 +319,10 @@ paths:
             items:
               $ref: '#/definitions/tokenanalytics.CommunityToken'
             type: array
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
         "500":
           description: Internal Server Error
           schema:
@@ -328,6 +331,8 @@ paths:
           description: if request times out
           schema:
             $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
       tags:
       - Tokens
   /v1/community-tokens/{type}/viewing-sessions:
@@ -340,11 +345,6 @@ paths:
         name: type
         required: true
         type: string
-      - description: Auth token
-        in: header
-        name: Authorization
-        required: true
-        type: string
       produces:
       - application/json
       responses:
@@ -352,6 +352,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/main.SessionViewCreateResponse'
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
         "500":
           description: Internal Server Error
           schema:
@@ -360,6 +364,8 @@ paths:
           description: if request times out
           schema:
             $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
       tags:
       - Tokens
   /v1/community-tokens/{type}/viewing-sessions/{viewingSessionId}:
@@ -395,11 +401,6 @@ paths:
         in: query
         name: offset
         type: integer
-      - description: Auth token
-        in: header
-        name: Authorization
-        required: true
-        type: string
       produces:
       - application/json
       responses:
@@ -409,6 +410,10 @@ paths:
             items:
               $ref: '#/definitions/tokenanalytics.CommunityToken'
             type: array
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
         "500":
           description: Internal Server Error
           schema:
@@ -417,6 +422,8 @@ paths:
           description: if request times out
           schema:
             $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
       tags:
       - Tokens
   /v1sse/community-tokens:
@@ -424,8 +431,7 @@ paths:
       description: Streams community tokens information for the given Ion Connect
         addresses.
       parameters:
-      - collectionFormat: multi
-        description: Ion Connect address of the user
+      - description: Ion Connect address of the user
         example: 0x1234...,0x5678...
         in: query
         items:
@@ -433,18 +439,17 @@ paths:
         name: ionConnectAddress
         required: true
         type: array
-      - description: Auth token
-        in: header
-        name: Authorization
-        required: true
-        type: string
       produces:
-      - text/event-stream
+      - application/json
       responses:
         "200":
           description: OK
           schema:
             $ref: '#/definitions/tokenanalytics.CommunityToken'
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
         "500":
           description: Internal Server Error
           schema:
@@ -453,8 +458,10 @@ paths:
           description: if request times out
           schema:
             $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
       tags:
-      - sse
+      - stream
   /v1sse/community-tokens/{ionConnectAddress}/latest-trades:
     get:
       description: Streams latest trades for a specific community token address.
@@ -477,18 +484,17 @@ paths:
         in: query
         name: offset
         type: integer
-      - description: Auth token
-        in: header
-        name: Authorization
-        required: true
-        type: string
       produces:
-      - text/event-stream
+      - application/json
       responses:
         "200":
           description: OK
           schema:
             $ref: '#/definitions/tokenanalytics.Trade'
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
         "500":
           description: Internal Server Error
           schema:
@@ -497,8 +503,10 @@ paths:
           description: if request times out
           schema:
             $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
       tags:
-      - sse
+      - stream
   /v1sse/community-tokens/{ionConnectAddress}/ohlcv:
     get:
       description: Streams OHLCV (Open, High, Low, Close, Volume) data for a specific
@@ -516,18 +524,17 @@ paths:
         name: interval
         required: true
         type: string
-      - description: Auth token
-        in: header
-        name: Authorization
-        required: true
-        type: string
       produces:
-      - text/event-stream
+      - application/json
       responses:
         "200":
           description: OK
           schema:
             $ref: '#/definitions/tokenanalytics.OHLCV'
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
         "500":
           description: Internal Server Error
           schema:
@@ -536,8 +543,10 @@ paths:
           description: if request times out
           schema:
             $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
       tags:
-      - sse
+      - stream
   /v1sse/community-tokens/{ionConnectAddress}/top-holders:
     get:
       description: Streams top holders information for a specific community token
@@ -555,13 +564,8 @@ paths:
         in: query
         name: limit
         type: integer
-      - description: Auth token
-        in: header
-        name: Authorization
-        required: true
-        type: string
       produces:
-      - text/event-stream
+      - application/json
       responses:
         "200":
           description: OK
@@ -569,6 +573,10 @@ paths:
             items:
               $ref: '#/definitions/tokenanalytics.TopHolderPosition'
             type: array
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
         "500":
           description: Internal Server Error
           schema:
@@ -577,8 +585,10 @@ paths:
           description: if request times out
           schema:
             $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
       tags:
-      - sse
+      - stream
   /v1sse/community-tokens/{ionConnectAddress}/trading-stats:
     get:
       description: Streams trading statistics for a specific community token address.
@@ -589,18 +599,17 @@ paths:
         name: ionConnectAddress
         required: true
         type: string
-      - description: Auth token
-        in: header
-        name: Authorization
-        required: true
-        type: string
       produces:
-      - text/event-stream
+      - application/json
       responses:
         "200":
           description: OK
           schema:
             $ref: '#/definitions/tokenanalytics.TradeStats'
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
         "500":
           description: Internal Server Error
           schema:
@@ -609,8 +618,10 @@ paths:
           description: if request times out
           schema:
             $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
       tags:
-      - sse
+      - stream
   /v1sse/community-tokens/{type}:
     get:
       description: Streams community tokens information for the given type.
@@ -626,13 +637,8 @@ paths:
         in: query
         name: viewingSessionId
         type: string
-      - description: Auth token
-        in: header
-        name: Authorization
-        required: true
-        type: string
       produces:
-      - text/event-stream
+      - application/json
       responses:
         "200":
           description: OK
@@ -644,6 +650,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/server.ResponseErrorBody'
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
         "500":
           description: Internal Server Error
           schema:
@@ -652,8 +662,257 @@ paths:
           description: if request times out
           schema:
             $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
       tags:
-      - sse
+      - stream
+  /v1ws/community-tokens:
+    get:
+      description: Streams community tokens information for the given Ion Connect
+        addresses.
+      parameters:
+      - description: Ion Connect address of the user
+        example: 0x1234...,0x5678...
+        in: query
+        items:
+          type: string
+        name: ionConnectAddress
+        required: true
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/tokenanalytics.CommunityToken'
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
+      tags:
+      - stream
+  /v1ws/community-tokens/{ionConnectAddress}/latest-trades:
+    get:
+      description: Streams latest trades for a specific community token address.
+      parameters:
+      - description: Ion Connect address
+        example: '"0x1234..."'
+        in: path
+        name: ionConnectAddress
+        required: true
+        type: string
+      - description: Number of items to return
+        example: 10
+        format: int32
+        in: query
+        name: limit
+        type: integer
+      - description: Number of items to skip
+        example: 0
+        format: int32
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/tokenanalytics.Trade'
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
+      tags:
+      - stream
+  /v1ws/community-tokens/{ionConnectAddress}/ohlcv:
+    get:
+      description: Streams OHLCV (Open, High, Low, Close, Volume) data for a specific
+        community token address.
+      parameters:
+      - description: Ion Connect address
+        example: '"0x1234..."'
+        in: path
+        name: ionConnectAddress
+        required: true
+        type: string
+      - description: Time interval
+        example: '"1m"'
+        in: query
+        name: interval
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/tokenanalytics.OHLCV'
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
+      tags:
+      - stream
+  /v1ws/community-tokens/{ionConnectAddress}/top-holders:
+    get:
+      description: Streams top holders information for a specific community token
+        address.
+      parameters:
+      - description: Ion Connect address
+        example: '"0x1234..."'
+        in: path
+        name: ionConnectAddress
+        required: true
+        type: string
+      - description: Number of items to return
+        example: 10
+        format: int32
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/tokenanalytics.TopHolderPosition'
+            type: array
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
+      tags:
+      - stream
+  /v1ws/community-tokens/{ionConnectAddress}/trading-stats:
+    get:
+      description: Streams trading statistics for a specific community token address.
+      parameters:
+      - description: Ion Connect address
+        example: '"0x1234..."'
+        in: path
+        name: ionConnectAddress
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/tokenanalytics.TradeStats'
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
+      tags:
+      - stream
+  /v1ws/community-tokens/{type}:
+    get:
+      description: Streams community tokens information for the given type.
+      parameters:
+      - description: Type of data
+        example: '"latest","featured","top","trending"'
+        in: path
+        name: type
+        required: true
+        type: string
+      - description: Viewing session ID (required for top/trending)
+        example: '"550e8400-e29b-41d4-a716-446655440000"'
+        in: query
+        name: viewingSessionId
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/tokenanalytics.CommunityToken'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
+      tags:
+      - stream
 schemes:
 - https
+securityDefinitions:
+  Nostr:
+    description: Type "Nostr" followed by a space and your Nostr NIP-42 compatible
+      base64-encoded event.
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"
