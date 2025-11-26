@@ -24,26 +24,26 @@ type (
 		IncludeTopHolders *uint32  `form:"includeTopHolders" swaggerignore:"true"`
 	}
 	TokenInfoRequestByType struct {
-		ViewType string  `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
-		Type     *string `form:"type" swaggerignore:"true"`
+		ViewType string  `uri:"externalAddressOrViewType" binding:"required,oneof=latest" swaggerignore:"true"`
+		Type     *string `form:"type" binding:"omitempty,oneof=profile post video article" swaggerignore:"true"`
 		Keyword  string  `form:"keyword" swaggerignore:"true"`
 		PaginationRequest
 	}
 	TokenInfoRequestByTypeAndSessionID struct {
-		ViewType         string `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
+		ViewType         string `uri:"externalAddressOrViewType" binding:"required,oneof=top trending bondingCurveProgress" swaggerignore:"true"`
 		ViewingSessionID string `uri:"viewingSessionId" required:"true" swaggerignore:"true"`
 		Keyword          string `form:"keyword" swaggerignore:"true"`
 		PaginationRequest
 	}
 	TokenInfoStreamTypeAndSessionQuery struct {
-		ViewType         string  `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
+		ViewType         string  `uri:"externalAddressOrViewType" binding:"required,oneof=latest top trending featured bondingCurveProgress" swaggerignore:"true"`
 		ViewingSessionID string  `form:"viewingSessionId" swaggerignore:"true"`
-		Type             *string `form:"type" swaggerignore:"true"`
+		Type             *string `form:"type" binding:"omitempty,oneof=profile post video article" swaggerignore:"true"`
 		PaginationRequest
 	}
 	SessionViewCreateRequest struct {
 		ViewType string  `uri:"externalAddressOrViewType" binding:"required,oneof=top trending bondingCurveProgress" swaggerignore:"true"`
-		Type     *string `form:"type" swaggerignore:"true"`
+		Type     *string `form:"type" binding:"omitempty,oneof=profile post video article" swaggerignore:"true"`
 	}
 	SessionViewCreateResponse struct {
 		ID  string `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
@@ -58,7 +58,17 @@ type (
 		Limit           uint32 `form:"limit" swaggerignore:"true"`
 	}
 	ExternalDataRequest struct {
-		ExternalAddress string `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
+		ExternalAddress string                  `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
+		Body            ExternalDataRequestBody `json:",inline"`
+	}
+	ExternalDataRequestBody struct {
+		CreatorUsername    string `json:"creatorUsername" example:"johndoe"`
+		CreatorDisplayName string `json:"creatorDisplayName" example:"John Doe"`
+		CreatorAvatar      string `json:"creatorAvatar" example:"https://example.com/avatar.png"`
+		TokenTitle         string `json:"tokenTitle,omitempty" example:"My Awesome Post"`
+		TokenDescription   string `json:"tokenDescription,omitempty" example:"This is a description"`
+		TokenImageURL      string `json:"tokenImageUrl,omitempty" example:"https://example.com/image.png"`
+		CreatorVerified    bool   `json:"creatorVerified" example:"true"`
 	}
 	OHLCVRequest struct {
 		ExternalAddress string `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
@@ -114,27 +124,6 @@ func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[To
 //	@Security		Nostr
 //	@Router			/v1/community-tokens/{externalAddressOrViewType} [GET].
 func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoRequestByType]) (*server.Response[[]*ta.CommunityToken], error) {
-	validViewTypes := map[string]bool{
-		ta.TokenTypeLatest: true,
-	}
-	if !validViewTypes[req.Data.ViewType] {
-		return nil, server.BadRequest(fmt.Errorf("invalid type: must be %s", ta.TokenTypeLatest), invalidPropertiesErrorCode)
-	}
-	if req.Data.Type != nil {
-		validTokenTypes := map[string]bool{
-			ta.TokenTypeProfile: true,
-			ta.TokenTypePost:    true,
-			ta.TokenTypeVideo:   true,
-			ta.TokenTypeArticle: true,
-		}
-		if !validTokenTypes[*req.Data.Type] {
-		}
-		if !validTokenTypes[*req.Data.Type] {
-			return nil, server.BadRequest(fmt.Errorf("invalid token type: must be one of %s, %s, %s, %s",
-				ta.TokenTypeProfile, ta.TokenTypePost, ta.TokenTypeVideo, ta.TokenTypeArticle), invalidPropertiesErrorCode)
-		}
-	}
-
 	limit := req.Data.Limit
 	if limit == 0 {
 		limit = 10
@@ -153,8 +142,8 @@ func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Requ
 //	@Description	Creates a new session view for community tokens analytics.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			externalAddressOrViewType	path		string	true	"View type (top, trending, or bondingCurveProgress)"	example("top")
-//	@Param			type						query		string	false	"Token type filter (profile, post, video, or article)"	example("profile")
+//	@Param			externalAddressOrViewType	path		string	true	"View type"	Enums(top,trending,bondingCurveProgress)	example("top")
+//	@Param			type						query		string	false	"Token type filter"	Enums(profile,post,video,article)	example("profile")
 //	@Success		200							{object}	SessionViewCreateResponse
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500							{object}	server.ResponseErrorBody
@@ -162,19 +151,6 @@ func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Requ
 //	@Security		Nostr
 //	@Router			/v1/community-tokens/{externalAddressOrViewType}/viewing-sessions [POST].
 func (s *service) CreateCommunityTokensSessionView(ctx context.Context, req *server.Request[SessionViewCreateRequest]) (*server.Response[SessionViewCreateResponse], error) {
-	if req.Data.Type != nil {
-		validTokenTypes := map[string]bool{
-			ta.TokenTypeProfile: true,
-			ta.TokenTypePost:    true,
-			ta.TokenTypeVideo:   true,
-			ta.TokenTypeArticle: true,
-		}
-		if !validTokenTypes[*req.Data.Type] {
-			return nil, server.BadRequest(fmt.Errorf("invalid token type: must be one of %s, %s, %s, %s",
-				ta.TokenTypeProfile, ta.TokenTypePost, ta.TokenTypeVideo, ta.TokenTypeArticle), invalidPropertiesErrorCode)
-		}
-	}
-
 	clientIP := req.Context.ClientIP()
 	deviceKey := req.Token.GetDeviceKey()
 	sessionID, ttl, err := s.tokenAnalytics.CreateViewingSession(ctx, req.Data.ViewType, clientIP, deviceKey, req.Data.Type)
@@ -195,7 +171,7 @@ func (s *service) CreateCommunityTokensSessionView(ctx context.Context, req *ser
 //	@Description	Returns community tokens information for a specific viewing session.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			externalAddressOrViewType	path		string	true	"View type (top, trending, or bondingCurveProgress)"	example("top")
+//	@Param			externalAddressOrViewType	path		string	true	"View type"	Enums(top,trending,bondingCurveProgress)	example("top")
 //	@Param			viewingSessionId			path		string	true	"Viewing session ID"									example("550e8400-e29b-41d4-a716-446655440000")
 //	@Param			keyword						query		string	false	"Search keyword"										example("bitcoin")
 //	@Param			limit						query		uint32	false	"Number of items to return"								example(10)
@@ -207,16 +183,6 @@ func (s *service) CreateCommunityTokensSessionView(ctx context.Context, req *ser
 //	@Security		Nostr
 //	@Router			/v1/community-tokens/{externalAddressOrViewType}/viewing-sessions/{viewingSessionId} [GET].
 func (s *service) GetCommunityTokensSessionByID(ctx context.Context, req *server.Request[TokenInfoRequestByTypeAndSessionID]) (*server.Response[[]*ta.CommunityToken], error) {
-	validViewTypes := map[string]bool{
-		ta.TokenTypeTop:                  true,
-		ta.TokenTypeTrending:             true,
-		ta.TokenTypeBondingCurveProgress: true,
-	}
-	if !validViewTypes[req.Data.ViewType] {
-		return nil, server.BadRequest(fmt.Errorf("invalid view type: must be one of %s, %s, %s",
-			ta.TokenTypeTop, ta.TokenTypeTrending, ta.TokenTypeBondingCurveProgress), invalidPropertiesErrorCode)
-	}
-
 	limit := req.Data.Limit
 	if limit == 0 {
 		limit = 10
@@ -267,11 +233,14 @@ func (s *service) GetCommunityTokensTradesByAddress(ctx context.Context, req *se
 // SyncCommunityTokenExternalData godoc
 //
 //	@Schemes
-//	@Description	Syncs external information for a community token (e.g., Twitter data scraping). Backend only.
+//	@Description	Syncs external information for a community token.
 //	@Tags			Tokens
+//	@Accept			json
 //	@Produce		json
-//	@Param			externalAddressOrViewType	path	string	true	"External address"	example("0x1234...")
-//	@Success		200							"OK"
+//	@Param			externalAddressOrViewType	path	string						true	"External address"
+//	@Param			body						body	ExternalDataRequestBody		true	"External token data"
+//	@Success		200							"OK - Data synced successfully"
+//	@Failure		400							{object}	server.ResponseErrorBody	"if request body is invalid"
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500							{object}	server.ResponseErrorBody
 //	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
@@ -388,34 +357,9 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 //	@Router			/v1sse/community-tokens/{externalAddressOrViewType} [GET].
 //	@Router			/v1ws/community-tokens/{externalAddressOrViewType} [GET].
 func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoStreamTypeAndSessionQuery]) (server.StreamEventEmitter[[]*ta.CommunityToken], error) {
-	validViewTypes := map[string]bool{
-		ta.TokenTypeLatest:               true,
-		ta.TokenTypeFeatured:             true,
-		ta.TokenTypeTop:                  true,
-		ta.TokenTypeTrending:             true,
-		ta.TokenTypeBondingCurveProgress: true,
-	}
-	if !validViewTypes[req.Data.ViewType] {
-		return nil, server.BadRequest(fmt.Errorf("invalid type: must be one of %s, %s, %s, %s, %s",
-			ta.TokenTypeLatest, ta.TokenTypeFeatured, ta.TokenTypeTop, ta.TokenTypeTrending, ta.TokenTypeBondingCurveProgress), invalidPropertiesErrorCode)
-	}
-
 	if (req.Data.ViewType == ta.TokenTypeTop || req.Data.ViewType == ta.TokenTypeTrending || req.Data.ViewType == ta.TokenTypeBondingCurveProgress) && req.Data.ViewingSessionID == "" {
 		return nil, server.BadRequest(errors.New("viewingSessionId is required for top, trending, and bondingCurveProgress types"), invalidPropertiesErrorCode)
 	}
-	if req.Data.Type != nil {
-		validTokenTypes := map[string]bool{
-			ta.TokenTypeProfile: true,
-			ta.TokenTypePost:    true,
-			ta.TokenTypeVideo:   true,
-			ta.TokenTypeArticle: true,
-		}
-		if !validTokenTypes[*req.Data.Type] {
-			return nil, server.BadRequest(fmt.Errorf("invalid token type: must be one of %s, %s, %s, %s",
-				ta.TokenTypeProfile, ta.TokenTypePost, ta.TokenTypeVideo, ta.TokenTypeArticle), invalidPropertiesErrorCode)
-		}
-	}
-
 	limit := uint64(100)
 	return func(ctx context.Context) (<-chan server.StreamEvent[[]*ta.CommunityToken], error) {
 		events := make(chan server.StreamEvent[[]*ta.CommunityToken], 100)
