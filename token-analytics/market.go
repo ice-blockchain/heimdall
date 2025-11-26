@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"sync"
 	stdlibtime "time"
 
 	"github.com/cockroachdb/errors"
@@ -14,7 +15,6 @@ import (
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
-	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	storagev3 "github.com/ice-blockchain/wintr/connectors/storage/v3"
 	"github.com/ice-blockchain/wintr/time"
 )
@@ -63,6 +63,7 @@ func (t *trade) Marshal(client questdb.LineSender) questdb.At {
 func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTokenSwapped, externalAddress string) error {
 	tradeTyp, baseAmount, amount, priceInBase := buyOrSell(ev)
 	basePrice := t.ionPriceUSD.Load()
+	priceInUSD := new(big.Float).Mul(priceInBase, new(big.Float).SetFloat64(*basePrice))
 	tradeData := &trade{
 		Timestamp:       *tx.BlockTimestamp,
 		PairAddress:     hex.EncodeToString(ev.Pair[:]),
@@ -74,11 +75,17 @@ func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, ev *bon
 		Type:            tradeTyp,
 		TraderAddress:   ev.Address.String(),
 		TransactionHash: tx.TransactionHash,
-		PriceInUsd:      new(big.Float).Mul(priceInBase, new(big.Float).SetFloat64(*basePrice)),
+		PriceInUsd:      priceInUSD,
 	}
 
-	err := questdb.Write(ctx, t.questDB, tradeData)
-	return errors.Wrapf(err, "failed to insert trading data into questdb")
+	if err := questdb.Write(ctx, t.questDB, tradeData); err != nil {
+		return errors.Wrapf(err, "failed to insert trading data into questdb")
+	}
+	price, _ := priceInUSD.Float64()
+	candleStick, _ := t.ohclvRecentData.LoadOrStore(ionConnectAddress, newRecentCandlestick())
+	candleStick.Update(price)
+
+	return nil
 }
 
 func buyOrSell(ev *bondingcurve.LogTokenSwapped) (trade TradeType, baseTokenAmount, creatorOrContentTokenAmount questdb.Decimal, priceInBase *big.Float) {
@@ -124,51 +131,8 @@ func (t *tokenAnalytics) GetOHLVCHistory(ctx context.Context, now, startPoint st
 	return ohlcvs, nil
 }
 
-func (t *tokenAnalytics) GetOHLVCRecent(ctx context.Context, now stdlibtime.Time, externalAddress string, interval Interval) (res *OHLCV, err error) {
-	if err = interval.Validate(); err != nil {
-		return nil, errors.Wrapf(err, "invalid interval %v", interval.String())
-	}
-	recentOhlcvData, err := questdb.Get[OHLCV](ctx, t.questDB, fmt.Sprintf(`
-		SELECT
-			timestamp::TIMESTAMP_NS::LONG as timestamp,
-			external_address,
-			first(price_in_usd) AS open,
-			max(price_in_usd) AS high,
-			min(price_in_usd) AS low,
-			last(price_in_usd) AS close,
-			sum(price_in_usd) AS volume
-		FROM trades WHERE
-			timestamp >= timestamp_floor('%[1]v', $2) 
-		              AND timestamp < dateadd('T', $3,timestamp_floor('%[1]v', $2)) -- if there is data newer than now
-					  AND external_address = $1
-		SAMPLE BY %[1]v ALIGN TO CALENDAR;
-	`, interval.String()), externalAddress, time.New(now), int64(interval.Duration()/stdlibtime.Millisecond))
-	if err != nil {
-		if storage.IsErr(err, storage.ErrNotFound) {
-			return &OHLCV{
-				Timestamp: uint64(now.UnixNano()),
-				Open:      0,
-				High:      0,
-				Low:       0,
-				Close:     0,
-				Volume:    0,
-			}, nil
-		}
-		return nil, errors.Wrapf(err, "failed to get ohlvc data for %v", now)
-	}
-
-	return &OHLCV{
-		Timestamp: uint64(recentOhlcvData.Timestamp),
-		Open:      recentOhlcvData.Open,
-		High:      recentOhlcvData.High,
-		Low:       recentOhlcvData.Low,
-		Close:     recentOhlcvData.Close,
-		Volume:    recentOhlcvData.Volume,
-	}, nil
-}
-
-func (t *tokenAnalytics) GetTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress string) (*TradeStats, error) {
-	min5, err := storagev3.Get[TradeStatsAggregate](ctx, t.processedDataDB, tradingStatsCacheKey(externalAddress, "5m"))
+func (t *tokenAnalytics) GetTradingStats(ctx context.Context, now stdlibtime.Time, ionContentAddress string) (*TradeStats, error) {
+	min5, err := storagev3.Get[TradeStatsAggregate](ctx, t.processedDataDB, tradingStatsCacheKey(ionContentAddress, "5m"))
 	if err != nil || len(min5) == 0 {
 		return t.UpdateTradingStats(ctx, now, externalAddress)
 	}
@@ -228,6 +192,37 @@ func (t *tokenAnalytics) UpdateTradingStats(ctx context.Context, now stdlibtime.
 		return nil, errors.Wrapf(err, "failed to update trading stats in cache for %v", ionConnectAddress)
 	}
 	return stats, nil
+}
+
+func (t *tokenAnalytics) SubscribeOHLVC(ctx context.Context, now stdlibtime.Time, ionContentAddress string, interval Interval, handler func(*OHLCV, error, ...string)) error {
+	start := now.Add(-stdlibtime.Duration(interval.WindowSize()))
+	ohlcvs, err := t.GetOHLVCHistory(ctx, now, start, ionContentAddress, interval)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get initial ohlcv data (history)")
+	}
+	for i := range ohlcvs {
+		handler(ohlcvs[i], nil, fmt.Sprintf("ohlcv_%v", ohlcvs[i].Timestamp))
+	}
+	swaps := t.subscribeOnSwaps(ionContentAddress)
+	candleStick, _ := t.ohclvRecentData.LoadOrStore(ionContentAddress, newRecentCandlestick())
+	candleStick.SetInterval(ctx, interval)
+	go func() {
+		for _ = range swaps {
+			rec, ok := t.ohclvRecentData.Load(ionContentAddress)
+			if ok {
+				data := rec.OHLCV()
+				handler(data, nil, fmt.Sprintf("ohlcv_%v", data.Timestamp))
+			}
+		}
+	}()
+
+	return nil
+}
+
+func (t *tokenAnalytics) subscribeOnSwaps(ionContentAddress string) <-chan *bondingcurve.LogTokenSwapped {
+	swaps := make(chan *bondingcurve.LogTokenSwapped)
+	t.swapSubs.Store(ionContentAddress, swaps)
+	return swaps
 }
 
 func (t *tokenAnalytics) fetchTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress string) (res *TradeStats, err error) {
@@ -292,4 +287,65 @@ func (t *tokenAnalytics) fetchTradingStats(ctx context.Context, now stdlibtime.T
 		}
 	}
 	return res, nil
+}
+func newRecentCandlestick() *recentCandlestick {
+	r := &recentCandlestick{
+		mx: new(sync.RWMutex),
+	}
+	r.reset(stdlibtime.Now())
+	return r
+}
+func (o *OHLCV) Empty() bool {
+	return o.Open == 0 && o.High == 0 && o.Low == 0 && o.Close == 0 && o.Volume == 0
+}
+
+func (r *recentCandlestick) SetInterval(ctx context.Context, interval Interval) {
+	r.interval = interval
+	now := stdlibtime.Now()
+	if uint64(now.UnixNano())-r.o.Timestamp >= uint64(interval.Duration()) {
+		r.reset(now)
+	}
+	go r.startResetTicker(ctx, interval)
+}
+
+func (r *recentCandlestick) Update(priceInUsd float64) {
+	r.mx.Lock()
+	defer r.mx.Unlock()
+	if r.o.Empty() {
+		r.o.Open = priceInUsd
+	}
+	if priceInUsd > r.o.High {
+		r.o.High = priceInUsd
+	}
+	if priceInUsd < r.o.Low || r.o.Low == 0 {
+		r.o.Low = priceInUsd
+	}
+	r.o.Close = priceInUsd
+	r.o.Volume += priceInUsd
+}
+func (r *recentCandlestick) OHLCV() *OHLCV {
+	r.mx.RLock()
+	defer r.mx.RUnlock()
+	return r.o
+}
+
+func (r *recentCandlestick) startResetTicker(ctx context.Context, interval Interval) {
+	ticker := stdlibtime.NewTicker(interval.Duration()) // TODO: cfg?
+	go func() {
+		defer ticker.Stop()
+		for ctx.Err() == nil {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				r.reset(stdlibtime.Now())
+			}
+		}
+	}()
+}
+
+func (r *recentCandlestick) reset(now stdlibtime.Time) {
+	r.mx.Lock()
+	defer r.mx.Unlock()
+	r.o = &OHLCV{Open: 0, High: 0, Low: 0, Close: 0, Volume: 0, Timestamp: uint64(now.Truncate(r.interval.Duration()).UnixNano())}
 }

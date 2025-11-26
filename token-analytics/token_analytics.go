@@ -15,6 +15,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/goccy/go-json"
+	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rcrowley/go-metrics"
 
 	"github.com/ice-blockchain/heimdall/token-analytics/ddl"
@@ -91,6 +92,9 @@ func New(ctx context.Context) TokenAnalytics {
 		cfg:                         &cfg,
 		quickNode:                   qn,
 		metrics:                     registry,
+		swaps:                       make(chan *bondingcurve.LogTokenSwapped),
+		ohclvRecentData:             xsync.NewMap[string, *recentCandlestick](),
+		swapSubs:                    xsync.NewMap[string, chan *bondingcurve.LogTokenSwapped](),
 		shutdown: func() error {
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
@@ -102,11 +106,13 @@ func New(ctx context.Context) TokenAnalytics {
 		},
 	}
 	t.ionPriceUSD = new(atomic.Pointer[float64])
-
 	go metrics.LogScaled(registry, 5*stdlibtime.Minute, 1*stdlibtime.Second, t)
 	if err := t.syncIONPrice(ctx); err != nil && !storage.IsErr(err, storage.ErrReadOnly) && !errors.Is(err, context.Canceled) {
 		log.Panic(errors.Wrapf(err, "failed to sync ion price on startup"))
 	}
+
+	go t.routeSwapsToSubscribers(ctx)
+
 	go t.startIONPriceSyncer(ctx)
 	if true {
 		t.insertDummyDataProcessor(ctx)
@@ -119,6 +125,28 @@ func (t *tokenAnalytics) Close() error {
 	log.Info("all workers stopped")
 
 	return t.shutdown()
+}
+
+func (t *tokenAnalytics) routeSwapsToSubscribers(ctx context.Context) {
+	go func() {
+		<-ctx.Done()
+		close(t.swaps)
+		t.swapSubs.Range(func(key string, value chan *bondingcurve.LogTokenSwapped) bool {
+			close(value)
+			return true
+		})
+	}()
+	for newSwap := range t.swaps {
+		ionAddrOfNewSwap, err := detectIonConnectAddressFromSwap(newSwap)
+		if err != nil {
+			log.Error(errors.Wrapf(err, "failed to detect ion connect address from swap"))
+			continue
+		}
+		dest, ok := t.swapSubs.Load(ionAddrOfNewSwap)
+		if ok {
+			dest <- newSwap
+		}
+	}
 }
 
 func (t *tokenAnalyticsUsers) HealthCheck(ctx context.Context) error {
