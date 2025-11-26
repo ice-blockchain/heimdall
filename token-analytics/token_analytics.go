@@ -102,7 +102,9 @@ func New(ctx context.Context) TokenAnalytics {
 	t.ionPriceUSD = new(atomic.Pointer[float64])
 
 	go metrics.LogScaled(registry, 5*stdlibtime.Minute, 1*stdlibtime.Second, t)
-	log.Panic(errors.Wrapf(t.syncIONPrice(ctx), "failed to sync ion price on startup"))
+	if err := t.syncIONPrice(ctx); err != nil && !storage.IsErr(err, storage.ErrReadOnly) && !errors.Is(err, context.Canceled) {
+		log.Panic(errors.Wrapf(err, "failed to sync ion price on startup"))
+	}
 	go t.startIONPriceSyncer(ctx)
 	return t
 }

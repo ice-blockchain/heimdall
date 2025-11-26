@@ -18,7 +18,11 @@ import (
 func (t *tokenAnalytics) startIONPriceSyncer(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Second) //nolint:gosec,gomnd // Not an  issue.
 	defer ticker.Stop()
-	log.Panic(errors.Wrap(t.syncIONPrice(ctx), "failed to syncIONPrice"))
+	if err := t.syncIONPrice(ctx); err != nil {
+		if !errors.Is(err, context.Canceled) && !storage.IsErr(err, storage.ErrReadOnly) {
+			log.Panic(errors.Wrap(err, "failed to syncIONPrice"))
+		}
+	}
 
 	for {
 		select {
