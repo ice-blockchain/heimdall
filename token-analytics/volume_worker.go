@@ -19,6 +19,11 @@ func (t *tokenAnalytics) runMaterializedViewRefreshWorker(ctx context.Context) {
 
 	log.Info("Materialized view refresh worker started, refreshing every 30 seconds")
 	if err := t.refreshMaterializedView(ctx); err != nil {
+		if storage.IsErr(err, storage.ErrReadOnly) {
+			log.Warn("Database is read-only, stopping materialized view refresh worker")
+
+			return
+		}
 		log.Error(fmt.Errorf("failed to refresh materialized view on startup: %w", err))
 	}
 	for ctx.Err() == nil {
@@ -29,6 +34,11 @@ func (t *tokenAnalytics) runMaterializedViewRefreshWorker(ctx context.Context) {
 			return
 		case <-ticker.C:
 			if err := t.refreshMaterializedView(ctx); err != nil {
+				if storage.IsErr(err, storage.ErrReadOnly) {
+					log.Warn("Database is read-only, stopping materialized view refresh worker")
+
+					return
+				}
 				log.Error(fmt.Errorf("failed to refresh materialized view: %w", err))
 			}
 		}
