@@ -142,6 +142,8 @@ type (
 		ionPriceUSD     *atomic.Pointer[float64]
 		// TODO: xmap for latest creator token prices to calc content token price
 		bondingCurveContractAddress string
+
+		dummyInsertBlockIdx uint64
 	}
 	tokenAnalyticsUsers struct {
 		ingestedDataDB *storage.DB

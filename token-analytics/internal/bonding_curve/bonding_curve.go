@@ -78,7 +78,7 @@ func decode[T any](abi abi.ABI, res T, name, data string) error {
 		data = string(binary)
 	}
 	if err := abi.UnpackIntoInterface(res, name, []byte(data)); err != nil {
-		return errors.Wrapf(err, "failed to unpack BondedTokenCreated event")
+		return errors.Wrapf(err, "failed to unpack event")
 	}
 	return nil
 }

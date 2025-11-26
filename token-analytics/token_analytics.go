@@ -106,6 +106,9 @@ func New(ctx context.Context) TokenAnalytics {
 		log.Panic(errors.Wrapf(err, "failed to sync ion price on startup"))
 	}
 	go t.startIONPriceSyncer(ctx)
+	if true {
+		t.insertDummyDataProcessor(ctx)
+	}
 	return t
 }
 
