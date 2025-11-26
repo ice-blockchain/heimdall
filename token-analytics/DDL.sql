@@ -345,16 +345,6 @@ CREATE TABLE IF NOT EXISTS base_token_price_history (
     FOREIGN KEY (token_address) REFERENCES base_token_prices(token_address) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS token_price_history (
-    created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
-    contract_address    TEXT NOT NULL,
-    price_usd           usd_amount NOT NULL,
-    tx_log_id           BIGINT,
-    PRIMARY KEY (contract_address, created_at),
-    FOREIGN KEY (contract_address) REFERENCES tokens(contract_address) ON DELETE CASCADE,
-    FOREIGN KEY (tx_log_id) REFERENCES tx_logs(i) ON DELETE SET NULL
-);
-
 CREATE OR REPLACE FUNCTION decode_base_token_from_input(tx_input TEXT) -- Decode baseToken parameter from swap() transaction input
 RETURNS TEXT AS $$
 DECLARE
@@ -612,7 +602,6 @@ DECLARE
     v_token_amount NUMERIC;
     v_sign NUMERIC;
     v_cost_usd usd_amount;
-    v_old_price_usd usd_amount;
 BEGIN
     IF array_length(p_topics, 1) < 3 THEN
         RETURN;
@@ -633,7 +622,7 @@ BEGIN
         RETURN;
     END IF;
     
-    SELECT contract_address, base_token, price_usd INTO v_token_address, v_other_token, v_old_price_usd
+    SELECT contract_address, base_token INTO v_token_address, v_other_token
     FROM tokens
     WHERE ion_connect_address = v_token_ion_connect;
     
@@ -695,16 +684,6 @@ BEGIN
         market_cap_usd = GREATEST(market_cap_usd + v_delta_market_cap, 0),
         updated_at = p_block_timestamp
     WHERE contract_address = v_token_address;
-    
-    IF v_old_price_usd IS NULL OR v_old_price_usd != v_price_usd THEN
-        INSERT INTO token_price_history (
-            created_at, contract_address, price_usd, tx_log_id
-        )
-        VALUES (
-            p_block_timestamp, v_token_address, v_price_usd, p_tx_log_id
-        )
-        ON CONFLICT (contract_address, created_at) DO NOTHING;
-    END IF;
     
     SELECT master_pubkey INTO v_user_master_pubkey
     FROM users
