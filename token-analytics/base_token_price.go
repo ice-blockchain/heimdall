@@ -68,10 +68,6 @@ func (t *tokenAnalytics) syncIONPrice(ctx context.Context) error {
 	`, t.cfg.IONTokenAddress, "ION", stats.Price)
 
 	if err != nil {
-		if storage.IsErr(err, storage.ErrReadOnly) {
-			return storage.ErrReadOnly
-		}
-
 		return errors.Wrap(err, "failed to save ION price to database")
 	}
 
