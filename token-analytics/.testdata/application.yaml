@@ -1,0 +1,34 @@
+token-analytics:
+  workers: 10
+  batchSize: 2
+  bondingCurve:
+    smartContractAddress: 0x4012f49Be72057329754922603Dc35ADB8520274
+  ionTokenAddress: 0x0000000000000000000000000000000000000000
+  quickNode:
+    startBlock: 72173309
+    # update to accessible over internet, ngrok tcp, or that 23... machine
+    streamDestinationUrl: postgresql://root:pass@localhost:5445/ingested_data
+    apiKey: "-"
+  questdb:
+    writeUrl: http::addr=localhost:9000
+    user: root
+    password: pass
+    read:
+      runDDL: true
+      skipSettingsVerification: true
+      primaryURL: postgresql://root:pass@localhost:8812/qdb?ssl_mode=disable
+      credentials:
+        user: root
+        password: pass
+      replicaURLs:
+        - postgresql://read-user:read-pass@localhost:8812/qdb?ssl_mode=disable
+  wintr/connectors/storage/v3:
+    url: redis://default:@localhost:6379
+  wintr/connectors/storage/v2:
+    runDDL: true
+    primaryURL: postgresql://root:pass@localhost:5445/ingested_data
+    credentials:
+      user: root
+      password: pass
+    replicaURLs:
+      - postgresql://root:pass@localhost:5445/ingested_data

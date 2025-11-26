@@ -7,11 +7,12 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/time"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestOnPairRegistered(t *testing.T) {
@@ -52,10 +53,7 @@ func TestOnPairRegistered(t *testing.T) {
 			BlockTimestamp:  now,
 		}
 
-		ta := &tokenAnalytics{
-			ingestedDataDB: testDB,
-			cfg:            &config{},
-		}
+		ta := New(t.Context()).(*tokenAnalytics)
 
 		err = ta.onPairRegistered(testCtx, tx, event)
 		require.NoError(t, err, "onPairRegistered should succeed")
@@ -90,10 +88,7 @@ func TestOnPairRegistered(t *testing.T) {
 			BlockTimestamp:  now,
 		}
 
-		ta := &tokenAnalytics{
-			ingestedDataDB: testDB,
-			cfg:            &config{},
-		}
+		ta := New(t.Context()).(*tokenAnalytics)
 
 		err := ta.onPairRegistered(testCtx, tx, event)
 		require.NoError(t, err, "onPairRegistered should not fail even if token doesn't exist")
@@ -114,10 +109,7 @@ func TestOnPairRegistered(t *testing.T) {
 		helperInsertTestToken(t, testCtx, testDB, tokenAddr2, ionConnectAddr2, "MULTI", "30023", masterPubkey,
 			"1000000000000000000000000", 0.0, 0.0, 0)
 
-		ta := &tokenAnalytics{
-			ingestedDataDB: testDB,
-			cfg:            &config{},
-		}
+		ta := New(t.Context()).(*tokenAnalytics)
 
 		baseToken1 := "0x1111111111111111111111111111111111111111"
 		event1 := &bondingcurve.LogPairRegistered{
@@ -184,10 +176,7 @@ func TestOnPairRegistered(t *testing.T) {
 		helperInsertTestToken(t, testCtx, testDB, strings.ToLower(checksumTokenAddr), ionConnectAddr3, "CSUM", "30023", masterPubkey,
 			"1000000000000000000000000", 0.0, 0.0, 0)
 
-		ta := &tokenAnalytics{
-			ingestedDataDB: testDB,
-			cfg:            &config{},
-		}
+		ta := New(t.Context()).(*tokenAnalytics)
 
 		event := &bondingcurve.LogPairRegistered{
 			PairId:     common.HexToHash("0x3333333333333333333333333333333333333333333333333333333333333333"),

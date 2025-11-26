@@ -51,12 +51,13 @@ func (t *trade) Marshal(client questdb.LineSender) questdb.At {
 		Symbol("contract_address", t.ContractAddress).
 		Symbol("external_address", t.ExternalAddress).
 		Symbol("trade_type", string(t.Type)).
-		Symbol("trader_address", t.TraderAddress).
-		Symbol("transaction_hash", t.TransactionHash).
 		DecimalColumnFromString("base_price_in_usd", fmt.Sprintf("%.18f", t.BasePriceInUsd)).
 		DecimalColumn("base_amount", t.BaseAmount).
 		DecimalColumn("amount", t.Amount).
-		DecimalColumnFromString("price_in_usd", t.PriceInUsd.String())
+		DecimalColumnFromString("price_in_usd", t.PriceInUsd.String()).
+		StringColumn("trader_address", t.TraderAddress).
+		StringColumn("transaction_hash", t.TransactionHash).
+		StringColumn("contract_address", t.ContractAddress)
 }
 
 func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTokenSwapped, externalAddress string) error {

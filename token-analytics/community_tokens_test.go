@@ -14,16 +14,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
+	storagev3 "github.com/ice-blockchain/wintr/connectors/storage/v3"
 )
 
 func TestGetCommunityTokensByIonConnectAddresses(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	ta := &tokenAnalytics{
-		ingestedDataDB:  testDB,
-		processedDataDB: testRedis,
-	}
+	ta := New(ctx)
 
 	t.Run("empty addresses returns empty result", func(t *testing.T) {
 		tokens, err := ta.GetCommunityTokensByIonConnectAddresses(ctx, []string{}, "requestor123")
@@ -113,7 +111,7 @@ func TestGetCommunityTokensByIonConnectAddresses(t *testing.T) {
 			0.0001,
 		)
 
-		helperSetupRedisPositionData(t, ctx, testRedis.Unwrap(), token1ION, map[string]float64{
+		helperSetupRedisPositionData(t, ctx, testRedis, token1ION, map[string]float64{
 			"0:top_holder_1:": 1000.0, // rank 1: 1000 tokens
 			"0:top_holder_2:": 750.0,  // rank 2: 750 tokens
 			"0:requestor123:": 500.0,  // rank 3: 500 tokens (our user - ion_connect format)
@@ -321,7 +319,7 @@ func helperInsertTokenSwap(t *testing.T, ctx context.Context, db *storage.DB,
 	require.NoError(t, err, "failed to insert token swap")
 }
 
-func helperSetupRedisPositionData(t *testing.T, ctx context.Context, client *redis.Client,
+func helperSetupRedisPositionData(t *testing.T, ctx context.Context, client storagev3.DB,
 	ionConnectAddress string, positions map[string]float64) {
 	t.Helper()
 	key := keyUserPositionOfToken(ionConnectAddress)

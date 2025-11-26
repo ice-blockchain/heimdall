@@ -11,10 +11,12 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/compose"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
+	storagev3 "github.com/ice-blockchain/wintr/connectors/storage/v3"
 )
 
 const (
@@ -28,9 +30,10 @@ const (
 
 type (
 	TestContainers struct {
-		PostgreSQL *postgres.PostgresContainer
-		Dragonfly  testcontainers.Container
-		QuestDB    testcontainers.Container
+		PostgreSQL    *postgres.PostgresContainer
+		Dragonfly     testcontainers.Container
+		QuestDB       testcontainers.Container
+		dockerCompose *compose.DockerCompose
 
 		PostgresConnStr  string
 		DragonflyAddr    string
@@ -205,7 +208,7 @@ func (tc *TestContainers) ConnectDragonfly(ctx context.Context) (*redis.Client, 
 // 	return pgDB, ilpPool, nil
 // }
 
-func (tc *TestContainers) FlushDragonfly(ctx context.Context, client *redis.Client) error {
+func (tc *TestContainers) FlushDragonfly(ctx context.Context, client storagev3.DB) error {
 	return client.FlushAll(ctx).Err()
 }
 
