@@ -32,6 +32,8 @@ const (
 	reqRetryCountMax = 20
 	reqRetryWaitMin  = 100 * time.Millisecond
 	reqRetryWaitMax  = 15 * time.Second
+
+	apiHealthCheckInterval = 1 * time.Minute
 )
 
 func NewClient(ctx context.Context, applicationYamlKey string) Client {
@@ -60,10 +62,33 @@ func NewClient(ctx context.Context, applicationYamlKey string) Client {
 		streamDestination:                       conf.ConnConfig,
 		network:                                 network,
 	}
-	if err = q.HealthCheck(ctx, true); err != nil {
+	q.apiAlive.Store(true)
+
+	if err = q.doHealthCheck(ctx); err != nil {
 		log.Panic(errors.Wrapf(err, "failed to connect to QuickNode API"))
 	}
+	go q.HealthCheckThread(ctx, apiHealthCheckInterval)
+
 	return q
+}
+
+func (q *client) HealthCheckThread(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for ctx.Err() == nil {
+		select {
+		case <-ticker.C:
+			if err := q.doHealthCheck(ctx); err != nil {
+				q.apiAlive.Store(false)
+				log.Error(errors.Wrapf(err, "health check failed"))
+			} else {
+				q.apiAlive.Store(true)
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 func (q *client) CurrentBlockRange() (startBlock, endBlock uint64) {
@@ -74,7 +99,7 @@ func (q *client) CurrentBlockRange() (startBlock, endBlock uint64) {
 	return startBlock, endBlock
 }
 
-func (q *client) HealthCheckStream(ctx context.Context) error {
+func (q *client) doHealthCheck(ctx context.Context) error {
 	resp, err := q.req(ctx).Get("/streams/rest/v1/streams")
 	if err != nil {
 		return errors.Wrapf(err, "failed to get /streams/rest/v1/streams")
@@ -93,23 +118,11 @@ func (q *client) HealthCheckStream(ctx context.Context) error {
 	return nil
 }
 
-func (q *client) HealthCheckBasic(ctx context.Context) error {
-	resp, err := q.httpClient.R().SetContext(ctx).Get("/health") // Do not need retry/api key for basic health check.
-	switch {
-	case err != nil:
-		return errors.Wrapf(err, "failed to get /health")
-
-	case resp.GetStatusCode() != http.StatusOK:
-		return errors.Errorf("quicknode unavailable, status code: %v", resp.GetStatusCode())
+func (q *client) HealthCheck(ctx context.Context) error {
+	if q.apiAlive.Load() {
+		return nil
 	}
-	return nil
-}
-
-func (q *client) HealthCheck(ctx context.Context, streamApi bool) error {
-	if streamApi {
-		return q.HealthCheckStream(ctx)
-	}
-	return q.HealthCheckBasic(ctx)
+	return errApiDown
 }
 
 func (q *client) req(ctx context.Context) *req.Request {

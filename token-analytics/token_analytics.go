@@ -138,7 +138,7 @@ func (t *tokenAnalytics) HealthCheck(ctx context.Context) error {
 	if err := t.processedDataDB.Ping(ctx).Err(); err != nil {
 		return fmt.Errorf("redis connection failed: %w", err)
 	}
-	if err := t.quickNode.HealthCheck(ctx, false); err != nil {
+	if err := t.quickNode.HealthCheck(ctx); err != nil {
 		return fmt.Errorf("quicknode api unavailable: %w", err)
 	}
 

@@ -5,6 +5,8 @@ package quicknode
 import (
 	"context"
 	_ "embed"
+	"errors"
+	"sync/atomic"
 	"text/template"
 
 	"github.com/imroc/req/v3"
@@ -16,7 +18,7 @@ import (
 type (
 	Client interface {
 		CreateStream(ctx context.Context, streamName, contractAddrToMonitor string) (*Stream, error)
-		HealthCheck(ctx context.Context, streamApi bool) error
+		HealthCheck(ctx context.Context) error
 		CurrentBlockRange() (startBlock, endBlock uint64)
 	}
 	Stream struct {
@@ -35,6 +37,7 @@ type (
 		erc20SmartContractFilterTemplate        *template.Template
 		streamDestination                       *pgx.ConnConfig
 		network                                 string
+		apiAlive                                atomic.Bool
 	}
 
 	config struct {
@@ -81,4 +84,6 @@ type (
 var (
 	//go:embed .quicknode-streams-filters/bonding_curve_smart_contract.js
 	bondingCurveSmartContractFilterTemplate string
+
+	errApiDown = errors.New("quicknode api is down")
 )
