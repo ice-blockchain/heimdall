@@ -39,12 +39,12 @@ func (s *service) RegisterREST(router gin.IRouter) {
 	tokensV1 := router.Group("/v1/community-tokens")
 
 	tokensV1.GET("/", server.RootHandler(s.GetCommunityTokens))
-	tokensV1.GET("/:type", server.RootHandler(s.GetCommunityTokensByType))
-	tokensV1.POST("/:type/viewing-sessions", server.RootHandler(s.CreateCommunityTokensSessionView))
-	tokensV1.GET("/:type/viewing-sessions/:viewingSessionId", server.RootHandler(s.GetCommunityTokensSessionByID))
+	tokensV1.GET("/:externalAddressOrViewType", server.RootHandler(s.GetCommunityTokensByType))
+	tokensV1.POST("/:externalAddressOrViewType/viewing-sessions", server.RootHandler(s.CreateCommunityTokensSessionView))
+	tokensV1.GET("/:externalAddressOrViewType/viewing-sessions/:viewingSessionId", server.RootHandler(s.GetCommunityTokensSessionByID))
 
-	// `:type` param here is `:ionConnectAddress` actually because gin does not support having different param names for the same endpoint structure.
-	tokensV1.GET("/:type/latest-trades", server.RootHandler(s.GetCommunityTokensTradesByAddress))
+	tokensV1.GET("/:externalAddressOrViewType/latest-trades", server.RootHandler(s.GetCommunityTokensTradesByAddress))
+	tokensV1.PUT("/:externalAddressOrViewType/external-data", server.RootHandler(s.SyncCommunityTokenExternalData))
 
 	api.SwaggerInfo.Version = readVersionString()
 	router.GET("/docs", func(c *gin.Context) {
@@ -56,23 +56,21 @@ func (s *service) RegisterREST(router gin.IRouter) {
 func (s *service) RegisterStreams(router gin.IRouter) {
 	tokenStreamsV1 := router.Group("/v1sse/community-tokens", server.StreamMiddleware())
 	tokenStreamsV1.GET("/", server.StreamHandler(s.StreamCommunityTokens))
-	tokenStreamsV1.GET("/:type", server.StreamHandler(s.StreamCommunityTokensByType))
+	tokenStreamsV1.GET("/:externalAddressOrViewType", server.StreamHandler(s.StreamCommunityTokensByType))
 
-	// `:type` is the `:ionConnectAddress` bellow.
-	tokenStreamsV1.GET("/:type/top-holders", server.StreamHandler(s.StreamCommunityTokensTopHolders))
-	tokenStreamsV1.GET("/:type/latest-trades", server.StreamHandler(s.StreamCommunityTokensLatestTrades))
-	tokenStreamsV1.GET("/:type/trading-stats", server.StreamHandler(s.StreamCommunityTokensTradingStats))
-	tokenStreamsV1.GET("/:type/ohlcv", server.StreamHandler(s.StreamCommunityTokensOHLCV))
+	tokenStreamsV1.GET("/:externalAddressOrViewType/top-holders", server.StreamHandler(s.StreamCommunityTokensTopHolders))
+	tokenStreamsV1.GET("/:externalAddressOrViewType/latest-trades", server.StreamHandler(s.StreamCommunityTokensLatestTrades))
+	tokenStreamsV1.GET("/:externalAddressOrViewType/trading-stats", server.StreamHandler(s.StreamCommunityTokensTradingStats))
+	tokenStreamsV1.GET("/:externalAddressOrViewType/ohlcv", server.StreamHandler(s.StreamCommunityTokensOHLCV))
 }
 
 func (s *service) RegisterWS(router gin.IRouter) {
 	tokenWebsocketV1 := router.Group("/v1ws/community-tokens")
 	tokenWebsocketV1.GET("/", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokens)))
-	tokenWebsocketV1.GET("/:type", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokensByType)))
+	tokenWebsocketV1.GET("/:externalAddressOrViewType", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokensByType)))
 
-	// `:type` is the `:ionConnectAddress` bellow.
-	tokenWebsocketV1.GET("/:type/top-holders", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokensTopHolders)))
-	tokenWebsocketV1.GET("/:type/latest-trades", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokensLatestTrades)))
-	tokenWebsocketV1.GET("/:type/trading-stats", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokensTradingStats)))
-	tokenWebsocketV1.GET("/:type/ohlcv", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokensOHLCV)))
+	tokenWebsocketV1.GET("/:externalAddressOrViewType/top-holders", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokensTopHolders)))
+	tokenWebsocketV1.GET("/:externalAddressOrViewType/latest-trades", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokensLatestTrades)))
+	tokenWebsocketV1.GET("/:externalAddressOrViewType/trading-stats", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokensTradingStats)))
+	tokenWebsocketV1.GET("/:externalAddressOrViewType/ohlcv", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokensOHLCV)))
 }

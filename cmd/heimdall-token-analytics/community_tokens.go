@@ -20,41 +20,49 @@ type (
 		Offset uint64 `form:"offset" swaggerignore:"true"`
 	}
 	TokenInfoRequest struct {
-		Addresses []string `form:"ionConnectAddress" required:"true" swaggerignore:"true"`
+		ExternalAddresses []string `form:"externalAddresses" required:"true" swaggerignore:"true"`
+		IncludeTopHolders *uint32  `form:"includeTopHolders" swaggerignore:"true"`
 	}
 	TokenInfoRequestByType struct {
-		Type    string `uri:"type" required:"true" swaggerignore:"true"`
-		Keyword string `form:"keyword" swaggerignore:"true"`
+		ViewType string  `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
+		Type     *string `form:"type" swaggerignore:"true"`
+		Keyword  string  `form:"keyword" swaggerignore:"true"`
 		PaginationRequest
 	}
 	TokenInfoRequestByTypeAndSessionID struct {
-		SessionID string `uri:"viewingSessionId" required:"true" swaggerignore:"true"`
-		Keyword   string `form:"keyword" swaggerignore:"true"`
-		TokenInfoRequestByType
+		ViewType         string `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
+		ViewingSessionID string `uri:"viewingSessionId" required:"true" swaggerignore:"true"`
+		Keyword          string `form:"keyword" swaggerignore:"true"`
+		PaginationRequest
 	}
 	TokenInfoStreamTypeAndSessionQuery struct {
-		Type      string `uri:"type" required:"true" swaggerignore:"true"`
-		SessionID string `form:"viewingSessionId" swaggerignore:"true"`
+		ViewType         string  `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
+		ViewingSessionID string  `form:"viewingSessionId" swaggerignore:"true"`
+		Type             *string `form:"type" swaggerignore:"true"`
 		PaginationRequest
 	}
 	SessionViewCreateRequest struct {
-		Type string `uri:"type" binding:"required,oneof=top trending" swaggerignore:"true"`
+		ViewType string  `uri:"externalAddressOrViewType" binding:"required,oneof=top trending bondingCurveProgress" swaggerignore:"true"`
+		Type     *string `form:"type" swaggerignore:"true"`
 	}
 	SessionViewCreateResponse struct {
 		ID  string `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
 		TTL uint64 `json:"ttl" example:"1800" description:"Session TTL in seconds"` // Session TTL in seconds
 	}
 	TradeRequest struct {
-		Address string `uri:"type" required:"true" swaggerignore:"true"` // Map `type` to `address`.
+		ExternalAddress string `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
 		PaginationRequest
 	}
 	TopHoldersRequest struct {
-		Address string `uri:"type" required:"true" swaggerignore:"true"`
-		Limit   uint32 `form:"limit" swaggerignore:"true"`
+		ExternalAddress string `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
+		Limit           uint32 `form:"limit" swaggerignore:"true"`
+	}
+	ExternalDataRequest struct {
+		ExternalAddress string `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
 	}
 	OHLCVRequest struct {
-		Interval string `form:"interval" required:"true" swaggerignore:"true"` // e.g., "1m", "5m", "1h", etc.
-		Address  string `uri:"type" required:"true" swaggerignore:"true"`      // Map `type` to `address`.
+		ExternalAddress string `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
+		Interval        string `form:"interval" swaggerignore:"true"` // e.g., "1m", "5m", "1h", etc.
 	}
 )
 
@@ -64,7 +72,8 @@ type (
 //	@Description	Returns community tokens information for the given Ion Connect addresses.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			ionConnectAddress	query		[]string	true	"Ion Connect address of the user"	example(0x1234...,0x5678...)
+//	@Param			externalAddresses	query		[]string	true	"External addresses of the tokens"			example(0x1234...,0x5678...)
+//	@Param			includeTopHolders	query		int			false	"Number of top holders to include (1-10)"	minimum(1)	maximum(10)	example(3)
 //	@Success		200					{array}		ta.CommunityToken
 //	@Failure		401					{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500					{object}	server.ResponseErrorBody
@@ -72,10 +81,15 @@ type (
 //	@Security		Nostr
 //	@Router			/v1/community-tokens [GET].
 func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[TokenInfoRequest]) (*server.Response[[]*ta.CommunityToken], error) {
-	if len(req.Data.Addresses) == 0 {
-		return nil, server.BadRequest(errors.New("ionConnectAddress[] is required"), invalidPropertiesErrorCode)
+	if len(req.Data.ExternalAddresses) == 0 {
+		return nil, server.BadRequest(errors.New("externalAddresses[] is required"), invalidPropertiesErrorCode)
 	}
-	tokens, err := s.tokenAnalytics.GetCommunityTokensByIonConnectAddresses(ctx, req.Data.Addresses, req.Token.GetMasterPublicKey())
+	if req.Data.IncludeTopHolders != nil {
+		if *req.Data.IncludeTopHolders < 1 || *req.Data.IncludeTopHolders > 10 {
+			return nil, server.BadRequest(errors.New("includeTopHolders must be between 1 and 10"), invalidPropertiesErrorCode)
+		}
+	}
+	tokens, err := s.tokenAnalytics.GetCommunityTokensByIonConnectAddresses(ctx, req.Data.ExternalAddresses, req.Token.GetMasterPublicKey(), req.Data.IncludeTopHolders)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get community tokens: %w", err)
 	}
@@ -89,29 +103,43 @@ func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[To
 //	@Description	Returns community tokens information for the given Ion Connect addresses.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			type	path		string	true	"Type of data"				example("latest")
-//	@Param			keyword	query		string	false	"Search keyword"			example("bitcoin")
-//	@Param			limit	query		uint32	false	"Number of items to return"	example(10)
-//	@Param			offset	query		uint32	false	"Number of items to skip"	example(0)
-//	@Success		200		{array}		ta.CommunityToken
-//	@Failure		401		{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
-//	@Failure		500		{object}	server.ResponseErrorBody
-//	@Failure		504		{object}	server.ResponseErrorBody	"if request times out"
+//	@Param			externalAddressOrViewType	path		string	true	"View type (latest)"		example("latest")
+//	@Param			keyword						query		string	false	"Search keyword"			example("bitcoin")
+//	@Param			limit						query		uint32	false	"Number of items to return"	example(10)
+//	@Param			offset						query		uint32	false	"Number of items to skip"	example(0)
+//	@Success		200							{array}		ta.CommunityToken
+//	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		500							{object}	server.ResponseErrorBody
+//	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
-//	@Router			/v1/community-tokens/{type} [GET].
+//	@Router			/v1/community-tokens/{externalAddressOrViewType} [GET].
 func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoRequestByType]) (*server.Response[[]*ta.CommunityToken], error) {
-	validTypes := map[string]bool{
+	validViewTypes := map[string]bool{
 		ta.TokenTypeLatest: true,
 	}
-	if !validTypes[req.Data.Type] {
+	if !validViewTypes[req.Data.ViewType] {
 		return nil, server.BadRequest(fmt.Errorf("invalid type: must be %s", ta.TokenTypeLatest), invalidPropertiesErrorCode)
+	}
+	if req.Data.Type != nil {
+		validTokenTypes := map[string]bool{
+			ta.TokenTypeProfile: true,
+			ta.TokenTypePost:    true,
+			ta.TokenTypeVideo:   true,
+			ta.TokenTypeArticle: true,
+		}
+		if !validTokenTypes[*req.Data.Type] {
+		}
+		if !validTokenTypes[*req.Data.Type] {
+			return nil, server.BadRequest(fmt.Errorf("invalid token type: must be one of %s, %s, %s, %s",
+				ta.TokenTypeProfile, ta.TokenTypePost, ta.TokenTypeVideo, ta.TokenTypeArticle), invalidPropertiesErrorCode)
+		}
 	}
 
 	limit := req.Data.Limit
 	if limit == 0 {
 		limit = 10
 	}
-	tokens, err := s.tokenAnalytics.GetCommunityTokensByType(ctx, req.Data.Type, req.Data.Keyword, limit, req.Data.Offset)
+	tokens, err := s.tokenAnalytics.GetCommunityTokensByType(ctx, req.Data.ViewType, req.Data.Type, req.Data.Keyword, limit, req.Data.Offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get community tokens by type: %w", err)
 	}
@@ -125,17 +153,31 @@ func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Requ
 //	@Description	Creates a new session view for community tokens analytics.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			type	path		string	true	"Type of session view"	example("latest")
-//	@Success		200		{object}	SessionViewCreateResponse
-//	@Failure		401		{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
-//	@Failure		500		{object}	server.ResponseErrorBody
-//	@Failure		504		{object}	server.ResponseErrorBody	"if request times out"
+//	@Param			externalAddressOrViewType	path		string	true	"View type (top, trending, or bondingCurveProgress)"	example("top")
+//	@Param			type						query		string	false	"Token type filter (profile, post, video, or article)"	example("profile")
+//	@Success		200							{object}	SessionViewCreateResponse
+//	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		500							{object}	server.ResponseErrorBody
+//	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
-//	@Router			/v1/community-tokens/{type}/viewing-sessions [POST].
+//	@Router			/v1/community-tokens/{externalAddressOrViewType}/viewing-sessions [POST].
 func (s *service) CreateCommunityTokensSessionView(ctx context.Context, req *server.Request[SessionViewCreateRequest]) (*server.Response[SessionViewCreateResponse], error) {
+	if req.Data.Type != nil {
+		validTokenTypes := map[string]bool{
+			ta.TokenTypeProfile: true,
+			ta.TokenTypePost:    true,
+			ta.TokenTypeVideo:   true,
+			ta.TokenTypeArticle: true,
+		}
+		if !validTokenTypes[*req.Data.Type] {
+			return nil, server.BadRequest(fmt.Errorf("invalid token type: must be one of %s, %s, %s, %s",
+				ta.TokenTypeProfile, ta.TokenTypePost, ta.TokenTypeVideo, ta.TokenTypeArticle), invalidPropertiesErrorCode)
+		}
+	}
+
 	clientIP := req.Context.ClientIP()
 	deviceKey := req.Token.GetDeviceKey()
-	sessionID, ttl, err := s.tokenAnalytics.CreateViewingSession(ctx, req.Data.Type, clientIP, deviceKey)
+	sessionID, ttl, err := s.tokenAnalytics.CreateViewingSession(ctx, req.Data.ViewType, clientIP, deviceKey, req.Data.Type)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create viewing session: %w", err)
 	}
@@ -153,18 +195,28 @@ func (s *service) CreateCommunityTokensSessionView(ctx context.Context, req *ser
 //	@Description	Returns community tokens information for a specific viewing session.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			type				path		string	true	"Type of data"				example("top")
-//	@Param			viewingSessionId	path		string	true	"Viewing session ID"		example("550e8400-e29b-41d4-a716-446655440000")
-//	@Param			keyword				query		string	false	"Search keyword"			example("bitcoin")
-//	@Param			limit				query		uint32	false	"Number of items to return"	example(10)
-//	@Param			offset				query		uint32	false	"Number of items to skip"	example(0)
-//	@Success		200					{array}		ta.CommunityToken
-//	@Failure		401					{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
-//	@Failure		500					{object}	server.ResponseErrorBody
-//	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Param			externalAddressOrViewType	path		string	true	"View type (top, trending, or bondingCurveProgress)"	example("top")
+//	@Param			viewingSessionId			path		string	true	"Viewing session ID"									example("550e8400-e29b-41d4-a716-446655440000")
+//	@Param			keyword						query		string	false	"Search keyword"										example("bitcoin")
+//	@Param			limit						query		uint32	false	"Number of items to return"								example(10)
+//	@Param			offset						query		uint32	false	"Number of items to skip"								example(0)
+//	@Success		200							{array}		ta.CommunityToken
+//	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		500							{object}	server.ResponseErrorBody
+//	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
-//	@Router			/v1/community-tokens/{type}/viewing-sessions/{viewingSessionId} [GET].
+//	@Router			/v1/community-tokens/{externalAddressOrViewType}/viewing-sessions/{viewingSessionId} [GET].
 func (s *service) GetCommunityTokensSessionByID(ctx context.Context, req *server.Request[TokenInfoRequestByTypeAndSessionID]) (*server.Response[[]*ta.CommunityToken], error) {
+	validViewTypes := map[string]bool{
+		ta.TokenTypeTop:                  true,
+		ta.TokenTypeTrending:             true,
+		ta.TokenTypeBondingCurveProgress: true,
+	}
+	if !validViewTypes[req.Data.ViewType] {
+		return nil, server.BadRequest(fmt.Errorf("invalid view type: must be one of %s, %s, %s",
+			ta.TokenTypeTop, ta.TokenTypeTrending, ta.TokenTypeBondingCurveProgress), invalidPropertiesErrorCode)
+	}
+
 	limit := req.Data.Limit
 	if limit == 0 {
 		limit = 10
@@ -173,7 +225,7 @@ func (s *service) GetCommunityTokensSessionByID(ctx context.Context, req *server
 		limit = 100
 	}
 	offset := req.Data.Offset
-	resp, err := s.tokenAnalytics.GetTokensFromViewingSession(ctx, req.Data.Type, req.Data.SessionID, req.Data.Keyword, limit, offset)
+	resp, err := s.tokenAnalytics.GetTokensFromViewingSession(ctx, req.Data.ViewType, req.Data.ViewingSessionID, req.Data.Keyword, limit, offset)
 	if err != nil {
 		if errors.Is(err, ta.ErrSessionNotFound) {
 			return nil, server.NotFound(ta.ErrSessionNotFound, sessionNotFoundErrorCode)
@@ -190,26 +242,49 @@ func (s *service) GetCommunityTokensSessionByID(ctx context.Context, req *server
 //	@Description	Returns trade history for a specific community token address.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			ionConnectAddress	path		string	true	"Ion Connect address"		example("0x1234...")
-//	@Param			limit				query		uint32	false	"Number of items to return"	example(10)
-//	@Param			offset				query		uint32	false	"Number of items to skip"	example(0)
-//	@Success		200					{array}		ta.Trade
-//	@Failure		401					{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
-//	@Failure		500					{object}	server.ResponseErrorBody
-//	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Param			externalAddressOrViewType	path		string	true	"External address"			example("0x1234...")
+//	@Param			limit						query		uint32	false	"Number of items to return"	example(10)
+//	@Param			offset						query		uint32	false	"Number of items to skip"	example(0)
+//	@Success		200							{array}		ta.Trade
+//	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		500							{object}	server.ResponseErrorBody
+//	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
-//	@Router			/v1/community-tokens/{ionConnectAddress}/latest-trades [GET].
+//	@Router			/v1/community-tokens/{externalAddressOrViewType}/latest-trades [GET].
 func (s *service) GetCommunityTokensTradesByAddress(ctx context.Context, req *server.Request[TradeRequest]) (*server.Response[[]*ta.Trade], error) {
 	limit := req.Data.Limit
 	if limit == 0 {
 		limit = 50
 	}
-	resp, _, err := s.tokenAnalytics.GetLatestTrades(ctx, req.Data.Address, limit, req.Data.Offset, nil)
+	resp, _, err := s.tokenAnalytics.GetLatestTrades(ctx, req.Data.ExternalAddress, limit, req.Data.Offset, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get latest trades: %w", err)
 	}
 
 	return server.OK(&resp), nil
+}
+
+// SyncCommunityTokenExternalData godoc
+//
+//	@Schemes
+//	@Description	Syncs external information for a community token (e.g., Twitter data scraping). Backend only.
+//	@Tags			Tokens
+//	@Produce		json
+//	@Param			externalAddressOrViewType	path	string	true	"External address"	example("0x1234...")
+//	@Success		200							"OK"
+//	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		500							{object}	server.ResponseErrorBody
+//	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
+//	@Security		Nostr
+//	@Router			/v1/community-tokens/{externalAddressOrViewType}/external-data [PUT].
+func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *server.Request[ExternalDataRequest]) (*server.Response[any], error) {
+	// TODO: Implement
+	_ = req.Data.ExternalAddress
+
+	return &server.Response[any]{
+		Data: nil,
+		Code: 200,
+	}, nil
 }
 
 // StreamCommunityTokens godoc
@@ -218,7 +293,8 @@ func (s *service) GetCommunityTokensTradesByAddress(ctx context.Context, req *se
 //	@Description	Streams community tokens information for the given Ion Connect addresses.
 //	@Tags			stream
 //	@Produce		json
-//	@Param			ionConnectAddress	query		[]string	true	"Ion Connect address of the user"	example(0x1234...,0x5678...)
+//	@Param			externalAddresses	query		[]string	true	"External addresses of the tokens"			example(0x1234...,0x5678...)
+//	@Param			includeTopHolders	query		int			false	"Number of top holders to include (1-10)"	minimum(1)	maximum(10)	example(3)
 //	@Success		200					{object}	ta.CommunityToken
 //	@Failure		401					{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500					{object}	server.ResponseErrorBody
@@ -227,17 +303,22 @@ func (s *service) GetCommunityTokensTradesByAddress(ctx context.Context, req *se
 //	@Router			/v1sse/community-tokens [GET].
 //	@Router			/v1ws/community-tokens [GET].
 func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request[TokenInfoRequest]) (server.StreamEventEmitter[ta.CommunityToken], error) {
-	if len(req.Data.Addresses) == 0 {
-		return nil, server.BadRequest(errors.New("ionConnectAddress[] is required"), invalidPropertiesErrorCode)
+	if len(req.Data.ExternalAddresses) == 0 {
+		return nil, server.BadRequest(errors.New("externalAddresses[] is required"), invalidPropertiesErrorCode)
+	}
+	if req.Data.IncludeTopHolders != nil {
+		if *req.Data.IncludeTopHolders < 1 || *req.Data.IncludeTopHolders > 10 {
+			return nil, server.BadRequest(errors.New("includeTopHolders must be between 1 and 10"), invalidPropertiesErrorCode)
+		}
 	}
 
 	return func(ctx context.Context) (<-chan server.StreamEvent[ta.CommunityToken], error) {
 		events := make(chan server.StreamEvent[ta.CommunityToken], 100)
 
 		sendData := func() bool {
-			tokens, err := s.tokenAnalytics.GetCommunityTokensByIonConnectAddresses(ctx, req.Data.Addresses, req.Token.GetMasterPublicKey())
+			tokens, err := s.tokenAnalytics.GetCommunityTokensByIonConnectAddresses(ctx, req.Data.ExternalAddresses, req.Token.GetMasterPublicKey(), req.Data.IncludeTopHolders)
 			if err != nil {
-				slog.ErrorContext(ctx, "failed to get community tokens for streaming", "error", err, "addresses", req.Data.Addresses)
+				slog.ErrorContext(ctx, "failed to get community tokens for streaming", "error", err, "addresses", req.Data.ExternalAddresses)
 				events <- server.StreamEvent[ta.CommunityToken]{
 					Type: "error",
 					Data: nil,
@@ -295,29 +376,44 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 //	@Description	Streams community tokens information for the given type.
 //	@Tags			stream
 //	@Produce		json
-//	@Param			type				path		string	true	"Type of data"										example("latest","featured","top","trending")
-//	@Param			viewingSessionId	query		string	false	"Viewing session ID (required for top/trending)"	example("550e8400-e29b-41d4-a716-446655440000")
-//	@Success		200					{array}		ta.CommunityToken
-//	@Failure		400					{object}	server.ResponseErrorBody
-//	@Failure		401					{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
-//	@Failure		500					{object}	server.ResponseErrorBody
-//	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Param			externalAddressOrViewType	path		string	true	"View type (latest, featured, top, trending, or bondingCurveProgress)"	example("latest","featured","top","trending","bondingCurveProgress")
+//	@Param			viewingSessionId			query		string	false	"Viewing session ID (required for top/trending/bondingCurveProgress)"	example("550e8400-e29b-41d4-a716-446655440000")
+//	@Param			type						query		string	false	"Token type filter (profile, post, video, or article)"					example("profile")
+//	@Success		200							{array}		ta.CommunityToken
+//	@Failure		400							{object}	server.ResponseErrorBody
+//	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		500							{object}	server.ResponseErrorBody
+//	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
-//	@Router			/v1sse/community-tokens/{type} [GET].
-//	@Router			/v1ws/community-tokens/{type} [GET].
+//	@Router			/v1sse/community-tokens/{externalAddressOrViewType} [GET].
+//	@Router			/v1ws/community-tokens/{externalAddressOrViewType} [GET].
 func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoStreamTypeAndSessionQuery]) (server.StreamEventEmitter[[]*ta.CommunityToken], error) {
-	validTypes := map[string]bool{
-		ta.TokenTypeLatest:   true,
-		ta.TokenTypeFeatured: true,
-		ta.TokenTypeTop:      true,
-		ta.TokenTypeTrending: true,
+	validViewTypes := map[string]bool{
+		ta.TokenTypeLatest:               true,
+		ta.TokenTypeFeatured:             true,
+		ta.TokenTypeTop:                  true,
+		ta.TokenTypeTrending:             true,
+		ta.TokenTypeBondingCurveProgress: true,
 	}
-	if !validTypes[req.Data.Type] {
-		return nil, server.BadRequest(fmt.Errorf("invalid type: must be one of %s, %s, %s, %s", ta.TokenTypeLatest, ta.TokenTypeFeatured, ta.TokenTypeTop, ta.TokenTypeTrending), invalidPropertiesErrorCode)
+	if !validViewTypes[req.Data.ViewType] {
+		return nil, server.BadRequest(fmt.Errorf("invalid type: must be one of %s, %s, %s, %s, %s",
+			ta.TokenTypeLatest, ta.TokenTypeFeatured, ta.TokenTypeTop, ta.TokenTypeTrending, ta.TokenTypeBondingCurveProgress), invalidPropertiesErrorCode)
 	}
 
-	if (req.Data.Type == ta.TokenTypeTop || req.Data.Type == ta.TokenTypeTrending) && req.Data.SessionID == "" {
-		return nil, server.BadRequest(errors.New("viewingSessionId is required for top and trending types"), invalidPropertiesErrorCode)
+	if (req.Data.ViewType == ta.TokenTypeTop || req.Data.ViewType == ta.TokenTypeTrending || req.Data.ViewType == ta.TokenTypeBondingCurveProgress) && req.Data.ViewingSessionID == "" {
+		return nil, server.BadRequest(errors.New("viewingSessionId is required for top, trending, and bondingCurveProgress types"), invalidPropertiesErrorCode)
+	}
+	if req.Data.Type != nil {
+		validTokenTypes := map[string]bool{
+			ta.TokenTypeProfile: true,
+			ta.TokenTypePost:    true,
+			ta.TokenTypeVideo:   true,
+			ta.TokenTypeArticle: true,
+		}
+		if !validTokenTypes[*req.Data.Type] {
+			return nil, server.BadRequest(fmt.Errorf("invalid token type: must be one of %s, %s, %s, %s",
+				ta.TokenTypeProfile, ta.TokenTypePost, ta.TokenTypeVideo, ta.TokenTypeArticle), invalidPropertiesErrorCode)
+		}
 	}
 
 	limit := uint64(100)
@@ -327,14 +423,14 @@ func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.R
 		sendData := func() bool {
 			var tokens []*ta.CommunityToken
 			var err error
-			if (req.Data.Type == ta.TokenTypeTop || req.Data.Type == ta.TokenTypeTrending) && req.Data.SessionID != "" {
-				tokens, err = s.tokenAnalytics.GetTokensFromViewingSession(ctx, req.Data.Type, req.Data.SessionID, "", limit, 0)
+			if (req.Data.ViewType == ta.TokenTypeTop || req.Data.ViewType == ta.TokenTypeTrending || req.Data.ViewType == ta.TokenTypeBondingCurveProgress) && req.Data.ViewingSessionID != "" {
+				tokens, err = s.tokenAnalytics.GetTokensFromViewingSession(ctx, req.Data.ViewType, req.Data.ViewingSessionID, "", limit, 0)
 			} else {
-				tokens, err = s.tokenAnalytics.GetCommunityTokensByType(ctx, req.Data.Type, "", limit, 0)
+				tokens, err = s.tokenAnalytics.GetCommunityTokensByType(ctx, req.Data.ViewType, req.Data.Type, "", limit, 0)
 			}
 
 			if err != nil {
-				slog.ErrorContext(ctx, "failed to get community tokens for streaming", "error", err, "type", req.Data.Type, "sessionID", req.Data.SessionID)
+				slog.ErrorContext(ctx, "failed to get community tokens for streaming", "error", err, "type", req.Data.Type, "sessionID", req.Data.ViewingSessionID)
 				events <- server.StreamEvent[[]*ta.CommunityToken]{
 					Type: "error",
 					Data: nil,
@@ -348,7 +444,7 @@ func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.R
 				Type: "message",
 				Data: &tokens,
 			}
-			slog.DebugContext(ctx, "sent community tokens update", "type", req.Data.Type, "sessionID", req.Data.SessionID, "count", len(tokens))
+			slog.DebugContext(ctx, "sent community tokens update", "type", req.Data.Type, "sessionID", req.Data.ViewingSessionID, "count", len(tokens))
 
 			return true
 		}
@@ -358,20 +454,20 @@ func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.R
 			defer close(events)
 			defer ticker.Stop()
 			if !sendData() {
-				slog.ErrorContext(ctx, "initial data send failed for community tokens stream", "type", req.Data.Type, "sessionID", req.Data.SessionID)
+				slog.ErrorContext(ctx, "initial data send failed for community tokens stream", "type", req.Data.Type, "sessionID", req.Data.ViewingSessionID)
 				return
 			}
 
 			for ctx.Err() == nil {
 				select {
 				case <-ctx.Done():
-					slog.DebugContext(ctx, "community tokens stream context cancelled", "type", req.Data.Type, "sessionID", req.Data.SessionID)
+					slog.DebugContext(ctx, "community tokens stream context cancelled", "type", req.Data.Type, "sessionID", req.Data.ViewingSessionID)
 
 					return
 
 				case <-ticker.C:
 					if !sendData() {
-						slog.ErrorContext(ctx, "periodic data send failed for community tokens stream", "type", req.Data.Type, "sessionID", req.Data.SessionID)
+						slog.ErrorContext(ctx, "periodic data send failed for community tokens stream", "type", req.Data.Type, "sessionID", req.Data.ViewingSessionID)
 
 						return
 					}
@@ -389,17 +485,17 @@ func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.R
 //	@Description	Streams top holders information for a specific community token address.
 //	@Tags			stream
 //	@Produce		json
-//	@Param			ionConnectAddress	path		string	true	"Ion Connect address"		example("0x1234...")
-//	@Param			limit				query		uint32	false	"Number of items to return"	example(10)
-//	@Success		200					{object}	[]ta.TopHolderPosition
-//	@Failure		401					{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
-//	@Failure		500					{object}	server.ResponseErrorBody
-//	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Param			externalAddressOrViewType	path		string	true	"External address"			example("0x1234...")
+//	@Param			limit						query		uint32	false	"Number of items to return"	example(10)
+//	@Success		200							{object}	[]ta.TopHolderPosition
+//	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		500							{object}	server.ResponseErrorBody
+//	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
-//	@Router			/v1sse/community-tokens/{ionConnectAddress}/top-holders [GET].
-//	@Router			/v1ws/community-tokens/{ionConnectAddress}/top-holders [GET].
+//	@Router			/v1sse/community-tokens/{externalAddressOrViewType}/top-holders [GET].
+//	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/top-holders [GET].
 func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *server.Request[TopHoldersRequest]) (server.StreamEventEmitter[[]*ta.TopHolderPosition], error) {
-	ionConnectAddress := req.Data.Address
+	ionConnectAddress := req.Data.ExternalAddress
 	limit := req.Data.Limit
 	if limit == 0 {
 		limit = 10
@@ -462,18 +558,18 @@ func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *serv
 //	@Description	Streams latest trades for a specific community token address.
 //	@Tags			stream
 //	@Produce		json
-//	@Param			ionConnectAddress	path		string	true	"Ion Connect address"		example("0x1234...")
-//	@Param			limit				query		uint32	false	"Number of items to return"	example(10)
-//	@Param			offset				query		uint32	false	"Number of items to skip"	example(0)
-//	@Success		200					{object}	ta.Trade
-//	@Failure		401					{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
-//	@Failure		500					{object}	server.ResponseErrorBody
-//	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Param			externalAddressOrViewType	path		string	true	"External address"			example("0x1234...")
+//	@Param			limit						query		uint32	false	"Number of items to return"	example(10)
+//	@Param			offset						query		uint32	false	"Number of items to skip"	example(0)
+//	@Success		200							{object}	ta.Trade
+//	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		500							{object}	server.ResponseErrorBody
+//	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
-//	@Router			/v1sse/community-tokens/{ionConnectAddress}/latest-trades [GET].
-//	@Router			/v1ws/community-tokens/{ionConnectAddress}/latest-trades [GET].
+//	@Router			/v1sse/community-tokens/{externalAddressOrViewType}/latest-trades [GET].
+//	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/latest-trades [GET].
 func (s *service) StreamCommunityTokensLatestTrades(ctx context.Context, req *server.Request[TradeRequest]) (server.StreamEventEmitter[ta.Trade], error) {
-	return s.latestTradesStream(req.Data.Address, req.Data.Limit, 0)
+	return s.latestTradesStream(req.Data.ExternalAddress, req.Data.Limit, 0)
 }
 
 // StreamCommunityTokensTradingStats godoc
@@ -482,16 +578,16 @@ func (s *service) StreamCommunityTokensLatestTrades(ctx context.Context, req *se
 //	@Description	Streams trading statistics for a specific community token address.
 //	@Tags			stream
 //	@Produce		json
-//	@Param			ionConnectAddress	path		string	true	"Ion Connect address"	example("0x1234...")
-//	@Success		200					{object}	ta.TradeStats
-//	@Failure		401					{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
-//	@Failure		500					{object}	server.ResponseErrorBody
-//	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Param			externalAddressOrViewType	path		string	true	"External address"	example("0x1234...")
+//	@Success		200							{object}	ta.TradeStats
+//	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		500							{object}	server.ResponseErrorBody
+//	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
-//	@Router			/v1sse/community-tokens/{ionConnectAddress}/trading-stats [GET].
-//	@Router			/v1ws/community-tokens/{ionConnectAddress}/trading-stats [GET].
+//	@Router			/v1sse/community-tokens/{externalAddressOrViewType}/trading-stats [GET].
+//	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/trading-stats [GET].
 func (s *service) StreamCommunityTokensTradingStats(ctx context.Context, req *server.Request[TradeRequest]) (server.StreamEventEmitter[ta.TradeStats], error) {
-	return s.tradingStatsStream(req.Data.Address)
+	return s.tradingStatsStream(req.Data.ExternalAddress)
 }
 
 // StreamCommunityTokensOHLCV godoc
@@ -500,17 +596,17 @@ func (s *service) StreamCommunityTokensTradingStats(ctx context.Context, req *se
 //	@Description	Streams OHLCV (Open, High, Low, Close, Volume) data for a specific community token address.
 //	@Tags			stream
 //	@Produce		json
-//	@Param			ionConnectAddress	path		string	true	"Ion Connect address"	example("0x1234...")
-//	@Param			interval			query		string	true	"Time interval"			example("1m")
-//	@Success		200					{object}	ta.OHLCV
-//	@Failure		401					{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
-//	@Failure		500					{object}	server.ResponseErrorBody
-//	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Param			externalAddressOrViewType	path		string	true	"External address"	example("0x1234...")
+//	@Param			interval					query		string	true	"Time interval"		example("1m")
+//	@Success		200							{object}	ta.OHLCV
+//	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		500							{object}	server.ResponseErrorBody
+//	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
-//	@Router			/v1sse/community-tokens/{ionConnectAddress}/ohlcv [GET].
-//	@Router			/v1ws/community-tokens/{ionConnectAddress}/ohlcv [GET].
+//	@Router			/v1sse/community-tokens/{externalAddressOrViewType}/ohlcv [GET].
+//	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/ohlcv [GET].
 func (s *service) StreamCommunityTokensOHLCV(ctx context.Context, req *server.Request[OHLCVRequest]) (server.StreamEventEmitter[ta.OHLCV], error) {
-	return s.ohlcvStream(req.Data.Address, req.Data.Interval)
+	return s.ohlcvStream(req.Data.ExternalAddress, req.Data.Interval)
 }
 
 func (s *service) ohlcvStream(ionContentAddress string, intervalStr string) (server.StreamEventEmitter[ta.OHLCV], error) {

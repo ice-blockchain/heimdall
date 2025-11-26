@@ -32,14 +32,14 @@ type (
 		Close() error
 		HealthCheck(ctx context.Context) error
 		MustStart(ctx context.Context)
-		GetCommunityTokensByIonConnectAddresses(ctx context.Context, ionConnectAddresses []string, requestorMasterPubkey string) ([]*CommunityToken, error)
-		GetCommunityTokensByType(ctx context.Context, tokenType, keyword string, limit, offset uint64) ([]*CommunityToken, error)
+		GetCommunityTokensByIonConnectAddresses(ctx context.Context, ionConnectAddresses []string, requestorMasterPubkey string, includeTopHolders *uint32) ([]*CommunityToken, error)
+		GetCommunityTokensByType(ctx context.Context, viewType string, tokenType *string, keyword string, limit, offset uint64) ([]*CommunityToken, error)
 		GetLatestTrades(ctx context.Context, ionConnectAddress string, limit, offset uint64, startFrom *stdlibtime.Time) (trades []*Trade, maxTs stdlibtime.Time, err error)
 		GetOHLVCHistory(ctx context.Context, now, startPoint stdlibtime.Time, ionContentAddress string, interval Interval) (res []*OHLCV, err error)
 		GetOHLVCRecent(ctx context.Context, now stdlibtime.Time, ionContentAddress string, interval Interval) (*OHLCV, error)
 		GetTradingStats(ctx context.Context, now stdlibtime.Time, ionContentAddress string) (*TradeStats, error)
 		UpdateTradingStats(ctx context.Context, now stdlibtime.Time, ionConnectAddress string) (*TradeStats, error)
-		CreateViewingSession(ctx context.Context, sessionType, clientIP, deviceKey string) (sessionID string, ttl uint64, err error)
+		CreateViewingSession(ctx context.Context, sessionType, clientIP, deviceKey string, tokenType *string) (sessionID string, ttl uint64, err error)
 		GetTopHolders(ctx context.Context, ionConnectAddress string, limit int64) ([]*TopHolderPosition, error)
 		GetTokensFromViewingSession(ctx context.Context, sessionType, sessionID, keyword string, limit, offset uint64) ([]*CommunityToken, error)
 	}
@@ -69,10 +69,11 @@ const (
 	TokenTypeArticle = "article"
 	TokenTypeVideo   = "video"
 
-	TokenTypeLatest   = "latest"
-	TokenTypeFeatured = "featured"
-	TokenTypeTop      = "top"
-	TokenTypeTrending = "trending"
+	TokenTypeLatest               = "latest"
+	TokenTypeFeatured             = "featured"
+	TokenTypeTop                  = "top"
+	TokenTypeTrending             = "trending"
+	TokenTypeBondingCurveProgress = "bondingCurveProgress"
 )
 
 var (
@@ -103,13 +104,15 @@ const (
 	volumeUpdateInterval                     = 1 * stdlibtime.Minute
 	volume24hMaterializedViewRefreshInterval = 30 * stdlibtime.Second
 
-	globalTopSetKey         = "token_analytics:global:top"
-	globalTrendingSetKey    = "token_analytics:global:trending"
-	userSessionKeyPrefix    = "token_analytics:session:%s:%s"  // {type}:{sessionID}
-	userIdentifierMapPrefix = "token_analytics:user_map:%s:%s" // {type}:{IP:DeviceKey} -> sessionID
+	globalTopSetKey                  = "token_analytics:global:top"
+	globalTrendingSetKey             = "token_analytics:global:trending"
+	globalBondingCurveProgressSetKey = "token_analytics:global:bonding_curve_progress"
+	userSessionKeyPrefix             = "token_analytics:session:%s:%s"  // {type}:{sessionID}
+	userIdentifierMapPrefix          = "token_analytics:user_map:%s:%s" // {type}:{IP:DeviceKey} -> sessionID
 
-	sessionTypeTop      = "top"
-	sessionTypeTrending = "trending"
+	sessionTypeTop                  = "top"
+	sessionTypeTrending             = "trending"
+	sessionTypeBondingCurveProgress = "bondingCurveProgress"
 
 	defaultViewingSessionTTL = 30 * stdlibtime.Minute
 )

@@ -19,27 +19,36 @@ type (
 	}
 
 	Addresses struct {
-		Blockchain string `json:"blockchain,omitempty"`
 		IonConnect string `json:"ionConnect,omitempty"`
+		Twitter    string `json:"twitter,omitempty"`
 	}
 
 	User struct {
-		MasterPubkey     string   `json:"-"`
-		Username         string   `json:"name,omitempty"`
-		Display          string   `json:"display,omitempty"`
-		Avatar           string   `json:"avatar,omitempty"`
-		IonConnect       string   `json:"ionConnect,omitempty"`
-		IONConnectRelays []string `json:"ionConnectRelays,omitempty"`
-		Verified         bool     `json:"verified"`
+		MasterPubkey     string    `json:"-"`
+		Username         string    `json:"name,omitempty"`
+		Display          string    `json:"display,omitempty"`
+		Avatar           string    `json:"avatar,omitempty"`
+		Addresses        Addresses `json:"addresses,omitempty"`
+		IONConnectRelays []string  `json:"-"`
+		Verified         bool      `json:"verified"`
 	}
 
 	MarketData struct {
-		Ticker    string   `json:"ticker,omitempty"`
-		MarketCap float64  `json:"marketCap"`
-		Volume    float64  `json:"volume"`
-		PriceUSD  float64  `json:"priceUSD"`
-		Holders   uint64   `json:"holders"`
-		Position  Position `json:"position,omitzero"`
+		Ticker               string                `json:"ticker,omitempty"`
+		MarketCap            float64               `json:"marketCap"`
+		Volume               float64               `json:"volume"`
+		PriceUSD             float64               `json:"priceUSD"`
+		Holders              uint64                `json:"holders"`
+		BondingCurveProgress *BondingCurveProgress `json:"bondingCurveProgress,omitempty"`
+		TopHolders           []HolderPosition      `json:"topHolders,omitempty"`
+		Position             Position              `json:"position,omitzero"`
+	}
+
+	BondingCurveProgress struct {
+		CurrentAmount    float64 `json:"currentAmount"`
+		GoalAmount       float64 `json:"goalAmount"`
+		CurrentAmountUSD float64 `json:"currentAmountUSD"`
+		GoalAmountUSD    float64 `json:"goalAmountUSD"`
 	}
 
 	Position struct {

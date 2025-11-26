@@ -15,7 +15,7 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
-func (t *tokenAnalytics) GetCommunityTokensByIonConnectAddresses(ctx context.Context, ionConnectAddresses []string, requestorMasterPubkey string) ([]*CommunityToken, error) {
+func (t *tokenAnalytics) GetCommunityTokensByIonConnectAddresses(ctx context.Context, ionConnectAddresses []string, requestorMasterPubkey string, includeTopHolders *uint32) ([]*CommunityToken, error) {
 	if len(ionConnectAddresses) == 0 {
 		return []*CommunityToken{}, nil
 	}
@@ -93,26 +93,31 @@ func (t *tokenAnalytics) GetCommunityTokensByIonConnectAddresses(ctx context.Con
 			Description: row.Description,
 			ImageURL:    row.ImageURL,
 			Addresses: Addresses{
-				Blockchain: row.ContractAddress,
 				IonConnect: row.IONConnectAddress,
 			},
 			Creator: User{
-				Username:   row.CreatorUsername,
-				Display:    row.CreatorDisplay,
-				Verified:   row.CreatorVerified,
-				Avatar:     row.CreatorAvatar,
-				IonConnect: creatorIONConnect,
+				Username: row.CreatorUsername,
+				Display:  row.CreatorDisplay,
+				Verified: row.CreatorVerified,
+				Avatar:   row.CreatorAvatar,
+				Addresses: Addresses{
+					IonConnect: creatorIONConnect,
+				},
 			},
 			MarketData: marketData,
 		}
 		tokens = append(tokens, token)
 	}
+	if includeTopHolders != nil && *includeTopHolders > 0 {
+		// TODO: implement
+	}
 
 	return tokens, nil
 }
 
-func (t *tokenAnalytics) GetCommunityTokensByType(ctx context.Context, tokenType, keyword string, limit, offset uint64) ([]*CommunityToken, error) {
-	switch tokenType {
+func (t *tokenAnalytics) GetCommunityTokensByType(ctx context.Context, viewType string, tokenType *string, keyword string, limit, offset uint64) ([]*CommunityToken, error) {
+	// TODO: Implement filtering by tokenType (profile/post/video/article)
+	switch viewType {
 	case TokenTypeLatest:
 		return t.getCommunityTokensByLatest(ctx, keyword, limit, offset)
 	case TokenTypeFeatured:
@@ -178,15 +183,16 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 			ImageURL:    row.ImageURL,
 			CreatedAt:   *row.CreatedAt.Time,
 			Addresses: Addresses{
-				Blockchain: row.ContractAddress,
 				IonConnect: row.IONConnectAddress,
 			},
 			Creator: User{
-				Username:   row.CreatorUsername,
-				Display:    row.CreatorDisplay,
-				Verified:   row.CreatorVerified,
-				Avatar:     row.CreatorAvatar,
-				IonConnect: fmt.Sprintf("0:%s:", row.CreatorMasterPubkey),
+				Username: row.CreatorUsername,
+				Display:  row.CreatorDisplay,
+				Verified: row.CreatorVerified,
+				Avatar:   row.CreatorAvatar,
+				Addresses: Addresses{
+					IonConnect: fmt.Sprintf("0:%s:", row.CreatorMasterPubkey),
+				},
 			},
 			MarketData: MarketData{
 				Ticker:    row.Ticker,
@@ -251,15 +257,16 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 			ImageURL:    row.ImageURL,
 			CreatedAt:   *row.CreatedAt.Time,
 			Addresses: Addresses{
-				Blockchain: row.ContractAddress,
 				IonConnect: row.IONConnectAddress,
 			},
 			Creator: User{
-				Username:   row.CreatorUsername,
-				Display:    row.CreatorDisplay,
-				Verified:   row.CreatorVerified,
-				Avatar:     row.CreatorAvatar,
-				IonConnect: fmt.Sprintf("0:%s:", row.CreatorMasterPubkey),
+				Username: row.CreatorUsername,
+				Display:  row.CreatorDisplay,
+				Verified: row.CreatorVerified,
+				Avatar:   row.CreatorAvatar,
+				Addresses: Addresses{
+					IonConnect: fmt.Sprintf("0:%s:", row.CreatorMasterPubkey),
+				},
 			},
 			MarketData: MarketData{
 				Ticker:    row.Ticker,
@@ -385,22 +392,25 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, ionConnectAddress 
 		amountUSD, _ := new(big.Float).Mul(new(big.Float).SetFloat64(swaps[i].PriceUSD), new(big.Float).SetUint64(tokenAmount)).Float64()
 		trades[i] = &Trade{
 			Creator: User{
-				Username:   swaps[i].CreatorUsername,
-				Display:    swaps[i].CreatorDisplay,
-				Verified:   swaps[i].CreatorVerified,
-				Avatar:     swaps[i].CreatorAvatar,
-				IonConnect: creatorIONConnect,
+				Username: swaps[i].CreatorUsername,
+				Display:  swaps[i].CreatorDisplay,
+				Verified: swaps[i].CreatorVerified,
+				Avatar:   swaps[i].CreatorAvatar,
+				Addresses: Addresses{
+					IonConnect: creatorIONConnect,
+				},
 			},
 			Position: TradePosition{
 				Holder: User{
-					Username:   swaps[i].HolderUsername,
-					Display:    swaps[i].HolderDisplay,
-					Verified:   swaps[i].HolderVerified,
-					Avatar:     swaps[i].HolderAvatar,
-					IonConnect: holderIONConnect,
+					Username: swaps[i].HolderUsername,
+					Display:  swaps[i].HolderDisplay,
+					Verified: swaps[i].HolderVerified,
+					Avatar:   swaps[i].HolderAvatar,
+					Addresses: Addresses{
+						IonConnect: holderIONConnect,
+					},
 				},
 				Addresses: Addresses{
-					Blockchain: swaps[i].ContractAddress,
 					IonConnect: swaps[i].IONConnectAddress,
 				},
 				CreatedAt:  *swaps[i].CreatedAt.Time,

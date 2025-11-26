@@ -99,11 +99,13 @@ func buildTopHolderPositions(ionConnectAddress string, rankings []redis.Z, rows 
 		}
 		holder := &TopHolderPosition{
 			Creator: User{
-				Username:   holderData.CreatorUsername,
-				Display:    holderData.CreatorDisplay,
-				Verified:   holderData.CreatorVerified,
-				Avatar:     holderData.CreatorAvatar,
-				IonConnect: fmt.Sprintf("%v:%s:", nostr.KindProfileMetadata, holderData.CreatorMasterPubkey),
+				Username: holderData.CreatorUsername,
+				Display:  holderData.CreatorDisplay,
+				Verified: holderData.CreatorVerified,
+				Avatar:   holderData.CreatorAvatar,
+				Addresses: Addresses{
+					IonConnect: fmt.Sprintf("%v:%s:", nostr.KindProfileMetadata, holderData.CreatorMasterPubkey),
+				},
 			},
 			Position: HolderPosition{
 				Holder: User{
@@ -112,7 +114,9 @@ func buildTopHolderPositions(ionConnectAddress string, rankings []redis.Z, rows 
 					Display:      holderData.HolderDisplay,
 					Verified:     holderData.HolderVerified,
 					Avatar:       holderData.HolderAvatar,
-					IonConnect:   userIonConnect,
+					Addresses: Addresses{
+						IonConnect: userIonConnect,
+					},
 				},
 				Rank:        uint64(rank + 1),
 				Amount:      uint64(amountTokens),
