@@ -129,19 +129,21 @@ func (t *tokenAnalyticsUsers) Close() error {
 }
 
 func (t *tokenAnalytics) HealthCheck(ctx context.Context) error {
-	if err := t.ingestedDataDB.Ping(ctx); err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
-		return fmt.Errorf("database connection failed: %w", err)
-	}
-	if err := t.questDB.Ping(ctx); err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
-		return fmt.Errorf("questDB database connection failed: %w", err)
-	}
-	if err := t.processedDataDB.Ping(ctx).Err(); err != nil {
-		return fmt.Errorf("redis connection failed: %w", err)
-	}
-	if err := t.quickNode.HealthCheck(ctx); err != nil {
-		return fmt.Errorf("quicknode api unavailable: %w", err)
+	checkers := map[string]func(context.Context) error{
+		"ingested_datatabase": t.ingestedDataDB.Ping,
+		"questdb_database":    t.questDB.Ping,
+		"processed_database":  func(ctx context.Context) error { return t.processedDataDB.Ping(ctx).Err() },
+		"quicknode_api":       t.quickNode.HealthCheck,
 	}
 
+	for name, checker := range checkers {
+		ctxWithTimeout, cancel := context.WithTimeout(ctx, 3*time.Second)
+		err := checker(ctxWithTimeout)
+		cancel()
+		if err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
+			return fmt.Errorf("%s: check failed: %w", name, err)
+		}
+	}
 	return nil
 }
 
