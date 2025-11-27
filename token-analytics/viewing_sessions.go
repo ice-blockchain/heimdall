@@ -13,7 +13,8 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
-func (t *tokenAnalytics) CreateViewingSession(ctx context.Context, sessionType, clientIP, deviceKey string) (string, uint64, error) {
+func (t *tokenAnalytics) CreateViewingSession(ctx context.Context, sessionType, clientIP, deviceKey string, tokenType *string) (string, uint64, error) {
+	// TODO: use tokenType for filtering when implementing logic
 	userIdentifier := fmt.Sprintf("%s:%s", clientIP, deviceKey)
 
 	mapKey := userMapKey(sessionType, userIdentifier)
@@ -31,10 +32,15 @@ func (t *tokenAnalytics) CreateViewingSession(ctx context.Context, sessionType, 
 	sessKey := sessionKey(sessionType, sessionID)
 
 	var globalKey string
-	if sessionType == sessionTypeTop {
+	switch sessionType {
+	case sessionTypeTop:
 		globalKey = globalTopSetKey
-	} else {
+	case sessionTypeTrending:
 		globalKey = globalTrendingSetKey
+	case sessionTypeBondingCurveProgress:
+		globalKey = globalBondingCurveProgressSetKey
+	default:
+		return "", 0, fmt.Errorf("unsupported session type: %s", sessionType)
 	}
 	pipe := t.processedDataDB.TxPipeline()
 	pipe.ZUnionStore(ctx, sessKey, &redis.ZStore{Keys: []string{globalKey}})
@@ -187,15 +193,16 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 			ImageURL:    token.ImageURL,
 			CreatedAt:   *token.CreatedAt.Time,
 			Addresses: Addresses{
-				Blockchain: token.ContractAddress,
 				IonConnect: token.IONConnectAddress,
 			},
 			Creator: User{
-				Username:   token.CreatorUsername,
-				Display:    token.CreatorDisplay,
-				Verified:   token.CreatorVerified,
-				Avatar:     token.CreatorAvatar,
-				IonConnect: token.CreatorMasterPubkey,
+				Username: token.CreatorUsername,
+				Display:  token.CreatorDisplay,
+				Verified: token.CreatorVerified,
+				Avatar:   token.CreatorAvatar,
+				Addresses: Addresses{
+					IonConnect: token.CreatorMasterPubkey,
+				},
 			},
 			MarketData: MarketData{
 				MarketCap: float64(marketCap),

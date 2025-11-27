@@ -1,6 +1,30 @@
 # SPDX-License-Identifier: ice License 1.0
 
 definitions:
+  main.ExternalDataRequestBody:
+    properties:
+      creatorAvatar:
+        example: https://example.com/avatar.png
+        type: string
+      creatorDisplayName:
+        example: John Doe
+        type: string
+      creatorUsername:
+        example: johndoe
+        type: string
+      creatorVerified:
+        example: true
+        type: boolean
+      tokenDescription:
+        example: This is a description
+        type: string
+      tokenImageUrl:
+        example: https://example.com/image.png
+        type: string
+      tokenTitle:
+        example: My Awesome Post
+        type: string
+    type: object
   main.SessionViewCreateResponse:
     properties:
       id:
@@ -22,10 +46,21 @@ definitions:
     type: object
   tokenanalytics.Addresses:
     properties:
-      blockchain:
-        type: string
       ionConnect:
         type: string
+      twitter:
+        type: string
+    type: object
+  tokenanalytics.BondingCurveProgress:
+    properties:
+      currentAmount:
+        type: number
+      currentAmountUSD:
+        type: number
+      goalAmount:
+        type: number
+      goalAmountUSD:
+        type: number
     type: object
   tokenanalytics.CommunityToken:
     properties:
@@ -61,6 +96,8 @@ definitions:
     type: object
   tokenanalytics.MarketData:
     properties:
+      bondingCurveProgress:
+        $ref: '#/definitions/tokenanalytics.BondingCurveProgress'
       holders:
         type: integer
       marketCap:
@@ -71,6 +108,10 @@ definitions:
         type: number
       ticker:
         type: string
+      topHolders:
+        items:
+          $ref: '#/definitions/tokenanalytics.HolderPosition'
+        type: array
       volume:
         type: number
     type: object
@@ -171,16 +212,12 @@ definitions:
     - tradeTypeSell
   tokenanalytics.User:
     properties:
+      addresses:
+        $ref: '#/definitions/tokenanalytics.Addresses'
       avatar:
         type: string
       display:
         type: string
-      ionConnect:
-        type: string
-      ionConnectRelays:
-        items:
-          type: string
-        type: array
       name:
         type: string
       verified:
@@ -202,14 +239,21 @@ paths:
       description: Returns community tokens information for the given Ion Connect
         addresses.
       parameters:
-      - description: Ion Connect address of the user
+      - description: External addresses of the tokens
         example: 0x1234...,0x5678...
         in: query
         items:
           type: string
-        name: ionConnectAddress
+        name: externalAddresses
         required: true
         type: array
+      - description: Number of top holders to include (1-10)
+        example: 3
+        in: query
+        maximum: 10
+        minimum: 1
+        name: includeTopHolders
+        type: integer
       produces:
       - application/json
       responses:
@@ -235,62 +279,15 @@ paths:
       - Nostr: []
       tags:
       - Tokens
-  /v1/community-tokens/{ionConnectAddress}/latest-trades:
-    get:
-      description: Returns trade history for a specific community token address.
-      parameters:
-      - description: Ion Connect address
-        example: '"0x1234..."'
-        in: path
-        name: ionConnectAddress
-        required: true
-        type: string
-      - description: Number of items to return
-        example: 10
-        format: int32
-        in: query
-        name: limit
-        type: integer
-      - description: Number of items to skip
-        example: 0
-        format: int32
-        in: query
-        name: offset
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/tokenanalytics.Trade'
-            type: array
-        "401":
-          description: if auth token is missing or invalid
-          schema:
-            $ref: '#/definitions/server.ResponseErrorBody'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/server.ResponseErrorBody'
-        "504":
-          description: if request times out
-          schema:
-            $ref: '#/definitions/server.ResponseErrorBody'
-      security:
-      - Nostr: []
-      tags:
-      - Tokens
-  /v1/community-tokens/{type}:
+  /v1/community-tokens/{externalAddressOrViewType}:
     get:
       description: Returns community tokens information for the given Ion Connect
         addresses.
       parameters:
-      - description: Type of data
+      - description: View type (latest)
         example: '"latest"'
         in: path
-        name: type
+        name: externalAddressOrViewType
         required: true
         type: string
       - description: Search keyword
@@ -335,15 +332,118 @@ paths:
       - Nostr: []
       tags:
       - Tokens
-  /v1/community-tokens/{type}/viewing-sessions:
+  /v1/community-tokens/{externalAddressOrViewType}/external-data:
+    put:
+      consumes:
+      - application/json
+      description: Syncs external information for a community token.
+      parameters:
+      - description: External address
+        in: path
+        name: externalAddressOrViewType
+        required: true
+        type: string
+      - description: External token data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/main.ExternalDataRequestBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK - Data synced successfully
+        "400":
+          description: if request body is invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
+      tags:
+      - Tokens
+  /v1/community-tokens/{externalAddressOrViewType}/latest-trades:
+    get:
+      description: Returns trade history for a specific community token address.
+      parameters:
+      - description: External address
+        example: '"0x1234..."'
+        in: path
+        name: externalAddressOrViewType
+        required: true
+        type: string
+      - description: Number of items to return
+        example: 10
+        format: int32
+        in: query
+        name: limit
+        type: integer
+      - description: Number of items to skip
+        example: 0
+        format: int32
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/tokenanalytics.Trade'
+            type: array
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
+      tags:
+      - Tokens
+  /v1/community-tokens/{externalAddressOrViewType}/viewing-sessions:
     post:
       description: Creates a new session view for community tokens analytics.
       parameters:
-      - description: Type of session view
-        example: '"latest"'
+      - description: View type
+        enum:
+        - top
+        - trending
+        - bondingCurveProgress
+        example: '"top"'
         in: path
-        name: type
+        name: externalAddressOrViewType
         required: true
+        type: string
+      - description: Token type filter
+        enum:
+        - profile
+        - post
+        - video
+        - article
+        example: '"profile"'
+        in: query
+        name: type
         type: string
       produces:
       - application/json
@@ -368,14 +468,18 @@ paths:
       - Nostr: []
       tags:
       - Tokens
-  /v1/community-tokens/{type}/viewing-sessions/{viewingSessionId}:
+  /v1/community-tokens/{externalAddressOrViewType}/viewing-sessions/{viewingSessionId}:
     get:
       description: Returns community tokens information for a specific viewing session.
       parameters:
-      - description: Type of data
+      - description: View type
+        enum:
+        - top
+        - trending
+        - bondingCurveProgress
         example: '"top"'
         in: path
-        name: type
+        name: externalAddressOrViewType
         required: true
         type: string
       - description: Viewing session ID
@@ -431,14 +535,21 @@ paths:
       description: Streams community tokens information for the given Ion Connect
         addresses.
       parameters:
-      - description: Ion Connect address of the user
+      - description: External addresses of the tokens
         example: 0x1234...,0x5678...
         in: query
         items:
           type: string
-        name: ionConnectAddress
+        name: externalAddresses
         required: true
         type: array
+      - description: Number of top holders to include (1-10)
+        example: 3
+        in: query
+        maximum: 10
+        minimum: 1
+        name: includeTopHolders
+        type: integer
       produces:
       - application/json
       responses:
@@ -462,14 +573,63 @@ paths:
       - Nostr: []
       tags:
       - stream
-  /v1sse/community-tokens/{ionConnectAddress}/latest-trades:
+  /v1sse/community-tokens/{externalAddressOrViewType}:
+    get:
+      description: Streams community tokens information for the given type.
+      parameters:
+      - description: View type (latest, featured, top, trending, or bondingCurveProgress)
+        example: '"latest","featured","top","trending","bondingCurveProgress"'
+        in: path
+        name: externalAddressOrViewType
+        required: true
+        type: string
+      - description: Viewing session ID (required for top/trending/bondingCurveProgress)
+        example: '"550e8400-e29b-41d4-a716-446655440000"'
+        in: query
+        name: viewingSessionId
+        type: string
+      - description: Token type filter (profile, post, video, or article)
+        example: '"profile"'
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/tokenanalytics.CommunityToken'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
+      tags:
+      - stream
+  /v1sse/community-tokens/{externalAddressOrViewType}/latest-trades:
     get:
       description: Streams latest trades for a specific community token address.
       parameters:
-      - description: Ion Connect address
+      - description: External address
         example: '"0x1234..."'
         in: path
-        name: ionConnectAddress
+        name: externalAddressOrViewType
         required: true
         type: string
       - description: Number of items to return
@@ -507,15 +667,15 @@ paths:
       - Nostr: []
       tags:
       - stream
-  /v1sse/community-tokens/{ionConnectAddress}/ohlcv:
+  /v1sse/community-tokens/{externalAddressOrViewType}/ohlcv:
     get:
       description: Streams OHLCV (Open, High, Low, Close, Volume) data for a specific
         community token address.
       parameters:
-      - description: Ion Connect address
+      - description: External address
         example: '"0x1234..."'
         in: path
-        name: ionConnectAddress
+        name: externalAddressOrViewType
         required: true
         type: string
       - description: Time interval
@@ -547,15 +707,15 @@ paths:
       - Nostr: []
       tags:
       - stream
-  /v1sse/community-tokens/{ionConnectAddress}/top-holders:
+  /v1sse/community-tokens/{externalAddressOrViewType}/top-holders:
     get:
       description: Streams top holders information for a specific community token
         address.
       parameters:
-      - description: Ion Connect address
+      - description: External address
         example: '"0x1234..."'
         in: path
-        name: ionConnectAddress
+        name: externalAddressOrViewType
         required: true
         type: string
       - description: Number of items to return
@@ -589,14 +749,14 @@ paths:
       - Nostr: []
       tags:
       - stream
-  /v1sse/community-tokens/{ionConnectAddress}/trading-stats:
+  /v1sse/community-tokens/{externalAddressOrViewType}/trading-stats:
     get:
       description: Streams trading statistics for a specific community token address.
       parameters:
-      - description: Ion Connect address
+      - description: External address
         example: '"0x1234..."'
         in: path
-        name: ionConnectAddress
+        name: externalAddressOrViewType
         required: true
         type: string
       produces:
@@ -606,50 +766,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/tokenanalytics.TradeStats'
-        "401":
-          description: if auth token is missing or invalid
-          schema:
-            $ref: '#/definitions/server.ResponseErrorBody'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/server.ResponseErrorBody'
-        "504":
-          description: if request times out
-          schema:
-            $ref: '#/definitions/server.ResponseErrorBody'
-      security:
-      - Nostr: []
-      tags:
-      - stream
-  /v1sse/community-tokens/{type}:
-    get:
-      description: Streams community tokens information for the given type.
-      parameters:
-      - description: Type of data
-        example: '"latest","featured","top","trending"'
-        in: path
-        name: type
-        required: true
-        type: string
-      - description: Viewing session ID (required for top/trending)
-        example: '"550e8400-e29b-41d4-a716-446655440000"'
-        in: query
-        name: viewingSessionId
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/tokenanalytics.CommunityToken'
-            type: array
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/server.ResponseErrorBody'
         "401":
           description: if auth token is missing or invalid
           schema:
@@ -671,14 +787,21 @@ paths:
       description: Streams community tokens information for the given Ion Connect
         addresses.
       parameters:
-      - description: Ion Connect address of the user
+      - description: External addresses of the tokens
         example: 0x1234...,0x5678...
         in: query
         items:
           type: string
-        name: ionConnectAddress
+        name: externalAddresses
         required: true
         type: array
+      - description: Number of top holders to include (1-10)
+        example: 3
+        in: query
+        maximum: 10
+        minimum: 1
+        name: includeTopHolders
+        type: integer
       produces:
       - application/json
       responses:
@@ -702,14 +825,63 @@ paths:
       - Nostr: []
       tags:
       - stream
-  /v1ws/community-tokens/{ionConnectAddress}/latest-trades:
+  /v1ws/community-tokens/{externalAddressOrViewType}:
+    get:
+      description: Streams community tokens information for the given type.
+      parameters:
+      - description: View type (latest, featured, top, trending, or bondingCurveProgress)
+        example: '"latest","featured","top","trending","bondingCurveProgress"'
+        in: path
+        name: externalAddressOrViewType
+        required: true
+        type: string
+      - description: Viewing session ID (required for top/trending/bondingCurveProgress)
+        example: '"550e8400-e29b-41d4-a716-446655440000"'
+        in: query
+        name: viewingSessionId
+        type: string
+      - description: Token type filter (profile, post, video, or article)
+        example: '"profile"'
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/tokenanalytics.CommunityToken'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
+      tags:
+      - stream
+  /v1ws/community-tokens/{externalAddressOrViewType}/latest-trades:
     get:
       description: Streams latest trades for a specific community token address.
       parameters:
-      - description: Ion Connect address
+      - description: External address
         example: '"0x1234..."'
         in: path
-        name: ionConnectAddress
+        name: externalAddressOrViewType
         required: true
         type: string
       - description: Number of items to return
@@ -747,15 +919,15 @@ paths:
       - Nostr: []
       tags:
       - stream
-  /v1ws/community-tokens/{ionConnectAddress}/ohlcv:
+  /v1ws/community-tokens/{externalAddressOrViewType}/ohlcv:
     get:
       description: Streams OHLCV (Open, High, Low, Close, Volume) data for a specific
         community token address.
       parameters:
-      - description: Ion Connect address
+      - description: External address
         example: '"0x1234..."'
         in: path
-        name: ionConnectAddress
+        name: externalAddressOrViewType
         required: true
         type: string
       - description: Time interval
@@ -787,15 +959,15 @@ paths:
       - Nostr: []
       tags:
       - stream
-  /v1ws/community-tokens/{ionConnectAddress}/top-holders:
+  /v1ws/community-tokens/{externalAddressOrViewType}/top-holders:
     get:
       description: Streams top holders information for a specific community token
         address.
       parameters:
-      - description: Ion Connect address
+      - description: External address
         example: '"0x1234..."'
         in: path
-        name: ionConnectAddress
+        name: externalAddressOrViewType
         required: true
         type: string
       - description: Number of items to return
@@ -829,14 +1001,14 @@ paths:
       - Nostr: []
       tags:
       - stream
-  /v1ws/community-tokens/{ionConnectAddress}/trading-stats:
+  /v1ws/community-tokens/{externalAddressOrViewType}/trading-stats:
     get:
       description: Streams trading statistics for a specific community token address.
       parameters:
-      - description: Ion Connect address
+      - description: External address
         example: '"0x1234..."'
         in: path
-        name: ionConnectAddress
+        name: externalAddressOrViewType
         required: true
         type: string
       produces:
@@ -846,50 +1018,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/tokenanalytics.TradeStats'
-        "401":
-          description: if auth token is missing or invalid
-          schema:
-            $ref: '#/definitions/server.ResponseErrorBody'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/server.ResponseErrorBody'
-        "504":
-          description: if request times out
-          schema:
-            $ref: '#/definitions/server.ResponseErrorBody'
-      security:
-      - Nostr: []
-      tags:
-      - stream
-  /v1ws/community-tokens/{type}:
-    get:
-      description: Streams community tokens information for the given type.
-      parameters:
-      - description: Type of data
-        example: '"latest","featured","top","trending"'
-        in: path
-        name: type
-        required: true
-        type: string
-      - description: Viewing session ID (required for top/trending)
-        example: '"550e8400-e29b-41d4-a716-446655440000"'
-        in: query
-        name: viewingSessionId
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/tokenanalytics.CommunityToken'
-            type: array
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/server.ResponseErrorBody'
         "401":
           description: if auth token is missing or invalid
           schema:
