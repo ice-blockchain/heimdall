@@ -171,6 +171,7 @@ CREATE TABLE IF NOT EXISTS tokens (
     creator_master_pubkey   TEXT,
     type                    TEXT NOT NULL, -- profile/post/video/article
     base_token              TEXT,
+    pair_id                 TEXT,
     market_cap_usd          usd_amount DEFAULT 0,
     price_usd               usd_amount DEFAULT 0,
     holders_count           BIGINT DEFAULT 0,
@@ -356,23 +357,23 @@ DECLARE
 BEGIN
     hex_clean := REPLACE(tx_input, '0x', '');
     hex_clean := substring(hex_clean from 9); -- Skip first 8 hex chars (4 bytes = function signature)
-    
+
     -- baseToken is parameter index 0 (offset to bytes data)
     base_token_offset_bytes := decode_uint256('0x' || hex_clean, 0)::INT;
-    
+
     IF base_token_offset_bytes = 0 THEN
         RETURN NULL;
     END IF;
-    
+
     base_token_length_bytes := decode_uint256('0x' || hex_clean, base_token_offset_bytes / 32)::INT;
-    
+
     IF base_token_length_bytes = 0 OR base_token_length_bytes > 32 THEN
         RETURN NULL;
     END IF;
-    
+
     data_start_pos := (base_token_offset_bytes + 32) * 2 + 1;
     base_token_hex := substring(hex_clean from data_start_pos for (base_token_length_bytes * 2));
-    
+
     RETURN LOWER('0x' || base_token_hex);
 EXCEPTION
     WHEN OTHERS THEN
@@ -390,27 +391,27 @@ DECLARE
     data_start_pos INT;
     result TEXT;
 BEGIN
-    hex_clean := REPLACE(tx_input, '0x', '');    
+    hex_clean := REPLACE(tx_input, '0x', '');
     hex_clean := substring(hex_clean from 9); -- Skip first 8 hex chars (4 bytes = function signature)
-    
+
     -- toToken is parameter index 1 (second parameter, after baseToken at index 0)
     to_token_offset_bytes := decode_uint256('0x' || hex_clean, 1)::INT;
-    
+
     IF to_token_offset_bytes = 0 THEN
         RETURN '';
     END IF;
-    
+
     to_token_length_bytes := decode_uint256('0x' || hex_clean, to_token_offset_bytes / 32)::INT;
     IF to_token_length_bytes = 0 THEN
         RETURN '';
     END IF;
-    
+
     -- Extract toToken hex data (starts 32 bytes after the length word)
     data_start_pos := (to_token_offset_bytes + 32) * 2 + 1;
     to_token_hex := substring(hex_clean from data_start_pos for (to_token_length_bytes * 2));
-    
+
     result := rtrim(convert_from(decode(to_token_hex, 'hex'), 'UTF8'), E'\\0');
-    
+
     RETURN result;
 EXCEPTION
     WHEN OTHERS THEN
@@ -443,7 +444,7 @@ BEGIN
         END;
         result := result * 16 + digit;
     END LOOP;
-    
+
     RETURN result;
 EXCEPTION
     WHEN OTHERS THEN
@@ -470,14 +471,14 @@ BEGIN
 
     hex_position := (string_offset_words + 1) * 64 + 1;
     string_hex := substring(hex_clean from hex_position for (string_length * 2));
-    
+
     IF length(string_hex) > 0 AND string_length > 0 THEN
         string_hex := substring(string_hex from 1 for (string_length * 2));
         result := convert_from(decode(string_hex, 'hex'), 'UTF8');
     ELSE
         result := '';
     END IF;
-    
+
     RETURN result;
 EXCEPTION
     WHEN OTHERS THEN
@@ -507,20 +508,20 @@ BEGIN
     END IF;
 
     v_token_address := LOWER('0x' || substring(p_topics[2] from 27 for 40)); -- topics[1] = token address (indexed)
-    
+
     v_ion_connect_address := decode_string_abi(p_data, 2); -- Parse ABI-encoded data: (name, symbol, ionConnectAddress, totalSupply)
     v_total_supply := decode_uint256(p_data, 3);
-    
+
     IF v_ion_connect_address IS NULL OR v_ion_connect_address = '' OR NOT (v_ion_connect_address ~ '^[0-9]+:.+:') THEN
         RAISE WARNING 'Invalid ion_connect_address format: %, skipping token creation', v_ion_connect_address;
         RETURN;
     END IF;
-    
+
     v_parts := string_to_array(v_ion_connect_address, ':');
     IF array_length(v_parts, 1) >= 2 THEN
         v_kind := v_parts[1]::INT;
         v_creator_master_pubkey := v_parts[2];
-        
+
         CASE v_kind
             WHEN 0 THEN v_token_type := 'profile';
             WHEN 1 THEN v_token_type := 'post';
@@ -531,16 +532,16 @@ BEGIN
                 RETURN;
         END CASE;
     END IF;
-    
+
     IF v_token_type IS NULL THEN
         RAISE WARNING 'Failed to parse token type from ion_connect_address %, skipping token creation', v_ion_connect_address;
         RETURN;
     END IF;
-    
+
     SELECT username INTO v_username
     FROM users
     WHERE master_pubkey = v_creator_master_pubkey;
-    
+
     INSERT INTO tokens (
         created_at, updated_at, contract_address, ion_connect_address,
         ticker, total_supply, creator_master_pubkey, type, tx_log_id
@@ -556,7 +557,7 @@ BEGIN
         contract_address = EXCLUDED.contract_address,
         ticker = COALESCE(EXCLUDED.ticker, tokens.ticker),
         tx_log_id = COALESCE(EXCLUDED.tx_log_id, tokens.tx_log_id);
-    
+
     RAISE DEBUG 'TokenCreated processed: token=%', v_token_address;
 END;
 $$ LANGUAGE plpgsql;
@@ -567,19 +568,21 @@ CREATE OR REPLACE FUNCTION process_pair_registered(
 ) RETURNS VOID AS $$
 DECLARE
     v_base_token TEXT;
+    v_pair_id TEXT;
     v_other_token TEXT;
 BEGIN
     IF array_length(p_topics, 1) < 4 THEN
         RETURN;
     END IF;
-    
+
+    v_pair_id := LOWER(p_topics[2]);
     v_base_token := LOWER('0x' || substring(p_topics[3] from 27 for 40));
     v_other_token := LOWER('0x' || substring(p_topics[4] from 27 for 40));
-    
+
     UPDATE tokens
-    SET base_token = v_base_token, updated_at = p_block_timestamp
+    SET base_token = v_base_token,pair_id = v_pair_id, updated_at = p_block_timestamp
     WHERE LOWER(contract_address) = v_other_token;
-    
+
     RAISE DEBUG 'PairRegistered processed: token=%, baseToken=%', v_other_token, v_base_token;
 END;
 $$ LANGUAGE plpgsql;
@@ -614,38 +617,38 @@ BEGIN
     IF array_length(p_topics, 1) < 3 THEN
         RETURN;
     END IF;
-    
+
     v_swapper := LOWER('0x' || substring(p_topics[2] from 27 for 40));
     v_direction := (decode_uint256(p_data, 0) != 0);
     v_input_amount := decode_uint256(p_data, 1);
     v_output_amount := decode_uint256(p_data, 2);
     v_fee := decode_uint256(p_data, 3);
-    
-    
+
+
     v_token_ion_connect := decode_to_token_from_input(p_tx_input); -- Extract toToken and baseToken from tx input
     v_base_token := decode_base_token_from_input(p_tx_input);
-    
+
     IF v_token_ion_connect IS NULL OR v_token_ion_connect = '' THEN
         RAISE WARNING 'Failed to decode toToken from tx input for tx %', p_transaction_hash;
         RETURN;
     END IF;
-    
+
     SELECT contract_address, base_token INTO v_token_address, v_other_token
     FROM tokens
     WHERE ion_connect_address = v_token_ion_connect;
-    
+
     IF v_token_address IS NULL THEN
         RAISE WARNING 'Token with ion_connect_address % not found, skipping swap', v_token_ion_connect;
         RETURN;
     END IF;
-    
+
     IF v_base_token IS NOT NULL AND v_other_token IS NOT NULL AND LOWER(v_base_token) != LOWER(v_other_token) THEN
         RAISE WARNING 'Base token mismatch: tx has %, token has %. Skipping swap for tx %', v_base_token, v_other_token, p_transaction_hash;
         RETURN;
     END IF;
-    
+
     v_user_address := v_swapper;
-    
+
     SELECT price_usd INTO v_ion_price_usd -- Get ION price
     FROM base_token_prices
     WHERE token_symbol = 'ION'
@@ -655,18 +658,18 @@ BEGIN
         RAISE WARNING 'ION price not found, skipping swap for tx %', p_transaction_hash;
         RETURN;
     END IF;
-    
+
     IF v_input_amount = 0 OR v_output_amount = 0 THEN
         RAISE WARNING 'Invalid swap amounts (input=%, output=%) for tx %, skipping', v_input_amount, v_output_amount, p_transaction_hash;
         RETURN;
     END IF;
-    
+
     IF v_direction = false THEN -- buy
         v_price_usd := (v_input_amount / v_output_amount) * v_ion_price_usd;
     ELSE -- sell
         v_price_usd := (v_output_amount / v_input_amount) * v_ion_price_usd;
     END IF;
-    
+
     INSERT INTO token_swaps (
         created_at, transaction_hash, contract_address, ion_connect_address,
         user_address, direction, input_amount, output_amount, fee, price_usd, tx_log_id
@@ -676,7 +679,7 @@ BEGIN
         v_user_address, v_direction, v_input_amount, v_output_amount, v_fee, v_price_usd, p_tx_log_id
     )
     ON CONFLICT (transaction_hash, contract_address, user_address) DO NOTHING;
-    
+
     IF v_direction = false THEN
         v_token_amount := v_output_amount;
         v_sign := 1.0;
@@ -684,21 +687,21 @@ BEGIN
         v_token_amount := v_input_amount;
         v_sign := -1.0;
     END IF;
-    
+
     v_delta_market_cap := v_sign * v_token_amount * v_price_usd;
-    
+
     UPDATE tokens
     SET price_usd = v_price_usd,
         market_cap_usd = GREATEST(market_cap_usd + v_delta_market_cap, 0),
         updated_at = p_block_timestamp
     WHERE contract_address = v_token_address;
-    
+
     SELECT master_pubkey INTO v_user_master_pubkey
     FROM users
     WHERE LOWER(blockchain_address) = LOWER(v_user_address);
 
     v_cost_usd := v_input_amount * v_ion_price_usd;
-    
+
     IF v_direction = false THEN -- buy
         INSERT INTO user_token_positions (
             master_pubkey, contract_address, ion_connect_address,
@@ -711,7 +714,7 @@ BEGIN
         ON CONFLICT (master_pubkey, contract_address) DO UPDATE SET
             amount = user_token_positions.amount + EXCLUDED.amount,
             total_invested_usd = user_token_positions.total_invested_usd + EXCLUDED.total_invested_usd,
-            avg_buy_price_usd = (user_token_positions.total_invested_usd + EXCLUDED.total_invested_usd) / 
+            avg_buy_price_usd = (user_token_positions.total_invested_usd + EXCLUDED.total_invested_usd) /
                                 NULLIF((user_token_positions.amount + EXCLUDED.amount)::NUMERIC, 0),
             updated_at = EXCLUDED.updated_at;
     ELSE -- sell
@@ -721,7 +724,7 @@ BEGIN
         WHERE master_pubkey = v_user_master_pubkey
             AND contract_address = v_token_address;
     END IF;
-    
+
     RAISE DEBUG 'Swapped processed: token=%, user=%', v_token_address, v_user_address;
 END;
 $$ LANGUAGE plpgsql;
@@ -735,7 +738,7 @@ BEGIN
     SELECT block_timestamp, input INTO v_block_timestamp, v_tx_input
     FROM transactions
     WHERE transaction_hash = NEW.transaction_hash;
-    
+
     CASE NEW.topic0
         WHEN '0xcaa54a9b9817e12b67fd790dabf6f963cb9a083290c5c06c052ea18bb9b29427' THEN -- BondedTokenCreated
             PERFORM process_bonded_token_created(NEW.topics, NEW.data, v_block_timestamp, NEW.i);
@@ -746,7 +749,7 @@ BEGIN
         ELSE
             NULL;
     END CASE;
-    
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
