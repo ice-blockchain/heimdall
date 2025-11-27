@@ -37,6 +37,8 @@ func (t *tokenAnalytics) GetCommunityTokensByIonConnectAddresses(ctx context.Con
 			COALESCE(creator.avatar, '') as creator_avatar,
 			COALESCE(t.market_cap_usd, 0) as market_cap_usd,
 			COALESCE(t.price_usd, 0) as price_usd,
+			COALESCE(t.base_token, '') as base_token,
+			COALESCE(t.pair_id, '') as pair_id,
 		COALESCE(
 			(SELECT SUM((input_amount::NUMERIC / 1e18) * price_usd)
 			 FROM token_swaps 

@@ -142,6 +142,8 @@ type (
 		ionPriceUSD     *atomic.Pointer[float64]
 		// TODO: xmap for latest creator token prices to calc content token price
 		bondingCurveContractAddress string
+
+		dummyInsertBlockIdx uint64
 	}
 	tokenAnalyticsUsers struct {
 		ingestedDataDB *storage.DB
@@ -180,6 +182,7 @@ type (
 
 	tokenRow struct {
 		CreatedAt                *time.Time `db:"created_at"`
+		UpdatedAt                *time.Time `db:"updated_at"`
 		ContractAddress          string     `db:"contract_address"`
 		IONConnectAddress        string     `db:"ion_connect_address"`
 		Type                     string     `db:"type"`
@@ -192,6 +195,9 @@ type (
 		CreatorUsername          string     `db:"creator_username"`
 		CreatorDisplay           string     `db:"creator_display"`
 		CreatorAvatar            string     `db:"creator_avatar"`
+		BaseToken                string     `db:"base_token"`
+		PairId                   string     `db:"pair_id"`
+		TxLogId                  string     `db:"tx_log_id"`
 		MarketCapUSD             float64    `db:"market_cap_usd"`
 		PriceUSD                 float64    `db:"price_usd"`
 		Volume24h                float64    `db:"volume_24h"`
