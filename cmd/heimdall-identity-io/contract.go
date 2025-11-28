@@ -305,6 +305,7 @@ const (
 	configNameBlacklistedCountriesForPhone2FA                      = "blacklisted_countries_phone2fa"
 	configNameTokenizedCommunitiesBondingCurveSmartContractABI     = "tokenized_communities_bonding_curve_smart_contract_abi"
 	configNameTokenizedCommunitiesBondingCurveSmartContractAddress = "tokenized_communities_bonding_curve_smart_contract_address"
+	configNameSupportedSwapTokens                                  = "supported_swap_tokens"
 )
 
 type (
@@ -338,6 +339,14 @@ type (
 			AddressVersion                   Version `yaml:"addressVersion" mapstructure:"addressVersion"`
 			ABIVersion                       Version `yaml:"abiVersion" mapstructure:"abiVersion"`
 		} `yaml:"tokenizedCommunities" mapstructure:"tokenizedCommunities"`
+		SupportedSwapTokens struct {
+			Tokens  []SwapToken `yaml:"tokens" mapstructure:"tokens"`
+			Version Version     `yaml:"version" mapstructure:"version"`
+		} `yaml:"supportedSwapTokens" mapstructure:"supportedSwapTokens"`
+	}
+	SwapToken struct {
+		Network string `json:"network" yaml:"network"`
+		Address string `json:"address" yaml:"address"`
 	}
 )
 
@@ -376,6 +385,13 @@ var (
 				return errors.Wrapf(errVersionRequired, "version required for %s", configNameTokenizedCommunitiesBondingCurveSmartContractAddress), Version(0)
 			}
 			return cfg.TokenizedCommunities.BondingCurveSmartContractAddress, cfg.TokenizedCommunities.AddressVersion
+		},
+		configNameSupportedSwapTokens: func(cfg *config, ver *Version) (any, Version) {
+			if ver == nil {
+				return errors.Wrapf(errVersionRequired, "version required for %s", configNameSupportedSwapTokens), Version(0)
+			}
+
+			return cfg.SupportedSwapTokens.Tokens, cfg.SupportedSwapTokens.Version
 		},
 	}
 	errVersionRequired           = errors.New("version required")
