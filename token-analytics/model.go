@@ -3,6 +3,7 @@
 package tokenanalytics
 
 import (
+	"strings"
 	"time"
 )
 
@@ -93,13 +94,13 @@ type (
 	}
 
 	OHLCV struct {
-		IONConnectAddress string  `json:"-" db:"ion_connect_address"`
-		Timestamp         uint64  `json:"timestamp" db:"timestamp"`
-		Open              float64 `json:"open" db:"open"`
-		High              float64 `json:"high" db:"high"`
-		Low               float64 `json:"low" db:"low"`
-		Close             float64 `json:"close" db:"close"`
-		Volume            float64 `json:"volume" db:"volume"`
+		ExternalAddress string  `json:"-" db:"external_address"`
+		Timestamp       uint64  `json:"timestamp" db:"timestamp"`
+		Open            float64 `json:"open" db:"open"`
+		High            float64 `json:"high" db:"high"`
+		Low             float64 `json:"low" db:"low"`
+		Close           float64 `json:"close" db:"close"`
+		Volume          float64 `json:"volume" db:"volume"`
 	}
 
 	HolderPosition struct {
@@ -114,4 +115,31 @@ type (
 		Creator  User           `json:"creator,omitempty"`
 		Position HolderPosition `json:"position,omitempty"`
 	}
+
+	Platform string
 )
+
+const (
+	PlatformIonConnect Platform = "ion_connect"
+	PlatformXCom       Platform = "x.com"
+)
+
+func buildAddressesFromExternalAddress(externalAddress string) Addresses {
+	if externalAddress == "" {
+		return Addresses{}
+	}
+	if strings.HasPrefix(externalAddress, "x.com:") {
+		return Addresses{
+			Twitter: externalAddress,
+		}
+	}
+	if strings.HasPrefix(externalAddress, "ion_connect:") {
+		return Addresses{
+			IonConnect: externalAddress,
+		}
+	}
+
+	return Addresses{
+		IonConnect: "ion_connect:" + externalAddress,
+	}
+}

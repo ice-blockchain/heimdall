@@ -15,15 +15,6 @@ definitions:
       creatorVerified:
         example: true
         type: boolean
-      tokenDescription:
-        example: This is a description
-        type: string
-      tokenImageUrl:
-        example: https://example.com/image.png
-        type: string
-      tokenTitle:
-        example: My Awesome Post
-        type: string
     type: object
   main.SessionViewCreateResponse:
     properties:
@@ -336,14 +327,14 @@ paths:
     put:
       consumes:
       - application/json
-      description: Syncs external information for a community token.
+      description: Syncs external creator information for a community token.
       parameters:
       - description: External address
         in: path
         name: externalAddressOrViewType
         required: true
         type: string
-      - description: External token data
+      - description: Creator information
         in: body
         name: body
         required: true

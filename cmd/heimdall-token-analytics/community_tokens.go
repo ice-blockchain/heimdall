@@ -65,9 +65,6 @@ type (
 		CreatorUsername    string `json:"creatorUsername" example:"johndoe"`
 		CreatorDisplayName string `json:"creatorDisplayName" example:"John Doe"`
 		CreatorAvatar      string `json:"creatorAvatar" example:"https://example.com/avatar.png"`
-		TokenTitle         string `json:"tokenTitle,omitempty" example:"My Awesome Post"`
-		TokenDescription   string `json:"tokenDescription,omitempty" example:"This is a description"`
-		TokenImageURL      string `json:"tokenImageUrl,omitempty" example:"https://example.com/image.png"`
 		CreatorVerified    bool   `json:"creatorVerified" example:"true"`
 	}
 	OHLCVRequest struct {
@@ -99,7 +96,7 @@ func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[To
 			return nil, server.BadRequest(errors.New("includeTopHolders must be between 1 and 10"), invalidPropertiesErrorCode)
 		}
 	}
-	tokens, err := s.tokenAnalytics.GetCommunityTokensByIonConnectAddresses(ctx, req.Data.ExternalAddresses, req.Token.GetMasterPublicKey(), req.Data.IncludeTopHolders)
+	tokens, err := s.tokenAnalytics.GetCommunityTokensByExternalAddresses(ctx, req.Data.ExternalAddresses, req.Token.GetMasterPublicKey(), req.Data.IncludeTopHolders)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get community tokens: %w", err)
 	}
@@ -233,12 +230,12 @@ func (s *service) GetCommunityTokensTradesByAddress(ctx context.Context, req *se
 // SyncCommunityTokenExternalData godoc
 //
 //	@Schemes
-//	@Description	Syncs external information for a community token.
+//	@Description	Syncs external creator information for a community token.
 //	@Tags			Tokens
 //	@Accept			json
 //	@Produce		json
 //	@Param			externalAddressOrViewType	path	string					true	"External address"
-//	@Param			body						body	ExternalDataRequestBody	true	"External token data"
+//	@Param			body						body	ExternalDataRequestBody	true	"Creator information"
 //	@Success		200							"OK - Data synced successfully"
 //	@Failure		400							{object}	server.ResponseErrorBody	"if request body is invalid"
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
@@ -247,8 +244,16 @@ func (s *service) GetCommunityTokensTradesByAddress(ctx context.Context, req *se
 //	@Security		Nostr
 //	@Router			/v1/community-tokens/{externalAddressOrViewType}/external-data [PUT].
 func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *server.Request[ExternalDataRequest]) (*server.Response[any], error) {
-	// TODO: Implement
-	_ = req.Data.ExternalAddress
+	if err := s.tokenAnalytics.UpdateTokenExternalData(
+		ctx,
+		req.Data.ExternalAddress,
+		req.Data.Body.CreatorUsername,
+		req.Data.Body.CreatorDisplayName,
+		req.Data.Body.CreatorAvatar,
+		req.Data.Body.CreatorVerified,
+	); err != nil {
+		return nil, fmt.Errorf("failed to update token external data: %w", err)
+	}
 
 	return &server.Response[any]{
 		Data: nil,
@@ -285,7 +290,7 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 		events := make(chan server.StreamEvent[ta.CommunityToken], 100)
 
 		sendData := func() bool {
-			tokens, err := s.tokenAnalytics.GetCommunityTokensByIonConnectAddresses(ctx, req.Data.ExternalAddresses, req.Token.GetMasterPublicKey(), req.Data.IncludeTopHolders)
+			tokens, err := s.tokenAnalytics.GetCommunityTokensByExternalAddresses(ctx, req.Data.ExternalAddresses, req.Token.GetMasterPublicKey(), req.Data.IncludeTopHolders)
 			if err != nil {
 				slog.ErrorContext(ctx, "failed to get community tokens for streaming", "error", err, "addresses", req.Data.ExternalAddresses)
 				events <- server.StreamEvent[ta.CommunityToken]{

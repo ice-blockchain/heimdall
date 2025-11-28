@@ -5,6 +5,7 @@ package tokenanalytics
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
@@ -14,8 +15,10 @@ import (
 )
 
 func (t *tokenAnalytics) CreateViewingSession(ctx context.Context, sessionType, clientIP, deviceKey string, tokenType *string) (string, uint64, error) {
-	// TODO: use tokenType for filtering when implementing logic
 	userIdentifier := fmt.Sprintf("%s:%s", clientIP, deviceKey)
+	if tokenType != nil && *tokenType != "" {
+		userIdentifier = fmt.Sprintf("%s:%s", userIdentifier, *tokenType)
+	}
 
 	mapKey := userMapKey(sessionType, userIdentifier)
 	oldSessionID, err := t.processedDataDB.Get(ctx, mapKey).Result()
@@ -30,24 +33,30 @@ func (t *tokenAnalytics) CreateViewingSession(ctx context.Context, sessionType, 
 	}
 	sessionID := uuid.New().String()
 	sessKey := sessionKey(sessionType, sessionID)
-
-	var globalKey string
-	switch sessionType {
-	case sessionTypeTop:
-		globalKey = globalTopSetKey
-	case sessionTypeTrending:
-		globalKey = globalTrendingSetKey
-	case sessionTypeBondingCurveProgress:
-		globalKey = globalBondingCurveProgressSetKey
-	default:
-		return "", 0, fmt.Errorf("unsupported session type: %s", sessionType)
+	globalKey, err := getGlobalSetKey(sessionType, tokenType)
+	if err != nil {
+		return "", 0, err
 	}
-	pipe := t.processedDataDB.TxPipeline()
-	pipe.ZUnionStore(ctx, sessKey, &redis.ZStore{Keys: []string{globalKey}})
-	pipe.Expire(ctx, sessKey, defaultViewingSessionTTL)
-	pipe.Set(ctx, mapKey, sessionID, defaultViewingSessionTTL)
-	if _, err := pipe.Exec(ctx); err != nil {
-		return "", 0, fmt.Errorf("failed to create viewing session: %w", err)
+
+	if responses, txErr := t.processedDataDB.TxPipelined(ctx, func(pipeliner redis.Pipeliner) error {
+		if pErr := pipeliner.ZUnionStore(ctx, sessKey, &redis.ZStore{Keys: []string{globalKey}}).Err(); pErr != nil {
+			return pErr
+		}
+		if pErr := pipeliner.Expire(ctx, sessKey, defaultViewingSessionTTL).Err(); pErr != nil {
+			return pErr
+		}
+		if pErr := pipeliner.Set(ctx, mapKey, sessionID, defaultViewingSessionTTL).Err(); pErr != nil {
+			return pErr
+		}
+		return nil
+	}); txErr != nil {
+		return "", 0, fmt.Errorf("failed to create viewing session: %w", txErr)
+	} else {
+		for _, response := range responses {
+			if rerr := response.Err(); rerr != nil {
+				return "", 0, fmt.Errorf("failed to `%v`: %w", response.FullName(), rerr)
+			}
+		}
 	}
 
 	ttlSeconds := uint64(defaultViewingSessionTTL.Seconds())
@@ -92,31 +101,57 @@ func (t *tokenAnalytics) GetTokensFromViewingSession(ctx context.Context, sessio
 }
 
 func (t *tokenAnalytics) getTokensWithKeywordFilter(ctx context.Context, sessionKey, sessionType, keyword string, limit, offset uint64) ([]*CommunityToken, error) {
-	matchedAddresses, err := t.searchTokensByCreatorLookup(ctx, keyword)
+	matchedAddresses, err := t.searchTokensByLookup(ctx, keyword)
 	if err != nil {
-		return nil, fmt.Errorf("failed to search tokens by creator username: %w", err)
+		return nil, fmt.Errorf("failed to search tokens by lookup: %w", err)
 	}
 	if len(matchedAddresses) == 0 {
 		return make([]*CommunityToken, 0), nil
 	}
-	filteredAddresses, err := t.filterTokensBySession(ctx, sessionKey, matchedAddresses)
-	if err != nil {
-		return nil, err
+
+	scoresMap := make(map[string]float64)
+	for _, addr := range matchedAddresses {
+		score, err := t.processedDataDB.ZScore(ctx, sessionKey, addr).Result()
+		if err == nil {
+			scoresMap[addr] = score
+		}
 	}
-	if len(filteredAddresses) == 0 {
-		return make([]*CommunityToken, 0), nil
-	}
-	paginatedAddresses := applyPagination(filteredAddresses, int64(limit), int64(offset))
-	if len(paginatedAddresses) == 0 {
-		return make([]*CommunityToken, 0), nil
+	validAddresses := make([]string, 0, len(scoresMap))
+	for addr := range scoresMap {
+		validAddresses = append(validAddresses, addr)
 	}
 
-	tokens, err := t.getTokenDetailsWithScores(ctx, sessionKey, sessionType, paginatedAddresses)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get token details: %w", err)
+	if len(validAddresses) == 0 {
+		return make([]*CommunityToken, 0), nil
+	}
+	type addrScore struct {
+		addr  string
+		score float64
+	}
+	sorted := make([]addrScore, 0, len(validAddresses))
+	for _, addr := range validAddresses {
+		sorted = append(sorted, addrScore{addr, scoresMap[addr]})
+	}
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].score > sorted[j].score
+	})
+	start := int(offset)
+	end := start + int(limit)
+	if start >= len(sorted) {
+		return make([]*CommunityToken, 0), nil
+	}
+	if end > len(sorted) {
+		end = len(sorted)
 	}
 
-	return tokens, nil
+	paginatedAddresses := make([]string, 0, end-start)
+	paginatedScores := make(map[string]float64)
+	for i := start; i < end; i++ {
+		paginatedAddresses = append(paginatedAddresses, sorted[i].addr)
+		paginatedScores[sorted[i].addr] = sorted[i].score
+	}
+
+	return t.getTokenDetailsWithScoresMap(ctx, sessionType, paginatedAddresses, paginatedScores)
 }
 
 func (t *tokenAnalytics) getTokenDetailsWithScores(ctx context.Context, sessionKey, sessionType string, ionConnectAddresses []string) ([]*CommunityToken, error) {
@@ -139,7 +174,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 	query := `
 		SELECT 
 			t.contract_address,
-			t.ion_connect_address,
+			t.external_address,
 			t.type,
 		creator.username as title,
 		COALESCE(creator.display_name, '') as description,
@@ -157,7 +192,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 		COALESCE(t.market_cap_usd, 0) as market_cap_usd
 		FROM tokens t
 		LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
-		WHERE t.ion_connect_address = ANY($1)
+		WHERE t.external_address = ANY($1)
 	`
 	tokensPtr, err := storage.Select[tokenRow](ctx, t.ingestedDataDB, query, ionConnectAddresses)
 	if err != nil {
@@ -165,7 +200,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 	}
 	tokensMap := make(map[string]*tokenRow)
 	for i := range tokensPtr {
-		tokensMap[tokensPtr[i].IONConnectAddress] = tokensPtr[i]
+		tokensMap[tokensPtr[i].ExternalAddress] = tokensPtr[i]
 	}
 	additionalMetrics, err := t.fetchAdditionalMetricsFromRedis(ctx, sessionType, ionConnectAddresses)
 	if err != nil {
@@ -192,17 +227,13 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 			Description: token.Description,
 			ImageURL:    token.ImageURL,
 			CreatedAt:   *token.CreatedAt.Time,
-			Addresses: Addresses{
-				IonConnect: token.IONConnectAddress,
-			},
+			Addresses:   buildAddressesFromExternalAddress(token.ExternalAddress),
 			Creator: User{
-				Username: token.CreatorUsername,
-				Display:  token.CreatorDisplay,
-				Verified: token.CreatorVerified,
-				Avatar:   token.CreatorAvatar,
-				Addresses: Addresses{
-					IonConnect: token.CreatorMasterPubkey,
-				},
+				Username:  token.CreatorUsername,
+				Display:   token.CreatorDisplay,
+				Verified:  token.CreatorVerified,
+				Avatar:    token.CreatorAvatar,
+				Addresses: buildAddressesFromExternalAddress(token.CreatorMasterPubkey),
 			},
 			MarketData: MarketData{
 				MarketCap: float64(marketCap),
@@ -244,58 +275,25 @@ func (t *tokenAnalytics) fetchAdditionalMetricsFromRedis(ctx context.Context, se
 	return result, nil
 }
 
-func (t *tokenAnalytics) searchTokensByCreatorLookup(ctx context.Context, keyword string) ([]string, error) {
+func (t *tokenAnalytics) searchTokensByLookup(ctx context.Context, keyword string) ([]string, error) {
 	searchQuery := `
-		SELECT t.ion_connect_address
+		SELECT t.external_address
 		FROM tokens t
-		INNER JOIN users u ON u.master_pubkey = t.creator_master_pubkey
-		WHERE u.lookup ILIKE $1
+		WHERE t.lookup ILIKE $1
 	`
 	searchPattern := "%" + keyword + "%"
 	type tokenAddr struct {
-		IONConnectAddress string `db:"ion_connect_address"`
+		ExternalAddress string `db:"external_address"`
 	}
 	matchedTokens, err := storage.Select[tokenAddr](ctx, t.ingestedDataDB, searchQuery, searchPattern)
 	if err != nil {
-		return nil, fmt.Errorf("failed to search tokens by creator lookup: %w", err)
+		return nil, fmt.Errorf("failed to search tokens by lookup: %w", err)
 	}
 	addresses := make([]string, len(matchedTokens))
 	for i, mt := range matchedTokens {
-		addresses[i] = mt.IONConnectAddress
+		addresses[i] = mt.ExternalAddress
 	}
 	return addresses, nil
-}
-
-func (t *tokenAnalytics) filterTokensBySession(ctx context.Context, sessionKey string, candidateAddresses []string) ([]string, error) {
-	allSessionTokens, err := t.processedDataDB.ZRevRange(ctx, sessionKey, 0, -1).Result()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get session tokens: %w", err)
-	}
-	sessionTokensMap := make(map[string]bool, len(allSessionTokens))
-	for _, addr := range allSessionTokens {
-		sessionTokensMap[addr] = true
-	}
-	filteredAddresses := make([]string, 0, len(candidateAddresses))
-	for _, addr := range candidateAddresses {
-		if sessionTokensMap[addr] {
-			filteredAddresses = append(filteredAddresses, addr)
-		}
-	}
-
-	return filteredAddresses, nil
-}
-
-func applyPagination(addresses []string, limit, offset int64) []string {
-	start := int(offset)
-	if start >= len(addresses) {
-		return []string{}
-	}
-	end := start + int(limit)
-	if end > len(addresses) {
-		end = len(addresses)
-	}
-
-	return addresses[start:end]
 }
 
 func sessionKey(sessionType, sessionID string) string {
@@ -304,4 +302,46 @@ func sessionKey(sessionType, sessionID string) string {
 
 func userMapKey(sessionType, userIdentifier string) string {
 	return fmt.Sprintf(userIdentifierMapPrefix, sessionType, userIdentifier)
+}
+
+func getGlobalSetKey(sessionType string, tokenType *string) (string, error) {
+	switch sessionType {
+	case sessionTypeTop:
+		if tokenType != nil && *tokenType != "" {
+			switch *tokenType {
+			case TokenTypeProfile:
+				return globalTopProfileSetKey, nil
+			case TokenTypePost:
+				return globalTopPostSetKey, nil
+			case TokenTypeVideo:
+				return globalTopVideoSetKey, nil
+			case TokenTypeArticle:
+				return globalTopArticleSetKey, nil
+			default:
+				return "", fmt.Errorf("unsupported token type: %s", *tokenType)
+			}
+		}
+		return globalTopSetKey, nil
+	case sessionTypeTrending:
+		if tokenType != nil && *tokenType != "" {
+			switch *tokenType {
+			case TokenTypeProfile:
+				return globalTrendingProfileSetKey, nil
+			case TokenTypePost:
+				return globalTrendingPostSetKey, nil
+			case TokenTypeVideo:
+				return globalTrendingVideoSetKey, nil
+			case TokenTypeArticle:
+				return globalTrendingArticleSetKey, nil
+			default:
+				return "", fmt.Errorf("unsupported token type: %s", *tokenType)
+			}
+		}
+		return globalTrendingSetKey, nil
+	case sessionTypeBondingCurveProgress:
+		// TODO: implement bonding curve progress logic
+		return globalBondingCurveProgressSetKey, nil
+	default:
+		return "", fmt.Errorf("unsupported session type: %s", sessionType)
+	}
 }

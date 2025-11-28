@@ -4,6 +4,7 @@ package tokenanalytics
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"time"
@@ -15,15 +16,17 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
-func (t *tokenAnalytics) GetCommunityTokensByIonConnectAddresses(ctx context.Context, ionConnectAddresses []string, requestorMasterPubkey string, includeTopHolders *uint32) ([]*CommunityToken, error) {
-	if len(ionConnectAddresses) == 0 {
+func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Context, externalAddresses []string, requestorMasterPubkey string, includeTopHolders *uint32) ([]*CommunityToken, error) {
+	if len(externalAddresses) == 0 {
 		return []*CommunityToken{}, nil
 	}
-
+	if includeTopHolders != nil && *includeTopHolders > 0 {
+		return t.getCommunityTokensWithTopHolders(ctx, externalAddresses, requestorMasterPubkey, includeTopHolders)
+	}
 	query := `
 		SELECT 
 			t.contract_address,
-			t.ion_connect_address,
+			t.external_address,
 			t.type,
 			creator.username as title,
 			COALESCE(creator.display_name, '') as description,
@@ -42,7 +45,7 @@ func (t *tokenAnalytics) GetCommunityTokensByIonConnectAddresses(ctx context.Con
 		COALESCE(
 			(SELECT SUM((input_amount::NUMERIC / 1e18) * price_usd)
 			 FROM token_swaps 
-			 WHERE token_swaps.ion_connect_address = t.ion_connect_address 
+			 WHERE token_swaps.external_address = t.external_address 
 			   AND direction = false 
 			   AND created_at > NOW() - INTERVAL '24 hours'), 
 			0
@@ -52,16 +55,19 @@ func (t *tokenAnalytics) GetCommunityTokensByIonConnectAddresses(ctx context.Con
 			COALESCE(utp.total_invested_usd, 0) as position_total_invested_usd
 		FROM tokens t
 		LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
-		LEFT JOIN user_token_positions utp ON utp.ion_connect_address = t.ion_connect_address AND utp.master_pubkey = $2
-		WHERE t.ion_connect_address = ANY($1)
+		LEFT JOIN user_token_positions utp ON utp.external_address = t.external_address AND utp.master_pubkey = $2
+		WHERE t.external_address = ANY($1)
 		ORDER BY t.created_at DESC
 	`
 
-	rows, err := storage.Select[tokenRow](ctx, t.ingestedDataDB, query, ionConnectAddresses, requestorMasterPubkey)
+	rows, err := storage.Select[tokenRow](ctx, t.ingestedDataDB, query, externalAddresses, requestorMasterPubkey)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch community tokens")
 	}
+	return t.buildCommunityTokensFromRows(ctx, rows, requestorMasterPubkey)
+}
 
+func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows []*tokenRow, requestorMasterPubkey string) ([]*CommunityToken, error) {
 	tokens := make([]*CommunityToken, 0, len(rows))
 	for _, row := range rows {
 		log.Debug(fmt.Sprintf("Row data: contract=%v, position_amount_usd=%v, position_invested=%v",
@@ -75,10 +81,141 @@ func (t *tokenAnalytics) GetCommunityTokensByIonConnectAddresses(ctx context.Con
 		}
 
 		if row.PositionAmountUSD > 0 {
-			userIonConnect := fmt.Sprintf("0:%s:", requestorMasterPubkey)
-			position, err := t.getUserTokenPositionRanking(ctx, userIonConnect, row.IONConnectAddress, row.PositionAmountUSD, row.PositionTotalInvestedUSD)
+			externalAddress := fmt.Sprintf("ion_connect:0:%s:", requestorMasterPubkey)
+			position, err := t.getUserTokenPositionRanking(ctx, externalAddress, row.ExternalAddress, row.PositionAmountUSD, row.PositionTotalInvestedUSD)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to get user position ranking for token %v", row.IONConnectAddress)
+				return nil, errors.Wrapf(err, "failed to get user position ranking for token %v", row.ExternalAddress)
+			}
+			if position != nil {
+				marketData.Position = *position
+			}
+		}
+		creatorIONConnect := ""
+		if row.CreatorMasterPubkey != "" {
+			creatorIONConnect = fmt.Sprintf("ion_connect:0:%s:", row.CreatorMasterPubkey)
+		}
+
+		token := &CommunityToken{
+			Type:        row.Type,
+			Title:       row.Title,
+			Description: row.Description,
+			ImageURL:    row.ImageURL,
+			Addresses:   buildAddressesFromExternalAddress(row.ExternalAddress),
+			Creator: User{
+				Username:  row.CreatorUsername,
+				Display:   row.CreatorDisplay,
+				Verified:  row.CreatorVerified,
+				Avatar:    row.CreatorAvatar,
+				Addresses: buildAddressesFromExternalAddress(creatorIONConnect),
+			},
+			MarketData: marketData,
+		}
+		tokens = append(tokens, token)
+	}
+
+	return tokens, nil
+}
+
+func (t *tokenAnalytics) getCommunityTokensWithTopHolders(ctx context.Context, externalAddresses []string, requestorMasterPubkey string, includeTopHolders *uint32) ([]*CommunityToken, error) {
+	limit := int64(*includeTopHolders)
+	if limit > 10 {
+		limit = 10
+	}
+
+	query := `
+		SELECT 
+			t.contract_address,
+			t.external_address,
+			t.type,
+			creator.username as title,
+			COALESCE(creator.display_name, '') as description,
+			COALESCE(creator.avatar, '') as image_url,
+			t.ticker,
+			t.total_supply,
+			COALESCE(t.creator_master_pubkey, '') as creator_master_pubkey,
+			creator.username as creator_username,
+			COALESCE(creator.display_name, '') as creator_display,
+			creator.verified as creator_verified,
+			COALESCE(creator.avatar, '') as creator_avatar,
+			COALESCE(t.market_cap_usd, 0) as market_cap_usd,
+			COALESCE(t.price_usd, 0) as price_usd,
+			COALESCE(
+				(SELECT SUM((input_amount::NUMERIC / 1e18) * price_usd)
+				 FROM token_swaps 
+				 WHERE token_swaps.external_address = t.external_address 
+				   AND direction = false 
+				   AND created_at > NOW() - INTERVAL '24 hours'), 
+				0
+			) as volume_24h,
+			COALESCE(t.holders_count, 0) as holders_count,
+			COALESCE((utp.amount::NUMERIC / 1e18) * t.price_usd, 0) as position_amount_usd,
+			COALESCE(utp.total_invested_usd, 0) as position_total_invested_usd,
+			COALESCE(
+				(SELECT JSON_AGG(
+					JSON_BUILD_OBJECT(
+						'holder_master_pubkey', holder_master_pubkey,
+						'holder_username', holder_username,
+						'holder_display', holder_display,
+						'holder_verified', holder_verified,
+						'holder_avatar', holder_avatar,
+						'holder_external_address', holder_external_address
+					) ORDER BY amount DESC
+				)
+				FROM (
+					SELECT
+						holder.master_pubkey as holder_master_pubkey,
+						COALESCE(holder.username, '') as holder_username,
+						COALESCE(holder.display_name, '') as holder_display,
+						COALESCE(holder.verified, false) as holder_verified,
+						COALESCE(holder.avatar, '') as holder_avatar,
+						COALESCE(holder.external_address, '') as holder_external_address,
+						utp_holders.amount as amount
+					FROM user_token_positions utp_holders
+					LEFT JOIN users holder ON holder.master_pubkey = utp_holders.master_pubkey
+					WHERE utp_holders.external_address = t.external_address
+					ORDER BY utp_holders.amount DESC
+					LIMIT $3
+				) top_holders_subquery
+				), '[]'::JSON
+			) as top_holders_json
+		FROM tokens t
+		LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
+		LEFT JOIN user_token_positions utp ON utp.external_address = t.external_address AND utp.master_pubkey = $2
+		WHERE t.external_address = ANY($1)
+		ORDER BY t.created_at DESC
+	`
+	rows, err := storage.Select[tokenRowWithTopHolders](ctx, t.ingestedDataDB, query, externalAddresses, requestorMasterPubkey, limit)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch community tokens with top holders")
+	}
+
+	tokenHoldersMetadata, rankingsCmds, err := t.fetchTopHoldersRankingsBatch(ctx, rows, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	tokens := make([]*CommunityToken, 0, len(rows))
+	for _, row := range rows {
+		log.Debug(fmt.Sprintf("Row data: contract=%v, position_amount_usd=%v, position_invested=%v",
+			row.ContractAddress, row.PositionAmountUSD, row.PositionTotalInvestedUSD))
+
+		topHolders, err := t.buildTopHoldersFromRankings(row, tokenHoldersMetadata, rankingsCmds)
+		if err != nil {
+			return nil, err
+		}
+		marketData := MarketData{
+			Ticker:     row.Ticker,
+			MarketCap:  row.MarketCapUSD,
+			Volume:     row.Volume24h,
+			Holders:    uint64(row.HoldersCount),
+			PriceUSD:   row.PriceUSD,
+			TopHolders: topHolders,
+		}
+		if row.PositionAmountUSD > 0 {
+			externalAddress := fmt.Sprintf("ion_connect:0:%s:", requestorMasterPubkey)
+			position, err := t.getUserTokenPositionRanking(ctx, externalAddress, row.ExternalAddress, row.PositionAmountUSD, row.PositionTotalInvestedUSD)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to get user position ranking for token %v", row.ExternalAddress)
 			}
 			if position != nil {
 				marketData.Position = *position
@@ -88,52 +225,43 @@ func (t *tokenAnalytics) GetCommunityTokensByIonConnectAddresses(ctx context.Con
 		if row.CreatorMasterPubkey != "" {
 			creatorIONConnect = fmt.Sprintf("0:%s:", row.CreatorMasterPubkey)
 		}
-
 		token := &CommunityToken{
 			Type:        row.Type,
 			Title:       row.Title,
 			Description: row.Description,
 			ImageURL:    row.ImageURL,
-			Addresses: Addresses{
-				IonConnect: row.IONConnectAddress,
-			},
+			Addresses:   buildAddressesFromExternalAddress(row.ExternalAddress),
 			Creator: User{
-				Username: row.CreatorUsername,
-				Display:  row.CreatorDisplay,
-				Verified: row.CreatorVerified,
-				Avatar:   row.CreatorAvatar,
-				Addresses: Addresses{
-					IonConnect: creatorIONConnect,
-				},
+				Username:  row.CreatorUsername,
+				Display:   row.CreatorDisplay,
+				Verified:  row.CreatorVerified,
+				Avatar:    row.CreatorAvatar,
+				Addresses: buildAddressesFromExternalAddress(creatorIONConnect),
 			},
 			MarketData: marketData,
 		}
 		tokens = append(tokens, token)
-	}
-	if includeTopHolders != nil && *includeTopHolders > 0 {
-		// TODO: implement
 	}
 
 	return tokens, nil
 }
 
 func (t *tokenAnalytics) GetCommunityTokensByType(ctx context.Context, viewType string, tokenType *string, keyword string, limit, offset uint64) ([]*CommunityToken, error) {
-	// TODO: Implement filtering by tokenType (profile/post/video/article)
 	switch viewType {
 	case TokenTypeLatest:
-		return t.getCommunityTokensByLatest(ctx, keyword, limit, offset)
+		return t.getCommunityTokensByLatest(ctx, keyword, limit, offset, tokenType)
 	case TokenTypeFeatured:
-		return t.getCommunityTokensByFeatured(ctx, limit, offset)
+		return t.getCommunityTokensByFeatured(ctx, limit, offset, tokenType)
 	default:
 		return nil, errors.New("unsupported token type")
 	}
 }
 
-func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword string, limit, offset uint64) ([]*CommunityToken, error) {
+func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword string, limit, offset uint64, tokenType *string) ([]*CommunityToken, error) {
 	query := `
 		SELECT 
 			t.contract_address,
-			t.ion_connect_address,
+			t.external_address,
 			t.type,
 			t.created_at,
 			creator.username as title,
@@ -163,8 +291,14 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 	`
 	args := []interface{}{}
 	argIndex := 1
+
+	if tokenType != nil && *tokenType != "" {
+		query += fmt.Sprintf(` AND t.type = $%d`, argIndex)
+		args = append(args, *tokenType)
+		argIndex++
+	}
 	if keyword != "" {
-		query += fmt.Sprintf(` AND creator.lookup ILIKE $%d`, argIndex)
+		query += fmt.Sprintf(` AND t.lookup ILIKE $%d`, argIndex)
 		args = append(args, "%"+keyword+"%")
 		argIndex++
 	}
@@ -184,17 +318,13 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 			Description: row.Description,
 			ImageURL:    row.ImageURL,
 			CreatedAt:   *row.CreatedAt.Time,
-			Addresses: Addresses{
-				IonConnect: row.IONConnectAddress,
-			},
+			Addresses:   buildAddressesFromExternalAddress(row.ExternalAddress),
 			Creator: User{
-				Username: row.CreatorUsername,
-				Display:  row.CreatorDisplay,
-				Verified: row.CreatorVerified,
-				Avatar:   row.CreatorAvatar,
-				Addresses: Addresses{
-					IonConnect: fmt.Sprintf("0:%s:", row.CreatorMasterPubkey),
-				},
+				Username:  row.CreatorUsername,
+				Display:   row.CreatorDisplay,
+				Verified:  row.CreatorVerified,
+				Avatar:    row.CreatorAvatar,
+				Addresses: buildAddressesFromExternalAddress(fmt.Sprintf("0:%s:", row.CreatorMasterPubkey)),
 			},
 			MarketData: MarketData{
 				Ticker:    row.Ticker,
@@ -210,11 +340,11 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 	return tokens, nil
 }
 
-func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit, offset uint64) ([]*CommunityToken, error) {
+func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit, offset uint64, tokenType *string) ([]*CommunityToken, error) {
 	query := `
 		SELECT 
 			t.contract_address,
-			t.ion_connect_address,
+			t.external_address,
 			t.type,
 			t.created_at,
 			creator.username as title,
@@ -239,12 +369,22 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 			) as volume_24h,
 			COALESCE(t.holders_count, 0) as holders_count
 		FROM tokens t
-		INNER JOIN tokens_featured tf ON tf.ion_connect_address = t.ion_connect_address
+		INNER JOIN tokens_featured tf ON tf.external_address = t.external_address
 		LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
-		ORDER BY tf.created_at DESC
-		LIMIT $1 OFFSET $2
 	`
-	args := []interface{}{limit, offset}
+
+	args := []interface{}{}
+	argIndex := 1
+
+	if tokenType != nil && *tokenType != "" {
+		query += fmt.Sprintf(` WHERE t.type = $%d`, argIndex)
+		args = append(args, *tokenType)
+		argIndex++
+	}
+
+	query += ` ORDER BY tf.created_at DESC`
+	query += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, argIndex, argIndex+1)
+	args = append(args, limit, offset)
 	rows, err := storage.Select[tokenRow](ctx, t.ingestedDataDB, query, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch featured community tokens")
@@ -258,17 +398,13 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 			Description: row.Description,
 			ImageURL:    row.ImageURL,
 			CreatedAt:   *row.CreatedAt.Time,
-			Addresses: Addresses{
-				IonConnect: row.IONConnectAddress,
-			},
+			Addresses:   buildAddressesFromExternalAddress(row.ExternalAddress),
 			Creator: User{
-				Username: row.CreatorUsername,
-				Display:  row.CreatorDisplay,
-				Verified: row.CreatorVerified,
-				Avatar:   row.CreatorAvatar,
-				Addresses: Addresses{
-					IonConnect: fmt.Sprintf("0:%s:", row.CreatorMasterPubkey),
-				},
+				Username:  row.CreatorUsername,
+				Display:   row.CreatorDisplay,
+				Verified:  row.CreatorVerified,
+				Avatar:    row.CreatorAvatar,
+				Addresses: buildAddressesFromExternalAddress(fmt.Sprintf("0:%s:", row.CreatorMasterPubkey)),
 			},
 			MarketData: MarketData{
 				Ticker:    row.Ticker,
@@ -333,7 +469,7 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, ionConnectAddress 
 		SELECT token_swaps.created_at,
 		    token_swaps.transaction_hash,
 		    token_swaps.contract_address,
-		    token_swaps.ion_connect_address,
+		    token_swaps.external_address,
 		    token_swaps.user_address,
 		    token_swaps.direction,
 		    token_swaps.input_amount,
@@ -357,8 +493,8 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, ionConnectAddress 
 		JOIN tokens ON token_swaps.contract_address = tokens.contract_address
 		LEFT JOIN users creator ON creator.master_pubkey = tokens.creator_master_pubkey
 		LEFT JOIN users holder  ON holder.blockchain_address = token_swaps.user_address
-		LEFT JOIN user_token_positions utp ON utp.ion_connect_address = token_swaps.ion_connect_address AND utp.master_pubkey = token_swaps.user_address
-			WHERE tokens.ion_connect_address = $1 %[3]v
+		LEFT JOIN user_token_positions utp ON utp.external_address = token_swaps.external_address AND utp.master_pubkey = token_swaps.user_address
+			WHERE tokens.external_address = $1 %[3]v
 		ORDER BY token_swaps.created_at DESC
 		LIMIT %[1]v OFFSET %[2]v
 	`, limit, offset, timeClause)
@@ -394,27 +530,21 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, ionConnectAddress 
 		amountUSD, _ := new(big.Float).Mul(new(big.Float).SetFloat64(swaps[i].PriceUSD), new(big.Float).SetUint64(tokenAmount)).Float64()
 		trades[i] = &Trade{
 			Creator: User{
-				Username: swaps[i].CreatorUsername,
-				Display:  swaps[i].CreatorDisplay,
-				Verified: swaps[i].CreatorVerified,
-				Avatar:   swaps[i].CreatorAvatar,
-				Addresses: Addresses{
-					IonConnect: creatorIONConnect,
-				},
+				Username:  swaps[i].CreatorUsername,
+				Display:   swaps[i].CreatorDisplay,
+				Verified:  swaps[i].CreatorVerified,
+				Avatar:    swaps[i].CreatorAvatar,
+				Addresses: buildAddressesFromExternalAddress(creatorIONConnect),
 			},
 			Position: TradePosition{
 				Holder: User{
-					Username: swaps[i].HolderUsername,
-					Display:  swaps[i].HolderDisplay,
-					Verified: swaps[i].HolderVerified,
-					Avatar:   swaps[i].HolderAvatar,
-					Addresses: Addresses{
-						IonConnect: holderIONConnect,
-					},
+					Username:  swaps[i].HolderUsername,
+					Display:   swaps[i].HolderDisplay,
+					Verified:  swaps[i].HolderVerified,
+					Avatar:    swaps[i].HolderAvatar,
+					Addresses: buildAddressesFromExternalAddress(holderIONConnect),
 				},
-				Addresses: Addresses{
-					IonConnect: swaps[i].IONConnectAddress,
-				},
+				Addresses:  buildAddressesFromExternalAddress(swaps[i].ExternalAddress),
 				CreatedAt:  *swaps[i].CreatedAt.Time,
 				Type:       typ,
 				Amount:     tokenAmount,
@@ -425,4 +555,145 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, ionConnectAddress 
 		}
 	}
 	return trades, maxTs, nil
+}
+
+func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context, externalAddress, creatorUsername, creatorDisplayName, creatorAvatar string, creatorVerified bool) error {
+	query := `
+		INSERT INTO users (
+			created_at, updated_at, id, master_pubkey, blockchain_address, 
+			external_address, username, display_name, avatar, verified, lookup
+		)
+		VALUES (
+			NOW(), NOW(), $1, $1, '', 
+			$1, $2, $3, $4, $5, LOWER($2 || ' ' || COALESCE($3, ''))
+		)
+		ON CONFLICT (master_pubkey) 
+		DO UPDATE SET
+			external_address = EXCLUDED.external_address,
+			username = EXCLUDED.username,
+			display_name = EXCLUDED.display_name,
+			avatar = EXCLUDED.avatar,
+			verified = EXCLUDED.verified,
+			lookup = EXCLUDED.lookup,
+			updated_at = NOW()
+	`
+
+	_, err := storage.Exec(ctx, t.ingestedDataDB, query,
+		externalAddress,
+		creatorUsername,
+		creatorDisplayName,
+		creatorAvatar,
+		creatorVerified,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to upsert user external data: %w", err)
+	}
+
+	return nil
+}
+
+func (t *tokenAnalytics) fetchTopHoldersRankingsBatch(ctx context.Context, rows []*tokenRowWithTopHolders, limit int64) (map[string][]holderMetadata, map[string]*redis.ZSliceCmd, error) {
+	tokenHoldersMetadata := make(map[string][]holderMetadata, len(rows))
+	for _, row := range rows {
+		if row.TopHoldersJSON != "" && row.TopHoldersJSON != "[]" {
+			var metadata []holderMetadata
+			if err := json.Unmarshal([]byte(row.TopHoldersJSON), &metadata); err != nil {
+				return nil, nil, errors.Wrapf(err, "failed to parse top holders JSON for token %v", row.ExternalAddress)
+			}
+			tokenHoldersMetadata[row.ExternalAddress] = metadata
+		}
+	}
+	rankingsCmds := make(map[string]*redis.ZSliceCmd, len(tokenHoldersMetadata))
+	if responses, txErr := t.processedDataDB.TxPipelined(ctx, func(pipeliner redis.Pipeliner) error {
+		for tokenAddr := range tokenHoldersMetadata {
+			key := keyUserPositionOfToken(tokenAddr)
+			rankingsCmds[tokenAddr] = pipeliner.ZRevRangeWithScores(ctx, key, 0, limit-1)
+		}
+		return nil
+	}); txErr != nil {
+		return nil, nil, errors.Wrap(txErr, "failed to fetch top holders rankings from Redis")
+	} else {
+		for _, response := range responses {
+			if rerr := response.Err(); rerr != nil && !errors.Is(rerr, redis.Nil) {
+				return nil, nil, errors.Wrapf(rerr, "failed to `%v`", response.FullName())
+			}
+		}
+	}
+
+	return tokenHoldersMetadata, rankingsCmds, nil
+}
+
+func (t *tokenAnalytics) buildTopHoldersFromRankings(row *tokenRowWithTopHolders, tokenHoldersMetadata map[string][]holderMetadata, rankingsCmds map[string]*redis.ZSliceCmd) ([]HolderPosition, error) {
+	topHolders := make([]HolderPosition, 0)
+	metadata, hasMetadata := tokenHoldersMetadata[row.ExternalAddress]
+	if !hasMetadata {
+		return topHolders, nil
+	}
+	rankingsCmd, hasRankings := rankingsCmds[row.ExternalAddress]
+	if !hasRankings {
+		log.Warn(fmt.Sprintf("No rankings command found for token %v", row.ExternalAddress))
+		return topHolders, nil
+	}
+	rankings, err := rankingsCmd.Result()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get rankings result for token %v", row.ExternalAddress)
+	}
+	holderMetadataMap := make(map[string]*holderMetadata, len(metadata))
+	for i := range metadata {
+		holderMetadataMap[metadata[i].HolderExternalAddress] = &metadata[i]
+	}
+
+	totalSupplyFloat, err := parseTotalSupply(row.TotalSupply, row.ExternalAddress)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse total supply for token %v", row.ExternalAddress)
+	}
+
+	for rank, z := range rankings {
+		userExternalAddress, ok := z.Member.(string)
+		if !ok {
+			continue
+		}
+		holderMeta, exists := holderMetadataMap[userExternalAddress]
+		if !exists {
+			log.Warn(fmt.Sprintf("Holder metadata not found for external_address: %v", userExternalAddress))
+			continue
+		}
+
+		amountTokens := z.Score
+		amountUSD := amountTokens * row.PriceUSD
+		supplyShare := calculateSupplyShare(amountTokens, totalSupplyFloat)
+
+		topHolders = append(topHolders, HolderPosition{
+			Holder: User{
+				Username:  holderMeta.HolderUsername,
+				Display:   holderMeta.HolderDisplay,
+				Verified:  holderMeta.HolderVerified,
+				Avatar:    holderMeta.HolderAvatar,
+				Addresses: buildAddressesFromExternalAddress(holderMeta.HolderExternalAddress),
+			},
+			Rank:        uint64(rank + 1),
+			Amount:      uint64(amountTokens),
+			AmountUSD:   amountUSD,
+			SupplyShare: supplyShare,
+		})
+	}
+
+	return topHolders, nil
+}
+
+func parseTotalSupply(totalSupply, tokenAddress string) (float64, error) {
+	totalSupplyBigInt := new(big.Int)
+	if _, ok := totalSupplyBigInt.SetString(totalSupply, 10); !ok {
+		return 0, errors.Errorf("failed to parse total supply for token %v", tokenAddress)
+	}
+
+	return bigIntToFloat(totalSupplyBigInt), nil
+}
+
+func calculateSupplyShare(amountTokens, totalSupply float64) float64 {
+	if totalSupply > 0 {
+		return (amountTokens / totalSupply) * 100.0
+	}
+
+	return 0.0
 }

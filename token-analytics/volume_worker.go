@@ -85,28 +85,44 @@ func (t *tokenAnalytics) updateTrendingVolumes(ctx context.Context) error {
 
 	for ctx.Err() == nil {
 		var query string
-		var volumes []*tokenVolume24h
 		var args []any
-		var err error
 		if lastAddress == "" {
 			query = `
-				SELECT contract_address as token_address, volume_24h
-				FROM token_volumes_24h
-				ORDER BY contract_address
+				SELECT 
+					tv.contract_address as token_address,
+					tv.volume_24h,
+					t.external_address,
+					COALESCE(t.type, '') as token_type
+				FROM token_volumes_24h tv
+				JOIN tokens t ON t.contract_address = tv.contract_address
+				ORDER BY tv.contract_address
 				LIMIT $1
 			`
 			args = append(args, batchSize)
 		} else {
 			query = `
-				SELECT contract_address as token_address, volume_24h
-				FROM token_volumes_24h
-				WHERE contract_address > $1
-				ORDER BY contract_address
+				SELECT 
+					tv.contract_address as token_address,
+					tv.volume_24h,
+					t.external_address, 
+					COALESCE(t.type, '') as token_type
+				FROM token_volumes_24h tv
+				JOIN tokens t ON t.contract_address = tv.contract_address
+				WHERE tv.contract_address > $1
+				ORDER BY tv.contract_address
 				LIMIT $2
 			`
 			args = append(args, lastAddress, batchSize)
 		}
-		volumes, err = storage.Select[tokenVolume24h](ctx, t.ingestedDataDB, query, args...)
+
+		type volumeWithType struct {
+			TokenAddress    string  `db:"token_address"`
+			Volume24h       float64 `db:"volume_24h"`
+			ExternalAddress string  `db:"external_address"`
+			TokenType       string  `db:"token_type"`
+		}
+
+		volumes, err := storage.Select[volumeWithType](ctx, t.ingestedDataDB, query, args...)
 		if err != nil {
 			return fmt.Errorf("failed to query 24h volumes from database: %w", err)
 		}
@@ -117,8 +133,17 @@ func (t *tokenAnalytics) updateTrendingVolumes(ctx context.Context) error {
 		for _, vol := range volumes {
 			pipe.ZAdd(ctx, globalTrendingSetKey, redis.Z{
 				Score:  vol.Volume24h,
-				Member: vol.TokenAddress,
+				Member: vol.ExternalAddress,
 			})
+			if vol.TokenType != "" {
+				typeSpecificKey := getTrendingSetKeyByType(vol.TokenType)
+				if typeSpecificKey != "" {
+					pipe.ZAdd(ctx, typeSpecificKey, redis.Z{
+						Score:  vol.Volume24h,
+						Member: vol.ExternalAddress,
+					})
+				}
+			}
 			lastAddress = vol.TokenAddress
 		}
 		if _, err := pipe.Exec(ctx); err != nil {

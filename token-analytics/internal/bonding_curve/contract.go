@@ -15,11 +15,11 @@ type (
 	Event           interface{}
 	LogTokenCreated struct {
 		Event
-		Address           common.Address
-		Name              string
-		Symbol            string
-		IonConnectAddress string
-		TotalSupply       *big.Int
+		Address         common.Address
+		Name            string
+		Symbol          string
+		ExternalAddress string
+		TotalSupply     *big.Int
 	}
 	LogTokenSwapped struct {
 		Event

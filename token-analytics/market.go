@@ -50,7 +50,7 @@ func (t *trade) Marshal(client questdb.LineSender) questdb.At {
 	return client.Table("trades").
 		Symbol("pair_address", t.PairAddress).
 		Symbol("contract_address", t.ContractAddress).
-		Symbol("ion_connect_address", t.ContentIONConnectAddress).
+		Symbol("external_address", t.ExternalAddress).
 		Symbol("trade_type", string(t.Type)).
 		Symbol("trader_address", t.TraderAddress).
 		Symbol("transaction_hash", t.TransactionHash).
@@ -60,21 +60,21 @@ func (t *trade) Marshal(client questdb.LineSender) questdb.At {
 		DecimalColumnFromString("price_in_usd", t.PriceInUsd.String())
 }
 
-func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTokenSwapped, ionConnectAddress string) error {
+func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTokenSwapped, externalAddress string) error {
 	tradeTyp, baseAmount, amount, priceInBase := buyOrSell(ev)
 	basePrice := t.ionPriceUSD.Load()
 	tradeData := &trade{
-		Timestamp:                *tx.BlockTimestamp,
-		PairAddress:              hex.EncodeToString(ev.Pair[:]),
-		ContractAddress:          ev.Address.String(),
-		ContentIONConnectAddress: ionConnectAddress,
-		BasePriceInUsd:           *basePrice,
-		BaseAmount:               baseAmount,
-		Amount:                   amount,
-		Type:                     tradeTyp,
-		TraderAddress:            ev.Address.String(),
-		TransactionHash:          tx.TransactionHash,
-		PriceInUsd:               new(big.Float).Mul(priceInBase, new(big.Float).SetFloat64(*basePrice)),
+		Timestamp:       *tx.BlockTimestamp,
+		PairAddress:     hex.EncodeToString(ev.Pair[:]),
+		ContractAddress: ev.Address.String(),
+		ExternalAddress: externalAddress,
+		BasePriceInUsd:  *basePrice,
+		BaseAmount:      baseAmount,
+		Amount:          amount,
+		Type:            tradeTyp,
+		TraderAddress:   ev.Address.String(),
+		TransactionHash: tx.TransactionHash,
+		PriceInUsd:      new(big.Float).Mul(priceInBase, new(big.Float).SetFloat64(*basePrice)),
 	}
 
 	err := questdb.Write(ctx, t.questDB, tradeData)
@@ -101,37 +101,37 @@ func buyOrSell(ev *bondingcurve.LogTokenSwapped) (trade TradeType, baseTokenAmou
 	}
 }
 
-func (t *tokenAnalytics) GetOHLVCHistory(ctx context.Context, now, startPoint stdlibtime.Time, ionContentAddress string, interval Interval) (res []*OHLCV, err error) {
+func (t *tokenAnalytics) GetOHLVCHistory(ctx context.Context, now, startPoint stdlibtime.Time, externalAddress string, interval Interval) (res []*OHLCV, err error) {
 	if err = interval.Validate(); err != nil {
 		return nil, errors.Wrapf(err, "invalid interval %v", interval.String())
 	}
 	sql := fmt.Sprintf(`
 		SELECT 
 		    timestamp::TIMESTAMP_NS::LONG as timestamp,
-			ion_connect_address,
+			external_address,
 			open,
 			high,
 			low,
 			close,
 			volume
 		    from ohlcv_%[1]v WHERE timestamp >= $1 AND timestamp < timestamp_floor('%[1]v', $3)
-                         AND ion_connect_address = $2 ORDER BY timestamp;
+                         AND external_address = $2 ORDER BY timestamp;
 	`, interval.String())
-	ohlcvs, err := questdb.Select[OHLCV](ctx, t.questDB, sql, time.New(startPoint), ionContentAddress, time.New(now))
+	ohlcvs, err := questdb.Select[OHLCV](ctx, t.questDB, sql, time.New(startPoint), externalAddress, time.New(now))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get ohlvc data for %v", startPoint)
 	}
 	return ohlcvs, nil
 }
 
-func (t *tokenAnalytics) GetOHLVCRecent(ctx context.Context, now stdlibtime.Time, ionContentAddress string, interval Interval) (res *OHLCV, err error) {
+func (t *tokenAnalytics) GetOHLVCRecent(ctx context.Context, now stdlibtime.Time, externalAddress string, interval Interval) (res *OHLCV, err error) {
 	if err = interval.Validate(); err != nil {
 		return nil, errors.Wrapf(err, "invalid interval %v", interval.String())
 	}
 	recentOhlcvData, err := questdb.Get[OHLCV](ctx, t.questDB, fmt.Sprintf(`
 		SELECT
 			timestamp::TIMESTAMP_NS::LONG as timestamp,
-			ion_connect_address,
+			external_address,
 			first(price_in_usd) AS open,
 			max(price_in_usd) AS high,
 			min(price_in_usd) AS low,
@@ -140,9 +140,9 @@ func (t *tokenAnalytics) GetOHLVCRecent(ctx context.Context, now stdlibtime.Time
 		FROM trades WHERE
 			timestamp >= timestamp_floor('%[1]v', $2) 
 		              AND timestamp < dateadd('T', $3,timestamp_floor('%[1]v', $2)) -- if there is data newer than now
-					  AND ion_connect_address = $1
+					  AND external_address = $1
 		SAMPLE BY %[1]v ALIGN TO CALENDAR;
-	`, interval.String()), ionContentAddress, time.New(now), int64(interval.Duration()/stdlibtime.Millisecond))
+	`, interval.String()), externalAddress, time.New(now), int64(interval.Duration()/stdlibtime.Millisecond))
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
 			return &OHLCV{
@@ -167,22 +167,22 @@ func (t *tokenAnalytics) GetOHLVCRecent(ctx context.Context, now stdlibtime.Time
 	}, nil
 }
 
-func (t *tokenAnalytics) GetTradingStats(ctx context.Context, now stdlibtime.Time, ionContentAddress string) (*TradeStats, error) {
-	min5, err := storagev3.Get[TradeStatsAggregate](ctx, t.processedDataDB, tradingStatsCacheKey(ionContentAddress, "5m"))
+func (t *tokenAnalytics) GetTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress string) (*TradeStats, error) {
+	min5, err := storagev3.Get[TradeStatsAggregate](ctx, t.processedDataDB, tradingStatsCacheKey(externalAddress, "5m"))
 	if err != nil || len(min5) == 0 {
-		return t.UpdateTradingStats(ctx, now, ionContentAddress)
+		return t.UpdateTradingStats(ctx, now, externalAddress)
 	}
-	hour1, err := storagev3.Get[TradeStatsAggregate](ctx, t.processedDataDB, tradingStatsCacheKey(ionContentAddress, "1h"))
+	hour1, err := storagev3.Get[TradeStatsAggregate](ctx, t.processedDataDB, tradingStatsCacheKey(externalAddress, "1h"))
 	if err != nil || len(hour1) == 0 {
-		return t.UpdateTradingStats(ctx, now, ionContentAddress)
+		return t.UpdateTradingStats(ctx, now, externalAddress)
 	}
-	hour6, err := storagev3.Get[TradeStatsAggregate](ctx, t.processedDataDB, tradingStatsCacheKey(ionContentAddress, "6h"))
+	hour6, err := storagev3.Get[TradeStatsAggregate](ctx, t.processedDataDB, tradingStatsCacheKey(externalAddress, "6h"))
 	if err != nil || len(hour6) == 0 {
-		return t.UpdateTradingStats(ctx, now, ionContentAddress)
+		return t.UpdateTradingStats(ctx, now, externalAddress)
 	}
-	hour24, err := storagev3.Get[TradeStatsAggregate](ctx, t.processedDataDB, tradingStatsCacheKey(ionContentAddress, "24h"))
+	hour24, err := storagev3.Get[TradeStatsAggregate](ctx, t.processedDataDB, tradingStatsCacheKey(externalAddress, "24h"))
 	if err != nil || len(hour24) == 0 {
-		return t.UpdateTradingStats(ctx, now, ionContentAddress)
+		return t.UpdateTradingStats(ctx, now, externalAddress)
 	}
 	return &TradeStats{
 		Bucket5Min:    min5[0],
@@ -230,7 +230,7 @@ func (t *tokenAnalytics) UpdateTradingStats(ctx context.Context, now stdlibtime.
 	return stats, nil
 }
 
-func (t *tokenAnalytics) fetchTradingStats(ctx context.Context, now stdlibtime.Time, ionContentAddress string) (res *TradeStats, err error) {
+func (t *tokenAnalytics) fetchTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress string) (res *TradeStats, err error) {
 	sql := `SELECT
               '5m' as aggregation_interval,
               COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount * price_in_usd ELSE 0 END)/1e18::DECIMAL(76,18),0) AS buys_total_amount_usd,
@@ -239,7 +239,7 @@ func (t *tokenAnalytics) fetchTradingStats(ctx context.Context, now stdlibtime.T
               COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                   AS number_of_sells,
               COALESCE(SUM(amount * price_in_usd)/1e18::DECIMAL(76,18),0)                                             AS volume_usd
        FROM trades
-       WHERE timestamp >= dateadd('m', -5, $2) AND ion_connect_address = $1
+       WHERE timestamp >= dateadd('m', -5, $2) AND external_address = $1
        UNION ALL (
             SELECT
                    '1h' as aggregation_interval,
@@ -249,7 +249,7 @@ func (t *tokenAnalytics) fetchTradingStats(ctx context.Context, now stdlibtime.T
                    COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                     AS number_of_sells,
                    COALESCE(SUM(amount * price_in_usd)/1e18::DECIMAL(76,18),0)                                               AS volume_usd
             FROM trades
-            WHERE timestamp >= dateadd('h', -1, $2) AND ion_connect_address = $1
+            WHERE timestamp >= dateadd('h', -1, $2) AND external_address = $1
        )
        UNION ALL (
             SELECT
@@ -260,7 +260,7 @@ func (t *tokenAnalytics) fetchTradingStats(ctx context.Context, now stdlibtime.T
                    COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                     AS number_of_sells,
                    COALESCE(SUM(amount * price_in_usd)/1e18::DECIMAL(76,18),0)                                               AS volume_usd
             FROM trades
-            WHERE timestamp >= dateadd('h', -6, $2) AND ion_connect_address = $1
+            WHERE timestamp >= dateadd('h', -6, $2) AND external_address = $1
        )
        UNION ALL (
             SELECT
@@ -271,11 +271,11 @@ func (t *tokenAnalytics) fetchTradingStats(ctx context.Context, now stdlibtime.T
                    COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                     AS number_of_sells,
                    COALESCE(SUM(amount * price_in_usd)/1e18::DECIMAL(76,18),0)                                               AS volume_usd
             FROM trades
-            WHERE timestamp >= dateadd('h', -24, $2) AND ion_connect_address = $1
+            WHERE timestamp >= dateadd('h', -24, $2) AND external_address = $1
        )`
-	aggregates, err := questdb.Select[TradeStatsAggregate](ctx, t.questDB, sql, ionContentAddress, time.New(now))
+	aggregates, err := questdb.Select[TradeStatsAggregate](ctx, t.questDB, sql, externalAddress, time.New(now))
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to fetch trading stats for %v", ionContentAddress)
+		return nil, errors.Wrapf(err, "failed to fetch trading stats for %v", externalAddress)
 	}
 	res = new(TradeStats)
 	for i := range aggregates {

@@ -12,6 +12,12 @@ EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
+DO $$ BEGIN
+    CREATE TYPE platform_type AS ENUM ('ion_connect', 'x.com');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
 CREATE TABLE IF NOT EXISTS users
 (
     created_at           TIMESTAMP NOT NULL,
@@ -19,7 +25,7 @@ CREATE TABLE IF NOT EXISTS users
     id                   TEXT NOT NULL,
     master_pubkey        TEXT NOT NULL,
     blockchain_address   TEXT NOT NULL,
-    ion_connect_address  TEXT,
+    external_address     TEXT UNIQUE,
     username             TEXT NOT NULL,
     display_name         TEXT,
     avatar               TEXT,
@@ -37,6 +43,7 @@ CREATE INDEX IF NOT EXISTS idx_users_lookup_gist ON users USING gist (lookup gis
 
 CREATE TABLE IF NOT EXISTS transactions
 (
+    i                           BIGINT generated always as identity NOT NULL UNIQUE,
     block_timestamp             TIMESTAMP NOT NULL,
     gas                         BIGINT NOT NULL,
     gas_price                   BIGINT NOT NULL,
@@ -62,7 +69,6 @@ CREATE TABLE IF NOT EXISTS tx_logs
 (
     ingested_at         TIMESTAMP NOT NULL DEFAULT NOW(),
     processed_at        TIMESTAMP,
-    i                   BIGINT generated always as identity NOT NULL,
     block_number        BIGINT NOT NULL,
     log_index           BIGINT NOT NULL,
     transaction_hash    TEXT NOT NULL REFERENCES transactions(transaction_hash) DEFERRABLE INITIALLY DEFERRED,
@@ -74,7 +80,6 @@ CREATE TABLE IF NOT EXISTS tx_logs
     removed             BOOLEAN NOT NULL,
     primary key (transaction_hash, log_index)
 );
-CREATE UNIQUE INDEX IF NOT EXISTS tx_logs_i_ix ON tx_logs (i);
 
 CREATE TABLE IF NOT EXISTS smart_contract_transactions (
     from_block_number BIGINT,
@@ -109,23 +114,23 @@ BEGIN
         from_address,
         block_timestamp
     ) SELECT
-              transaction_data->>'chainId',
-                 (transaction_data->>'blockNumber')::BIGINT,
-                 transaction_data->>'hash',
-                 (transaction_data->>'transactionIndex')::BIGINT,
-                 (transaction_data->>'gas')::BIGINT,
-                 (transaction_data->>'gasPrice')::BIGINT,
-                 (transaction_data->>'maxFeePerGas')::BIGINT,
-                 (transaction_data->>'maxPriorityFeePerGas')::BIGINT,
-                 (transaction_data->>'nonce')::BIGINT,
-                 transaction_data->>'blockHash',
-                 transaction_data->>'to',
-                 transaction_data->>'type',
-                 (transaction_data->>'value')::BIGINT,
-                 (transaction_data->>'yParity')::BIGINT,
-                 transaction_data->>'input',
-                 transaction_data->>'from',
-                 to_timestamp((transaction_data->>'blockTimestamp')::BIGINT)
+            transaction_data->>'chainId',
+            (transaction_data->>'blockNumber')::BIGINT,
+            transaction_data->>'hash',
+            (transaction_data->>'transactionIndex')::BIGINT,
+            (transaction_data->>'gas')::BIGINT,
+            (transaction_data->>'gasPrice')::BIGINT,
+            (transaction_data->>'maxFeePerGas')::BIGINT,
+            (transaction_data->>'maxPriorityFeePerGas')::BIGINT,
+            (transaction_data->>'nonce')::BIGINT,
+            transaction_data->>'blockHash',
+            transaction_data->>'to',
+            transaction_data->>'type',
+            (transaction_data->>'value')::BIGINT,
+            (transaction_data->>'yParity')::BIGINT,
+            transaction_data->>'input',
+            transaction_data->>'from',
+            to_timestamp((transaction_data->>'blockTimestamp')::BIGINT)
          FROM jsonb_array_elements(NEW.data -> 'transactions') as transaction_data
     ON CONFLICT(transaction_hash) DO NOTHING;
 
@@ -165,7 +170,8 @@ CREATE TABLE IF NOT EXISTS tokens (
     created_at              TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at              TIMESTAMP NOT NULL DEFAULT NOW(),
     contract_address        TEXT NOT NULL, -- token contract address (ERC20)
-    ion_connect_address     TEXT NOT NULL UNIQUE, -- nostr 'a' tag for this token (e.g. "30023:article_master_pubkey:d_tag")
+    external_address        TEXT NOT NULL UNIQUE, -- "ion_connect:30023:pubkey:tag" or "x.com:post_id"
+    platform                platform_type NOT NULL DEFAULT 'ion_connect',
     ticker                  TEXT NOT NULL,
     total_supply            uint256 NOT NULL,
     creator_master_pubkey   TEXT,
@@ -175,41 +181,64 @@ CREATE TABLE IF NOT EXISTS tokens (
     market_cap_usd          usd_amount DEFAULT 0,
     price_usd               usd_amount DEFAULT 0,
     holders_count           BIGINT DEFAULT 0,
-    tx_log_id               BIGINT,
+    lookup                  TEXT NOT NULL DEFAULT '', -- contract_address + ticker + creator lookup
+    log_index               BIGINT,
     PRIMARY KEY (contract_address),
-    FOREIGN KEY (creator_master_pubkey) REFERENCES users(master_pubkey) ON DELETE CASCADE,
-    FOREIGN KEY (tx_log_id) REFERENCES tx_logs(i) ON DELETE SET NULL
+    FOREIGN KEY (creator_master_pubkey) REFERENCES users(master_pubkey) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_tokens_creator ON tokens (creator_master_pubkey);
 CREATE INDEX IF NOT EXISTS idx_tokens_created_at ON tokens (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_tokens_lookup_gist ON tokens USING gist (lookup gist_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_tokens_platform ON tokens (platform);
+
+CREATE OR REPLACE FUNCTION update_tokens_lookup_on_user_change()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE tokens
+    SET lookup = LOWER(TRIM(
+        COALESCE(contract_address, '') || ' ' ||
+        COALESCE(ticker, '') || ' ' ||
+        COALESCE(NEW.username, '') || ' ' ||
+        COALESCE(NEW.display_name, '')
+    ))
+    WHERE creator_master_pubkey = NEW.master_pubkey;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER trigger_update_tokens_lookup_on_user_change
+    AFTER UPDATE OF username, display_name
+    ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_tokens_lookup_on_user_change();
 
 CREATE TABLE IF NOT EXISTS token_swaps (
     created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
     transaction_hash    TEXT NOT NULL,
     contract_address    TEXT NOT NULL,
-    ion_connect_address TEXT NOT NULL,
+    external_address TEXT NOT NULL,
     user_address        TEXT NOT NULL,
     direction           BOOLEAN NOT NULL, -- true = buy, false = sell
     input_amount        uint256 NOT NULL, -- base token amount (buy) or token amount (sell)
     output_amount       uint256 NOT NULL, -- token amount (buy) or base token amount (sell)
     fee                 uint256 NOT NULL DEFAULT 0,
     price_usd           usd_amount NOT NULL,
-    tx_log_id           BIGINT,
+    log_index           BIGINT,
     PRIMARY KEY (transaction_hash, contract_address, user_address),
-    FOREIGN KEY (contract_address) REFERENCES tokens(contract_address) ON DELETE CASCADE,
-    FOREIGN KEY (tx_log_id) REFERENCES tx_logs(i) ON DELETE SET NULL
+    FOREIGN KEY (contract_address) REFERENCES tokens(contract_address) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_token_swaps_contract ON token_swaps (contract_address, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_token_swaps_ion_connect ON token_swaps (ion_connect_address, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_token_swaps_ion_connect ON token_swaps (external_address, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_token_swaps_user_address ON token_swaps (user_address);
 
 CREATE TABLE IF NOT EXISTS user_token_positions (
     updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
     master_pubkey       TEXT NOT NULL,
     contract_address    TEXT NOT NULL,
-    ion_connect_address TEXT NOT NULL,
+    external_address TEXT NOT NULL,
     amount              uint256 NOT NULL DEFAULT 0,
     avg_buy_price_usd   usd_amount DEFAULT 0,
     total_invested_usd  usd_amount DEFAULT 0,
@@ -220,13 +249,13 @@ CREATE TABLE IF NOT EXISTS user_token_positions (
 
 CREATE INDEX IF NOT EXISTS idx_user_token_positions_user ON user_token_positions (master_pubkey);
 CREATE INDEX IF NOT EXISTS idx_user_token_positions_contract ON user_token_positions (contract_address);
-CREATE INDEX IF NOT EXISTS idx_user_token_positions_ion_connect ON user_token_positions (ion_connect_address);
+CREATE INDEX IF NOT EXISTS idx_user_token_positions_ion_connect ON user_token_positions (external_address);
 
 CREATE TABLE IF NOT EXISTS tokens_featured (
     created_at              TIMESTAMP NOT NULL DEFAULT NOW(),
-    ion_connect_address     TEXT NOT NULL,
-    PRIMARY KEY (ion_connect_address),
-    FOREIGN KEY (ion_connect_address) REFERENCES tokens(ion_connect_address) ON DELETE CASCADE
+    external_address     TEXT NOT NULL,
+    PRIMARY KEY (external_address),
+    FOREIGN KEY (external_address) REFERENCES tokens(external_address) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_tokens_featured_created_at ON tokens_featured (created_at DESC);
@@ -298,13 +327,14 @@ BEGIN
 
     SELECT pg_get_indexdef(indexrelid) INTO existing_index_def
     FROM pg_stat_user_indexes
-    WHERE indexrelname = 'idx_transactions_mod_tx_idx';
+    WHERE indexrelname = 'idx_transactions_mod_i';
 
-    expected_index_def := format('CREATE INDEX idx_transactions_mod_tx_idx ON public.transactions USING btree (mod(transaction_index, %s), block_number, transaction_index)', workers_count);
+    expected_index_def := format('CREATE INDEX idx_transactions_mod_i ON public.transactions USING btree (mod(i, %s))', workers_count);
 
     IF existing_index_def IS NULL OR existing_index_def != expected_index_def THEN
         DROP INDEX IF EXISTS idx_transactions_mod_tx_idx;
-        EXECUTE format('CREATE INDEX idx_transactions_mod_tx_idx ON transactions (MOD(transaction_index, %s), block_number, transaction_index ASC)', workers_count);
+        DROP INDEX IF EXISTS idx_transactions_mod_i;
+        EXECUTE format('CREATE INDEX idx_transactions_mod_i ON transactions (MOD(i, %s))', workers_count);
     END IF;
 END;
 $$ LANGUAGE plpgsql;
@@ -491,15 +521,19 @@ CREATE OR REPLACE FUNCTION process_bonded_token_created(
     p_topics TEXT[],
     p_data TEXT,
     p_block_timestamp TIMESTAMP,
-    p_tx_log_id BIGINT
+    p_log_index BIGINT
 ) RETURNS VOID AS $$
 DECLARE
     v_token_address TEXT;
-    v_ion_connect_address TEXT;
+    v_external_address TEXT;
+    v_external_address_raw TEXT;
+    v_platform platform_type;
     v_total_supply NUMERIC;
     v_creator_master_pubkey TEXT;
     v_token_type TEXT;
     v_username TEXT;
+    v_display_name TEXT;
+    v_lookup_value TEXT;
     v_kind INT;
     v_parts TEXT[];
 BEGIN
@@ -508,55 +542,81 @@ BEGIN
     END IF;
 
     v_token_address := LOWER('0x' || substring(p_topics[2] from 27 for 40)); -- topics[1] = token address (indexed)
-
-    v_ion_connect_address := decode_string_abi(p_data, 2); -- Parse ABI-encoded data: (name, symbol, ionConnectAddress, totalSupply)
+    
+    v_external_address_raw := decode_string_abi(p_data, 2); -- Parse ABI-encoded data: (name, symbol, externalAddress, totalSupply)
     v_total_supply := decode_uint256(p_data, 3);
-
-    IF v_ion_connect_address IS NULL OR v_ion_connect_address = '' OR NOT (v_ion_connect_address ~ '^[0-9]+:.+:') THEN
-        RAISE WARNING 'Invalid ion_connect_address format: %, skipping token creation', v_ion_connect_address;
+    
+    IF v_external_address_raw IS NULL OR v_external_address_raw = '' THEN
+        RAISE WARNING 'Empty external address, skipping token creation';
         RETURN;
     END IF;
-
-    v_parts := string_to_array(v_ion_connect_address, ':');
-    IF array_length(v_parts, 1) >= 2 THEN
-        v_kind := v_parts[1]::INT;
-        v_creator_master_pubkey := v_parts[2];
-
-        CASE v_kind
-            WHEN 0 THEN v_token_type := 'profile';
-            WHEN 1 THEN v_token_type := 'post';
-            WHEN 30023 THEN v_token_type := 'article';
-            WHEN 30175 THEN v_token_type := 'post';
-            ELSE
-                RAISE WARNING 'Invalid nostr kind % in ion_connect_address %, skipping token creation', v_kind, v_ion_connect_address;
-                RETURN;
-        END CASE;
+    
+    IF v_external_address_raw ~ '^ion_connect:' THEN
+        v_platform := 'ion_connect';
+        v_external_address := v_external_address_raw;
+        v_parts := string_to_array(substring(v_external_address_raw from 13), ':'); -- skip "ion_connect"
+        IF array_length(v_parts, 1) >= 2 THEN
+            v_kind := v_parts[1]::INT;
+            v_creator_master_pubkey := v_parts[2];
+            
+            CASE v_kind
+                WHEN 0 THEN v_token_type := 'profile';
+                WHEN 1 THEN v_token_type := 'post';
+                WHEN 30023 THEN v_token_type := 'article';
+                WHEN 30175 THEN v_token_type := 'post';
+                ELSE
+                    RAISE WARNING 'Invalid nostr kind % in external_address %, skipping token creation', v_kind, v_external_address;
+                    RETURN;
+            END CASE;
+        ELSE
+            RAISE WARNING 'Failed to parse ion_connect parts from %, skipping token creation', v_external_address;
+            RETURN;
+        END IF;
+    ELSIF v_external_address_raw ~ '^x\.com:' THEN
+        v_platform := 'x.com';
+        v_external_address := v_external_address_raw;
+        v_token_type := 'post';
+    ELSE
+        RAISE WARNING 'Invalid external address format (no valid prefix): %, skipping token creation', v_external_address_raw;
+        RETURN;
     END IF;
-
     IF v_token_type IS NULL THEN
-        RAISE WARNING 'Failed to parse token type from ion_connect_address %, skipping token creation', v_ion_connect_address;
+        RAISE WARNING 'Failed to determine token type for %, skipping token creation', v_external_address;
         RETURN;
     END IF;
-
-    SELECT username INTO v_username
-    FROM users
-    WHERE master_pubkey = v_creator_master_pubkey;
-
+    
+    IF v_creator_master_pubkey IS NOT NULL AND v_creator_master_pubkey != '' THEN
+        SELECT 
+            COALESCE(username, ''),
+            COALESCE(display_name, '')
+        INTO v_username, v_display_name
+        FROM users
+        WHERE master_pubkey = v_creator_master_pubkey;
+    END IF;
+    
+    v_lookup_value := LOWER(TRIM(
+        COALESCE(v_token_address, '') || ' ' ||
+        COALESCE(v_username, '') || ' ' ||
+        COALESCE(v_display_name, '')
+    ));
+    
     INSERT INTO tokens (
-        created_at, updated_at, contract_address, ion_connect_address,
-        ticker, total_supply, creator_master_pubkey, type, tx_log_id
+        created_at, updated_at, contract_address, external_address, platform,
+        ticker, total_supply, creator_master_pubkey, type, lookup, log_index
     )
     VALUES (
-        p_block_timestamp, p_block_timestamp, v_token_address, v_ion_connect_address,
-        COALESCE(v_username, ''), v_total_supply, v_creator_master_pubkey, v_token_type, p_tx_log_id
+        p_block_timestamp, p_block_timestamp, v_token_address, v_external_address, v_platform,
+        COALESCE(v_username, ''), v_total_supply, v_creator_master_pubkey, v_token_type, v_lookup_value, p_log_index
     )
-    ON CONFLICT (ion_connect_address) DO UPDATE SET
+    ON CONFLICT (external_address) DO UPDATE SET
         updated_at = EXCLUDED.updated_at,
         total_supply = EXCLUDED.total_supply,
         creator_master_pubkey = EXCLUDED.creator_master_pubkey,
         contract_address = EXCLUDED.contract_address,
+        platform = EXCLUDED.platform,
         ticker = COALESCE(EXCLUDED.ticker, tokens.ticker),
-        tx_log_id = COALESCE(EXCLUDED.tx_log_id, tokens.tx_log_id);
+        lookup = EXCLUDED.lookup,
+        log_index = COALESCE(EXCLUDED.log_index, tokens.log_index);
 
     RAISE DEBUG 'TokenCreated processed: token=%', v_token_address;
 END;
@@ -593,7 +653,7 @@ CREATE OR REPLACE FUNCTION process_swapped(
     p_data TEXT,
     p_tx_input TEXT,
     p_block_timestamp TIMESTAMP,
-    p_tx_log_id BIGINT
+    p_log_index BIGINT
 ) RETURNS VOID AS $$
 DECLARE
     v_swapper TEXT;
@@ -604,7 +664,7 @@ DECLARE
     v_fee NUMERIC;
     v_price_usd usd_amount;
     v_ion_price_usd usd_amount;
-    v_token_ion_connect TEXT;
+    v_token_external_address TEXT;
     v_base_token TEXT;
     v_other_token TEXT;
     v_token_address TEXT;
@@ -623,22 +683,23 @@ BEGIN
     v_input_amount := decode_uint256(p_data, 1);
     v_output_amount := decode_uint256(p_data, 2);
     v_fee := decode_uint256(p_data, 3);
-
-
-    v_token_ion_connect := decode_to_token_from_input(p_tx_input); -- Extract toToken and baseToken from tx input
+    
+    
+    v_token_external_address := decode_to_token_from_input(p_tx_input); -- Extract toToken and baseToken from tx input
     v_base_token := decode_base_token_from_input(p_tx_input);
-
-    IF v_token_ion_connect IS NULL OR v_token_ion_connect = '' THEN
+    
+    IF v_token_external_address IS NULL OR v_token_external_address = '' THEN
         RAISE WARNING 'Failed to decode toToken from tx input for tx %', p_transaction_hash;
         RETURN;
     END IF;
 
     SELECT contract_address, base_token INTO v_token_address, v_other_token
     FROM tokens
-    WHERE ion_connect_address = v_token_ion_connect;
-
+    WHERE external_address = v_token_external_address
+    FOR UPDATE;
+    
     IF v_token_address IS NULL THEN
-        RAISE WARNING 'Token with ion_connect_address % not found, skipping swap', v_token_ion_connect;
+        RAISE WARNING 'Token with external_address % not found, skipping swap', v_token_external_address;
         RETURN;
     END IF;
 
@@ -671,12 +732,12 @@ BEGIN
     END IF;
 
     INSERT INTO token_swaps (
-        created_at, transaction_hash, contract_address, ion_connect_address,
-        user_address, direction, input_amount, output_amount, fee, price_usd, tx_log_id
+        created_at, transaction_hash, contract_address, external_address,
+        user_address, direction, input_amount, output_amount, fee, price_usd, log_index
     )
     VALUES (
-        p_block_timestamp, p_transaction_hash, v_token_address, v_token_ion_connect,
-        v_user_address, v_direction, v_input_amount, v_output_amount, v_fee, v_price_usd, p_tx_log_id
+        p_block_timestamp, p_transaction_hash, v_token_address, v_token_external_address,
+        v_user_address, v_direction, v_input_amount, v_output_amount, v_fee, v_price_usd, p_log_index
     )
     ON CONFLICT (transaction_hash, contract_address, user_address) DO NOTHING;
 
@@ -688,7 +749,7 @@ BEGIN
         v_sign := -1.0;
     END IF;
 
-    v_delta_market_cap := v_sign * v_token_amount * v_price_usd;
+    v_delta_market_cap := v_sign * (v_token_amount / 1e18) * v_price_usd;
 
     UPDATE tokens
     SET price_usd = v_price_usd,
@@ -704,11 +765,11 @@ BEGIN
 
     IF v_direction = false THEN -- buy
         INSERT INTO user_token_positions (
-            master_pubkey, contract_address, ion_connect_address,
+            master_pubkey, contract_address, external_address,
             amount, avg_buy_price_usd, total_invested_usd, updated_at
         )
         VALUES (
-            v_user_master_pubkey, v_token_address, v_token_ion_connect,
+            v_user_master_pubkey, v_token_address, v_token_external_address,
             v_output_amount, v_price_usd, v_cost_usd, p_block_timestamp
         )
         ON CONFLICT (master_pubkey, contract_address) DO UPDATE SET
@@ -741,11 +802,11 @@ BEGIN
 
     CASE NEW.topic0
         WHEN '0xcaa54a9b9817e12b67fd790dabf6f963cb9a083290c5c06c052ea18bb9b29427' THEN -- BondedTokenCreated
-            PERFORM process_bonded_token_created(NEW.topics, NEW.data, v_block_timestamp, NEW.i);
+            PERFORM process_bonded_token_created(NEW.topics, NEW.data, v_block_timestamp, NEW.log_index);
         WHEN '0x157b5bda8c36b5ae40a6f0d041dce8790309b04707aa024e9a73ee87287372b4' THEN -- PairRegistered
             PERFORM process_pair_registered(NEW.topics, v_block_timestamp);
         WHEN '0xe4a3738af8db2ebbadd5b857bb8d2e0e6650fade69486571ff038a2a81433ca0' THEN -- Swapped
-            PERFORM process_swapped(NEW.transaction_hash, NEW.topics, NEW.data, v_tx_input, v_block_timestamp, NEW.i);
+            PERFORM process_swapped(NEW.transaction_hash, NEW.topics, NEW.data, v_tx_input, v_block_timestamp, NEW.log_index);
         ELSE
             NULL;
     END CASE;

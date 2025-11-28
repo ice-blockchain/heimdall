@@ -32,16 +32,17 @@ type (
 		Close() error
 		HealthCheck(ctx context.Context) error
 		MustStart(ctx context.Context)
-		GetCommunityTokensByIonConnectAddresses(ctx context.Context, ionConnectAddresses []string, requestorMasterPubkey string, includeTopHolders *uint32) ([]*CommunityToken, error)
+		GetCommunityTokensByExternalAddresses(ctx context.Context, ionConnectAddresses []string, requestorMasterPubkey string, includeTopHolders *uint32) ([]*CommunityToken, error)
 		GetCommunityTokensByType(ctx context.Context, viewType string, tokenType *string, keyword string, limit, offset uint64) ([]*CommunityToken, error)
-		GetLatestTrades(ctx context.Context, ionConnectAddress string, limit, offset uint64, startFrom *stdlibtime.Time) (trades []*Trade, maxTs stdlibtime.Time, err error)
-		GetOHLVCHistory(ctx context.Context, now, startPoint stdlibtime.Time, ionContentAddress string, interval Interval) (res []*OHLCV, err error)
-		GetOHLVCRecent(ctx context.Context, now stdlibtime.Time, ionContentAddress string, interval Interval) (*OHLCV, error)
-		GetTradingStats(ctx context.Context, now stdlibtime.Time, ionContentAddress string) (*TradeStats, error)
-		UpdateTradingStats(ctx context.Context, now stdlibtime.Time, ionConnectAddress string) (*TradeStats, error)
+		GetLatestTrades(ctx context.Context, externalAddress string, limit, offset uint64, startFrom *stdlibtime.Time) (trades []*Trade, maxTs stdlibtime.Time, err error)
+		GetOHLVCHistory(ctx context.Context, now, startPoint stdlibtime.Time, externalAddress string, interval Interval) (res []*OHLCV, err error)
+		GetOHLVCRecent(ctx context.Context, now stdlibtime.Time, externalAddress string, interval Interval) (*OHLCV, error)
+		GetTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress string) (*TradeStats, error)
+		UpdateTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress string) (*TradeStats, error)
 		CreateViewingSession(ctx context.Context, sessionType, clientIP, deviceKey string, tokenType *string) (sessionID string, ttl uint64, err error)
-		GetTopHolders(ctx context.Context, ionConnectAddress string, limit int64) ([]*TopHolderPosition, error)
+		GetTopHolders(ctx context.Context, externalAddress string, limit int64) ([]*TopHolderPosition, error)
 		GetTokensFromViewingSession(ctx context.Context, sessionType, sessionID, keyword string, limit, offset uint64) ([]*CommunityToken, error)
+		UpdateTokenExternalData(ctx context.Context, externalAddress, creatorUsername, creatorDisplayName, creatorAvatar string, creatorVerified bool) error
 	}
 
 	SavePoint struct {
@@ -107,8 +108,19 @@ const (
 	globalTopSetKey                  = "token_analytics:global:top"
 	globalTrendingSetKey             = "token_analytics:global:trending"
 	globalBondingCurveProgressSetKey = "token_analytics:global:bonding_curve_progress"
-	userSessionKeyPrefix             = "token_analytics:session:%s:%s"  // {type}:{sessionID}
-	userIdentifierMapPrefix          = "token_analytics:user_map:%s:%s" // {type}:{IP:DeviceKey} -> sessionID
+
+	globalTopProfileSetKey = "token_analytics:global:top:profile"
+	globalTopPostSetKey    = "token_analytics:global:top:post"
+	globalTopVideoSetKey   = "token_analytics:global:top:video"
+	globalTopArticleSetKey = "token_analytics:global:top:article"
+
+	globalTrendingProfileSetKey = "token_analytics:global:trending:profile"
+	globalTrendingPostSetKey    = "token_analytics:global:trending:post"
+	globalTrendingVideoSetKey   = "token_analytics:global:trending:video"
+	globalTrendingArticleSetKey = "token_analytics:global:trending:article"
+
+	userSessionKeyPrefix    = "token_analytics:session:%s:%s"  // {type}:{sessionID}
+	userIdentifierMapPrefix = "token_analytics:user_map:%s:%s" // {type}:{IP:DeviceKey} -> sessionID
 
 	sessionTypeTop                  = "top"
 	sessionTypeTrending             = "trending"
@@ -168,6 +180,7 @@ type (
 		WorkerIdx        uint   `redis:"-"`
 		BlockNumber      uint64 `redis:"block_number"`
 		TransactionIndex uint64 `redis:"transaction_index"`
+		LogIndex         uint64 `redis:"log_index"`
 		UpdatedAt        int64  `redis:"updated_at"`
 	}
 
@@ -183,8 +196,10 @@ type (
 	tokenRow struct {
 		CreatedAt                *time.Time `db:"created_at"`
 		UpdatedAt                *time.Time `db:"updated_at"`
+		LogIndex                 *int64     `db:"log_index"`
 		ContractAddress          string     `db:"contract_address"`
-		IONConnectAddress        string     `db:"ion_connect_address"`
+		ExternalAddress          string     `db:"external_address"`
+		Platform                 string     `db:"platform"`
 		Type                     string     `db:"type"`
 		Title                    string     `db:"title"`
 		Description              string     `db:"description"`
@@ -197,7 +212,6 @@ type (
 		CreatorAvatar            string     `db:"creator_avatar"`
 		BaseToken                string     `db:"base_token"`
 		PairId                   string     `db:"pair_id"`
-		TxLogId                  string     `db:"tx_log_id"`
 		MarketCapUSD             float64    `db:"market_cap_usd"`
 		PriceUSD                 float64    `db:"price_usd"`
 		Volume24h                float64    `db:"volume_24h"`
@@ -215,7 +229,7 @@ type (
 		CreatedAt           *time.Time `db:"created_at"`
 		TransactionHash     string     `db:"transaction_hash"`
 		ContractAddress     string     `db:"contract_address"`
-		IONConnectAddress   string     `db:"ion_connect_address"`
+		ExternalAddress     string     `db:"external_address"`
 		UserAddress         string     `db:"user_address"`
 		CreatorMasterPubkey string     `db:"creator_master_pubkey"`
 		CreatorUsername     string     `db:"creator_username"`
@@ -235,32 +249,46 @@ type (
 		HolderVerified      bool       `db:"holder_verified"`
 	}
 	trade struct {
-		Timestamp                time.Time       `db:"timestamp"`
-		PriceInUsd               *big.Float      `db:"price_in_usd"`
-		PairAddress              string          `db:"pair_address"`
-		ContractAddress          string          `db:"contract_address"`
-		ContentIONConnectAddress string          `db:"content_ion_connect_address"`
-		Type                     TradeType       `db:"trade_type"`
-		TraderAddress            string          `db:"trader_address"`
-		TransactionHash          string          `db:"transaction_hash"`
-		BasePriceInUsd           float64         `db:"base_price_in_usd"`
-		BaseAmount               questdb.Decimal `db:"base_amount"`
-		Amount                   questdb.Decimal `db:"amount"`
+		Timestamp       time.Time       `db:"timestamp"`
+		PriceInUsd      *big.Float      `db:"price_in_usd"`
+		PairAddress     string          `db:"pair_address"`
+		ContractAddress string          `db:"contract_address"`
+		ExternalAddress string          `db:"external_address"`
+		Type            TradeType       `db:"trade_type"`
+		TraderAddress   string          `db:"trader_address"`
+		TransactionHash string          `db:"transaction_hash"`
+		BasePriceInUsd  float64         `db:"base_price_in_usd"`
+		BaseAmount      questdb.Decimal `db:"base_amount"`
+		Amount          questdb.Decimal `db:"amount"`
 	}
 
 	holderWithTokenData struct {
-		CreatorMasterPubkey string  `db:"creator_master_pubkey"`
-		CreatorUsername     string  `db:"creator_username"`
-		CreatorDisplay      string  `db:"creator_display"`
-		CreatorAvatar       string  `db:"creator_avatar"`
-		TotalSupply         string  `db:"total_supply"`
-		HolderMasterPubkey  string  `db:"holder_master_pubkey"`
-		HolderUsername      string  `db:"holder_username"`
-		HolderDisplay       string  `db:"holder_display"`
-		HolderAvatar        string  `db:"holder_avatar"`
-		HolderIonConnect    string  `db:"holder_ion_connect"`
-		PriceUSD            float64 `db:"price_usd"`
-		CreatorVerified     bool    `db:"creator_verified"`
-		HolderVerified      bool    `db:"holder_verified"`
+		CreatorMasterPubkey   string  `db:"creator_master_pubkey"`
+		CreatorUsername       string  `db:"creator_username"`
+		CreatorDisplay        string  `db:"creator_display"`
+		CreatorAvatar         string  `db:"creator_avatar"`
+		TotalSupply           string  `db:"total_supply"`
+		HolderMasterPubkey    string  `db:"holder_master_pubkey"`
+		HolderUsername        string  `db:"holder_username"`
+		HolderDisplay         string  `db:"holder_display"`
+		HolderAvatar          string  `db:"holder_avatar"`
+		HolderExternalAddress string  `db:"holder_external_address"`
+		PriceUSD              float64 `db:"price_usd"`
+		CreatorVerified       bool    `db:"creator_verified"`
+		HolderVerified        bool    `db:"holder_verified"`
+	}
+
+	holderMetadata struct {
+		HolderMasterPubkey    string `json:"holder_master_pubkey"`
+		HolderUsername        string `json:"holder_username"`
+		HolderDisplay         string `json:"holder_display"`
+		HolderVerified        bool   `json:"holder_verified"`
+		HolderAvatar          string `json:"holder_avatar"`
+		HolderExternalAddress string `json:"holder_external_address"`
+	}
+
+	tokenRowWithTopHolders struct {
+		tokenRow
+		TopHoldersJSON string `db:"top_holders_json"`
 	}
 )
