@@ -33,8 +33,9 @@ const (
 )
 
 var (
-	ErrBadProtocol = errors.New(":protocol must be websocket")
-	ErrHijack      = errors.New("http.ResponseWriter does not support hijack")
+	ErrBadProtocol     = errors.New(":protocol must be websocket")
+	ErrHijack          = errors.New("http.ResponseWriter does not support hijack")
+	ErrUpgradeInternal = errors.New("internal error during upgrade")
 )
 
 func newH2Upgrader() *h2Upgrader {
@@ -203,17 +204,28 @@ func Upgrade(writer http.ResponseWriter, req *http.Request, conf *Config) (Conne
 	var err error
 
 	h2Upgrader := newH2Upgrader()
-	if req.Header.Get("Upgrade") == "websocket" {
+	if req.Method == http.MethodConnect && req.Proto == "websocket" {
+		conn, _, hs, err = h2Upgrader.Upgrade(req, writer)
+	} else {
 		conn, _, hs, err = ws.HTTPUpgrader{
 			Negotiate: h2Upgrader.Negotiate,
 			Protocol:  h2Upgrader.Protocol,
 			Extension: h2Upgrader.Extension,
 		}.Upgrade(req, writer)
-	} else if req.Method == http.MethodConnect && req.Proto == "websocket" {
-		conn, _, hs, err = h2Upgrader.Upgrade(req, writer)
 	}
+
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to upgrade to websocket over http1/2: %v, upgrade: %v", req.Proto, req.Header.Get("Upgrade"))
+	}
+
+	if conn == nil { // Should never happen.
+		slog.ErrorContext(req.Context(), "failed to upgrade to websocket: no net.Conn returned",
+			"proto", req.Proto,
+			"upgrade", req.Header.Get("Upgrade"),
+			"method", req.Method,
+			"remote_addr", req.RemoteAddr,
+		)
+		return nil, ErrUpgradeInternal
 	}
 
 	if conf == nil {
