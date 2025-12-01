@@ -173,7 +173,8 @@ type (
 	}
 	CreateWalletReq struct {
 		Network       string `json:"network" required:"true"`
-		WalletViewID  string `json:"walletViewId" required:"true"`
+		WalletViewID  string `json:"walletViewId" required:"false"`
+		Name          string `json:"name" required:"false"` // To match signed 3rd patry payload of actual proxied request
 		ClientID      string `header:"X-Client-ID" required:"true" swaggerignore:"true"`
 		UserAction    string `header:"X-Useraction" required:"true" swaggerignore:"true"`
 		Authorization string `header:"Authorization" required:"true" swaggerignore:"true"`

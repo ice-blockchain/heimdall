@@ -2882,6 +2882,10 @@ const docTemplate = `{
         "main.CreateWalletReq": {
             "type": "object",
             "properties": {
+                "name": {
+                    "description": "To match signed 3rd patry payload of actual proxied request",
+                    "type": "string"
+                },
                 "network": {
                     "type": "string"
                 },
