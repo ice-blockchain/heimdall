@@ -358,6 +358,12 @@ func (s *service) CreateWallet(
 	ctx context.Context,
 	req *server.Request[CreateWalletReq, Wallet],
 ) (successResp *server.Response[Wallet], errorResp *server.ErrResponse[InternalError]) {
+	if req.Data.WalletViewID == "" && req.Data.Name == "" {
+		return nil, buildDelegatedErrorResponse(http.StatusUnprocessableEntity, errors.Errorf("name or walletViewID required"), "MISSING_PROPERTIES")
+	}
+	if req.Data.Name != "" && req.Data.WalletViewID == "" {
+		req.Data.WalletViewID = req.Data.Name
+	}
 	ctx = withAppID(ctx, req.Data.ClientID)
 	ctx = withAuth(ctx, req.Data.Authorization)
 	ctx = withUserAction(ctx, req.Data.UserAction)
