@@ -16,7 +16,7 @@ import (
 )
 
 func New(ctx context.Context) HashtagStatistics {
-	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
+	db := storage.MustConnect(ctx, applicationYamlKey, storage.NewStringDDL(ddl))
 
 	return &hashtagStatisticsRepository{
 		db:       db,

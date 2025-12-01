@@ -45,7 +45,7 @@ func MustConnect(ctx context.Context, applicationYamlKey string) *DB {
 	if err != nil {
 		log.Panic(errors.Wrapf(err, "failed to connect questdb (influx)"))
 	}
-	pgxConn := storage.MustConnectWithCfg(ctx, cfg.QuestDB.PostgresConn, ddl)
+	pgxConn := storage.MustConnectWithCfg(ctx, cfg.QuestDB.PostgresConn, storage.NewStringDDL(ddl))
 	return &DB{
 		db:     pgxConn,
 		writer: questdbConn,

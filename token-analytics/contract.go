@@ -78,8 +78,6 @@ const (
 )
 
 var (
-	//go:embed DDL.sql
-	sourceDDL      string
 	validIntervals = map[Interval]WindowSize{
 		Interval("1m"):  WindowSize(1 * stdlibtime.Hour),
 		Interval("2m"):  WindowSize(1 * stdlibtime.Hour),
@@ -127,6 +125,8 @@ const (
 	sessionTypeBondingCurveProgress = "bondingCurveProgress"
 
 	defaultViewingSessionTTL = 30 * stdlibtime.Minute
+
+	schemeMigrationTableName = "wintr_token_analytics_scheme_migrations"
 )
 
 var (

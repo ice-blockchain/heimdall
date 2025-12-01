@@ -20,7 +20,7 @@ import (
 )
 
 func New(ctx context.Context, walletFetcher OwnerAddressFetcher) NFTContent {
-	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
+	db := storage.MustConnect(ctx, applicationYamlKey, storage.NewStringDDL(ddl))
 
 	var cfg Config
 	config.MustLoadFromKey(applicationYamlKey, &cfg)

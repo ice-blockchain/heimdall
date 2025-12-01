@@ -31,7 +31,7 @@ func init() {
 }
 
 func NewRelaysSync(ctx context.Context) RelaysSyncer {
-	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
+	db := storage.MustConnect(ctx, applicationYamlKey, storage.NewStringDDL(ddl))
 	r := relaysSyncer{
 		db:       db,
 		shutdown: db.Close,
