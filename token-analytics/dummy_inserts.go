@@ -37,6 +37,10 @@ func (t *tokenAnalytics) insertDummyDataProcessor(ctx context.Context) {
 		CreatorVerified:     false,
 	})
 	if err != nil {
+		if storage.IsErr(err, storage.ErrReadOnly) {
+			log.Info("skipping inserting dummy data, DB is read-only")
+			return
+		}
 		log.Panic(errors.Wrapf(err, "failed to insert token data"))
 	}
 	tokenData, err := storage.Select[tokenRow](ctx, t.ingestedDataDB, `
