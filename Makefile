@@ -88,14 +88,14 @@ checkGenerated: generate
 	true;
 
 build-all@ci/cd:
-	go build -tags=go_json -a -v -race ./...
+	go build -tags=go_json -v -race ./...
 
 build: build-all@ci/cd
 
 binary-specific-service:
 	set -xe; \
 	echo "$@: $(SERVICE_NAME) / $(GOOS) / $(GOARCH)" ; \
-	go build -tags=go_json -a -v -o ./cmd/$${SERVICE_NAME}/bin ./cmd/$${SERVICE_NAME}; \
+	go build -tags=go_json -v -o ./cmd/$${SERVICE_NAME}/bin ./cmd/$${SERVICE_NAME}; \
 	cp ./cmd/$${SERVICE_NAME}/bin ./$${SERVICE_NAME}.$${GOOS}.$${GOARCH}.bin; \
 
 test:

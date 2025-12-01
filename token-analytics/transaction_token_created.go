@@ -29,10 +29,17 @@ func (t *tokenAnalytics) onTokenCreated(ctx context.Context, contractAddress str
 	if err != nil {
 		return fmt.Errorf("failed to parse external_address %s: %w", externalAddress, err)
 	}
-	if err := t.createStreamForContractAddress(ctx, ev.Address.String()); err != nil {
-		return fmt.Errorf("failed to create stream to monitor contract %v: %w", ev.Address.String(), err)
+
+	hexAddr := ev.Address.String()
+	if strings.Contains(strings.ToLower(hexAddr), "dead") {
+		log.Info(fmt.Sprintf("Ignoring TokenCreated for dead token: %v", hexAddr))
+		return nil
 	}
-	log.Info(fmt.Sprintf("Successfully created stream for bonded token: %v", ev.Address.String()))
+
+	if err := t.createStreamForContractAddress(ctx, hexAddr); err != nil {
+		return fmt.Errorf("failed to create stream to monitor contract %v: %w", hexAddr, err)
+	}
+	log.Info(fmt.Sprintf("Successfully created stream for bonded token: %v", hexAddr))
 
 	return nil
 }

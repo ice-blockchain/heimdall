@@ -37,6 +37,10 @@ func (t *tokenAnalytics) insertDummyDataProcessor(ctx context.Context) {
 		CreatorVerified:     false,
 	})
 	if err != nil {
+		if storage.IsErr(err, storage.ErrReadOnly) {
+			log.Info("skipping inserting dummy data, DB is read-only")
+			return
+		}
 		log.Panic(errors.Wrapf(err, "failed to insert token data"))
 	}
 	tokenData, err := storage.Select[tokenRow](ctx, t.ingestedDataDB, `
@@ -95,7 +99,7 @@ func (t *tokenAnalytics) startNewTokenGenerator(ctx context.Context, stream stri
 				displayName := names[rand.Int31n(int32(len(names)-1))]
 				symbol := strings.ToLower(strings.ReplaceAll(displayName, " ", ""))
 				tok := &tokenRow{
-					ContractAddress:     mustRandomHex(20),
+					ContractAddress:     generateDummyContractAddress(),
 					CreatorMasterPubkey: master,
 					ExternalAddress:     fmt.Sprintf("ion_connect:%v:%v:%v", kind, master, dTag),
 					Title:               displayName,
@@ -431,6 +435,20 @@ func mustRandomHex(n int) string {
 		log.Panic(errors.Wrapf(err, "failed to generate random"))
 	}
 	return hex.EncodeToString(bytes)
+}
+
+func generateDummyContractAddress() string {
+	var buf bytes.Buffer
+
+	buf.Write([]byte{0xde, 0xad, 0xbe, 0xef, 0, 0, 0, 0})
+
+	suffix := make([]byte, 12)
+	if _, err := rand.Read(suffix); err != nil {
+		log.Panic(errors.Wrapf(err, "failed to generate random"))
+	}
+	buf.Write(suffix)
+
+	return hex.EncodeToString(buf.Bytes())
 }
 
 func (t *tokenAnalytics) createUser(ctx context.Context, blockchainAddress string, masterPubkey string) error {
