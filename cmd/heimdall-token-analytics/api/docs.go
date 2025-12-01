@@ -167,7 +167,7 @@ const docTemplate = `{
         },
         "/v1/community-tokens/{externalAddressOrViewType}/external-data": {
             "put": {
-                "description": "Syncs external information for a community token.",
+                "description": "Syncs external creator information for a community token.",
                 "consumes": [
                     "application/json"
                 ],
@@ -186,7 +186,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "External token data",
+                        "description": "Creator information",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -1247,18 +1247,6 @@ const docTemplate = `{
                 "creatorVerified": {
                     "type": "boolean",
                     "example": true
-                },
-                "tokenDescription": {
-                    "type": "string",
-                    "example": "This is a description"
-                },
-                "tokenImageUrl": {
-                    "type": "string",
-                    "example": "https://example.com/image.png"
-                },
-                "tokenTitle": {
-                    "type": "string",
-                    "example": "My Awesome Post"
                 }
             }
         },

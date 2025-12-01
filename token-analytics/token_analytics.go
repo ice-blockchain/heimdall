@@ -396,7 +396,7 @@ func (t *tokenAnalytics) fetchUnprocessedEvents(ctx context.Context, workerIdx u
 			) as logs
 		FROM transactions t
 		LEFT JOIN tx_logs l ON t.transaction_hash = l.transaction_hash
-		WHERE MOD(t.transaction_index, %[1]v) = %[2]v 
+		WHERE MOD(t.i, %[1]v) = %[2]v 
 			AND (t.block_number, t.transaction_index) > ($1, $2)
 		GROUP BY t.transaction_hash, t.from_address, t.to_address, t.block_timestamp, 
 				 t.chain_id, t.value, t.input, t.block_number, t.transaction_index

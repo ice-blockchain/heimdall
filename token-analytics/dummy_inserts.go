@@ -28,7 +28,7 @@ func (t *tokenAnalytics) insertDummyDataProcessor(ctx context.Context) {
 	err := t.generateToken(ctx, stream, &tokenRow{
 		ContractAddress:     "7307ea7ab4a7e5bcba1bf18c9495d08107d9f0d8",
 		CreatorMasterPubkey: "9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f",
-		IONConnectAddress:   "0:9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f:",
+		ExternalAddress:     "ion_connect:0:9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f:",
 		Title:               "Yu's token",
 		Ticker:              "posidoniusenara",
 		TotalSupply:         "1000000000000000000000000",
@@ -39,7 +39,26 @@ func (t *tokenAnalytics) insertDummyDataProcessor(ctx context.Context) {
 	if err != nil {
 		log.Panic(errors.Wrapf(err, "failed to insert token data"))
 	}
-	tokenData, err := storage.Select[tokenRow](ctx, t.ingestedDataDB, "SELECT * FROM tokens ORDER BY created_at DESC LIMIT 100")
+	tokenData, err := storage.Select[tokenRow](ctx, t.ingestedDataDB, `
+		SELECT 
+			created_at,
+			updated_at,
+			log_index,
+			contract_address,
+			external_address,
+			platform,
+			type,
+		    ticker AS title, 
+			total_supply, 
+			creator_master_pubkey,
+		    base_token,
+			pair_id,
+			market_cap_usd,
+			price_usd,
+		    holders_count
+		FROM tokens
+		ORDER BY created_at DESC LIMIT 100
+	`)
 	if err != nil {
 		log.Error(errors.Wrapf(err, "failed to get token data for dummy tx generation"))
 		return
@@ -78,7 +97,7 @@ func (t *tokenAnalytics) startNewTokenGenerator(ctx context.Context, stream stri
 				tok := &tokenRow{
 					ContractAddress:     mustRandomHex(20),
 					CreatorMasterPubkey: master,
-					IONConnectAddress:   fmt.Sprintf("%v:%v:%v", kind, master, dTag),
+					ExternalAddress:     fmt.Sprintf("ion_connect:%v:%v:%v", kind, master, dTag),
 					Title:               displayName,
 					Ticker:              symbol,
 					TotalSupply:         "1000000000000000000" + strings.Repeat("0", rand.Intn(8)+1),
@@ -139,8 +158,8 @@ func (t *tokenAnalytics) generateBuyOrSellBatch(ctx context.Context, stream stri
 		}
 		base, _ := hex.DecodeString(strings.TrimPrefix(token.BaseToken, "0x"))
 		txInput, err := bondingcurve.ABI.Methods["swap"].Inputs.Pack(
-			[]byte(base),
-			[]byte(token.IONConnectAddress), // token creator, linked to data from token
+			base,
+			[]byte(token.ExternalAddress), // token creator, linked to data from token
 			new(big.Int).SetInt64(amountBase),
 			new(big.Int).SetInt64(amountTarget),
 		)
@@ -149,14 +168,14 @@ func (t *tokenAnalytics) generateBuyOrSellBatch(ctx context.Context, stream stri
 		}
 		tmpl, err := template.New("swap_tx").Parse(`{
       "accessList": [],
-      "blockHash": "{{.BlockHash}}",
+      "blockHash": "0x{{.BlockHash}}",
       "blockNumber": "{{.BlockNumber}}",
       "blockTimestamp": "{{.BlockTimestamp}}",
       "chainId": "0x61",
       "from": "0x{{.UserBlockchainAddr}}",
       "gas": "0x14af2d",
       "gasPrice": "0x3b9aca00",
-      "hash": "{{.TxHash}}",
+      "hash": "0x{{.TxHash}}",
       "input": "0x83362e17{{.TxInput}}",
       "logs": [{
           "address": "0x{{.Token.ContractAddress}}",
@@ -185,6 +204,7 @@ func (t *tokenAnalytics) generateBuyOrSellBatch(ctx context.Context, stream stri
 			return errors.Wrapf(err, "failed to insert dummy contract data: malformed template")
 		}
 		buf := bytes.NewBuffer([]byte{})
+		bondingCurveNoPrefix := strings.TrimPrefix(t.bondingCurveContractAddress, "0x")
 		err = tmpl.Execute(buf, &templateParams{
 			Stream:               stream,
 			BlockNumber:          blockNum,
@@ -195,7 +215,7 @@ func (t *tokenAnalytics) generateBuyOrSellBatch(ctx context.Context, stream stri
 			Token:                token,
 			UserBlockchainAddr:   userBlockChainAddr,
 			TxInput:              hex.EncodeToString(txInput),
-			BondingCurveContract: t.bondingCurveContractAddress,
+			BondingCurveContract: bondingCurveNoPrefix,
 			SwappedData:          hex.EncodeToString(data),
 		})
 		if err != nil {
@@ -219,12 +239,12 @@ func (t *tokenAnalytics) generateToken(ctx context.Context, stream string, row *
 	blockHash := mustRandomHex(32)
 	ownerBlockchainAddr := mustRandomHex(20)
 	ownerMasterKey := row.CreatorMasterPubkey
-	err := t.createUser(ctx, ownerBlockchainAddr, ownerMasterKey)
+	err := t.createUser(ctx, "0x"+ownerBlockchainAddr, ownerMasterKey)
 	base, _ := hex.DecodeString(strings.TrimPrefix(t.cfg.IONTokenAddress, "0x"))
 	totalSupply, _ := new(big.Int).SetString(row.TotalSupply, 10)
 	txInput, err := bondingcurve.ABI.Methods["swap"].Inputs.Pack(
-		[]byte(base),
-		[]byte(row.IONConnectAddress), // token creator, linked to data from token
+		base,
+		[]byte(row.ExternalAddress), // token creator, linked to data from token
 		totalSupply,
 		totalSupply,
 	)
@@ -234,7 +254,7 @@ func (t *tokenAnalytics) generateToken(ctx context.Context, stream string, row *
 	bondedTokenCreatedData, err := bondingcurve.ABI.Events["BondedTokenCreated"].Inputs.NonIndexed().Pack(
 		row.Title,
 		row.Ticker,
-		row.IONConnectAddress,
+		row.ExternalAddress,
 		totalSupply,
 	)
 	if err != nil {
@@ -249,19 +269,19 @@ func (t *tokenAnalytics) generateToken(ctx context.Context, stream string, row *
       "blockNumber": "{{.BlockNumber}}",
       "blockTimestamp": "{{.BlockTimestamp}}",
       "chainId": "0x61",
-      "from": "{{.CreatorBlockchainAddress}}",
+      "from": "0x{{.CreatorBlockchainAddress}}",
       "gas": "0x14af2d",
       "gasPrice": "0x3b9aca00",
-      "hash": "{{.TxHash}}",
-      "input": "0x{{.TxInput}}",
+      "hash": "0x{{.TxHash}}",
+      "input": "{{.TxInput}}",
       "logs": [
         {
-		  "address": "0x{{.Token.ContractAddress}}",
+	  "address": "0x{{.Token.ContractAddress}}",
           "data": "0x",
           "logIndex": "0x1",
           "removed": false,
           "topics": [
-            "{{.BondingCurveContract}}",
+            "0x{{.BondingCurveContract}}",
             "0x0000000000000000000000000000000000000000000000000000000000000000",
             "0x000000000000000000000000{{.BondingCurveContract}}"
           ]
@@ -289,7 +309,7 @@ func (t *tokenAnalytics) generateToken(ctx context.Context, stream string, row *
           ]
         },
         {
-          "address": "{{.BondingCurveContract}}",
+          "address": "0x{{.BondingCurveContract}}",
           "data": "{{.BondedTokenCreatedData}}",
           "logIndex": "0x4",
           "removed": false,
@@ -299,7 +319,7 @@ func (t *tokenAnalytics) generateToken(ctx context.Context, stream string, row *
           ]
         },
         {
-          "address": "{{.BondingCurveContract}}",
+          "address": "0x{{.BondingCurveContract}}",
           "data": "0x000000000000000000000000c6646173c7f997949494dfd87d2076ea41b801fb00000000000000000000000000000000000000000000000000000000000000000000000000000000000000008d86c992ce7812a64101da9b2531d5f378d682e2",
           "logIndex": "0x5",
           "removed": false,
@@ -309,7 +329,7 @@ func (t *tokenAnalytics) generateToken(ctx context.Context, stream string, row *
           ]
         },
         {
-          "address": "{{.BondingCurveContract}}",
+          "address": "0x{{.BondingCurveContract}}",
           "data": "0x",
           "logIndex": "0x6",
           "removed": false,
@@ -343,7 +363,7 @@ func (t *tokenAnalytics) generateToken(ctx context.Context, stream string, row *
           ]
         },
         {
-          "address": "{{.BondingCurveContract}}",
+          "address": "0x{{.BondingCurveContract}}",
           "data": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000000000000000000000000000000000000000000000",
           "logIndex": "0x9",
           "removed": false,
@@ -354,7 +374,7 @@ func (t *tokenAnalytics) generateToken(ctx context.Context, stream string, row *
           ]
         },
         {
-          "address": "{{.BondingCurveContract}}",
+          "address": "0x{{.BondingCurveContract}}",
           "data": "0x0000000000000000000000000000000000000000000000000dbd2fc137a300000000000000000000000000000000000000000000000000000de0b6b3a7640000",
           "logIndex": "0xa",
           "removed": false,
@@ -382,6 +402,7 @@ func (t *tokenAnalytics) generateToken(ctx context.Context, stream string, row *
 		return errors.Wrapf(err, "failed to insert dummy contract data: malformed template")
 	}
 	buf := bytes.NewBuffer([]byte{})
+	bondingCurveNoPrefix := strings.TrimPrefix(t.bondingCurveContractAddress, "0x")
 	err = tmpl.Execute(buf, &templateParams{
 		Stream:                   stream,
 		BlockNumber:              blockNum,
@@ -392,7 +413,7 @@ func (t *tokenAnalytics) generateToken(ctx context.Context, stream string, row *
 		Token:                    row,
 		TxInput:                  "0x" + hex.EncodeToString(txInput),
 		CreatorBlockchainAddress: ownerBlockchainAddr,
-		BondingCurveContract:     t.bondingCurveContractAddress,
+		BondingCurveContract:     bondingCurveNoPrefix,
 		BondedTokenCreatedData:   "0x" + hex.EncodeToString(bondedTokenCreatedData),
 	})
 	if err != nil {
@@ -427,23 +448,26 @@ func (t *tokenAnalytics) createUser(ctx context.Context, blockchainAddress strin
 	verified := rand.Intn(2) == 0
 	lookup := strings.ToLower(strings.TrimSpace(username + " " + displayName))
 	ionConnectRelays := []string{"wss://141.95.59.70:4443", "wss://181.41.142.217:4443", "wss://94.100.16.233:4443"}
+	externalAddress := fmt.Sprintf("%s:%s", PlatformIonConnect, masterPubkey)
 	_, err := storage.Exec(ctx, t.ingestedDataDB, `
 		INSERT INTO users (
-			created_at, updated_at, id, master_pubkey, blockchain_address, username, 
+			created_at, updated_at, id, master_pubkey, blockchain_address, external_address, username, 
 			display_name, lookup, ion_connect_relays, verified
 		) VALUES (
-			NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8
+			NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9
 		)
 		ON CONFLICT (master_pubkey) 
 		DO UPDATE SET
 			updated_at = NOW(),
 			id = EXCLUDED.id,
+			blockchain_address = EXCLUDED.blockchain_address,
+			external_address = EXCLUDED.external_address,
 			username = EXCLUDED.username,
 			display_name = EXCLUDED.display_name,
 			lookup = EXCLUDED.lookup,
 			ion_connect_relays = EXCLUDED.ion_connect_relays,
 			verified = EXCLUDED.verified
-	`, id, masterPubkey, blockchainAddress, username, displayName, lookup, ionConnectRelays, verified)
+	`, id, masterPubkey, blockchainAddress, externalAddress, username, displayName, lookup, ionConnectRelays, verified)
 	if err != nil {
 		return fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err)
 	}

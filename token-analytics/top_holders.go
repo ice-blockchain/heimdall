@@ -5,7 +5,6 @@ package tokenanalytics
 import (
 	"context"
 	"fmt"
-	"math/big"
 
 	"github.com/cockroachdb/errors"
 	"github.com/nbd-wtf/go-nostr"
@@ -15,8 +14,8 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
-func (t *tokenAnalytics) GetTopHolders(ctx context.Context, ionConnectAddress string, limit int64) ([]*TopHolderPosition, error) {
-	key := keyUserPositionOfToken(ionConnectAddress)
+func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress string, limit int64) ([]*TopHolderPosition, error) {
+	key := keyUserPositionOfToken(externalAddress)
 	result, err := t.processedDataDB.ZRevRangeWithScores(ctx, key, 0, limit-1).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
@@ -49,13 +48,13 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, ionConnectAddress st
 			COALESCE(holder.display_name, '') as holder_display,
 			holder.verified as holder_verified,
 			COALESCE(holder.avatar, '') as holder_avatar,
-			holder.ion_connect_address as holder_ion_connect
+			holder.external_address as holder_external_address
 		FROM tokens t
 		LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
-		JOIN users holder ON holder.ion_connect_address = ANY($2)
-		WHERE t.ion_connect_address = $1
+		JOIN users holder ON holder.external_address = ANY($2)
+		WHERE t.external_address = $1
 	`
-	rows, err := storage.Select[holderWithTokenData](ctx, t.ingestedDataDB, query, ionConnectAddress, userIonConnects)
+	rows, err := storage.Select[holderWithTokenData](ctx, t.ingestedDataDB, query, externalAddress, userIonConnects)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch holders data")
 	}
@@ -63,49 +62,42 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, ionConnectAddress st
 		return []*TopHolderPosition{}, nil
 	}
 
-	return buildTopHolderPositions(ionConnectAddress, result, rows), nil
+	return buildTopHolderPositions(externalAddress, result, rows), nil
 }
 
-func buildTopHolderPositions(ionConnectAddress string, rankings []redis.Z, rows []*holderWithTokenData) []*TopHolderPosition {
+func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []*holderWithTokenData) []*TopHolderPosition {
 	holderDataMap := make(map[string]*holderWithTokenData)
 	for i := range rows {
-		holderDataMap[rows[i].HolderIonConnect] = rows[i]
+		holderDataMap[rows[i].HolderExternalAddress] = rows[i]
 	}
 	holders := make([]*TopHolderPosition, 0, len(rankings))
 	for rank, z := range rankings {
-		userIonConnect, ok := z.Member.(string)
+		userExternalAddress, ok := z.Member.(string)
 		if !ok {
 			continue
 		}
-		holderData, exists := holderDataMap[userIonConnect]
+		holderData, exists := holderDataMap[userExternalAddress]
 		if !exists {
-			log.Warn(fmt.Sprintf("User data not found for user ion_connect: %v", userIonConnect))
-
+			log.Warn(fmt.Sprintf("User data not found for user external_address: %v", userExternalAddress))
 			continue
+		}
+
+		totalSupplyFloat, err := parseTotalSupply(holderData.TotalSupply, externalAddress)
+		if err != nil {
+			log.Warn(fmt.Sprintf("Failed to parse total supply for token %v: %v", externalAddress, err))
+			totalSupplyFloat = 0
 		}
 		amountTokens := z.Score
 		amountUSD := amountTokens * holderData.PriceUSD
+		supplyShare := calculateSupplyShare(amountTokens, totalSupplyFloat)
 
-		totalSupplyBigInt, ok := new(big.Int).SetString(holderData.TotalSupply, 10)
-		if !ok {
-			log.Warn(fmt.Sprintf("Failed to parse total supply for token: %v", ionConnectAddress))
-			totalSupplyBigInt = big.NewInt(0)
-		}
-		totalSupplyFloat := bigIntToFloat(totalSupplyBigInt)
-
-		supplyShare := 0.0
-		if totalSupplyFloat > 0 {
-			supplyShare = (amountTokens / totalSupplyFloat) * 100.0
-		}
 		holder := &TopHolderPosition{
 			Creator: User{
-				Username: holderData.CreatorUsername,
-				Display:  holderData.CreatorDisplay,
-				Verified: holderData.CreatorVerified,
-				Avatar:   holderData.CreatorAvatar,
-				Addresses: Addresses{
-					IonConnect: fmt.Sprintf("%v:%s:", nostr.KindProfileMetadata, holderData.CreatorMasterPubkey),
-				},
+				Username:  holderData.CreatorUsername,
+				Display:   holderData.CreatorDisplay,
+				Verified:  holderData.CreatorVerified,
+				Avatar:    holderData.CreatorAvatar,
+				Addresses: buildAddressesFromExternalAddress(fmt.Sprintf("%v:%s:", nostr.KindProfileMetadata, holderData.CreatorMasterPubkey)),
 			},
 			Position: HolderPosition{
 				Holder: User{
@@ -114,9 +106,7 @@ func buildTopHolderPositions(ionConnectAddress string, rankings []redis.Z, rows 
 					Display:      holderData.HolderDisplay,
 					Verified:     holderData.HolderVerified,
 					Avatar:       holderData.HolderAvatar,
-					Addresses: Addresses{
-						IonConnect: userIonConnect,
-					},
+					Addresses:    buildAddressesFromExternalAddress(userExternalAddress),
 				},
 				Rank:        uint64(rank + 1),
 				Amount:      uint64(amountTokens),

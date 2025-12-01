@@ -97,8 +97,8 @@ func tokenCreated(signature, data, contractAddress, erc20TokenTopic string) (*Lo
 	}
 	tokenCreatedEvent.Address = common.HexToAddress(erc20TokenTopic)
 
-	log.Debug(fmt.Sprintf("Token created: address=%v, ionConnectAddress=%s, totalSupply=%v",
-		tokenCreatedEvent.Address.Hex(), tokenCreatedEvent.IonConnectAddress, tokenCreatedEvent.TotalSupply))
+	log.Debug(fmt.Sprintf("Token created: address=%v, externalAddress=%s, totalSupply=%v",
+		tokenCreatedEvent.Address.Hex(), tokenCreatedEvent.ExternalAddress, tokenCreatedEvent.TotalSupply))
 
 	return &tokenCreatedEvent, nil
 }
