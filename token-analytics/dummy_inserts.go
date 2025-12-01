@@ -158,7 +158,7 @@ func (t *tokenAnalytics) generateBuyOrSellBatch(ctx context.Context, stream stri
 		}
 		base, _ := hex.DecodeString(strings.TrimPrefix(token.BaseToken, "0x"))
 		txInput, err := bondingcurve.ABI.Methods["swap"].Inputs.Pack(
-			[]byte(base),
+			base,
 			[]byte(token.ExternalAddress), // token creator, linked to data from token
 			new(big.Int).SetInt64(amountBase),
 			new(big.Int).SetInt64(amountTarget),
@@ -239,11 +239,11 @@ func (t *tokenAnalytics) generateToken(ctx context.Context, stream string, row *
 	blockHash := mustRandomHex(32)
 	ownerBlockchainAddr := mustRandomHex(20)
 	ownerMasterKey := row.CreatorMasterPubkey
-	err := t.createUser(ctx, ownerBlockchainAddr, ownerMasterKey)
+	err := t.createUser(ctx, "0x"+ownerBlockchainAddr, ownerMasterKey)
 	base, _ := hex.DecodeString(strings.TrimPrefix(t.cfg.IONTokenAddress, "0x"))
 	totalSupply, _ := new(big.Int).SetString(row.TotalSupply, 10)
 	txInput, err := bondingcurve.ABI.Methods["swap"].Inputs.Pack(
-		[]byte(base),
+		base,
 		[]byte(row.ExternalAddress), // token creator, linked to data from token
 		totalSupply,
 		totalSupply,
@@ -448,23 +448,26 @@ func (t *tokenAnalytics) createUser(ctx context.Context, blockchainAddress strin
 	verified := rand.Intn(2) == 0
 	lookup := strings.ToLower(strings.TrimSpace(username + " " + displayName))
 	ionConnectRelays := []string{"wss://141.95.59.70:4443", "wss://181.41.142.217:4443", "wss://94.100.16.233:4443"}
+	externalAddress := fmt.Sprintf("%s:%s", PlatformIonConnect, masterPubkey)
 	_, err := storage.Exec(ctx, t.ingestedDataDB, `
 		INSERT INTO users (
-			created_at, updated_at, id, master_pubkey, blockchain_address, username, 
+			created_at, updated_at, id, master_pubkey, blockchain_address, external_address, username, 
 			display_name, lookup, ion_connect_relays, verified
 		) VALUES (
-			NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8
+			NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9
 		)
 		ON CONFLICT (master_pubkey) 
 		DO UPDATE SET
 			updated_at = NOW(),
 			id = EXCLUDED.id,
+			blockchain_address = EXCLUDED.blockchain_address,
+			external_address = EXCLUDED.external_address,
 			username = EXCLUDED.username,
 			display_name = EXCLUDED.display_name,
 			lookup = EXCLUDED.lookup,
 			ion_connect_relays = EXCLUDED.ion_connect_relays,
 			verified = EXCLUDED.verified
-	`, id, masterPubkey, blockchainAddress, username, displayName, lookup, ionConnectRelays, verified)
+	`, id, masterPubkey, blockchainAddress, externalAddress, username, displayName, lookup, ionConnectRelays, verified)
 	if err != nil {
 		return fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err)
 	}

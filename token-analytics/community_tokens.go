@@ -90,10 +90,6 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 				marketData.Position = *position
 			}
 		}
-		creatorIONConnect := ""
-		if row.CreatorMasterPubkey != "" {
-			creatorIONConnect = fmt.Sprintf("ion_connect:0:%s:", row.CreatorMasterPubkey)
-		}
 
 		token := &CommunityToken{
 			Type:        row.Type,
@@ -106,7 +102,7 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 				Display:   row.CreatorDisplay,
 				Verified:  row.CreatorVerified,
 				Avatar:    row.CreatorAvatar,
-				Addresses: buildAddressesFromExternalAddress(creatorIONConnect),
+				Addresses: buildAddressesFromExternalAddress(fmt.Sprintf("0:%s:", row.CreatorMasterPubkey)),
 			},
 			MarketData: marketData,
 		}

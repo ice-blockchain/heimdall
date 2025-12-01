@@ -1,21 +1,21 @@
 -- SPDX-License-Identifier: ice License 1.0
 
 DO $$ BEGIN
-    CREATE DOMAIN usd_amount AS NUMERIC(48, 18);
-EXCEPTION
-    WHEN duplicate_object THEN null;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'usd_amount') THEN
+        CREATE DOMAIN usd_amount AS NUMERIC(48, 18);
+    END IF;
 END $$;
 
 DO $$ BEGIN
-    CREATE DOMAIN uint256 AS NUMERIC(78, 0);
-EXCEPTION
-    WHEN duplicate_object THEN null;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'uint256') THEN
+        CREATE DOMAIN uint256 AS NUMERIC(78, 0);
+    END IF;
 END $$;
 
 DO $$ BEGIN
-    CREATE TYPE platform_type AS ENUM ('ion_connect', 'x.com');
-EXCEPTION
-    WHEN duplicate_object THEN null;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'platform_type') THEN
+        CREATE TYPE platform_type AS ENUM ('ion_connect', 'x.com');
+    END IF;
 END $$;
 
 CREATE TABLE IF NOT EXISTS users
@@ -551,10 +551,10 @@ BEGIN
         RETURN;
     END IF;
     
-    IF v_external_address_raw ~ '^ion_connect:' THEN
+    IF substring(v_external_address_raw, 1, 12) = 'ion_connect:' THEN
         v_platform := 'ion_connect';
         v_external_address := v_external_address_raw;
-        v_parts := string_to_array(substring(v_external_address_raw from 13), ':'); -- skip "ion_connect"
+        v_parts := string_to_array(substring(v_external_address_raw from 13), ':'); -- skip "ion_connect:"
         IF array_length(v_parts, 1) >= 2 THEN
             v_kind := v_parts[1]::INT;
             v_creator_master_pubkey := v_parts[2];
@@ -572,7 +572,7 @@ BEGIN
             RAISE WARNING 'Failed to parse ion_connect parts from %, skipping token creation', v_external_address;
             RETURN;
         END IF;
-    ELSIF v_external_address_raw ~ '^x\.com:' THEN
+    ELSIF substring(v_external_address_raw, 1, 6) = 'x.com:' THEN
         v_platform := 'x.com';
         v_external_address := v_external_address_raw;
         v_token_type := 'post';

@@ -37,7 +37,12 @@ func (t *tokenAnalytics) onTokenCreated(ctx context.Context, contractAddress str
 	return nil
 }
 
-func parseTokenType(externalAddress string) (tokenType, masterPubkey string, err error) {
+func parseTokenType(externalAddress string) (tokenType, masterPubkeyOrXHandle string, err error) {
+	if strings.HasPrefix(externalAddress, string(PlatformXCom)) {
+		return TokenTypePost, strings.TrimPrefix(externalAddress, string(PlatformXCom)+":"), nil
+	}
+	externalAddress = strings.TrimPrefix(externalAddress, string(PlatformIonConnect)+":")
+
 	parts := strings.Split(externalAddress, ":")
 	if len(parts) < 2 {
 		return "", "", fmt.Errorf("invalid external address format (expected kind:masterpubkey:dtag): %s", externalAddress)
@@ -45,21 +50,21 @@ func parseTokenType(externalAddress string) (tokenType, masterPubkey string, err
 	if parts[0] == "" || parts[1] == "" {
 		return "", "", fmt.Errorf("invalid external address format (empty kind or masterpubkey): %s", externalAddress)
 	}
-	masterPubkey = parts[1]
+	masterPubkeyOrXHandle = parts[1]
 	kind, err := strconv.Atoi(parts[0])
 	if err != nil {
 		return "", "", fmt.Errorf("failed to parse kind from external address '%s': %w", externalAddress, err)
 	}
 	switch kind {
 	case nostr.KindProfileMetadata:
-		return TokenTypeProfile, masterPubkey, nil
+		return TokenTypeProfile, masterPubkeyOrXHandle, nil
 	case nostr.KindTextNote:
-		return TokenTypePost, masterPubkey, nil
+		return TokenTypePost, masterPubkeyOrXHandle, nil
 	case nostr.KindArticle:
-		return TokenTypeArticle, masterPubkey, nil
+		return TokenTypeArticle, masterPubkeyOrXHandle, nil
 	case model.CustomIONKindEditableTextNote:
 		// TODO: take some type from tx as no other way to detect video?
-		return TokenTypePost, masterPubkey, nil
+		return TokenTypePost, masterPubkeyOrXHandle, nil
 	default:
 		return "", "", fmt.Errorf("unknown nostr kind %d for external address '%s'", kind, externalAddress)
 	}

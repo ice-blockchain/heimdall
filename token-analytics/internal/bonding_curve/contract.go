@@ -18,7 +18,7 @@ type (
 		Address         common.Address
 		Name            string
 		Symbol          string
-		ExternalAddress string
+		ExternalAddress string `abi:"ionConnectAddress"` // TODO: fix this on abi change.
 		TotalSupply     *big.Int
 	}
 	LogTokenSwapped struct {

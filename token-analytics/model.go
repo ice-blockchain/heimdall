@@ -128,18 +128,18 @@ func buildAddressesFromExternalAddress(externalAddress string) Addresses {
 	if externalAddress == "" {
 		return Addresses{}
 	}
-	if strings.HasPrefix(externalAddress, "x.com:") {
+	if strings.HasPrefix(externalAddress, string(PlatformXCom)+":") {
 		return Addresses{
 			Twitter: externalAddress,
 		}
 	}
-	if strings.HasPrefix(externalAddress, "ion_connect:") {
+	if strings.HasPrefix(externalAddress, string(PlatformIonConnect)+":") {
 		return Addresses{
 			IonConnect: externalAddress,
 		}
 	}
 
 	return Addresses{
-		IonConnect: "ion_connect:" + externalAddress,
+		IonConnect: string(PlatformIonConnect) + ":" + externalAddress,
 	}
 }
