@@ -12,7 +12,7 @@ import (
 )
 
 func NewRelays(ctx context.Context) Relays {
-	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
+	db := storage.MustConnect(ctx, applicationYamlKey, storage.NewStringDDL(ddl))
 	r := relaysRepository{
 		db:       db,
 		shutdown: db.Close,

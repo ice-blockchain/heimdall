@@ -29,7 +29,7 @@ func NewDeviceIdentificationProxy(ctx context.Context, serviceVersion string) De
 }
 
 func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *AppsRuntimeConfig, tokenAnalyticsRepo TokenAnalyticsUserRepository) Accounts {
-	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
+	db := storage.MustConnect(ctx, applicationYamlKey, storage.NewStringDDL(ddl))
 	cl := dfns.NewDfnsClient(ctx, db, applicationYamlKey, coinsRepo)
 
 	var cfg config
@@ -83,7 +83,7 @@ func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *App
 }
 
 func NewVerifiedQueueRepository(ctx context.Context, tokenAnalyticsRepo TokenAnalyticsUserRepository) VerifiedUsersSync {
-	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
+	db := storage.MustConnect(ctx, applicationYamlKey, storage.NewStringDDL(ddl))
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	if cfg.PrivateKey == "" {

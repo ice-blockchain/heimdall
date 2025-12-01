@@ -17,6 +17,7 @@ import (
 	"github.com/goccy/go-json"
 	"github.com/rcrowley/go-metrics"
 
+	"github.com/ice-blockchain/heimdall/token-analytics/ddl"
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/quicknode"
@@ -34,7 +35,7 @@ func NewUserRepository(ctx context.Context) UserRepository {
 	var cfg config
 
 	appconfig.MustLoadFromKey(applicationYamlKey, &cfg)
-	db := storage.MustConnect(ctx, sourceDDL, applicationYamlKey)
+	db := storage.MustConnect(ctx, applicationYamlKey, storage.NewFilesystemDDL(&ddl.Files, schemeMigrationTableName))
 
 	return &tokenAnalyticsUsers{
 		ingestedDataDB: db,
@@ -54,7 +55,8 @@ func New(ctx context.Context) TokenAnalytics {
 	if cfg.Workers == 0 {
 		cfg.Workers = 1
 	}
-	db := storage.MustConnect(ctx, sourceDDL, applicationYamlKey)
+
+	db := storage.MustConnect(ctx, applicationYamlKey, storage.NewFilesystemDDL(&ddl.Files, schemeMigrationTableName))
 	targetDB := storagev3.MustConnect(ctx, applicationYamlKey)
 	if err := initializeWorkersConfig(ctx, db, cfg.Workers); err != nil {
 		log.Panic(fmt.Errorf("failed to initialize workers config: %w", err))
