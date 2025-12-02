@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	swaggerfiles "github.com/swaggo/files"
 	ginswagger "github.com/swaggo/gin-swagger"
@@ -25,6 +26,13 @@ func (s *service) httpHealthCheckHandler(c *gin.Context) {
 }
 
 func (s *service) RegisterRoutes(router gin.IRouter) {
+	corsConfig := cors.Config{
+		AllowOrigins:     []string{"https://x.com", "https://pumpit.now"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "OPTIONS"},
+		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		AllowCredentials: false,
+	}
+	router.Use(cors.New(corsConfig))
 	router.Use(server.NIP42AuthMiddleware())
 
 	router.GET("/healthz", s.httpHealthCheckHandler)

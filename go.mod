@@ -20,6 +20,7 @@ require (
 	github.com/ethereum/go-ethereum v1.16.7
 	github.com/fingerprintjs/fingerprint-pro-server-api-go-sdk/v7 v7.9.0
 	github.com/georgysavva/scany/v2 v2.1.4
+	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-contrib/sse v1.1.0
 	github.com/gin-gonic/gin v1.11.0
 	github.com/gobwas/httphead v0.1.0
