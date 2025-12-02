@@ -60,6 +60,7 @@ cmd/heimdall-token-analytics:
     port: 8888
     certPath: cmd/heimdall-identity-io/.testdata/localhost.crt
     keyPath: cmd/heimdall-identity-io/.testdata/localhost.key
+    xcomSecretKey: test-secret-key
 accounts:
   delegated_relying_party:
     auth:
