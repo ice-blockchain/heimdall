@@ -135,9 +135,9 @@ func (t *tokenAnalyticsUsers) Close() error {
 
 func (t *tokenAnalytics) HealthCheck(ctx context.Context) error {
 	checkers := map[string]func(context.Context) error{
-		"ingested_datatabase": t.ingestedDataDB.Ping,
-		"questdb_database":    t.questDB.Ping,
+		"ingested_datatabase": func(ctx context.Context) error { return t.ingestedDataDB.Ping(ctx) },
 		"processed_database":  func(ctx context.Context) error { return t.processedDataDB.Ping(ctx).Err() },
+		"questdb_database":    t.questDB.Ping,
 		"quicknode_api":       t.quickNode.HealthCheck,
 	}
 

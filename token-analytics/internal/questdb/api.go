@@ -29,27 +29,38 @@ func (c *DB) Close(ctx context.Context) error {
 }
 
 func (c *DB) Ping(ctx context.Context) error {
-	return c.db.Ping(ctx)
+	return c.db.Ping(ctx, storage.PingWithoutWriteCheck())
 }
 
-func MustConnect(ctx context.Context, applicationYamlKey string) *DB {
-	var cfg config
-	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
+func mustConnectWithConfig(ctx context.Context, cfg *config) *DB {
 	if !strings.Contains(cfg.QuestDB.WriteURL, "username=") {
 		cfg.QuestDB.WriteURL += fmt.Sprintf(";username=%v", cfg.QuestDB.User)
 	}
 	if !strings.Contains(cfg.QuestDB.WriteURL, "password=") {
 		cfg.QuestDB.WriteURL += fmt.Sprintf(";password=%v", cfg.QuestDB.Password)
 	}
+
 	questdbConn, err := questdb.PoolFromConf(cfg.QuestDB.WriteURL)
 	if err != nil {
 		log.Panic(errors.Wrapf(err, "failed to connect questdb (influx)"))
+	}
+
+	if cfg.QuestDB.PostgresConn != nil {
+		// Skip settings verification for QuestDB Postgres connector as it does not support them all.
+		cfg.QuestDB.PostgresConn.SkipSettingsVerification = true
 	}
 	pgxConn := storage.MustConnectWithCfg(ctx, cfg.QuestDB.PostgresConn, storage.NewStringDDL(ddl))
 	return &DB{
 		db:     pgxConn,
 		writer: questdbConn,
 	}
+}
+
+func MustConnect(ctx context.Context, applicationYamlKey string) *DB {
+	var cfg config
+
+	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
+	return mustConnectWithConfig(ctx, &cfg)
 }
 
 func Write[T StructMarshaller](ctx context.Context, client *DB, items ...T) (err error) {
