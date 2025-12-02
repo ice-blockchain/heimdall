@@ -50,7 +50,7 @@ func TestCreateNewContainer(t *testing.T) {
 		require.NotNil(t, db)
 		t.Log("connected to PG")
 
-		require.NoError(t, db.Ping(t.Context()))
+		require.NoError(t, db.Ping(t.Context(), storage.PingWithoutWriteCheck()))
 		require.NoError(t, db.Close())
 	})
 
