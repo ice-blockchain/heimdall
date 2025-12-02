@@ -13,14 +13,16 @@ type (
 	Config struct {
 		Version    string `yaml:"version"`
 		HTTPServer struct {
-			CertPath string `yaml:"certPath"`
-			KeyPath  string `yaml:"keyPath"`
-			Port     uint32 `yaml:"port"`
+			CertPath      string `yaml:"certPath"`
+			KeyPath       string `yaml:"keyPath"`
+			Port          uint32 `yaml:"port"`
+			XComSecretKey string `yaml:"xcomSecretKey"`
 		} `yaml:"httpServer"`
 		Development bool `yaml:"development"`
 	}
 
 	service struct {
+		cfg            *Config
 		tokenAnalytics ta.TokenAnalytics
 		httpServer     server.Server
 	}

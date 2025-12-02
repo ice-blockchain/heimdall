@@ -71,7 +71,11 @@ func loggerMiddleware() gin.HandlerFunc {
 		}
 
 		if token := authGetToken(c); token != nil {
-			logArgs = append(logArgs, "user_masterkey", token.GetMasterPublicKey())
+			if nostrToken, ok := token.(NostrToken); ok {
+				logArgs = append(logArgs, "user_masterkey", nostrToken.GetMasterPublicKey())
+			} else if xcomToken, ok := token.(XComToken); ok {
+				logArgs = append(logArgs, "user_id", xcomToken.GetUserId())
+			}
 		}
 
 		if errorStr := c.Errors.ByType(gin.ErrorTypePrivate).String(); errorStr != "" {

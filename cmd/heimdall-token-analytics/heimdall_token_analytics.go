@@ -49,6 +49,10 @@ func newContext() context.Context {
 // @in							header
 // @name						Authorization
 // @description				Type "Nostr" followed by a space and your Nostr NIP-42 compatible base64-encoded event.
+// @securityDefinitions.apikey	XCom
+// @in							header
+// @name						Authorization
+// @description				Type "X.com" followed by a space and your X.com JWT token.
 func main() {
 	var srv service
 
@@ -68,6 +72,7 @@ func (s *service) MustStart(ctx context.Context) {
 }
 
 func (s *service) Init(ctx context.Context, cfg *Config) {
+	s.cfg = cfg
 	s.httpServer = server.New(cfg.Server())
 	s.tokenAnalytics = tokenanalytics.New(ctx)
 	s.tokenAnalytics.MustStart(ctx)

@@ -83,6 +83,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -161,6 +164,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -227,6 +233,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -298,6 +307,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -368,6 +380,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -459,6 +474,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -523,6 +541,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -598,6 +619,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -666,6 +690,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -726,6 +753,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -789,6 +819,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -841,6 +874,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -905,6 +941,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -980,6 +1019,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -1048,6 +1090,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -1108,6 +1153,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -1171,6 +1219,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -1223,6 +1274,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -1555,6 +1609,12 @@ const docTemplate = `{
     "securityDefinitions": {
         "Nostr": {
             "description": "Type \"Nostr\" followed by a space and your Nostr NIP-42 compatible base64-encoded event.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        },
+        "XCom": {
+            "description": "Type \"X.com\" followed by a space and your X.com JWT token.",
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"

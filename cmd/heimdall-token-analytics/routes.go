@@ -33,7 +33,9 @@ func (s *service) RegisterRoutes(router gin.IRouter) {
 		AllowCredentials: false,
 	}
 	router.Use(cors.New(corsConfig))
-	router.Use(server.NIP42AuthMiddleware())
+
+	xcomSecretKey := []byte(s.cfg.HTTPServer.XComSecretKey)
+	router.Use(server.AuthMiddleware(xcomSecretKey))
 
 	router.GET("/healthz", s.httpHealthCheckHandler)
 	router.GET("/health-check", s.httpHealthCheckHandler)

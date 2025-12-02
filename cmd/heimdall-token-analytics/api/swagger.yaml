@@ -268,6 +268,7 @@ paths:
             $ref: '#/definitions/server.ResponseErrorBody'
       security:
       - Nostr: []
+      - XCom: []
       tags:
       - Tokens
   /v1/community-tokens/{externalAddressOrViewType}:
@@ -321,6 +322,7 @@ paths:
             $ref: '#/definitions/server.ResponseErrorBody'
       security:
       - Nostr: []
+      - XCom: []
       tags:
       - Tokens
   /v1/community-tokens/{externalAddressOrViewType}/external-data:
@@ -363,6 +365,7 @@ paths:
             $ref: '#/definitions/server.ResponseErrorBody'
       security:
       - Nostr: []
+      - XCom: []
       tags:
       - Tokens
   /v1/community-tokens/{externalAddressOrViewType}/latest-trades:
@@ -410,6 +413,7 @@ paths:
             $ref: '#/definitions/server.ResponseErrorBody'
       security:
       - Nostr: []
+      - XCom: []
       tags:
       - Tokens
   /v1/community-tokens/{externalAddressOrViewType}/viewing-sessions:
@@ -457,6 +461,7 @@ paths:
             $ref: '#/definitions/server.ResponseErrorBody'
       security:
       - Nostr: []
+      - XCom: []
       tags:
       - Tokens
   /v1/community-tokens/{externalAddressOrViewType}/viewing-sessions/{viewingSessionId}:
@@ -519,6 +524,7 @@ paths:
             $ref: '#/definitions/server.ResponseErrorBody'
       security:
       - Nostr: []
+      - XCom: []
       tags:
       - Tokens
   /v1sse/community-tokens:
@@ -562,6 +568,7 @@ paths:
             $ref: '#/definitions/server.ResponseErrorBody'
       security:
       - Nostr: []
+      - XCom: []
       tags:
       - stream
   /v1sse/community-tokens/{externalAddressOrViewType}:
@@ -611,6 +618,7 @@ paths:
             $ref: '#/definitions/server.ResponseErrorBody'
       security:
       - Nostr: []
+      - XCom: []
       tags:
       - stream
   /v1sse/community-tokens/{externalAddressOrViewType}/latest-trades:
@@ -656,6 +664,7 @@ paths:
             $ref: '#/definitions/server.ResponseErrorBody'
       security:
       - Nostr: []
+      - XCom: []
       tags:
       - stream
   /v1sse/community-tokens/{externalAddressOrViewType}/ohlcv:
@@ -696,6 +705,7 @@ paths:
             $ref: '#/definitions/server.ResponseErrorBody'
       security:
       - Nostr: []
+      - XCom: []
       tags:
       - stream
   /v1sse/community-tokens/{externalAddressOrViewType}/top-holders:
@@ -738,6 +748,7 @@ paths:
             $ref: '#/definitions/server.ResponseErrorBody'
       security:
       - Nostr: []
+      - XCom: []
       tags:
       - stream
   /v1sse/community-tokens/{externalAddressOrViewType}/trading-stats:
@@ -771,6 +782,7 @@ paths:
             $ref: '#/definitions/server.ResponseErrorBody'
       security:
       - Nostr: []
+      - XCom: []
       tags:
       - stream
   /v1ws/community-tokens:
@@ -814,6 +826,7 @@ paths:
             $ref: '#/definitions/server.ResponseErrorBody'
       security:
       - Nostr: []
+      - XCom: []
       tags:
       - stream
   /v1ws/community-tokens/{externalAddressOrViewType}:
@@ -863,6 +876,7 @@ paths:
             $ref: '#/definitions/server.ResponseErrorBody'
       security:
       - Nostr: []
+      - XCom: []
       tags:
       - stream
   /v1ws/community-tokens/{externalAddressOrViewType}/latest-trades:
@@ -908,6 +922,7 @@ paths:
             $ref: '#/definitions/server.ResponseErrorBody'
       security:
       - Nostr: []
+      - XCom: []
       tags:
       - stream
   /v1ws/community-tokens/{externalAddressOrViewType}/ohlcv:
@@ -948,6 +963,7 @@ paths:
             $ref: '#/definitions/server.ResponseErrorBody'
       security:
       - Nostr: []
+      - XCom: []
       tags:
       - stream
   /v1ws/community-tokens/{externalAddressOrViewType}/top-holders:
@@ -990,6 +1006,7 @@ paths:
             $ref: '#/definitions/server.ResponseErrorBody'
       security:
       - Nostr: []
+      - XCom: []
       tags:
       - stream
   /v1ws/community-tokens/{externalAddressOrViewType}/trading-stats:
@@ -1023,6 +1040,7 @@ paths:
             $ref: '#/definitions/server.ResponseErrorBody'
       security:
       - Nostr: []
+      - XCom: []
       tags:
       - stream
 schemes:
@@ -1031,6 +1049,11 @@ securityDefinitions:
   Nostr:
     description: Type "Nostr" followed by a space and your Nostr NIP-42 compatible
       base64-encoded event.
+    in: header
+    name: Authorization
+    type: apiKey
+  XCom:
+    description: Type "X.com" followed by a space and your X.com JWT token.
     in: header
     name: Authorization
     type: apiKey
