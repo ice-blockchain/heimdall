@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	swaggerfiles "github.com/swaggo/files"
 	ginswagger "github.com/swaggo/gin-swagger"
@@ -25,6 +26,13 @@ func (s *service) httpHealthCheckHandler(c *gin.Context) {
 }
 
 func (s *service) RegisterRoutes(router gin.IRouter) {
+	corsConfig := cors.Config{
+		AllowOrigins:     []string{"https://x.com", "https://pumpit.now"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "OPTIONS"},
+		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		AllowCredentials: false,
+	}
+	router.Use(cors.New(corsConfig))
 	router.Use(server.NIP42AuthMiddleware())
 
 	router.GET("/healthz", s.httpHealthCheckHandler)
@@ -36,7 +44,7 @@ func (s *service) RegisterRoutes(router gin.IRouter) {
 }
 
 func (s *service) RegisterREST(router gin.IRouter) {
-	tokensV1 := router.Group("/v1/community-tokens", server.CORSMiddleware())
+	tokensV1 := router.Group("/v1/community-tokens")
 
 	tokensV1.GET("/", server.RootHandler(s.GetCommunityTokens))
 	tokensV1.GET("/:externalAddressOrViewType", server.RootHandler(s.GetCommunityTokensByType))
@@ -65,7 +73,7 @@ func (s *service) RegisterStreams(router gin.IRouter) {
 }
 
 func (s *service) RegisterWS(router gin.IRouter) {
-	tokenWebsocketV1 := router.Group("/v1ws/community-tokens", server.CORSMiddleware())
+	tokenWebsocketV1 := router.Group("/v1ws/community-tokens")
 	tokenWebsocketV1.GET("/", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokens)))
 	tokenWebsocketV1.GET("/:externalAddressOrViewType", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokensByType)))
 
