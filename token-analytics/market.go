@@ -316,7 +316,7 @@ func (r *recentCandlestick) Update(priceInUsd float64) {
 	}
 	updated.Close = priceInUsd
 	updated.Volume += priceInUsd
-	r.o.CompareAndSwap(current, &updated)
+	r.o.Store(&updated)
 }
 func (r *recentCandlestick) OHLCV() *OHLCV {
 	return r.o.Load()
