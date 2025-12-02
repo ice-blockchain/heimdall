@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
-	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/redis/go-redis/v9"
@@ -20,7 +19,7 @@ import (
 func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTokenSwapped) error {
 	userAddr := strings.ToLower(ev.Swapper.Hex())
 
-	externalAddress, err := detectIonConnectAddressFromSwap(ev)
+	externalAddress, err := detectExternalAddressFromSwap(ev)
 	if err != nil {
 		return fmt.Errorf("failed to detect external_address from tx.Input: %w", err)
 	}
@@ -71,27 +70,24 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, contractAddress, ev, priceUSD, result.TokenExternalAddress, result.UserExternalAddress, result.TokenType); err != nil {
 		return errors.Wrap(err, "failed to calculate token market data and user position")
 	}
-	if err = t.registerTrade(ctx, tx, ev, ionConnectAddress); err != nil {
-		return fmt.Errorf("failed to save trade in questdb %v ]]: %w", userAddr, err)
+	if err = t.registerTrade(ctx, tx, ev, externalAddress); err != nil {
+		return errors.Wrapf(err, "failed to save trade in questdb %v", userAddr)
 	}
-	select {
-	case t.swaps <- ev:
-	case <-time.After(10 * time.Millisecond): // Just in case if reader get stuck, TODO: remove when we'll have proper subs/notify flow
-	}
+	t.subscriptions.NotifySwap(ev)
 	return nil
 }
 
-func detectIonConnectAddressFromSwap(ev *bondingcurve.LogTokenSwapped) (string, error) {
-	ionConnectAddressParam, ok := ev.Params["toToken"]
+func detectExternalAddressFromSwap(ev *bondingcurve.LogTokenSwapped) (string, error) {
+	externalAddressParam, ok := ev.Params["toToken"]
 	if !ok {
 		return "", fmt.Errorf("failed to extract ion_connect_address from tx.Input: toToken param not found")
 	}
-	ionConnectAddressBytes, ok := ionConnectAddressParam.([]byte)
+	externalAddressParamBytes, ok := externalAddressParam.([]byte)
 	if !ok {
 		return "", fmt.Errorf("failed to extract ion_connect_address from tx.Input: toToken is not bytes")
 	}
-	ionConnectAddress := string(ionConnectAddressBytes)
-	return ionConnectAddress, nil
+	externalAddress := string(externalAddressParamBytes)
+	return externalAddress, nil
 }
 
 func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Context, tx *txEvent, contractAddress string, ev *bondingcurve.LogTokenSwapped, priceUSD float64, tokenExternalAddress, userExternalAddress, tokenType string) error {

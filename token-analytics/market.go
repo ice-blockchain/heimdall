@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
-	"sync"
 	stdlibtime "time"
 
 	"github.com/cockroachdb/errors"
@@ -82,7 +81,9 @@ func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, ev *bon
 		return errors.Wrapf(err, "failed to insert trading data into questdb")
 	}
 	price, _ := priceInUSD.Float64()
-	candleStick, _ := t.ohclvRecentData.LoadOrStore(ionConnectAddress, newRecentCandlestick())
+	candleStick, _ := t.ohclvRecentData.LoadOrCompute(externalAddress, func() (newValue *recentCandlestick, cancel bool) {
+		return newRecentCandlestick(), false
+	})
 	candleStick.Update(price)
 
 	return nil
@@ -131,8 +132,8 @@ func (t *tokenAnalytics) GetOHLVCHistory(ctx context.Context, now, startPoint st
 	return ohlcvs, nil
 }
 
-func (t *tokenAnalytics) GetTradingStats(ctx context.Context, now stdlibtime.Time, ionContentAddress string) (*TradeStats, error) {
-	min5, err := storagev3.Get[TradeStatsAggregate](ctx, t.processedDataDB, tradingStatsCacheKey(ionContentAddress, "5m"))
+func (t *tokenAnalytics) GetTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress string) (*TradeStats, error) {
+	min5, err := storagev3.Get[TradeStatsAggregate](ctx, t.processedDataDB, tradingStatsCacheKey(externalAddress, "5m"))
 	if err != nil || len(min5) == 0 {
 		return t.UpdateTradingStats(ctx, now, externalAddress)
 	}
@@ -194,35 +195,29 @@ func (t *tokenAnalytics) UpdateTradingStats(ctx context.Context, now stdlibtime.
 	return stats, nil
 }
 
-func (t *tokenAnalytics) SubscribeOHLVC(ctx context.Context, now stdlibtime.Time, ionContentAddress string, interval Interval, handler func(*OHLCV, error, ...string)) error {
+func (t *tokenAnalytics) SubscribeOHLVC(ctx context.Context, now stdlibtime.Time, externalAddress string, interval Interval, addToStream func(*OHLCV, error)) error {
 	start := now.Add(-stdlibtime.Duration(interval.WindowSize()))
-	ohlcvs, err := t.GetOHLVCHistory(ctx, now, start, ionContentAddress, interval)
+	ohlcvs, err := t.GetOHLVCHistory(ctx, now, start, externalAddress, interval)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get initial ohlcv data (history)")
 	}
 	for i := range ohlcvs {
-		handler(ohlcvs[i], nil, fmt.Sprintf("ohlcv_%v", ohlcvs[i].Timestamp))
+		addToStream(ohlcvs[i], nil)
 	}
-	swaps := t.subscribeOnSwaps(ionContentAddress)
-	candleStick, _ := t.ohclvRecentData.LoadOrStore(ionContentAddress, newRecentCandlestick())
+	swaps := t.subscriptions.SubscribeOnSwaps(externalAddress)
+	candleStick, _ := t.ohclvRecentData.LoadOrCompute(externalAddress, func() (newValue *recentCandlestick, cancel bool) {
+		return newRecentCandlestick(), false
+	})
 	candleStick.SetInterval(ctx, interval)
 	go func() {
 		for _ = range swaps {
-			rec, ok := t.ohclvRecentData.Load(ionContentAddress)
+			rec, ok := t.ohclvRecentData.Load(externalAddress)
 			if ok {
-				data := rec.OHLCV()
-				handler(data, nil, fmt.Sprintf("ohlcv_%v", data.Timestamp))
+				addToStream(rec.OHLCV(), nil)
 			}
 		}
 	}()
-
 	return nil
-}
-
-func (t *tokenAnalytics) subscribeOnSwaps(ionContentAddress string) <-chan *bondingcurve.LogTokenSwapped {
-	swaps := make(chan *bondingcurve.LogTokenSwapped)
-	t.swapSubs.Store(ionContentAddress, swaps)
-	return swaps
 }
 
 func (t *tokenAnalytics) fetchTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress string) (res *TradeStats, err error) {
@@ -289,9 +284,7 @@ func (t *tokenAnalytics) fetchTradingStats(ctx context.Context, now stdlibtime.T
 	return res, nil
 }
 func newRecentCandlestick() *recentCandlestick {
-	r := &recentCandlestick{
-		mx: new(sync.RWMutex),
-	}
+	r := &recentCandlestick{}
 	r.reset(stdlibtime.Now())
 	return r
 }
@@ -302,31 +295,31 @@ func (o *OHLCV) Empty() bool {
 func (r *recentCandlestick) SetInterval(ctx context.Context, interval Interval) {
 	r.interval = interval
 	now := stdlibtime.Now()
-	if uint64(now.UnixNano())-r.o.Timestamp >= uint64(interval.Duration()) {
+	current := r.o.Load()
+	if uint64(now.UnixNano())-current.Timestamp >= uint64(interval.Duration()) {
 		r.reset(now)
 	}
-	go r.startResetTicker(ctx, interval)
+	r.onceStartTicker.Do(func() { go r.startResetTicker(ctx, interval) })
 }
 
 func (r *recentCandlestick) Update(priceInUsd float64) {
-	r.mx.Lock()
-	defer r.mx.Unlock()
-	if r.o.Empty() {
-		r.o.Open = priceInUsd
+	current := r.o.Load()
+	updated := *current
+	if current.Empty() {
+		updated.Open = priceInUsd
 	}
-	if priceInUsd > r.o.High {
-		r.o.High = priceInUsd
+	if priceInUsd > current.High {
+		updated.High = priceInUsd
 	}
-	if priceInUsd < r.o.Low || r.o.Low == 0 {
-		r.o.Low = priceInUsd
+	if priceInUsd < current.Low || current.Low == 0 {
+		updated.Low = priceInUsd
 	}
-	r.o.Close = priceInUsd
-	r.o.Volume += priceInUsd
+	updated.Close = priceInUsd
+	updated.Volume += priceInUsd
+	r.o.CompareAndSwap(current, &updated)
 }
 func (r *recentCandlestick) OHLCV() *OHLCV {
-	r.mx.RLock()
-	defer r.mx.RUnlock()
-	return r.o
+	return r.o.Load()
 }
 
 func (r *recentCandlestick) startResetTicker(ctx context.Context, interval Interval) {
@@ -345,7 +338,5 @@ func (r *recentCandlestick) startResetTicker(ctx context.Context, interval Inter
 }
 
 func (r *recentCandlestick) reset(now stdlibtime.Time) {
-	r.mx.Lock()
-	defer r.mx.Unlock()
-	r.o = &OHLCV{Open: 0, High: 0, Low: 0, Close: 0, Volume: 0, Timestamp: uint64(now.Truncate(r.interval.Duration()).UnixNano())}
+	r.o.Store(&OHLCV{Open: 0, High: 0, Low: 0, Close: 0, Volume: 0, Timestamp: uint64(now.Truncate(r.interval.Duration()).UnixNano())})
 }

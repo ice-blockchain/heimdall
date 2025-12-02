@@ -92,9 +92,8 @@ func New(ctx context.Context) TokenAnalytics {
 		cfg:                         &cfg,
 		quickNode:                   qn,
 		metrics:                     registry,
-		swaps:                       make(chan *bondingcurve.LogTokenSwapped),
 		ohclvRecentData:             xsync.NewMap[string, *recentCandlestick](),
-		swapSubs:                    xsync.NewMap[string, chan *bondingcurve.LogTokenSwapped](),
+		subscriptions:               newSubscriptions(ctx),
 		shutdown: func() error {
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
@@ -111,8 +110,6 @@ func New(ctx context.Context) TokenAnalytics {
 		log.Panic(errors.Wrapf(err, "failed to sync ion price on startup"))
 	}
 
-	go t.routeSwapsToSubscribers(ctx)
-
 	go t.startIONPriceSyncer(ctx)
 	if true {
 		t.insertDummyDataProcessor(ctx)
@@ -125,28 +122,6 @@ func (t *tokenAnalytics) Close() error {
 	log.Info("all workers stopped")
 
 	return t.shutdown()
-}
-
-func (t *tokenAnalytics) routeSwapsToSubscribers(ctx context.Context) {
-	go func() {
-		<-ctx.Done()
-		close(t.swaps)
-		t.swapSubs.Range(func(key string, value chan *bondingcurve.LogTokenSwapped) bool {
-			close(value)
-			return true
-		})
-	}()
-	for newSwap := range t.swaps {
-		ionAddrOfNewSwap, err := detectIonConnectAddressFromSwap(newSwap)
-		if err != nil {
-			log.Error(errors.Wrapf(err, "failed to detect ion connect address from swap"))
-			continue
-		}
-		dest, ok := t.swapSubs.Load(ionAddrOfNewSwap)
-		if ok {
-			dest <- newSwap
-		}
-	}
 }
 
 func (t *tokenAnalyticsUsers) HealthCheck(ctx context.Context) error {

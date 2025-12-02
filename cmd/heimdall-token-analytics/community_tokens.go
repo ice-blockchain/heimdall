@@ -577,7 +577,7 @@ func (s *service) ohlcvStream(ionContentAddress string, intervalStr string) (ser
 		return nil, errors.Wrapf(err, "invalid interval")
 	}
 	now := time.Now().In(time.UTC)
-	emitter, err := wrapIntoStream[ta.OHLCV](100, func(ctx context.Context, addToStream func(t *ta.OHLCV, err error, id ...string)) error {
+	emitter, err := wrapIntoStream[ta.OHLCV](100, func(ctx context.Context, addToStream func(t *ta.OHLCV, err error)) error {
 		if err := s.tokenAnalytics.SubscribeOHLVC(ctx, now, ionContentAddress, interval, addToStream); err != nil {
 			return errors.Wrapf(err, "failed to subscribe to OHLCV for %v", ionContentAddress)
 		}
@@ -589,26 +589,20 @@ func (s *service) ohlcvStream(ionContentAddress string, intervalStr string) (ser
 	return emitter, nil
 }
 
-func wrapIntoStream[T any](initialBuffer int, impl func(ctx context.Context, addToStream func(t *T, err error, id ...string)) error) (server.StreamEventEmitter[T], error) {
+func wrapIntoStream[T any](initialBuffer int, impl func(ctx context.Context, addToStream func(t *T, err error)) error) (server.StreamEventEmitter[T], error) {
 	events := make(chan server.StreamEvent[T], initialBuffer)
-	addWithWrap := func(t *T, err error, id ...string) {
-		idToSend := ""
-		if len(id) > 0 {
-			idToSend = id[0]
-		}
+	addWithWrap := func(t *T, err error) {
 		if err != nil {
 			events <- server.StreamEvent[T]{
 				Err:  err,
 				Data: nil,
 				Type: "error",
-				ID:   idToSend,
 			}
 			return
 		}
 		events <- server.StreamEvent[T]{
 			Data: t,
 			Type: "message",
-			ID:   idToSend,
 		}
 	}
 	return func(ctx context.Context) (<-chan server.StreamEvent[T], error) {
