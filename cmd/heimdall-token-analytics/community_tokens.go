@@ -143,7 +143,7 @@ func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Requ
 //	@Tags			Tokens
 //	@Produce		json
 //	@Param			externalAddressOrViewType	path		string	true	"View type"			Enums(top,trending,bondingCurveProgress)	example("top")
-//	@Param			type						query		string	false	"Token type filter"	Enums(profile,post,video,article,anyPost)			example("profile")
+//	@Param			type						query		string	false	"Token type filter"	Enums(profile,post,video,article,anyPost)	example("profile")
 //	@Success		200							{object}	SessionViewCreateResponse
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500							{object}	server.ResponseErrorBody
@@ -360,7 +360,7 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 //	@Produce		json
 //	@Param			externalAddressOrViewType	path		string	true	"View type (latest, featured, top, trending, or bondingCurveProgress)"	example("latest","featured","top","trending","bondingCurveProgress")
 //	@Param			viewingSessionId			query		string	false	"Viewing session ID (required for top/trending/bondingCurveProgress)"	example("550e8400-e29b-41d4-a716-446655440000")
-//	@Param			type						query		string	false	"Token type filter (profile, post, video, article, or anyPost)"					example("profile")
+//	@Param			type						query		string	false	"Token type filter (profile, post, video, article, or anyPost)"			example("profile")
 //	@Success		200							{array}		ta.CommunityToken
 //	@Failure		400							{object}	server.ResponseErrorBody
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
