@@ -436,6 +436,7 @@ paths:
         - post
         - video
         - article
+        - anyPost
         example: '"profile"'
         in: query
         name: type
@@ -586,7 +587,7 @@ paths:
         in: query
         name: viewingSessionId
         type: string
-      - description: Token type filter (profile, post, video, or article)
+      - description: Token type filter (profile, post, video, article, or anyPost)
         example: '"profile"'
         in: query
         name: type
@@ -844,7 +845,7 @@ paths:
         in: query
         name: viewingSessionId
         type: string
-      - description: Token type filter (profile, post, video, or article)
+      - description: Token type filter (profile, post, video, article, or anyPost)
         example: '"profile"'
         in: query
         name: type

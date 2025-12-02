@@ -3,7 +3,7 @@
 package tokenanalytics
 
 import (
-	"strings"
+	"fmt"
 	"time"
 )
 
@@ -120,26 +120,69 @@ type (
 )
 
 const (
-	PlatformIonConnect Platform = "ion_connect"
-	PlatformXCom       Platform = "x.com"
+	PlatformIonConnectProfile Platform = "a" // 0x01
+	PlatformIonConnectPost    Platform = "b" // 0x02
+	PlatformIonConnectVideo   Platform = "c" // 0x04
+	PlatformIonConnectArticle Platform = "d" // 0x08
+
+	PlatformXComArticle Platform = "w" // 0x10
+	PlatformXComVideo   Platform = "x" // 0x20
+	PlatformXComPost    Platform = "y" // 0x40
+	PlatformXComProfile Platform = "z" // 0x80
 )
 
-func buildAddressesFromExternalAddress(externalAddress string) Addresses {
-	if externalAddress == "" {
-		return Addresses{}
+func GetPlatformFromExternalAddress(externalAddress string) Platform {
+	if len(externalAddress) < 1 {
+		return ""
 	}
-	if strings.HasPrefix(externalAddress, string(PlatformXCom)+":") {
+	return Platform(externalAddress[0:1])
+}
+
+func IsProfileType(externalAddress string) bool {
+	if len(externalAddress) < 1 {
+		return false
+	}
+	platform := GetPlatformFromExternalAddress(externalAddress)
+
+	return platform == PlatformIonConnectProfile || platform == PlatformXComProfile
+}
+
+func IsContentType(externalAddress string) bool {
+	if len(externalAddress) < 1 {
+		return false
+	}
+	platform := GetPlatformFromExternalAddress(externalAddress)
+	return platform == PlatformIonConnectPost ||
+		platform == PlatformIonConnectVideo ||
+		platform == PlatformIonConnectArticle ||
+		platform == PlatformXComArticle ||
+		platform == PlatformXComVideo ||
+		platform == PlatformXComPost
+}
+
+func buildAddressesFromExternalAddress(externalAddress string) (Addresses, error) {
+	if externalAddress == "" || len(externalAddress) < 1 {
+		return Addresses{}, fmt.Errorf("external_address cannot be empty")
+	}
+	prefix := externalAddress[0:1]
+
+	if prefix == string(PlatformXComProfile) ||
+		prefix == string(PlatformXComPost) ||
+		prefix == string(PlatformXComVideo) ||
+		prefix == string(PlatformXComArticle) {
 		return Addresses{
 			Twitter: externalAddress,
-		}
-	}
-	if strings.HasPrefix(externalAddress, string(PlatformIonConnect)+":") {
-		return Addresses{
-			IonConnect: externalAddress,
-		}
+		}, nil
 	}
 
-	return Addresses{
-		IonConnect: string(PlatformIonConnect) + ":" + externalAddress,
+	if prefix == string(PlatformIonConnectProfile) ||
+		prefix == string(PlatformIonConnectPost) ||
+		prefix == string(PlatformIonConnectVideo) ||
+		prefix == string(PlatformIonConnectArticle) {
+		return Addresses{
+			IonConnect: externalAddress,
+		}, nil
 	}
+
+	return Addresses{}, fmt.Errorf("unknown platform prefix '%s' in external_address: %s", prefix, externalAddress)
 }

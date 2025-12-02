@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/cockroachdb/errors"
-	"github.com/nbd-wtf/go-nostr"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
@@ -62,10 +61,15 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 		return []*TopHolderPosition{}, nil
 	}
 
-	return buildTopHolderPositions(externalAddress, result, rows), nil
+	positions, err := buildTopHolderPositions(externalAddress, result, rows)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to build top holder positions")
+	}
+
+	return positions, nil
 }
 
-func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []*holderWithTokenData) []*TopHolderPosition {
+func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []*holderWithTokenData) ([]*TopHolderPosition, error) {
 	holderDataMap := make(map[string]*holderWithTokenData)
 	for i := range rows {
 		holderDataMap[rows[i].HolderExternalAddress] = rows[i]
@@ -91,13 +95,21 @@ func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []
 		amountUSD := amountTokens * holderData.PriceUSD
 		supplyShare := calculateSupplyShare(amountTokens, totalSupplyFloat)
 
+		creatorAddresses, err := buildAddressesFromExternalAddress(fmt.Sprintf("%s%s", PlatformIonConnectProfile, holderData.CreatorMasterPubkey))
+		if err != nil {
+			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s: %w", holderData.CreatorMasterPubkey, err)
+		}
+		holderAddresses, err := buildAddressesFromExternalAddress(userExternalAddress)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build holder addresses from external_address %s: %w", userExternalAddress, err)
+		}
 		holder := &TopHolderPosition{
 			Creator: User{
 				Username:  holderData.CreatorUsername,
 				Display:   holderData.CreatorDisplay,
 				Verified:  holderData.CreatorVerified,
 				Avatar:    holderData.CreatorAvatar,
-				Addresses: buildAddressesFromExternalAddress(fmt.Sprintf("%v:%s:", nostr.KindProfileMetadata, holderData.CreatorMasterPubkey)),
+				Addresses: creatorAddresses,
 			},
 			Position: HolderPosition{
 				Holder: User{
@@ -106,7 +118,7 @@ func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []
 					Display:      holderData.HolderDisplay,
 					Verified:     holderData.HolderVerified,
 					Avatar:       holderData.HolderAvatar,
-					Addresses:    buildAddressesFromExternalAddress(userExternalAddress),
+					Addresses:    holderAddresses,
 				},
 				Rank:        uint64(rank + 1),
 				Amount:      uint64(amountTokens),
@@ -118,5 +130,5 @@ func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []
 		holders = append(holders, holder)
 	}
 
-	return holders
+	return holders, nil
 }

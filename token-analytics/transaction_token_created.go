@@ -5,13 +5,9 @@ package tokenanalytics
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 
-	"github.com/nbd-wtf/go-nostr"
-
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
-	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/log"
 )
 
@@ -45,34 +41,66 @@ func (t *tokenAnalytics) onTokenCreated(ctx context.Context, contractAddress str
 }
 
 func parseTokenType(externalAddress string) (tokenType, masterPubkeyOrXHandle string, err error) {
-	if strings.HasPrefix(externalAddress, string(PlatformXCom)) {
-		return TokenTypePost, strings.TrimPrefix(externalAddress, string(PlatformXCom)+":"), nil
+	if len(externalAddress) < 1 {
+		return "", "", fmt.Errorf("external address too short: %s", externalAddress)
 	}
-	externalAddress = strings.TrimPrefix(externalAddress, string(PlatformIonConnect)+":")
 
-	parts := strings.Split(externalAddress, ":")
-	if len(parts) < 2 {
-		return "", "", fmt.Errorf("invalid external address format (expected kind:masterpubkey:dtag): %s", externalAddress)
-	}
-	if parts[0] == "" || parts[1] == "" {
-		return "", "", fmt.Errorf("invalid external address format (empty kind or masterpubkey): %s", externalAddress)
-	}
-	masterPubkeyOrXHandle = parts[1]
-	kind, err := strconv.Atoi(parts[0])
-	if err != nil {
-		return "", "", fmt.Errorf("failed to parse kind from external address '%s': %w", externalAddress, err)
-	}
-	switch kind {
-	case nostr.KindProfileMetadata:
-		return TokenTypeProfile, masterPubkeyOrXHandle, nil
-	case nostr.KindTextNote:
-		return TokenTypePost, masterPubkeyOrXHandle, nil
-	case nostr.KindArticle:
-		return TokenTypeArticle, masterPubkeyOrXHandle, nil
-	case model.CustomIONKindEditableTextNote:
-		// TODO: take some type from tx as no other way to detect video?
-		return TokenTypePost, masterPubkeyOrXHandle, nil
+	prefix := externalAddress[0:1]
+
+	switch prefix {
+	case string(PlatformIonConnectProfile):
+		if len(externalAddress) < 2 {
+			return "", "", fmt.Errorf("invalid IonConnect profile format: %s", externalAddress)
+		}
+		return TokenTypeProfile, externalAddress[1:], nil
+	case string(PlatformIonConnectPost):
+		parts := strings.Split(externalAddress[1:], ":")
+		if len(parts) < 2 || parts[1] == "" {
+			return "", "", fmt.Errorf("invalid IonConnect post format: %s", externalAddress)
+		}
+		return TokenTypePost, parts[1], nil
+	case string(PlatformIonConnectVideo):
+		parts := strings.Split(externalAddress[1:], ":")
+		if len(parts) < 2 || parts[1] == "" {
+			return "", "", fmt.Errorf("invalid IonConnect video format: %s", externalAddress)
+		}
+		return TokenTypeVideo, parts[1], nil
+	case string(PlatformIonConnectArticle):
+		parts := strings.Split(externalAddress[1:], ":")
+		if len(parts) < 2 || parts[1] == "" {
+			return "", "", fmt.Errorf("invalid IonConnect article format: %s", externalAddress)
+		}
+		return TokenTypeArticle, parts[1], nil
+	case string(PlatformXComProfile):
+		handle := externalAddress[1:]
+		if handle == "" {
+			return "", "", fmt.Errorf("invalid X.com profile format: %s", externalAddress)
+		}
+
+		return TokenTypeProfile, handle, nil
+	case string(PlatformXComPost):
+		postID := externalAddress[1:]
+		if postID == "" {
+			return "", "", fmt.Errorf("invalid X.com post format: %s", externalAddress)
+		}
+
+		return TokenTypePost, postID, nil
+	case string(PlatformXComVideo):
+		postID := externalAddress[1:]
+		if postID == "" {
+			return "", "", fmt.Errorf("invalid X.com video format: %s", externalAddress)
+		}
+
+		return TokenTypeVideo, postID, nil
+	case string(PlatformXComArticle):
+		postID := externalAddress[1:]
+		if postID == "" {
+			return "", "", fmt.Errorf("invalid X.com article format: %s", externalAddress)
+		}
+
+		return TokenTypeArticle, postID, nil
+
 	default:
-		return "", "", fmt.Errorf("unknown nostr kind %d for external address '%s'", kind, externalAddress)
+		return "", "", fmt.Errorf("unknown platform prefix '%s' in external address: %s", prefix, externalAddress)
 	}
 }

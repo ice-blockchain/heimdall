@@ -221,19 +221,27 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 			marketCap = additionalMetrics[addr]
 		}
 
+		tokenExternalAddresses, err := buildAddressesFromExternalAddress(token.ExternalAddress)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build addresses from external_address %s: %w", token.ExternalAddress, err)
+		}
+		creatorExternalAddresses, err := buildAddressesFromExternalAddress(token.CreatorMasterPubkey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s: %w", token.CreatorMasterPubkey, err)
+		}
 		result = append(result, &CommunityToken{
 			Type:        token.Type,
 			Title:       token.Title,
 			Description: token.Description,
 			ImageURL:    token.ImageURL,
 			CreatedAt:   *token.CreatedAt.Time,
-			Addresses:   buildAddressesFromExternalAddress(token.ExternalAddress),
+			Addresses:   tokenExternalAddresses,
 			Creator: User{
 				Username:  token.CreatorUsername,
 				Display:   token.CreatorDisplay,
 				Verified:  token.CreatorVerified,
 				Avatar:    token.CreatorAvatar,
-				Addresses: buildAddressesFromExternalAddress(token.CreatorMasterPubkey),
+				Addresses: creatorExternalAddresses,
 			},
 			MarketData: MarketData{
 				MarketCap: float64(marketCap),
@@ -317,6 +325,8 @@ func getGlobalSetKey(sessionType string, tokenType *string) (string, error) {
 				return globalTopVideoSetKey, nil
 			case TokenTypeArticle:
 				return globalTopArticleSetKey, nil
+			case TokenTypeAnyPost:
+				return globalTopAnyPostSetKey, nil
 			default:
 				return "", fmt.Errorf("unsupported token type: %s", *tokenType)
 			}
@@ -333,6 +343,8 @@ func getGlobalSetKey(sessionType string, tokenType *string) (string, error) {
 				return globalTrendingVideoSetKey, nil
 			case TokenTypeArticle:
 				return globalTrendingArticleSetKey, nil
+			case TokenTypeAnyPost:
+				return globalTrendingAnyPostSetKey, nil
 			default:
 				return "", fmt.Errorf("unsupported token type: %s", *tokenType)
 			}

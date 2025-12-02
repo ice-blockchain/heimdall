@@ -14,7 +14,7 @@ END $$;
 
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'platform_type') THEN
-        CREATE TYPE platform_type AS ENUM ('ion_connect', 'x.com');
+        CREATE TYPE platform_type AS ENUM ('a', 'b', 'c', 'd', 'z', 'y', 'x', 'w');
     END IF;
 END $$;
 
@@ -36,8 +36,7 @@ CREATE TABLE IF NOT EXISTS users
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users (created_at);
-CREATE INDEX IF NOT EXISTS idx_users_blockchain_address ON users (blockchain_address);
-CREATE INDEX IF NOT EXISTS idx_users_master_pubkey ON users (master_pubkey);
+CREATE INDEX IF NOT EXISTS idx_users_blockchain_address_lower ON users (LOWER(blockchain_address));
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX IF NOT EXISTS idx_users_lookup_gist ON users USING gist (lookup gist_trgm_ops);
 
@@ -170,12 +169,12 @@ CREATE TABLE IF NOT EXISTS tokens (
     created_at              TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at              TIMESTAMP NOT NULL DEFAULT NOW(),
     contract_address        TEXT NOT NULL, -- token contract address (ERC20)
-    external_address        TEXT NOT NULL UNIQUE, -- "ion_connect:30023:pubkey:tag" or "x.com:post_id"
-    platform                platform_type NOT NULL DEFAULT 'ion_connect',
+    external_address        TEXT NOT NULL UNIQUE,
+    platform                platform_type NOT NULL,
     ticker                  TEXT NOT NULL,
     total_supply            uint256 NOT NULL,
     creator_master_pubkey   TEXT,
-    type                    TEXT NOT NULL, -- profile/post/video/article
+    "type"                  TEXT NOT NULL, -- profile/post/video/article/anyPost
     base_token              TEXT,
     pair_id                 TEXT,
     market_cap_usd          usd_amount DEFAULT 0,
@@ -191,6 +190,8 @@ CREATE INDEX IF NOT EXISTS idx_tokens_creator ON tokens (creator_master_pubkey);
 CREATE INDEX IF NOT EXISTS idx_tokens_created_at ON tokens (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_tokens_lookup_gist ON tokens USING gist (lookup gist_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_tokens_platform ON tokens (platform);
+CREATE INDEX IF NOT EXISTS idx_tokens_type ON tokens ("type");
+CREATE INDEX IF NOT EXISTS idx_tokens_contract_address_lower ON tokens (LOWER(contract_address));
 
 CREATE OR REPLACE FUNCTION update_tokens_lookup_on_user_change()
 RETURNS TRIGGER AS $$
@@ -232,7 +233,8 @@ CREATE TABLE IF NOT EXISTS token_swaps (
 
 CREATE INDEX IF NOT EXISTS idx_token_swaps_contract ON token_swaps (contract_address, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_token_swaps_ion_connect ON token_swaps (external_address, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_token_swaps_user_address ON token_swaps (user_address);
+CREATE INDEX IF NOT EXISTS idx_token_swaps_user_address_lower ON token_swaps (LOWER(user_address));
+CREATE INDEX IF NOT EXISTS idx_token_swaps_created_at ON token_swaps (created_at DESC);
 
 CREATE TABLE IF NOT EXISTS user_token_positions (
     updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -341,17 +343,24 @@ $$ LANGUAGE plpgsql;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS token_volumes_24h AS
 SELECT
-    contract_address,
+    ts.contract_address,
+    t.external_address,
+    t."type" as token_type,
     COALESCE(SUM(
         CASE
-            WHEN direction = true THEN input_amount::numeric * price_usd
-            ELSE output_amount::numeric * price_usd
+            WHEN ts.direction = true THEN ts.input_amount::numeric * ts.price_usd
+            ELSE ts.output_amount::numeric * ts.price_usd
         END
     ), 0) as volume_24h,
-    MAX(created_at) as last_updated
-FROM token_swaps
-WHERE created_at >= NOW() - INTERVAL '24 hours'
-GROUP BY contract_address;
+    MAX(ts.created_at) as last_updated
+FROM token_swaps ts
+JOIN tokens t ON t.contract_address = ts.contract_address
+WHERE ts.created_at >= NOW() - INTERVAL '24 hours'
+GROUP BY ts.contract_address, t.external_address, t."type";
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_token_volumes_24h_contract ON token_volumes_24h (contract_address);
+CREATE INDEX IF NOT EXISTS idx_token_volumes_24h_volume ON token_volumes_24h (volume_24h DESC);
+CREATE INDEX IF NOT EXISTS idx_token_volumes_24h_external ON token_volumes_24h (external_address);
 
 CREATE OR REPLACE FUNCTION refresh_token_volumes_24h()
 RETURNS void AS $$
@@ -367,6 +376,7 @@ CREATE TABLE IF NOT EXISTS base_token_prices (
     updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
     PRIMARY KEY (token_address)
 );
+CREATE INDEX IF NOT EXISTS idx_base_token_prices_symbol ON base_token_prices (token_symbol);
 
 CREATE TABLE IF NOT EXISTS base_token_price_history (
     created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -528,6 +538,7 @@ DECLARE
     v_external_address TEXT;
     v_external_address_raw TEXT;
     v_platform platform_type;
+    v_platform_prefix TEXT;
     v_total_supply NUMERIC;
     v_creator_master_pubkey TEXT;
     v_token_type TEXT;
@@ -551,63 +562,109 @@ BEGIN
         RETURN;
     END IF;
     
-    IF substring(v_external_address_raw, 1, 12) = 'ion_connect:' THEN
-        v_platform := 'ion_connect';
-        v_external_address := v_external_address_raw;
-        v_parts := string_to_array(substring(v_external_address_raw from 13), ':'); -- skip "ion_connect:"
-        IF array_length(v_parts, 1) >= 2 THEN
-            v_kind := v_parts[1]::INT;
-            v_creator_master_pubkey := v_parts[2];
-            
-            CASE v_kind
-                WHEN 0 THEN v_token_type := 'profile';
-                WHEN 1 THEN v_token_type := 'post';
-                WHEN 30023 THEN v_token_type := 'article';
-                WHEN 30175 THEN v_token_type := 'post';
-                ELSE
-                    RAISE WARNING 'Invalid nostr kind % in external_address %, skipping token creation', v_kind, v_external_address;
-                    RETURN;
-            END CASE;
+    -- Parse platform and type from prefix (a, b, c, d for IonConnect; z, y, x, w for X.com)
+    v_platform_prefix := substring(v_external_address_raw, 1, 1);
+    
+    CASE v_platform_prefix
+        WHEN 'a' THEN
+            v_platform := 'a';
+            v_token_type := 'profile';
+            v_external_address := v_external_address_raw;
+            v_creator_master_pubkey := substring(v_external_address_raw from 2);
+            IF v_creator_master_pubkey = '' THEN
+                RAISE WARNING 'Failed to parse IonConnect profile from %, skipping token creation', v_external_address_raw;
+                RETURN;
+            END IF;
+        WHEN 'b' THEN
+            v_platform := 'b';
+            v_token_type := 'post';
+            v_external_address := v_external_address_raw;
+            v_parts := string_to_array(substring(v_external_address_raw from 2), ':'); -- skip "b"
+            IF array_length(v_parts, 1) >= 2 THEN
+                v_creator_master_pubkey := v_parts[2];
+            ELSE
+                RAISE WARNING 'Failed to parse IonConnect post from %, skipping token creation', v_external_address_raw;
+                RETURN;
+            END IF;
+        WHEN 'c' THEN
+            v_platform := 'c';
+            v_token_type := 'video';
+            v_external_address := v_external_address_raw;
+            v_parts := string_to_array(substring(v_external_address_raw from 2), ':'); -- skip "c"
+            IF array_length(v_parts, 1) >= 2 THEN
+                v_creator_master_pubkey := v_parts[2];
+            ELSE
+                RAISE WARNING 'Failed to parse IonConnect video from %, skipping token creation', v_external_address_raw;
+                RETURN;
+            END IF;
+        
+        WHEN 'd' THEN
+            v_platform := 'd';
+            v_token_type := 'article';
+            v_external_address := v_external_address_raw;
+            v_parts := string_to_array(substring(v_external_address_raw from 2), ':'); -- skip "d"
+            IF array_length(v_parts, 1) >= 2 THEN
+                v_creator_master_pubkey := v_parts[2];
+            ELSE
+                RAISE WARNING 'Failed to parse IonConnect article from %, skipping token creation', v_external_address_raw;
+                RETURN;
+            END IF;
+        WHEN 'z' THEN
+            v_platform := 'z';
+            v_token_type := 'profile';
+            v_external_address := v_external_address_raw;
+        WHEN 'y' THEN
+            v_platform := 'y';
+            v_token_type := 'post';
+            v_external_address := v_external_address_raw;
+        WHEN 'x' THEN
+            v_platform := 'x';
+            v_token_type := 'video';
+            v_external_address := v_external_address_raw;
+        WHEN 'w' THEN
+            v_platform := 'w';
+            v_token_type := 'article';
+            v_external_address := v_external_address_raw;
+        
         ELSE
-            RAISE WARNING 'Failed to parse ion_connect parts from %, skipping token creation', v_external_address;
+            RAISE WARNING 'Invalid external address format (unknown prefix ''%''): %, skipping token creation', v_platform_prefix, v_external_address_raw;
             RETURN;
-        END IF;
-    ELSIF substring(v_external_address_raw, 1, 6) = 'x.com:' THEN
-        v_platform := 'x.com';
-        v_external_address := v_external_address_raw;
-        v_token_type := 'post';
-    ELSE
-        RAISE WARNING 'Invalid external address format (no valid prefix): %, skipping token creation', v_external_address_raw;
-        RETURN;
-    END IF;
+    END CASE;
     IF v_token_type IS NULL THEN
         RAISE WARNING 'Failed to determine token type for %, skipping token creation', v_external_address;
         RETURN;
     END IF;
     
-    IF v_creator_master_pubkey IS NOT NULL AND v_creator_master_pubkey != '' THEN
+    WITH user_data AS (
         SELECT 
-            COALESCE(username, ''),
-            COALESCE(display_name, '')
-        INTO v_username, v_display_name
+            username,
+            COALESCE(display_name, '') as display_name
         FROM users
-        WHERE master_pubkey = v_creator_master_pubkey;
-    END IF;
-    
-    v_lookup_value := LOWER(TRIM(
-        COALESCE(v_token_address, '') || ' ' ||
-        COALESCE(v_username, '') || ' ' ||
-        COALESCE(v_display_name, '')
-    ));
-    
+        WHERE master_pubkey = v_creator_master_pubkey
+        LIMIT 1
+    )
     INSERT INTO tokens (
         created_at, updated_at, contract_address, external_address, platform,
         ticker, total_supply, creator_master_pubkey, type, lookup, log_index
     )
-    VALUES (
-        p_block_timestamp, p_block_timestamp, v_token_address, v_external_address, v_platform,
-        COALESCE(v_username, ''), v_total_supply, v_creator_master_pubkey, v_token_type, v_lookup_value, p_log_index
-    )
+    SELECT 
+        p_block_timestamp,
+        p_block_timestamp,
+        v_token_address,
+        v_external_address,
+        v_platform,
+        u.username,
+        v_total_supply,
+        v_creator_master_pubkey,
+        v_token_type,
+        LOWER(TRIM(
+            COALESCE(v_token_address, '') || ' ' ||
+            u.username || ' ' ||
+            COALESCE(u.display_name, '')
+        )),
+        p_log_index
+    FROM (SELECT 1) dummy
+    LEFT JOIN user_data u ON v_creator_master_pubkey IS NOT NULL AND v_creator_master_pubkey != ''
     ON CONFLICT (external_address) DO UPDATE SET
         updated_at = EXCLUDED.updated_at,
         total_supply = EXCLUDED.total_supply,
@@ -640,7 +697,7 @@ BEGIN
     v_other_token := LOWER('0x' || substring(p_topics[4] from 27 for 40));
 
     UPDATE tokens
-    SET base_token = v_base_token,pair_id = v_pair_id, updated_at = p_block_timestamp
+    SET base_token = v_base_token, pair_id = v_pair_id, updated_at = p_block_timestamp
     WHERE LOWER(contract_address) = v_other_token;
 
     RAISE DEBUG 'PairRegistered processed: token=%, baseToken=%', v_other_token, v_base_token;
@@ -693,13 +750,23 @@ BEGIN
         RETURN;
     END IF;
 
-    SELECT contract_address, base_token INTO v_token_address, v_other_token
-    FROM tokens
-    WHERE external_address = v_token_external_address
-    FOR UPDATE;
+    SELECT 
+        t.contract_address,
+        t.base_token,
+        bp.price_usd
+    INTO v_token_address, v_other_token, v_ion_price_usd
+    FROM tokens t
+    CROSS JOIN base_token_prices bp
+    WHERE t.external_address = v_token_external_address
+        AND bp.token_symbol = 'ION'; -- TODO: handle other tokens.
     
     IF v_token_address IS NULL THEN
         RAISE WARNING 'Token with external_address % not found, skipping swap', v_token_external_address;
+        RETURN;
+    END IF;
+
+    IF v_ion_price_usd IS NULL THEN
+        RAISE WARNING 'ION price not found, skipping swap for tx %', p_transaction_hash;
         RETURN;
     END IF;
 
@@ -709,16 +776,6 @@ BEGIN
     END IF;
 
     v_user_address := v_swapper;
-
-    SELECT price_usd INTO v_ion_price_usd -- Get ION price
-    FROM base_token_prices
-    WHERE token_symbol = 'ION'
-    LIMIT 1;
-
-    IF v_ion_price_usd IS NULL THEN
-        RAISE WARNING 'ION price not found, skipping swap for tx %', p_transaction_hash;
-        RETURN;
-    END IF;
 
     IF v_input_amount = 0 OR v_output_amount = 0 THEN
         RAISE WARNING 'Invalid swap amounts (input=%, output=%) for tx %, skipping', v_input_amount, v_output_amount, p_transaction_hash;

@@ -69,6 +69,7 @@ const (
 	TokenTypePost    = "post"
 	TokenTypeArticle = "article"
 	TokenTypeVideo   = "video"
+	TokenTypeAnyPost = "anyPost"
 
 	TokenTypeLatest               = "latest"
 	TokenTypeFeatured             = "featured"
@@ -111,11 +112,13 @@ const (
 	globalTopPostSetKey    = "token_analytics:global:top:post"
 	globalTopVideoSetKey   = "token_analytics:global:top:video"
 	globalTopArticleSetKey = "token_analytics:global:top:article"
+	globalTopAnyPostSetKey = "token_analytics:global:top:anyPost"
 
 	globalTrendingProfileSetKey = "token_analytics:global:trending:profile"
 	globalTrendingPostSetKey    = "token_analytics:global:trending:post"
 	globalTrendingVideoSetKey   = "token_analytics:global:trending:video"
 	globalTrendingArticleSetKey = "token_analytics:global:trending:article"
+	globalTrendingAnyPostSetKey = "token_analytics:global:trending:anyPost"
 
 	userSessionKeyPrefix    = "token_analytics:session:%s:%s"  // {type}:{sessionID}
 	userIdentifierMapPrefix = "token_analytics:user_map:%s:%s" // {type}:{IP:DeviceKey} -> sessionID

@@ -15,9 +15,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
+	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 )
@@ -28,7 +30,7 @@ func (t *tokenAnalytics) insertDummyDataProcessor(ctx context.Context) {
 	err := t.generateToken(ctx, stream, &tokenRow{
 		ContractAddress:     "7307ea7ab4a7e5bcba1bf18c9495d08107d9f0d8",
 		CreatorMasterPubkey: "9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f",
-		ExternalAddress:     "ion_connect:0:9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f:",
+		ExternalAddress:     "a9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f",
 		Title:               "Yu's token",
 		Ticker:              "posidoniusenara",
 		TotalSupply:         "1000000000000000000000000",
@@ -105,8 +107,22 @@ func (t *tokenAnalytics) startNewTokenGenerator(ctx context.Context, stream stri
 				kinds := []int{0, 30023, 30023, 30175}
 				kind := kinds[rand.Intn(len(kinds)-1)]
 				dTag := uuid.NewString()
-				if kind == 0 {
+
+				var externalAddress string
+				var platformPrefix Platform
+				if kind == nostr.KindProfileMetadata {
 					dTag = ""
+					platformPrefix = PlatformIonConnectProfile
+					externalAddress = fmt.Sprintf("%s%s", platformPrefix, master)
+				} else if kind == nostr.KindArticle {
+					platformPrefix = PlatformIonConnectArticle
+					externalAddress = fmt.Sprintf("%s%d:%s:%s", platformPrefix, kind, master, dTag)
+				} else if kind == model.CustomIONKindEditableTextNote {
+					platformPrefix = PlatformIonConnectPost
+					externalAddress = fmt.Sprintf("%s%d:%s:%s", platformPrefix, kind, master, dTag)
+				} else {
+					platformPrefix = PlatformIonConnectPost
+					externalAddress = fmt.Sprintf("%s%d:%s:%s", platformPrefix, kind, master, dTag)
 				}
 				names := []string{
 					"Super Duper Token",
@@ -119,7 +135,7 @@ func (t *tokenAnalytics) startNewTokenGenerator(ctx context.Context, stream stri
 				tok := &tokenRow{
 					ContractAddress:     generateDummyContractAddress(),
 					CreatorMasterPubkey: master,
-					ExternalAddress:     fmt.Sprintf("ion_connect:%v:%v:%v", kind, master, dTag),
+					ExternalAddress:     externalAddress,
 					Title:               displayName,
 					Ticker:              symbol,
 					TotalSupply:         "1000000000000000000" + strings.Repeat("0", rand.Intn(8)+1),
@@ -269,7 +285,7 @@ func (t *tokenAnalytics) generateBuyOrSellBatch(ctx context.Context, stream stri
 	fullData := fmt.Sprintf(`{"stream": "%[1]v", "transactions": [`+strings.Join(txsForBlock, ",")+`]}`, stream)
 	sql := `INSERT INTO smart_contract_transactions(from_block_number, to_block_number, network, stream_id, data)
 			VALUES ($1, $1, 'bsc-testnet-dummy', $2, $3::JSONB)`
-	_, err := storage.Exec(ctx, t.ingestedDataDB, sql, t.dummyInsertBlockIdx, stream, fullData)
+	_, err := storage.Exec(ctx, t.ingestedDataDB, sql, blockNum, stream, fullData)
 	return errors.Wrapf(err, "failed to insert dummy tx data")
 }
 
@@ -280,6 +296,9 @@ func (t *tokenAnalytics) generateToken(ctx context.Context, stream string, row *
 	ownerBlockchainAddr := mustRandomHex(20)
 	ownerMasterKey := row.CreatorMasterPubkey
 	err := t.createUser(ctx, "0x"+ownerBlockchainAddr, ownerMasterKey)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create user for token generation")
+	}
 	base, _ := hex.DecodeString(strings.TrimPrefix(t.cfg.IONTokenAddress, "0x"))
 	totalSupply, _ := new(big.Int).SetString(row.TotalSupply, 10)
 	txInput, err := bondingcurve.ABI.Methods["swap"].Inputs.Pack(
@@ -502,7 +521,7 @@ func (t *tokenAnalytics) createUser(ctx context.Context, blockchainAddress strin
 	verified := rand.Intn(2) == 0
 	lookup := strings.ToLower(strings.TrimSpace(username + " " + displayName))
 	ionConnectRelays := []string{"wss://141.95.59.70:4443", "wss://181.41.142.217:4443", "wss://94.100.16.233:4443"}
-	externalAddress := fmt.Sprintf("%s:%s", PlatformIonConnect, masterPubkey)
+	externalAddress := fmt.Sprintf("%s%s", PlatformIonConnectProfile, masterPubkey)
 	_, err := storage.Exec(ctx, t.ingestedDataDB, `
 		INSERT INTO users (
 			created_at, updated_at, id, master_pubkey, blockchain_address, external_address, username, 

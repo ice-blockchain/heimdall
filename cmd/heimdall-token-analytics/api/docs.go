@@ -342,7 +342,8 @@ const docTemplate = `{
                             "profile",
                             "post",
                             "video",
-                            "article"
+                            "article",
+                            "anyPost"
                         ],
                         "type": "string",
                         "example": "\"profile\"",
@@ -576,7 +577,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "example": "\"profile\"",
-                        "description": "Token type filter (profile, post, video, or article)",
+                        "description": "Token type filter (profile, post, video, article, or anyPost)",
                         "name": "type",
                         "in": "query"
                     }
@@ -976,7 +977,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "example": "\"profile\"",
-                        "description": "Token type filter (profile, post, video, or article)",
+                        "description": "Token type filter (profile, post, video, article, or anyPost)",
                         "name": "type",
                         "in": "query"
                     }
