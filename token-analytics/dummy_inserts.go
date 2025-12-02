@@ -113,16 +113,16 @@ func (t *tokenAnalytics) startNewTokenGenerator(ctx context.Context, stream stri
 				if kind == nostr.KindProfileMetadata {
 					dTag = ""
 					platformPrefix = PlatformIonConnectProfile
-					externalAddress = fmt.Sprintf("%s%s", platformPrefix, master)
+					externalAddress = BuildProfileExternalAddress(master)
 				} else if kind == nostr.KindArticle {
 					platformPrefix = PlatformIonConnectArticle
-					externalAddress = fmt.Sprintf("%s%d:%s:%s", platformPrefix, kind, master, dTag)
+					externalAddress = BuildContentExternalAddress(platformPrefix, kind, master, dTag)
 				} else if kind == model.CustomIONKindEditableTextNote {
 					platformPrefix = PlatformIonConnectPost
-					externalAddress = fmt.Sprintf("%s%d:%s:%s", platformPrefix, kind, master, dTag)
+					externalAddress = BuildContentExternalAddress(platformPrefix, kind, master, dTag)
 				} else {
 					platformPrefix = PlatformIonConnectPost
-					externalAddress = fmt.Sprintf("%s%d:%s:%s", platformPrefix, kind, master, dTag)
+					externalAddress = BuildContentExternalAddress(platformPrefix, kind, master, dTag)
 				}
 				names := []string{
 					"Super Duper Token",

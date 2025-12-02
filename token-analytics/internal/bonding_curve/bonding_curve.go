@@ -112,7 +112,7 @@ func pairRegistered(signature, data, pairIdTopic, baseTokenTopic, otherTokenTopi
 		if err := decode(ABI, &pairRegisteredEvent, "PairRegistered", data); err != nil {
 			return nil, errors.Wrapf(err, "failed to unpack PairRegistered event")
 		}
-		log.Info(fmt.Sprintf("Pair registered:%+v ", pairRegisteredEvent))
+		log.Debug(fmt.Sprintf("Pair registered: pairId=%x, baseToken=%s, otherToken=%s", pairRegisteredEvent.PairId, pairRegisteredEvent.BaseToken.Hex(), pairRegisteredEvent.OtherToken.Hex()))
 		return &pairRegisteredEvent, nil
 	}
 	log.Info("Pair registered (empty data, all params indexed)")
@@ -178,7 +178,7 @@ func recipientsSet(signature, data string) (*LogRecipientsSet, error) {
 	if err := decode(ABI, &recipientsSetEvent, "RecipientsSet", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack RecipientsSet event")
 	}
-	log.Info(fmt.Sprintf("Recipients set:%+v ", recipientsSetEvent))
+	log.Debug(fmt.Sprintf("Recipients set: pairId=%x, creator=%s", recipientsSetEvent.PairId, recipientsSetEvent.Creator.Hex()))
 
 	return &recipientsSetEvent, nil
 }
@@ -194,7 +194,7 @@ func feeAccrued(signature, data string) (*LogFeeAccrued, error) {
 	if err := decode(ABI, &feeAccruedEvent, "FeeAccrued", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack FeeAccrued event")
 	}
-	log.Info(fmt.Sprintf("Fee accrued:%+v ", feeAccruedEvent))
+	log.Debug(fmt.Sprintf("Fee accrued: pairId=%x", feeAccruedEvent.PairId))
 
 	return &feeAccruedEvent, nil
 }
@@ -210,7 +210,7 @@ func feeTransfer(signature, data string) (*LogFeeTransfer, error) {
 	if err := decode(ABI, &feeTransferEvent, "FeeTransfer", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack FeeTransfer event")
 	}
-	log.Info(fmt.Sprintf("Fee transfer:%+v ", feeTransferEvent))
+	log.Debug(fmt.Sprintf("Fee transfer: pairId=%x", feeTransferEvent.PairId))
 
 	return &feeTransferEvent, nil
 }
@@ -226,7 +226,7 @@ func migrated(signature, data string) (*LogMigrated, error) {
 	if err := decode(ABI, &migratedEvent, "Migrated", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack Migrated event")
 	}
-	log.Info(fmt.Sprintf("Migrated:%+v ", migratedEvent))
+	log.Debug(fmt.Sprintf("Migrated: pairId=%x", migratedEvent.PairId))
 
 	return &migratedEvent, nil
 }
@@ -242,7 +242,7 @@ func liquidityClaimed(signature, data string) (*LogLiquidityClaimed, error) {
 	if err := decode(ABI, &liquidityClaimedEvent, "LiquidityClaimed", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack LiquidityClaimed event")
 	}
-	log.Info(fmt.Sprintf("Liquidity claimed:%+v ", liquidityClaimedEvent))
+	log.Debug(fmt.Sprintf("Liquidity claimed: pairId=%x", liquidityClaimedEvent.PairId))
 
 	return &liquidityClaimedEvent, nil
 }

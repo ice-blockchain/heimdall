@@ -95,7 +95,7 @@ func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []
 		amountUSD := amountTokens * holderData.PriceUSD
 		supplyShare := calculateSupplyShare(amountTokens, totalSupplyFloat)
 
-		creatorAddresses, err := buildAddressesFromExternalAddress(fmt.Sprintf("%s%s", PlatformIonConnectProfile, holderData.CreatorMasterPubkey))
+		creatorAddresses, err := buildAddressesFromExternalAddress(BuildProfileExternalAddress(holderData.CreatorMasterPubkey))
 		if err != nil {
 			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s: %w", holderData.CreatorMasterPubkey, err)
 		}

@@ -81,7 +81,7 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 		}
 
 		if row.PositionAmountUSD > 0 {
-			externalAddress := fmt.Sprintf("%s%s", PlatformIonConnectProfile, requestorMasterPubkey)
+			externalAddress := BuildProfileExternalAddress(requestorMasterPubkey)
 			position, err := t.getUserTokenPositionRanking(ctx, externalAddress, row.ExternalAddress, row.PositionAmountUSD, row.PositionTotalInvestedUSD)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get user position ranking for token %v", row.ExternalAddress)
@@ -94,7 +94,7 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 		if err != nil {
 			return nil, fmt.Errorf("failed to build addresses from external_address %s: %w", row.ExternalAddress, err)
 		}
-		creatorAddresses, err := buildAddressesFromExternalAddress(fmt.Sprintf("%s%s", PlatformIonConnectProfile, row.CreatorMasterPubkey))
+		creatorAddresses, err := buildAddressesFromExternalAddress(BuildProfileExternalAddress(row.CreatorMasterPubkey))
 		if err != nil {
 			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s: %w", row.CreatorMasterPubkey, err)
 		}
@@ -215,7 +215,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopHolders(ctx context.Context, e
 			TopHolders: topHolders,
 		}
 		if row.PositionAmountUSD > 0 {
-			externalAddress := fmt.Sprintf("%s%s", PlatformIonConnectProfile, requestorMasterPubkey)
+			externalAddress := BuildProfileExternalAddress(requestorMasterPubkey)
 			position, err := t.getUserTokenPositionRanking(ctx, externalAddress, row.ExternalAddress, row.PositionAmountUSD, row.PositionTotalInvestedUSD)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get user position ranking for token %v", row.ExternalAddress)
@@ -230,7 +230,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopHolders(ctx context.Context, e
 		}
 		creatorIONConnect := ""
 		if row.CreatorMasterPubkey != "" {
-			creatorIONConnect = fmt.Sprintf("%s%s", PlatformIonConnectProfile, row.CreatorMasterPubkey)
+			creatorIONConnect = BuildProfileExternalAddress(row.CreatorMasterPubkey)
 		}
 		creatorAddresses, err := buildAddressesFromExternalAddress(creatorIONConnect)
 		if err != nil {
@@ -327,7 +327,7 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 		if err != nil {
 			return nil, fmt.Errorf("failed to build addresses from external_address %s: %w", row.ExternalAddress, err)
 		}
-		creatorAddresses, err := buildAddressesFromExternalAddress(fmt.Sprintf("%s%s", PlatformIonConnectProfile, row.CreatorMasterPubkey))
+		creatorAddresses, err := buildAddressesFromExternalAddress(BuildProfileExternalAddress(row.CreatorMasterPubkey))
 		if err != nil {
 			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s: %w", row.CreatorMasterPubkey, err)
 		}
@@ -415,7 +415,7 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 		if err != nil {
 			return nil, fmt.Errorf("failed to build addresses from external_address %s: %w", row.ExternalAddress, err)
 		}
-		creatorAddresses, err := buildAddressesFromExternalAddress(fmt.Sprintf("%s%s", PlatformIonConnectProfile, row.CreatorMasterPubkey))
+		creatorAddresses, err := buildAddressesFromExternalAddress(BuildProfileExternalAddress(row.CreatorMasterPubkey))
 		if err != nil {
 			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s: %w", row.CreatorMasterPubkey, err)
 		}
@@ -540,10 +540,10 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, ionConnectAddress 
 		}
 		var creatorIONConnect, holderIONConnect = "", ""
 		if swaps[i].CreatorMasterPubkey != "" {
-			creatorIONConnect = fmt.Sprintf("%s%s", PlatformIonConnectProfile, swaps[i].CreatorMasterPubkey)
+			creatorIONConnect = BuildProfileExternalAddress(swaps[i].CreatorMasterPubkey)
 		}
 		if swaps[i].HolderMasterPubkey != "" {
-			holderIONConnect = fmt.Sprintf("%s%s", PlatformIonConnectProfile, swaps[i].HolderMasterPubkey)
+			holderIONConnect = BuildProfileExternalAddress(swaps[i].HolderMasterPubkey)
 		}
 		var tokenAmount uint64
 		var typ TradeType

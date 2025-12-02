@@ -570,8 +570,11 @@ BEGIN
             v_platform := 'a';
             v_token_type := 'profile';
             v_external_address := v_external_address_raw;
-            v_creator_master_pubkey := substring(v_external_address_raw from 2);
-            IF v_creator_master_pubkey = '' THEN
+            -- Format: a0:{master}:
+            v_parts := string_to_array(substring(v_external_address_raw from 2), ':'); -- skip "a"
+            IF array_length(v_parts, 1) >= 2 THEN
+                v_creator_master_pubkey := v_parts[2]; -- [1]=kind, [2]=master
+            ELSE
                 RAISE WARNING 'Failed to parse IonConnect profile from %, skipping token creation', v_external_address_raw;
                 RETURN;
             END IF;
@@ -625,7 +628,6 @@ BEGIN
             v_platform := 'w';
             v_token_type := 'article';
             v_external_address := v_external_address_raw;
-        
         ELSE
             RAISE WARNING 'Invalid external address format (unknown prefix ''%''): %, skipping token creation', v_platform_prefix, v_external_address_raw;
             RETURN;

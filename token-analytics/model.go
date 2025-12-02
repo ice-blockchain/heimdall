@@ -4,6 +4,7 @@ package tokenanalytics
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 )
 
@@ -136,6 +137,16 @@ func GetPlatformFromExternalAddress(externalAddress string) Platform {
 		return ""
 	}
 	return Platform(externalAddress[0:1])
+}
+
+// Format: a0:{master}:
+func BuildProfileExternalAddress(master string) string {
+	return string(PlatformIonConnectProfile) + "0:" + master + ":"
+}
+
+// Format: {platformPrefix}{kind}:{master}:{dTag}
+func BuildContentExternalAddress(platform Platform, kind int, master, dTag string) string {
+	return string(platform) + strconv.Itoa(kind) + ":" + master + ":" + dTag
 }
 
 func IsProfileType(externalAddress string) bool {
