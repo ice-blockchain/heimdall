@@ -36,7 +36,7 @@ func (s *service) RegisterRoutes(router gin.IRouter) {
 }
 
 func (s *service) RegisterREST(router gin.IRouter) {
-	tokensV1 := router.Group("/v1/community-tokens")
+	tokensV1 := router.Group("/v1/community-tokens", server.CORSMiddleware())
 
 	tokensV1.GET("/", server.RootHandler(s.GetCommunityTokens))
 	tokensV1.GET("/:externalAddressOrViewType", server.RootHandler(s.GetCommunityTokensByType))
@@ -65,7 +65,7 @@ func (s *service) RegisterStreams(router gin.IRouter) {
 }
 
 func (s *service) RegisterWS(router gin.IRouter) {
-	tokenWebsocketV1 := router.Group("/v1ws/community-tokens")
+	tokenWebsocketV1 := router.Group("/v1ws/community-tokens", server.CORSMiddleware())
 	tokenWebsocketV1.GET("/", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokens)))
 	tokenWebsocketV1.GET("/:externalAddressOrViewType", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokensByType)))
 
