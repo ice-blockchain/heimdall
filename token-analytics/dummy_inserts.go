@@ -61,7 +61,7 @@ func (t *tokenAnalytics) insertDummyDataProcessor(ctx context.Context) {
 			price_usd,
 		    holders_count
 		FROM tokens
-		ORDER BY created_at DESC LIMIT 100
+		ORDER BY created_at DESC LIMIT 5
 	`)
 	if err != nil {
 		log.Error(errors.Wrapf(err, "failed to get token data for dummy tx generation"))
@@ -75,14 +75,32 @@ func (t *tokenAnalytics) insertDummyDataProcessor(ctx context.Context) {
 
 func (t *tokenAnalytics) startNewTokenGenerator(ctx context.Context, stream string) {
 	ticker := time.NewTicker(60 * time.Second)
+	fire := make(chan struct{}, 1)
+
 	go func() {
 		defer ticker.Stop()
+
 		for ctx.Err() == nil {
 			select {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				insCtx, insCancel := context.WithTimeout(ctx, 4500*time.Millisecond)
+				select {
+				case fire <- struct{}{}:
+				default:
+					log.Info(fmt.Sprintf("skipping new token generation on stream %v, previous generation still in progress", stream))
+				}
+			}
+		}
+	}()
+
+	go func() {
+		for ctx.Err() == nil {
+			select {
+			case <-ctx.Done():
+				return
+			case <-fire:
+				insCtx, insCancel := context.WithTimeout(ctx, time.Second*10)
 				master := mustRandomHex(32)
 				kinds := []int{0, 30023, 30023, 30175}
 				kind := kinds[rand.Intn(len(kinds)-1)]
@@ -121,14 +139,32 @@ func (t *tokenAnalytics) startNewTokenGenerator(ctx context.Context, stream stri
 
 func (t *tokenAnalytics) startBuysOrSellsProcessor(ctx context.Context, tokenData *tokenRow, stream string) {
 	ticker := time.NewTicker(5 * time.Second)
+	fire := make(chan struct{}, 1)
+
 	go func() {
 		defer ticker.Stop()
+
 		for ctx.Err() == nil {
 			select {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				insCtx, insCancel := context.WithTimeout(ctx, 4500*time.Millisecond)
+				select {
+				case fire <- struct{}{}:
+				default:
+					log.Info(fmt.Sprintf("skipping new buy/sell generation on stream %v for token %v, previous generation still in progress", stream, tokenData.ContractAddress))
+				}
+			}
+		}
+	}()
+
+	go func() {
+		for ctx.Err() == nil {
+			select {
+			case <-ctx.Done():
+				return
+			case <-fire:
+				insCtx, insCancel := context.WithTimeout(ctx, time.Second*10)
 				if err := t.generateBuyOrSellBatch(insCtx, stream, tokenData); err != nil {
 					log.Error(errors.Wrapf(err, "failed to insert dummy tx data"))
 				}
@@ -141,7 +177,7 @@ func (t *tokenAnalytics) startBuysOrSellsProcessor(ctx context.Context, tokenDat
 func (t *tokenAnalytics) generateBuyOrSellBatch(ctx context.Context, stream string, token *tokenRow) error {
 	blockNum := atomic.AddUint64(&t.dummyInsertBlockIdx, 1)
 	txsForBlock := []string{}
-	for txIdx := 0; txIdx < 100; txIdx++ {
+	for txIdx := 0; txIdx < 5; txIdx++ {
 		userBlockChainAddr := mustRandomHex(20)
 		master := mustRandomHex(32)
 		if err := t.createUser(ctx, "0x"+userBlockChainAddr, master); err != nil {
