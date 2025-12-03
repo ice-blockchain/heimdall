@@ -1614,7 +1614,7 @@ const docTemplate = `{
             "in": "header"
         },
         "XCom": {
-            "description": "Type \"X.com\" followed by a space and your X.com JWT token.",
+            "description": "Type \"X.com\" followed by a space and base64-encoded JSON with user info: {\"userId\":\"...\",\"userHandle\":\"...\",\"displayName\":\"...\",\"verified\":true}",
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"

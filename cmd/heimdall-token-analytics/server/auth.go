@@ -4,13 +4,12 @@ package server
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/nbd-wtf/go-nostr"
 
 	"github.com/ice-blockchain/subzero/model"
@@ -39,11 +38,7 @@ type (
 		MasterPubKey string
 	}
 	authContextXCom struct {
-		Claims *XComClaims
-	}
-	XComClaims struct {
-		jwt.RegisteredClaims
-		XCom XComUserInfo `json:"x.com"`
+		UserInfo *XComUserInfo
 	}
 	XComUserInfo struct {
 		UserId      string `json:"userId"`
@@ -58,7 +53,6 @@ const (
 	authContextTokenKey   = "_ta_auth_context_token"
 	authContextEnabledKey = "_ta_auth_context_enabled"
 	xcomAuthScheme        = "X.com"
-	xcomIssuer            = "heimdall-token-analytics"
 )
 
 var (
@@ -71,7 +65,6 @@ var (
 	errAuthValidationFailed      = errors.New("NIP42 chain validation failed")
 	errAuthInvalidFormat         = errors.New("invalid token format")
 	errAuthXComInvalidToken      = errors.New("invalid X.com token")
-	errAuthXComExpired           = errors.New("X.com token expired")
 	errAuthXComMissingFields     = errors.New("missing required X.com fields")
 )
 
@@ -84,32 +77,32 @@ func (a *authContextNIP42) GetDeviceKey() string {
 }
 
 func (a *authContextXCom) GetUserId() string {
-	if a.Claims != nil {
-		return a.Claims.XCom.UserId
+	if a.UserInfo != nil {
+		return a.UserInfo.UserId
 	}
 
 	return ""
 }
 
 func (a *authContextXCom) GetUserHandle() string {
-	if a.Claims != nil {
-		return a.Claims.XCom.UserHandle
+	if a.UserInfo != nil {
+		return a.UserInfo.UserHandle
 	}
 
 	return ""
 }
 
 func (a *authContextXCom) GetDisplayName() string {
-	if a.Claims != nil {
-		return a.Claims.XCom.DisplayName
+	if a.UserInfo != nil {
+		return a.UserInfo.DisplayName
 	}
 
 	return ""
 }
 
 func (a *authContextXCom) IsVerified() bool {
-	if a.Claims != nil {
-		return a.Claims.XCom.Verified
+	if a.UserInfo != nil {
+		return a.UserInfo.Verified
 	}
 
 	return false
@@ -165,13 +158,13 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 		if strings.HasPrefix(token, xcomAuthScheme+" ") {
-			claims, err := authValidateXComToken(token)
+			userInfo, err := authValidateXComToken(token)
 			if err != nil {
 				Unauthorized(err).render(ctx)
 				return
 			}
 			var tokenInfo Token = &authContextXCom{
-				Claims: claims,
+				UserInfo: userInfo,
 			}
 			ctx.Set(authContextTokenKey, tokenInfo)
 			ctx.Next()
@@ -298,39 +291,28 @@ func authValidateEventAttestation(authEvent, attestationEvent *model.Event) erro
 	return nil
 }
 
-func authValidateXComToken(authHeader string) (*XComClaims, error) {
+func authValidateXComToken(authHeader string) (*XComUserInfo, error) {
 	tokenString := strings.TrimPrefix(authHeader, xcomAuthScheme+" ")
 	if tokenString == "" {
 		return nil, fmt.Errorf("%w: empty token", errAuthXComInvalidToken)
 	}
-	token, _, err := jwt.NewParser().ParseUnverified(tokenString, &XComClaims{})
+
+	jsonData, err := base64.StdEncoding.DecodeString(tokenString)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", errAuthXComInvalidToken, err)
-	}
-	claims, ok := token.Claims.(*XComClaims)
-	if !ok {
-		return nil, fmt.Errorf("%w: invalid claims type", errAuthXComInvalidToken)
-	}
-	if err := authValidateXComClaims(claims); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: failed to decode base64: %v", errAuthXComInvalidToken, err)
 	}
 
-	return claims, nil
-}
-
-func authValidateXComClaims(claims *XComClaims) error {
-	if claims.Issuer != xcomIssuer {
-		return fmt.Errorf("%w: invalid issuer: expected %s, got %s", errAuthXComInvalidToken, xcomIssuer, claims.Issuer)
-	}
-	if claims.ExpiresAt != nil && claims.ExpiresAt.Time.Before(time.Now()) {
-		return errAuthXComExpired
-	}
-	if claims.XCom.UserId == "" {
-		return fmt.Errorf("%w: missing userId", errAuthXComMissingFields)
-	}
-	if claims.XCom.UserHandle == "" {
-		return fmt.Errorf("%w: missing userHandle", errAuthXComMissingFields)
+	var userInfo XComUserInfo
+	if err := json.Unmarshal(jsonData, &userInfo); err != nil {
+		return nil, fmt.Errorf("%w: failed to parse JSON: %v", errAuthXComInvalidToken, err)
 	}
 
-	return nil
+	if userInfo.UserId == "" {
+		return nil, fmt.Errorf("%w: missing userId", errAuthXComMissingFields)
+	}
+	if userInfo.UserHandle == "" {
+		return nil, fmt.Errorf("%w: missing userHandle", errAuthXComMissingFields)
+	}
+
+	return &userInfo, nil
 }

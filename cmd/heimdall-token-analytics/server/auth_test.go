@@ -5,13 +5,12 @@ package server
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
+	"encoding/json"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/stretchr/testify/require"
 
@@ -118,12 +117,9 @@ func TestAuthNIP42(t *testing.T) {
 }
 
 func TestXComTokenValidation(t *testing.T) {
-	secretKey := []byte("test-secret-key-for-xcom-tokens-123")
-
 	tests := []struct {
 		name      string
 		userInfo  XComUserInfo
-		ttl       time.Duration
 		wantError bool
 		errorType error
 	}{
@@ -135,20 +131,7 @@ func TestXComTokenValidation(t *testing.T) {
 				DisplayName: "Test User",
 				Verified:    true,
 			},
-			ttl:       1 * time.Hour,
 			wantError: false,
-		},
-		{
-			name: "expired token",
-			userInfo: XComUserInfo{
-				UserId:      "987654321",
-				UserHandle:  "expireduser",
-				DisplayName: "Expired User",
-				Verified:    false,
-			},
-			ttl:       -1 * time.Hour,
-			wantError: true,
-			errorType: errAuthXComExpired,
 		},
 		{
 			name: "missing userId",
@@ -157,7 +140,6 @@ func TestXComTokenValidation(t *testing.T) {
 				UserHandle:  "nouserid",
 				DisplayName: "No User ID",
 			},
-			ttl:       1 * time.Hour,
 			wantError: true,
 			errorType: errAuthXComMissingFields,
 		},
@@ -168,7 +150,6 @@ func TestXComTokenValidation(t *testing.T) {
 				UserHandle:  "",
 				DisplayName: "No Handle",
 			},
-			ttl:       1 * time.Hour,
 			wantError: true,
 			errorType: errAuthXComMissingFields,
 		},
@@ -176,10 +157,10 @@ func TestXComTokenValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			token := helperGenerateXComToken(t, tt.userInfo, secretKey, tt.ttl)
+			token := helperGenerateXComToken(t, tt.userInfo)
 
 			authHeader := xcomAuthScheme + " " + token
-			claims, err := authValidateXComToken(authHeader)
+			userInfo, err := authValidateXComToken(authHeader)
 
 			if tt.wantError {
 				require.Error(t, err)
@@ -188,11 +169,11 @@ func TestXComTokenValidation(t *testing.T) {
 				}
 			} else {
 				require.NoError(t, err)
-				require.NotNil(t, claims)
-				require.Equal(t, tt.userInfo.UserId, claims.XCom.UserId)
-				require.Equal(t, tt.userInfo.UserHandle, claims.XCom.UserHandle)
-				require.Equal(t, tt.userInfo.DisplayName, claims.XCom.DisplayName)
-				require.Equal(t, tt.userInfo.Verified, claims.XCom.Verified)
+				require.NotNil(t, userInfo)
+				require.Equal(t, tt.userInfo.UserId, userInfo.UserId)
+				require.Equal(t, tt.userInfo.UserHandle, userInfo.UserHandle)
+				require.Equal(t, tt.userInfo.DisplayName, userInfo.DisplayName)
+				require.Equal(t, tt.userInfo.Verified, userInfo.Verified)
 			}
 		})
 	}
@@ -200,7 +181,6 @@ func TestXComTokenValidation(t *testing.T) {
 
 func TestXComAuthMiddleware(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	secretKey := []byte("test-secret-key-for-xcom-tokens-456")
 
 	userInfo := XComUserInfo{
 		UserId:      "999888777",
@@ -208,7 +188,7 @@ func TestXComAuthMiddleware(t *testing.T) {
 		DisplayName: "Middleware Test User",
 		Verified:    true,
 	}
-	token := helperGenerateXComToken(t, userInfo, secretKey, 1*time.Hour)
+	token := helperGenerateXComToken(t, userInfo)
 
 	tests := []struct {
 		name           string
@@ -230,7 +210,7 @@ func TestXComAuthMiddleware(t *testing.T) {
 		},
 		{
 			name:           "invalid token format",
-			authHeader:     xcomAuthScheme + " invalid-token",
+			authHeader:     xcomAuthScheme + " invalid-not-base64!!!",
 			expectedStatus: 401,
 			checkContext:   false,
 		},
@@ -269,16 +249,14 @@ func TestXComAuthMiddleware(t *testing.T) {
 }
 
 func TestXComTokenInterfaces(t *testing.T) {
-	claims := &XComClaims{
-		XCom: XComUserInfo{
-			UserId:      "123456",
-			UserHandle:  "testhandle",
-			DisplayName: "Test Display",
-			Verified:    true,
-		},
+	userInfo := &XComUserInfo{
+		UserId:      "123456",
+		UserHandle:  "testhandle",
+		DisplayName: "Test Display",
+		Verified:    true,
 	}
 
-	authCtx := &authContextXCom{Claims: claims}
+	authCtx := &authContextXCom{UserInfo: userInfo}
 	var xcomToken XComToken = authCtx
 	require.Equal(t, "123456", xcomToken.GetUserId())
 	require.Equal(t, "testhandle", xcomToken.GetUserHandle())
@@ -293,29 +271,17 @@ func TestGenerateXComToken(t *testing.T) {
 		DisplayName: "Test User",
 		Verified:    true,
 	}
-	token := helperGenerateXComToken(t, userInfo, []byte("test-secret-key"), 1*time.Hour)
+	token := helperGenerateXComToken(t, userInfo)
 	require.NotEmpty(t, token)
 
-	fmt.Println("token", token)
+	t.Logf("Generated X.com token: %s", token)
 }
 
-func helperGenerateXComToken(t *testing.T, userInfo XComUserInfo, secretKey []byte, ttl time.Duration) string {
+func helperGenerateXComToken(t *testing.T, userInfo XComUserInfo) string {
 	t.Helper()
 
-	now := time.Now()
-	claims := XComClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    xcomIssuer,
-			Subject:   fmt.Sprintf("x.com:%s", userInfo.UserId),
-			IssuedAt:  jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
-		},
-		XCom: userInfo,
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(secretKey)
+	jsonData, err := json.Marshal(userInfo)
 	require.NoError(t, err)
 
-	return tokenString
+	return base64.StdEncoding.EncodeToString(jsonData)
 }

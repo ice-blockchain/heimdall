@@ -1053,7 +1053,8 @@ securityDefinitions:
     name: Authorization
     type: apiKey
   XCom:
-    description: Type "X.com" followed by a space and your X.com JWT token.
+    description: 'Type "X.com" followed by a space and base64-encoded JSON with user
+      info: {"userId":"...","userHandle":"...","displayName":"...","verified":true}'
     in: header
     name: Authorization
     type: apiKey
