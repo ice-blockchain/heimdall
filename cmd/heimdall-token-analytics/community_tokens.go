@@ -86,6 +86,7 @@ type (
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
+//	@Security		XCom
 //	@Router			/v1/community-tokens [GET].
 func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[TokenInfoRequest]) (*server.Response[[]*ta.CommunityToken], error) {
 	if len(req.Data.ExternalAddresses) == 0 {
@@ -96,6 +97,7 @@ func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[To
 			return nil, server.BadRequest(errors.New("includeTopHolders must be between 1 and 10"), invalidPropertiesErrorCode)
 		}
 	}
+
 	tokens, err := s.tokenAnalytics.GetCommunityTokensByExternalAddresses(ctx, req.Data.ExternalAddresses, req.Token.GetMasterPublicKey(), req.Data.IncludeTopHolders)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get community tokens: %w", err)
@@ -119,6 +121,7 @@ func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[To
 //	@Failure		500							{object}	server.ResponseErrorBody
 //	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
+//	@Security		XCom
 //	@Router			/v1/community-tokens/{externalAddressOrViewType} [GET].
 func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoRequestByType]) (*server.Response[[]*ta.CommunityToken], error) {
 	limit := req.Data.Limit
@@ -146,10 +149,11 @@ func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Requ
 //	@Failure		500							{object}	server.ResponseErrorBody
 //	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
+//	@Security		XCom
 //	@Router			/v1/community-tokens/{externalAddressOrViewType}/viewing-sessions [POST].
 func (s *service) CreateCommunityTokensSessionView(ctx context.Context, req *server.Request[SessionViewCreateRequest]) (*server.Response[SessionViewCreateResponse], error) {
 	clientIP := req.Context.ClientIP()
-	deviceKey := req.Token.GetDeviceKey()
+	deviceKey := req.Token.GetDevicePublicKey()
 	sessionID, ttl, err := s.tokenAnalytics.CreateViewingSession(ctx, req.Data.ViewType, clientIP, deviceKey, req.Data.Type)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create viewing session: %w", err)
@@ -178,6 +182,7 @@ func (s *service) CreateCommunityTokensSessionView(ctx context.Context, req *ser
 //	@Failure		500							{object}	server.ResponseErrorBody
 //	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
+//	@Security		XCom
 //	@Router			/v1/community-tokens/{externalAddressOrViewType}/viewing-sessions/{viewingSessionId} [GET].
 func (s *service) GetCommunityTokensSessionByID(ctx context.Context, req *server.Request[TokenInfoRequestByTypeAndSessionID]) (*server.Response[[]*ta.CommunityToken], error) {
 	limit := req.Data.Limit
@@ -213,6 +218,7 @@ func (s *service) GetCommunityTokensSessionByID(ctx context.Context, req *server
 //	@Failure		500							{object}	server.ResponseErrorBody
 //	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
+//	@Security		XCom
 //	@Router			/v1/community-tokens/{externalAddressOrViewType}/latest-trades [GET].
 func (s *service) GetCommunityTokensTradesByAddress(ctx context.Context, req *server.Request[TradeRequest]) (*server.Response[[]*ta.Trade], error) {
 	limit := req.Data.Limit
@@ -242,6 +248,7 @@ func (s *service) GetCommunityTokensTradesByAddress(ctx context.Context, req *se
 //	@Failure		500							{object}	server.ResponseErrorBody
 //	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
+//	@Security		XCom
 //	@Router			/v1/community-tokens/{externalAddressOrViewType}/external-data [PUT].
 func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *server.Request[ExternalDataRequest]) (*server.Response[any], error) {
 	if err := s.tokenAnalytics.UpdateTokenExternalData(
@@ -274,6 +281,7 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 //	@Failure		500					{object}	server.ResponseErrorBody
 //	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
+//	@Security		XCom
 //	@Router			/v1sse/community-tokens [GET].
 //	@Router			/v1ws/community-tokens [GET].
 func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request[TokenInfoRequest]) (server.StreamEventEmitter[ta.CommunityToken], error) {
@@ -359,6 +367,7 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 //	@Failure		500							{object}	server.ResponseErrorBody
 //	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
+//	@Security		XCom
 //	@Router			/v1sse/community-tokens/{externalAddressOrViewType} [GET].
 //	@Router			/v1ws/community-tokens/{externalAddressOrViewType} [GET].
 func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoStreamTypeAndSessionQuery]) (server.StreamEventEmitter[[]*ta.CommunityToken], error) {
@@ -441,6 +450,7 @@ func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.R
 //	@Failure		500							{object}	server.ResponseErrorBody
 //	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
+//	@Security		XCom
 //	@Router			/v1sse/community-tokens/{externalAddressOrViewType}/top-holders [GET].
 //	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/top-holders [GET].
 func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *server.Request[TopHoldersRequest]) (server.StreamEventEmitter[[]*ta.TopHolderPosition], error) {
@@ -515,6 +525,7 @@ func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *serv
 //	@Failure		500							{object}	server.ResponseErrorBody
 //	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
+//	@Security		XCom
 //	@Router			/v1sse/community-tokens/{externalAddressOrViewType}/latest-trades [GET].
 //	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/latest-trades [GET].
 func (s *service) StreamCommunityTokensLatestTrades(ctx context.Context, req *server.Request[TradeRequest]) (server.StreamEventEmitter[ta.Trade], error) {
@@ -533,6 +544,7 @@ func (s *service) StreamCommunityTokensLatestTrades(ctx context.Context, req *se
 //	@Failure		500							{object}	server.ResponseErrorBody
 //	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
+//	@Security		XCom
 //	@Router			/v1sse/community-tokens/{externalAddressOrViewType}/trading-stats [GET].
 //	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/trading-stats [GET].
 func (s *service) StreamCommunityTokensTradingStats(ctx context.Context, req *server.Request[TradeRequest]) (server.StreamEventEmitter[ta.TradeStats], error) {
@@ -552,6 +564,7 @@ func (s *service) StreamCommunityTokensTradingStats(ctx context.Context, req *se
 //	@Failure		500							{object}	server.ResponseErrorBody
 //	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
+//	@Security		XCom
 //	@Router			/v1sse/community-tokens/{externalAddressOrViewType}/ohlcv [GET].
 //	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/ohlcv [GET].
 func (s *service) StreamCommunityTokensOHLCV(ctx context.Context, req *server.Request[OHLCVRequest]) (server.StreamEventEmitter[ta.OHLCV], error) {

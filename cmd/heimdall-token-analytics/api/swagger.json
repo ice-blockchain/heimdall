@@ -76,6 +76,9 @@
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -154,6 +157,9 @@
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -220,6 +226,9 @@
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -291,6 +300,9 @@
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -361,6 +373,9 @@
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -452,6 +467,9 @@
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -516,6 +534,9 @@
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -591,6 +612,9 @@
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -659,6 +683,9 @@
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -719,6 +746,9 @@
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -782,6 +812,9 @@
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -834,6 +867,9 @@
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -898,6 +934,9 @@
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -973,6 +1012,9 @@
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -1041,6 +1083,9 @@
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -1101,6 +1146,9 @@
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -1164,6 +1212,9 @@
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -1216,6 +1267,9 @@
                 "security": [
                     {
                         "Nostr": []
+                    },
+                    {
+                        "XCom": []
                     }
                 ]
             }
@@ -1548,6 +1602,12 @@
     "securityDefinitions": {
         "Nostr": {
             "description": "Type \"Nostr\" followed by a space and your Nostr NIP-42 compatible base64-encoded event.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        },
+        "XCom": {
+            "description": "Type \"X.com\" followed by a space and base64-encoded JSON with user info: {\"userId\":\"...\",\"userHandle\":\"...\",\"displayName\":\"...\",\"verified\":true}",
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"

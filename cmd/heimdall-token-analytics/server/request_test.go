@@ -57,7 +57,7 @@ func helperDoRequestWithAuth[T any](t *testing.T, handler http.Handler, token, m
 	w := httptest.NewRecorder()
 	req, err := http.NewRequestWithContext(t.Context(), method, path, body)
 	if token != "" {
-		req.Header.Set("Authorization", token)
+		req.Header.Set(authHeaderName, token)
 	}
 	require.NoError(t, err, "failed to create request")
 

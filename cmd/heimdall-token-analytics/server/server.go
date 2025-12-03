@@ -5,6 +5,7 @@ package server
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -71,7 +72,11 @@ func loggerMiddleware() gin.HandlerFunc {
 		}
 
 		if token := authGetToken(c); token != nil {
-			logArgs = append(logArgs, "user_masterkey", token.GetMasterPublicKey())
+			logArgs = append(logArgs, "auth_type", fmt.Sprintf("%T", token))
+			logArgs = append(logArgs, "auth_user", token.GetMasterPublicKey())
+			if dev := token.GetDevicePublicKey(); token.GetMasterPublicKey() != dev {
+				logArgs = append(logArgs, "auth_device", dev)
+			}
 		}
 
 		if errorStr := c.Errors.ByType(gin.ErrorTypePrivate).String(); errorStr != "" {

@@ -5,6 +5,7 @@ package server
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -55,6 +56,15 @@ func helperCreateAuthTokenNIP42(t *testing.T, userPrivate, masterPrivate string)
 	return `Nostr ` + base64.StdEncoding.EncodeToString([]byte(ev.String()))
 }
 
+func helperCreateAuthTokenXcom(t *testing.T, userInfo authXcomUserInfo) string {
+	t.Helper()
+
+	jsonData, err := json.Marshal(userInfo)
+	require.NoError(t, err)
+
+	return `xcom ` + base64.StdEncoding.EncodeToString(jsonData)
+}
+
 func TestAuthNIP42(t *testing.T) {
 	t.Parallel()
 
@@ -68,9 +78,8 @@ func TestAuthNIP42(t *testing.T) {
 	}
 
 	r := helperNewRouter(t)
-	r.Use(NIP42AuthMiddleware())
+	r.Use(AuthMiddleware())
 	r.GET("/with_auth", RootHandler(func(ctx context.Context, r *Request[RequestTestStruct]) (*Response[string], error) {
-		require.NotNil(t, r.Token)
 		key := r.Token.GetMasterPublicKey()
 		require.NotEmpty(t, key)
 		return OK(&key), nil
@@ -110,4 +119,124 @@ func TestAuthNIP42(t *testing.T) {
 		resp := helperDoRequest[string](t, r, http.MethodGet, "/healthz", http.NoBody)
 		require.Equal(t, http.StatusNoContent, resp.Code)
 	})
+}
+
+func TestXComTokenValidation(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		userInfo  authXcomUserInfo
+		wantError bool
+		errorType error
+	}{
+		{
+			name: "valid token",
+			userInfo: authXcomUserInfo{
+				UserId:      "123456789",
+				UserHandle:  "testuser",
+				DisplayName: "Test User",
+				Verified:    true,
+			},
+			wantError: false,
+		},
+		{
+			name: "missing userId",
+			userInfo: authXcomUserInfo{
+				UserId:      "", // missing.
+				UserHandle:  "nouserid",
+				DisplayName: "No User ID",
+			},
+			wantError: true,
+			errorType: errAuthXComMissingFields,
+		},
+		{
+			name: "missing userHandle",
+			userInfo: authXcomUserInfo{
+				UserId:      "111222333",
+				UserHandle:  "",
+				DisplayName: "No Handle",
+			},
+			wantError: true,
+			errorType: errAuthXComMissingFields,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			token := helperCreateAuthTokenXcom(t, tt.userInfo)
+
+			tokenValue, err := authValidateAuthHeader(token)
+			if tt.wantError {
+				require.Error(t, err)
+				if tt.errorType != nil {
+					require.ErrorIs(t, err, tt.errorType)
+				}
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, tokenValue)
+
+				xcomToken, ok := tokenValue.(*authContextXcom)
+				require.True(t, ok)
+				require.EqualValues(t, &tt.userInfo, xcomToken.UserInfo)
+			}
+		})
+	}
+}
+
+func TestXComAuthMiddleware(t *testing.T) {
+	t.Parallel()
+
+	userInfo := authXcomUserInfo{
+		UserId:      "999888777",
+		UserHandle:  "middlewaretest",
+		DisplayName: "Middleware Test User",
+		Verified:    true,
+	}
+	token := helperCreateAuthTokenXcom(t, userInfo)
+
+	tests := []struct {
+		name           string
+		authHeader     string
+		expectedStatus int
+		checkContext   bool
+	}{
+		{
+			name:           "valid X.com token",
+			authHeader:     token,
+			expectedStatus: http.StatusOK,
+			checkContext:   true,
+		},
+		{
+			name:           "no auth header",
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "invalid token format",
+			authHeader:     "xcom invalid-not-base64!!!",
+			expectedStatus: http.StatusUnauthorized,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := gin.New()
+			router.Use(AuthMiddleware())
+			router.GET("/test", func(ctx *gin.Context) {
+				if tt.checkContext {
+					tokenCtx := authGetToken(ctx)
+					require.NotNil(t, tokenCtx)
+
+					xcomToken, ok := tokenCtx.(*authContextXcom)
+					require.True(t, ok)
+					require.NotNil(t, xcomToken)
+					require.EqualValues(t, &userInfo, xcomToken.UserInfo)
+				}
+				ctx.Status(http.StatusOK)
+			})
+
+			resp := helperDoRequestWithAuth[ResponseErrorBody](t, router, tt.authHeader, http.MethodGet, "/test", http.NoBody)
+			require.Equal(t, tt.expectedStatus, resp.Code)
+		})
+	}
 }

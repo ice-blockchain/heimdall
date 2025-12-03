@@ -49,6 +49,10 @@ func newContext() context.Context {
 // @in							header
 // @name						Authorization
 // @description				Type "Nostr" followed by a space and your Nostr NIP-42 compatible base64-encoded event.
+// @securityDefinitions.apikey	XCom
+// @in							header
+// @name						Authorization
+// @description				Type "X.com" followed by a space and base64-encoded JSON with user info: {"userId":"...","userHandle":"...","displayName":"...","verified":true}
 func main() {
 	var srv service
 
