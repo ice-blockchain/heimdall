@@ -19,28 +19,19 @@ type (
 	// NoAuthRequired is a marker struct to indicate that no authentication is required for the request.
 	NoAuthRequired struct{}
 
-	Token interface{}
-
-	NostrToken interface {
+	Token interface {
 		GetMasterPublicKey() string
-		GetDeviceKey() string
-	}
-
-	XComToken interface {
-		GetUserId() string
-		GetUserHandle() string
-		GetDisplayName() string
-		IsVerified() bool
+		GetDevicePublicKey() string
 	}
 
 	authContextNIP42 struct {
 		Event        *model.Event
 		MasterPubKey string
 	}
-	authContextXCom struct {
-		UserInfo *XComUserInfo
+	authContextXcom struct {
+		UserInfo *authXcomUserInfo
 	}
-	XComUserInfo struct {
+	authXcomUserInfo struct {
 		UserId      string `json:"userId"`
 		UserHandle  string `json:"userHandle"`
 		DisplayName string `json:"displayName"`
@@ -52,60 +43,42 @@ type (
 const (
 	authContextTokenKey   = "_ta_auth_context_token"
 	authContextEnabledKey = "_ta_auth_context_enabled"
-	xcomAuthScheme        = "X.com"
+
+	authHeaderName = `Authorization`
 )
 
 var (
-	_ NostrToken = &authContextNIP42{}
-	_ XComToken  = &authContextXCom{}
+	_ Token = &authContextNIP42{}
+	_ Token = &authContextXcom{}
 
-	errAuthInvalidEventSignature = errors.New("invalid NIP42 event signature")
-	errAuthNoAttestation         = errors.New("no attestation found in NIP42 event")
-	errAuthInvalidKind           = errors.New("invalid NIP42 event kind")
-	errAuthValidationFailed      = errors.New("NIP42 chain validation failed")
+	errAuthInvalidEventSignature = errors.New("nip42: invalid event signature")
+	errAuthNoAttestation         = errors.New("nip42: no attestation found in the event tags")
+	errAuthInvalidKind           = errors.New("nip42: invalid event kind")
+	errAuthValidationFailed      = errors.New("nip42: chain validation failed")
 	errAuthInvalidFormat         = errors.New("invalid token format")
-	errAuthXComInvalidToken      = errors.New("invalid X.com token")
-	errAuthXComMissingFields     = errors.New("missing required X.com fields")
+	errAuthXComMissingFields     = errors.New("x.com: missing required fields")
 )
 
 func (a *authContextNIP42) GetMasterPublicKey() string {
 	return a.MasterPubKey
 }
 
-func (a *authContextNIP42) GetDeviceKey() string {
+func (a *authContextNIP42) GetDevicePublicKey() string {
 	return a.Event.PubKey
 }
 
-func (a *authContextXCom) GetUserId() string {
+func (a *authContextXcom) GetMasterPublicKey() string {
 	if a.UserInfo != nil {
 		return a.UserInfo.UserId
 	}
-
 	return ""
 }
 
-func (a *authContextXCom) GetUserHandle() string {
+func (a *authContextXcom) GetDevicePublicKey() string {
 	if a.UserInfo != nil {
-		return a.UserInfo.UserHandle
+		return a.UserInfo.UserId
 	}
-
 	return ""
-}
-
-func (a *authContextXCom) GetDisplayName() string {
-	if a.UserInfo != nil {
-		return a.UserInfo.DisplayName
-	}
-
-	return ""
-}
-
-func (a *authContextXCom) IsVerified() bool {
-	if a.UserInfo != nil {
-		return a.UserInfo.Verified
-	}
-
-	return false
 }
 
 func authGetToken(ctx *gin.Context) Token {
@@ -121,24 +94,6 @@ func authGetToken(ctx *gin.Context) Token {
 	return token.(Token)
 }
 
-func AsNostrToken(token Token) (NostrToken, bool) {
-	if token == nil {
-		return nil, false
-	}
-	nostrToken, ok := token.(NostrToken)
-
-	return nostrToken, ok
-}
-
-func AsXComToken(token Token) (XComToken, bool) {
-	if token == nil {
-		return nil, false
-	}
-	xcomToken, ok := token.(XComToken)
-
-	return xcomToken, ok
-}
-
 func authIsEnabled(ctx *gin.Context) bool {
 	if ctx == nil {
 		return false
@@ -151,68 +106,57 @@ func AuthMiddleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ctx.Set(authContextEnabledKey, true)
 
-		token := ctx.GetHeader(`Authorization`)
+		token := ctx.GetHeader(authHeaderName)
 		if token == "" {
 			// No token provided; proceed as unauthorized.
 			ctx.Next()
 			return
 		}
-		if strings.HasPrefix(token, xcomAuthScheme+" ") {
-			userInfo, err := authValidateXComToken(token)
-			if err != nil {
-				Unauthorized(err).render(ctx)
-				return
-			}
-			var tokenInfo Token = &authContextXCom{
-				UserInfo: userInfo,
-			}
-			ctx.Set(authContextTokenKey, tokenInfo)
-			ctx.Next()
 
-			return
-		}
-
-		ev, err := authValidateNIP42Token(token)
+		tokenValue, err := authValidateAuthHeader(token)
 		if err != nil {
 			Unauthorized(err).render(ctx)
 			return
 		}
 
-		var tokenInfo Token = &authContextNIP42{
-			Event:        ev,
-			MasterPubKey: ev.GetMasterPublicKey(),
-		}
-
-		ctx.Set(authContextTokenKey, tokenInfo)
+		ctx.Set(authContextTokenKey, tokenValue)
 		ctx.Next()
 	}
 }
 
-func authValidateNIP42Token(token string) (*model.Event, error) {
-	prefixes := map[string]struct{}{
-		"nostr":  {},
-		"bearer": {},
+// authValidateAuthHeader validates the Authorization value `<prefix name> <base64 value>` and returns the corresponding Token.
+func authValidateAuthHeader(authHeader string) (Token, error) {
+	parsers := map[string]func([]byte) (Token, error){
+		"nostr":  authValidateNIP42Token,
+		"bearer": authValidateNIP42Token,
+		"x.com":  authValidateXcomToken,
+		"xcom":   authValidateXcomToken,
 	}
 
-	tokenData := strings.SplitN(token, " ", 2)
+	tokenData := strings.SplitN(authHeader, " ", 2)
 	if len(tokenData) != 2 {
 		return nil, errAuthInvalidFormat
 	}
 
-	_, ok := prefixes[strings.ToLower(tokenData[0])]
+	parser, ok := parsers[strings.ToLower(tokenData[0])]
 	if !ok {
 		return nil, fmt.Errorf("%w: unknown token prefix %q", errAuthInvalidFormat, tokenData[0])
 	}
 
 	jsonData, err := base64.StdEncoding.DecodeString(tokenData[1])
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode NIP42 event: %w", err)
+		return nil, fmt.Errorf("%w: failed to decode base64: %v", errAuthInvalidFormat, err)
 	}
 
+	return parser(jsonData)
+}
+
+func authValidateNIP42Token(jsonToken []byte) (Token, error) {
 	var ev model.Event
-	err = ev.UnmarshalJSON(jsonData)
+
+	err := ev.UnmarshalJSON(jsonToken)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal NIP42 event: %w", err)
+		return nil, fmt.Errorf("%w: failed to unmarshal NIP42 event: %w", errAuthInvalidFormat, err)
 	}
 
 	err = authValidateNIP42Event(&ev)
@@ -220,7 +164,10 @@ func authValidateNIP42Token(token string) (*model.Event, error) {
 		return nil, fmt.Errorf("%q: authorization failed: %w", ev.GetMasterPublicKey(), err)
 	}
 
-	return &ev, nil
+	return &authContextNIP42{
+		Event:        &ev,
+		MasterPubKey: ev.GetMasterPublicKey(),
+	}, nil
 }
 
 func authValidateNIP42Event(ev *model.Event) error {
@@ -291,20 +238,11 @@ func authValidateEventAttestation(authEvent, attestationEvent *model.Event) erro
 	return nil
 }
 
-func authValidateXComToken(authHeader string) (*XComUserInfo, error) {
-	tokenString := strings.TrimPrefix(authHeader, xcomAuthScheme+" ")
-	if tokenString == "" {
-		return nil, fmt.Errorf("%w: empty token", errAuthXComInvalidToken)
-	}
+func authValidateXcomToken(jsonToken []byte) (Token, error) {
+	var userInfo authXcomUserInfo
 
-	jsonData, err := base64.StdEncoding.DecodeString(tokenString)
-	if err != nil {
-		return nil, fmt.Errorf("%w: failed to decode base64: %v", errAuthXComInvalidToken, err)
-	}
-
-	var userInfo XComUserInfo
-	if err := json.Unmarshal(jsonData, &userInfo); err != nil {
-		return nil, fmt.Errorf("%w: failed to parse JSON: %v", errAuthXComInvalidToken, err)
+	if err := json.Unmarshal(jsonToken, &userInfo); err != nil {
+		return nil, fmt.Errorf("%w: failed to parse JSON: %w", errAuthInvalidFormat, err)
 	}
 
 	if userInfo.UserId == "" {
@@ -314,5 +252,7 @@ func authValidateXComToken(authHeader string) (*XComUserInfo, error) {
 		return nil, fmt.Errorf("%w: missing userHandle", errAuthXComMissingFields)
 	}
 
-	return &userInfo, nil
+	return &authContextXcom{
+		UserInfo: &userInfo,
+	}, nil
 }

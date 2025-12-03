@@ -13,10 +13,9 @@ type (
 	Config struct {
 		Version    string `yaml:"version"`
 		HTTPServer struct {
-			CertPath      string `yaml:"certPath"`
-			KeyPath       string `yaml:"keyPath"`
-			Port          uint32 `yaml:"port"`
-			XComSecretKey string `yaml:"xcomSecretKey"`
+			CertPath string `yaml:"certPath"`
+			KeyPath  string `yaml:"keyPath"`
+			Port     uint32 `yaml:"port"`
 		} `yaml:"httpServer"`
 		Development bool `yaml:"development"`
 	}

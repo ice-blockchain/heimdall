@@ -5,6 +5,7 @@ package server
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -71,10 +72,10 @@ func loggerMiddleware() gin.HandlerFunc {
 		}
 
 		if token := authGetToken(c); token != nil {
-			if nostrToken, ok := token.(NostrToken); ok {
-				logArgs = append(logArgs, "user_masterkey", nostrToken.GetMasterPublicKey())
-			} else if xcomToken, ok := token.(XComToken); ok {
-				logArgs = append(logArgs, "user_id", xcomToken.GetUserId())
+			logArgs = append(logArgs, "auth_type", fmt.Sprintf("%T", token))
+			logArgs = append(logArgs, "auth_user", token.GetMasterPublicKey())
+			if dev := token.GetDevicePublicKey(); token.GetMasterPublicKey() != dev {
+				logArgs = append(logArgs, "auth_device", dev)
 			}
 		}
 

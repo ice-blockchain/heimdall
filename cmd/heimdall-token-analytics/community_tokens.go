@@ -97,14 +97,8 @@ func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[To
 			return nil, server.BadRequest(errors.New("includeTopHolders must be between 1 and 10"), invalidPropertiesErrorCode)
 		}
 	}
-	var userIdentifier string
-	if nostrToken, ok := server.AsNostrToken(req.Token); ok {
-		userIdentifier = nostrToken.GetMasterPublicKey()
-	} else if xcomToken, ok := server.AsXComToken(req.Token); ok {
-		userIdentifier = xcomToken.GetUserId()
-	}
 
-	tokens, err := s.tokenAnalytics.GetCommunityTokensByExternalAddresses(ctx, req.Data.ExternalAddresses, userIdentifier, req.Data.IncludeTopHolders)
+	tokens, err := s.tokenAnalytics.GetCommunityTokensByExternalAddresses(ctx, req.Data.ExternalAddresses, req.Token.GetMasterPublicKey(), req.Data.IncludeTopHolders)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get community tokens: %w", err)
 	}
@@ -159,13 +153,7 @@ func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Requ
 //	@Router			/v1/community-tokens/{externalAddressOrViewType}/viewing-sessions [POST].
 func (s *service) CreateCommunityTokensSessionView(ctx context.Context, req *server.Request[SessionViewCreateRequest]) (*server.Response[SessionViewCreateResponse], error) {
 	clientIP := req.Context.ClientIP()
-	var deviceKey string
-	if nostrToken, ok := server.AsNostrToken(req.Token); ok {
-		deviceKey = nostrToken.GetDeviceKey()
-	} else if xcomToken, ok := server.AsXComToken(req.Token); ok {
-		deviceKey = xcomToken.GetUserHandle()
-	}
-
+	deviceKey := req.Token.GetDevicePublicKey()
 	sessionID, ttl, err := s.tokenAnalytics.CreateViewingSession(ctx, req.Data.ViewType, clientIP, deviceKey, req.Data.Type)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create viewing session: %w", err)
@@ -310,14 +298,7 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 		events := make(chan server.StreamEvent[ta.CommunityToken], 100)
 
 		sendData := func() bool {
-			var userIdentifier string
-			if nostrToken, ok := req.Token.(server.NostrToken); ok {
-				userIdentifier = nostrToken.GetMasterPublicKey()
-			} else if xcomToken, ok := req.Token.(server.XComToken); ok {
-				userIdentifier = xcomToken.GetUserId()
-			}
-
-			tokens, err := s.tokenAnalytics.GetCommunityTokensByExternalAddresses(ctx, req.Data.ExternalAddresses, userIdentifier, req.Data.IncludeTopHolders)
+			tokens, err := s.tokenAnalytics.GetCommunityTokensByExternalAddresses(ctx, req.Data.ExternalAddresses, req.Token.GetMasterPublicKey(), req.Data.IncludeTopHolders)
 			if err != nil {
 				slog.ErrorContext(ctx, "failed to get community tokens for streaming", "error", err, "addresses", req.Data.ExternalAddresses)
 				events <- server.StreamEvent[ta.CommunityToken]{

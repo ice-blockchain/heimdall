@@ -100,21 +100,9 @@ func bindAndValidate[REQ any](ctx *gin.Context, r *Request[REQ]) (ok bool) {
 	}
 
 	if authIsEnabled(ctx) {
-		if r.Token == nil && !r.allowUnauthorized {
+		if (r.Token == nil || r.Token.GetMasterPublicKey() == "") && !r.allowUnauthorized {
 			Forbidden(errAuthRequired).render(ctx)
 			return false
-		}
-		if nostrToken, ok := AsNostrToken(r.Token); ok && nostrToken.GetMasterPublicKey() == "" && !r.allowUnauthorized {
-			Forbidden(errAuthRequired).render(ctx)
-
-			return false
-		}
-		if xcomToken, ok := AsXComToken(r.Token); ok {
-			if (xcomToken.GetUserId() == "" || xcomToken.GetUserHandle() == "") && !r.allowUnauthorized {
-				Forbidden(errAuthRequired).render(ctx)
-
-				return false
-			}
 		}
 	}
 

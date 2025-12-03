@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -57,6 +56,15 @@ func helperCreateAuthTokenNIP42(t *testing.T, userPrivate, masterPrivate string)
 	return `Nostr ` + base64.StdEncoding.EncodeToString([]byte(ev.String()))
 }
 
+func helperCreateAuthTokenXcom(t *testing.T, userInfo authXcomUserInfo) string {
+	t.Helper()
+
+	jsonData, err := json.Marshal(userInfo)
+	require.NoError(t, err)
+
+	return `xcom ` + base64.StdEncoding.EncodeToString(jsonData)
+}
+
 func TestAuthNIP42(t *testing.T) {
 	t.Parallel()
 
@@ -72,10 +80,7 @@ func TestAuthNIP42(t *testing.T) {
 	r := helperNewRouter(t)
 	r.Use(AuthMiddleware())
 	r.GET("/with_auth", RootHandler(func(ctx context.Context, r *Request[RequestTestStruct]) (*Response[string], error) {
-		require.NotNil(t, r.Token)
-		nostrToken, ok := r.Token.(NostrToken)
-		require.True(t, ok, "Expected NostrToken")
-		key := nostrToken.GetMasterPublicKey()
+		key := r.Token.GetMasterPublicKey()
 		require.NotEmpty(t, key)
 		return OK(&key), nil
 	}))
@@ -117,15 +122,17 @@ func TestAuthNIP42(t *testing.T) {
 }
 
 func TestXComTokenValidation(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
-		userInfo  XComUserInfo
+		userInfo  authXcomUserInfo
 		wantError bool
 		errorType error
 	}{
 		{
 			name: "valid token",
-			userInfo: XComUserInfo{
+			userInfo: authXcomUserInfo{
 				UserId:      "123456789",
 				UserHandle:  "testuser",
 				DisplayName: "Test User",
@@ -135,8 +142,8 @@ func TestXComTokenValidation(t *testing.T) {
 		},
 		{
 			name: "missing userId",
-			userInfo: XComUserInfo{
-				UserId:      "", // missing
+			userInfo: authXcomUserInfo{
+				UserId:      "", // missing.
 				UserHandle:  "nouserid",
 				DisplayName: "No User ID",
 			},
@@ -145,7 +152,7 @@ func TestXComTokenValidation(t *testing.T) {
 		},
 		{
 			name: "missing userHandle",
-			userInfo: XComUserInfo{
+			userInfo: authXcomUserInfo{
 				UserId:      "111222333",
 				UserHandle:  "",
 				DisplayName: "No Handle",
@@ -157,11 +164,9 @@ func TestXComTokenValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			token := helperGenerateXComToken(t, tt.userInfo)
+			token := helperCreateAuthTokenXcom(t, tt.userInfo)
 
-			authHeader := xcomAuthScheme + " " + token
-			userInfo, err := authValidateXComToken(authHeader)
-
+			tokenValue, err := authValidateAuthHeader(token)
 			if tt.wantError {
 				require.Error(t, err)
 				if tt.errorType != nil {
@@ -169,26 +174,26 @@ func TestXComTokenValidation(t *testing.T) {
 				}
 			} else {
 				require.NoError(t, err)
-				require.NotNil(t, userInfo)
-				require.Equal(t, tt.userInfo.UserId, userInfo.UserId)
-				require.Equal(t, tt.userInfo.UserHandle, userInfo.UserHandle)
-				require.Equal(t, tt.userInfo.DisplayName, userInfo.DisplayName)
-				require.Equal(t, tt.userInfo.Verified, userInfo.Verified)
+				require.NotNil(t, tokenValue)
+
+				xcomToken, ok := tokenValue.(*authContextXcom)
+				require.True(t, ok)
+				require.EqualValues(t, &tt.userInfo, xcomToken.UserInfo)
 			}
 		})
 	}
 }
 
 func TestXComAuthMiddleware(t *testing.T) {
-	gin.SetMode(gin.TestMode)
+	t.Parallel()
 
-	userInfo := XComUserInfo{
+	userInfo := authXcomUserInfo{
 		UserId:      "999888777",
 		UserHandle:  "middlewaretest",
 		DisplayName: "Middleware Test User",
 		Verified:    true,
 	}
-	token := helperGenerateXComToken(t, userInfo)
+	token := helperCreateAuthTokenXcom(t, userInfo)
 
 	tests := []struct {
 		name           string
@@ -198,21 +203,18 @@ func TestXComAuthMiddleware(t *testing.T) {
 	}{
 		{
 			name:           "valid X.com token",
-			authHeader:     xcomAuthScheme + " " + token,
-			expectedStatus: 200,
+			authHeader:     token,
+			expectedStatus: http.StatusOK,
 			checkContext:   true,
 		},
 		{
 			name:           "no auth header",
-			authHeader:     "",
-			expectedStatus: 200,
-			checkContext:   false,
+			expectedStatus: http.StatusOK,
 		},
 		{
 			name:           "invalid token format",
-			authHeader:     xcomAuthScheme + " invalid-not-base64!!!",
-			expectedStatus: 401,
-			checkContext:   false,
+			authHeader:     "xcom invalid-not-base64!!!",
+			expectedStatus: http.StatusUnauthorized,
 		},
 	}
 
@@ -225,63 +227,16 @@ func TestXComAuthMiddleware(t *testing.T) {
 					tokenCtx := authGetToken(ctx)
 					require.NotNil(t, tokenCtx)
 
-					xcomToken, ok := tokenCtx.(XComToken)
-					require.True(t, ok, "Expected XComToken")
+					xcomToken, ok := tokenCtx.(*authContextXcom)
+					require.True(t, ok)
 					require.NotNil(t, xcomToken)
-					require.Equal(t, userInfo.UserId, xcomToken.GetUserId())
-					require.Equal(t, userInfo.UserHandle, xcomToken.GetUserHandle())
-					require.Equal(t, userInfo.DisplayName, xcomToken.GetDisplayName())
-					require.Equal(t, userInfo.Verified, xcomToken.IsVerified())
+					require.EqualValues(t, &userInfo, xcomToken.UserInfo)
 				}
-				ctx.Status(200)
+				ctx.Status(http.StatusOK)
 			})
 
-			req := httptest.NewRequest(http.MethodGet, "/test", nil)
-			if tt.authHeader != "" {
-				req.Header.Set("Authorization", tt.authHeader)
-			}
-			w := httptest.NewRecorder()
-			router.ServeHTTP(w, req)
-
-			require.Equal(t, tt.expectedStatus, w.Code)
+			resp := helperDoRequestWithAuth[ResponseErrorBody](t, router, tt.authHeader, http.MethodGet, "/test", http.NoBody)
+			require.Equal(t, tt.expectedStatus, resp.Code)
 		})
 	}
-}
-
-func TestXComTokenInterfaces(t *testing.T) {
-	userInfo := &XComUserInfo{
-		UserId:      "123456",
-		UserHandle:  "testhandle",
-		DisplayName: "Test Display",
-		Verified:    true,
-	}
-
-	authCtx := &authContextXCom{UserInfo: userInfo}
-	var xcomToken XComToken = authCtx
-	require.Equal(t, "123456", xcomToken.GetUserId())
-	require.Equal(t, "testhandle", xcomToken.GetUserHandle())
-	require.Equal(t, "Test Display", xcomToken.GetDisplayName())
-	require.True(t, xcomToken.IsVerified())
-}
-
-func TestGenerateXComToken(t *testing.T) {
-	userInfo := XComUserInfo{
-		UserId:      "123456789",
-		UserHandle:  "testuser",
-		DisplayName: "Test User",
-		Verified:    true,
-	}
-	token := helperGenerateXComToken(t, userInfo)
-	require.NotEmpty(t, token)
-
-	t.Logf("Generated X.com token: %s", token)
-}
-
-func helperGenerateXComToken(t *testing.T, userInfo XComUserInfo) string {
-	t.Helper()
-
-	jsonData, err := json.Marshal(userInfo)
-	require.NoError(t, err)
-
-	return base64.StdEncoding.EncodeToString(jsonData)
 }
