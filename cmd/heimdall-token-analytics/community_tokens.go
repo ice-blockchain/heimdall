@@ -576,61 +576,39 @@ func (s *service) ohlcvStream(ionContentAddress string, intervalStr string) (ser
 	if err := interval.Validate(); err != nil {
 		return nil, errors.Wrapf(err, "invalid interval")
 	}
-	return func(ctx context.Context) (<-chan server.StreamEvent[ta.OHLCV], error) {
-		events := make(chan server.StreamEvent[ta.OHLCV], 100) // buffered to populate initial data in candlechart without blocking
-		now := time.Now()
-		start := now.Add(-time.Duration(interval.WindowSize()))
-		ohlcvs, err := s.tokenAnalytics.GetOHLVCHistory(ctx, now, start, ionContentAddress, interval)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get initial ohlcv data (history)")
+	now := time.Now().In(time.UTC)
+	emitter, err := wrapIntoStream[ta.OHLCV](100, func(ctx context.Context, addToStream func(t *ta.OHLCV, err error)) error {
+		if err := s.tokenAnalytics.SubscribeOHLVC(ctx, now, ionContentAddress, interval, addToStream); err != nil {
+			return errors.Wrapf(err, "failed to subscribe to OHLCV for %v", ionContentAddress)
 		}
-		recent, err := s.tokenAnalytics.GetOHLVCRecent(ctx, now, ionContentAddress, interval)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return emitter, nil
+}
+
+func wrapIntoStream[T any](initialBuffer int, impl func(ctx context.Context, addToStream func(t *T, err error)) error) (server.StreamEventEmitter[T], error) {
+	events := make(chan server.StreamEvent[T], initialBuffer)
+	addWithWrap := func(t *T, err error) {
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get initial ohlcv data (recent)")
-		}
-		for i := range ohlcvs {
-			events <- server.StreamEvent[ta.OHLCV]{
-				Err:  nil,
-				Data: ohlcvs[i],
-				Type: "message",
-				ID:   fmt.Sprintf("ohlcv_%v", ohlcvs[i].Timestamp),
+			events <- server.StreamEvent[T]{
+				Err:  err,
+				Data: nil,
+				Type: "error",
 			}
+			return
 		}
-		events <- server.StreamEvent[ta.OHLCV]{
-			Err:  nil,
-			Data: recent,
+		events <- server.StreamEvent[T]{
+			Data: t,
 			Type: "message",
-			ID:   fmt.Sprintf("ohlcv_%v", recent.Timestamp),
 		}
-		ticker := time.NewTicker(1 * time.Second) // TODO: cfg?
-		go func() {
-			defer close(events)
-			defer ticker.Stop()
-			for ctx.Err() == nil {
-				select {
-				case <-ctx.Done():
-					return
-				case <-ticker.C:
-					now = time.Now()
-					recent, err = s.tokenAnalytics.GetOHLVCRecent(ctx, now, ionContentAddress, interval)
-					if err != nil {
-						events <- server.StreamEvent[ta.OHLCV]{
-							Err:  err,
-							Data: nil,
-							Type: "error",
-							ID:   fmt.Sprintf("ohlcv_%v", now.UnixNano()),
-						}
-						return
-					}
-					events <- server.StreamEvent[ta.OHLCV]{
-						Err:  nil,
-						Data: recent,
-						Type: "message",
-						ID:   fmt.Sprintf("ohlcv_%v", recent.Timestamp),
-					}
-				}
-			}
-		}()
+	}
+	return func(ctx context.Context) (<-chan server.StreamEvent[T], error) {
+		if err := impl(ctx, addWithWrap); err != nil {
+			return nil, errors.Wrapf(err, "failed to call stream implementation")
+		}
 		return events, nil
 	}, nil
 }

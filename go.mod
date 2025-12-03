@@ -41,6 +41,7 @@ require (
 	github.com/libdns/cloudflare v0.2.2
 	github.com/nbd-wtf/go-nostr v0.52.3
 	github.com/pkg/errors v0.9.1
+	github.com/puzpuzpuz/xsync/v4 v4.2.0
 	github.com/questdb/go-questdb-client/v4 v4.1.0
 	github.com/quic-go/quic-go v0.57.1
 	github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9
@@ -50,7 +51,7 @@ require (
 	github.com/swaggo/gin-swagger v1.6.1
 	github.com/swaggo/swag v1.16.6
 	github.com/testcontainers/testcontainers-go v0.40.0
-	github.com/twilio/twilio-go v1.28.7
+	github.com/twilio/twilio-go v1.28.8
 	github.com/xssnick/tonutils-go v1.15.5
 	go.uber.org/goleak v1.3.0
 	golang.org/x/exp v0.0.0-20251125195548-87e1e737ad39
@@ -248,7 +249,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
-	github.com/puzpuzpuz/xsync/v4 v4.2.0 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/webtransport-go v0.9.0 // indirect
 	github.com/refraction-networking/utls v1.8.1 // indirect

@@ -11,8 +11,10 @@ import (
 	"sync/atomic"
 	stdlibtime "time"
 
+	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rcrowley/go-metrics"
 
+	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/quicknode"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
@@ -36,7 +38,7 @@ type (
 		GetCommunityTokensByType(ctx context.Context, viewType string, tokenType *string, keyword string, limit, offset uint64) ([]*CommunityToken, error)
 		GetLatestTrades(ctx context.Context, externalAddress string, limit, offset uint64, startFrom *stdlibtime.Time) (trades []*Trade, maxTs stdlibtime.Time, err error)
 		GetOHLVCHistory(ctx context.Context, now, startPoint stdlibtime.Time, externalAddress string, interval Interval) (res []*OHLCV, err error)
-		GetOHLVCRecent(ctx context.Context, now stdlibtime.Time, externalAddress string, interval Interval) (*OHLCV, error)
+		SubscribeOHLVC(context.Context, stdlibtime.Time, string, Interval, func(*OHLCV, error)) error
 		GetTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress string) (*TradeStats, error)
 		UpdateTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress string) (*TradeStats, error)
 		CreateViewingSession(ctx context.Context, sessionType, clientIP, deviceKey string, tokenType *string) (sessionID string, ttl uint64, err error)
@@ -62,6 +64,13 @@ type (
 
 	Interval   string
 	WindowSize stdlibtime.Duration
+
+	Subscriptions interface {
+		SubscribeOnSwaps(externalAddress string) <-chan *bondingcurve.LogTokenSwapped
+	}
+	Notifier interface {
+		NotifySwap(ev *bondingcurve.LogTokenSwapped)
+	}
 )
 
 const (
@@ -157,13 +166,21 @@ type (
 		ionPriceUSD     *atomic.Pointer[float64]
 		// TODO: xmap for latest creator token prices to calc content token price
 		bondingCurveContractAddress string
-
+		ohclvRecentData             *xsync.Map[string, *recentCandlestick]
+		subscriptions               interface {
+			Subscriptions
+			Notifier
+		}
 		dummyInsertBlockIdx uint64
 	}
 	tokenAnalyticsUsers struct {
 		ingestedDataDB *storage.DB
 		shutdown       func() error
 		cfg            *config
+	}
+	subscriptions struct {
+		swaps    chan *bondingcurve.LogTokenSwapped
+		swapSubs *xsync.Map[string, chan *bondingcurve.LogTokenSwapped]
 	}
 	txEvent struct {
 		BlockTimestamp   *time.Time  `db:"block_timestamp"`
@@ -279,6 +296,11 @@ type (
 		PriceUSD              float64 `db:"price_usd"`
 		CreatorVerified       bool    `db:"creator_verified"`
 		HolderVerified        bool    `db:"holder_verified"`
+	}
+	recentCandlestick struct {
+		o               atomic.Pointer[OHLCV]
+		interval        Interval
+		onceStartTicker sync.Once
 	}
 
 	holderMetadata struct {

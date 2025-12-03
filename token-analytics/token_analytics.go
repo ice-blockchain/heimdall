@@ -15,6 +15,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/goccy/go-json"
+	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rcrowley/go-metrics"
 
 	"github.com/ice-blockchain/heimdall/token-analytics/ddl"
@@ -91,6 +92,8 @@ func New(ctx context.Context) TokenAnalytics {
 		cfg:                         &cfg,
 		quickNode:                   qn,
 		metrics:                     registry,
+		ohclvRecentData:             xsync.NewMap[string, *recentCandlestick](),
+		subscriptions:               newSubscriptions(ctx),
 		shutdown: func() error {
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
@@ -102,11 +105,11 @@ func New(ctx context.Context) TokenAnalytics {
 		},
 	}
 	t.ionPriceUSD = new(atomic.Pointer[float64])
-
 	go metrics.LogScaled(registry, 5*stdlibtime.Minute, 1*stdlibtime.Second, t)
 	if err := t.syncIONPrice(ctx); err != nil && !storage.IsErr(err, storage.ErrReadOnly) && !errors.Is(err, context.Canceled) {
 		log.Panic(errors.Wrapf(err, "failed to sync ion price on startup"))
 	}
+
 	go t.startIONPriceSyncer(ctx)
 	if true {
 		t.insertDummyDataProcessor(ctx)

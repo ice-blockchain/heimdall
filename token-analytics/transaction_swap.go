@@ -19,15 +19,10 @@ import (
 func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTokenSwapped) error {
 	userAddr := strings.ToLower(ev.Swapper.Hex())
 
-	externalAddressParam, ok := ev.Params["toToken"]
-	if !ok {
-		return fmt.Errorf("failed to extract external_address from tx.Input: toToken param not found")
+	externalAddress, err := detectExternalAddressFromSwap(ev)
+	if err != nil {
+		return fmt.Errorf("failed to detect external_address from tx.Input: %w", err)
 	}
-	externalAddressBytes, ok := externalAddressParam.([]byte)
-	if !ok {
-		return fmt.Errorf("failed to extract ion_connect_address from tx.Input: toToken is not bytes")
-	}
-	externalAddress := string(externalAddressBytes)
 
 	type tokenAndUserInfo struct {
 		ContractAddress      string `db:"contract_address"`
@@ -64,9 +59,6 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 
 	log.Debug(fmt.Sprintf("onSwap: contractAddress=%s, userAddr=%s", contractAddress, userAddr))
 
-	if err := t.registerTrade(ctx, tx, ev, externalAddress); err != nil {
-		return fmt.Errorf("failed to save trade in questdb %v ]]: %w", userAddr, err)
-	}
 	ionPriceUSD := t.ionPriceUSD.Load()
 
 	priceInION := calculatePriceFromSwap(ev) // Price: how much ION per 1 community token
@@ -75,7 +67,27 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	log.Debug(fmt.Sprintf("Swap on token %v: direction=%v, price=%v USD (ION price: %v), user=%v, tx:%v",
 		contractAddress, ev.Direction, priceUSD, *ionPriceUSD, userAddr, tx.TransactionHash))
 
-	return t.calculateTokenMarketDataAndUserPosition(ctx, tx, contractAddress, ev, priceUSD, result.TokenExternalAddress, result.UserExternalAddress, result.TokenType)
+	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, contractAddress, ev, priceUSD, result.TokenExternalAddress, result.UserExternalAddress, result.TokenType); err != nil {
+		return errors.Wrap(err, "failed to calculate token market data and user position")
+	}
+	if err = t.registerTrade(ctx, tx, ev, externalAddress); err != nil {
+		return errors.Wrapf(err, "failed to save trade in questdb %v", userAddr)
+	}
+	t.subscriptions.NotifySwap(ev)
+	return nil
+}
+
+func detectExternalAddressFromSwap(ev *bondingcurve.LogTokenSwapped) (string, error) {
+	externalAddressParam, ok := ev.Params["toToken"]
+	if !ok {
+		return "", fmt.Errorf("failed to extract ion_connect_address from tx.Input: toToken param not found")
+	}
+	externalAddressParamBytes, ok := externalAddressParam.([]byte)
+	if !ok {
+		return "", fmt.Errorf("failed to extract ion_connect_address from tx.Input: toToken is not bytes")
+	}
+	externalAddress := string(externalAddressParamBytes)
+	return externalAddress, nil
 }
 
 func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Context, tx *txEvent, contractAddress string, ev *bondingcurve.LogTokenSwapped, priceUSD float64, tokenExternalAddress, userExternalAddress, tokenType string) error {
