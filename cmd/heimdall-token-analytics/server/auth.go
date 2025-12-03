@@ -97,7 +97,6 @@ func authIsEnabled(ctx *gin.Context) bool {
 	if ctx == nil {
 		return false
 	}
-
 	return ctx.GetBool(authContextEnabledKey)
 }
 

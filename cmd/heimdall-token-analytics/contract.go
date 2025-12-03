@@ -21,7 +21,6 @@ type (
 	}
 
 	service struct {
-		cfg            *Config
 		tokenAnalytics ta.TokenAnalytics
 		httpServer     server.Server
 	}

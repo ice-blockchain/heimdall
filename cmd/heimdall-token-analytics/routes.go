@@ -33,7 +33,6 @@ func (s *service) RegisterRoutes(router gin.IRouter) {
 		AllowCredentials: false,
 	}
 	router.Use(cors.New(corsConfig))
-
 	router.Use(server.AuthMiddleware())
 
 	router.GET("/healthz", s.httpHealthCheckHandler)
