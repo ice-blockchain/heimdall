@@ -24,14 +24,14 @@ type (
 	// NoAuthRequired is a marker struct to indicate that no authentication is required for the request.
 	NoAuthRequired struct{}
 
-	authContextNIP42 struct {
+	AuthContextNIP42 struct {
 		Event        *model.Event
 		MasterPubKey string
 	}
-	authContextXcom struct {
-		UserInfo *authXcomUserInfo
+	AuthContextXcom struct {
+		UserInfo *AuthXcomUserInfo
 	}
-	authXcomUserInfo struct {
+	AuthXcomUserInfo struct {
 		UserId      string `json:"userId"`
 		UserHandle  string `json:"userHandle"`
 		DisplayName string `json:"displayName"`
@@ -48,8 +48,8 @@ const (
 )
 
 var (
-	_ Token = &authContextNIP42{}
-	_ Token = &authContextXcom{}
+	_ Token = &AuthContextNIP42{}
+	_ Token = &AuthContextXcom{}
 
 	errAuthInvalidEventSignature = errors.New("nip42: invalid event signature")
 	errAuthNoAttestation         = errors.New("nip42: no attestation found in the event tags")
@@ -59,22 +59,22 @@ var (
 	errAuthXComMissingFields     = errors.New("x.com: missing required fields")
 )
 
-func (a *authContextNIP42) GetMasterPublicKey() string {
+func (a *AuthContextNIP42) GetMasterPublicKey() string {
 	return a.MasterPubKey
 }
 
-func (a *authContextNIP42) GetDevicePublicKey() string {
+func (a *AuthContextNIP42) GetDevicePublicKey() string {
 	return a.Event.PubKey
 }
 
-func (a *authContextXcom) GetMasterPublicKey() string {
+func (a *AuthContextXcom) GetMasterPublicKey() string {
 	if a.UserInfo != nil {
 		return a.UserInfo.UserId
 	}
 	return ""
 }
 
-func (a *authContextXcom) GetDevicePublicKey() string {
+func (a *AuthContextXcom) GetDevicePublicKey() string {
 	if a.UserInfo != nil {
 		return a.UserInfo.UserId
 	}
@@ -162,7 +162,7 @@ func authValidateNIP42Token(jsonToken []byte) (Token, error) {
 		return nil, fmt.Errorf("%q: authorization failed: %w", ev.GetMasterPublicKey(), err)
 	}
 
-	return &authContextNIP42{
+	return &AuthContextNIP42{
 		Event:        &ev,
 		MasterPubKey: ev.GetMasterPublicKey(),
 	}, nil
@@ -237,7 +237,7 @@ func authValidateEventAttestation(authEvent, attestationEvent *model.Event) erro
 }
 
 func authValidateXcomToken(jsonToken []byte) (Token, error) {
-	var userInfo authXcomUserInfo
+	var userInfo AuthXcomUserInfo
 
 	if err := json.Unmarshal(jsonToken, &userInfo); err != nil {
 		return nil, fmt.Errorf("%w: failed to parse JSON: %w", errAuthInvalidFormat, err)
@@ -250,7 +250,7 @@ func authValidateXcomToken(jsonToken []byte) (Token, error) {
 		return nil, fmt.Errorf("%w: missing userHandle", errAuthXComMissingFields)
 	}
 
-	return &authContextXcom{
+	return &AuthContextXcom{
 		UserInfo: &userInfo,
 	}, nil
 }

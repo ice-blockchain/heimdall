@@ -56,7 +56,7 @@ func helperCreateAuthTokenNIP42(t *testing.T, userPrivate, masterPrivate string)
 	return `Nostr ` + base64.StdEncoding.EncodeToString([]byte(ev.String()))
 }
 
-func helperCreateAuthTokenXcom(t *testing.T, userInfo authXcomUserInfo) string {
+func helperCreateAuthTokenXcom(t *testing.T, userInfo AuthXcomUserInfo) string {
 	t.Helper()
 
 	jsonData, err := json.Marshal(userInfo)
@@ -126,13 +126,13 @@ func TestXComTokenValidation(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		userInfo  authXcomUserInfo
+		userInfo  AuthXcomUserInfo
 		wantError bool
 		errorType error
 	}{
 		{
 			name: "valid token",
-			userInfo: authXcomUserInfo{
+			userInfo: AuthXcomUserInfo{
 				UserId:      "123456789",
 				UserHandle:  "testuser",
 				DisplayName: "Test User",
@@ -142,7 +142,7 @@ func TestXComTokenValidation(t *testing.T) {
 		},
 		{
 			name: "missing userId",
-			userInfo: authXcomUserInfo{
+			userInfo: AuthXcomUserInfo{
 				UserId:      "", // missing.
 				UserHandle:  "nouserid",
 				DisplayName: "No User ID",
@@ -152,7 +152,7 @@ func TestXComTokenValidation(t *testing.T) {
 		},
 		{
 			name: "missing userHandle",
-			userInfo: authXcomUserInfo{
+			userInfo: AuthXcomUserInfo{
 				UserId:      "111222333",
 				UserHandle:  "",
 				DisplayName: "No Handle",
@@ -176,7 +176,7 @@ func TestXComTokenValidation(t *testing.T) {
 				require.NoError(t, err)
 				require.NotNil(t, tokenValue)
 
-				xcomToken, ok := tokenValue.(*authContextXcom)
+				xcomToken, ok := tokenValue.(*AuthContextXcom)
 				require.True(t, ok)
 				require.EqualValues(t, &tt.userInfo, xcomToken.UserInfo)
 			}
@@ -187,7 +187,7 @@ func TestXComTokenValidation(t *testing.T) {
 func TestXComAuthMiddleware(t *testing.T) {
 	t.Parallel()
 
-	userInfo := authXcomUserInfo{
+	userInfo := AuthXcomUserInfo{
 		UserId:      "999888777",
 		UserHandle:  "middlewaretest",
 		DisplayName: "Middleware Test User",
@@ -227,7 +227,7 @@ func TestXComAuthMiddleware(t *testing.T) {
 					tokenCtx := authGetToken(ctx)
 					require.NotNil(t, tokenCtx)
 
-					xcomToken, ok := tokenCtx.(*authContextXcom)
+					xcomToken, ok := tokenCtx.(*AuthContextXcom)
 					require.True(t, ok)
 					require.NotNil(t, xcomToken)
 					require.EqualValues(t, &userInfo, xcomToken.UserInfo)
