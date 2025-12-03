@@ -71,7 +71,7 @@ func TestAuthNIP42(t *testing.T) {
 	}
 
 	r := helperNewRouter(t)
-	r.Use(AuthMiddleware([]byte("")))
+	r.Use(AuthMiddleware())
 	r.GET("/with_auth", RootHandler(func(ctx context.Context, r *Request[RequestTestStruct]) (*Response[string], error) {
 		require.NotNil(t, r.Token)
 		nostrToken, ok := r.Token.(NostrToken)
@@ -148,7 +148,7 @@ func TestXComTokenValidation(t *testing.T) {
 			},
 			ttl:       -1 * time.Hour,
 			wantError: true,
-			errorType: errAuthXComInvalidToken, // JWT library wraps expiration errors
+			errorType: errAuthXComExpired,
 		},
 		{
 			name: "missing userId",
@@ -179,7 +179,7 @@ func TestXComTokenValidation(t *testing.T) {
 			token := helperGenerateXComToken(t, tt.userInfo, secretKey, tt.ttl)
 
 			authHeader := xcomAuthScheme + " " + token
-			claims, err := authValidateXComToken(authHeader, secretKey)
+			claims, err := authValidateXComToken(authHeader)
 
 			if tt.wantError {
 				require.Error(t, err)
@@ -234,18 +234,12 @@ func TestXComAuthMiddleware(t *testing.T) {
 			expectedStatus: 401,
 			checkContext:   false,
 		},
-		{
-			name:           "wrong secret key",
-			authHeader:     xcomAuthScheme + " " + helperGenerateXComToken(t, userInfo, []byte("wrong-key"), 1*time.Hour),
-			expectedStatus: 401,
-			checkContext:   false,
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.New()
-			router.Use(AuthMiddleware(secretKey))
+			router.Use(AuthMiddleware())
 			router.GET("/test", func(ctx *gin.Context) {
 				if tt.checkContext {
 					tokenCtx := authGetToken(ctx)

@@ -154,7 +154,7 @@ func authIsEnabled(ctx *gin.Context) bool {
 	return ctx.GetBool(authContextEnabledKey)
 }
 
-func AuthMiddleware(xcomSecretKey []byte) gin.HandlerFunc {
+func AuthMiddleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ctx.Set(authContextEnabledKey, true)
 
@@ -165,7 +165,7 @@ func AuthMiddleware(xcomSecretKey []byte) gin.HandlerFunc {
 			return
 		}
 		if strings.HasPrefix(token, xcomAuthScheme+" ") {
-			claims, err := authValidateXComToken(token, xcomSecretKey)
+			claims, err := authValidateXComToken(token)
 			if err != nil {
 				Unauthorized(err).render(ctx)
 				return
@@ -298,23 +298,14 @@ func authValidateEventAttestation(authEvent, attestationEvent *model.Event) erro
 	return nil
 }
 
-func authValidateXComToken(authHeader string, secretKey []byte) (*XComClaims, error) {
+func authValidateXComToken(authHeader string) (*XComClaims, error) {
 	tokenString := strings.TrimPrefix(authHeader, xcomAuthScheme+" ")
 	if tokenString == "" {
 		return nil, fmt.Errorf("%w: empty token", errAuthXComInvalidToken)
 	}
-	token, err := jwt.ParseWithClaims(tokenString, &XComClaims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-
-		return secretKey, nil
-	})
+	token, _, err := jwt.NewParser().ParseUnverified(tokenString, &XComClaims{})
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", errAuthXComInvalidToken, err)
-	}
-	if !token.Valid {
-		return nil, errAuthXComInvalidToken
 	}
 	claims, ok := token.Claims.(*XComClaims)
 	if !ok {

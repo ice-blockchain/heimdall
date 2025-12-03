@@ -72,7 +72,6 @@ func (s *service) MustStart(ctx context.Context) {
 }
 
 func (s *service) Init(ctx context.Context, cfg *Config) {
-	s.cfg = cfg
 	s.httpServer = server.New(cfg.Server())
 	s.tokenAnalytics = tokenanalytics.New(ctx)
 	s.tokenAnalytics.MustStart(ctx)
