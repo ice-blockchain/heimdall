@@ -16,13 +16,13 @@ import (
 )
 
 type (
-	// NoAuthRequired is a marker struct to indicate that no authentication is required for the request.
-	NoAuthRequired struct{}
-
 	Token interface {
 		GetMasterPublicKey() string
 		GetDevicePublicKey() string
 	}
+
+	// NoAuthRequired is a marker struct to indicate that no authentication is required for the request.
+	NoAuthRequired struct{}
 
 	authContextNIP42 struct {
 		Event        *model.Event
@@ -90,7 +90,6 @@ func authGetToken(ctx *gin.Context) Token {
 	if !exists {
 		return nil
 	}
-
 	return token.(Token)
 }
 
