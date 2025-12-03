@@ -110,9 +110,9 @@ DO $$ BEGIN
         WHERE id = 'b6fd4779-f4d8-49db-be2d-b3bd334f5325';
     -- old ice on bsc
     INSERT INTO coins (sync_frequency, created_at, updated_at, data_updated_at, decimals, version, price_usd, id, coingecko_coin_id, network, name, contract_address, symbol, symbol_group, icon_url, native)
-    VALUES            ('%[1]v', now(), now(), now(), 18, ((select global.value from global where global.key = '%[3]v')::BIGINT + 1), %[2]v, 'c43ae71d-d5f1-1fd1-4dfa-d01af1484655', 'ice', 'bsc', 'Ice Open Network', '0xc335df7c25b72eec661d5aa32a7c2b7b2a1d1874', 'ice', 'ice', 'https://cdn.ice.io/online+/assets/coins/ion.svg', false)
+    VALUES            ('%[1]v', now(), now(), now(), 18, ((select global.value from global where global.key = '%[3]v')::BIGINT + 1), %[2]v, 'c43ae71d-d5f1-1fd1-4dfa-d01af1484655', 'ice', 'bsc', 'Ice Open Network (OLD)', '0xc335df7c25b72eec661d5aa32a7c2b7b2a1d1874', 'ice', 'ice', 'https://cdn.ice.io/online+/assets/coins/ion.svg', false)
     ON CONFLICT (id) DO UPDATE SET
-                                   name = 'Ice Open Network',
+                                   name = 'Ice Open Network (OLD)',
                                    coingecko_coin_id = 'ice',
                                    symbol = 'ice',
                                    symbol_group = 'ice',
@@ -120,9 +120,9 @@ DO $$ BEGIN
                                    version = ((select global.value from global where global.key = '%[3]v')::BIGINT + 1);
     -- old ice on eth
     INSERT INTO coins (sync_frequency, created_at, updated_at, data_updated_at, decimals, version, price_usd, id, coingecko_coin_id, network, name, contract_address, symbol, symbol_group, icon_url, native)
-    VALUES            ('%[1]v', now(), now(), now(), 18, ((select global.value from global where global.key = '%[3]v')::BIGINT + 1), %[2]v, 'bd3ddc2a-73fc-4c24-3e9b-dbc992fef82d', 'ice', 'eth', 'Ice Open Network', '0x79f05c263055ba20ee0e814acd117c20caa10e0c', 'ice', 'ice', 'https://cdn.ice.io/online+/assets/coins/ion.svg', false)
+    VALUES            ('%[1]v', now(), now(), now(), 18, ((select global.value from global where global.key = '%[3]v')::BIGINT + 1), %[2]v, 'bd3ddc2a-73fc-4c24-3e9b-dbc992fef82d', 'ice', 'eth', 'Ice Open Network (OLD)', '0x79f05c263055ba20ee0e814acd117c20caa10e0c', 'ice', 'ice', 'https://cdn.ice.io/online+/assets/coins/ion.svg', false)
     ON CONFLICT (id) DO UPDATE SET
-                                   name = 'Ice Open Network',
+                                   name = 'Ice Open Network (OLD)',
                                    coingecko_coin_id = 'ice',
                                    symbol = 'ice',
                                    symbol_group = 'ice',
@@ -130,9 +130,9 @@ DO $$ BEGIN
                                    version = ((select global.value from global where global.key = '%[3]v')::BIGINT + 1);
     -- old ice on solana
     INSERT INTO coins (sync_frequency, created_at, updated_at, data_updated_at, decimals, version, price_usd, id, coingecko_coin_id, network, name, contract_address, symbol, symbol_group, icon_url, native)
-    VALUES            ('%[1]v', now(), now(), now(), 8, ((select global.value from global where global.key = '%[3]v')::BIGINT + 1), %[2]v, '742bd2b4-6f9b-44c5-e13c-7bd8cd43e001', 'ice', 'solana', 'Ice Open Network', 'E9aPbhb5xRVGP2L6qJixfJC5qWAzECpUFUxnGx3wUiND', 'ice', 'ice', 'https://cdn.ice.io/online+/assets/coins/ion.svg', false)
+    VALUES            ('%[1]v', now(), now(), now(), 8, ((select global.value from global where global.key = '%[3]v')::BIGINT + 1), %[2]v, '742bd2b4-6f9b-44c5-e13c-7bd8cd43e001', 'ice', 'solana', 'Ice Open Network (OLD)', 'E9aPbhb5xRVGP2L6qJixfJC5qWAzECpUFUxnGx3wUiND', 'ice', 'ice', 'https://cdn.ice.io/online+/assets/coins/ion.svg', false)
     ON CONFLICT (id) DO UPDATE SET
-                                   name = 'Ice',
+                                   name = 'Ice Open Network (OLD)',
                                    coingecko_coin_id = 'ice',
                                    symbol = 'ice',
                                    symbol_group = 'ice',
@@ -140,9 +140,9 @@ DO $$ BEGIN
                                    version = ((select global.value from global where global.key = '%[3]v')::BIGINT + 1);
     -- old ice on arbitrum
     INSERT INTO coins (sync_frequency, created_at, updated_at, data_updated_at, decimals, version, price_usd, id, coingecko_coin_id, network, name, contract_address, symbol, symbol_group, icon_url, native)
-    VALUES            ('%[1]v', now(), now(), now(), 18, ((select global.value from global where global.key = '%[3]v')::BIGINT + 1), %[2]v, 'bce57663-8fb0-6d41-c6f1-c03c0c39a3ad', 'ice', 'arbitrum', 'Ice Open Network', '0xAB8EBCC9eecc20Bd30c7b75c7b4e8fcCcFBf01aB', 'ice', 'ice', 'https://cdn.ice.io/online+/assets/coins/ion.svg', false)
+    VALUES            ('%[1]v', now(), now(), now(), 18, ((select global.value from global where global.key = '%[3]v')::BIGINT + 1), %[2]v, 'bce57663-8fb0-6d41-c6f1-c03c0c39a3ad', 'ice', 'arbitrum', 'Ice Open Network (OLD)', '0xAB8EBCC9eecc20Bd30c7b75c7b4e8fcCcFBf01aB', 'ice', 'ice', 'https://cdn.ice.io/online+/assets/coins/ion.svg', false)
     ON CONFLICT (id) DO UPDATE SET
-                                   name = 'Ice',
+                                   name = 'Ice Open Network (OLD)',
                                    coingecko_coin_id = 'ice',
                                    symbol = 'ice',
                                    symbol_group = 'ice',

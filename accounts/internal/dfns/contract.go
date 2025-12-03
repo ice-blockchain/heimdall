@@ -21,6 +21,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/ice-blockchain/heimdall/coins"
+	indexer "github.com/ice-blockchain/heimdall/ion-indexer"
 	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/wintr/time"
 )
@@ -46,6 +47,7 @@ type (
 		CreateWallet(ctx context.Context, network, name string) (*Wallet, error)
 		ListAssets(ctx context.Context, walletID string) (*Assets, error)
 		ListNFTs(ctx context.Context, walletID string) (*NFTs, error)
+		GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint) (*WalletHistory, error)
 		SecurePaymentConfirmation(ctx context.Context, userID, network string, wallet Wallet, body map[string]string) (tmplData any, err error)
 	}
 	RefreshAuth interface {
@@ -55,7 +57,7 @@ type (
 	StartedDelegatedRecovery map[string]any
 	User                     map[string]any
 	Wallet                   map[string]any
-	Asset                    map[string]any
+	Asset                    = indexer.Asset
 	NFT                      = coins.WalletNFT
 	LoginChallenge           map[string]any
 	RegistrationChallenge    map[string]any
@@ -69,6 +71,13 @@ type (
 		NFTs     []NFT  `json:"nfts"`
 		Network  string `json:"network"`
 		WalletID string `json:"walletId"`
+	}
+
+	WalletHistory struct {
+		Items         []WalletHistoryItem `json:"items"`
+		Network       string              `json:"network"`
+		WalletID      string              `json:"walletId"`
+		NextPageToken *string             `json:"nextPageToken,omitempty"`
 	}
 	BroadcastTxResponse struct {
 		Id        string `json:"id"`
@@ -98,6 +107,8 @@ type (
 			Name    string `json:"name"`
 		} `json:"wallets"`
 	}
+
+	WalletHistoryItem = indexer.WalletHistoryItem
 )
 
 const (

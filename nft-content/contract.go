@@ -12,6 +12,7 @@ import (
 
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/coins"
+	indexer "github.com/ice-blockchain/heimdall/ion-indexer"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
@@ -40,7 +41,7 @@ type (
 	NFTCategory         = string
 	OwnerAddressFetcher interface {
 		FetchMainWallet(ctx context.Context, masterKey string) (accounts.Wallet, error)
-		SetProviderForUnsupportedNFTs(nft accounts.NFTInWallets)
+		SetProviderForUnsupportedNFTs(nft indexer.Indexer)
 	}
 	NFTContent interface {
 		io.Closer
@@ -91,9 +92,6 @@ type (
 		ProfileURIBaseURL  string `yaml:"profileUriBaseUrl"`
 		HTMLPreviewBaseURL string `yaml:"htmlPreviewBaseUrl"`
 		ContentURIBaseURL  string `yaml:"contentUriBaseUrl"`
-		Indexer            struct {
-			ION string `yaml:"ion"  mapstructure:"ion"`
-		} `yaml:"indexer" mapstructure:"indexer"`
 	}
 
 	WalletNFT = coins.WalletNFT
@@ -106,8 +104,7 @@ var (
 )
 
 const (
-	CollectionMetadataIndexedKey = coins.CollectionMetadataIndexedKey
-	applicationYamlKey           = "nft-content"
+	applicationYamlKey = "nft-content"
 
 	nftResponseName        string = "NFT response name"
 	nftResponseDescription string = "NFT response description"
@@ -132,7 +129,6 @@ var (
 		NFTContentTypePost:    "https://cdn.ice.io/nft/assets/post.png",
 		NFTContentTypeArticle: "https://cdn.ice.io/nft/assets/article.png",
 	}
-	defaultIndexerReqLimit = uint(100)
 )
 
 type (
@@ -140,56 +136,6 @@ type (
 		db            *storage.DB
 		config        *Config
 		walletFetcher OwnerAddressFetcher
-	}
-
-	getNftItemsIndexerResponse struct {
-		NftItems []nftItem               `json:"nft_items"`
-		Metadata map[string]metadataItem `json:"metadata"`
-	}
-	metadataItem struct {
-		IsIndexed bool `json:"is_indexed"`
-		TokenInfo []struct {
-			Type        string `json:"type"`
-			Name        string `json:"name"`
-			Description string `json:"description"`
-			Image       string `json:"image"`
-			Symbol      string `json:"symbol"`
-			Extra       struct {
-				ImageBig       string `json:"_image_big"`
-				ImageMedium    string `json:"_image_medium"`
-				ImageSmall     string `json:"_image_small"`
-				AccountId      string `json:"account_id"`
-				AuthorId       string `json:"author_id"`
-				DisplayName    string `json:"display_name"`
-				HtmlPreviewUri string `json:"html_preview_uri"`
-				ProfileUri     string `json:"profile_uri"`
-				Type           string `json:"type"`
-				Uri            string `json:"uri"`
-			} `json:"extra"`
-		} `json:"token_info"`
-	}
-	nftItem struct {
-		Address           string `json:"address"`
-		Init              bool   `json:"init"`
-		Index             string `json:"index"`
-		CollectionAddress string `json:"collection_address"`
-		OwnerAddress      string `json:"owner_address"`
-		Content           struct {
-			Uri string `json:"uri"`
-		} `json:"content"`
-		LastTransactionLt string `json:"last_transaction_lt"`
-		CodeHash          string `json:"code_hash"`
-		DataHash          string `json:"data_hash"`
-		Collection        struct {
-			Address           string `json:"address"`
-			OwnerAddress      string `json:"owner_address"`
-			LastTransactionLt string `json:"last_transaction_lt"`
-			NextItemIndex     string `json:"next_item_index"`
-			CollectionContent struct {
-				Uri string `json:"uri"`
-			} `json:"collection_content"`
-			DataHash string `json:"data_hash"`
-			CodeHash string `json:"code_hash"`
-		} `json:"collection"`
+		indexer       indexer.Indexer
 	}
 )

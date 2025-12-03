@@ -7,33 +7,35 @@ import (
 	"fmt"
 	"net/url"
 	"slices"
-	"strconv"
 
 	"github.com/goccy/go-json"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
 	"github.com/xssnick/tonutils-go/address"
 
+	indexer "github.com/ice-blockchain/heimdall/ion-indexer"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
-func New(ctx context.Context, walletFetcher OwnerAddressFetcher) NFTContent {
+func New(ctx context.Context, walletFetcher OwnerAddressFetcher, indexer indexer.Indexer) NFTContent {
 	db := storage.MustConnect(ctx, applicationYamlKey, storage.NewStringDDL(ddl))
 
 	var cfg Config
 	config.MustLoadFromKey(applicationYamlKey, &cfg)
-	if cfg.Indexer.ION == "" {
-		panic("[nft-content] indexer>ion is not set")
-	}
 	nft := &nftContent{
 		db:            db,
 		walletFetcher: walletFetcher,
 		config:        &cfg,
+		indexer:       indexer,
 	}
-	walletFetcher.SetProviderForUnsupportedNFTs(nft)
+	walletFetcher.SetProviderForUnsupportedNFTs(nft.indexer)
 	return nft
+}
+
+func (n *nftContent) ListNFTs(ctx context.Context, walletAddr string, paginationToken string, limit uint) ([]WalletNFT, *string, error) {
+	return n.indexer.ListNFTs(ctx, walletAddr, paginationToken, limit)
 }
 
 func (n *nftContent) Process(ctx context.Context, events model.Events) error {
@@ -324,18 +326,6 @@ func (n *nftContent) Close() error {
 
 func (n *nftContent) HealthCheck(ctx context.Context) error {
 	return errors.Wrap(n.db.Ping(ctx), "failed to ping database")
-}
-
-func (n *nftContent) ListNFTs(ctx context.Context, walletAddr string, paginationToken string, limit uint) ([]WalletNFT, *string, error) {
-	if paginationToken == "" {
-		paginationToken = "0" // Basically offset, but on 3rd party wallet provider they use strings, we try to mimic to their endpoint
-	}
-	offset, err := strconv.ParseUint(paginationToken, 10, 64)
-	if err != nil {
-		return nil, nil, errors.Wrapf(err, "failed to parse pagination token: %v", paginationToken)
-	}
-	nfts, newPagination, err := n.listNFTs(ctx, walletAddr, uint(offset), limit)
-	return nfts, newPagination, errors.Wrapf(err, "failed to fetch NFTs for wallet %v from ion indexer", walletAddr)
 }
 
 func (n *nftContent) getOwnerWalletAddress(ctx context.Context, event *model.Event) (string, error) {
