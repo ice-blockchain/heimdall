@@ -81,7 +81,7 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 		}
 
 		if row.PositionAmountUSD > 0 {
-			externalAddress := fmt.Sprintf("ion_connect:0:%s:", requestorMasterPubkey)
+			externalAddress := BuildProfileExternalAddress(requestorMasterPubkey)
 			position, err := t.getUserTokenPositionRanking(ctx, externalAddress, row.ExternalAddress, row.PositionAmountUSD, row.PositionTotalInvestedUSD)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get user position ranking for token %v", row.ExternalAddress)
@@ -90,19 +90,26 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 				marketData.Position = *position
 			}
 		}
-
+		tokenAddresses, err := buildAddressesFromExternalAddress(row.ExternalAddress)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build addresses from external_address %s: %w", row.ExternalAddress, err)
+		}
+		creatorAddresses, err := buildAddressesFromExternalAddress(BuildProfileExternalAddress(row.CreatorMasterPubkey))
+		if err != nil {
+			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s: %w", row.CreatorMasterPubkey, err)
+		}
 		token := &CommunityToken{
 			Type:        row.Type,
 			Title:       row.Title,
 			Description: row.Description,
 			ImageURL:    row.ImageURL,
-			Addresses:   buildAddressesFromExternalAddress(row.ExternalAddress),
+			Addresses:   tokenAddresses,
 			Creator: User{
 				Username:  row.CreatorUsername,
 				Display:   row.CreatorDisplay,
 				Verified:  row.CreatorVerified,
 				Avatar:    row.CreatorAvatar,
-				Addresses: buildAddressesFromExternalAddress(fmt.Sprintf("0:%s:", row.CreatorMasterPubkey)),
+				Addresses: creatorAddresses,
 			},
 			MarketData: marketData,
 		}
@@ -208,7 +215,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopHolders(ctx context.Context, e
 			TopHolders: topHolders,
 		}
 		if row.PositionAmountUSD > 0 {
-			externalAddress := fmt.Sprintf("ion_connect:0:%s:", requestorMasterPubkey)
+			externalAddress := BuildProfileExternalAddress(requestorMasterPubkey)
 			position, err := t.getUserTokenPositionRanking(ctx, externalAddress, row.ExternalAddress, row.PositionAmountUSD, row.PositionTotalInvestedUSD)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get user position ranking for token %v", row.ExternalAddress)
@@ -217,22 +224,30 @@ func (t *tokenAnalytics) getCommunityTokensWithTopHolders(ctx context.Context, e
 				marketData.Position = *position
 			}
 		}
+		tokenAddresses, err := buildAddressesFromExternalAddress(row.ExternalAddress)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build addresses from external_address %s: %w", row.ExternalAddress, err)
+		}
 		creatorIONConnect := ""
 		if row.CreatorMasterPubkey != "" {
-			creatorIONConnect = fmt.Sprintf("0:%s:", row.CreatorMasterPubkey)
+			creatorIONConnect = BuildProfileExternalAddress(row.CreatorMasterPubkey)
+		}
+		creatorAddresses, err := buildAddressesFromExternalAddress(creatorIONConnect)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s: %w", row.CreatorMasterPubkey, err)
 		}
 		token := &CommunityToken{
 			Type:        row.Type,
 			Title:       row.Title,
 			Description: row.Description,
 			ImageURL:    row.ImageURL,
-			Addresses:   buildAddressesFromExternalAddress(row.ExternalAddress),
+			Addresses:   tokenAddresses,
 			Creator: User{
 				Username:  row.CreatorUsername,
 				Display:   row.CreatorDisplay,
 				Verified:  row.CreatorVerified,
 				Avatar:    row.CreatorAvatar,
-				Addresses: buildAddressesFromExternalAddress(creatorIONConnect),
+				Addresses: creatorAddresses,
 			},
 			MarketData: marketData,
 		}
@@ -308,19 +323,27 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 
 	tokens := make([]*CommunityToken, 0, len(rows))
 	for _, row := range rows {
+		tokenAddresses, err := buildAddressesFromExternalAddress(row.ExternalAddress)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build addresses from external_address %s: %w", row.ExternalAddress, err)
+		}
+		creatorAddresses, err := buildAddressesFromExternalAddress(BuildProfileExternalAddress(row.CreatorMasterPubkey))
+		if err != nil {
+			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s: %w", row.CreatorMasterPubkey, err)
+		}
 		token := &CommunityToken{
 			Type:        row.Type,
 			Title:       row.Title,
 			Description: row.Description,
 			ImageURL:    row.ImageURL,
 			CreatedAt:   *row.CreatedAt.Time,
-			Addresses:   buildAddressesFromExternalAddress(row.ExternalAddress),
+			Addresses:   tokenAddresses,
 			Creator: User{
 				Username:  row.CreatorUsername,
 				Display:   row.CreatorDisplay,
 				Verified:  row.CreatorVerified,
 				Avatar:    row.CreatorAvatar,
-				Addresses: buildAddressesFromExternalAddress(fmt.Sprintf("0:%s:", row.CreatorMasterPubkey)),
+				Addresses: creatorAddresses,
 			},
 			MarketData: MarketData{
 				Ticker:    row.Ticker,
@@ -388,19 +411,27 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 
 	tokens := make([]*CommunityToken, 0, len(rows))
 	for _, row := range rows {
+		tokenAddresses, err := buildAddressesFromExternalAddress(row.ExternalAddress)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build addresses from external_address %s: %w", row.ExternalAddress, err)
+		}
+		creatorAddresses, err := buildAddressesFromExternalAddress(BuildProfileExternalAddress(row.CreatorMasterPubkey))
+		if err != nil {
+			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s: %w", row.CreatorMasterPubkey, err)
+		}
 		token := &CommunityToken{
 			Type:        row.Type,
 			Title:       row.Title,
 			Description: row.Description,
 			ImageURL:    row.ImageURL,
 			CreatedAt:   *row.CreatedAt.Time,
-			Addresses:   buildAddressesFromExternalAddress(row.ExternalAddress),
+			Addresses:   tokenAddresses,
 			Creator: User{
 				Username:  row.CreatorUsername,
 				Display:   row.CreatorDisplay,
 				Verified:  row.CreatorVerified,
 				Avatar:    row.CreatorAvatar,
-				Addresses: buildAddressesFromExternalAddress(fmt.Sprintf("0:%s:", row.CreatorMasterPubkey)),
+				Addresses: creatorAddresses,
 			},
 			MarketData: MarketData{
 				Ticker:    row.Ticker,
@@ -509,10 +540,10 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, ionConnectAddress 
 		}
 		var creatorIONConnect, holderIONConnect = "", ""
 		if swaps[i].CreatorMasterPubkey != "" {
-			creatorIONConnect = fmt.Sprintf("0:%s:", swaps[i].CreatorMasterPubkey)
+			creatorIONConnect = BuildProfileExternalAddress(swaps[i].CreatorMasterPubkey)
 		}
 		if swaps[i].HolderMasterPubkey != "" {
-			holderIONConnect = fmt.Sprintf("0:%s:", swaps[i].HolderMasterPubkey)
+			holderIONConnect = BuildProfileExternalAddress(swaps[i].HolderMasterPubkey)
 		}
 		var tokenAmount uint64
 		var typ TradeType
@@ -524,13 +555,25 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, ionConnectAddress 
 			tokenAmount = swaps[i].Input // User sends tokens
 		}
 		amountUSD, _ := new(big.Float).Mul(new(big.Float).SetFloat64(swaps[i].PriceUSD), new(big.Float).SetUint64(tokenAmount)).Float64()
+		creatorAddresses, err := buildAddressesFromExternalAddress(creatorIONConnect)
+		if err != nil {
+			return nil, time.Time{}, fmt.Errorf("failed to build creator addresses: %w", err)
+		}
+		holderAddresses, err := buildAddressesFromExternalAddress(holderIONConnect)
+		if err != nil {
+			return nil, time.Time{}, fmt.Errorf("failed to build holder addresses: %w", err)
+		}
+		tokenAddresses, err := buildAddressesFromExternalAddress(swaps[i].ExternalAddress)
+		if err != nil {
+			return nil, time.Time{}, fmt.Errorf("failed to build token addresses from external_address %s: %w", swaps[i].ExternalAddress, err)
+		}
 		trades[i] = &Trade{
 			Creator: User{
 				Username:  swaps[i].CreatorUsername,
 				Display:   swaps[i].CreatorDisplay,
 				Verified:  swaps[i].CreatorVerified,
 				Avatar:    swaps[i].CreatorAvatar,
-				Addresses: buildAddressesFromExternalAddress(creatorIONConnect),
+				Addresses: creatorAddresses,
 			},
 			Position: TradePosition{
 				Holder: User{
@@ -538,9 +581,9 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, ionConnectAddress 
 					Display:   swaps[i].HolderDisplay,
 					Verified:  swaps[i].HolderVerified,
 					Avatar:    swaps[i].HolderAvatar,
-					Addresses: buildAddressesFromExternalAddress(holderIONConnect),
+					Addresses: holderAddresses,
 				},
-				Addresses:  buildAddressesFromExternalAddress(swaps[i].ExternalAddress),
+				Addresses:  tokenAddresses,
 				CreatedAt:  *swaps[i].CreatedAt.Time,
 				Type:       typ,
 				Amount:     tokenAmount,
@@ -659,13 +702,17 @@ func (t *tokenAnalytics) buildTopHoldersFromRankings(row *tokenRowWithTopHolders
 		amountUSD := amountTokens * row.PriceUSD
 		supplyShare := calculateSupplyShare(amountTokens, totalSupplyFloat)
 
+		holderAddresses, err := buildAddressesFromExternalAddress(holderMeta.HolderExternalAddress)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build holder addresses from external_address %s: %w", holderMeta.HolderExternalAddress, err)
+		}
 		topHolders = append(topHolders, HolderPosition{
 			Holder: User{
 				Username:  holderMeta.HolderUsername,
 				Display:   holderMeta.HolderDisplay,
 				Verified:  holderMeta.HolderVerified,
 				Avatar:    holderMeta.HolderAvatar,
-				Addresses: buildAddressesFromExternalAddress(holderMeta.HolderExternalAddress),
+				Addresses: holderAddresses,
 			},
 			Rank:        uint64(rank + 1),
 			Amount:      uint64(amountTokens),

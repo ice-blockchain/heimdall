@@ -4,6 +4,7 @@ package tokenanalytics
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
@@ -11,73 +12,73 @@ import (
 )
 
 func (t *tokenAnalytics) onRecipientsSet(ctx context.Context, tx *txEvent, ev *bondingcurve.LogRecipientsSet) error {
-	log.Info("Recipients set:%+v, tx:%v", ev, tx.TransactionHash)
+	log.Debug(fmt.Sprintf("Recipients set: pairId=%x, creator=%s, tx=%s", ev.PairId, ev.Creator.Hex(), tx.TransactionHash))
 
 	return nil
 }
 
 func (t *tokenAnalytics) onMigrated(ctx context.Context, tx *txEvent, ev *bondingcurve.LogMigrated) error {
-	log.Info("Migrated:%+v, tx:%v", ev, tx.TransactionHash)
+	log.Debug(fmt.Sprintf("Migrated: pairId=%x, tx=%s", ev.PairId, tx.TransactionHash))
 
 	return nil
 }
 
 func (t *tokenAnalytics) onFeeAccrued(ctx context.Context, tx *txEvent, ev *bondingcurve.LogFeeAccrued) error {
-	log.Info("Fee accrued:%+v, tx:%v", ev, tx.TransactionHash)
+	log.Debug(fmt.Sprintf("Fee accrued: pairId=%x, tx=%s", ev.PairId, tx.TransactionHash))
 
 	return nil
 }
 
 func (t *tokenAnalytics) onFeeTransfer(ctx context.Context, tx *txEvent, ev *bondingcurve.LogFeeTransfer) error {
-	log.Info("Fee transfer:%+v, tx:%v", ev, tx.TransactionHash)
+	log.Debug(fmt.Sprintf("Fee transfer: pairId=%x, tx=%s", ev.PairId, tx.TransactionHash))
 
 	return nil
 }
 
 func (t *tokenAnalytics) onLiquidityClaimed(ctx context.Context, tx *txEvent, ev *bondingcurve.LogLiquidityClaimed) error {
-	log.Info("Liquidity claimed:%+v, tx:%v", ev, tx.TransactionHash)
+	log.Debug(fmt.Sprintf("Liquidity claimed: pairId=%x, tx=%s", ev.PairId, tx.TransactionHash))
 
 	return nil
 }
 
 func (t *tokenAnalytics) onSlippageChecked(ctx context.Context, tx *txEvent, ev *bondingcurve.LogSlippageChecked) error {
-	log.Info("Slippage checked:%+v, tx:%v", ev, tx.TransactionHash)
+	log.Debug(fmt.Sprintf("Slippage checked: pairId=%x, tx=%s", ev.PairId, tx.TransactionHash))
 
 	return nil
 }
 
 func (t *tokenAnalytics) onLiquidityLocked(ctx context.Context, tx *txEvent, ev *bondingcurve.LogLiquidityLocked) error {
-	log.Info("Liquidity locked:%+v, tx:%v", ev, tx.TransactionHash)
+	log.Debug(fmt.Sprintf("Liquidity locked: pairId=%x, tx=%s", ev.PairId, tx.TransactionHash))
 
 	return nil
 }
 
 func (t *tokenAnalytics) onFeeWaived(ctx context.Context, tx *txEvent, ev *bondingcurve.LogFeeWaived) error {
-	log.Info("Fee waived:%+v, tx:%v", ev, tx.TransactionHash)
+	log.Debug(fmt.Sprintf("Fee waived: pairId=%x, tx=%s", ev.PairId, tx.TransactionHash))
 
 	return nil
 }
 
 func (t *tokenAnalytics) onRefundIssued(ctx context.Context, tx *txEvent, ev *bondingcurve.LogRefundIssued) error {
-	log.Info("Refund issued:%+v, tx:%v", ev, tx.TransactionHash)
+	log.Debug(fmt.Sprintf("Refund issued: pairId=%x, tx=%s", ev.PairId, tx.TransactionHash))
 
 	return nil
 }
 
 func (t *tokenAnalytics) onRouteSelected(ctx context.Context, tx *txEvent, ev *bondingcurve.LogRouteSelected) error {
-	log.Info("Route selected:%+v, tx:%v", ev, tx.TransactionHash)
+	log.Debug(fmt.Sprintf("Route selected: pairId=%x, tx=%s", ev.PairId, tx.TransactionHash))
 
 	return nil
 }
 
 func (t *tokenAnalytics) onVerificationChecked(ctx context.Context, tx *txEvent, ev *bondingcurve.LogVerificationChecked) error {
-	log.Info("Verification checked:%+v, tx:%v", ev, tx.TransactionHash)
+	log.Debug(fmt.Sprintf("Verification checked: user=%s, verified=%t, tx=%s", ev.User.Hex(), ev.Verified, tx.TransactionHash))
 
 	return nil
 }
 
 func (t *tokenAnalytics) onPairRegistered(ctx context.Context, tx *txEvent, ev *bondingcurve.LogPairRegistered) error {
-	log.Info("Pair registered:%+v, tx:%v", ev, tx.TransactionHash)
+	log.Debug(fmt.Sprintf("Pair registered: pairId=%x, baseToken=%s, otherToken=%s, tx=%s", ev.PairId, ev.BaseToken.Hex(), ev.OtherToken.Hex(), tx.TransactionHash))
 
 	return nil
 }

@@ -129,6 +129,11 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 					return pErr
 				}
 			}
+			if IsContentType(tokenExternalAddress) {
+				if pErr := pipeliner.ZIncrBy(ctx, globalTopAnyPostSetKey, deltaMarketCapUSD, tokenExternalAddress).Err(); pErr != nil {
+					return pErr
+				}
+			}
 		}
 		return nil
 	}); txErr != nil {
@@ -171,6 +176,8 @@ func getTopSetKeyByType(tokenType string) string {
 		return globalTopVideoSetKey
 	case TokenTypeArticle:
 		return globalTopArticleSetKey
+	case TokenTypeAnyPost:
+		return globalTopAnyPostSetKey
 	default:
 		return ""
 	}
@@ -186,6 +193,8 @@ func getTrendingSetKeyByType(tokenType string) string {
 		return globalTrendingVideoSetKey
 	case TokenTypeArticle:
 		return globalTrendingArticleSetKey
+	case TokenTypeAnyPost:
+		return globalTrendingAnyPostSetKey
 	default:
 		return ""
 	}

@@ -89,27 +89,25 @@ func (t *tokenAnalytics) updateTrendingVolumes(ctx context.Context) error {
 		if lastAddress == "" {
 			query = `
 				SELECT 
-					tv.contract_address as token_address,
-					tv.volume_24h,
-					t.external_address,
-					COALESCE(t.type, '') as token_type
-				FROM token_volumes_24h tv
-				JOIN tokens t ON t.contract_address = tv.contract_address
-				ORDER BY tv.contract_address
+					contract_address as token_address,
+					volume_24h,
+					external_address,
+					COALESCE(token_type, '') as token_type
+				FROM token_volumes_24h
+				ORDER BY contract_address
 				LIMIT $1
 			`
 			args = append(args, batchSize)
 		} else {
 			query = `
 				SELECT 
-					tv.contract_address as token_address,
-					tv.volume_24h,
-					t.external_address, 
-					COALESCE(t.type, '') as token_type
-				FROM token_volumes_24h tv
-				JOIN tokens t ON t.contract_address = tv.contract_address
-				WHERE tv.contract_address > $1
-				ORDER BY tv.contract_address
+					contract_address as token_address,
+					volume_24h,
+					external_address, 
+					COALESCE(token_type, '') as token_type
+				FROM token_volumes_24h
+				WHERE contract_address > $1
+				ORDER BY contract_address
 				LIMIT $2
 			`
 			args = append(args, lastAddress, batchSize)
@@ -139,6 +137,12 @@ func (t *tokenAnalytics) updateTrendingVolumes(ctx context.Context) error {
 				typeSpecificKey := getTrendingSetKeyByType(vol.TokenType)
 				if typeSpecificKey != "" {
 					pipe.ZAdd(ctx, typeSpecificKey, redis.Z{
+						Score:  vol.Volume24h,
+						Member: vol.ExternalAddress,
+					})
+				}
+				if IsContentType(vol.ExternalAddress) {
+					pipe.ZAdd(ctx, globalTrendingAnyPostSetKey, redis.Z{
 						Score:  vol.Volume24h,
 						Member: vol.ExternalAddress,
 					})
