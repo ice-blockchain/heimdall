@@ -225,7 +225,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 		if err != nil {
 			return nil, fmt.Errorf("failed to build addresses from external_address %s: %w", token.ExternalAddress, err)
 		}
-		creatorExternalAddresses, err := buildAddressesFromExternalAddress(token.CreatorMasterPubkey)
+		creatorExternalAddresses, err := buildAddressesFromExternalAddress(BuildProfileExternalAddress(token.CreatorMasterPubkey))
 		if err != nil {
 			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s: %w", token.CreatorMasterPubkey, err)
 		}
