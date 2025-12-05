@@ -71,6 +71,8 @@ func (s *service) setupDelegatedRPProxyRoutes(router *server.Router) {
 	router.
 		POST("auth/recover/user/delegated", server.RootHandler(s.StartDelegatedRecovery)).
 		GET("wallets/:walletId/nfts", server.RootHandler(s.GetNFTs)).
+		GET("wallets/:walletId/assets", server.RootHandler(s.GetWalletAssets)).
+		GET("wallets/:walletId/history", server.RootHandler(s.GetWalletHistory)).
 		POST("/auth/login/delegated", s.proxyToDelegatedRP(true)).
 		POST("/v1/webhooks/dfns/events", server.RootHandler(s.EventWebhookFromDelegatedRP)).
 		GET("/.well-known/apple-app-site-association", server.RootHandler(s.AppleAppSiteAssociation)).
@@ -381,6 +383,78 @@ func (s *service) CreateWallet(
 		return nil, buildDelegatedErrorResponse(http.StatusInternalServerError, err, "")
 	}
 	return server.OK[Wallet](wallet), nil
+}
+
+// GetWalletHistory godoc
+//
+//	@Schemes
+//	@Description	Gets history from the wallet
+//	@Tags			Wallets
+//	@Produce		json
+//	@Param			X-Client-ID		header		string	true	"App ID"									default(ap-)
+//	@Param			Authorization	header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
+//	@Param			walletId		path		string	true	"ID of the wallet"
+//	@Param			limit			query		string	false	"custom limit"
+//	@Param			paginationToken	query		string	false	"pagination token to continue from"
+//	@Success		200				{object}	WalletHistoryCollection
+//	@Failure		500				{object}	server.ErrorResponse
+//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
+//	@Router			/wallets/{walletId}/history [GET].
+func (s *service) GetWalletHistory(
+	ctx context.Context,
+	req *server.Request[GetWalletHistoryReq, WalletHistoryCollection],
+) (successResp *server.Response[WalletHistoryCollection], errorResp *server.ErrResponse[InternalError]) {
+	if req.Data.Limit == 0 {
+		req.Data.Limit = 100
+	}
+	ctx = withAuth(ctx, req.Data.Authorization)
+	history, network, newPagination, err := s.accounts.GetWalletHistory(ctx, req.Data.WalletID, req.Data.PaginationToken, req.Data.Limit)
+	if err != nil {
+		if delegatedErr := accounts.ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
+			var delegatedParsedErr *accounts.DelegatedRelyingPartyErr
+			if errors.As(delegatedErr, &delegatedParsedErr) {
+				return nil, buildDelegatedErrorResponse(delegatedParsedErr.HTTPStatus, err, delegatedParsedErr.Message)
+			}
+		}
+		return nil, buildDelegatedErrorResponse(http.StatusInternalServerError, err, "")
+	}
+	return server.OK[WalletHistoryCollection](&WalletHistoryCollection{
+		WalletID:        req.Data.WalletID,
+		Network:         network,
+		Items:           history,
+		PaginationToken: newPagination,
+	}), nil
+}
+
+// GetWalletAssets godoc
+//
+//	@Schemes
+//	@Description	Gets assets from the wallet
+//	@Tags			Wallets
+//	@Produce		json
+//	@Param			X-Client-ID		header		string	true	"App ID"									default(ap-)
+//	@Param			Authorization	header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
+//	@Param			walletId		path		string	true	"ID of the wallet"
+//	@Success		200				{object}	WalletAssets
+//	@Failure		500				{object}	server.ErrorResponse
+//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
+//	@Router			/wallets/{walletId}/assets [GET].
+func (s *service) GetWalletAssets(
+	ctx context.Context,
+	req *server.Request[GetWalletAssetsReq, WalletAssets],
+) (successResp *server.Response[WalletAssets], errorResp *server.ErrResponse[InternalError]) {
+	ctx = withAuth(ctx, req.Data.Authorization)
+	assets, err := s.accounts.GetWalletAssets(ctx, req.Data.WalletID)
+	if err != nil {
+		if delegatedErr := accounts.ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
+			var delegatedParsedErr *accounts.DelegatedRelyingPartyErr
+			if errors.As(delegatedErr, &delegatedParsedErr) {
+				return nil, buildDelegatedErrorResponse(delegatedParsedErr.HTTPStatus, err, delegatedParsedErr.Message)
+			}
+		}
+		return nil, buildDelegatedErrorResponse(http.StatusInternalServerError, err, "")
+	}
+	return server.OK[WalletAssets](assets), nil
 }
 
 func withAppID(ctx context.Context, appID string) context.Context {

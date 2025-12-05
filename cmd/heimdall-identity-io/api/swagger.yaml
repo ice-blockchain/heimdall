@@ -94,6 +94,9 @@ definitions:
       url:
         type: string
     type: object
+  accounts.WalletHistoryItem:
+    additionalProperties: {}
+    type: object
   big.Int:
     type: object
   coins.Coin:
@@ -449,6 +452,30 @@ definitions:
     type: object
   main.Wallet:
     additionalProperties: {}
+    type: object
+  main.WalletAssets:
+    properties:
+      assets:
+        items:
+          $ref: '#/definitions/dfns.Asset'
+        type: array
+      network:
+        type: string
+      walletId:
+        type: string
+    type: object
+  main.WalletHistoryCollection:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/accounts.WalletHistoryItem'
+        type: array
+      network:
+        type: string
+      paginationToken:
+        type: string
+      walletId:
+        type: string
     type: object
   main.WalletView:
     properties:
@@ -2341,6 +2368,90 @@ paths:
           description: if request times out
           schema:
             $ref: '#/definitions/main.delegatedErrorResponse'
+      tags:
+      - Wallets
+  /wallets/{walletId}/assets:
+    get:
+      description: Gets assets from the wallet
+      parameters:
+      - default: ap-
+        description: App ID
+        in: header
+        name: X-Client-ID
+        required: true
+        type: string
+      - default: Bearer <Add token here>
+        description: Auth token from delegated relying party
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: ID of the wallet
+        in: path
+        name: walletId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.WalletAssets'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Wallets
+  /wallets/{walletId}/history:
+    get:
+      description: Gets history from the wallet
+      parameters:
+      - default: ap-
+        description: App ID
+        in: header
+        name: X-Client-ID
+        required: true
+        type: string
+      - default: Bearer <Add token here>
+        description: Auth token from delegated relying party
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: ID of the wallet
+        in: path
+        name: walletId
+        required: true
+        type: string
+      - description: custom limit
+        in: query
+        name: limit
+        type: string
+      - description: pagination token to continue from
+        in: query
+        name: paginationToken
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.WalletHistoryCollection'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Wallets
   /wallets/{walletId}/nfts:

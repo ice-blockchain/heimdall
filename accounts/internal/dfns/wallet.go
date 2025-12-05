@@ -114,3 +114,23 @@ func (c *dfnsClient) CreateWallet(ctx context.Context, network, name string) (*W
 
 	return resp, nil
 }
+
+func (c *dfnsClient) GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint64) (*WalletHistory, error) {
+	header := http.Header{}
+	header.Add(authDfnsHeader, dfnsAuthHeader(ctx))
+	resp, err := dfnsCall[struct {
+		PaginationToken string `form:"paginationToken"`
+		Limit           uint64 `form:"limit"`
+	}, WalletHistory](ctx, c, &struct {
+		PaginationToken string `form:"paginationToken"`
+		Limit           uint64 `form:"limit"`
+	}{
+		PaginationToken: paginationToken,
+		Limit:           limit,
+	}, "GET", fmt.Sprintf("/wallets/%v/history", walletID), header)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to list NFTs on wallet %v", walletID)
+	}
+
+	return resp, nil
+}

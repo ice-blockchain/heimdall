@@ -233,7 +233,7 @@ func (s *service) ModifyWalletView(
 	return server.OK[WalletView](view), nil
 }
 
-func withPagination(ctx context.Context, token string, limit uint) context.Context {
+func withPagination(ctx context.Context, token string, limit uint64) context.Context {
 	ctx = context.WithValue(ctx, "paginationToken", token)
 	ctx = context.WithValue(ctx, "paginationLimit", limit)
 	return ctx
