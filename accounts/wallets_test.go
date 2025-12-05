@@ -224,7 +224,7 @@ func (m *mockWalletClient) ImportNFTs(ctx context.Context, network string, nft [
 	return res, nil
 }
 
-func (m *mockIONIndexer) ListNFTs(ctx context.Context, walletAddr string, paginationToken string, limit uint) ([]coins.WalletNFT, *string, error) {
+func (m *mockIONIndexer) ListNFTs(ctx context.Context, walletAddr string, paginationToken string, limit uint64) ([]coins.WalletNFT, *string, error) {
 	m.nftsIndexerTriggered = true
 	return []coins.WalletNFT{}, nil, nil
 }
@@ -411,9 +411,9 @@ func TestFetchWalletInfoForCoinsAggregation(t *testing.T) {
 	require.True(t, balanceWasTriggeredForWallet3)
 }
 
-func (m *mockWalletClient) GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint) (*dfns.WalletHistory, error) {
+func (m *mockWalletClient) GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint64) (*dfns.WalletHistory, error) {
 	panic("not implemented")
 }
-func (m *mockIONIndexer) WalletTransactions(ctx context.Context, walletId, walletAddr, paginationToken string, limit uint) ([]indexer.WalletHistoryItem, *string, error) {
+func (m *mockIONIndexer) WalletTransactions(ctx context.Context, walletId, walletAddr, paginationToken string, limit uint64) ([]indexer.WalletHistoryItem, *string, error) {
 	panic("not implemented")
 }
