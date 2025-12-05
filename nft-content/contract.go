@@ -49,7 +49,7 @@ type (
 		Process(ctx context.Context, events model.Events) error
 		GetNFTCollectionItemMetadata(ctx context.Context, nftContentType, contentAddress string) (*NFTResponse, *NFTCollectionMetadata, error)
 		GetNFTCollectionMetadata(ctx context.Context, masterPubkey string) (*NFTResponse, *NFTCollectionMetadata, error)
-		ListNFTs(ctx context.Context, walletAddr, paginationToken string, limit uint) ([]WalletNFT, *string, error)
+		ListNFTs(ctx context.Context, walletAddr, paginationToken string, limit uint64) ([]WalletNFT, *string, error)
 	}
 	NFTCollectionMetadata struct {
 		NFTCollectionAddress        string `db:"nft_collection_address"`

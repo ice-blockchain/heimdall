@@ -642,7 +642,7 @@ func (a *accounts) GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGrou
 	return res, nil
 }
 
-func (a *accounts) GetNFTs(ctx context.Context, walletID, paginationToken string, limit uint) (nftResp []*NFT, walletNetwork string, newPaginationToken *string, err error) {
+func (a *accounts) GetNFTs(ctx context.Context, walletID, paginationToken string, limit uint64) (nftResp []*NFT, walletNetwork string, newPaginationToken *string, err error) {
 	newPaginationToken = nil
 	nfts, err := a.delegatedRPClient.ListNFTs(ctx, walletID)
 	if err != nil {
@@ -756,9 +756,9 @@ func (a *accounts) FetchMainWallet(ctx context.Context, masterKey string) (Walle
 	return mainWallet, nil
 }
 
-func pagination(ctx context.Context) (map[string]string, uint, error) {
+func pagination(ctx context.Context) (map[string]string, uint64, error) {
 	if lim := ctx.Value("paginationLimit"); lim != nil {
-		paginationLimit := lim.(uint)
+		paginationLimit := lim.(uint64)
 		if tok := ctx.Value("paginationToken"); tok != nil {
 			str := tok.(string)
 			if str == "" {
@@ -780,7 +780,7 @@ func pagination(ctx context.Context) (map[string]string, uint, error) {
 	return map[string]string{}, 100, nil
 }
 
-func (a *accounts) GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint) ([]WalletHistoryItem, string, *string, error) {
+func (a *accounts) GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint64) ([]WalletHistoryItem, string, *string, error) {
 	wallet, err := a.delegatedRPClient.GetWallet(ctx, walletID)
 	if err != nil {
 		return nil, "", nil, errors.Wrapf(err, "failed to get wallet %v", walletID)

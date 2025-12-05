@@ -11,7 +11,7 @@ import (
 	"github.com/goccy/go-json"
 )
 
-func (i *indexer) ListNFTs(ctx context.Context, walletAddr string, paginationToken string, limit uint) ([]WalletNFT, *string, error) {
+func (i *indexer) ListNFTs(ctx context.Context, walletAddr string, paginationToken string, limit uint64) ([]WalletNFT, *string, error) {
 	if paginationToken == "" {
 		paginationToken = "0" // Basically offset, but on 3rd party wallet provider they use strings, we try to mimic to their endpoint
 	}
@@ -19,11 +19,11 @@ func (i *indexer) ListNFTs(ctx context.Context, walletAddr string, paginationTok
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "failed to parse pagination token: %v", paginationToken)
 	}
-	nfts, newPagination, err := i.listNFTs(ctx, walletAddr, uint(offset), limit)
+	nfts, newPagination, err := i.listNFTs(ctx, walletAddr, offset, limit)
 	return nfts, newPagination, errors.Wrapf(err, "failed to fetch NFTs for wallet %v from ion indexer", walletAddr)
 }
 
-func (i *indexer) listNFTs(ctx context.Context, walletAddress string, offset, limit uint) ([]WalletNFT, *string, error) {
+func (i *indexer) listNFTs(ctx context.Context, walletAddress string, offset, limit uint64) ([]WalletNFT, *string, error) {
 	params := map[string]string{
 		"offset":        fmt.Sprintf("%v", offset),
 		"owner_address": walletAddress,
@@ -31,7 +31,7 @@ func (i *indexer) listNFTs(ctx context.Context, walletAddress string, offset, li
 	if limit < defaultIndexerReqLimit {
 		params["limit"] = fmt.Sprintf("%v", limit)
 	}
-	total := uint(0)
+	total := uint64(0)
 	nfts, newOffset, err := indexerReq[WalletNFT](ctx, i, "/indexer/v3/nft/items", params, func(data []byte) ([]WalletNFT, bool, error) {
 		var nftItems getNftItemsIndexerResponse
 		if err := json.UnmarshalContext(ctx, data, &nftItems); err != nil {
@@ -73,8 +73,8 @@ func (i *indexer) listNFTs(ctx context.Context, walletAddress string, offset, li
 			}))
 		}
 		continuePagination := true
-		total += uint(len(res))
-		if uint(len(res)) < defaultIndexerReqLimit || total >= limit {
+		total += uint64(len(res))
+		if uint64(len(res)) < defaultIndexerReqLimit || total >= limit {
 			continuePagination = false
 		}
 		return res, continuePagination, nil
@@ -82,7 +82,7 @@ func (i *indexer) listNFTs(ctx context.Context, walletAddress string, offset, li
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "failed to fetch nfts from ion indexer for wallet %v", walletAddress)
 	}
-	if uint(len(nfts)) >= limit {
+	if uint64(len(nfts)) >= limit {
 		paginationToken := fmt.Sprintf("%v", newOffset)
 		return nfts, &paginationToken, nil
 	}

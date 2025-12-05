@@ -11,8 +11,8 @@ import (
 type (
 	WalletHistoryItem map[string]any
 	Indexer           interface {
-		ListNFTs(ctx context.Context, walletAddr string, paginationToken string, limit uint) ([]coins.WalletNFT, *string, error)
-		WalletTransactions(ctx context.Context, walletId, walletAddr, paginationToken string, limit uint) ([]WalletHistoryItem, *string, error)
+		ListNFTs(ctx context.Context, walletAddr string, paginationToken string, limit uint64) ([]coins.WalletNFT, *string, error)
+		WalletTransactions(ctx context.Context, walletId, walletAddr, paginationToken string, limit uint64) ([]WalletHistoryItem, *string, error)
 		GetBalance(ctx context.Context, walletAddr string) ([]Asset, error)
 	}
 	WalletNFT = coins.WalletNFT
@@ -216,5 +216,5 @@ type (
 const (
 	NFTCollectionMetadataIndexedKey = coins.CollectionMetadataIndexedKey
 	applicationYamlKey              = "indexer"
-	defaultIndexerReqLimit          = uint(100)
+	defaultIndexerReqLimit          = uint64(100)
 )

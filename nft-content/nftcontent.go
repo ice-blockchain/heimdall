@@ -34,7 +34,7 @@ func New(ctx context.Context, walletFetcher OwnerAddressFetcher, indexer indexer
 	return nft
 }
 
-func (n *nftContent) ListNFTs(ctx context.Context, walletAddr string, paginationToken string, limit uint) ([]WalletNFT, *string, error) {
+func (n *nftContent) ListNFTs(ctx context.Context, walletAddr string, paginationToken string, limit uint64) ([]WalletNFT, *string, error) {
 	return n.indexer.ListNFTs(ctx, walletAddr, paginationToken, limit)
 }
 

@@ -45,8 +45,8 @@ type (
 		GetIONConnectIndexerRelays(ctx context.Context, userID string) (indexers []string, err error)
 		GetUser(ctx context.Context, userID string) (usr *User, err error)
 		SecurePaymentConfirmation(ctx context.Context, userID, walletID string, body map[string]string) (templateData any, err error)
-		GetNFTs(ctx context.Context, walletID, paginationToken string, limit uint) ([]*NFT, string, *string, error)
-		GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint) ([]WalletHistoryItem, string, *string, error)
+		GetNFTs(ctx context.Context, walletID, paginationToken string, limit uint64) ([]*NFT, string, *string, error)
+		GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint64) ([]WalletHistoryItem, string, *string, error)
 		GetWalletAssets(ctx context.Context, walletID string) (*Assets, error)
 		DeleteUser(ctx context.Context, userID string) error
 		GetContentCreators(ctx context.Context, limit uint64, excludeMasterPubKeys []string) ([]*LiteUser, error)

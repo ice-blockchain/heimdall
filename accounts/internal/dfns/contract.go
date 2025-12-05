@@ -47,7 +47,7 @@ type (
 		CreateWallet(ctx context.Context, network, name string) (*Wallet, error)
 		ListAssets(ctx context.Context, walletID string) (*Assets, error)
 		ListNFTs(ctx context.Context, walletID string) (*NFTs, error)
-		GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint) (*WalletHistory, error)
+		GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint64) (*WalletHistory, error)
 		SecurePaymentConfirmation(ctx context.Context, userID, network string, wallet Wallet, body map[string]string) (tmplData any, err error)
 	}
 	RefreshAuth interface {
