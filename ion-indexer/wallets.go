@@ -93,7 +93,12 @@ func (tx transaction) ToHistory(network, walletId, walletAddress string) (Wallet
 	if strings.EqualFold(destMsg.Destination, addr.StringRaw()) {
 		direction = "In"
 	}
-	sourceAddr, err := address.ParseRawAddr(tx.InMsg.Source)
+	var sourceAddr *address.Address
+	if tx.InMsg.Source == "" {
+		sourceAddr = addr
+	} else {
+		sourceAddr, err = address.ParseRawAddr(tx.InMsg.Source)
+	}
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to parse wallet address %q for tx %v", tx.InMsg.Source, "0x"+hex.EncodeToString(txHash))
 	}
