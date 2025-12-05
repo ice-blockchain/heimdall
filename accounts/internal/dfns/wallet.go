@@ -119,10 +119,10 @@ func (c *dfnsClient) GetWalletHistory(ctx context.Context, walletID, paginationT
 	header := http.Header{}
 	header.Add(authDfnsHeader, dfnsAuthHeader(ctx))
 	resp, err := dfnsCall[struct {
-		PaginationToken string `form:"paginationToken"`
+		PaginationToken string `form:"paginationToken,omitempty"`
 		Limit           uint64 `form:"limit"`
 	}, WalletHistory](ctx, c, &struct {
-		PaginationToken string `form:"paginationToken"`
+		PaginationToken string `form:"paginationToken,omitempty"`
 		Limit           uint64 `form:"limit"`
 	}{
 		PaginationToken: paginationToken,
