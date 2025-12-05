@@ -429,15 +429,13 @@ func (s *service) GetWalletHistory(
 // GetWalletAssets godoc
 //
 //	@Schemes
-//	@Description	Gets history from the wallet
+//	@Description	Gets assets from the wallet
 //	@Tags			Wallets
 //	@Produce		json
 //	@Param			X-Client-ID		header		string	true	"App ID"									default(ap-)
 //	@Param			Authorization	header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
 //	@Param			walletId		path		string	true	"ID of the wallet"
-//	@Param			limit			query		string	false	"custom limit"
-//	@Param			paginationToken	query		string	false	"pagination token to continue from"
-//	@Success		200				{object}	WalletHistoryCollection
+//	@Success		200				{object}	WalletAssets
 //	@Failure		500				{object}	server.ErrorResponse
 //	@Failure		504				{object}	server.ErrorResponse	"if request times out"
 //	@Router			/wallets/{walletId}/assets [GET].
