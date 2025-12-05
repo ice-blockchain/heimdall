@@ -2515,6 +2515,130 @@ const docTemplate = `{
                 }
             }
         },
+        "/wallets/{walletId}/assets": {
+            "get": {
+                "description": "Gets assets from the wallet",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Wallets"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "ap-",
+                        "description": "App ID",
+                        "name": "X-Client-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cAdd token here\u003e",
+                        "description": "Auth token from delegated relying party",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID of the wallet",
+                        "name": "walletId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.WalletAssets"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/wallets/{walletId}/history": {
+            "get": {
+                "description": "Gets history from the wallet",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Wallets"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "ap-",
+                        "description": "App ID",
+                        "name": "X-Client-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cAdd token here\u003e",
+                        "description": "Auth token from delegated relying party",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID of the wallet",
+                        "name": "walletId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "custom limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "pagination token to continue from",
+                        "name": "paginationToken",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.WalletHistoryCollection"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/wallets/{walletId}/nfts": {
             "get": {
                 "description": "Gets NFTs from the wallet",
@@ -2725,6 +2849,10 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "accounts.WalletHistoryItem": {
+            "type": "object",
+            "additionalProperties": {}
         },
         "big.Int": {
             "type": "object"
@@ -3262,6 +3390,43 @@ const docTemplate = `{
         "main.Wallet": {
             "type": "object",
             "additionalProperties": {}
+        },
+        "main.WalletAssets": {
+            "type": "object",
+            "properties": {
+                "assets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dfns.Asset"
+                    }
+                },
+                "network": {
+                    "type": "string"
+                },
+                "walletId": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.WalletHistoryCollection": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/accounts.WalletHistoryItem"
+                    }
+                },
+                "network": {
+                    "type": "string"
+                },
+                "paginationToken": {
+                    "type": "string"
+                },
+                "walletId": {
+                    "type": "string"
+                }
+            }
         },
         "main.WalletView": {
             "type": "object",

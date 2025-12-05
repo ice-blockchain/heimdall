@@ -20,6 +20,7 @@ import (
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
 	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
 	"github.com/ice-blockchain/heimdall/coins"
+	indexer "github.com/ice-blockchain/heimdall/ion-indexer"
 	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
@@ -44,7 +45,9 @@ type (
 		GetIONConnectIndexerRelays(ctx context.Context, userID string) (indexers []string, err error)
 		GetUser(ctx context.Context, userID string) (usr *User, err error)
 		SecurePaymentConfirmation(ctx context.Context, userID, walletID string, body map[string]string) (templateData any, err error)
-		GetNFTs(ctx context.Context, walletID, paginationToken string, limit uint) ([]*NFT, string, *string, error)
+		GetNFTs(ctx context.Context, walletID, paginationToken string, limit uint64) ([]*NFT, string, *string, error)
+		GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint64) ([]WalletHistoryItem, string, *string, error)
+		GetWalletAssets(ctx context.Context, walletID string) (*Assets, error)
 		DeleteUser(ctx context.Context, userID string) error
 		GetContentCreators(ctx context.Context, limit uint64, excludeMasterPubKeys []string) ([]*LiteUser, error)
 		IsUserVerified(ctx context.Context, masterPubKey string) (bool, []*model.Event, error)
@@ -81,7 +84,7 @@ type (
 		GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGroup string) ([]*CoinWithWalletInfo, error)
 		CreateWalletForWalletView(ctx context.Context, userID, network, walletViewID string) (*Wallet, error)
 		FetchMainWallet(ctx context.Context, masterKey string) (Wallet, error)
-		SetProviderForUnsupportedNFTs(nft NFTInWallets)
+		SetProviderForUnsupportedNFTs(nft indexer.Indexer)
 	}
 	Coins interface {
 		GetCoinsOfSymbolGroup(ctx context.Context, symbolGroups []string) ([]*coins.Coin, error)
@@ -161,9 +164,10 @@ type (
 		TotalBalance *big.Int        `json:"totalBalance"`
 		Wallets      []*CoinInWallet `json:"wallets"`
 	}
-	NFT      = coins.NFT
-	Wallet   = dfns.Wallet
-	LiteUser struct {
+	NFT               = coins.NFT
+	Wallet            = dfns.Wallet
+	WalletHistoryItem = dfns.WalletHistoryItem
+	LiteUser          struct {
 		MasterPubKey     string                             `json:"masterPubKey" db:"master_pubkey"`
 		Username         string                             `json:"username,omitempty" db:"username"`
 		DisplayName      string                             `json:"displayName,omitempty" db:"display_name"`
@@ -174,6 +178,7 @@ type (
 	Credentials           = dfns.Credentials
 	CompletedRegistration = dfns.CompletedRegistration
 	UserAssignedRelay     = relaymanagement.UserAssignedRelay
+	Assets                = dfns.Assets
 )
 
 const (
@@ -270,7 +275,7 @@ type (
 		privateKey                 string
 		appsRuntimeConfig          *AppsRuntimeConfig
 		deviceIdentificationClient deviceidentification.Client
-		ionNFT                     NFTInWallets
+		indexer                    indexer.Indexer
 	}
 	verifiedUsersSync struct {
 		db         *storage.DB

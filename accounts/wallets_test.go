@@ -16,6 +16,7 @@ import (
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/coins"
+	indexer "github.com/ice-blockchain/heimdall/ion-indexer"
 	"github.com/ice-blockchain/wintr/time"
 )
 
@@ -24,7 +25,8 @@ type mockWalletClient struct {
 }
 
 type mockIONIndexer struct {
-	indexerTriggered bool
+	nftsIndexerTriggered bool
+	balanceTriggered     map[string]struct{}
 }
 
 func newMockedWalletClient() interface {
@@ -221,18 +223,30 @@ func (m *mockWalletClient) ImportNFTs(ctx context.Context, network string, nft [
 	return res, nil
 }
 
-func (m *mockIONIndexer) ListNFTs(ctx context.Context, walletAddr string, paginationToken string, limit uint) ([]coins.WalletNFT, *string, error) {
-	m.indexerTriggered = true
+func (m *mockIONIndexer) ListNFTs(ctx context.Context, walletAddr string, paginationToken string, limit uint64) ([]coins.WalletNFT, *string, error) {
+	m.nftsIndexerTriggered = true
 	return []coins.WalletNFT{}, nil, nil
+}
+func (m *mockIONIndexer) GetBalance(ctx context.Context, walletAddr string) ([]indexer.Asset, error) {
+	m.balanceTriggered[walletAddr] = struct{}{}
+	return []indexer.Asset{map[string]any{
+		"kind":     "Native",
+		"decimals": 9,
+		"balance":  "1000000000000000000",
+		"symbol":   "ION",
+		"verified": true,
+	}}, nil
 }
 
 func TestFetchWalletInfoForCoinsAggregation(t *testing.T) {
 	cl := newMockedWalletClient()
-	ionIndexer := &mockIONIndexer{}
+	ionIndexer := &mockIONIndexer{
+		balanceTriggered: map[string]struct{}{},
+	}
 	a := &accounts{
 		delegatedRPClient: cl,
 		coinsRepo:         cl,
-		ionNFT:            ionIndexer,
+		indexer:           ionIndexer,
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 4*stdlibtime.Second)
 	defer cancel()
@@ -252,7 +266,7 @@ func TestFetchWalletInfoForCoinsAggregation(t *testing.T) {
 		{
 			Coin: &coins.Coin{
 				ID:              "ice_ion_id",
-				Symbol:          "ion",
+				Symbol:          "ION",
 				Network:         "IonTestNet",
 				ContractAddress: "",
 				Native:          true,
@@ -323,7 +337,7 @@ func TestFetchWalletInfoForCoinsAggregation(t *testing.T) {
 	}, aggregatedCoins["usdc"])
 	assetION := dfns.Asset(map[string]any{
 		"kind":     "Native",
-		"symbol":   "ice",
+		"symbol":   "ION",
 		"decimals": 9,
 		"verified": true,
 		"balance":  "1000000000000000000",
@@ -379,5 +393,15 @@ func TestFetchWalletInfoForCoinsAggregation(t *testing.T) {
 		"tokenUri": "ipfs://QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/8501",
 	}))
 
-	require.True(t, ionIndexer.indexerTriggered)
+	require.True(t, ionIndexer.nftsIndexerTriggered)
+	require.Len(t, ionIndexer.balanceTriggered, 1)
+	_, balanceWasTriggeredForWallet3 := ionIndexer.balanceTriggered["addr3"]
+	require.True(t, balanceWasTriggeredForWallet3)
+}
+
+func (m *mockWalletClient) GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint64) (*dfns.WalletHistory, error) {
+	panic("not implemented")
+}
+func (m *mockIONIndexer) WalletTransactions(ctx context.Context, walletId, walletAddr, paginationToken string, limit uint64) ([]indexer.WalletHistoryItem, *string, error) {
+	panic("not implemented")
 }

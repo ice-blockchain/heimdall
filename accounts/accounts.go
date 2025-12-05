@@ -13,6 +13,7 @@ import (
 	"github.com/ice-blockchain/heimdall/accounts/internal/email"
 	"github.com/ice-blockchain/heimdall/accounts/internal/sms"
 	"github.com/ice-blockchain/heimdall/coins"
+	indexer "github.com/ice-blockchain/heimdall/ion-indexer"
 	"github.com/ice-blockchain/subzero/model"
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
@@ -28,7 +29,7 @@ func NewDeviceIdentificationProxy(ctx context.Context, serviceVersion string) De
 	return deviceidentification.NewProxy(applicationYamlKey, serviceVersion)
 }
 
-func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *AppsRuntimeConfig) Accounts {
+func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *AppsRuntimeConfig, indexer indexer.Indexer) Accounts {
 	db := storage.MustConnect(ctx, applicationYamlKey, storage.NewStringDDL(ddl))
 	cl := dfns.NewDfnsClient(ctx, db, applicationYamlKey, coinsRepo)
 
@@ -63,6 +64,7 @@ func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *App
 		privateKey:                 cfg.PrivateKey,
 		relaysRepo:                 relays,
 		appsRuntimeConfig:          runtimeConfig,
+		indexer:                    indexer,
 	}
 	cl.RegisterPostProxyCallback(completeLoginUrl, acc.upsertUserFromLogin)
 	cl.RegisterPostProxyCallback(delegatedLoginUrl, acc.upsertUserFromLogin)
@@ -133,6 +135,6 @@ func (a *accounts) PublicKey() string {
 	return pubKey
 }
 
-func (a *accounts) SetProviderForUnsupportedNFTs(nft NFTInWallets) {
-	a.ionNFT = nft
+func (a *accounts) SetProviderForUnsupportedNFTs(nft indexer.Indexer) {
+	a.indexer = nft
 }

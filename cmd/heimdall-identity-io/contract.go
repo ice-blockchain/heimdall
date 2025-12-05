@@ -158,7 +158,7 @@ type (
 		UserIDOrMasterKey string `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
 		WalletViewID      string `uri:"walletViewId" required:"true" swaggerignore:"true"`
 		PaginationToken   string `query:"paginationToken" form:"paginationToken" required:"false"`
-		Limit             uint   `query:"limit" form:"limit" required:"false"`
+		Limit             uint64 `query:"limit" form:"limit" required:"false"`
 	}
 	WalletViewReference struct {
 		UserIDOrMasterKey string `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
@@ -220,7 +220,7 @@ type (
 	GetNFTsReq  struct {
 		WalletID        string `uri:"walletId"`
 		PaginationToken string `query:"paginationToken" form:"paginationToken" required:"false"`
-		Limit           uint   `query:"limit" form:"limit" required:"false"`
+		Limit           uint64 `query:"limit" form:"limit" required:"false"`
 	}
 	NFTCollection struct {
 		WalletID        string       `json:"walletId"`
@@ -228,6 +228,23 @@ type (
 		NFTs            []*coins.NFT `json:"nfts"`
 		PaginationToken *string      `json:"paginationToken,omitempty"`
 	}
+	GetWalletHistoryReq struct {
+		WalletID        string `uri:"walletId"`
+		Authorization   string `header:"Authorization" swaggerignore:"true"`
+		PaginationToken string `query:"paginationToken" form:"paginationToken" required:"false"`
+		Limit           uint64 `query:"limit" form:"limit" required:"false"`
+	}
+	WalletHistoryCollection struct {
+		WalletID        string                       `json:"walletId"`
+		Network         string                       `json:"network"`
+		Items           []accounts.WalletHistoryItem `json:"items"`
+		PaginationToken *string                      `json:"paginationToken,omitempty"`
+	}
+	GetWalletAssetsReq struct {
+		WalletID      string `uri:"walletId"`
+		Authorization string `header:"Authorization" swaggerignore:"true"`
+	}
+	WalletAssets          = accounts.Assets
 	GetContentCreatorsReq struct {
 		Authorization        string   `header:"Authorization" swaggerignore:"true"`
 		Limit                uint64   `form:"limit" required:"true" swaggerignore:"true"`

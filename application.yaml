@@ -350,9 +350,9 @@ hashtagstatistics:
       password: pass
     replicaURLs:
       - postgresql://root:pass@localhost:5437/heimdall
+indexer:
+  ion: https://api.testnet.ice.io/
 nft-content:
-  indexer:
-    ion: https://api.testnet.ice.io/
   profileUriBaseUrl: https://example.com
   htmlPreviewBaseURL: https://example.com
   contentUriBaseUrl: https://example.com

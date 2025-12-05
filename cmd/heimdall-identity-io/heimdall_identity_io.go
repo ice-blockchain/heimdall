@@ -20,6 +20,7 @@ import (
 	"github.com/ice-blockchain/heimdall/coins"
 	"github.com/ice-blockchain/heimdall/following"
 	hashtagstatistics "github.com/ice-blockchain/heimdall/hashtag-statistics"
+	indexer "github.com/ice-blockchain/heimdall/ion-indexer"
 	nftcontent "github.com/ice-blockchain/heimdall/nft-content"
 	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
 	"github.com/ice-blockchain/heimdall/server"
@@ -120,13 +121,21 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	allValidConfigNames["apps-runtime_ion-app"] = func(_ *config, _ *Version) (any, Version) {
 		return appsRuntimeCfg.IONApp, Version(appsRuntimeCfg.IONApp.Version)
 	}
-
-	s.accounts = accounts.New(ctx, s.coins, s.relays, &appsRuntimeCfg)
+	s.tokenAnalytics = tokenanalytics.NewUserRepository(ctx)
+	testnet := false
+	for _, n := range s.coins.GetAllNetworks() {
+		if n.IsTestnet {
+			testnet = true
+			break
+		}
+	}
+	ionIndexer := indexer.New(testnet)
+	s.accounts = accounts.New(ctx, s.coins, s.relays, &appsRuntimeCfg, s.tokenAnalytics, ionIndexer)
 	s.validation = validation.New(ctx, validation.WithIONIdentityPublicKeys(func() []string {
 		return []string{s.accounts.PublicKey()}
 	}))
 	s.hashtagStatistics = hashtagstatistics.New(ctx)
-	s.nftContent = nftcontent.New(ctx, s.accounts)
+	s.nftContent = nftcontent.New(ctx, s.accounts, ionIndexer)
 	s.following = following.New(ctx)
 	s.deviceIdentificationProxy = accounts.NewDeviceIdentificationProxy(ctx, s.cfg.Version)
 	publicKey := s.accounts.PublicKey()

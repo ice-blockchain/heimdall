@@ -19,6 +19,7 @@ import (
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/coins"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
+	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/time"
 )
 
@@ -398,7 +399,7 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 	}
 	for walletID, linkedSymbols := range walletIDs {
 		assetsWg.Go(func() {
-			walletAssets, err := a.delegatedRPClient.ListAssets(ctx, walletID)
+			walletAssets, err := a.GetWalletAssets(ctx, walletID)
 			if err != nil {
 				assets <- assetsInfo{err: errors.Wrapf(err, "failed to list assets for wallet %v", walletID)}
 			}
@@ -597,7 +598,9 @@ func (a *accounts) GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGrou
 		}
 	}
 	for walletID, wallet := range wallets {
-		walletAssets, err := a.delegatedRPClient.ListAssets(ctx, walletID)
+		reqCtx := context.WithValue(ctx, "walletNetwork", wallet["network"])
+		reqCtx = context.WithValue(reqCtx, "walletAddress", wallet["address"])
+		walletAssets, err := a.GetWalletAssets(reqCtx, walletID)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to list assets for wallet %v", walletID)
 		}
@@ -639,7 +642,7 @@ func (a *accounts) GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGrou
 	return res, nil
 }
 
-func (a *accounts) GetNFTs(ctx context.Context, walletID, paginationToken string, limit uint) (nftResp []*NFT, walletNetwork string, newPaginationToken *string, err error) {
+func (a *accounts) GetNFTs(ctx context.Context, walletID, paginationToken string, limit uint64) (nftResp []*NFT, walletNetwork string, newPaginationToken *string, err error) {
 	newPaginationToken = nil
 	nfts, err := a.delegatedRPClient.ListNFTs(ctx, walletID)
 	if err != nil {
@@ -654,7 +657,7 @@ func (a *accounts) GetNFTs(ctx context.Context, walletID, paginationToken string
 						return nil, "", nil, errors.Wrapf(err, "failed to get wallet %v", walletID)
 					}
 					var nftsList []coins.WalletNFT
-					nftsList, newPaginationToken, err = a.ionNFT.ListNFTs(ctx, (*w)["address"].(string), paginationToken, limit)
+					nftsList, newPaginationToken, err = a.indexer.ListNFTs(ctx, (*w)["address"].(string), paginationToken, limit)
 					nfts = &dfns.NFTs{
 						NFTs:     nftsList,
 						Network:  (*w)["network"].(string),
@@ -753,9 +756,9 @@ func (a *accounts) FetchMainWallet(ctx context.Context, masterKey string) (Walle
 	return mainWallet, nil
 }
 
-func pagination(ctx context.Context) (map[string]string, uint, error) {
+func pagination(ctx context.Context) (map[string]string, uint64, error) {
 	if lim := ctx.Value("paginationLimit"); lim != nil {
-		paginationLimit := lim.(uint)
+		paginationLimit := lim.(uint64)
 		if tok := ctx.Value("paginationToken"); tok != nil {
 			str := tok.(string)
 			if str == "" {
@@ -775,4 +778,62 @@ func pagination(ctx context.Context) (map[string]string, uint, error) {
 		}
 	}
 	return map[string]string{}, 100, nil
+}
+
+func (a *accounts) GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint64) ([]WalletHistoryItem, string, *string, error) {
+	wallet, err := a.delegatedRPClient.GetWallet(ctx, walletID)
+	if err != nil {
+		return nil, "", nil, errors.Wrapf(err, "failed to get wallet %v", walletID)
+	}
+	network := (*wallet)["network"].(string)
+	if strings.EqualFold(network, dfns.DefaultWalletNetworkTestNet) || strings.EqualFold(network, dfns.DefaultWalletNetworkMainNet) {
+		walletAddress := (*wallet)["address"].(string)
+		transaction, newPagination, err := a.indexer.WalletTransactions(ctx, walletID, walletAddress, paginationToken, limit)
+		if err != nil {
+			log.Error(errors.Wrapf(err, "failed to get wallet history for wallet %v %v from indexer, getting from 3rdparty", walletID, walletAddress))
+			history, err := a.delegatedRPClient.GetWalletHistory(ctx, walletID, paginationToken, limit)
+			if err != nil {
+				return nil, "", nil, errors.Wrapf(err, "failed to get wallet history for wallet %v both from indexer and 3rdparty", walletID)
+			}
+			return history.Items, history.Network, history.NextPageToken, nil
+		}
+		return transaction, network, newPagination, nil
+	}
+	history, err := a.delegatedRPClient.GetWalletHistory(ctx, walletID, paginationToken, limit)
+	if err != nil {
+		return nil, "", nil, errors.Wrapf(err, "failed to get wallet history for wallet %v", walletID)
+	}
+	return history.Items, history.Network, history.NextPageToken, nil
+}
+
+func (a *accounts) GetWalletAssets(ctx context.Context, walletID string) (*Assets, error) {
+	walletNetwork := ""
+	walletAddress := ""
+	if ctxNetwork := ctx.Value("wallet"); ctxNetwork != nil { // We already fetched if while building wallet view
+		walletNetwork = ctxNetwork.(string)
+		if addr := ctx.Value("walletAddress"); addr != nil {
+			walletAddress = addr.(string)
+		}
+	}
+	if walletNetwork == "" || walletAddress == "" {
+		wallet, err := a.delegatedRPClient.GetWallet(ctx, walletID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get wallet %v", walletID)
+		}
+		walletNetwork = (*wallet)["network"].(string)
+		walletAddress = (*wallet)["address"].(string)
+	}
+	if strings.EqualFold(walletNetwork, dfns.DefaultWalletNetworkTestNet) || strings.EqualFold(walletNetwork, dfns.DefaultWalletNetworkMainNet) {
+		assets, err := a.indexer.GetBalance(ctx, walletAddress)
+		if err != nil {
+			log.Error(errors.Wrapf(err, "indexer call failed for fwtching balance for wallet %v %v, getting from 3rd party", walletID, walletAddress))
+			return a.delegatedRPClient.ListAssets(ctx, walletID)
+		}
+		return &Assets{
+			Assets:   assets,
+			Network:  walletNetwork,
+			WalletID: walletID,
+		}, nil
+	}
+	return a.delegatedRPClient.ListAssets(ctx, walletID)
 }
