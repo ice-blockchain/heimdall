@@ -464,8 +464,8 @@ github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5 h1:
 github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5/go.mod h1:or80JBz1VHXxKN5qXBNYFooWcfjUPIQzbNUVZ7FTFzo=
 github.com/ice-blockchain/go/src v0.0.0-20251117100638-ebce142e0ce4 h1:MuIvX5CpkDfDyThLXK/GrG1+sRDJoy+YwX5SuygBeag=
 github.com/ice-blockchain/go/src v0.0.0-20251117100638-ebce142e0ce4/go.mod h1:pVzkmaIwkLaJ5cKPHPtuKyxaXiTsa/V7kbbgLmsr4Hw=
-github.com/ice-blockchain/subzero v1.473.0 h1:XEccPWnn517maN0WGD5ALOqnxUw07gT6EHkRaWlrIXM=
-github.com/ice-blockchain/subzero v1.473.0/go.mod h1:xC+eHvMPWCzWV2D4+hu2ENUl1LWHsuy6R/qr9wPrVLg=
+github.com/ice-blockchain/subzero v1.474.0 h1:F+OIpy2N0KNZ0zoXRdPB9Aexj39m5LQy//C1ycneziY=
+github.com/ice-blockchain/subzero v1.474.0/go.mod h1:ygrABmzPHdVAAu9a/ZWx++JpY0tJoIQEmAFU5FGBQow=
 github.com/ice-blockchain/wintr v1.170.0 h1:zG0R7dOr/h5mnPsZB+KO0B3LlRhPTjueWw+31vkD5rw=
 github.com/ice-blockchain/wintr v1.170.0/go.mod h1:9TcNxsUzFaDcZAVql+/81RXHVwBP3IQOlyQ3fEAFlfU=
 github.com/icholy/digest v1.1.0 h1:HfGg9Irj7i+IX1o1QAmPfIBNu/Q5A5Tu3n/MED9k9H4=
