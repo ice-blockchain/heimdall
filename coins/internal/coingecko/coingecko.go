@@ -256,8 +256,11 @@ func (c *client) GetTokens(ctx context.Context, network string, contractAddresse
 	return res, nil
 }
 func (c *client) GetTokenPrices(ctx context.Context, network string, contractAddresses []string) ([]*Coin, error) {
-	tokensData, _, err := makeAPICall[tokenPrices](ctx, c, fmt.Sprintf("/api/v3/onchain/simple/networks/%v/token_price/%v", network, strings.Join(contractAddresses, ",")), make(map[string]any))
+	tokensData, status, err := makeAPICall[tokenPrices](ctx, c, fmt.Sprintf("/api/v3/onchain/simple/networks/%v/token_price/%v", network, strings.Join(contractAddresses, ",")), make(map[string]any))
 	if err != nil {
+		if status == http.StatusNotFound {
+			err = ErrNotFound
+		}
 		return nil, errors.Wrapf(err, "failed to get tokens data on %v, %v", network, strings.Join(contractAddresses, ","))
 	}
 	res := make([]*Coin, 0, len(tokensData.Data.Attributes.TokenPrices))
