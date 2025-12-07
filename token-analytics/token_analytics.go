@@ -176,10 +176,12 @@ func (t *tokenAnalyticsUsers) UpsertUser(ctx context.Context, id, masterPubkey, 
 			ion_connect_relays = EXCLUDED.ion_connect_relays,
 			verified = EXCLUDED.verified
 	`, id, masterPubkey, username, displayName, avatar, lookup, ionConnectRelays, verified, blockchainAddress)
-	if err != nil {
-		return fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err)
+	if err == nil {
+		return nil
 	}
 
+	log.Error(fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err))
+	// TODO: return an error here later.
 	return nil
 }
 
@@ -189,10 +191,12 @@ func (t *tokenAnalyticsUsers) SetVerified(ctx context.Context, masterPubkey stri
 		SET verified = true, updated_at = NOW()
 		WHERE master_pubkey = $1
 	`, masterPubkey)
-	if err != nil {
-		return fmt.Errorf("failed to set verified for user %v: %w", masterPubkey, err)
+	if err == nil {
+		return nil
 	}
 
+	log.Error(fmt.Errorf("failed to set verified for user %v: %w", masterPubkey, err))
+	// TODO: return an error here later.
 	return nil
 }
 

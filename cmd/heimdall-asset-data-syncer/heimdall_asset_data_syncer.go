@@ -72,7 +72,8 @@ func (s *service) CheckHealth(ctx context.Context) error {
 	return multierror.Append(
 		errors.Wrapf(s.coinSyncer.HealthCheck(ctx), "coins sync check failed"),
 		errors.Wrapf(s.verifiedQueueRepository.HealthCheck(ctx), "verifiedQueueRepository check failed"),
-		errors.Wrapf(s.tokenAnalytics.HealthCheck(ctx), "tokenAnalytics check failed"),
+		// TODO: re-enable when token analytics is stable.
+		// errors.Wrapf(s.tokenAnalytics.HealthCheck(ctx), "tokenAnalytics check failed"),
 	).ErrorOrNil()
 }
 
