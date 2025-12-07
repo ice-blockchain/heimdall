@@ -121,6 +121,9 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 		for _, cID := range c.CoinGeckoCoinIDs {
 			spl := strings.Split(cID, ":@:@:")
 			network, cgID := spl[0], spl[1]
+			if cID == "" {
+				continue
+			}
 			coinIDs = append(coinIDs, cgID)
 			networks[cgID] = network
 			if cgID == "ion" {
@@ -154,13 +157,17 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 			notFetched[contractAddr] = true
 			ids[network+":@:@:"+contractAddr] = id
 		}
+		errorredTokens := make([]string, 0, 0)
 		tokens, err := fn(ctx, network, contractAddrs)
 		if err != nil {
-			if errors.Is(err, ErrNotFound) {
+			if errors.Is(err, coingecko.ErrNotFound) {
 				for _, notFetchedContractAddr := range contractAddrs {
-					if coinGeckoID, hasCoinGeckoId := ids[network+":@:@:"+notFetchedContractAddr]; hasCoinGeckoId {
+					if coinGeckoID, hasCoinGeckoId := ids[network+":@:@:"+notFetchedContractAddr]; hasCoinGeckoId && coinGeckoID != "" {
 						coinIDs = append(coinIDs, coinGeckoID)
+					} else {
+						errorredTokens = append(errorredTokens, strings.ToLower(notFetchedContractAddr))
 					}
+
 				}
 			}
 			log.Error(errors.Wrapf(err, "failed to sync tokens data"))
@@ -171,9 +178,11 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 			}
 			for notFetchedContractAddr := range notFetched {
 				coinGeckoID := ids[network+":@:@:"+notFetchedContractAddr]
-				coinIDs = append(coinIDs, coinGeckoID)
-				networks[coinGeckoID] = network + ":@:@:" + notFetchedContractAddr
-				ids[coinGeckoID] = network + ":@:@:" + notFetchedContractAddr
+				if coinGeckoID != "" {
+					coinIDs = append(coinIDs, coinGeckoID)
+					networks[coinGeckoID] = network + ":@:@:" + notFetchedContractAddr
+					ids[coinGeckoID] = network + ":@:@:" + notFetchedContractAddr
+				}
 			}
 		}
 		if tokensAddrs.SyncTokenFullData {
@@ -181,8 +190,12 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 		} else {
 			tokensPriceData = append(tokensPriceData, tokens...)
 		}
+		if len(errorredTokens) > 0 {
+			if err = s.removeErroredTokensFromQueue(ctx, network, errorredTokens); err != nil {
+				log.Error(errors.Wrapf(err, "failed to remove errornous tokens from queue"))
+			}
+		}
 	}
-
 	if len(coinIDs) > 0 {
 		var coinsAndMissedTokens []*coingecko.Coin
 		coinsAndMissedTokens, err = s.coinGeckoClient.GetCoins(ctx, coinIDs)
@@ -251,6 +264,16 @@ func (s *coinSync) getTokens(maxBatch int, callCoinGecko func(ctx context.Contex
 		}
 		return res, nil
 	}
+}
+
+func (s *coinSync) removeErroredTokensFromQueue(ctx context.Context, network string, tokens []string) error {
+	log.Warn(fmt.Sprintf("removing from queue errornous tokens %+v on %v", tokens, network))
+	sql := `DELETE FROM coins_sync_queue WHERE coin_id IN (SELECT id FROM coins WHERE network = $1 AND LOWER(contract_address) = ANY($2))`
+	rows, err := storage.Exec(ctx, s.db, sql, network, tokens)
+	if rows != uint64(len(tokens)) {
+		return errors.Errorf("unexpected num of rows on removal of errornous token %v instead of %v", rows, len(tokens))
+	}
+	return errors.Wrapf(err, "failed to clear queue from 404 tokens: %v on %v", tokens, network)
 }
 
 func (s *coinSync) fetchSyncableCoins(ctx context.Context, now *time.Time) (map[string]*coinToSync, error) {
