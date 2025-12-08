@@ -34,6 +34,8 @@ func ExtractMainWallet(res map[string]any) (walletID, walletPubKey string) {
 				wallet := walletI.(map[string]any)
 				if walletID, walletPubKey = CheckMainWallet(wallet); walletID == "" && walletPubKey == "" {
 					continue
+				} else if walletID != "" && walletPubKey != "" {
+					break
 				}
 			}
 		}
