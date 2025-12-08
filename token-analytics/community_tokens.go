@@ -15,16 +15,17 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
-func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context, externalAddress, creatorUsername, creatorDisplayName, creatorAvatar string, creatorVerified bool) error {
+func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context, externalAddress, creatorUsername, creatorDisplayName, creatorAvatar string, creatorVerified bool,
+	holderUsername, holderDisplayName, holderAvatar string, holderVerified bool, holderBNBBSCWallet string) error {
+
 	query := `
 		INSERT INTO users (
 			created_at, updated_at, id, master_pubkey, blockchain_address, 
 			external_address, username, display_name, avatar, verified, lookup, platform_group
 		)
-		VALUES (
-			NOW(), NOW(), $1, $1, '', 
-			$1, $2, $3, $4, $5, LOWER($2 || ' ' || COALESCE($3, '')), 'xcom'::platform_type
-		)
+		VALUES 
+			(NOW(), NOW(), $1, $1, '', $1, $2, $3, $4, $5, LOWER($2 || ' ' || COALESCE($3, '')), 'xcom'::platform_type),
+			(NOW(), NOW(), $6, $6, $6, $6, $7, $8, $9, $10, LOWER($7 || ' ' || COALESCE($8, '')), 'xcom'::platform_type)
 		ON CONFLICT (master_pubkey) 
 		DO UPDATE SET
 			external_address = EXCLUDED.external_address,
@@ -32,6 +33,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context, externalAd
 			display_name = EXCLUDED.display_name,
 			avatar = EXCLUDED.avatar,
 			verified = EXCLUDED.verified,
+			blockchain_address = COALESCE(NULLIF(EXCLUDED.blockchain_address, ''), users.blockchain_address),
 			lookup = EXCLUDED.lookup,
 			platform_group = EXCLUDED.platform_group,
 			updated_at = NOW()
@@ -43,6 +45,11 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context, externalAd
 		creatorDisplayName,
 		creatorAvatar,
 		creatorVerified,
+		holderBNBBSCWallet,
+		holderUsername,
+		holderDisplayName,
+		holderAvatar,
+		holderVerified,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to upsert user external data: %w", err)

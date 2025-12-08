@@ -355,7 +355,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "example": "\"a0:9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f:\"",
+                        "example": "\"0:9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f:\"",
                         "description": "External address of the token",
                         "name": "externalAddressOrViewType",
                         "in": "path",
@@ -366,7 +366,7 @@ const docTemplate = `{
                         "items": {
                             "type": "string"
                         },
-                        "example": "\"a0:abc123:,a0:def456:\"",
+                        "example": "\"0:abc123:,0:def456:\"",
                         "description": "External addresses of holders",
                         "name": "externalHolderAddresses",
                         "in": "query",
@@ -1406,6 +1406,26 @@ const docTemplate = `{
                 "creatorVerified": {
                     "type": "boolean",
                     "example": true
+                },
+                "holderAvatar": {
+                    "type": "string",
+                    "example": "https://example.com/holder-avatar.png"
+                },
+                "holderBNBBSCWallet": {
+                    "type": "string",
+                    "example": "0x1234567890abcdef1234567890abcdef12345678"
+                },
+                "holderDisplayName": {
+                    "type": "string",
+                    "example": "Jane Doe"
+                },
+                "holderUsername": {
+                    "type": "string",
+                    "example": "janedoe"
+                },
+                "holderVerified": {
+                    "type": "boolean",
+                    "example": false
                 }
             }
         },

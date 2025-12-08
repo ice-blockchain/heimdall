@@ -15,6 +15,21 @@ definitions:
       creatorVerified:
         example: true
         type: boolean
+      holderAvatar:
+        example: https://example.com/holder-avatar.png
+        type: string
+      holderBNBBSCWallet:
+        example: 0x1234567890abcdef1234567890abcdef12345678
+        type: string
+      holderDisplayName:
+        example: Jane Doe
+        type: string
+      holderUsername:
+        example: janedoe
+        type: string
+      holderVerified:
+        example: false
+        type: boolean
     type: object
   main.SessionViewCreateResponse:
     properties:
@@ -448,13 +463,13 @@ paths:
       description: Returns positions for specific holders of a community token.
       parameters:
       - description: External address of the token
-        example: '"a0:9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f:"'
+        example: '"0:9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f:"'
         in: path
         name: externalAddressOrViewType
         required: true
         type: string
       - description: External addresses of holders
-        example: '"a0:abc123:,a0:def456:"'
+        example: '"0:abc123:,0:def456:"'
         in: query
         items:
           type: string

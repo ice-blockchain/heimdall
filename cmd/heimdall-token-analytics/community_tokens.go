@@ -68,6 +68,11 @@ type (
 		CreatorDisplayName string `json:"creatorDisplayName" example:"John Doe"`
 		CreatorAvatar      string `json:"creatorAvatar" example:"https://example.com/avatar.png"`
 		CreatorVerified    bool   `json:"creatorVerified" example:"true"`
+		HolderUsername     string `json:"holderUsername" example:"janedoe"`
+		HolderDisplayName  string `json:"holderDisplayName" example:"Jane Doe"`
+		HolderAvatar       string `json:"holderAvatar" example:"https://example.com/holder-avatar.png"`
+		HolderVerified     bool   `json:"holderVerified" example:"false"`
+		HolderBNBBSCWallet string `json:"holderBNBBSCWallet" example:"0x1234567890abcdef1234567890abcdef12345678"`
 	}
 	OHLCVRequest struct {
 		ExternalAddress string `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
@@ -252,8 +257,8 @@ func (s *service) GetCommunityTokensTradesByAddress(ctx context.Context, req *se
 //	@Description	Returns positions for specific holders of a community token.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			externalAddressOrViewType	path		string		true	"External address of the token"	example("a0:9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f:")
-//	@Param			externalHolderAddresses		query		[]string	true	"External addresses of holders"	example("a0:abc123:,a0:def456:")
+//	@Param			externalAddressOrViewType	path		string		true	"External address of the token"	example("0:9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f:")
+//	@Param			externalHolderAddresses		query		[]string	true	"External addresses of holders"	example("0:abc123:,0:def456:")
 //	@Success		200							{array}		ta.HolderPosition
 //	@Failure		400							{object}	server.ResponseErrorBody	"if request parameters are invalid"
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
@@ -296,6 +301,11 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 		req.Data.Body.CreatorDisplayName,
 		req.Data.Body.CreatorAvatar,
 		req.Data.Body.CreatorVerified,
+		req.Data.Body.HolderUsername,
+		req.Data.Body.HolderDisplayName,
+		req.Data.Body.HolderAvatar,
+		req.Data.Body.HolderVerified,
+		req.Data.Body.HolderBNBBSCWallet,
 	); err != nil {
 		return nil, fmt.Errorf("failed to update token external data: %w", err)
 	}
