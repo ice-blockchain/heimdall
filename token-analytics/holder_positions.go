@@ -26,6 +26,7 @@ func (t *tokenAnalytics) GetHolderPositions(ctx context.Context, tokenExternalAd
 			COALESCE(u.avatar, '') as avatar,
 			COALESCE(u.verified, false) as verified,
 			u.external_address as external_address,
+			u.platform_group as platform,
 			COALESCE(utp.amount, 0) as amount,
 			COALESCE(utp.total_invested_usd, 0) as total_invested_usd,
 			COALESCE(t.price_usd, 0) as price_usd
@@ -69,9 +70,9 @@ func (t *tokenAnalytics) GetHolderPositions(ctx context.Context, tokenExternalAd
 		if r, ok := rankings[row.ExternalAddress]; ok {
 			rank = uint64(r)
 		}
-		holderAddresses, err := buildAddressesFromExternalAddress(row.ExternalAddress)
+		holderAddresses, err := buildAddressesFromExternalAddressAndPlatform(row.ExternalAddress, row.Platform)
 		if err != nil {
-			log.Warn(fmt.Sprintf("failed to build holder addresses from external_address %s: %v", row.ExternalAddress, err))
+			log.Warn(fmt.Sprintf("failed to build holder addresses from external_address %s (platform %s): %v", row.ExternalAddress, row.Platform, err))
 
 			continue
 		}

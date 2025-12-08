@@ -594,12 +594,12 @@ BEGIN
         RETURN;
     END IF;
     
+    v_external_address := substring(v_external_address_raw from 2);
+    
     CASE v_platform_prefix
         WHEN 'a' THEN
             v_token_type := 'profile';
-            v_external_address := v_external_address_raw;
-            -- Format: a0:{master}:
-            v_parts := string_to_array(substring(v_external_address_raw from 2), ':'); -- skip "a"
+            v_parts := string_to_array(v_external_address, ':');
             IF array_length(v_parts, 1) >= 2 THEN
                 v_creator_master_pubkey := v_parts[2]; -- [1]=kind, [2]=master
             ELSE
@@ -608,8 +608,7 @@ BEGIN
             END IF;
         WHEN 'b' THEN
             v_token_type := 'post';
-            v_external_address := v_external_address_raw;
-            v_parts := string_to_array(substring(v_external_address_raw from 2), ':'); -- skip "b"
+            v_parts := string_to_array(v_external_address, ':');
             IF array_length(v_parts, 1) >= 2 THEN
                 v_creator_master_pubkey := v_parts[2];
             ELSE
@@ -618,8 +617,7 @@ BEGIN
             END IF;
         WHEN 'c' THEN
             v_token_type := 'video';
-            v_external_address := v_external_address_raw;
-            v_parts := string_to_array(substring(v_external_address_raw from 2), ':'); -- skip "c"
+            v_parts := string_to_array(v_external_address, ':');
             IF array_length(v_parts, 1) >= 2 THEN
                 v_creator_master_pubkey := v_parts[2];
             ELSE
@@ -629,8 +627,7 @@ BEGIN
 
         WHEN 'd' THEN
             v_token_type := 'article';
-            v_external_address := v_external_address_raw;
-            v_parts := string_to_array(substring(v_external_address_raw from 2), ':'); -- skip "d"
+            v_parts := string_to_array(v_external_address, ':');
             IF array_length(v_parts, 1) >= 2 THEN
                 v_creator_master_pubkey := v_parts[2];
             ELSE
@@ -639,16 +636,12 @@ BEGIN
             END IF;
         WHEN 'z' THEN
             v_token_type := 'profile';
-            v_external_address := v_external_address_raw;
         WHEN 'y' THEN
             v_token_type := 'post';
-            v_external_address := v_external_address_raw;
         WHEN 'x' THEN
             v_token_type := 'video';
-            v_external_address := v_external_address_raw;
         WHEN 'w' THEN
             v_token_type := 'article';
-            v_external_address := v_external_address_raw;
         ELSE
             RAISE WARNING 'Invalid external address format (unknown prefix ''%''): %, skipping token creation', v_platform_prefix, v_external_address_raw;
             RETURN;
@@ -951,7 +944,9 @@ BEGIN
         RETURN;
     END IF;
     
-    v_platform_group := get_platform_group(p_user_external_address);
+    SELECT platform_group INTO v_platform_group
+    FROM users
+    WHERE external_address = p_user_external_address;
     
     IF v_platform_group IS NULL THEN
         RETURN;

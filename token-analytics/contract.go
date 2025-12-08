@@ -238,6 +238,7 @@ type (
 		CreatorUsername              string     `db:"creator_username"`
 		CreatorDisplay               string     `db:"creator_display"`
 		CreatorAvatar                string     `db:"creator_avatar"`
+		CreatorPlatform              string     `db:"creator_platform"`
 		BaseToken                    string     `db:"base_token"`
 		PairId                       string     `db:"pair_id"`
 		MarketCapUSD                 float64    `db:"market_cap_usd"`
@@ -266,6 +267,7 @@ type (
 		Avatar           string  `db:"avatar"`
 		Verified         bool    `db:"verified"`
 		ExternalAddress  string  `db:"external_address"`
+		Platform         string  `db:"platform"`
 		Amount           string  `db:"amount"`
 		TotalInvestedUSD float64 `db:"total_invested_usd"`
 		PriceUSD         float64 `db:"price_usd"`
@@ -276,17 +278,20 @@ type (
 		TransactionHash        string     `db:"transaction_hash"`
 		ContractAddress        string     `db:"contract_address"`
 		ExternalAddress        string     `db:"external_address"`
+		Platform               string     `db:"platform"`
 		UserAddress            string     `db:"user_address"`
 		CreatorMasterPubkey    string     `db:"creator_master_pubkey"`
 		CreatorUsername        string     `db:"creator_username"`
 		CreatorDisplay         string     `db:"creator_display"`
 		CreatorAvatar          string     `db:"creator_avatar"`
 		CreatorExternalAddress string     `db:"creator_external_address"`
+		CreatorPlatform        string     `db:"creator_platform"`
 		HolderMasterPubkey     string     `db:"holder_master_pubkey"`
 		HolderUsername         string     `db:"holder_username"`
 		HolderDisplay          string     `db:"holder_display"`
 		HolderAvatar           string     `db:"holder_avatar"`
 		HolderExternalAddress  string     `db:"holder_external_address"`
+		HolderPlatform         string     `db:"holder_platform"`
 		Input                  string     `db:"input_amount"`
 		Output                 string     `db:"output_amount"`
 		PriceUSD               float64    `db:"price_usd"`
@@ -315,12 +320,14 @@ type (
 		CreatorUsername       string  `db:"creator_username"`
 		CreatorDisplay        string  `db:"creator_display"`
 		CreatorAvatar         string  `db:"creator_avatar"`
+		CreatorPlatform       string  `db:"creator_platform"`
 		TotalSupply           string  `db:"total_supply"`
 		HolderMasterPubkey    string  `db:"holder_master_pubkey"`
 		HolderUsername        string  `db:"holder_username"`
 		HolderDisplay         string  `db:"holder_display"`
 		HolderAvatar          string  `db:"holder_avatar"`
 		HolderExternalAddress string  `db:"holder_external_address"`
+		HolderPlatform        string  `db:"holder_platform"`
 		PriceUSD              float64 `db:"price_usd"`
 		CreatorVerified       bool    `db:"creator_verified"`
 		HolderVerified        bool    `db:"holder_verified"`
@@ -338,6 +345,7 @@ type (
 		HolderVerified        bool   `json:"holder_verified"`
 		HolderAvatar          string `json:"holder_avatar"`
 		HolderExternalAddress string `json:"holder_external_address"`
+		HolderPlatform        string `json:"holder_platform"`
 	}
 
 	tokenRowWithTopPlatformHolders struct {

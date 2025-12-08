@@ -20,6 +20,7 @@ import (
 	"github.com/pkg/errors"
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
+	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 )
@@ -110,18 +111,19 @@ func (gen *dummyDataGenerator) createTokenWithBuysOrSellsProcessor(ctx context.C
 	}
 
 	var externalAddress string
-	var platformPrefix Platform
-	switch kind {
-	case nostr.KindProfileMetadata:
+	if kind == nostr.KindProfileMetadata {
 		dTag = ""
-		platformPrefix = PlatformIonConnectProfile
-		externalAddress = BuildProfileExternalAddress(master)
-	case nostr.KindArticle:
-		platformPrefix = PlatformIonConnectArticle
-		externalAddress = BuildContentExternalAddress(platformPrefix, kind, master, dTag)
-	default:
-		platformPrefix = PlatformIonConnectPost
-		externalAddress = BuildContentExternalAddress(platformPrefix, kind, master, dTag)
+		platformPrefix := string(PlatformIonConnectProfile) // "a"
+		externalAddress = platformPrefix + BuildProfileExternalAddress(master)
+	} else if kind == nostr.KindArticle {
+		platformPrefix := string(PlatformIonConnectArticle) // "c"
+		externalAddress = platformPrefix + BuildContentExternalAddress(kind, master, dTag)
+	} else if kind == model.CustomIONKindEditableTextNote {
+		platformPrefix := string(PlatformIonConnectPost) // "b"
+		externalAddress = platformPrefix + BuildContentExternalAddress(kind, master, dTag)
+	} else {
+		platformPrefix := string(PlatformIonConnectVideo) // "d"
+		externalAddress = platformPrefix + BuildContentExternalAddress(kind, master, dTag)
 	}
 	names := []string{
 		"Super Duper Token",

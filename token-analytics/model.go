@@ -133,6 +133,9 @@ const (
 	PlatformXComVideo   Platform = "x" // 0x20
 	PlatformXComPost    Platform = "y" // 0x40
 	PlatformXComProfile Platform = "z" // 0x80
+
+	PlatformGroupIonConnect = "ionconnect"
+	PlatformGroupXCom       = "xcom"
 )
 
 func GetPlatformFromExternalAddress(externalAddress string) Platform {
@@ -142,61 +145,41 @@ func GetPlatformFromExternalAddress(externalAddress string) Platform {
 	return Platform(externalAddress[0:1])
 }
 
-// Format: a0:{master}:
+// Format: 0:{master}:
 func BuildProfileExternalAddress(master string) string {
-	return string(PlatformIonConnectProfile) + "0:" + master + ":"
+	return "0:" + master + ":"
 }
 
-// Format: {platformPrefix}{kind}:{master}:{dTag}
-func BuildContentExternalAddress(platform Platform, kind int, master, dTag string) string {
-	return string(platform) + strconv.Itoa(kind) + ":" + master + ":" + dTag
+// Format: {kind}:{master}:{dTag}
+func BuildContentExternalAddress(kind int, master, dTag string) string {
+	return strconv.Itoa(kind) + ":" + master + ":" + dTag
 }
 
-func IsProfileType(externalAddress string) bool {
-	if len(externalAddress) < 1 {
-		return false
-	}
-	platform := GetPlatformFromExternalAddress(externalAddress)
-
-	return platform == PlatformIonConnectProfile || platform == PlatformXComProfile
+func IsProfileType(tokenType string) bool {
+	return tokenType == TokenTypeProfile
 }
 
-func IsContentType(externalAddress string) bool {
-	if len(externalAddress) < 1 {
-		return false
-	}
-	platform := GetPlatformFromExternalAddress(externalAddress)
-	return platform == PlatformIonConnectPost ||
-		platform == PlatformIonConnectVideo ||
-		platform == PlatformIonConnectArticle ||
-		platform == PlatformXComArticle ||
-		platform == PlatformXComVideo ||
-		platform == PlatformXComPost
+func IsContentType(tokenType string) bool {
+	return tokenType == TokenTypePost || tokenType == TokenTypeVideo || tokenType == TokenTypeArticle
 }
 
-func buildAddressesFromExternalAddress(externalAddress string) (Addresses, error) {
-	if externalAddress == "" || len(externalAddress) < 1 {
+func buildAddressesFromExternalAddressAndPlatform(externalAddress, platform string) (Addresses, error) {
+	if externalAddress == "" {
 		return Addresses{}, fmt.Errorf("external_address cannot be empty")
 	}
-	prefix := externalAddress[0:1]
-
-	if prefix == string(PlatformXComProfile) ||
-		prefix == string(PlatformXComPost) ||
-		prefix == string(PlatformXComVideo) ||
-		prefix == string(PlatformXComArticle) {
-		return Addresses{
-			Twitter: externalAddress[1:],
-		}, nil
+	if platform == "" {
+		return Addresses{}, fmt.Errorf("platform cannot be empty")
 	}
-
-	if prefix == string(PlatformIonConnectProfile) ||
-		prefix == string(PlatformIonConnectPost) ||
-		prefix == string(PlatformIonConnectVideo) ||
-		prefix == string(PlatformIonConnectArticle) {
+	switch platform {
+	case PlatformGroupIonConnect:
 		return Addresses{
-			IonConnect: externalAddress[1:],
+			IonConnect: externalAddress,
 		}, nil
+	case PlatformGroupXCom:
+		return Addresses{
+			Twitter: externalAddress,
+		}, nil
+	default:
+		return Addresses{}, fmt.Errorf("unknown platform '%s' for external_address: %s", platform, externalAddress)
 	}
-
-	return Addresses{}, fmt.Errorf("unknown platform prefix '%s' in external_address: %s", prefix, externalAddress)
 }

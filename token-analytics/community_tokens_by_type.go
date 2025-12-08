@@ -32,6 +32,7 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 		selectClause = `SELECT 
 			t.contract_address,
 			t.external_address,
+			t.platform as platform,
 			t.type,
 			t.created_at,
 			creator.username as title,
@@ -44,6 +45,7 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 			COALESCE(creator.display_name, '') as creator_display,
 			creator.verified as creator_verified,
 			COALESCE(creator.avatar, '') as creator_avatar,
+			creator.platform_group as creator_platform,
 			COALESCE(t.market_cap_usd, 0) as market_cap_usd,
 			COALESCE(t.price_usd, 0) as price_usd,
 			COALESCE(tv.volume_24h / 1e18, 0) as volume_24h,
@@ -72,6 +74,7 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 				SELECT 
 					t.contract_address,
 					t.external_address,
+					t.platform,
 					t.type,
 					t.created_at,
 					t.ticker,
@@ -122,13 +125,13 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 
 	tokens := make([]*CommunityToken, 0, len(rows))
 	for _, row := range rows {
-		tokenAddresses, err := buildAddressesFromExternalAddress(row.ExternalAddress)
+		tokenAddresses, err := buildAddressesFromExternalAddressAndPlatform(row.ExternalAddress, row.Platform)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build addresses from external_address %s: %w", row.ExternalAddress, err)
+			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", row.ExternalAddress, row.Platform, err)
 		}
-		creatorAddresses, err := buildAddressesFromExternalAddress(BuildProfileExternalAddress(row.CreatorMasterPubkey))
+		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(BuildProfileExternalAddress(row.CreatorMasterPubkey), row.CreatorPlatform)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s: %w", row.CreatorMasterPubkey, err)
+			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s (platform %s): %w", row.CreatorMasterPubkey, row.CreatorPlatform, err)
 		}
 		token := &CommunityToken{
 			Type:        row.Type,
@@ -163,6 +166,7 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 		SELECT 
 			t.contract_address,
 			t.external_address,
+			t.platform,
 			t.type,
 			t.created_at,
 			creator.username as title,
@@ -175,6 +179,7 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 			COALESCE(creator.display_name, '') as creator_display,
 			creator.verified as creator_verified,
 			COALESCE(creator.avatar, '') as creator_avatar,
+			creator.platform_group as creator_platform,
 			COALESCE(t.market_cap_usd, 0) as market_cap_usd,
 			COALESCE(t.price_usd, 0) as price_usd,
 			COALESCE(tv.volume_24h / 1e18, 0) as volume_24h,
@@ -204,13 +209,13 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 
 	tokens := make([]*CommunityToken, 0, len(rows))
 	for _, row := range rows {
-		tokenAddresses, err := buildAddressesFromExternalAddress(row.ExternalAddress)
+		tokenAddresses, err := buildAddressesFromExternalAddressAndPlatform(row.ExternalAddress, row.Platform)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build addresses from external_address %s: %w", row.ExternalAddress, err)
+			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", row.ExternalAddress, row.Platform, err)
 		}
-		creatorAddresses, err := buildAddressesFromExternalAddress(BuildProfileExternalAddress(row.CreatorMasterPubkey))
+		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(BuildProfileExternalAddress(row.CreatorMasterPubkey), row.CreatorPlatform)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s: %w", row.CreatorMasterPubkey, err)
+			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s (platform %s): %w", row.CreatorMasterPubkey, row.CreatorPlatform, err)
 		}
 		token := &CommunityToken{
 			Type:        row.Type,

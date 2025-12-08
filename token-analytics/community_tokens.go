@@ -122,9 +122,9 @@ func (t *tokenAnalytics) buildTopPlatformHoldersFromRankings(row *tokenRowWithTo
 		amountUSD := amountTokens * row.PriceUSD
 		supplyShare := calculateSupplyShare(amountTokens, totalSupplyFloat)
 
-		holderAddresses, err := buildAddressesFromExternalAddress(holderMeta.HolderExternalAddress)
+		holderAddresses, err := buildAddressesFromExternalAddressAndPlatform(holderMeta.HolderExternalAddress, holderMeta.HolderPlatform)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build holder addresses from external_address %s: %w", holderMeta.HolderExternalAddress, err)
+			return nil, fmt.Errorf("failed to build holder addresses from external_address %s (platform %s): %w", holderMeta.HolderExternalAddress, holderMeta.HolderPlatform, err)
 		}
 		amountUint64 := uint64(amountTokens)
 

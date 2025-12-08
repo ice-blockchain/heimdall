@@ -163,6 +163,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 		SELECT 
 			t.contract_address,
 			t.external_address,
+			t.platform as platform,
 			t.type,
 		creator.username as title,
 		COALESCE(creator.display_name, '') as description,
@@ -175,6 +176,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 		COALESCE(creator.display_name, '') as creator_display,
 		creator.verified as creator_verified,
 		COALESCE(creator.avatar, '') as creator_avatar,
+		creator.platform_group as creator_platform,
 		COALESCE(t.price_usd, 0) as price_usd,
 		COALESCE(t.holders_count, 0) as holders_count,
 		COALESCE(t.market_cap_usd, 0) as market_cap_usd,
@@ -213,13 +215,13 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 			marketCap = additionalMetrics[addr]
 		}
 
-		tokenExternalAddresses, err := buildAddressesFromExternalAddress(token.ExternalAddress)
+		tokenExternalAddresses, err := buildAddressesFromExternalAddressAndPlatform(token.ExternalAddress, token.Platform)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build addresses from external_address %s: %w", token.ExternalAddress, err)
+			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", token.ExternalAddress, token.Platform, err)
 		}
-		creatorExternalAddresses, err := buildAddressesFromExternalAddress(BuildProfileExternalAddress(token.CreatorMasterPubkey))
+		creatorExternalAddresses, err := buildAddressesFromExternalAddressAndPlatform(BuildProfileExternalAddress(token.CreatorMasterPubkey), token.CreatorPlatform)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s: %w", token.CreatorMasterPubkey, err)
+			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s (platform %s): %w", token.CreatorMasterPubkey, token.CreatorPlatform, err)
 		}
 
 		var bondingCurveProgress *BondingCurveProgress

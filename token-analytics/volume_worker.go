@@ -141,7 +141,7 @@ func (t *tokenAnalytics) updateTrendingVolumes(ctx context.Context) error {
 						Member: vol.ExternalAddress,
 					})
 				}
-				if IsContentType(vol.ExternalAddress) {
+				if IsContentType(vol.TokenType) {
 					pipe.ZAdd(ctx, globalTrendingAnyPostSetKey, redis.Z{
 						Score:  vol.Volume24h,
 						Member: vol.ExternalAddress,

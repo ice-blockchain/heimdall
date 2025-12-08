@@ -147,7 +147,7 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 					return pErr
 				}
 			}
-			if IsContentType(tokenExternalAddress) {
+			if IsContentType(tokenType) {
 				if pErr := pipeliner.ZIncrBy(ctx, globalTopAnyPostSetKey, deltaMarketCapUSD, tokenExternalAddress).Err(); pErr != nil {
 					return pErr
 				}

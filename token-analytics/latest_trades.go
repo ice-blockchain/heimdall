@@ -26,6 +26,7 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, externalAddress st
 		    token_swaps.transaction_hash,
 		    token_swaps.contract_address,
 		    token_swaps.external_address,
+		    tokens.platform,
 		    token_swaps.user_address,
 		    token_swaps.direction,
 		    token_swaps.input_amount,
@@ -37,6 +38,7 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, externalAddress st
 			COALESCE(creator.verified, false) as creator_verified,
 			COALESCE(creator.avatar, '') as creator_avatar,
 			creator.external_address as creator_external_address,
+			creator.platform_group as creator_platform,
 
 			COALESCE(holder.master_pubkey, '') as holder_master_pubkey,
 			holder.username as holder_username,
@@ -44,6 +46,7 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, externalAddress st
 			COALESCE(holder.verified, FALSE) as holder_verified,
 			COALESCE(holder.avatar, '') as holder_avatar,
 			holder.external_address as holder_external_address,
+			holder.platform_group as holder_platform,
 			
 			COALESCE((utp.amount / 1e18)::DECIMAL, 0) as balance,
 			COALESCE(((utp.amount / 1e18) * tokens.price_usd)::DECIMAL, 0) as balance_usd
@@ -97,17 +100,15 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, externalAddress st
 			continue
 		}
 		balance := weiToUint64FromBigInt(balanceWeiBigInt)
-		creatorAddresses, err := buildAddressesFromExternalAddress(creatorExternalAddress)
+		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(creatorExternalAddress, swaps[i].CreatorPlatform)
 		if err != nil {
 			log.Warn(fmt.Sprintf("failed to build creator addresses for swap %s: %v", swaps[i].TransactionHash, err))
-			creatorAddresses = Addresses{}
 		}
-		holderAddresses, err := buildAddressesFromExternalAddress(holderExternalAddress)
+		holderAddresses, err := buildAddressesFromExternalAddressAndPlatform(holderExternalAddress, swaps[i].HolderPlatform)
 		if err != nil {
 			log.Warn(fmt.Sprintf("failed to build holder addresses for swap %s: %v", swaps[i].TransactionHash, err))
-			holderAddresses = Addresses{}
 		}
-		tokenAddresses, err := buildAddressesFromExternalAddress(swaps[i].ExternalAddress)
+		tokenAddresses, err := buildAddressesFromExternalAddressAndPlatform(swaps[i].ExternalAddress, swaps[i].Platform)
 		if err != nil {
 			log.Warn(fmt.Sprintf("failed to build token addresses for swap %s: %v", swaps[i].TransactionHash, err))
 			tokenAddresses = Addresses{}
