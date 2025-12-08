@@ -766,6 +766,10 @@ BEGIN
     v_token_external_address := decode_to_token_from_input(p_tx_input); -- Extract toToken and baseToken from tx input
     v_base_token := decode_base_token_from_input(p_tx_input);
 
+    IF v_token_external_address IS NOT NULL AND length(v_token_external_address) > 0 THEN
+        v_token_external_address := substring(v_token_external_address from 2);
+    END IF;
+
     IF v_token_external_address IS NULL OR v_token_external_address = '' THEN
         SELECT
             t.contract_address,
@@ -846,7 +850,7 @@ BEGIN
     FROM users
     WHERE LOWER(blockchain_address) = LOWER(v_user_address);
 
-    v_cost_usd := v_input_amount * v_ion_price_usd;
+    v_cost_usd := (v_input_amount / 1e18) * v_ion_price_usd;
 
     IF v_direction = false THEN -- buy
         INSERT INTO user_token_positions (
@@ -861,7 +865,7 @@ BEGIN
             amount = user_token_positions.amount + EXCLUDED.amount,
             total_invested_usd = user_token_positions.total_invested_usd + EXCLUDED.total_invested_usd,
             avg_buy_price_usd = (user_token_positions.total_invested_usd + EXCLUDED.total_invested_usd) /
-                                NULLIF((user_token_positions.amount + EXCLUDED.amount)::NUMERIC, 0),
+                                NULLIF(((user_token_positions.amount + EXCLUDED.amount) / 1e18)::NUMERIC, 0),
             updated_at = EXCLUDED.updated_at;
     ELSE -- sell
         UPDATE user_token_positions
