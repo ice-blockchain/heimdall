@@ -604,7 +604,7 @@ func (gen *dummyDataGenerator) createUser(ctx context.Context, masterPubkey stri
 	verified := rand.Intn(2) == 0
 	lookup := strings.ToLower(strings.TrimSpace(username + " " + displayName))
 	ionConnectRelays := []string{"wss://141.95.59.70:4443", "wss://181.41.142.217:4443", "wss://94.100.16.233:4443"}
-	externalAddress := string(PlatformIonConnectProfile) + BuildProfileExternalAddress(masterPubkey)
+	externalAddress := BuildProfileExternalAddress(masterPubkey)
 	_, err = storage.Exec(ctx, gen.Target, `
 		INSERT INTO users (
 			created_at, updated_at, id, master_pubkey, blockchain_address, external_address, username, 

@@ -24,6 +24,7 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	if err != nil {
 		return fmt.Errorf("failed to detect external_address from tx.Input: %w", err)
 	}
+	externalAddress = externalAddress[1:]
 
 	type tokenAndUserInfo struct {
 		ContractAddress      string `db:"contract_address"`
