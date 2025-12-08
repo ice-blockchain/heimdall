@@ -32,7 +32,7 @@ require (
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ice-blockchain/go/src v0.0.0-20251117100638-ebce142e0ce4
-	github.com/ice-blockchain/subzero v1.474.0
+	github.com/ice-blockchain/subzero v1.475.0
 	github.com/ice-blockchain/wintr v1.170.0
 	github.com/imroc/req/v3 v3.56.0
 	github.com/jackc/pgx/v5 v5.7.6
@@ -55,7 +55,7 @@ require (
 	github.com/xssnick/tonutils-go v1.15.5
 	go.uber.org/goleak v1.3.0
 	golang.org/x/exp v0.0.0-20251125195548-87e1e737ad39
-	golang.org/x/mod v0.30.0
+	golang.org/x/mod v0.31.0
 	golang.org/x/net v0.47.0
 	golang.org/x/sync v0.19.0
 )
@@ -309,8 +309,8 @@ require (
 	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/telemetry v0.0.0-20251111182119-bc8e575c7b54 // indirect
-	golang.org/x/term v0.37.0 // indirect
-	golang.org/x/text v0.31.0 // indirect
+	golang.org/x/term v0.38.0 // indirect
+	golang.org/x/text v0.32.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 	golang.org/x/tools v0.39.0 // indirect
 	google.golang.org/api v0.257.0 // indirect
