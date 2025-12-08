@@ -103,6 +103,7 @@ var (
 		Interval("4h"):  WindowSize(48 * stdlibtime.Hour),
 		Interval("24h"): WindowSize(30 * 24 * stdlibtime.Hour),
 	}
+	_ UserRepository = dummyUserRepository{}
 )
 
 const (
@@ -154,7 +155,8 @@ type (
 		Workers   uint `yaml:"workers"`
 		BatchSize uint `yaml:"batchSize"`
 	}
-	tokenAnalytics struct {
+	dummyUserRepository struct{}
+	tokenAnalytics      struct {
 		processedDataDB storagev3.DB
 		quickNode       quicknode.Client
 		metrics         metrics.Registry
