@@ -450,7 +450,7 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 					_, validSymbol := groupedBySymbol[symbol]
 					if !validSymbol || testnetSymbol {
 						testNetSymbols[symbol] = true
-						if len(linkedSymbols) == 1 && strings.EqualFold(walletAssets.Network, linkedSymbols[0].Network) {
+						if len(linkedSymbols) == 1 && strings.EqualFold(walletAssets.Network, linkedSymbols[0].Network) && linkedSymbols[0].Native {
 							groupedBySymbol[symbol] = append(groupedBySymbol[symbol], linkedSymbols[0])
 						} else if len(linkedSymbols) > 0 {
 							for _, ls := range linkedSymbols {
