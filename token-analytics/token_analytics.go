@@ -401,28 +401,27 @@ func (t *tokenAnalytics) fetchUnprocessedEvents(ctx context.Context, workerIdx u
 			t.input,
 			t.block_number,
 			t.transaction_index,
-			COALESCE(
-				jsonb_agg(
-					jsonb_build_object(
-						'ingested_at', l.ingested_at,
-						'processed_at', l.processed_at,
-						'address', l.address,
-						'data', l.data,
-						'topics', l.topics,
-						'topic0', l.topic0,
-						'stream_id', l.stream_id,
-						'log_index', l.log_index,
-						'removed', l.removed
-					) ORDER BY l.log_index
-				) FILTER (WHERE l.log_index IS NOT NULL),
-				'[]'::jsonb
-			) as logs
+			COALESCE(logs_agg.logs, '[]'::jsonb) as logs
 		FROM transactions t
-		LEFT JOIN tx_logs l ON t.transaction_hash = l.transaction_hash
+		LEFT JOIN LATERAL (
+			SELECT jsonb_agg(
+				jsonb_build_object(
+					'ingested_at', l.ingested_at,
+					'processed_at', l.processed_at,
+					'address', l.address,
+					'data', l.data,
+					'topics', l.topics,
+					'topic0', l.topic0,
+					'stream_id', l.stream_id,
+					'log_index', l.log_index,
+					'removed', l.removed
+				) ORDER BY l.log_index
+			) as logs
+			FROM tx_logs l
+			WHERE l.transaction_hash = t.transaction_hash
+		) logs_agg ON true
 		WHERE MOD(t.i, %[1]v) = %[2]v 
 			AND (t.block_number, t.transaction_index) > ($1, $2)
-		GROUP BY t.transaction_hash, t.from_address, t.to_address, t.block_timestamp, 
-				 t.chain_id, t.value, t.input, t.block_number, t.transaction_index
 		ORDER BY t.block_number, t.transaction_index
 		LIMIT %[3]v;`, t.cfg.Workers, workerIdx, t.cfg.BatchSize)
 

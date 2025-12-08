@@ -318,26 +318,32 @@ CREATE OR REPLACE FUNCTION create_transactions_mod_index()
 RETURNS void AS $$
 DECLARE
     workers_count INT;
-    existing_index_def TEXT;
-    expected_index_def TEXT;
+    index_exists BOOLEAN;
+    i INT;
 BEGIN
     SELECT value::INT INTO workers_count FROM global_settings WHERE key = 'workers';
 
     IF workers_count IS NULL THEN
         RETURN;
     END IF;
-
-    SELECT pg_get_indexdef(indexrelid) INTO existing_index_def
-    FROM pg_stat_user_indexes
-    WHERE indexrelname = 'idx_transactions_mod_i';
-
-    expected_index_def := format('CREATE INDEX idx_transactions_mod_i ON public.transactions USING btree (mod(i, %s))', workers_count);
-
-    IF existing_index_def IS NULL OR existing_index_def != expected_index_def THEN
-        DROP INDEX IF EXISTS idx_transactions_mod_tx_idx;
-        DROP INDEX IF EXISTS idx_transactions_mod_i;
-        EXECUTE format('CREATE INDEX idx_transactions_mod_i ON transactions (MOD(i, %s))', workers_count);
-    END IF;
+    
+    FOR i IN 0..(workers_count - 1) LOOP
+        SELECT EXISTS (
+            SELECT 1 FROM pg_indexes 
+            WHERE tablename = 'transactions' 
+            AND indexname = format('idx_transactions_worker_%s', i)
+        ) INTO index_exists;
+        
+        IF NOT index_exists THEN
+            EXECUTE format(
+                'CREATE INDEX idx_transactions_worker_%s 
+                 ON transactions (block_number, transaction_index)
+                 INCLUDE (transaction_hash, from_address, to_address, block_timestamp, chain_id, value, input)
+                 WHERE MOD(i, %s) = %s',
+                i, workers_count, i
+            );
+        END IF;
+    END LOOP;
 END;
 $$ LANGUAGE plpgsql;
 
