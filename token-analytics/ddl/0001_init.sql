@@ -197,9 +197,11 @@ CREATE TABLE IF NOT EXISTS tokens (
     liquidity_usd                   usd_amount DEFAULT 0,
     holders_count                   BIGINT DEFAULT 0,
     bonding_curve_current_amount    uint256 DEFAULT 0,
+    bonding_curve_raised_amount     uint256 DEFAULT 0,
     bonding_curve_goal_amount       uint256 DEFAULT 0,
     bonding_curve_current_amount_usd usd_amount DEFAULT 0,
     bonding_curve_goal_amount_usd   usd_amount DEFAULT 0,
+    bonding_curve_migrated          BOOLEAN DEFAULT FALSE,
     lookup                          TEXT NOT NULL DEFAULT '', -- contract_address + ticker + creator lookup
     log_index                       BIGINT,
     PRIMARY KEY (contract_address),

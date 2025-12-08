@@ -55,6 +55,8 @@ func (s *service) RegisterREST(router gin.IRouter) {
 	tokensV1.GET("/:externalAddressOrViewType/positions", server.RootHandler(s.GetCommunityTokenHolderPositions))
 	tokensV1.PUT("/:externalAddressOrViewType/external-data", server.RootHandler(s.SyncCommunityTokenExternalData))
 	tokensV1.POST("/suggest-creation-details", server.RootHandler(s.SuggestCreationDetails))
+	tokensV1.GET("/:externalAddressOrViewType/bondingCurveProgress", server.RootHandler(s.GetCommunityTokenBondingCurveProgress))
+	tokensV1.GET("/:externalAddressOrViewType/pricing", server.RootHandler(s.GetCommunityTokenPricing))
 
 	api.SwaggerInfo.Version = readVersionString()
 	router.GET("/docs", func(c *gin.Context) {
@@ -72,6 +74,7 @@ func (s *service) RegisterStreams(router gin.IRouter) {
 	tokenStreamsV1.GET("/:externalAddressOrViewType/latest-trades", server.StreamHandler(s.StreamCommunityTokensLatestTrades))
 	tokenStreamsV1.GET("/:externalAddressOrViewType/trading-stats", server.StreamHandler(s.StreamCommunityTokensTradingStats))
 	tokenStreamsV1.GET("/:externalAddressOrViewType/ohlcv", server.StreamHandler(s.StreamCommunityTokensOHLCV))
+	tokenStreamsV1.GET("/:externalAddressOrViewType/bondingCurveProgress", server.StreamHandler(s.StreamCommunityTokenBondingCurveProgress))
 }
 
 func (s *service) RegisterWS(router gin.IRouter) {

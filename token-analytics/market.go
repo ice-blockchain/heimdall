@@ -99,12 +99,12 @@ func buyOrSell(direction bool, inputAmount, outputAmount *big.Int) (trade TradeT
 		if outputAmount.Sign() > 0 {
 			priceInBaseFloat.Quo(new(big.Float).SetInt(inputAmount), new(big.Float).SetInt(outputAmount))
 		}
-		return tradeTypeBuy, input, output, priceInBaseFloat
+		return TradeTypeBuy, input, output, priceInBaseFloat
 	} else { // sell (Direction=true)
 		if inputAmount.Sign() > 0 {
 			priceInBaseFloat.Quo(new(big.Float).SetInt(outputAmount), new(big.Float).SetInt(inputAmount))
 		}
-		return tradeTypeSell, output, input, priceInBaseFloat
+		return TradeTypeSell, output, input, priceInBaseFloat
 	}
 }
 

@@ -64,7 +64,9 @@ func New(ctx context.Context) TokenAnalytics {
 	if cfg.Workers == 0 {
 		cfg.Workers = 1
 	}
-
+	if cfg.ConcurrentBondingCurveUpdates == 0 {
+		cfg.ConcurrentBondingCurveUpdates = cfg.Workers
+	}
 	db := storage.MustConnect(ctx, applicationYamlKey, storage.NewFilesystemDDL(&ddl.Files, schemeMigrationTableName))
 	targetDB := storagev3.MustConnect(ctx, applicationYamlKey)
 	if err := initializeWorkersConfig(ctx, db, cfg.Workers); err != nil {
@@ -100,8 +102,9 @@ func New(ctx context.Context) TokenAnalytics {
 		cfg:                         &cfg,
 		quickNode:                   qn,
 		metrics:                     registry,
+		bondingCurve:                bondingcurve.New(ctx, applicationYamlKey),
 		ohclvRecentData:             xsync.NewMap[string, *recentCandlestick](),
-		subscriptions:               newSubscriptions(ctx),
+		subscriptions:               newSubscriptions(ctx, &cfg),
 		shutdown: func() error {
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
@@ -119,6 +122,7 @@ func New(ctx context.Context) TokenAnalytics {
 	}
 
 	go t.startIONPriceSyncer(ctx)
+	go t.bondingCurveProgressUpdater(ctx)
 	if true {
 		generator := &dummyDataGenerator{
 			Target:                      db,

@@ -9,6 +9,7 @@ import (
 	"math/big"
 
 	"github.com/cockroachdb/errors"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
@@ -85,6 +86,38 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	_ = tokenImageURL
 
 	return nil
+}
+
+func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType) (amount uint64, amountUsd float64, err error) {
+	type tokenInfo struct {
+		BaseToken       string `db:"base_token"`
+		ContractAddress string `db:"contract_address"`
+		Type            string `db:"token_type"`
+		Platform        string `db:"platform"`
+	}
+	result, err := storage.Get[tokenInfo](ctx, t.ingestedDataDB, `
+		SELECT 
+		    t.base_token,
+		    t.contract_address,
+		    "type" as token_type,
+		    platform
+		FROM tokens t WHERE t.external_address = $1`, externalAddress)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to find token by external address %v: %w", externalAddress, err)
+	}
+	baseToken := result.BaseToken
+	if common.HexToAddress(baseToken).String() != common.HexToAddress(t.cfg.IONTokenAddress).String() {
+		return 0, 0, fmt.Errorf("unsupported base token %v (token %v)", baseToken, externalAddress)
+	}
+	resAmount, err := t.bondingCurve.Pricing(ctx, common.HexToAddress(result.BaseToken), common.HexToAddress(result.ContractAddress), big.NewInt(100), tradeType == TradeTypeSell)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to get pricing for token %v (%v): %w", externalAddress, result.ContractAddress, err)
+	}
+	basePrice := t.ionPriceUSD.Load()
+	amountInTokens := new(big.Float).Quo(new(big.Float).SetInt(resAmount), big.NewFloat(1e18))
+	amountInUsdBig := new(big.Float).Mul(amountInTokens, big.NewFloat(*basePrice))
+	amountUsd, _ = amountInUsdBig.Float64()
+	return weiToUint64FromBigInt(resAmount), amountUsd, nil
 }
 
 func (t *tokenAnalytics) fetchTopPlatformHoldersRankingsBatch(ctx context.Context, rows []*tokenRowWithTopPlatformHolders, limit int64) (map[string][]holderMetadata, map[string]*redis.ZSliceCmd, error) {

@@ -3,12 +3,14 @@
 package bondingcurve
 
 import (
+	"context"
 	_ "embed"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 type (
@@ -130,6 +132,11 @@ type (
 		Tick         *big.Int
 		PoolAddress  common.Address `abi:"-"`
 	}
+	BondingCurveProgress = BondingCurveBondingInfo
+	BondingCurve         interface {
+		Pricing(ctx context.Context, baseToken, targetToken common.Address, amount *big.Int, sale bool) (*big.Int, error)
+		Progress(ctx context.Context, pairId common.Hash) (*BondingCurveProgress, error)
+	}
 )
 
 var (
@@ -156,4 +163,19 @@ var (
 	eventLiquidityBurned      = crypto.Keccak256Hash([]byte("Burn(address,int24,int24,uint128,uint256,uint256)"))
 	eventUniswapFeesCollected = crypto.Keccak256Hash([]byte("Collect(address,address,int24,int24,uint128,uint128)"))
 	eventUniswapSwapped       = crypto.Keccak256Hash([]byte("Swap(address,address,int256,int256,uint160,uint128,int24)"))
+)
+
+type (
+	bondingCurve struct {
+		cfg             config
+		clientLBIndex   uint64
+		rpcClients      []*ethclient.Client
+		contractClients []*BondingCurveTokenCaller
+	}
+	config struct {
+		BondingCurve struct {
+			SmartContractAddress string   `yaml:"smartContractAddress"`
+			RPCEndpoints         []string `yaml:"rpcEndpoints"`
+		} `yaml:"bondingCurve" mapstructure:"bondingCurve"`
+	}
 )

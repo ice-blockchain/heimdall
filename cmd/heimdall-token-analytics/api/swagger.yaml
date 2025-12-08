@@ -100,13 +100,20 @@ definitions:
   tokenanalytics.BondingCurveProgress:
     properties:
       currentAmount:
+        description: bonded tokens
         type: integer
       currentAmountUSD:
+        description: from base
         type: number
       goalAmount:
         type: integer
       goalAmountUSD:
         type: number
+      migrated:
+        type: boolean
+      raisedAmount:
+        description: base tokens
+        type: integer
     type: object
   tokenanalytics.CommunityToken:
     properties:
@@ -276,8 +283,8 @@ definitions:
     - sell
     type: string
     x-enum-varnames:
-    - tradeTypeBuy
-    - tradeTypeSell
+    - TradeTypeBuy
+    - TradeTypeSell
   tokenanalytics.User:
     properties:
       addresses:
@@ -422,6 +429,44 @@ paths:
       - XCom: []
       tags:
       - Tokens
+  /v1/community-tokens/{externalAddressOrViewType}/bondingCurveProgress:
+    get:
+      description: Returns progress of bonding curve for the community token
+      parameters:
+      - description: External address of the token
+        example: '"0:9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f:"'
+        in: path
+        name: externalAddressOrViewType
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/tokenanalytics.BondingCurveProgress'
+        "400":
+          description: if request parameters are invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
+      - XCom: []
+      tags:
+      - Tokens
   /v1/community-tokens/{externalAddressOrViewType}/external-data:
     put:
       consumes:
@@ -547,6 +592,57 @@ paths:
           schema:
             items:
               $ref: '#/definitions/tokenanalytics.HolderPosition'
+            type: array
+        "400":
+          description: if request parameters are invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
+      - XCom: []
+      tags:
+      - Tokens
+  /v1/community-tokens/{externalAddressOrViewType}/pricing:
+    get:
+      description: Returns pricing for the community token
+      parameters:
+      - description: External address of the token
+        example: '"0:9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f:"'
+        in: path
+        name: externalAddressOrViewType
+        required: true
+        type: string
+      - description: Buy or sell(
+        in: query
+        name: type
+        required: true
+        type: string
+      - description: Address of base token to exchange from / to (for creator / x
+          tokens) example(
+        example: '"0x2c73996BaBF1a06c2C057177353293f7cA0907c8"'
+        in: query
+        name: baseToken
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/tokenanalytics.BondingCurveProgress'
             type: array
         "400":
           description: if request parameters are invalid
@@ -793,6 +889,40 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/server.ResponseErrorBody'
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
+      - XCom: []
+      tags:
+      - stream
+  /v1sse/community-tokens/{externalAddressOrViewType}/bondingCurveProgress:
+    get:
+      description: Streams updates of bonding curve progress
+      parameters:
+      - description: External address
+        example: '"0x1234..."'
+        in: path
+        name: externalAddressOrViewType
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/tokenanalytics.BondingCurveProgress'
         "401":
           description: if auth token is missing or invalid
           schema:
