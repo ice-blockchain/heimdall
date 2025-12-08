@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"math/rand"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"text/template"
 	"time"
@@ -19,15 +20,62 @@ import (
 	"github.com/pkg/errors"
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
-	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 )
 
-func (t *tokenAnalytics) insertDummyDataProcessor(ctx context.Context) {
-	t.dummyInsertBlockIdx = 74298420
-	stream := "a69a079e-d500-42ee-af6d-22d5eb5b10df"
-	err := t.generateToken(ctx, stream, &tokenRow{
+const (
+	dummyDataLastBlock = 74298420
+	dummyDataStream    = "a69a079e-d500-42ee-af6d-22d5eb5b10df"
+)
+
+type (
+	dummyDataGenerator struct {
+		Target                      *storage.DB
+		InsertBlockIndex            uint64
+		Stream                      string
+		BondingCurveContractAddress string
+		IONTokenAddress             string
+		MaxTokenGens                uint
+		MaxUsers                    uint
+		TokenGeneratorTTL           time.Duration
+
+		createdUsers           []string
+		userBlockChainToMaster map[string]string
+		usersLock              sync.RWMutex
+
+		activeTokensWorkers atomic.Int32
+	}
+	dummyDataTemplateParams struct {
+		Stream                   string
+		BlockNumber              uint64
+		TxIndex                  uint64
+		BlockHash                string
+		TxHash                   string
+		Token                    *tokenRow
+		TxData                   string
+		TxInput                  string
+		CreatorBlockchainAddress string
+		BondingCurveContract     string
+		BondedTokenCreatedData   string
+		SwappedData              string
+		UserBlockchainAddr       string
+		BlockTimestamp           uint64
+	}
+)
+
+func (gen *dummyDataGenerator) Run(ctx context.Context) {
+	if gen.MaxTokenGens == 0 {
+		gen.MaxTokenGens = 40
+	}
+	if gen.MaxUsers == 0 {
+		gen.MaxUsers = 200_000
+	}
+	if gen.TokenGeneratorTTL == 0 {
+		gen.TokenGeneratorTTL = 4 * time.Hour
+	}
+
+	err := gen.generateToken(ctx, gen.Stream, &tokenRow{
 		ContractAddress:     "7307ea7ab4a7e5bcba1bf18c9495d08107d9f0d8",
 		CreatorMasterPubkey: "9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f",
 		ExternalAddress:     "a9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f",
@@ -45,37 +93,69 @@ func (t *tokenAnalytics) insertDummyDataProcessor(ctx context.Context) {
 		}
 		log.Panic(errors.Wrapf(err, "failed to insert token data"))
 	}
-	tokenData, err := storage.Select[tokenRow](ctx, t.ingestedDataDB, `
-		SELECT 
-			created_at,
-			updated_at,
-			log_index,
-			contract_address,
-			external_address,
-			platform,
-			type,
-		    ticker AS title, 
-			total_supply, 
-			creator_master_pubkey,
-		    base_token,
-			pair_id,
-			market_cap_usd,
-			price_usd,
-		    holders_count
-		FROM tokens
-		ORDER BY created_at DESC LIMIT 5
-	`)
-	if err != nil {
-		log.Error(errors.Wrapf(err, "failed to get token data for dummy tx generation"))
-		return
-	}
-	for _, token := range tokenData {
-		t.startBuysOrSellsProcessor(ctx, token, stream)
-	}
-	t.startNewTokenGenerator(ctx, uuid.NewString())
+
+	gen.startNewTokenGenerator(ctx, uuid.NewString())
 }
 
-func (t *tokenAnalytics) startNewTokenGenerator(ctx context.Context, stream string) {
+func (gen *dummyDataGenerator) createTokenWithBuysOrSellsProcessor(ctx context.Context, stream string) context.CancelFunc {
+	kinds := []int{0, 30023, 30023, 30175}
+	kind := kinds[rand.Intn(len(kinds)-1)]
+	dTag := uuid.NewString()
+
+	_, master, err := gen.createUser(ctx, mustRandomHex(32))
+	if err != nil {
+		log.Error(errors.Wrapf(err, "failed to create user for token generation"))
+		return nil
+	}
+
+	var externalAddress string
+	var platformPrefix Platform
+	switch kind {
+	case nostr.KindProfileMetadata:
+		dTag = ""
+		platformPrefix = PlatformIonConnectProfile
+		externalAddress = BuildProfileExternalAddress(master)
+	case nostr.KindArticle:
+		platformPrefix = PlatformIonConnectArticle
+		externalAddress = BuildContentExternalAddress(platformPrefix, kind, master, dTag)
+	default:
+		platformPrefix = PlatformIonConnectPost
+		externalAddress = BuildContentExternalAddress(platformPrefix, kind, master, dTag)
+	}
+	names := []string{
+		"Super Duper Token",
+		"Giga token",
+		"ToTheMooN",
+		"HODL token",
+	}
+	displayName := names[rand.Int31n(int32(len(names)-1))]
+	symbol := strings.ToLower(strings.ReplaceAll(displayName, " ", ""))
+	tok := &tokenRow{
+		ContractAddress:     generateDummyContractAddress(),
+		CreatorMasterPubkey: master,
+		ExternalAddress:     externalAddress,
+		Title:               displayName,
+		Ticker:              symbol,
+		TotalSupply:         "1000000000000000000" + strings.Repeat("0", rand.Intn(8)+1),
+		BaseToken:           strings.TrimPrefix(gen.IONTokenAddress, "0x"),
+		PairId:              "0x" + mustRandomHex(32),
+		CreatorVerified:     rand.Intn(2) == 0,
+	}
+	if err := gen.generateToken(ctx, stream, tok); err != nil {
+		log.Error(errors.Wrapf(err, "failed to insert dummy tx data"))
+		return nil
+	}
+
+	log.Info(fmt.Sprintf("Started token generator for token %v on stream %v by %v", tok.ContractAddress, stream, master))
+
+	deadline := time.Now().Add(gen.TokenGeneratorTTL)
+	ctx, cancel := context.WithDeadline(ctx, deadline)
+	gen.startBuysOrSellsProcessor(ctx, tok, stream, deadline)
+
+	return cancel
+}
+
+func (gen *dummyDataGenerator) startNewTokenGenerator(ctx context.Context, stream string) {
 	ticker := time.NewTicker(60 * time.Second)
 	fire := make(chan struct{}, 1)
 
@@ -96,66 +176,47 @@ func (t *tokenAnalytics) startNewTokenGenerator(ctx context.Context, stream stri
 		}
 	}()
 
+	fire <- struct{}{}
 	go func() {
 		for ctx.Err() == nil {
 			select {
 			case <-ctx.Done():
 				return
 			case <-fire:
-				insCtx, insCancel := context.WithTimeout(ctx, time.Second*10)
-				master := mustRandomHex(32)
-				kinds := []int{0, 30023, 30023, 30175}
-				kind := kinds[rand.Intn(len(kinds)-1)]
-				dTag := uuid.NewString()
-
-				var externalAddress string
-				var platformPrefix Platform
-				if kind == nostr.KindProfileMetadata {
-					dTag = ""
-					platformPrefix = PlatformIonConnectProfile
-					externalAddress = BuildProfileExternalAddress(master)
-				} else if kind == nostr.KindArticle {
-					platformPrefix = PlatformIonConnectArticle
-					externalAddress = BuildContentExternalAddress(platformPrefix, kind, master, dTag)
-				} else if kind == model.CustomIONKindEditableTextNote {
-					platformPrefix = PlatformIonConnectPost
-					externalAddress = BuildContentExternalAddress(platformPrefix, kind, master, dTag)
-				} else {
-					platformPrefix = PlatformIonConnectPost
-					externalAddress = BuildContentExternalAddress(platformPrefix, kind, master, dTag)
+				if int(gen.activeTokensWorkers.Load()) >= int(gen.MaxTokenGens) {
+					continue
 				}
-				names := []string{
-					"Super Duper Token",
-					"Giga token",
-					"ToTheMooN",
-					"HODL token",
-				}
-				displayName := names[rand.Int31n(int32(len(names)-1))]
-				symbol := strings.ToLower(strings.ReplaceAll(displayName, " ", ""))
-				tok := &tokenRow{
-					ContractAddress:     generateDummyContractAddress(),
-					CreatorMasterPubkey: master,
-					ExternalAddress:     externalAddress,
-					Title:               displayName,
-					Ticker:              symbol,
-					TotalSupply:         "1000000000000000000" + strings.Repeat("0", rand.Intn(8)+1),
-					BaseToken:           strings.TrimPrefix(t.cfg.IONTokenAddress, "0x"),
-					PairId:              "0x" + mustRandomHex(32),
-					CreatorVerified:     rand.Intn(2) == 0,
-				}
-				if err := t.generateToken(insCtx, stream, tok); err != nil {
-					log.Error(errors.Wrapf(err, "failed to insert dummy tx data"))
-				}
-				insCancel()
-				t.startBuysOrSellsProcessor(ctx, tok, stream)
+				gen.createTokenWithBuysOrSellsProcessor(ctx, stream)
 			}
 		}
 	}()
 }
 
-func (t *tokenAnalytics) startBuysOrSellsProcessor(ctx context.Context, tokenData *tokenRow, stream string) {
+func calculateTxCountForDeadline(ttl time.Duration, deadline time.Time) (int, time.Duration) {
+	remaining := time.Until(deadline)
+	if remaining <= 0 {
+		return 1, time.Minute
+	}
+
+	percentage := float64(remaining) / float64(ttl)
+
+	if percentage >= 0.7 {
+		return 6, time.Second * 5
+	}
+	if percentage >= 0.5 {
+		return 4, time.Second * 10
+	}
+	if percentage >= 0.2 {
+		return 2, time.Second * 30
+	}
+	return 1, time.Minute
+}
+
+func (gen *dummyDataGenerator) startBuysOrSellsProcessor(ctx context.Context, tokenData *tokenRow, stream string, deadline time.Time) {
 	ticker := time.NewTicker(5 * time.Second)
-	fire := make(chan struct{}, 1)
+	fire := make(chan int, 1)
+
+	gen.activeTokensWorkers.Add(1)
 
 	go func() {
 		defer ticker.Stop()
@@ -165,8 +226,10 @@ func (t *tokenAnalytics) startBuysOrSellsProcessor(ctx context.Context, tokenDat
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
+				txCount, nextTick := calculateTxCountForDeadline(gen.TokenGeneratorTTL, deadline)
+				ticker.Reset(nextTick)
 				select {
-				case fire <- struct{}{}:
+				case fire <- txCount:
 				default:
 					log.Info(fmt.Sprintf("skipping new buy/sell generation on stream %v for token %v, previous generation still in progress", stream, tokenData.ContractAddress))
 				}
@@ -175,13 +238,15 @@ func (t *tokenAnalytics) startBuysOrSellsProcessor(ctx context.Context, tokenDat
 	}()
 
 	go func() {
+		defer gen.activeTokensWorkers.Add(-1)
+
 		for ctx.Err() == nil {
 			select {
 			case <-ctx.Done():
 				return
-			case <-fire:
+			case txCount := <-fire:
 				insCtx, insCancel := context.WithTimeout(ctx, time.Second*10)
-				if err := t.generateBuyOrSellBatch(insCtx, stream, tokenData); err != nil {
+				if err := gen.generateBuyOrSellBatch(insCtx, stream, tokenData, txCount); err != nil {
 					log.Error(errors.Wrapf(err, "failed to insert dummy tx data"))
 				}
 				insCancel()
@@ -190,13 +255,12 @@ func (t *tokenAnalytics) startBuysOrSellsProcessor(ctx context.Context, tokenDat
 	}()
 }
 
-func (t *tokenAnalytics) generateBuyOrSellBatch(ctx context.Context, stream string, token *tokenRow) error {
-	blockNum := atomic.AddUint64(&t.dummyInsertBlockIdx, 1)
+func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, stream string, token *tokenRow, totalTx int) error {
+	blockNum := atomic.AddUint64(&gen.InsertBlockIndex, 1)
 	txsForBlock := []string{}
-	for txIdx := 0; txIdx < 5; txIdx++ {
-		userBlockChainAddr := mustRandomHex(20)
-		master := mustRandomHex(32)
-		if err := t.createUser(ctx, "0x"+userBlockChainAddr, master); err != nil {
+	for range totalTx {
+		userBlockChainAddr, _, err := gen.createUser(ctx, mustRandomHex(32))
+		if err != nil {
 			return err
 		}
 		buyOrSel := rand.Intn(2) == 0
@@ -260,8 +324,8 @@ func (t *tokenAnalytics) generateBuyOrSellBatch(ctx context.Context, stream stri
 			return errors.Wrapf(err, "failed to insert dummy contract data: malformed template")
 		}
 		buf := bytes.NewBuffer([]byte{})
-		bondingCurveNoPrefix := strings.TrimPrefix(t.bondingCurveContractAddress, "0x")
-		err = tmpl.Execute(buf, &templateParams{
+		bondingCurveNoPrefix := strings.TrimPrefix(gen.BondingCurveContractAddress, "0x")
+		err = tmpl.Execute(buf, &dummyDataTemplateParams{
 			Stream:               stream,
 			BlockNumber:          blockNum,
 			BlockTimestamp:       uint64(time.Now().Unix()),
@@ -278,46 +342,42 @@ func (t *tokenAnalytics) generateBuyOrSellBatch(ctx context.Context, stream stri
 			return errors.Wrapf(err, "failed to insert dummy contract data: malformed template")
 		}
 
-		//, token.ContractAddress, t.dummyInsertBlockIdx, userBlockChainAddr, txHash, blockHash, time.Now().Unix(),
-		//	hex.EncodeToString(txInput), txIdx)
 		txsForBlock = append(txsForBlock, buf.String())
 	}
 	fullData := fmt.Sprintf(`{"stream": "%[1]v", "transactions": [`+strings.Join(txsForBlock, ",")+`]}`, stream)
 	sql := `INSERT INTO smart_contract_transactions(from_block_number, to_block_number, network, stream_id, data)
 			VALUES ($1, $1, 'bsc-testnet-dummy', $2, $3::JSONB)`
-	_, err := storage.Exec(ctx, t.ingestedDataDB, sql, blockNum, stream, fullData)
+	_, err := storage.Exec(ctx, gen.Target, sql, blockNum, stream, fullData)
 	return errors.Wrapf(err, "failed to insert dummy tx data")
 }
 
-func (t *tokenAnalytics) generateToken(ctx context.Context, stream string, row *tokenRow) error {
-	blockNum := atomic.AddUint64(&t.dummyInsertBlockIdx, 1)
+func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string, seedData *tokenRow) error {
+	blockNum := atomic.AddUint64(&gen.InsertBlockIndex, 1)
 	txHash := mustRandomHex(32)
 	blockHash := mustRandomHex(32)
-	ownerBlockchainAddr := mustRandomHex(20)
-	ownerMasterKey := row.CreatorMasterPubkey
-	err := t.createUser(ctx, "0x"+ownerBlockchainAddr, ownerMasterKey)
+	ownerBlockchainAddr, _, err := gen.createUser(ctx, seedData.CreatorMasterPubkey)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create user for token generation")
 	}
-	base, _ := hex.DecodeString(strings.TrimPrefix(t.cfg.IONTokenAddress, "0x"))
-	totalSupply, _ := new(big.Int).SetString(row.TotalSupply, 10)
+	base, _ := hex.DecodeString(strings.TrimPrefix(gen.IONTokenAddress, "0x"))
+	totalSupply, _ := new(big.Int).SetString(seedData.TotalSupply, 10)
 	txInput, err := bondingcurve.ABI.Methods["swap"].Inputs.Pack(
 		base,
-		[]byte(row.ExternalAddress), // token creator, linked to data from token
+		[]byte(seedData.ExternalAddress), // token creator, linked to data from token
 		totalSupply,
 		totalSupply,
 	)
 	if err != nil {
 		return errors.Wrapf(err, "failed to pack token created tx input")
 	}
-	bondedTokenCreatedData, err := bondingcurve.ABI.Events["BondedTokenCreated"].Inputs.NonIndexed().Pack(
-		row.Title,
-		row.Ticker,
-		row.ExternalAddress,
+	bondedTokenCreatedData, err := bondingcurve.ABI.Events["BondingTokenCreated"].Inputs.NonIndexed().Pack(
+		seedData.Title,
+		seedData.Ticker,
+		seedData.ExternalAddress,
 		totalSupply,
 	)
 	if err != nil {
-		return errors.Wrapf(err, "failed to pack bondedTokenCreatedData")
+		return errors.Wrapf(err, "failed to pack BondingTokenCreated")
 	}
 	tmpl, err := template.New("token").Parse(`{
   "stream": "{{.Stream}}",
@@ -461,15 +521,15 @@ func (t *tokenAnalytics) generateToken(ctx context.Context, stream string, row *
 		return errors.Wrapf(err, "failed to insert dummy contract data: malformed template")
 	}
 	buf := bytes.NewBuffer([]byte{})
-	bondingCurveNoPrefix := strings.TrimPrefix(t.bondingCurveContractAddress, "0x")
-	err = tmpl.Execute(buf, &templateParams{
+	bondingCurveNoPrefix := strings.TrimPrefix(gen.BondingCurveContractAddress, "0x")
+	err = tmpl.Execute(buf, &dummyDataTemplateParams{
 		Stream:                   stream,
 		BlockNumber:              blockNum,
 		BlockTimestamp:           uint64(time.Now().Unix()),
 		TxIndex:                  1,
 		BlockHash:                blockHash,
 		TxHash:                   txHash,
-		Token:                    row,
+		Token:                    seedData,
 		TxInput:                  "0x" + hex.EncodeToString(txInput),
 		CreatorBlockchainAddress: ownerBlockchainAddr,
 		BondingCurveContract:     bondingCurveNoPrefix,
@@ -480,7 +540,7 @@ func (t *tokenAnalytics) generateToken(ctx context.Context, stream string, row *
 	}
 	sql := `INSERT INTO smart_contract_transactions(from_block_number, to_block_number, network, stream_id, data)
 			VALUES ($1, $1, 'bsc-testnet-dummy', $2, $3::JSONB)`
-	_, err = storage.Exec(ctx, t.ingestedDataDB, sql, blockNum, stream, buf.String())
+	_, err = storage.Exec(ctx, gen.Target, sql, blockNum, stream, buf.String())
 	return errors.Wrapf(err, "failed to insert dummy contract data")
 }
 
@@ -506,8 +566,27 @@ func generateDummyContractAddress() string {
 	return hex.EncodeToString(buf.Bytes())
 }
 
-func (t *tokenAnalytics) createUser(ctx context.Context, blockchainAddress string, masterPubkey string) error {
-	id := "us-" + blockchainAddress
+func (gen *dummyDataGenerator) createUser(ctx context.Context, masterPubkey string) (blockchainAddress string, master string, err error) {
+	gen.usersLock.RLock()
+	if len(gen.createdUsers) >= int(gen.MaxUsers) {
+		userIdx := rand.Intn(len(gen.createdUsers) - 1)
+		blockchainAddress = gen.createdUsers[userIdx]
+		gen.usersLock.RUnlock()
+		return blockchainAddress, gen.userBlockChainToMaster[blockchainAddress], nil
+	}
+	gen.usersLock.RUnlock()
+
+	gen.usersLock.Lock()
+	defer gen.usersLock.Unlock()
+
+	if len(gen.createdUsers) >= int(gen.MaxUsers) {
+		userIdx := rand.Intn(len(gen.createdUsers) - 1)
+		blockchainAddress = gen.createdUsers[userIdx]
+		return blockchainAddress, gen.userBlockChainToMaster[blockchainAddress], nil
+	}
+
+	blockchainAddress = mustRandomHex(20)
+	id := "us-0x" + blockchainAddress
 	names := []string{
 		"Diwata Lea",
 		"Bohuslav Ferdinand",
@@ -522,7 +601,7 @@ func (t *tokenAnalytics) createUser(ctx context.Context, blockchainAddress strin
 	lookup := strings.ToLower(strings.TrimSpace(username + " " + displayName))
 	ionConnectRelays := []string{"wss://141.95.59.70:4443", "wss://181.41.142.217:4443", "wss://94.100.16.233:4443"}
 	externalAddress := fmt.Sprintf("%s%s", PlatformIonConnectProfile, masterPubkey)
-	_, err := storage.Exec(ctx, t.ingestedDataDB, `
+	_, err = storage.Exec(ctx, gen.Target, `
 		INSERT INTO users (
 			created_at, updated_at, id, master_pubkey, blockchain_address, external_address, username, 
 			display_name, lookup, ion_connect_relays, verified
@@ -540,27 +619,18 @@ func (t *tokenAnalytics) createUser(ctx context.Context, blockchainAddress strin
 			lookup = EXCLUDED.lookup,
 			ion_connect_relays = EXCLUDED.ion_connect_relays,
 			verified = EXCLUDED.verified
-	`, id, masterPubkey, blockchainAddress, externalAddress, username, displayName, lookup, ionConnectRelays, verified)
+	`, id, masterPubkey, "0x"+blockchainAddress, externalAddress, username, displayName, lookup, ionConnectRelays, verified)
 	if err != nil {
-		return fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err)
+		return "", "", fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err)
 	}
 
-	return nil
-}
+	log.Info(fmt.Sprintf("Created dummy user %v: %v with blockchain address 0x%v", username, masterPubkey, blockchainAddress))
 
-type templateParams struct {
-	Stream                   string
-	BlockNumber              uint64
-	TxIndex                  uint64
-	BlockHash                string
-	TxHash                   string
-	Token                    *tokenRow
-	TxData                   string
-	TxInput                  string
-	CreatorBlockchainAddress string
-	BondingCurveContract     string
-	BondedTokenCreatedData   string
-	SwappedData              string
-	UserBlockchainAddr       string
-	BlockTimestamp           uint64
+	gen.createdUsers = append(gen.createdUsers, blockchainAddress)
+	if gen.userBlockChainToMaster == nil {
+		gen.userBlockChainToMaster = make(map[string]string)
+	}
+	gen.userBlockChainToMaster[blockchainAddress] = masterPubkey
+
+	return blockchainAddress, masterPubkey, nil
 }

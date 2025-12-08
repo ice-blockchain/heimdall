@@ -119,7 +119,14 @@ func New(ctx context.Context) TokenAnalytics {
 
 	go t.startIONPriceSyncer(ctx)
 	if true {
-		t.insertDummyDataProcessor(ctx)
+		generator := &dummyDataGenerator{
+			Target:                      db,
+			IONTokenAddress:             cfg.IONTokenAddress,
+			InsertBlockIndex:            dummyDataLastBlock,
+			Stream:                      dummyDataStream,
+			BondingCurveContractAddress: t.bondingCurveContractAddress,
+		}
+		generator.Run(ctx)
 	}
 	return t
 }
