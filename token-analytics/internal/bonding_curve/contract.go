@@ -112,6 +112,24 @@ type (
 		User     common.Address
 		Verified bool
 	}
+	LogPoolCreated struct {
+		Event
+		Token0      common.Address // indexed
+		Token1      common.Address //indexed
+		Fee         *big.Int       // indexed
+		TickSpacing *big.Int
+		PoolAddress common.Address
+	}
+	LogUniswapSwapped struct {
+		Sender       common.Address
+		Recipient    common.Address
+		Amount0      *big.Int
+		Amount1      *big.Int
+		SqrtPriceX96 *big.Int
+		Liquidity    *big.Int
+		Tick         *big.Int
+		PoolAddress  common.Address `abi:"-"`
+	}
 )
 
 var (
@@ -119,18 +137,23 @@ var (
 	//go:embed .abi/bonding_curve.json
 	ABIJSON string
 
-	eventTokenCreated        = crypto.Keccak256Hash([]byte("BondingTokenCreated(address,string,string,string,uint256)"))
-	eventPairRegistered      = crypto.Keccak256Hash([]byte("PairRegistered(bytes32,address,address)"))
-	eventSwapped             = crypto.Keccak256Hash([]byte("Swapped(address,bytes32,bool,uint256,uint256,uint256)"))
-	eventRecipientsSet       = crypto.Keccak256Hash([]byte("RecipientsSet(bytes32,address,address,address)"))
-	eventFeeAccrued          = crypto.Keccak256Hash([]byte("FeeAccrued(bytes32,address,uint256,uint256,uint256,uint256)"))
-	eventFeeTransfer         = crypto.Keccak256Hash([]byte("FeeTransfer(bytes32,address,uint256)"))
-	eventFeeWaived           = crypto.Keccak256Hash([]byte("FeeWaived(bytes32,address,uint256)"))
-	eventMigrated            = crypto.Keccak256Hash([]byte("Migrated(bytes32,address,uint256)"))
-	eventLiquidityClaimed    = crypto.Keccak256Hash([]byte("LiquidityClaimed(bytes32,address,uint256)"))
-	eventLiquidityLocked     = crypto.Keccak256Hash([]byte("LiquidityLocked(bytes32,address,uint256,uint256)"))
-	eventSlippageChecked     = crypto.Keccak256Hash([]byte("SlippageChecked(bytes32,uint256,uint256)"))
-	eventRefundIssued        = crypto.Keccak256Hash([]byte("RefundIssued(bytes32,address,uint256)"))
-	eventRouteSelected       = crypto.Keccak256Hash([]byte("RouteSelected(bytes32,uint8)"))
-	eventVerificationChecked = crypto.Keccak256Hash([]byte("VerificationChecked(address,bool)"))
+	eventTokenCreated         = crypto.Keccak256Hash([]byte("BondingTokenCreated(address,string,string,string,uint256)"))
+	eventPairRegistered       = crypto.Keccak256Hash([]byte("PairRegistered(bytes32,address,address)"))
+	eventSwapped              = crypto.Keccak256Hash([]byte("Swapped(address,bytes32,bool,uint256,uint256,uint256)"))
+	eventRecipientsSet        = crypto.Keccak256Hash([]byte("RecipientsSet(bytes32,address,address,address)"))
+	eventFeeAccrued           = crypto.Keccak256Hash([]byte("FeeAccrued(bytes32,address,uint256,uint256,uint256,uint256)"))
+	eventFeeTransfer          = crypto.Keccak256Hash([]byte("FeeTransfer(bytes32,address,uint256)"))
+	eventFeeWaived            = crypto.Keccak256Hash([]byte("FeeWaived(bytes32,address,uint256)"))
+	eventMigrated             = crypto.Keccak256Hash([]byte("Migrated(bytes32,address,uint256)"))
+	eventLiquidityClaimed     = crypto.Keccak256Hash([]byte("LiquidityClaimed(bytes32,address,uint256)"))
+	eventLiquidityLocked      = crypto.Keccak256Hash([]byte("LiquidityLocked(bytes32,address,uint256,uint256)"))
+	eventSlippageChecked      = crypto.Keccak256Hash([]byte("SlippageChecked(bytes32,uint256,uint256)"))
+	eventRefundIssued         = crypto.Keccak256Hash([]byte("RefundIssued(bytes32,address,uint256)"))
+	eventRouteSelected        = crypto.Keccak256Hash([]byte("RouteSelected(bytes32,uint8)"))
+	eventVerificationChecked  = crypto.Keccak256Hash([]byte("VerificationChecked(address,bool)"))
+	eventPoolCreated          = crypto.Keccak256Hash([]byte("PoolCreated(address,address,uint24,int24,address)"))
+	eventLiquidityMinted      = crypto.Keccak256Hash([]byte("Mint(address,address,int24,int24,uint128,uint256,uint256)"))
+	eventLiquidityBurned      = crypto.Keccak256Hash([]byte("Burn(address,int24,int24,uint128,uint256,uint256)"))
+	eventUniswapFeesCollected = crypto.Keccak256Hash([]byte("Collect(address,address,int24,int24,uint128,uint128)"))
+	eventUniswapSwapped       = crypto.Keccak256Hash([]byte("Swap(address,address,int256,int256,uint160,uint128,int24)"))
 )

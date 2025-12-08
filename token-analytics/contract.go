@@ -14,7 +14,6 @@ import (
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rcrowley/go-metrics"
 
-	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/quicknode"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
@@ -68,10 +67,10 @@ type (
 	WindowSize stdlibtime.Duration
 
 	Subscriptions interface {
-		SubscribeOnSwaps(externalAddress string) <-chan *bondingcurve.LogTokenSwapped
+		SubscribeOnSwaps(externalAddress string) <-chan struct{}
 	}
 	Notifier interface {
-		NotifySwap(ev *bondingcurve.LogTokenSwapped)
+		NotifySwap(externalAddress string)
 	}
 )
 
@@ -188,8 +187,8 @@ type (
 		cfg            *config
 	}
 	subscriptions struct {
-		swaps    chan *bondingcurve.LogTokenSwapped
-		swapSubs *xsync.Map[string, chan *bondingcurve.LogTokenSwapped]
+		swaps    chan string // externalAddresses, think if we need some interface unifing uniswap and curve swaps
+		swapSubs *xsync.Map[string, chan struct{}]
 	}
 	txEvent struct {
 		BlockTimestamp   *time.Time  `db:"block_timestamp"`

@@ -12,7 +12,6 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/redis/go-redis/v9"
 
-	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
 	storagev3 "github.com/ice-blockchain/wintr/connectors/storage/v3"
 	"github.com/ice-blockchain/wintr/time"
@@ -59,20 +58,20 @@ func (t *trade) Marshal(client questdb.LineSender) questdb.At {
 		DecimalColumnFromString("price_in_usd", t.PriceInUsd.String())
 }
 
-func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTokenSwapped, externalAddress string) error {
-	tradeTyp, baseAmount, amount, priceInBase := buyOrSell(ev)
+func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, direction bool, inputAmount, outputAmount *big.Int, contractAddress, userAddress, externalAddress string, pairId []byte) error {
+	tradeTyp, baseAmount, amount, priceInBase := buyOrSell(direction, inputAmount, outputAmount)
 	basePrice := t.ionPriceUSD.Load()
 	priceInUSD := new(big.Float).Mul(priceInBase, new(big.Float).SetFloat64(*basePrice))
 	tradeData := &trade{
 		Timestamp:       *tx.BlockTimestamp,
-		PairAddress:     hex.EncodeToString(ev.Pair[:]),
-		ContractAddress: ev.Address.String(),
+		PairAddress:     hex.EncodeToString(pairId[:]),
+		ContractAddress: contractAddress,
 		ExternalAddress: externalAddress,
 		BasePriceInUsd:  *basePrice,
 		BaseAmount:      baseAmount,
 		Amount:          amount,
 		Type:            tradeTyp,
-		TraderAddress:   ev.Address.String(),
+		TraderAddress:   userAddress,
 		TransactionHash: tx.TransactionHash,
 		PriceInUsd:      priceInUSD,
 	}
@@ -89,21 +88,21 @@ func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, ev *bon
 	return nil
 }
 
-func buyOrSell(ev *bondingcurve.LogTokenSwapped) (trade TradeType, baseTokenAmount, creatorOrContentTokenAmount questdb.Decimal, priceInBase *big.Float) {
-	input := questdb.NewDecimal(ev.InputAmount)
-	output := questdb.NewDecimal(ev.OutputAmount)
+func buyOrSell(direction bool, inputAmount, outputAmount *big.Int) (trade TradeType, baseTokenAmount, creatorOrContentTokenAmount questdb.Decimal, priceInBase *big.Float) {
+	input := questdb.NewDecimal(inputAmount)
+	output := questdb.NewDecimal(outputAmount)
 	// Price calculation: how much base token per 1 community token
 	// For buy: price = input (base token) / output (community tokens)
 	// For sell: price = output (base token) / input (community tokens)
 	priceInBaseFloat := new(big.Float)
-	if !ev.Direction { // buy (Direction=false)
-		if ev.OutputAmount.Sign() > 0 {
-			priceInBaseFloat.Quo(new(big.Float).SetInt(ev.InputAmount), new(big.Float).SetInt(ev.OutputAmount))
+	if !direction { // buy (Direction=false)
+		if outputAmount.Sign() > 0 {
+			priceInBaseFloat.Quo(new(big.Float).SetInt(inputAmount), new(big.Float).SetInt(outputAmount))
 		}
 		return tradeTypeBuy, input, output, priceInBaseFloat
 	} else { // sell (Direction=true)
-		if ev.InputAmount.Sign() > 0 {
-			priceInBaseFloat.Quo(new(big.Float).SetInt(ev.OutputAmount), new(big.Float).SetInt(ev.InputAmount))
+		if inputAmount.Sign() > 0 {
+			priceInBaseFloat.Quo(new(big.Float).SetInt(outputAmount), new(big.Float).SetInt(inputAmount))
 		}
 		return tradeTypeSell, output, input, priceInBaseFloat
 	}
