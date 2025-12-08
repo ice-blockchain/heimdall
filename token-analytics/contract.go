@@ -34,7 +34,7 @@ type (
 		Close() error
 		HealthCheck(ctx context.Context) error
 		MustStart(ctx context.Context)
-		GetCommunityTokensByExternalAddresses(ctx context.Context, ionConnectAddresses []string, requestorMasterPubkey string, includeTopHolders *uint32) ([]*CommunityToken, error)
+		GetCommunityTokensByExternalAddresses(ctx context.Context, externalAddresses []string, requestorMasterPubkey string, includeTopPlatformHolders *uint32, keyword string, limit, offset uint64) ([]*CommunityToken, error)
 		GetCommunityTokensByType(ctx context.Context, viewType string, tokenType *string, keyword string, limit, offset uint64) ([]*CommunityToken, error)
 		GetLatestTrades(ctx context.Context, externalAddress string, limit, offset uint64, startFrom *stdlibtime.Time) (trades []*Trade, maxTs stdlibtime.Time, err error)
 		GetOHLVCHistory(ctx context.Context, now, startPoint stdlibtime.Time, externalAddress string, interval Interval) (res []*OHLCV, err error)
@@ -45,6 +45,7 @@ type (
 		GetTopHolders(ctx context.Context, externalAddress string, limit int64) ([]*TopHolderPosition, error)
 		GetTokensFromViewingSession(ctx context.Context, sessionType, sessionID, keyword string, limit, offset uint64) ([]*CommunityToken, error)
 		UpdateTokenExternalData(ctx context.Context, externalAddress, creatorUsername, creatorDisplayName, creatorAvatar string, creatorVerified bool) error
+		GetHolderPositions(ctx context.Context, tokenExternalAddress string, holderExternalAddresses []string) ([]*HolderPosition, error)
 	}
 
 	SavePoint struct {
@@ -130,6 +131,12 @@ const (
 	globalTrendingArticleSetKey = "token_analytics:global:trending:article"
 	globalTrendingAnyPostSetKey = "token_analytics:global:trending:anyPost"
 
+	globalBondingCurveProgressProfileSetKey = "token_analytics:global:bonding_curve_progress:profile"
+	globalBondingCurveProgressPostSetKey    = "token_analytics:global:bonding_curve_progress:post"
+	globalBondingCurveProgressVideoSetKey   = "token_analytics:global:bonding_curve_progress:video"
+	globalBondingCurveProgressArticleSetKey = "token_analytics:global:bonding_curve_progress:article"
+	globalBondingCurveProgressAnyPostSetKey = "token_analytics:global:bonding_curve_progress:anyPost"
+
 	userSessionKeyPrefix    = "token_analytics:session:%s:%s"  // {type}:{sessionID}
 	userIdentifierMapPrefix = "token_analytics:user_map:%s:%s" // {type}:{IP:DeviceKey} -> sessionID
 
@@ -137,7 +144,7 @@ const (
 	sessionTypeTrending             = "trending"
 	sessionTypeBondingCurveProgress = "bondingCurveProgress"
 
-	defaultViewingSessionTTL = 30 * stdlibtime.Minute
+	defaultViewingSessionTTL = 5 * stdlibtime.Minute
 
 	schemeMigrationTableName = "wintr_token_analytics_scheme_migrations"
 )
@@ -215,59 +222,79 @@ type (
 	}
 
 	tokenRow struct {
-		CreatedAt                *time.Time `db:"created_at"`
-		UpdatedAt                *time.Time `db:"updated_at"`
-		LogIndex                 *int64     `db:"log_index"`
-		ContractAddress          string     `db:"contract_address"`
-		ExternalAddress          string     `db:"external_address"`
-		Platform                 string     `db:"platform"`
-		Type                     string     `db:"type"`
-		Title                    string     `db:"title"`
-		Description              string     `db:"description"`
-		ImageURL                 string     `db:"image_url"`
-		Ticker                   string     `db:"ticker"`
-		TotalSupply              string     `db:"total_supply"`
-		CreatorMasterPubkey      string     `db:"creator_master_pubkey"`
-		CreatorUsername          string     `db:"creator_username"`
-		CreatorDisplay           string     `db:"creator_display"`
-		CreatorAvatar            string     `db:"creator_avatar"`
-		BaseToken                string     `db:"base_token"`
-		PairId                   string     `db:"pair_id"`
-		MarketCapUSD             float64    `db:"market_cap_usd"`
-		PriceUSD                 float64    `db:"price_usd"`
-		Volume24h                float64    `db:"volume_24h"`
-		PositionAmountUSD        float64    `db:"position_amount_usd"`
-		PositionTotalInvestedUSD float64    `db:"position_total_invested_usd"`
-		HoldersCount             int64      `db:"holders_count"`
-		CreatorVerified          bool       `db:"creator_verified"`
+		CreatedAt                    *time.Time `db:"created_at"`
+		UpdatedAt                    *time.Time `db:"updated_at"`
+		LogIndex                     *int64     `db:"log_index"`
+		ContractAddress              string     `db:"contract_address"`
+		ExternalAddress              string     `db:"external_address"`
+		Platform                     string     `db:"platform"`
+		Type                         string     `db:"type"`
+		Title                        string     `db:"title"`
+		Description                  string     `db:"description"`
+		ImageURL                     string     `db:"image_url"`
+		Ticker                       string     `db:"ticker"`
+		TotalSupply                  string     `db:"total_supply"`
+		CreatorMasterPubkey          string     `db:"creator_master_pubkey"`
+		CreatorUsername              string     `db:"creator_username"`
+		CreatorDisplay               string     `db:"creator_display"`
+		CreatorAvatar                string     `db:"creator_avatar"`
+		BaseToken                    string     `db:"base_token"`
+		PairId                       string     `db:"pair_id"`
+		MarketCapUSD                 float64    `db:"market_cap_usd"`
+		PriceUSD                     float64    `db:"price_usd"`
+		Volume24h                    float64    `db:"volume_24h"`
+		PositionAmountUSD            float64    `db:"position_amount_usd"`
+		PositionTotalInvestedUSD     float64    `db:"position_total_invested_usd"`
+		HoldersCount                 int64      `db:"holders_count"`
+		PlatformHoldersCount         int64      `db:"platform_holders_count"`
+		BondingCurveCurrentAmount    string     `db:"bonding_curve_current_amount"`
+		BondingCurveGoalAmount       string     `db:"bonding_curve_goal_amount"`
+		BondingCurveCurrentAmountUSD float64    `db:"bonding_curve_current_amount_usd"`
+		BondingCurveGoalAmountUSD    float64    `db:"bonding_curve_goal_amount_usd"`
+		CreatorVerified              bool       `db:"creator_verified"`
 	}
 
 	tokenVolume24h struct {
 		TokenAddress string  `db:"token_address"`
 		Volume24h    float64 `db:"volume_24h"`
 	}
+
+	holderPositionRow struct {
+		MasterPubkey     string  `db:"master_pubkey"`
+		Username         string  `db:"username"`
+		DisplayName      string  `db:"display_name"`
+		Avatar           string  `db:"avatar"`
+		Verified         bool    `db:"verified"`
+		ExternalAddress  string  `db:"external_address"`
+		Amount           string  `db:"amount"`
+		TotalInvestedUSD float64 `db:"total_invested_usd"`
+		PriceUSD         float64 `db:"price_usd"`
+	}
+
 	tokenSwap struct {
-		CreatedAt           *time.Time `db:"created_at"`
-		TransactionHash     string     `db:"transaction_hash"`
-		ContractAddress     string     `db:"contract_address"`
-		ExternalAddress     string     `db:"external_address"`
-		UserAddress         string     `db:"user_address"`
-		CreatorMasterPubkey string     `db:"creator_master_pubkey"`
-		CreatorUsername     string     `db:"creator_username"`
-		CreatorDisplay      string     `db:"creator_display"`
-		CreatorAvatar       string     `db:"creator_avatar"`
-		HolderMasterPubkey  string     `db:"holder_master_pubkey"`
-		HolderUsername      string     `db:"holder_username"`
-		HolderDisplay       string     `db:"holder_display"`
-		HolderAvatar        string     `db:"holder_avatar"`
-		Input               uint64     `db:"input_amount"`
-		Output              uint64     `db:"output_amount"`
-		PriceUSD            float64    `db:"price_usd"`
-		BalanceUSD          float64    `db:"balance_usd"`
-		Balance             uint64     `db:"balance"`
-		Direction           bool       `db:"direction"`
-		CreatorVerified     bool       `db:"creator_verified"`
-		HolderVerified      bool       `db:"holder_verified"`
+		CreatedAt              *time.Time `db:"created_at"`
+		TransactionHash        string     `db:"transaction_hash"`
+		ContractAddress        string     `db:"contract_address"`
+		ExternalAddress        string     `db:"external_address"`
+		UserAddress            string     `db:"user_address"`
+		CreatorMasterPubkey    string     `db:"creator_master_pubkey"`
+		CreatorUsername        string     `db:"creator_username"`
+		CreatorDisplay         string     `db:"creator_display"`
+		CreatorAvatar          string     `db:"creator_avatar"`
+		CreatorExternalAddress string     `db:"creator_external_address"`
+		HolderMasterPubkey     string     `db:"holder_master_pubkey"`
+		HolderUsername         string     `db:"holder_username"`
+		HolderDisplay          string     `db:"holder_display"`
+		HolderAvatar           string     `db:"holder_avatar"`
+		HolderExternalAddress  string     `db:"holder_external_address"`
+		Input                  string     `db:"input_amount"`
+		Output                 string     `db:"output_amount"`
+		PriceUSD               float64    `db:"price_usd"`
+		BalanceUSD             float64    `db:"balance_usd"`
+		Balance                string     `db:"balance"`
+		Direction              bool       `db:"direction"`
+		CreatorVerified        bool       `db:"creator_verified"`
+		HolderVerified         bool       `db:"holder_verified"`
 	}
 	trade struct {
 		Timestamp       time.Time       `db:"timestamp"`
@@ -313,8 +340,8 @@ type (
 		HolderExternalAddress string `json:"holder_external_address"`
 	}
 
-	tokenRowWithTopHolders struct {
+	tokenRowWithTopPlatformHolders struct {
 		tokenRow
-		TopHoldersJSON string `db:"top_holders_json"`
+		TopPlatformHoldersJSON string `db:"top_platform_holders_json"`
 	}
 )

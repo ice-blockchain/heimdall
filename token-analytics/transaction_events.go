@@ -5,7 +5,6 @@ package tokenanalytics
 import (
 	"context"
 	"fmt"
-	"math/big"
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/wintr/log"
@@ -81,15 +80,4 @@ func (t *tokenAnalytics) onPairRegistered(ctx context.Context, tx *txEvent, ev *
 	log.Debug(fmt.Sprintf("Pair registered: pairId=%x, baseToken=%s, otherToken=%s, tx=%s", ev.PairId, ev.BaseToken.Hex(), ev.OtherToken.Hex(), tx.TransactionHash))
 
 	return nil
-}
-
-func bigIntToFloat(val *big.Int) float64 {
-	if val == nil {
-		return 0
-	}
-	f := new(big.Float).SetInt(val)
-	divisor := new(big.Float).SetFloat64(1e18)
-	f.Quo(f, divisor)
-	result, _ := f.Float64()
-	return result
 }

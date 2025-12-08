@@ -14,7 +14,7 @@ END $$;
 
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'platform_type') THEN
-        CREATE TYPE platform_type AS ENUM ('a', 'b', 'c', 'd', 'z', 'y', 'x', 'w');
+        CREATE TYPE platform_type AS ENUM ('xcom', 'ionconnect');
     END IF;
 END $$;
 
@@ -32,11 +32,13 @@ CREATE TABLE IF NOT EXISTS users
     lookup               TEXT NOT NULL DEFAULT '',
     ion_connect_relays   TEXT[],
     verified             BOOLEAN NOT NULL DEFAULT false,
+    platform_group       platform_type,
     primary key(master_pubkey)
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users (created_at);
 CREATE INDEX IF NOT EXISTS idx_users_blockchain_address_lower ON users (LOWER(blockchain_address));
+CREATE INDEX IF NOT EXISTS idx_users_platform_group ON users (platform_group);
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX IF NOT EXISTS idx_users_lookup_gist ON users USING gist (lookup gist_trgm_ops);
 
@@ -166,22 +168,26 @@ CREATE TABLE IF NOT EXISTS streams (
 );
 
 CREATE TABLE IF NOT EXISTS tokens (
-    created_at              TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at              TIMESTAMP NOT NULL DEFAULT NOW(),
-    contract_address        TEXT NOT NULL, -- token contract address (ERC20)
-    external_address        TEXT NOT NULL UNIQUE,
-    platform                platform_type NOT NULL,
-    ticker                  TEXT NOT NULL,
-    total_supply            uint256 NOT NULL,
-    creator_master_pubkey   TEXT,
-    "type"                  TEXT NOT NULL, -- profile/post/video/article/anyPost
-    base_token              TEXT,
-    pair_id                 TEXT,
-    market_cap_usd          usd_amount DEFAULT 0,
-    price_usd               usd_amount DEFAULT 0,
-    holders_count           BIGINT DEFAULT 0,
-    lookup                  TEXT NOT NULL DEFAULT '', -- contract_address + ticker + creator lookup
-    log_index               BIGINT,
+    created_at                      TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at                      TIMESTAMP NOT NULL DEFAULT NOW(),
+    contract_address                TEXT NOT NULL,
+    external_address                TEXT NOT NULL UNIQUE,
+    platform                        platform_type NOT NULL,
+    ticker                          TEXT NOT NULL,
+    total_supply                    uint256 NOT NULL,
+    creator_master_pubkey           TEXT,
+    "type"                          TEXT NOT NULL, -- profile/post/video/article
+    base_token                      TEXT,
+    pair_id                         TEXT,
+    market_cap_usd                  usd_amount DEFAULT 0,
+    price_usd                       usd_amount DEFAULT 0,
+    holders_count                   BIGINT DEFAULT 0,
+    bonding_curve_current_amount    uint256 DEFAULT 0,
+    bonding_curve_goal_amount       uint256 DEFAULT 0,
+    bonding_curve_current_amount_usd usd_amount DEFAULT 0,
+    bonding_curve_goal_amount_usd   usd_amount DEFAULT 0,
+    lookup                          TEXT NOT NULL DEFAULT '', -- contract_address + ticker + creator lookup
+    log_index                       BIGINT,
     PRIMARY KEY (contract_address),
     FOREIGN KEY (creator_master_pubkey) REFERENCES users(master_pubkey) ON DELETE CASCADE
 );
@@ -237,13 +243,14 @@ CREATE INDEX IF NOT EXISTS idx_token_swaps_user_address_lower ON token_swaps (LO
 CREATE INDEX IF NOT EXISTS idx_token_swaps_created_at ON token_swaps (created_at DESC);
 
 CREATE TABLE IF NOT EXISTS user_token_positions (
-    updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
-    master_pubkey       TEXT NOT NULL,
-    contract_address    TEXT NOT NULL,
-    external_address TEXT NOT NULL,
-    amount              uint256 NOT NULL DEFAULT 0,
-    avg_buy_price_usd   usd_amount DEFAULT 0,
-    total_invested_usd  usd_amount DEFAULT 0,
+    updated_at            TIMESTAMP NOT NULL DEFAULT NOW(),
+    master_pubkey         TEXT NOT NULL,
+    contract_address      TEXT NOT NULL,
+    external_address      TEXT NOT NULL,
+    user_external_address TEXT NOT NULL,
+    amount                uint256 NOT NULL DEFAULT 0,
+    avg_buy_price_usd     usd_amount DEFAULT 0,
+    total_invested_usd    usd_amount DEFAULT 0,
     PRIMARY KEY (master_pubkey, contract_address),
     FOREIGN KEY (master_pubkey) REFERENCES users(master_pubkey) ON DELETE CASCADE,
     FOREIGN KEY (contract_address) REFERENCES tokens(contract_address) ON DELETE CASCADE
@@ -272,6 +279,7 @@ BEGIN
                 updated_at = NOW()
             WHERE contract_address = NEW.contract_address;
         END IF;
+        PERFORM update_token_platform_holders_count(NEW.external_address, NEW.user_external_address, 0, NEW.amount);
         RETURN NEW;
     END IF;
 
@@ -287,6 +295,7 @@ BEGIN
                 updated_at = NOW()
             WHERE contract_address = NEW.contract_address;
         END IF;
+        PERFORM update_token_platform_holders_count(NEW.external_address, NEW.user_external_address, OLD.amount, NEW.amount);
         RETURN NEW;
     END IF;
 
@@ -297,6 +306,7 @@ BEGIN
                 updated_at = NOW()
             WHERE contract_address = OLD.contract_address;
         END IF;
+        PERFORM update_token_platform_holders_count(OLD.external_address, OLD.user_external_address, OLD.amount, 0);
         RETURN OLD;
     END IF;
 
@@ -577,10 +587,15 @@ BEGIN
 
     -- Parse platform and type from prefix (a, b, c, d for IonConnect; z, y, x, w for X.com)
     v_platform_prefix := substring(v_external_address_raw, 1, 1);
-
+    v_platform := get_platform_group(v_external_address_raw);
+    
+    IF v_platform IS NULL THEN
+        RAISE WARNING 'Invalid external address format (unknown prefix ''%''): %, skipping token creation', v_platform_prefix, v_external_address_raw;
+        RETURN;
+    END IF;
+    
     CASE v_platform_prefix
         WHEN 'a' THEN
-            v_platform := 'a';
             v_token_type := 'profile';
             v_external_address := v_external_address_raw;
             -- Format: a0:{master}:
@@ -592,7 +607,6 @@ BEGIN
                 RETURN;
             END IF;
         WHEN 'b' THEN
-            v_platform := 'b';
             v_token_type := 'post';
             v_external_address := v_external_address_raw;
             v_parts := string_to_array(substring(v_external_address_raw from 2), ':'); -- skip "b"
@@ -603,7 +617,6 @@ BEGIN
                 RETURN;
             END IF;
         WHEN 'c' THEN
-            v_platform := 'c';
             v_token_type := 'video';
             v_external_address := v_external_address_raw;
             v_parts := string_to_array(substring(v_external_address_raw from 2), ':'); -- skip "c"
@@ -615,7 +628,6 @@ BEGIN
             END IF;
 
         WHEN 'd' THEN
-            v_platform := 'd';
             v_token_type := 'article';
             v_external_address := v_external_address_raw;
             v_parts := string_to_array(substring(v_external_address_raw from 2), ':'); -- skip "d"
@@ -626,19 +638,15 @@ BEGIN
                 RETURN;
             END IF;
         WHEN 'z' THEN
-            v_platform := 'z';
             v_token_type := 'profile';
             v_external_address := v_external_address_raw;
         WHEN 'y' THEN
-            v_platform := 'y';
             v_token_type := 'post';
             v_external_address := v_external_address_raw;
         WHEN 'x' THEN
-            v_platform := 'x';
             v_token_type := 'video';
             v_external_address := v_external_address_raw;
         WHEN 'w' THEN
-            v_platform := 'w';
             v_token_type := 'article';
             v_external_address := v_external_address_raw;
         ELSE
@@ -746,6 +754,7 @@ DECLARE
     v_other_token TEXT;
     v_token_address TEXT;
     v_user_master_pubkey TEXT;
+    v_user_external_address TEXT;
     v_delta_market_cap usd_amount;
     v_token_amount NUMERIC;
     v_sign NUMERIC;
@@ -841,7 +850,7 @@ BEGIN
         updated_at = p_block_timestamp
     WHERE contract_address = v_token_address;
 
-    SELECT master_pubkey INTO v_user_master_pubkey
+    SELECT master_pubkey, external_address INTO v_user_master_pubkey, v_user_external_address
     FROM users
     WHERE LOWER(blockchain_address) = LOWER(v_user_address);
 
@@ -849,11 +858,11 @@ BEGIN
 
     IF v_direction = false THEN -- buy
         INSERT INTO user_token_positions (
-            master_pubkey, contract_address, external_address,
+            master_pubkey, contract_address, external_address, user_external_address,
             amount, avg_buy_price_usd, total_invested_usd, updated_at
         )
         VALUES (
-            v_user_master_pubkey, v_token_address, v_token_external_address,
+            v_user_master_pubkey, v_token_address, v_token_external_address, v_user_external_address,
             v_output_amount, v_price_usd, v_cost_usd, p_block_timestamp
         )
         ON CONFLICT (master_pubkey, contract_address) DO UPDATE SET
@@ -903,3 +912,65 @@ CREATE OR REPLACE TRIGGER tx_log_event_trigger
     AFTER INSERT ON tx_logs
     FOR EACH ROW
 EXECUTE FUNCTION process_tx_log_event();
+
+CREATE TABLE IF NOT EXISTS token_platform_holders (
+    external_address TEXT NOT NULL,
+    platform_group platform_type NOT NULL,
+    holders_count BIGINT NOT NULL DEFAULT 0,
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (external_address, platform_group),
+    FOREIGN KEY (external_address) REFERENCES tokens(external_address) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_token_platform_holders_external ON token_platform_holders (external_address);
+
+CREATE OR REPLACE FUNCTION get_platform_group(p_external_address TEXT)
+RETURNS platform_type AS $$
+BEGIN
+    IF LEFT(p_external_address, 1) IN ('z','y','x','w') THEN
+        RETURN 'xcom'::platform_type;
+    ELSIF LEFT(p_external_address, 1) IN ('a','b','c','d') THEN
+        RETURN 'ionconnect'::platform_type;
+    ELSE
+        RETURN NULL;
+    END IF;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION update_token_platform_holders_count(
+    p_token_external_address TEXT,
+    p_user_external_address TEXT,
+    p_old_amount NUMERIC,
+    p_new_amount NUMERIC
+)
+RETURNS VOID AS $$
+DECLARE
+    v_platform_group platform_type;
+BEGIN
+    IF p_user_external_address IS NULL THEN
+        RETURN;
+    END IF;
+    
+    v_platform_group := get_platform_group(p_user_external_address);
+    
+    IF v_platform_group IS NULL THEN
+        RETURN;
+    END IF;
+    
+    IF p_old_amount = 0 AND p_new_amount > 0 THEN
+        INSERT INTO token_platform_holders (external_address, platform_group, holders_count, updated_at)
+        VALUES (p_token_external_address, v_platform_group, 1, NOW())
+        ON CONFLICT (external_address, platform_group) DO UPDATE
+        SET holders_count = token_platform_holders.holders_count + 1,
+            updated_at = NOW();
+    
+    ELSIF p_old_amount > 0 AND p_new_amount = 0 THEN
+        UPDATE token_platform_holders
+        SET holders_count = GREATEST(holders_count - 1, 0),
+            updated_at = NOW()
+        WHERE external_address = p_token_external_address
+          AND platform_group = v_platform_group;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+

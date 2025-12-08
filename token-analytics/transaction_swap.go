@@ -106,7 +106,7 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 		tokenAmount = ev.InputAmount // User sends tokens
 		sign = -1.0
 	}
-	deltaMarketCapUSD := sign * bigIntToFloat(tokenAmount) * priceUSD
+	deltaMarketCapUSD := sign * weiToFloat64FromBigInt(tokenAmount) * priceUSD
 
 	log.Debug(fmt.Sprintf("Swap processed: contractAddress=%s, tokenExternalAddress=%s, userExternalAddress=%s (will be processed by trigger on tx_logs)",
 		contractAddress, tokenExternalAddress, userExternalAddress))
@@ -118,7 +118,7 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 		return fmt.Errorf("failed to get current user position: %w", err)
 	}
 
-	amountFloat := bigIntToFloat(tokenAmount)
+	amountFloat := weiToFloat64FromBigInt(tokenAmount)
 	var newScore float64
 	if !ev.Direction { // buy
 		newScore = currentScore + amountFloat
@@ -168,8 +168,8 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 }
 
 func calculatePriceFromSwap(ev *bondingcurve.LogTokenSwapped) float64 {
-	inputAmount := bigIntToFloat(ev.InputAmount)
-	outputAmount := bigIntToFloat(ev.OutputAmount)
+	inputAmount := weiToFloat64FromBigInt(ev.InputAmount)
+	outputAmount := weiToFloat64FromBigInt(ev.OutputAmount)
 	if outputAmount == 0 {
 		return 0
 	}

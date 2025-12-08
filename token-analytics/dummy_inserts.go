@@ -75,10 +75,11 @@ func (gen *dummyDataGenerator) Run(ctx context.Context) {
 		gen.TokenGeneratorTTL = 4 * time.Hour
 	}
 
+	masterPubkey := "9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f"
 	err := gen.generateToken(ctx, gen.Stream, &tokenRow{
 		ContractAddress:     "7307ea7ab4a7e5bcba1bf18c9495d08107d9f0d8",
-		CreatorMasterPubkey: "9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f",
-		ExternalAddress:     "a9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f",
+		CreatorMasterPubkey: masterPubkey,
+		ExternalAddress:     BuildProfileExternalAddress(masterPubkey),
 		Title:               "Yu's token",
 		Ticker:              "posidoniusenara",
 		TotalSupply:         "1000000000000000000000000",

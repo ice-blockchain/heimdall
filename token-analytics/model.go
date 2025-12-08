@@ -41,21 +41,22 @@ type (
 		Volume               float64               `json:"volume"`
 		PriceUSD             float64               `json:"priceUSD"`
 		Holders              uint64                `json:"holders"`
+		PlatformHolders      uint64                `json:"platformHolders"`
 		BondingCurveProgress *BondingCurveProgress `json:"bondingCurveProgress,omitempty"`
-		TopHolders           []HolderPosition      `json:"topHolders,omitempty"`
-		Position             Position              `json:"position,omitzero"`
+		TopPlatformHolders   []HolderPosition      `json:"topPlatformHolders,omitempty"`
+		Position             Position              `json:"position,omitempty"`
 	}
 
 	BondingCurveProgress struct {
-		CurrentAmount    float64 `json:"currentAmount"`
-		GoalAmount       float64 `json:"goalAmount"`
+		CurrentAmount    uint64  `json:"currentAmount"`
+		GoalAmount       uint64  `json:"goalAmount"`
 		CurrentAmountUSD float64 `json:"currentAmountUSD"`
 		GoalAmountUSD    float64 `json:"goalAmountUSD"`
 	}
 
 	Position struct {
 		Rank          uint64  `json:"rank"`
-		Amount        int64   `json:"amount"`
+		Amount        uint64  `json:"amount"`
 		AmountUSD     float64 `json:"amountUSD"`
 		PnL           float64 `json:"pnl"`
 		PnLPercentage float64 `json:"pnlPercentage"`
@@ -105,11 +106,13 @@ type (
 	}
 
 	HolderPosition struct {
-		Holder      User    `json:"holder"`
-		Rank        uint64  `json:"rank"`
-		Amount      uint64  `json:"amount"`
-		AmountUSD   float64 `json:"amountUSD"`
-		SupplyShare float64 `json:"supplyShare"`
+		Holder        User    `json:"holder"`
+		Rank          uint64  `json:"rank"`
+		Amount        uint64  `json:"amount"`
+		AmountUSD     float64 `json:"amountUSD"`
+		SupplyShare   float64 `json:"supplyShare,omitempty"`
+		PnL           float64 `json:"pnl,omitempty"`
+		PnLPercentage float64 `json:"pnlPercentage,omitempty"`
 	}
 
 	TopHolderPosition struct {
@@ -182,7 +185,7 @@ func buildAddressesFromExternalAddress(externalAddress string) (Addresses, error
 		prefix == string(PlatformXComVideo) ||
 		prefix == string(PlatformXComArticle) {
 		return Addresses{
-			Twitter: externalAddress,
+			Twitter: externalAddress[1:],
 		}, nil
 	}
 
@@ -191,7 +194,7 @@ func buildAddressesFromExternalAddress(externalAddress string) (Addresses, error
 		prefix == string(PlatformIonConnectVideo) ||
 		prefix == string(PlatformIonConnectArticle) {
 		return Addresses{
-			IonConnect: externalAddress,
+			IonConnect: externalAddress[1:],
 		}, nil
 	}
 

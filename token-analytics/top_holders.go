@@ -92,6 +92,7 @@ func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []
 			totalSupplyFloat = 0
 		}
 		amountTokens := z.Score
+		amountUint64 := uint64(amountTokens)
 		amountUSD := amountTokens * holderData.PriceUSD
 		supplyShare := calculateSupplyShare(amountTokens, totalSupplyFloat)
 
@@ -121,7 +122,7 @@ func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []
 					Addresses:    holderAddresses,
 				},
 				Rank:        uint64(rank + 1),
-				Amount:      uint64(amountTokens),
+				Amount:      amountUint64,
 				AmountUSD:   amountUSD,
 				SupplyShare: supplyShare,
 			},
