@@ -135,6 +135,8 @@ const (
 
 	DefaultWalletNetworkTestNet               = "IonTestnet"
 	DefaultWalletNetworkMainNet               = "Ion"
+	BscWalletNetworkMainNet                   = "Bsc"
+	BscWalletNetworkTestNet                   = "BscTestnet"
 	DefaultWalletNetworkMainNetForOldAccounts = "Ton"
 	DefaultWalletNetworkTestNetForOldAccounts = "TonTestnet"
 	defaultWalletName                         = "main"
