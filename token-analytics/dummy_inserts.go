@@ -279,7 +279,7 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 		base, _ := hex.DecodeString(strings.TrimPrefix(token.BaseToken, "0x"))
 		txInput, err := bondingcurve.ABI.Methods["swap"].Inputs.Pack(
 			base,
-			[]byte(token.ExternalAddress), // token creator, linked to data from token
+			[]byte(strings.Repeat("\u0000", 20)+token.ExternalAddress), // token creator, linked to data from token
 			new(big.Int).SetInt64(amountBase),
 			new(big.Int).SetInt64(amountTarget),
 		)
@@ -363,7 +363,8 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
 	totalSupply, _ := new(big.Int).SetString(seedData.TotalSupply, 10)
 	txInput, err := bondingcurve.ABI.Methods["swap"].Inputs.Pack(
 		base,
-		[]byte(seedData.ExternalAddress), // token creator, linked to data from token
+		// TODO: put creator token addr for content tokens
+		[]byte(strings.Repeat("\u0000", 20)+seedData.ExternalAddress), // token creator, linked to data from token
 		totalSupply,
 		totalSupply,
 	)
@@ -433,7 +434,7 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
           "logIndex": "0x4",
           "removed": false,
           "topics": [
-            "0xcaa54a9b9817e12b67fd790dabf6f963cb9a083290c5c06c052ea18bb9b29427",
+            "0x7a69aeb15d1aa44b3fec40fc8767221a5e4d2f41e58421d34db80a63f5a619c7",
             "0x000000000000000000000000{{.Token.ContractAddress}}"
           ]
         },
@@ -530,7 +531,7 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
 		BlockHash:                blockHash,
 		TxHash:                   txHash,
 		Token:                    seedData,
-		TxInput:                  "0x" + hex.EncodeToString(txInput),
+		TxInput:                  "0x83362e17" + hex.EncodeToString(txInput),
 		CreatorBlockchainAddress: ownerBlockchainAddr,
 		BondingCurveContract:     bondingCurveNoPrefix,
 		BondedTokenCreatedData:   "0x" + hex.EncodeToString(bondedTokenCreatedData),

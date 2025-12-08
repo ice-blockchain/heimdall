@@ -18,7 +18,7 @@ type (
 		Address         common.Address
 		Name            string
 		Symbol          string
-		ExternalAddress string `abi:"ionConnectAddress"` // TODO: fix this on abi change.
+		ExternalAddress string
 		TotalSupply     *big.Int
 	}
 	LogTokenSwapped struct {
@@ -119,7 +119,7 @@ var (
 	//go:embed .abi/bonding_curve.json
 	ABIJSON string
 
-	eventTokenCreated        = crypto.Keccak256Hash([]byte("BondedTokenCreated(address,string,string,string,uint256)"))
+	eventTokenCreated        = crypto.Keccak256Hash([]byte("BondingTokenCreated(address,string,string,string,uint256)"))
 	eventPairRegistered      = crypto.Keccak256Hash([]byte("PairRegistered(bytes32,address,address)"))
 	eventSwapped             = crypto.Keccak256Hash([]byte("Swapped(address,bytes32,bool,uint256,uint256,uint256)"))
 	eventRecipientsSet       = crypto.Keccak256Hash([]byte("RecipientsSet(bytes32,address,address,address)"))

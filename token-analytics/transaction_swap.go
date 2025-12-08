@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/redis/go-redis/v9"
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
@@ -19,7 +20,7 @@ import (
 func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTokenSwapped) error {
 	userAddr := strings.ToLower(ev.Swapper.Hex())
 
-	externalAddress, err := detectExternalAddressFromSwap(ev)
+	externalAddress, _, err := detectExternalAddressFromSwap(ev)
 	if err != nil {
 		return fmt.Errorf("failed to detect external_address from tx.Input: %w", err)
 	}
@@ -70,24 +71,29 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, contractAddress, ev, priceUSD, result.TokenExternalAddress, result.UserExternalAddress, result.TokenType); err != nil {
 		return errors.Wrap(err, "failed to calculate token market data and user position")
 	}
-	if err = t.registerTrade(ctx, tx, ev, externalAddress); err != nil {
+	if err = t.registerTrade(ctx, tx, ev, result.UserExternalAddress); err != nil {
 		return errors.Wrapf(err, "failed to save trade in questdb %v", userAddr)
 	}
 	t.subscriptions.NotifySwap(ev)
 	return nil
 }
 
-func detectExternalAddressFromSwap(ev *bondingcurve.LogTokenSwapped) (string, error) {
+func detectExternalAddressFromSwap(ev *bondingcurve.LogTokenSwapped) (string, common.Address, error) {
 	externalAddressParam, ok := ev.Params["toToken"]
 	if !ok {
-		return "", fmt.Errorf("failed to extract ion_connect_address from tx.Input: toToken param not found")
+		return "", common.Address{}, fmt.Errorf("failed to extract ion_connect_address from tx.Input: toToken param not found")
 	}
 	externalAddressParamBytes, ok := externalAddressParam.([]byte)
 	if !ok {
-		return "", fmt.Errorf("failed to extract ion_connect_address from tx.Input: toToken is not bytes")
+		return "", common.Address{}, fmt.Errorf("failed to extract ion_connect_address from tx.Input: toToken is not bytes")
+	}
+	var creatorTokenAddr common.Address
+	if len(externalAddressParamBytes) > 20 {
+		creatorTokenAddr = common.BytesToAddress(externalAddressParamBytes[0:20])
+		externalAddressParamBytes = externalAddressParamBytes[20:]
 	}
 	externalAddress := string(externalAddressParamBytes)
-	return externalAddress, nil
+	return externalAddress, creatorTokenAddr, nil
 }
 
 func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Context, tx *txEvent, contractAddress string, ev *bondingcurve.LogTokenSwapped, priceUSD float64, tokenExternalAddress, userExternalAddress, tokenType string) error {
