@@ -26,6 +26,7 @@ var coinOverwrites = map[string]*Coin{
 	},
 	"id:ice": &Coin{
 		IconUrl: "https://cdn.ice.io/online+/assets/coins/ion.svg",
+		Name:    "Ice Open Network (OLD)",
 	},
 
 	"symbol:spx": &Coin{
