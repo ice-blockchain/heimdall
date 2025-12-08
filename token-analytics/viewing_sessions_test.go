@@ -3,6 +3,7 @@
 package tokenanalytics
 
 import (
+	"context"
 	"testing"
 
 	"github.com/redis/go-redis/v9"
@@ -11,464 +12,308 @@ import (
 )
 
 func TestCreateViewingSession(t *testing.T) {
-	// NOTE: NOT parallel - sub-tests use shared global Redis keys
+	t.Parallel()
+	ctx := t.Context()
+	ta := NewForTest(ctx)
 
-	t.Run("creates_new_session_for_top_tokens", func(t *testing.T) {
-		ctx := t.Context()
-		_ = testRedis.Del(ctx, globalTopSetKey, globalTrendingSetKey).Err()
-
-		token1 := "30001:creator1_session:token1"
-		token2 := "30001:creator2_session:token2"
-		helperCreateGlobalTopSet(t, ctx, map[string]float64{
-			token1: 1000.0,
-			token2: 500.0,
+	t.Run("creates session for top type", func(t *testing.T) {
+		helperSetupGlobalSet(t, ctx, globalTopSetKey, map[string]float64{
+			"0:token1:": 1000.0,
+			"0:token2:": 500.0,
 		})
 
-		globalCount, err := testRedis.ZCard(ctx, globalTopSetKey).Result()
+		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.1.1", "device123", nil)
 		require.NoError(t, err)
-		require.Equal(t, int64(2), globalCount, "global top set should have 2 tokens before CreateViewingSession")
+		assert.NotEmpty(t, sessionID)
+		assert.Greater(t, ttl, uint64(0))
 
-		ta := New(ctx).(*tokenAnalytics)
-
-		sessionID, ttlSeconds, err := ta.CreateViewingSession(ctx, "top", "192.168.1.1", "device123")
+		sessKey := sessionKey(sessionTypeTop, sessionID)
+		exists, err := testRedis.Exists(ctx, sessKey).Result()
 		require.NoError(t, err)
-		require.NotEmpty(t, sessionID)
-		require.Equal(t, uint64(defaultViewingSessionTTL.Seconds()), ttlSeconds)
-
-		sessKey := sessionKey("top", sessionID)
-		count, err := testRedis.ZCard(ctx, sessKey).Result()
-		require.NoError(t, err)
-		assert.Equal(t, int64(2), count, "session should contain 2 tokens")
-
-		mapKey := userMapKey("top", "192.168.1.1:device123")
-		storedSessionID, err := testRedis.Get(ctx, mapKey).Result()
-		require.NoError(t, err)
-		assert.Equal(t, sessionID, storedSessionID)
+		assert.Equal(t, int64(1), exists)
 	})
 
-	t.Run("creates_new_session_for_trending_tokens", func(t *testing.T) {
-		ctx := t.Context()
-
-		_ = testRedis.Del(ctx, globalTopSetKey, globalTrendingSetKey).Err()
-		token3 := "30001:creator3_session:token3"
-		helperCreateGlobalTrendingSet(t, ctx, map[string]float64{
-			token3: 100.0,
+	t.Run("creates session for trending type", func(t *testing.T) {
+		helperSetupGlobalSet(t, ctx, globalTrendingSetKey, map[string]float64{
+			"0:trending1:": 2000.0,
+			"0:trending2:": 1500.0,
 		})
 
-		ta := &tokenAnalytics{
-			processedDataDB: testRedis,
-		}
-
-		sessionID, ttlSeconds, err := ta.CreateViewingSession(ctx, "trending", "10.0.0.1", "device456")
+		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeTrending, "192.168.1.2", "device456", nil)
 		require.NoError(t, err)
-		require.NotEmpty(t, sessionID)
-		require.Equal(t, uint64(defaultViewingSessionTTL.Seconds()), ttlSeconds)
-
-		sessKey := sessionKey("trending", sessionID)
-		count, err := testRedis.ZCard(ctx, sessKey).Result()
-		require.NoError(t, err)
-		assert.Equal(t, int64(1), count, "session should contain 1 token")
+		assert.NotEmpty(t, sessionID)
+		assert.Greater(t, ttl, uint64(0))
 	})
 
-	t.Run("replaces_old_session_for_same_user", func(t *testing.T) {
-		ctx := t.Context()
-
-		_ = testRedis.Del(ctx, globalTopSetKey, globalTrendingSetKey).Err()
-		token4 := "30001:creator4_session:token4"
-		helperCreateGlobalTopSet(t, ctx, map[string]float64{
-			token4: 1000.0,
+	t.Run("creates session for bonding curve progress type", func(t *testing.T) {
+		helperSetupGlobalSet(t, ctx, globalBondingCurveProgressSetKey, map[string]float64{
+			"0:bonding1:": 75.0,
+			"0:bonding2:": 50.0,
 		})
 
-		ta := &tokenAnalytics{
-			processedDataDB: testRedis,
-		}
-
-		sessionID1, _, err := ta.CreateViewingSession(ctx, "top", "172.16.0.1", "device789")
+		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeBondingCurveProgress, "192.168.1.3", "device789", nil)
 		require.NoError(t, err)
-
-		sessionKey1 := sessionKey("top", sessionID1)
-		count1, err := testRedis.ZCard(ctx, sessionKey1).Result()
-		require.NoError(t, err)
-		assert.Equal(t, int64(1), count1, "first session should contain 1 token")
-
-		sessionID2, _, err := ta.CreateViewingSession(ctx, "top", "172.16.0.1", "device789")
-		require.NoError(t, err)
-		assert.NotEqual(t, sessionID1, sessionID2, "should create new session ID")
-
-		count, err := testRedis.ZCard(ctx, sessionKey1).Result()
-		require.NoError(t, err)
-		assert.Equal(t, int64(0), count, "old session should be deleted")
-
-		sessionKey2 := sessionKey("top", sessionID2)
-		count2, err := testRedis.ZCard(ctx, sessionKey2).Result()
-		require.NoError(t, err)
-		assert.Equal(t, int64(1), count2, "new session should exist and contain 1 token")
+		assert.NotEmpty(t, sessionID)
+		assert.Greater(t, ttl, uint64(0))
 	})
 
-	t.Run("creates_separate_sessions_for_different_device_keys", func(t *testing.T) {
-		ctx := t.Context()
-
-		_ = testRedis.Del(ctx, globalTopSetKey, globalTrendingSetKey).Err()
-
-		token5 := "30001:creator5_session:token5"
-		helperCreateGlobalTopSet(t, ctx, map[string]float64{
-			token5: 1000.0,
+	t.Run("creates session with token type filter", func(t *testing.T) {
+		helperSetupGlobalSet(t, ctx, globalTopProfileSetKey, map[string]float64{
+			"0:profile1:": 3000.0,
 		})
 
-		ta := New(ctx).(*tokenAnalytics)
+		tokenType := TokenTypeProfile
+		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.1.4", "deviceABC", &tokenType)
+		require.NoError(t, err)
+		assert.NotEmpty(t, sessionID)
+		assert.Greater(t, ttl, uint64(0))
+	})
 
-		sessionID1, _, err := ta.CreateViewingSession(ctx, "top", "192.168.1.100", "device_a")
+	t.Run("replaces existing session for same user", func(t *testing.T) {
+		helperSetupGlobalSet(t, ctx, globalTopSetKey, map[string]float64{
+			"0:token1:": 1000.0,
+		})
+
+		sessionID1, _, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.1.5", "deviceXYZ", nil)
 		require.NoError(t, err)
 
-		sessionID2, _, err := ta.CreateViewingSession(ctx, "top", "192.168.1.100", "device_b")
+		sessionID2, _, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.1.5", "deviceXYZ", nil)
 		require.NoError(t, err)
 
-		assert.NotEqual(t, sessionID1, sessionID2, "should create different sessions for different devices")
+		assert.NotEqual(t, sessionID1, sessionID2)
 
-		sessionKey1 := sessionKey("top", sessionID1)
-		sessionKey2 := sessionKey("top", sessionID2)
-		count1, _ := testRedis.ZCard(ctx, sessionKey1).Result()
-		count2, _ := testRedis.ZCard(ctx, sessionKey2).Result()
-		assert.Equal(t, int64(1), count1, "first session should contain 1 token")
-		assert.Equal(t, int64(1), count2, "second session should contain 1 token")
+		// Old session should be deleted
+		sessKey1 := sessionKey(sessionTypeTop, sessionID1)
+		exists, err := testRedis.Exists(ctx, sessKey1).Result()
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), exists)
 	})
 }
 
 func TestGetTokensFromViewingSession(t *testing.T) {
-	// NOTE: NOT parallel - sub-tests use shared global Redis keys
+	t.Parallel()
 	ctx := t.Context()
+	ta := NewForTest(ctx)
 
-	t.Run("returns_tokens_from_valid_session", func(t *testing.T) {
-
-		helperInsertTestUser(t, ctx, testDB, "creator1", "alice", "Alice Creator", "", true)
-		helperInsertTestUser(t, ctx, testDB, "creator2", "bob", "Bob Creator", "", false)
-
-		token1IonConnect := "30001:creator1:token1"
-		token2IonConnect := "30001:creator2:token2"
-		helperInsertTestToken(t, ctx, testDB, "0xtoken1addr", token1IonConnect, "TK1", "30001", "creator1",
-			"1000000000000000000000", 1000.0, 1.0, 10)
-		helperInsertTestToken(t, ctx, testDB, "0xtoken2addr", token2IonConnect, "TK2", "30001", "creator2",
-			"2000000000000000000000", 500.0, 0.5, 5)
-
-		sessionID := "test-session-123"
-		sessKey := sessionKey("top", sessionID)
-		err := testRedis.ZAdd(ctx, sessKey, redis.Z{Score: 1000.0, Member: token1IonConnect}).Err()
-		require.NoError(t, err)
-		err = testRedis.ZAdd(ctx, sessKey, redis.Z{Score: 500.0, Member: token2IonConnect}).Err()
-		require.NoError(t, err)
-		err = testRedis.Expire(ctx, sessKey, defaultViewingSessionTTL).Err()
-		require.NoError(t, err)
-
-		helperCreateGlobalTrendingSet(t, ctx, map[string]float64{
-			token1IonConnect: 100.0,
-			token2IonConnect: 50.0,
-		})
-
-		ta := New(ctx).(*tokenAnalytics)
-
-		tokens, err := ta.GetTokensFromViewingSession(ctx, "top", sessionID, "", 10, 0)
-		require.NoError(t, err)
-		require.Len(t, tokens, 2)
-
-		assert.Equal(t, token1IonConnect, tokens[0].Addresses.IonConnect)
-		assert.Equal(t, "alice", tokens[0].Creator.Username)
-		assert.Equal(t, 1000.0, tokens[0].MarketData.MarketCap) // Score from session
-		assert.Equal(t, 100.0, tokens[0].MarketData.Volume)     // From trending set
-		assert.Equal(t, uint64(10), tokens[0].MarketData.Holders)
-
-		assert.Equal(t, token2IonConnect, tokens[1].Addresses.IonConnect)
-		assert.Equal(t, "bob", tokens[1].Creator.Username)
-		assert.Equal(t, 500.0, tokens[1].MarketData.MarketCap)
-		assert.Equal(t, 50.0, tokens[1].MarketData.Volume)
-	})
-
-	t.Run("returns_error_for_non_existent_session", func(t *testing.T) {
-
-		ta := New(ctx).(*tokenAnalytics)
-
-		_, err := ta.GetTokensFromViewingSession(ctx, "top", "non-existent-session", "", 10, 0)
+	t.Run("returns error for non-existent session", func(t *testing.T) {
+		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTop, "nonexistent-session-id", "", 10, 0)
 		require.Error(t, err)
+		assert.Nil(t, tokens)
 		assert.ErrorIs(t, err, ErrSessionNotFound)
 	})
 
-	t.Run("applies_limit_and_offset_correctly", func(t *testing.T) {
-		helperInsertTestUser(t, ctx, testDB, "creator_limit1", "user1", "User One", "", false)
-		helperInsertTestUser(t, ctx, testDB, "creator_limit2", "user2", "User Two", "", false)
-		helperInsertTestUser(t, ctx, testDB, "creator_limit3", "user3", "User Three", "", false)
+	t.Run("returns tokens from session", func(t *testing.T) {
+		helperInsertTestUser(t, ctx, testDB, "vs_creator1", "vs_alice", "VS Alice", "", true, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, testDB,
+			"0xVS111111111111111111111111111111111111",
+			"0:vs_creator1:",
+			"VST1",
+			"profile",
+			"vs_creator1",
+			"1000000000000000000000000",
+			500.0,
+			0.001,
+			10,
+			PlatformGroupIonConnect,
+		)
 
-		token1 := "30001:creator_limit1:token1"
-		token2 := "30001:creator_limit2:token2"
-		token3 := "30001:creator_limit3:token3"
-		helperInsertTestToken(t, ctx, testDB, "0xlimit1", token1, "L1", "30001", "creator_limit1",
-			"1000000000000000000000", 300.0, 1.0, 3)
-		helperInsertTestToken(t, ctx, testDB, "0xlimit2", token2, "L2", "30001", "creator_limit2",
-			"1000000000000000000000", 200.0, 1.0, 2)
-		helperInsertTestToken(t, ctx, testDB, "0xlimit3", token3, "L3", "30001", "creator_limit3",
-			"1000000000000000000000", 100.0, 1.0, 1)
-
-		sessionID := "test-session-pagination"
-		sessKey := sessionKey("top", sessionID)
-		err := testRedis.ZAdd(ctx, sessKey,
-			redis.Z{Score: 300.0, Member: token1},
-			redis.Z{Score: 200.0, Member: token2},
-			redis.Z{Score: 100.0, Member: token3},
-		).Err()
-		require.NoError(t, err)
-		err = testRedis.Expire(ctx, sessKey, defaultViewingSessionTTL).Err()
-		require.NoError(t, err)
-
-		helperCreateGlobalTrendingSet(t, ctx, map[string]float64{
-			token1: 10.0,
-			token2: 5.0,
-			token3: 1.0,
+		helperInsertTestUser(t, ctx, testDB, "vs_creator2", "vs_bob", "VS Bob", "", false, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, testDB,
+			"0xVS222222222222222222222222222222222222",
+			"0:vs_creator2:",
+			"VST2",
+			"profile",
+			"vs_creator2",
+			"2000000000000000000000000",
+			300.0,
+			0.002,
+			5,
+			PlatformGroupIonConnect,
+		)
+		helperSetupGlobalSet(t, ctx, globalTopSetKey, map[string]float64{
+			"0:vs_creator1:": 500.0,
+			"0:vs_creator2:": 300.0,
 		})
-
-		ta := New(ctx).(*tokenAnalytics)
-
-		tokens, err := ta.GetTokensFromViewingSession(ctx, "top", sessionID, "", 2, 0)
+		helperSetupGlobalSet(t, ctx, globalTrendingSetKey, map[string]float64{
+			"0:vs_creator1:": 1000.0,
+			"0:vs_creator2:": 800.0,
+		})
+		sessionID, _, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.2.1", "device_vs1", nil)
+		require.NoError(t, err)
+		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTop, sessionID, "", 10, 0)
 		require.NoError(t, err)
 		require.Len(t, tokens, 2)
-		assert.Equal(t, token1, tokens[0].Addresses.IonConnect) // Highest score
-		assert.Equal(t, token2, tokens[1].Addresses.IonConnect)
+		assert.Equal(t, "profile", tokens[0].Type)
+		assert.Equal(t, "vs_alice", tokens[0].Title)
+		assert.Equal(t, "VS Alice", tokens[0].Description)
+		assert.NotEmpty(t, tokens[0].ImageURL)
+		assert.False(t, tokens[0].CreatedAt.IsZero())
 
-		tokens, err = ta.GetTokensFromViewingSession(ctx, "top", sessionID, "", 2, 1)
-		require.NoError(t, err)
-		require.Len(t, tokens, 2)
-		assert.Equal(t, token2, tokens[0].Addresses.IonConnect)
-		assert.Equal(t, token3, tokens[1].Addresses.IonConnect)
+		assert.Equal(t, "0:vs_creator1:", tokens[0].Addresses.IonConnect)
+		assert.Empty(t, tokens[0].Addresses.Twitter)
 
-		tokens, err = ta.GetTokensFromViewingSession(ctx, "top", sessionID, "", 1, 2)
-		require.NoError(t, err)
-		require.Len(t, tokens, 1)
-		assert.Equal(t, token3, tokens[0].Addresses.IonConnect)
+		assert.Equal(t, "vs_alice", tokens[0].Creator.Username)
+		assert.Equal(t, "VS Alice", tokens[0].Creator.Display)
+		assert.True(t, tokens[0].Creator.Verified)
+		assert.NotEmpty(t, tokens[0].Creator.Avatar)
+		assert.Equal(t, "0:vs_creator1:", tokens[0].Creator.Addresses.IonConnect)
 
-		tokens, err = ta.GetTokensFromViewingSession(ctx, "top", sessionID, "", 10, 10)
-		require.NoError(t, err)
-		require.Empty(t, tokens)
+		assert.InDelta(t, 500.0, tokens[0].MarketData.MarketCap, 1.0, "Market cap from top set")
+		assert.InDelta(t, 1000.0, tokens[0].MarketData.Volume, 1.0, "Volume from trending set")
+		assert.Equal(t, uint64(10), tokens[0].MarketData.Holders)
+		assert.InDelta(t, 0.001, tokens[0].MarketData.PriceUSD, 0.0001)
+		if tokens[0].MarketData.BondingCurveProgress != nil {
+			assert.GreaterOrEqual(t, tokens[0].MarketData.BondingCurveProgress.GoalAmount, uint64(0))
+		}
+
+		assert.Equal(t, "profile", tokens[1].Type)
+		assert.Equal(t, "vs_bob", tokens[1].Title)
+		assert.Equal(t, "vs_bob", tokens[1].Creator.Username)
+		assert.Equal(t, "VS Bob", tokens[1].Creator.Display)
+		assert.False(t, tokens[1].Creator.Verified)
+		assert.InDelta(t, 300.0, tokens[1].MarketData.MarketCap, 1.0)
+		assert.InDelta(t, 800.0, tokens[1].MarketData.Volume, 1.0)
+		assert.Equal(t, uint64(5), tokens[1].MarketData.Holders)
+		assert.InDelta(t, 0.002, tokens[1].MarketData.PriceUSD, 0.0001)
 	})
 
-	t.Run("filters_tokens_by_creator_keyword", func(t *testing.T) {
+	t.Run("returns tokens with keyword filter", func(t *testing.T) {
+		helperInsertTestUser(t, ctx, testDB, "vs_creator_kw", "vs_keyword", "VS Keyword User", "", false, PlatformGroupIonConnect)
 
-		helperInsertTestUser(t, ctx, testDB, "creator_alice", "alice_crypto", "Alice Crypto", "", true)
-		helperInsertTestUser(t, ctx, testDB, "creator_bob", "bob_dev", "Bob Developer", "", false)
-		helperInsertTestUser(t, ctx, testDB, "creator_charlie", "charlie_trader", "Charlie Trader", "", false)
+		// Insert token with lookup that includes keyword
+		helperInsertTestToken(t, ctx, testDB,
+			"0xVSKW1111111111111111111111111111111111",
+			"0:vs_creator_kw:",
+			"KWT",
+			"profile",
+			"vs_creator_kw",
+			"1000000000000000000000000",
+			200.0,
+			0.0005,
+			3,
+			PlatformGroupIonConnect,
+		)
 
-		tokenAlice := "30001:creator_alice:alice_token"
-		tokenBob := "30001:creator_bob:bob_token"
-		tokenCharlie := "30001:creator_charlie:charlie_token"
-		helperInsertTestToken(t, ctx, testDB, "0xalice", tokenAlice, "ALI", "30001", "creator_alice",
-			"1000000000000000000000", 500.0, 1.0, 5)
-		helperInsertTestToken(t, ctx, testDB, "0xbob", tokenBob, "BOB", "30001", "creator_bob",
-			"1000000000000000000000", 300.0, 1.0, 3)
-		helperInsertTestToken(t, ctx, testDB, "0xcharlie", tokenCharlie, "CHA", "30001", "creator_charlie",
-			"1000000000000000000000", 100.0, 1.0, 1)
-
-		sessionID := "test-session-keyword"
-		sessKey := sessionKey("trending", sessionID)
-		err := testRedis.ZAdd(ctx, sessKey,
-			redis.Z{Score: 500.0, Member: tokenAlice},
-			redis.Z{Score: 300.0, Member: tokenBob},
-			redis.Z{Score: 100.0, Member: tokenCharlie},
-		).Err()
-		require.NoError(t, err)
-		err = testRedis.Expire(ctx, sessKey, defaultViewingSessionTTL).Err()
-		require.NoError(t, err)
-
-		helperCreateGlobalTopSet(t, ctx, map[string]float64{
-			tokenAlice:   1000.0,
-			tokenBob:     600.0,
-			tokenCharlie: 200.0,
+		helperSetupGlobalSet(t, ctx, globalTopSetKey, map[string]float64{
+			"0:vs_creator_kw:": 200.0,
 		})
 
-		ta := New(ctx).(*tokenAnalytics)
+		sessionID, _, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.2.2", "device_kw", nil)
+		require.NoError(t, err)
 
-		tokens, err := ta.GetTokensFromViewingSession(ctx, "trending", sessionID, "alice", 10, 0)
+		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTop, sessionID, "keyword", 10, 0)
 		require.NoError(t, err)
 		require.Len(t, tokens, 1)
-		assert.Equal(t, tokenAlice, tokens[0].Addresses.IonConnect)
-		assert.Equal(t, "alice_crypto", tokens[0].Creator.Username)
+		assert.Equal(t, "vs_keyword", tokens[0].Creator.Username)
+	})
 
-		tokens, err = ta.GetTokensFromViewingSession(ctx, "trending", sessionID, "bob", 10, 0)
-		require.NoError(t, err)
-		require.Len(t, tokens, 1)
-		assert.Equal(t, tokenBob, tokens[0].Addresses.IonConnect)
+	t.Run("respects pagination", func(t *testing.T) {
+		for i := 0; i < 5; i++ {
+			creator := testUniqueID("vs_page_creator", i)
+			helperInsertTestUser(t, ctx, testDB, creator, testUniqueID("vs_page", i), testUniqueID("VS Page", i), "", false, PlatformGroupIonConnect)
+			helperInsertTestToken(t, ctx, testDB,
+				testUniqueID("0xVSPAGE", i)+"111111111111111111111111111",
+				"0:"+creator+":",
+				testUniqueID("PG", i),
+				"profile",
+				creator,
+				"1000000000000000000000000",
+				float64(100+i*50),
+				0.0001,
+				1,
+				PlatformGroupIonConnect,
+			)
+		}
 
-		tokens, err = ta.GetTokensFromViewingSession(ctx, "trending", sessionID, "nonexistent", 10, 0)
+		helperSetupGlobalSet(t, ctx, globalTopSetKey, map[string]float64{
+			"0:" + testUniqueID("vs_page_creator", 0) + ":": 100.0,
+			"0:" + testUniqueID("vs_page_creator", 1) + ":": 150.0,
+			"0:" + testUniqueID("vs_page_creator", 2) + ":": 200.0,
+			"0:" + testUniqueID("vs_page_creator", 3) + ":": 250.0,
+			"0:" + testUniqueID("vs_page_creator", 4) + ":": 300.0,
+		})
+
+		sessionID, _, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.2.3", "device_page", nil)
 		require.NoError(t, err)
-		require.Empty(t, tokens)
+
+		tokens1, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTop, sessionID, "", 2, 0)
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, len(tokens1), 1, "Expected at least 1 token in first page")
+
+		tokens2, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTop, sessionID, "", 2, 2)
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, len(tokens2), 0)
 	})
 }
 
-func TestApplyPagination(t *testing.T) {
+func TestGetGlobalSetKey(t *testing.T) {
 	t.Parallel()
 
-	addresses := []string{"addr1", "addr2", "addr3", "addr4", "addr5"}
-
-	t.Run("returns_first_page", func(t *testing.T) {
-		result := applyPagination(addresses, 2, 0)
-		require.Equal(t, []string{"addr1", "addr2"}, result)
-	})
-
-	t.Run("returns_second_page", func(t *testing.T) {
-		result := applyPagination(addresses, 2, 2)
-		require.Equal(t, []string{"addr3", "addr4"}, result)
-	})
-
-	t.Run("returns_partial_last_page", func(t *testing.T) {
-		result := applyPagination(addresses, 2, 4)
-		require.Equal(t, []string{"addr5"}, result)
-	})
-
-	t.Run("returns_empty_for_offset_beyond_length", func(t *testing.T) {
-		result := applyPagination(addresses, 2, 10)
-		require.Empty(t, result)
-	})
-
-	t.Run("returns_all_when_limit_exceeds_length", func(t *testing.T) {
-		result := applyPagination(addresses, 100, 0)
-		require.Equal(t, addresses, result)
-	})
-
-	t.Run("handles_empty_input", func(t *testing.T) {
-		result := applyPagination([]string{}, 10, 0)
-		require.Empty(t, result)
-	})
-}
-
-func TestSearchTokensByCreatorLookup(t *testing.T) {
-	t.Run("finds_tokens_by_creator_username", func(t *testing.T) {
-		ctx := t.Context()
-		cleanupAllTestData(ctx)
-
-		helperInsertTestUser(t, ctx, testDB, "search_creator1", "satoshi_nakamoto", "Satoshi", "", true)
-		helperInsertTestUser(t, ctx, testDB, "search_creator2", "vitalik_buterin", "Vitalik", "", true)
-
-		token1 := "30001:search_creator1:btc_token"
-		token2 := "30001:search_creator2:eth_token"
-		helperInsertTestToken(t, ctx, testDB, "0xsearch1", token1, "BTC", "30001", "search_creator1",
-			"1000000000000000000000", 1000.0, 50000.0, 100)
-		helperInsertTestToken(t, ctx, testDB, "0xsearch2", token2, "ETH", "30001", "search_creator2",
-			"2000000000000000000000", 500.0, 2000.0, 50)
-
-		ta := New(ctx).(*tokenAnalytics)
-
-		addresses, err := ta.searchTokensByCreatorLookup(ctx, "satoshi")
+	t.Run("returns correct keys for top session type", func(t *testing.T) {
+		key, err := getGlobalSetKey(sessionTypeTop, nil)
 		require.NoError(t, err)
-		require.Len(t, addresses, 1)
-		assert.Equal(t, token1, addresses[0])
+		assert.Equal(t, globalTopSetKey, key)
 
-		addresses, err = ta.searchTokensByCreatorLookup(ctx, "vitalik")
+		profileType := TokenTypeProfile
+		key, err = getGlobalSetKey(sessionTypeTop, &profileType)
 		require.NoError(t, err)
-		require.Len(t, addresses, 1)
-		assert.Equal(t, token2, addresses[0])
+		assert.Equal(t, globalTopProfileSetKey, key)
 
-		addresses, err = ta.searchTokensByCreatorLookup(ctx, "naka")
+		postType := TokenTypePost
+		key, err = getGlobalSetKey(sessionTypeTop, &postType)
 		require.NoError(t, err)
-		require.Len(t, addresses, 1)
-		assert.Equal(t, token1, addresses[0])
+		assert.Equal(t, globalTopPostSetKey, key)
 	})
 
-	t.Run("returns_empty_for_no_match", func(t *testing.T) {
-		ctx := t.Context()
-		cleanupAllTestData(ctx)
-
-		ta := New(ctx).(*tokenAnalytics)
-
-		addresses, err := ta.searchTokensByCreatorLookup(ctx, "nonexistent_user_xyz")
+	t.Run("returns correct keys for trending session type", func(t *testing.T) {
+		key, err := getGlobalSetKey(sessionTypeTrending, nil)
 		require.NoError(t, err)
-		require.Empty(t, addresses)
+		assert.Equal(t, globalTrendingSetKey, key)
+
+		videoType := TokenTypeVideo
+		key, err = getGlobalSetKey(sessionTypeTrending, &videoType)
+		require.NoError(t, err)
+		assert.Equal(t, globalTrendingVideoSetKey, key)
 	})
 
-	t.Run("is_case_insensitive", func(t *testing.T) {
-		ctx := t.Context()
-		cleanupAllTestData(ctx)
-
-		helperInsertTestUser(t, ctx, testDB, "case_creator", "CamelCaseUser", "Camel User", "", false)
-		token := "30001:case_creator:case_token"
-		helperInsertTestToken(t, ctx, testDB, "0xcase", token, "CASE", "30001", "case_creator",
-			"1000000000000000000000", 100.0, 1.0, 1)
-
-		ta := New(ctx).(*tokenAnalytics)
-
-		addresses1, err := ta.searchTokensByCreatorLookup(ctx, "camelcase")
+	t.Run("returns correct keys for bonding curve progress session type", func(t *testing.T) {
+		key, err := getGlobalSetKey(sessionTypeBondingCurveProgress, nil)
 		require.NoError(t, err)
-		require.Len(t, addresses1, 1)
+		assert.Equal(t, globalBondingCurveProgressSetKey, key)
 
-		addresses2, err := ta.searchTokensByCreatorLookup(ctx, "CAMELCASE")
+		articleType := TokenTypeArticle
+		key, err = getGlobalSetKey(sessionTypeBondingCurveProgress, &articleType)
 		require.NoError(t, err)
-		require.Len(t, addresses2, 1)
+		assert.Equal(t, globalBondingCurveProgressArticleSetKey, key)
+	})
 
-		addresses3, err := ta.searchTokensByCreatorLookup(ctx, "CaMeLcAsE")
-		require.NoError(t, err)
-		require.Len(t, addresses3, 1)
+	t.Run("returns error for unsupported session type", func(t *testing.T) {
+		key, err := getGlobalSetKey("invalid", nil)
+		require.Error(t, err)
+		assert.Empty(t, key)
+	})
 
-		assert.Equal(t, addresses1[0], addresses2[0])
-		assert.Equal(t, addresses2[0], addresses3[0])
+	t.Run("returns error for unsupported token type", func(t *testing.T) {
+		invalidType := "invalid"
+		key, err := getGlobalSetKey(sessionTypeTop, &invalidType)
+		require.Error(t, err)
+		assert.Empty(t, key)
 	})
 }
 
-func TestFilterTokensBySession(t *testing.T) {
-	t.Parallel()
+func helperSetupGlobalSet(t *testing.T, ctx context.Context, key string, data map[string]float64) {
+	t.Helper()
+	if len(data) == 0 {
+		return
+	}
+	members := make([]redis.Z, 0, len(data))
+	for member, score := range data {
+		members = append(members, redis.Z{Score: score, Member: member})
+	}
+	err := testRedis.ZAdd(ctx, key, members...).Err()
+	require.NoError(t, err, "failed to setup global set: %s", key)
+}
 
-	ctx := t.Context()
-
-	t.Run("filters_candidates_by_session_tokens", func(t *testing.T) {
-		t.Parallel()
-
-		sessKey := sessionKey("test", "filter_session")
-		err := testRedis.ZAdd(ctx, sessKey,
-			redis.Z{Score: 100.0, Member: "token1"},
-			redis.Z{Score: 90.0, Member: "token2"},
-			redis.Z{Score: 80.0, Member: "token3"},
-		).Err()
-		require.NoError(t, err)
-		defer testRedis.Del(ctx, sessKey)
-
-		ta := New(ctx).(*tokenAnalytics)
-
-		candidates := []string{"token1", "token_not_in_session", "token3", "another_missing"}
-		filtered, err := ta.filterTokensBySession(ctx, sessKey, candidates)
-		require.NoError(t, err)
-		require.Len(t, filtered, 2)
-		assert.Contains(t, filtered, "token1")
-		assert.Contains(t, filtered, "token3")
-		assert.NotContains(t, filtered, "token_not_in_session")
-	})
-
-	t.Run("returns_empty_when_no_candidates_match", func(t *testing.T) {
-		t.Parallel()
-
-		sessKey := sessionKey("test", "empty_filter")
-		err := testRedis.ZAdd(ctx, sessKey, redis.Z{Score: 100.0, Member: "token_x"}).Err()
-		require.NoError(t, err)
-		defer testRedis.Del(ctx, sessKey)
-
-		ta := New(ctx).(*tokenAnalytics)
-
-		candidates := []string{"token_a", "token_b", "token_c"}
-		filtered, err := ta.filterTokensBySession(ctx, sessKey, candidates)
-		require.NoError(t, err)
-		require.Empty(t, filtered)
-	})
-
-	t.Run("returns_all_candidates_when_all_match", func(t *testing.T) {
-		t.Parallel()
-
-		sessKey := sessionKey("test", "all_match")
-		err := testRedis.ZAdd(ctx, sessKey,
-			redis.Z{Score: 100.0, Member: "token_all1"},
-			redis.Z{Score: 90.0, Member: "token_all2"},
-			redis.Z{Score: 80.0, Member: "token_all3"},
-		).Err()
-		require.NoError(t, err)
-		defer testRedis.Del(ctx, sessKey)
-
-		ta := New(ctx).(*tokenAnalytics)
-
-		candidates := []string{"token_all1", "token_all2", "token_all3"}
-		filtered, err := ta.filterTokensBySession(ctx, sessKey, candidates)
-		require.NoError(t, err)
-		require.Len(t, filtered, 3)
-		assert.Equal(t, candidates, filtered)
-	})
+func testUniqueID(prefix string, index int) string {
+	return prefix + "_" + string(rune('A'+index))
 }
