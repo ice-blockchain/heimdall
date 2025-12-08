@@ -173,7 +173,6 @@ type (
 			Subscriptions
 			Notifier
 		}
-		dummyInsertBlockIdx uint64
 	}
 	tokenAnalyticsUsers struct {
 		ingestedDataDB *storage.DB
