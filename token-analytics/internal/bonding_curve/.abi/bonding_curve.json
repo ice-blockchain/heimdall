@@ -13,12 +13,7 @@
       },
       {
         "internalType": "address",
-        "name": "pcsRouter_",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "pcsFactory_",
+        "name": "uniswapV3Factory_",
         "type": "address"
       }
     ],
@@ -32,7 +27,7 @@
   },
   {
     "inputs": [],
-    "name": "AlreadyMigrated",
+    "name": "DoubleCreate",
     "type": "error"
   },
   {
@@ -52,12 +47,12 @@
   },
   {
     "inputs": [],
-    "name": "NotCreator",
+    "name": "InvalidExternalData",
     "type": "error"
   },
   {
     "inputs": [],
-    "name": "NotIonConnectAddress",
+    "name": "NotCreator",
     "type": "error"
   },
   {
@@ -67,17 +62,7 @@
   },
   {
     "inputs": [],
-    "name": "NothingToMigrate",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "PairDoesNotExist",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "RouterFactoryZero",
     "type": "error"
   },
   {
@@ -94,6 +79,11 @@
       }
     ],
     "name": "SlippageTooHigh",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "TokenNotMapped",
     "type": "error"
   },
   {
@@ -130,7 +120,7 @@
       {
         "indexed": false,
         "internalType": "string",
-        "name": "ionConnectAddress",
+        "name": "externalAddress",
         "type": "string"
       },
       {
@@ -140,7 +130,7 @@
         "type": "uint256"
       }
     ],
-    "name": "BondedTokenCreated",
+    "name": "BondingTokenCreated",
     "type": "event"
   },
   {
@@ -240,7 +230,7 @@
         "type": "bytes32"
       },
       {
-        "indexed": true,
+        "indexed": false,
         "internalType": "address",
         "name": "to",
         "type": "address"
@@ -265,7 +255,7 @@
         "type": "bytes32"
       },
       {
-        "indexed": true,
+        "indexed": false,
         "internalType": "address",
         "name": "lpToken",
         "type": "address"
@@ -296,15 +286,15 @@
         "type": "bytes32"
       },
       {
-        "indexed": true,
+        "indexed": false,
         "internalType": "address",
-        "name": "pair",
+        "name": "pool",
         "type": "address"
       },
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "lpAmount",
+        "name": "lockedLiquidityAmount",
         "type": "uint256"
       }
     ],
@@ -606,8 +596,13 @@
         "type": "string"
       },
       {
+        "internalType": "address",
+        "name": "_creator",
+        "type": "address"
+      },
+      {
         "internalType": "string",
-        "name": "_ionConnectAddress",
+        "name": "_externalAddress",
         "type": "string"
       },
       {
@@ -646,7 +641,7 @@
         "type": "uint256"
       }
     ],
-    "name": "createBondedToken",
+    "name": "createBondingToken",
     "outputs": [
       {
         "internalType": "address",
@@ -658,11 +653,17 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "factory",
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "name": "externalAddressToToken",
     "outputs": [
       {
-        "internalType": "contract IUniswapV2Factory",
+        "internalType": "address",
         "name": "",
         "type": "address"
       }
@@ -797,25 +798,6 @@
   {
     "inputs": [
       {
-        "internalType": "string",
-        "name": "",
-        "type": "string"
-      }
-    ],
-    "name": "ionConnectAddressToToken",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
         "internalType": "bytes32",
         "name": "pairId",
         "type": "bytes32"
@@ -832,7 +814,12 @@
           },
           {
             "internalType": "address",
-            "name": "pairAddress",
+            "name": "pool",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "lpToken",
             "type": "address"
           },
           {
@@ -841,7 +828,7 @@
             "type": "uint256"
           }
         ],
-        "internalType": "struct PancakeLiquidityMigrator.MigrationInfo",
+        "internalType": "struct UniswapV3Migrator.MigrationInfo",
         "name": "",
         "type": "tuple"
       }
@@ -965,19 +952,6 @@
         "internalType": "uint256",
         "name": "amountOutBase",
         "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "router",
-    "outputs": [
-      {
-        "internalType": "contract IUniswapV2Router02",
-        "name": "",
-        "type": "address"
       }
     ],
     "stateMutability": "view",
