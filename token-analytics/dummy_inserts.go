@@ -80,7 +80,7 @@ func (gen *dummyDataGenerator) Run(ctx context.Context) {
 	err := gen.generateToken(ctx, gen.Stream, &tokenRow{
 		ContractAddress:     "7307ea7ab4a7e5bcba1bf18c9495d08107d9f0d8",
 		CreatorMasterPubkey: masterPubkey,
-		ExternalAddress:     BuildProfileExternalAddress(masterPubkey),
+		ExternalAddress:     string(PlatformIonConnectProfile) + BuildProfileExternalAddress(masterPubkey),
 		Title:               "Yu's token",
 		Ticker:              "posidoniusenara",
 		TotalSupply:         "1000000000000000000000000",
@@ -604,7 +604,7 @@ func (gen *dummyDataGenerator) createUser(ctx context.Context, masterPubkey stri
 	verified := rand.Intn(2) == 0
 	lookup := strings.ToLower(strings.TrimSpace(username + " " + displayName))
 	ionConnectRelays := []string{"wss://141.95.59.70:4443", "wss://181.41.142.217:4443", "wss://94.100.16.233:4443"}
-	externalAddress := fmt.Sprintf("%s%s", PlatformIonConnectProfile, masterPubkey)
+	externalAddress := string(PlatformIonConnectProfile) + BuildProfileExternalAddress(masterPubkey)
 	_, err = storage.Exec(ctx, gen.Target, `
 		INSERT INTO users (
 			created_at, updated_at, id, master_pubkey, blockchain_address, external_address, username, 
