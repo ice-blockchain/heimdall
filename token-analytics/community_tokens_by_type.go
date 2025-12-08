@@ -52,7 +52,7 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 			COALESCE(t.holders_count, 0) as holders_count`
 
 		fromJoinsClause = `FROM %s t
-		LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
+		INNER JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
 		LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address`
 	)
 
@@ -60,9 +60,13 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 		kw := strings.ToLower(keyword)
 		whereClause := "WHERE 1=1"
 		if tokenType != nil && *tokenType != "" {
-			whereClause += fmt.Sprintf(` AND t.type = $%d`, argIndex)
-			args = append(args, *tokenType)
-			argIndex++
+			if *tokenType == TokenTypeAnyPost {
+				whereClause += ` AND t.type IN ('post', 'video', 'article')`
+			} else {
+				whereClause += fmt.Sprintf(` AND t.type = $%d`, argIndex)
+				args = append(args, *tokenType)
+				argIndex++
+			}
 		}
 		whereClause += fmt.Sprintf(` AND t.lookup LIKE '%%' || $%d || '%%'`, argIndex)
 		keywordArgIndex := argIndex
@@ -186,7 +190,7 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 			COALESCE(t.holders_count, 0) as holders_count
 		FROM tokens t
 		INNER JOIN tokens_featured tf ON tf.external_address = t.external_address
-		LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
+		INNER JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
 		LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 	`
 
@@ -194,9 +198,13 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 	argIndex := 1
 
 	if tokenType != nil && *tokenType != "" {
-		query += fmt.Sprintf(` WHERE t.type = $%d`, argIndex)
-		args = append(args, *tokenType)
-		argIndex++
+		if *tokenType == TokenTypeAnyPost {
+			query += ` WHERE t.type IN ('post', 'video', 'article')`
+		} else {
+			query += fmt.Sprintf(` WHERE t.type = $%d`, argIndex)
+			args = append(args, *tokenType)
+			argIndex++
+		}
 	}
 
 	query += ` ORDER BY tf.created_at DESC`
