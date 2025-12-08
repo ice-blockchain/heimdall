@@ -34,6 +34,13 @@ func TokenizedCommunitiesBondingCurveSmartContractABI() string {
 
 func NewUserRepository(ctx context.Context) UserRepository {
 	var cfg config
+	var development bool
+
+	appconfig.MustLoadFromKey("development", &development)
+	if !development {
+		log.Info("running in production mode, TA UserRepository is disabled")
+		return new(dummyUserRepository)
+	}
 
 	appconfig.MustLoadFromKey(applicationYamlKey, &cfg)
 	db := storage.MustConnect(ctx, applicationYamlKey, storage.NewFilesystemDDL(&ddl.Files, schemeMigrationTableName))
@@ -563,5 +570,21 @@ func initializeWorkersConfig(ctx context.Context, db *storage.DB, workers uint) 
 		}
 	}
 
+	return nil
+}
+
+func (dummyUserRepository) UpsertUser(context.Context, string, string, string, string, string, string, bool, []string) error {
+	return nil
+}
+
+func (dummyUserRepository) SetVerified(context.Context, string) error {
+	return nil
+}
+
+func (dummyUserRepository) HealthCheck(context.Context) error {
+	return nil
+}
+
+func (dummyUserRepository) Close() error {
 	return nil
 }
