@@ -92,7 +92,7 @@ func tokenCreated(signature, data, contractAddress, erc20TokenTopic string) (*Lo
 	}
 
 	var tokenCreatedEvent LogTokenCreated
-	if err := decode(ABI, &tokenCreatedEvent, "BondedTokenCreated", data); err != nil {
+	if err := decode(ABI, &tokenCreatedEvent, "BondingTokenCreated", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack BondedTokenCreated event")
 	}
 	tokenCreatedEvent.Address = common.HexToAddress(erc20TokenTopic)

@@ -37,7 +37,7 @@ func (s *subscriptions) routeSwapsToSubscribers(ctx context.Context) {
 		})
 	}()
 	for newSwap := range s.swaps {
-		ionAddrOfNewSwap, err := detectExternalAddressFromSwap(newSwap)
+		ionAddrOfNewSwap, _, err := detectExternalAddressFromSwap(newSwap)
 		if err != nil {
 			log.Error(errors.Wrapf(err, "failed to detect ion connect address from swap"))
 			continue

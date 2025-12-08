@@ -204,7 +204,7 @@ BEGIN
         COALESCE(NEW.display_name, '')
     ))
     WHERE creator_master_pubkey = NEW.master_pubkey;
-    
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -427,8 +427,10 @@ DECLARE
     hex_clean TEXT;
     to_token_offset_bytes INT;
     to_token_length_bytes INT;
+    ext_length INT;
     to_token_hex TEXT;
     data_start_pos INT;
+    external_address TEXT;
     result TEXT;
 BEGIN
     hex_clean := REPLACE(tx_input, '0x', '');
@@ -449,8 +451,13 @@ BEGIN
     -- Extract toToken hex data (starts 32 bytes after the length word)
     data_start_pos := (to_token_offset_bytes + 32) * 2 + 1;
     to_token_hex := substring(hex_clean from data_start_pos for (to_token_length_bytes * 2));
-
-    result := rtrim(convert_from(decode(to_token_hex, 'hex'), 'UTF8'), E'\\0');
+    -- first 20 bytes is content creator token, for content tokens
+    external_address := to_token_hex;
+    ext_length := char_length(external_address);
+    if ext_length > 40 THEN
+        external_address := substring(external_address from 41);
+    END IF;
+    result := rtrim(convert_from(decode(external_address, 'hex'), 'UTF8'), E'\\0');
 
     RETURN result;
 EXCEPTION
@@ -553,18 +560,18 @@ BEGIN
     END IF;
 
     v_token_address := LOWER('0x' || substring(p_topics[2] from 27 for 40)); -- topics[1] = token address (indexed)
-    
+
     v_external_address_raw := decode_string_abi(p_data, 2); -- Parse ABI-encoded data: (name, symbol, externalAddress, totalSupply)
     v_total_supply := decode_uint256(p_data, 3);
-    
+
     IF v_external_address_raw IS NULL OR v_external_address_raw = '' THEN
         RAISE WARNING 'Empty external address, skipping token creation';
         RETURN;
     END IF;
-    
+
     -- Parse platform and type from prefix (a, b, c, d for IonConnect; z, y, x, w for X.com)
     v_platform_prefix := substring(v_external_address_raw, 1, 1);
-    
+
     CASE v_platform_prefix
         WHEN 'a' THEN
             v_platform := 'a';
@@ -600,7 +607,7 @@ BEGIN
                 RAISE WARNING 'Failed to parse IonConnect video from %, skipping token creation', v_external_address_raw;
                 RETURN;
             END IF;
-        
+
         WHEN 'd' THEN
             v_platform := 'd';
             v_token_type := 'article';
@@ -632,13 +639,17 @@ BEGIN
             RAISE WARNING 'Invalid external address format (unknown prefix ''%''): %, skipping token creation', v_platform_prefix, v_external_address_raw;
             RETURN;
     END CASE;
+    IF v_creator_master_pubkey IS NULL OR v_creator_master_pubkey = '' THEN
+        RAISE WARNING 'Failed to determine creator master key from %v', v_external_address_raw;
+        RETURN;
+    END IF;
     IF v_token_type IS NULL THEN
         RAISE WARNING 'Failed to determine token type for %, skipping token creation', v_external_address;
         RETURN;
     END IF;
-    
+
     WITH user_data AS (
-        SELECT 
+        SELECT
             username,
             COALESCE(display_name, '') as display_name
         FROM users
@@ -649,7 +660,7 @@ BEGIN
         created_at, updated_at, contract_address, external_address, platform,
         ticker, total_supply, creator_master_pubkey, type, lookup, log_index
     )
-    SELECT 
+    SELECT
         p_block_timestamp,
         p_block_timestamp,
         v_token_address,
@@ -712,7 +723,8 @@ CREATE OR REPLACE FUNCTION process_swapped(
     p_data TEXT,
     p_tx_input TEXT,
     p_block_timestamp TIMESTAMP,
-    p_log_index BIGINT
+    p_log_index BIGINT,
+    p_address TEXT
 ) RETURNS VOID AS $$
 DECLARE
     v_swapper TEXT;
@@ -742,29 +754,36 @@ BEGIN
     v_input_amount := decode_uint256(p_data, 1);
     v_output_amount := decode_uint256(p_data, 2);
     v_fee := decode_uint256(p_data, 3);
-    
-    
+
+
     v_token_external_address := decode_to_token_from_input(p_tx_input); -- Extract toToken and baseToken from tx input
     v_base_token := decode_base_token_from_input(p_tx_input);
-    
-    IF v_token_external_address IS NULL OR v_token_external_address = '' THEN
-        RAISE WARNING 'Failed to decode toToken from tx input for tx %', p_transaction_hash;
-        RETURN;
-    END IF;
 
-    SELECT 
-        t.contract_address,
-        t.base_token,
-        bp.price_usd
-    INTO v_token_address, v_other_token, v_ion_price_usd
-    FROM tokens t
-    CROSS JOIN base_token_prices bp
-    WHERE t.external_address = v_token_external_address
-        AND bp.token_symbol = 'ION'; -- TODO: handle other tokens.
-    
-    IF v_token_address IS NULL THEN
-        RAISE WARNING 'Token with external_address % not found, skipping swap', v_token_external_address;
-        RETURN;
+    IF v_token_external_address IS NULL OR v_token_external_address = '' THEN
+        SELECT
+            t.contract_address,
+            t.base_token,
+            bp.price_usd,
+            t.external_address
+        INTO v_token_address, v_other_token, v_ion_price_usd, v_token_external_address
+        FROM tokens t
+                 CROSS JOIN base_token_prices bp
+        WHERE (t.contract_address = p_address)
+          AND bp.token_symbol = 'ION'; -- TODO: handle other tokens.
+    ELSE
+        SELECT
+            t.contract_address,
+            t.base_token,
+            bp.price_usd
+        INTO v_token_address, v_other_token, v_ion_price_usd
+        FROM tokens t
+        CROSS JOIN base_token_prices bp
+        WHERE (t.external_address = v_token_external_address)
+            AND bp.token_symbol = 'ION'; -- TODO: handle other tokens.
+        IF v_token_address IS NULL THEN
+            RAISE WARNING 'Token with external_address % not found, skipping swap', v_token_external_address;
+            RETURN;
+        END IF;
     END IF;
 
     IF v_ion_price_usd IS NULL THEN
@@ -860,12 +879,12 @@ BEGIN
     WHERE transaction_hash = NEW.transaction_hash;
 
     CASE NEW.topic0
-        WHEN '0xcaa54a9b9817e12b67fd790dabf6f963cb9a083290c5c06c052ea18bb9b29427' THEN -- BondedTokenCreated
+        WHEN '0x7a69aeb15d1aa44b3fec40fc8767221a5e4d2f41e58421d34db80a63f5a619c7' THEN -- BondedTokenCreated
             PERFORM process_bonded_token_created(NEW.topics, NEW.data, v_block_timestamp, NEW.log_index);
         WHEN '0x157b5bda8c36b5ae40a6f0d041dce8790309b04707aa024e9a73ee87287372b4' THEN -- PairRegistered
             PERFORM process_pair_registered(NEW.topics, v_block_timestamp);
         WHEN '0xe4a3738af8db2ebbadd5b857bb8d2e0e6650fade69486571ff038a2a81433ca0' THEN -- Swapped
-            PERFORM process_swapped(NEW.transaction_hash, NEW.topics, NEW.data, v_tx_input, v_block_timestamp, NEW.log_index);
+            PERFORM process_swapped(NEW.transaction_hash, NEW.topics, NEW.data, v_tx_input, v_block_timestamp, NEW.log_index, NEW.address);
         ELSE
             NULL;
     END CASE;
