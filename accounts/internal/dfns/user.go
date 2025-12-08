@@ -106,13 +106,15 @@ func (c *dfnsClient) CompleteRegistrationWithWallets(ctx context.Context, creden
 	header.Add(userActionDfnsHeader, "false")
 	credentials.EarlyAccessEmail = ""
 	walletNetwork := DefaultWalletNetworkMainNet
+	bscNetwork := BscWalletNetworkMainNet
 	if c.cfg.DFNS.TestNet {
 		walletNetwork = DefaultWalletNetworkTestNet
+		bscNetwork = BscWalletNetworkTestNet
 	}
 	credentials.Wallets = []struct {
 		Network string `json:"network"`
 		Name    string `json:"name"`
-	}{{Network: walletNetwork, Name: defaultWalletName}}
+	}{{Network: walletNetwork, Name: defaultWalletName}, {Network: bscNetwork, Name: defaultWalletName + "-bsc"}}
 	resp, err := dfnsCall[Credentials, map[string]any](ctx, c, credentials, "POST", "/auth/registration/enduser", header)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to finish registration due to failed dfns call")
