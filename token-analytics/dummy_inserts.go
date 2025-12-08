@@ -66,7 +66,7 @@ type (
 
 func (gen *dummyDataGenerator) Run(ctx context.Context) {
 	if gen.MaxTokenGens == 0 {
-		gen.MaxTokenGens = 200
+		gen.MaxTokenGens = 40
 	}
 	if gen.MaxUsers == 0 {
 		gen.MaxUsers = 200_000
@@ -370,14 +370,14 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
 	if err != nil {
 		return errors.Wrapf(err, "failed to pack token created tx input")
 	}
-	bondedTokenCreatedData, err := bondingcurve.ABI.Events["BondedTokenCreated"].Inputs.NonIndexed().Pack(
+	bondedTokenCreatedData, err := bondingcurve.ABI.Events["BondingTokenCreated"].Inputs.NonIndexed().Pack(
 		seedData.Title,
 		seedData.Ticker,
 		seedData.ExternalAddress,
 		totalSupply,
 	)
 	if err != nil {
-		return errors.Wrapf(err, "failed to pack bondedTokenCreatedData")
+		return errors.Wrapf(err, "failed to pack BondingTokenCreated")
 	}
 	tmpl, err := template.New("token").Parse(`{
   "stream": "{{.Stream}}",
