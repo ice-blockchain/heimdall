@@ -388,6 +388,7 @@ func (s *coinSync) buildBatchUpdate(now *time.Time, coinsList []*coingecko.Coin,
 			coin.Symbol = "ion"
 			coin.ID = "ion"
 		}
+		coingecko.OverwriteCoinWithStaticContent(coin)
 		if matchByDb {
 			params = append(params, id, coin.Decimals, coin.PriceUSD, coin.ID, coin.Network, coin.Name, coin.ContractAddress, coin.Symbol, coin.SymbolGroup(), coin.IconUrl)
 			placeholders = append(placeholders, fmt.Sprintf(""+
