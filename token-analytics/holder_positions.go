@@ -8,6 +8,7 @@ import (
 	"math/big"
 
 	"github.com/cockroachdb/errors"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
@@ -48,6 +49,9 @@ func (t *tokenAnalytics) GetHolderPositions(ctx context.Context, tokenExternalAd
 		}
 		rank, err := t.processedDataDB.ZRevRank(ctx, key, row.ExternalAddress).Result()
 		if err != nil {
+			if errors.Is(err, redis.Nil) {
+				continue
+			}
 			return nil, errors.Wrap(err, "failed to get rank from DragonflyDB")
 		}
 		rankings[row.ExternalAddress] = rank + 1
@@ -66,9 +70,9 @@ func (t *tokenAnalytics) GetHolderPositions(ctx context.Context, tokenExternalAd
 		amountUSD := amountTokensFloat * row.PriceUSD
 		pnl, pnlPercentage := calculatePnL(amountUSD, row.TotalInvestedUSD)
 
-		rank := uint64(0)
+		rank := uint64(1)
 		if r, ok := rankings[row.ExternalAddress]; ok {
-			rank = uint64(r)
+			rank = uint64(r) + 1
 		}
 		holderAddresses, err := buildAddressesFromExternalAddressAndPlatform(row.ExternalAddress, row.Platform)
 		if err != nil {

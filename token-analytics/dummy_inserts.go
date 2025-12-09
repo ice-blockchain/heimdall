@@ -608,9 +608,9 @@ func (gen *dummyDataGenerator) createUser(ctx context.Context, masterPubkey stri
 	_, err = storage.Exec(ctx, gen.Target, `
 		INSERT INTO users (
 			created_at, updated_at, id, master_pubkey, blockchain_address, external_address, username, 
-			display_name, lookup, ion_connect_relays, verified
+			display_name, lookup, ion_connect_relays, verified, platform_group
 		) VALUES (
-			NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9
+			NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 		)
 		ON CONFLICT (master_pubkey) 
 		DO UPDATE SET
@@ -622,8 +622,9 @@ func (gen *dummyDataGenerator) createUser(ctx context.Context, masterPubkey stri
 			display_name = EXCLUDED.display_name,
 			lookup = EXCLUDED.lookup,
 			ion_connect_relays = EXCLUDED.ion_connect_relays,
-			verified = EXCLUDED.verified
-	`, id, masterPubkey, "0x"+blockchainAddress, externalAddress, username, displayName, lookup, ionConnectRelays, verified)
+			verified = EXCLUDED.verified,
+			platform_group = EXCLUDED.platform_group
+	`, id, masterPubkey, "0x"+blockchainAddress, externalAddress, username, displayName, lookup, ionConnectRelays, verified, PlatformGroupIonConnect)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err)
 	}

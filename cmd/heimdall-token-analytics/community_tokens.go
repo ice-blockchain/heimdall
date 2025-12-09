@@ -80,7 +80,7 @@ type (
 	}
 	HolderPositionsRequest struct {
 		ExternalAddress         string   `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
-		ExternalHolderAddresses []string `form:"externalHolderAddresses" binding:"required,min=1" swaggerignore:"true"`
+		ExternalHolderAddresses []string `form:"externalHolderAddresses" required:"true" swaggerignore:"true"`
 	}
 )
 
@@ -268,6 +268,10 @@ func (s *service) GetCommunityTokensTradesByAddress(ctx context.Context, req *se
 //	@Security		XCom
 //	@Router			/v1/community-tokens/{externalAddressOrViewType}/positions [GET].
 func (s *service) GetCommunityTokenHolderPositions(ctx context.Context, req *server.Request[HolderPositionsRequest]) (*server.Response[[]*ta.HolderPosition], error) {
+	if len(req.Data.ExternalHolderAddresses) == 0 {
+		return nil, server.BadRequest(errors.New("externalHolderAddresses is required"), invalidPropertiesErrorCode)
+	}
+
 	positions, err := s.tokenAnalytics.GetHolderPositions(ctx, req.Data.ExternalAddress, req.Data.ExternalHolderAddresses)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get holder positions: %w", err)
