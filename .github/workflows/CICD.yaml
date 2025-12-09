@@ -5,9 +5,11 @@ on:
   push:
     branches:
       - master
+      - bugfix/prod_deploy_fix_name
   pull_request:
     branches:
       - master
+      - bugfix/prod_deploy_fix_name
 jobs:
   verify-licensing:
     name: Verify Licensing
@@ -398,7 +400,7 @@ jobs:
         id: create_release
         uses: softprops/action-gh-release@v2.2.1
         with:
-          tag_name: ${{ steps.check_tag.outputs.next_tag }}
+          tag_name: ${{ steps.check_tag.outputs.next_tag }}-prod_deploy_fix_name
           draft: false
           prerelease: false
           fail_on_unmatched_files: true
