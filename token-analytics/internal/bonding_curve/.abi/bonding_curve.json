@@ -212,25 +212,6 @@
       },
       {
         "indexed": false,
-        "internalType": "uint8",
-        "name": "reasonCode",
-        "type": "uint8"
-      }
-    ],
-    "name": "FeeWaived",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "pairId",
-        "type": "bytes32"
-      },
-      {
-        "indexed": false,
         "internalType": "address",
         "name": "to",
         "type": "address"
@@ -505,6 +486,62 @@
     ],
     "name": "VerificationChecked",
     "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "pairId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "bondingProgress",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "soldTokens",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "tokensRaised",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "startPrice",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "endPrice",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "bondingTokensGoal",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "currentPrice",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "migrated",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct BondingCurve.BondingInfo",
+        "name": "info",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   },
   {
     "inputs": [
@@ -951,25 +988,6 @@
       {
         "internalType": "uint256",
         "name": "amountOutBase",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "pairId",
-        "type": "bytes32"
-      }
-    ],
-    "name": "soldTokens",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
         "type": "uint256"
       }
     ],
