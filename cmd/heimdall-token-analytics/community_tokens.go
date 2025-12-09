@@ -25,26 +25,26 @@ type (
 		Keyword                   string   `form:"keyword" swaggerignore:"true"`
 		PaginationRequest
 	}
-	TokenInfoRequestByType struct {
-		ViewType string  `uri:"externalAddressOrViewType" binding:"required,oneof=latest" swaggerignore:"true"`
+	LatestTokensRequest struct {
+		ViewType string  `uri:"externalAddressOrViewType" swaggerignore:"true"`
 		Type     *string `form:"type" binding:"omitempty,oneof=profile post video article anyPost" swaggerignore:"true"`
 		Keyword  string  `form:"keyword" swaggerignore:"true"`
 		PaginationRequest
 	}
-	TokenInfoRequestByTypeAndSessionID struct {
-		ViewType         string `uri:"externalAddressOrViewType" binding:"required,oneof=top trending bondingCurveProgress" swaggerignore:"true"`
+	ViewingSessionTokensRequest struct {
+		ViewType         string `uri:"externalAddressOrViewType" swaggerignore:"true"`
 		ViewingSessionID string `uri:"viewingSessionId" required:"true" swaggerignore:"true"`
 		Keyword          string `form:"keyword" swaggerignore:"true"`
 		PaginationRequest
 	}
 	TokenInfoStreamTypeAndSessionQuery struct {
-		ViewType         string  `uri:"externalAddressOrViewType" binding:"required,oneof=latest top trending featured bondingCurveProgress" swaggerignore:"true"`
+		ViewType         string  `uri:"externalAddressOrViewType" swaggerignore:"true"`
 		ViewingSessionID string  `form:"viewingSessionId" swaggerignore:"true"`
 		Type             *string `form:"type" binding:"omitempty,oneof=profile post video article anyPost" swaggerignore:"true"`
 		PaginationRequest
 	}
-	SessionViewCreateRequest struct {
-		ViewType string  `uri:"externalAddressOrViewType" binding:"oneof=top trending bondingCurveProgress" swaggerignore:"true"`
+	CreateViewingSessionRequest struct {
+		ViewType string  `uri:"externalAddressOrViewType" swaggerignore:"true"`
 		Type     *string `form:"type" binding:"omitempty,oneof=profile post video article anyPost" swaggerignore:"true"`
 	}
 	SessionViewCreateResponse struct {
@@ -141,7 +141,13 @@ func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[To
 //	@Security		Nostr
 //	@Security		XCom
 //	@Router			/v1/community-tokens/{externalAddressOrViewType} [GET].
-func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoRequestByType]) (*server.Response[[]*ta.CommunityToken], error) {
+func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Request[LatestTokensRequest]) (*server.Response[[]*ta.CommunityToken], error) {
+	if req.Data.ViewType == "" {
+		return nil, server.BadRequest(fmt.Errorf("viewType is required"), invalidPropertiesErrorCode)
+	}
+	if req.Data.ViewType != ta.TokenTypeLatest {
+		return nil, server.BadRequest(fmt.Errorf("invalid viewType '%s': only '%s' is supported for this endpoint", req.Data.ViewType, ta.TokenTypeLatest), invalidPropertiesErrorCode)
+	}
 	limit := req.Data.Limit
 	if limit == 0 {
 		limit = 10
@@ -169,7 +175,18 @@ func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Requ
 //	@Security		Nostr
 //	@Security		XCom
 //	@Router			/v1/community-tokens/{externalAddressOrViewType}/viewing-sessions [POST].
-func (s *service) CreateCommunityTokensSessionView(ctx context.Context, req *server.Request[SessionViewCreateRequest]) (*server.Response[SessionViewCreateResponse], error) {
+func (s *service) CreateCommunityTokensSessionView(ctx context.Context, req *server.Request[CreateViewingSessionRequest]) (*server.Response[SessionViewCreateResponse], error) {
+	if req.Data.ViewType == "" {
+		return nil, server.BadRequest(fmt.Errorf("viewType is required"), invalidPropertiesErrorCode)
+	}
+	validTypes := map[string]bool{
+		ta.TokenTypeTop:                  true,
+		ta.TokenTypeTrending:             true,
+		ta.TokenTypeBondingCurveProgress: true,
+	}
+	if !validTypes[req.Data.ViewType] {
+		return nil, server.BadRequest(fmt.Errorf("invalid viewType '%s': must be one of: %s, %s, %s", req.Data.ViewType, ta.TokenTypeTop, ta.TokenTypeTrending, ta.TokenTypeBondingCurveProgress), invalidPropertiesErrorCode)
+	}
 	clientIP := req.Context.ClientIP()
 	deviceKey := req.Token.GetDevicePublicKey()
 	sessionID, ttl, err := s.tokenAnalytics.CreateViewingSession(ctx, req.Data.ViewType, clientIP, deviceKey, req.Data.Type)
@@ -202,7 +219,18 @@ func (s *service) CreateCommunityTokensSessionView(ctx context.Context, req *ser
 //	@Security		Nostr
 //	@Security		XCom
 //	@Router			/v1/community-tokens/{externalAddressOrViewType}/viewing-sessions/{viewingSessionId} [GET].
-func (s *service) GetCommunityTokensSessionByID(ctx context.Context, req *server.Request[TokenInfoRequestByTypeAndSessionID]) (*server.Response[[]*ta.CommunityToken], error) {
+func (s *service) GetCommunityTokensSessionByID(ctx context.Context, req *server.Request[ViewingSessionTokensRequest]) (*server.Response[[]*ta.CommunityToken], error) {
+	if req.Data.ViewType == "" {
+		return nil, server.BadRequest(fmt.Errorf("viewType is required"), invalidPropertiesErrorCode)
+	}
+	validTypes := map[string]bool{
+		ta.TokenTypeTop:                  true,
+		ta.TokenTypeTrending:             true,
+		ta.TokenTypeBondingCurveProgress: true,
+	}
+	if !validTypes[req.Data.ViewType] {
+		return nil, server.BadRequest(fmt.Errorf("invalid viewType '%s': must be one of: %s, %s, %s", req.Data.ViewType, ta.TokenTypeTop, ta.TokenTypeTrending, ta.TokenTypeBondingCurveProgress), invalidPropertiesErrorCode)
+	}
 	limit := req.Data.Limit
 	if limit == 0 {
 		limit = 10

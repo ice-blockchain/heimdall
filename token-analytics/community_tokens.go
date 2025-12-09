@@ -200,6 +200,16 @@ func weiToFloat64FromBigInt(weiAmount *big.Int) float64 {
 	return result
 }
 
+func weiToFloat64FromBigFloat(weiAmount *big.Float) float64 {
+	if weiAmount == nil {
+		return 0
+	}
+	result := new(big.Float).Quo(weiAmount, big.NewFloat(1e18))
+	convertedResult, _ := result.Float64()
+
+	return convertedResult
+}
+
 func calculatePnL(amountUSD, totalInvestedUSD float64) (pnl float64, pnlPercentage float64) {
 	pnl = amountUSD - totalInvestedUSD
 	pnlPercentage = 0.0

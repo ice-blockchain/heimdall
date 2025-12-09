@@ -155,8 +155,8 @@ func (t *tokenAnalytics) getTokensWithKeywordFilter(ctx context.Context, session
 	return t.getTokenDetailsWithScoresMap(ctx, sessionType, paginatedAddresses, paginatedScores)
 }
 
-func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessionType string, ionConnectAddresses []string, scoresMap map[string]float64) ([]*CommunityToken, error) {
-	if len(ionConnectAddresses) == 0 {
+func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessionType string, externalAddresses []string, scoresMap map[string]float64) ([]*CommunityToken, error) {
+	if len(externalAddresses) == 0 {
 		return []*CommunityToken{}, nil
 	}
 	query := `
@@ -188,7 +188,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 		LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
 		WHERE t.external_address = ANY($1)
 	`
-	tokensPtr, err := storage.Select[tokenRow](ctx, t.ingestedDataDB, query, ionConnectAddresses)
+	tokensPtr, err := storage.Select[tokenRow](ctx, t.ingestedDataDB, query, externalAddresses)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get token details: %w", err)
 	}
@@ -196,22 +196,23 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 	for i := range tokensPtr {
 		tokensMap[tokensPtr[i].ExternalAddress] = tokensPtr[i]
 	}
-	additionalMetrics, err := t.fetchAdditionalMetricsFromRedis(ctx, sessionType, ionConnectAddresses)
+	additionalMetrics, err := t.fetchAdditionalMetricsFromRedis(ctx, sessionType, externalAddresses)
 	if err != nil {
 		return nil, err
 	}
-	result := make([]*CommunityToken, 0, len(ionConnectAddresses))
-	for _, addr := range ionConnectAddresses {
+	result := make([]*CommunityToken, 0, len(externalAddresses))
+	for _, addr := range externalAddresses {
 		token, exists := tokensMap[addr]
 		if !exists {
 			continue
 		}
-		var marketCap, volume int
+		var marketCap float64
+		var volume float64
 		if sessionType == sessionTypeTop {
-			marketCap = int(scoresMap[addr])
-			volume = additionalMetrics[addr]
+			marketCap = scoresMap[addr]
+			volume = weiToFloat64FromBigFloat(new(big.Float).SetFloat64(additionalMetrics[addr]))
 		} else {
-			volume = int(scoresMap[addr])
+			volume = weiToFloat64FromBigFloat(new(big.Float).SetFloat64(scoresMap[addr]))
 			marketCap = additionalMetrics[addr]
 		}
 
@@ -251,8 +252,8 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 				Addresses: creatorExternalAddresses,
 			},
 			MarketData: MarketData{
-				MarketCap:            float64(marketCap),
-				Volume:               float64(volume),
+				MarketCap:            marketCap,
+				Volume:               volume,
 				Holders:              uint64(token.HoldersCount),
 				PriceUSD:             token.PriceUSD,
 				BondingCurveProgress: bondingCurveProgress,
@@ -264,27 +265,27 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 	return result, nil
 }
 
-func (t *tokenAnalytics) fetchAdditionalMetricsFromRedis(ctx context.Context, sessionType string, ionConnectAddresses []string) (map[string]int, error) {
+func (t *tokenAnalytics) fetchAdditionalMetricsFromRedis(ctx context.Context, sessionType string, externalAddresses []string) (map[string]float64, error) {
 	pipe := t.processedDataDB.Pipeline()
-	cmds := make(map[string]*redis.FloatCmd, len(ionConnectAddresses))
+	cmds := make(map[string]*redis.FloatCmd, len(externalAddresses))
 	if sessionType == sessionTypeTop {
 		// For "top": need to fetch volume from global trending set
-		for _, addr := range ionConnectAddresses {
+		for _, addr := range externalAddresses {
 			cmds[addr] = pipe.ZScore(ctx, globalTrendingSetKey, addr)
 		}
 	} else {
 		// For "trending": need to fetch market cap from global top set
-		for _, addr := range ionConnectAddresses {
+		for _, addr := range externalAddresses {
 			cmds[addr] = pipe.ZScore(ctx, globalTopSetKey, addr)
 		}
 	}
 	if _, err := pipe.Exec(ctx); err != nil && err != redis.Nil {
 		return nil, fmt.Errorf("failed to fetch metrics from Redis: %w", err)
 	}
-	result := make(map[string]int, len(ionConnectAddresses))
+	result := make(map[string]float64, len(externalAddresses))
 	for addr, cmd := range cmds {
 		if score, err := cmd.Result(); err == nil {
-			result[addr] = int(score)
+			result[addr] = score
 		}
 	}
 
