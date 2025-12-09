@@ -359,7 +359,7 @@ jobs:
     name: Release
     outputs:
       nextTag: ${{ steps.check_tag.outputs.next_tag }}
-    if: ${{ github.event_name == 'push' }}
+    if: ${{ always() && (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || github.event_name == 'push' }}
     runs-on: ubuntu-latest
     permissions: write-all
     steps:

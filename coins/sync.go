@@ -34,7 +34,7 @@ func MustStartSyncer(ctx context.Context, cancel context.CancelFunc) Sync {
 	if len(iceCoin) == 0 {
 		log.Panic(errors.New("ice coin not found on coin gecko"))
 	}
-	db := storage.MustConnect(ctx, fmt.Sprintf(ddl, syncFrequency(s.cfg, DefaultWalletViewCoinSymbolGroup), iceCoin[0].PriceUSD, keyCoinsMaxVersion), applicationYamlKey)
+	db := storage.MustConnect(ctx, applicationYamlKey, storage.NewStringDDL(fmt.Sprintf(ddl, syncFrequency(s.cfg, DefaultWalletViewCoinSymbolGroup), iceCoin[0].PriceUSD, keyCoinsMaxVersion)))
 	s.db = db
 	s.shutdown = db.Close
 	registry := metrics.NewRegistry()

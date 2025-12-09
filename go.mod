@@ -5,6 +5,8 @@ go 1.25.5
 replace (
 	github.com/dgraph-io/ristretto => github.com/dgraph-io/ristretto v0.1.0
 	github.com/nbd-wtf/go-nostr => github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5
+	github.com/quic-go/qpack => github.com/quic-go/qpack v0.5.1
+	github.com/quic-go/quic-go => github.com/quic-go/quic-go v0.56.0
 )
 
 require (
