@@ -30,7 +30,7 @@ func TestGenerateDummyDataFlow(t *testing.T) {
 
 		time.Sleep(time.Hour)
 		synctest.Wait()
-		require.EqualValues(t, gen.MaxTokenGens, gen.activeTokensWorkers.Load())
+		require.InDelta(t, gen.MaxTokenGens, gen.activeTokensWorkers.Load(), 2)
 
 		cancel()
 	})

@@ -172,26 +172,30 @@ func (t *tokenAnalytics) HealthCheck(ctx context.Context) error {
 func (t *tokenAnalyticsUsers) UpsertUser(ctx context.Context, id, masterPubkey, blockchainAddress, username, displayName, avatar string, verified bool, ionConnectRelays []string) error {
 	lookup := strings.ToLower(strings.TrimSpace(username + " " + displayName))
 
+	externalAddress := BuildProfileExternalAddress(masterPubkey)
+
 	_, err := storage.Exec(ctx, t.ingestedDataDB, `
 		INSERT INTO users (
-			created_at, updated_at, id, master_pubkey, blockchain_address, username, 
-			display_name, avatar, lookup, ion_connect_relays, verified
+			created_at, updated_at, id, master_pubkey, blockchain_address, external_address, username, 
+			display_name, avatar, lookup, ion_connect_relays, verified, platform_group
 		) VALUES (
-			NOW(), NOW(), $1, $2, $9, $3, $4, $5, $6, $7, $8
+			NOW(), NOW(), $1, $2, $10, $9, $3, $4, $5, $6, $7, $8, 'ionconnect'::platform_type
 		)
 		ON CONFLICT (master_pubkey) 
 		DO UPDATE SET
 			updated_at = NOW(),
 			id = EXCLUDED.id,
+			external_address = EXCLUDED.external_address,
 			username = EXCLUDED.username,
 			display_name = EXCLUDED.display_name,
 			avatar = EXCLUDED.avatar,
 			lookup = EXCLUDED.lookup,
 			ion_connect_relays = EXCLUDED.ion_connect_relays,
-			verified = EXCLUDED.verified
-	`, id, masterPubkey, username, displayName, avatar, lookup, ionConnectRelays, verified, blockchainAddress)
-	if err == nil {
-		return nil
+			verified = EXCLUDED.verified,
+			platform_group = EXCLUDED.platform_group
+	`, id, masterPubkey, username, displayName, avatar, lookup, ionConnectRelays, verified, externalAddress, blockchainAddress)
+	if err != nil {
+		return fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err)
 	}
 
 	log.Error(fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err))
@@ -372,11 +376,11 @@ func (t *tokenAnalytics) createStreamForContractAddress(ctx context.Context, con
 	}
 
 	_, err = storage.Exec(ctx, t.ingestedDataDB, `
-      UPDATE streams SET
-          stream_id = $2,
-          created_at = $3,
-          name = $4
-      WHERE contract_address = $1;`, contractAddress, stream.ID, stream.CreatedAt, stream.Name)
+	  UPDATE streams SET
+	      stream_id = $2,
+	      created_at = $3,
+	      name = $4
+	  WHERE contract_address = $1;`, contractAddress, stream.ID, stream.CreatedAt, stream.Name)
 	if err != nil {
 		return fmt.Errorf("failed to insert stream for %v: %w", contractAddress, err)
 	}

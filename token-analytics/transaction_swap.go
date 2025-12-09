@@ -24,6 +24,7 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	if err != nil {
 		return fmt.Errorf("failed to detect external_address from tx.Input: %w", err)
 	}
+	externalAddress = externalAddress[1:]
 
 	type tokenAndUserInfo struct {
 		ContractAddress      string `db:"contract_address"`
@@ -106,7 +107,7 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 		tokenAmount = ev.InputAmount // User sends tokens
 		sign = -1.0
 	}
-	deltaMarketCapUSD := sign * bigIntToFloat(tokenAmount) * priceUSD
+	deltaMarketCapUSD := sign * weiToFloat64FromBigInt(tokenAmount) * priceUSD
 
 	log.Debug(fmt.Sprintf("Swap processed: contractAddress=%s, tokenExternalAddress=%s, userExternalAddress=%s (will be processed by trigger on tx_logs)",
 		contractAddress, tokenExternalAddress, userExternalAddress))
@@ -118,7 +119,7 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 		return fmt.Errorf("failed to get current user position: %w", err)
 	}
 
-	amountFloat := bigIntToFloat(tokenAmount)
+	amountFloat := weiToFloat64FromBigInt(tokenAmount)
 	var newScore float64
 	if !ev.Direction { // buy
 		newScore = currentScore + amountFloat
@@ -147,7 +148,7 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 					return pErr
 				}
 			}
-			if IsContentType(tokenExternalAddress) {
+			if IsContentType(tokenType) {
 				if pErr := pipeliner.ZIncrBy(ctx, globalTopAnyPostSetKey, deltaMarketCapUSD, tokenExternalAddress).Err(); pErr != nil {
 					return pErr
 				}
@@ -168,8 +169,8 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 }
 
 func calculatePriceFromSwap(ev *bondingcurve.LogTokenSwapped) float64 {
-	inputAmount := bigIntToFloat(ev.InputAmount)
-	outputAmount := bigIntToFloat(ev.OutputAmount)
+	inputAmount := weiToFloat64FromBigInt(ev.InputAmount)
+	outputAmount := weiToFloat64FromBigInt(ev.OutputAmount)
 	if outputAmount == 0 {
 		return 0
 	}

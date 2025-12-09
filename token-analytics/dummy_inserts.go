@@ -20,6 +20,7 @@ import (
 	"github.com/pkg/errors"
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
+	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 )
@@ -75,10 +76,11 @@ func (gen *dummyDataGenerator) Run(ctx context.Context) {
 		gen.TokenGeneratorTTL = 4 * time.Hour
 	}
 
+	masterPubkey := "9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f"
 	err := gen.generateToken(ctx, gen.Stream, &tokenRow{
 		ContractAddress:     "7307ea7ab4a7e5bcba1bf18c9495d08107d9f0d8",
-		CreatorMasterPubkey: "9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f",
-		ExternalAddress:     "a9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f",
+		CreatorMasterPubkey: masterPubkey,
+		ExternalAddress:     string(PlatformIonConnectProfile) + BuildProfileExternalAddress(masterPubkey),
 		Title:               "Yu's token",
 		Ticker:              "posidoniusenara",
 		TotalSupply:         "1000000000000000000000000",
@@ -109,18 +111,19 @@ func (gen *dummyDataGenerator) createTokenWithBuysOrSellsProcessor(ctx context.C
 	}
 
 	var externalAddress string
-	var platformPrefix Platform
-	switch kind {
-	case nostr.KindProfileMetadata:
+	if kind == nostr.KindProfileMetadata {
 		dTag = ""
-		platformPrefix = PlatformIonConnectProfile
-		externalAddress = BuildProfileExternalAddress(master)
-	case nostr.KindArticle:
-		platformPrefix = PlatformIonConnectArticle
-		externalAddress = BuildContentExternalAddress(platformPrefix, kind, master, dTag)
-	default:
-		platformPrefix = PlatformIonConnectPost
-		externalAddress = BuildContentExternalAddress(platformPrefix, kind, master, dTag)
+		platformPrefix := string(PlatformIonConnectProfile) // "a"
+		externalAddress = platformPrefix + BuildProfileExternalAddress(master)
+	} else if kind == nostr.KindArticle {
+		platformPrefix := string(PlatformIonConnectArticle) // "c"
+		externalAddress = platformPrefix + BuildContentExternalAddress(kind, master, dTag)
+	} else if kind == model.CustomIONKindEditableTextNote {
+		platformPrefix := string(PlatformIonConnectPost) // "b"
+		externalAddress = platformPrefix + BuildContentExternalAddress(kind, master, dTag)
+	} else {
+		platformPrefix := string(PlatformIonConnectVideo) // "d"
+		externalAddress = platformPrefix + BuildContentExternalAddress(kind, master, dTag)
 	}
 	names := []string{
 		"Super Duper Token",
@@ -601,7 +604,7 @@ func (gen *dummyDataGenerator) createUser(ctx context.Context, masterPubkey stri
 	verified := rand.Intn(2) == 0
 	lookup := strings.ToLower(strings.TrimSpace(username + " " + displayName))
 	ionConnectRelays := []string{"wss://141.95.59.70:4443", "wss://181.41.142.217:4443", "wss://94.100.16.233:4443"}
-	externalAddress := fmt.Sprintf("%s%s", PlatformIonConnectProfile, masterPubkey)
+	externalAddress := BuildProfileExternalAddress(masterPubkey)
 	_, err = storage.Exec(ctx, gen.Target, `
 		INSERT INTO users (
 			created_at, updated_at, id, master_pubkey, blockchain_address, external_address, username, 

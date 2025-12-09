@@ -46,8 +46,31 @@ const docTemplate = `{
                         "minimum": 1,
                         "type": "integer",
                         "example": 3,
-                        "description": "Number of top holders to include (1-10)",
-                        "name": "includeTopHolders",
+                        "description": "Number of top platform holders to include (1-10)",
+                        "name": "includeTopPlatformHolders",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"bitcoin\"",
+                        "description": "Search keyword for filtering tokens",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 10,
+                        "description": "Number of items to return (requires keyword)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 0,
+                        "description": "Number of items to skip (requires keyword)",
+                        "name": "offset",
                         "in": "query"
                     }
                 ],
@@ -59,6 +82,12 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/tokenanalytics.CommunityToken"
                             }
+                        }
+                    },
+                    "400": {
+                        "description": "if request parameters are invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     },
                     "401": {
@@ -314,6 +343,81 @@ const docTemplate = `{
                 ]
             }
         },
+        "/v1/community-tokens/{externalAddressOrViewType}/positions": {
+            "get": {
+                "description": "Returns positions for specific holders of a community token.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tokens"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"0:9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f:\"",
+                        "description": "External address of the token",
+                        "name": "externalAddressOrViewType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "example": "\"0:abc123:,0:def456:\"",
+                        "description": "External addresses of holders",
+                        "name": "externalHolderAddresses",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/tokenanalytics.HolderPosition"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "if request parameters are invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    },
+                    {
+                        "XCom": []
+                    }
+                ]
+            }
+        },
         "/v1/community-tokens/{externalAddressOrViewType}/viewing-sessions": {
             "post": {
                 "description": "Creates a new session view for community tokens analytics.",
@@ -508,8 +612,8 @@ const docTemplate = `{
                         "minimum": 1,
                         "type": "integer",
                         "example": 3,
-                        "description": "Number of top holders to include (1-10)",
-                        "name": "includeTopHolders",
+                        "description": "Number of top platform holders to include (1-10)",
+                        "name": "includeTopPlatformHolders",
                         "in": "query"
                     }
                 ],
@@ -908,8 +1012,8 @@ const docTemplate = `{
                         "minimum": 1,
                         "type": "integer",
                         "example": 3,
-                        "description": "Number of top holders to include (1-10)",
-                        "name": "includeTopHolders",
+                        "description": "Number of top platform holders to include (1-10)",
+                        "name": "includeTopPlatformHolders",
                         "in": "query"
                     }
                 ],
@@ -1302,6 +1406,26 @@ const docTemplate = `{
                 "creatorVerified": {
                     "type": "boolean",
                     "example": true
+                },
+                "holderAvatar": {
+                    "type": "string",
+                    "example": "https://example.com/holder-avatar.png"
+                },
+                "holderBNBBSCWallet": {
+                    "type": "string",
+                    "example": "0x1234567890abcdef1234567890abcdef12345678"
+                },
+                "holderDisplayName": {
+                    "type": "string",
+                    "example": "Jane Doe"
+                },
+                "holderUsername": {
+                    "type": "string",
+                    "example": "janedoe"
+                },
+                "holderVerified": {
+                    "type": "boolean",
+                    "example": false
                 }
             }
         },
@@ -1347,13 +1471,13 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "currentAmount": {
-                    "type": "number"
+                    "type": "integer"
                 },
                 "currentAmountUSD": {
                     "type": "number"
                 },
                 "goalAmount": {
-                    "type": "number"
+                    "type": "integer"
                 },
                 "goalAmountUSD": {
                     "type": "number"
@@ -1401,6 +1525,12 @@ const docTemplate = `{
                 "holder": {
                     "$ref": "#/definitions/tokenanalytics.User"
                 },
+                "pnl": {
+                    "type": "number"
+                },
+                "pnlPercentage": {
+                    "type": "number"
+                },
                 "rank": {
                     "type": "integer"
                 },
@@ -1421,6 +1551,9 @@ const docTemplate = `{
                 "marketCap": {
                     "type": "number"
                 },
+                "platformHolders": {
+                    "type": "integer"
+                },
                 "position": {
                     "$ref": "#/definitions/tokenanalytics.Position"
                 },
@@ -1430,7 +1563,7 @@ const docTemplate = `{
                 "ticker": {
                     "type": "string"
                 },
-                "topHolders": {
+                "topPlatformHolders": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/tokenanalytics.HolderPosition"

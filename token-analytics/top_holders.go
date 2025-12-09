@@ -40,6 +40,7 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 			COALESCE(creator.display_name, '') as creator_display,
 			creator.verified as creator_verified,
 			COALESCE(creator.avatar, '') as creator_avatar,
+			creator.platform_group as creator_platform,
 			t.price_usd as price_usd,
 			t.total_supply as total_supply,
 			holder.master_pubkey as holder_master_pubkey,
@@ -47,7 +48,8 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 			COALESCE(holder.display_name, '') as holder_display,
 			holder.verified as holder_verified,
 			COALESCE(holder.avatar, '') as holder_avatar,
-			holder.external_address as holder_external_address
+			holder.external_address as holder_external_address,
+			holder.platform_group as holder_platform
 		FROM tokens t
 		LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
 		JOIN users holder ON holder.external_address = ANY($2)
@@ -92,16 +94,17 @@ func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []
 			totalSupplyFloat = 0
 		}
 		amountTokens := z.Score
+		amountUint64 := uint64(amountTokens)
 		amountUSD := amountTokens * holderData.PriceUSD
 		supplyShare := calculateSupplyShare(amountTokens, totalSupplyFloat)
 
-		creatorAddresses, err := buildAddressesFromExternalAddress(BuildProfileExternalAddress(holderData.CreatorMasterPubkey))
+		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(BuildProfileExternalAddress(holderData.CreatorMasterPubkey), holderData.CreatorPlatform)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s: %w", holderData.CreatorMasterPubkey, err)
+			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s (platform %s): %w", holderData.CreatorMasterPubkey, holderData.CreatorPlatform, err)
 		}
-		holderAddresses, err := buildAddressesFromExternalAddress(userExternalAddress)
+		holderAddresses, err := buildAddressesFromExternalAddressAndPlatform(userExternalAddress, holderData.HolderPlatform)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build holder addresses from external_address %s: %w", userExternalAddress, err)
+			return nil, fmt.Errorf("failed to build holder addresses from external_address %s (platform %s): %w", userExternalAddress, holderData.HolderPlatform, err)
 		}
 		holder := &TopHolderPosition{
 			Creator: User{
@@ -121,7 +124,7 @@ func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []
 					Addresses:    holderAddresses,
 				},
 				Rank:        uint64(rank + 1),
-				Amount:      uint64(amountTokens),
+				Amount:      amountUint64,
 				AmountUSD:   amountUSD,
 				SupplyShare: supplyShare,
 			},

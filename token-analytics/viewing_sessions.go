@@ -5,6 +5,7 @@ package tokenanalytics
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"sort"
 
 	"github.com/google/uuid"
@@ -154,19 +155,6 @@ func (t *tokenAnalytics) getTokensWithKeywordFilter(ctx context.Context, session
 	return t.getTokenDetailsWithScoresMap(ctx, sessionType, paginatedAddresses, paginatedScores)
 }
 
-func (t *tokenAnalytics) getTokenDetailsWithScores(ctx context.Context, sessionKey, sessionType string, ionConnectAddresses []string) ([]*CommunityToken, error) {
-	scoresMap := make(map[string]float64)
-	for _, addr := range ionConnectAddresses {
-		score, err := t.processedDataDB.ZScore(ctx, sessionKey, addr).Result()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get score for token %s: %w", addr, err)
-		}
-		scoresMap[addr] = score
-	}
-
-	return t.getTokenDetailsWithScoresMap(ctx, sessionType, ionConnectAddresses, scoresMap)
-}
-
 func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessionType string, ionConnectAddresses []string, scoresMap map[string]float64) ([]*CommunityToken, error) {
 	if len(ionConnectAddresses) == 0 {
 		return []*CommunityToken{}, nil
@@ -175,6 +163,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 		SELECT 
 			t.contract_address,
 			t.external_address,
+			t.platform as platform,
 			t.type,
 		creator.username as title,
 		COALESCE(creator.display_name, '') as description,
@@ -187,9 +176,14 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 		COALESCE(creator.display_name, '') as creator_display,
 		creator.verified as creator_verified,
 		COALESCE(creator.avatar, '') as creator_avatar,
+		creator.platform_group as creator_platform,
 		COALESCE(t.price_usd, 0) as price_usd,
 		COALESCE(t.holders_count, 0) as holders_count,
-		COALESCE(t.market_cap_usd, 0) as market_cap_usd
+		COALESCE(t.market_cap_usd, 0) as market_cap_usd,
+		COALESCE(t.bonding_curve_current_amount, '0') as bonding_curve_current_amount,
+		COALESCE(t.bonding_curve_goal_amount, '0') as bonding_curve_goal_amount,
+		COALESCE(t.bonding_curve_current_amount_usd, 0) as bonding_curve_current_amount_usd,
+		COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd
 		FROM tokens t
 		LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
 		WHERE t.external_address = ANY($1)
@@ -221,14 +215,27 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 			marketCap = additionalMetrics[addr]
 		}
 
-		tokenExternalAddresses, err := buildAddressesFromExternalAddress(token.ExternalAddress)
+		tokenExternalAddresses, err := buildAddressesFromExternalAddressAndPlatform(token.ExternalAddress, token.Platform)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build addresses from external_address %s: %w", token.ExternalAddress, err)
+			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", token.ExternalAddress, token.Platform, err)
 		}
-		creatorExternalAddresses, err := buildAddressesFromExternalAddress(BuildProfileExternalAddress(token.CreatorMasterPubkey))
+		creatorExternalAddresses, err := buildAddressesFromExternalAddressAndPlatform(BuildProfileExternalAddress(token.CreatorMasterPubkey), token.CreatorPlatform)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s: %w", token.CreatorMasterPubkey, err)
+			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s (platform %s): %w", token.CreatorMasterPubkey, token.CreatorPlatform, err)
 		}
+
+		var bondingCurveProgress *BondingCurveProgress
+		if token.BondingCurveCurrentAmount != "" && token.BondingCurveGoalAmount != "" {
+			currentAmount, _ := new(big.Int).SetString(token.BondingCurveCurrentAmount, 10)
+			goalAmount, _ := new(big.Int).SetString(token.BondingCurveGoalAmount, 10)
+			bondingCurveProgress = &BondingCurveProgress{
+				CurrentAmount:    weiToUint64FromBigInt(currentAmount),
+				GoalAmount:       weiToUint64FromBigInt(goalAmount),
+				CurrentAmountUSD: token.BondingCurveCurrentAmountUSD,
+				GoalAmountUSD:    token.BondingCurveGoalAmountUSD,
+			}
+		}
+
 		result = append(result, &CommunityToken{
 			Type:        token.Type,
 			Title:       token.Title,
@@ -244,10 +251,11 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 				Addresses: creatorExternalAddresses,
 			},
 			MarketData: MarketData{
-				MarketCap: float64(marketCap),
-				Volume:    float64(volume),
-				Holders:   uint64(token.HoldersCount),
-				PriceUSD:  token.PriceUSD,
+				MarketCap:            float64(marketCap),
+				Volume:               float64(volume),
+				Holders:              uint64(token.HoldersCount),
+				PriceUSD:             token.PriceUSD,
+				BondingCurveProgress: bondingCurveProgress,
 			},
 		})
 	}
@@ -351,7 +359,22 @@ func getGlobalSetKey(sessionType string, tokenType *string) (string, error) {
 		}
 		return globalTrendingSetKey, nil
 	case sessionTypeBondingCurveProgress:
-		// TODO: implement bonding curve progress logic
+		if tokenType != nil && *tokenType != "" {
+			switch *tokenType {
+			case TokenTypeProfile:
+				return globalBondingCurveProgressProfileSetKey, nil
+			case TokenTypePost:
+				return globalBondingCurveProgressPostSetKey, nil
+			case TokenTypeVideo:
+				return globalBondingCurveProgressVideoSetKey, nil
+			case TokenTypeArticle:
+				return globalBondingCurveProgressArticleSetKey, nil
+			case TokenTypeAnyPost:
+				return globalBondingCurveProgressAnyPostSetKey, nil
+			default:
+				return "", fmt.Errorf("unsupported token type: %s", *tokenType)
+			}
+		}
 		return globalBondingCurveProgressSetKey, nil
 	default:
 		return "", fmt.Errorf("unsupported session type: %s", sessionType)

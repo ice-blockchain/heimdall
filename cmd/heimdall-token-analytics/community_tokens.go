@@ -20,8 +20,10 @@ type (
 		Offset uint64 `form:"offset" swaggerignore:"true"`
 	}
 	TokenInfoRequest struct {
-		ExternalAddresses []string `form:"externalAddresses" required:"true" swaggerignore:"true"`
-		IncludeTopHolders *uint32  `form:"includeTopHolders" swaggerignore:"true"`
+		ExternalAddresses         []string `form:"externalAddresses" required:"true" swaggerignore:"true"`
+		IncludeTopPlatformHolders *uint32  `form:"includeTopPlatformHolders" swaggerignore:"true"`
+		Keyword                   string   `form:"keyword" swaggerignore:"true"`
+		PaginationRequest
 	}
 	TokenInfoRequestByType struct {
 		ViewType string  `uri:"externalAddressOrViewType" binding:"required,oneof=latest" swaggerignore:"true"`
@@ -42,7 +44,7 @@ type (
 		PaginationRequest
 	}
 	SessionViewCreateRequest struct {
-		ViewType string  `uri:"externalAddressOrViewType" binding:"required,oneof=top trending bondingCurveProgress" swaggerignore:"true"`
+		ViewType string  `uri:"externalAddressOrViewType" binding:"oneof=top trending bondingCurveProgress" swaggerignore:"true"`
 		Type     *string `form:"type" binding:"omitempty,oneof=profile post video article anyPost" swaggerignore:"true"`
 	}
 	SessionViewCreateResponse struct {
@@ -66,10 +68,19 @@ type (
 		CreatorDisplayName string `json:"creatorDisplayName" example:"John Doe"`
 		CreatorAvatar      string `json:"creatorAvatar" example:"https://example.com/avatar.png"`
 		CreatorVerified    bool   `json:"creatorVerified" example:"true"`
+		HolderUsername     string `json:"holderUsername" example:"janedoe"`
+		HolderDisplayName  string `json:"holderDisplayName" example:"Jane Doe"`
+		HolderAvatar       string `json:"holderAvatar" example:"https://example.com/holder-avatar.png"`
+		HolderVerified     bool   `json:"holderVerified" example:"false"`
+		HolderBNBBSCWallet string `json:"holderBNBBSCWallet" example:"0x1234567890abcdef1234567890abcdef12345678"`
 	}
 	OHLCVRequest struct {
 		ExternalAddress string `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
 		Interval        string `form:"interval" swaggerignore:"true"` // e.g., "1m", "5m", "1h", etc.
+	}
+	HolderPositionsRequest struct {
+		ExternalAddress         string   `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
+		ExternalHolderAddresses []string `form:"externalHolderAddresses" binding:"required,min=1" swaggerignore:"true"`
 	}
 )
 
@@ -79,12 +90,16 @@ type (
 //	@Description	Returns community tokens information for the given Ion Connect addresses.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			externalAddresses	query		[]string	true	"External addresses of the tokens"			example(0x1234...,0x5678...)
-//	@Param			includeTopHolders	query		int			false	"Number of top holders to include (1-10)"	minimum(1)	maximum(10)	example(3)
-//	@Success		200					{array}		ta.CommunityToken
-//	@Failure		401					{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
-//	@Failure		500					{object}	server.ResponseErrorBody
-//	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Param			externalAddresses			query		[]string	true	"External addresses of the tokens"					example(0x1234...,0x5678...)
+//	@Param			includeTopPlatformHolders	query		int			false	"Number of top platform holders to include (1-10)"	minimum(1)	maximum(10)	example(3)
+//	@Param			keyword						query		string		false	"Search keyword for filtering tokens"				example("bitcoin")
+//	@Param			limit						query		uint32		false	"Number of items to return (requires keyword)"		example(10)
+//	@Param			offset						query		uint32		false	"Number of items to skip (requires keyword)"		example(0)
+//	@Success		200							{array}		ta.CommunityToken
+//	@Failure		400							{object}	server.ResponseErrorBody	"if request parameters are invalid"
+//	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		500							{object}	server.ResponseErrorBody
+//	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
 //	@Security		XCom
 //	@Router			/v1/community-tokens [GET].
@@ -92,13 +107,16 @@ func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[To
 	if len(req.Data.ExternalAddresses) == 0 {
 		return nil, server.BadRequest(errors.New("externalAddresses[] is required"), invalidPropertiesErrorCode)
 	}
-	if req.Data.IncludeTopHolders != nil {
-		if *req.Data.IncludeTopHolders < 1 || *req.Data.IncludeTopHolders > 10 {
-			return nil, server.BadRequest(errors.New("includeTopHolders must be between 1 and 10"), invalidPropertiesErrorCode)
+	if req.Data.IncludeTopPlatformHolders != nil {
+		if *req.Data.IncludeTopPlatformHolders < 1 || *req.Data.IncludeTopPlatformHolders > 10 {
+			return nil, server.BadRequest(errors.New("includeTopPlatformHolders must be between 1 and 10"), invalidPropertiesErrorCode)
 		}
 	}
+	if req.Data.Keyword == "" && (req.Data.Limit > 0 || req.Data.Offset > 0) {
+		return nil, server.BadRequest(errors.New("limit and offset can only be used with keyword parameter"), invalidPropertiesErrorCode)
+	}
 
-	tokens, err := s.tokenAnalytics.GetCommunityTokensByExternalAddresses(ctx, req.Data.ExternalAddresses, req.Token.GetMasterPublicKey(), req.Data.IncludeTopHolders)
+	tokens, err := s.tokenAnalytics.GetCommunityTokensByExternalAddresses(ctx, req.Data.ExternalAddresses, req.Token.GetMasterPublicKey(), req.Data.IncludeTopPlatformHolders, req.Data.Keyword, req.Data.Limit, req.Data.Offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get community tokens: %w", err)
 	}
@@ -233,6 +251,31 @@ func (s *service) GetCommunityTokensTradesByAddress(ctx context.Context, req *se
 	return server.OK(&resp), nil
 }
 
+// GetCommunityTokenHolderPositions godoc
+//
+//	@Schemes
+//	@Description	Returns positions for specific holders of a community token.
+//	@Tags			Tokens
+//	@Produce		json
+//	@Param			externalAddressOrViewType	path		string		true	"External address of the token"	example("0:9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f:")
+//	@Param			externalHolderAddresses		query		[]string	true	"External addresses of holders"	example("0:abc123:,0:def456:")
+//	@Success		200							{array}		ta.HolderPosition
+//	@Failure		400							{object}	server.ResponseErrorBody	"if request parameters are invalid"
+//	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		500							{object}	server.ResponseErrorBody
+//	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
+//	@Security		Nostr
+//	@Security		XCom
+//	@Router			/v1/community-tokens/{externalAddressOrViewType}/positions [GET].
+func (s *service) GetCommunityTokenHolderPositions(ctx context.Context, req *server.Request[HolderPositionsRequest]) (*server.Response[[]*ta.HolderPosition], error) {
+	positions, err := s.tokenAnalytics.GetHolderPositions(ctx, req.Data.ExternalAddress, req.Data.ExternalHolderAddresses)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get holder positions: %w", err)
+	}
+
+	return server.OK(&positions), nil
+}
+
 // SyncCommunityTokenExternalData godoc
 //
 //	@Schemes
@@ -258,6 +301,11 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 		req.Data.Body.CreatorDisplayName,
 		req.Data.Body.CreatorAvatar,
 		req.Data.Body.CreatorVerified,
+		req.Data.Body.HolderUsername,
+		req.Data.Body.HolderDisplayName,
+		req.Data.Body.HolderAvatar,
+		req.Data.Body.HolderVerified,
+		req.Data.Body.HolderBNBBSCWallet,
 	); err != nil {
 		return nil, fmt.Errorf("failed to update token external data: %w", err)
 	}
@@ -274,12 +322,12 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 //	@Description	Streams community tokens information for the given Ion Connect addresses.
 //	@Tags			stream
 //	@Produce		json
-//	@Param			externalAddresses	query		[]string	true	"External addresses of the tokens"			example(0x1234...,0x5678...)
-//	@Param			includeTopHolders	query		int			false	"Number of top holders to include (1-10)"	minimum(1)	maximum(10)	example(3)
-//	@Success		200					{object}	ta.CommunityToken
-//	@Failure		401					{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
-//	@Failure		500					{object}	server.ResponseErrorBody
-//	@Failure		504					{object}	server.ResponseErrorBody	"if request times out"
+//	@Param			externalAddresses			query		[]string	true	"External addresses of the tokens"					example(0x1234...,0x5678...)
+//	@Param			includeTopPlatformHolders	query		int			false	"Number of top platform holders to include (1-10)"	minimum(1)	maximum(10)	example(3)
+//	@Success		200							{object}	ta.CommunityToken
+//	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		500							{object}	server.ResponseErrorBody
+//	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
 //	@Security		XCom
 //	@Router			/v1sse/community-tokens [GET].
@@ -288,9 +336,9 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 	if len(req.Data.ExternalAddresses) == 0 {
 		return nil, server.BadRequest(errors.New("externalAddresses[] is required"), invalidPropertiesErrorCode)
 	}
-	if req.Data.IncludeTopHolders != nil {
-		if *req.Data.IncludeTopHolders < 1 || *req.Data.IncludeTopHolders > 10 {
-			return nil, server.BadRequest(errors.New("includeTopHolders must be between 1 and 10"), invalidPropertiesErrorCode)
+	if req.Data.IncludeTopPlatformHolders != nil {
+		if *req.Data.IncludeTopPlatformHolders < 1 || *req.Data.IncludeTopPlatformHolders > 10 {
+			return nil, server.BadRequest(errors.New("includeTopPlatformHolders must be between 1 and 10"), invalidPropertiesErrorCode)
 		}
 	}
 
@@ -298,7 +346,7 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 		events := make(chan server.StreamEvent[ta.CommunityToken], 100)
 
 		sendData := func() bool {
-			tokens, err := s.tokenAnalytics.GetCommunityTokensByExternalAddresses(ctx, req.Data.ExternalAddresses, req.Token.GetMasterPublicKey(), req.Data.IncludeTopHolders)
+			tokens, err := s.tokenAnalytics.GetCommunityTokensByExternalAddresses(ctx, req.Data.ExternalAddresses, req.Token.GetMasterPublicKey(), req.Data.IncludeTopPlatformHolders, req.Data.Keyword, req.Data.Limit, req.Data.Offset)
 			if err != nil {
 				slog.ErrorContext(ctx, "failed to get community tokens for streaming", "error", err, "addresses", req.Data.ExternalAddresses)
 				events <- server.StreamEvent[ta.CommunityToken]{
