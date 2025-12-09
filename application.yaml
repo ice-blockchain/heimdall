@@ -13,7 +13,7 @@ cmd/heimdall-identity-io:
     android: 9.9.9
     ios: 9.9.9
   tokenizedCommunities:
-    bondingCurveSmartContractAddress: 0x32d0Dde7d52621199dEb690cbfdE39E32fED4e84
+    bondingCurveSmartContractAddress: 0x0DC4FD80a011b2FFec23a6e35Ab6D0918F5972F3
     addressVersion: 1
     abiVersion: 1
   supportedSwapTokens:
@@ -433,7 +433,7 @@ token-analytics:
   workers: 10
   batchSize: 2
   bondingCurve:
-    smartContractAddress: 0x32d0Dde7d52621199dEb690cbfdE39E32fED4e84
+    smartContractAddress: 0x0DC4FD80a011b2FFec23a6e35Ab6D0918F5972F3
   ionTokenAddress: 0x2c73996BaBF1a06c2C057177353293f7cA0907c8
   quickNode:
     startBlock: 72173309
