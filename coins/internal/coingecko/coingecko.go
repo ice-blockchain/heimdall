@@ -233,7 +233,7 @@ func (c *client) GetCoins(ctx context.Context, coinIDs []string) ([]*Coin, error
 			IconUrl:  coinData.Image,
 			Symbol:   coinData.Symbol,
 		}
-		overwriteCoinWithStaticContent(cgCoin)
+		OverwriteCoinWithStaticContent(cgCoin)
 		res = append(res, cgCoin)
 	}
 	return res, nil
@@ -250,7 +250,7 @@ func (c *client) GetTokens(ctx context.Context, network string, contractAddresse
 	for _, tok := range tokensData.Data {
 		var coinData *Coin
 		coinData = convertTokenData(network, tok)
-		overwriteCoinWithStaticContent(coinData)
+		OverwriteCoinWithStaticContent(coinData)
 		res = append(res, coinData)
 	}
 	return res, nil
@@ -431,7 +431,7 @@ func (n *NFT) ImageUri() string {
 	return n.Image.Small
 }
 
-func overwriteCoinWithStaticContent(c *Coin) {
+func OverwriteCoinWithStaticContent(c *Coin) {
 	if overwrite, hasOverwrite := coinOverwrites["id:"+strings.ToLower(c.ID)]; hasOverwrite {
 		if overwrite.Name != "" {
 			c.Name = overwrite.Name
