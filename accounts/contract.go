@@ -353,6 +353,7 @@ type (
 		TopMaxAge                                  int     `yaml:"topMaxAge" mapstructure:"topMaxAge" json:"topMaxAge"`
 		TrendingMaxAge                             int     `yaml:"trendingMaxAge" mapstructure:"trendingMaxAge" json:"trendingMaxAge"`
 		ExploreMaxAge                              int     `yaml:"exploreMaxAge" mapstructure:"exploreMaxAge" json:"exploreMaxAge"`
+		TokenizedCommunitiesMaxAge                 int     `yaml:"tokenizedCommunitiesMaxAge" mapstructure:"tokenizedCommunitiesMaxAge" json:"tokenizedCommunitiesMaxAge"`
 		RepostThrottleDelay                        int     `yaml:"repostThrottleDelay" mapstructure:"repostThrottleDelay" json:"repostThrottleDelay"`
 		ConcurrentMediaDownloadsLimit              int     `yaml:"concurrentMediaDownloadsLimit" mapstructure:"concurrentMediaDownloadsLimit" json:"concurrentMediaDownloadsLimit"`
 		ExcludeUnclassifiedFromExplore             bool    `yaml:"excludeUnclassifiedFromExplore" mapstructure:"excludeUnclassifiedFromExplore" json:"excludeUnclassifiedFromExplore"`

@@ -417,6 +417,7 @@ apps-runtime:
     topMaxAge: 259200000
     trendingMaxAge: 86400000
     exploreMaxAge: 43200000
+    tokenizedCommunitiesMaxAge: 25920000000
     repostThrottleDelay: 10800000
     concurrentMediaDownloadsLimit: 3
     excludeUnclassifiedFromExplore: true
