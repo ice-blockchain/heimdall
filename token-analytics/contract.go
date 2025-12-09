@@ -239,6 +239,7 @@ type (
 		CreatorUsername              string     `db:"creator_username"`
 		CreatorDisplay               string     `db:"creator_display"`
 		CreatorAvatar                string     `db:"creator_avatar"`
+		CreatorExternalAddress       string     `db:"creator_external_address"`
 		CreatorPlatform              string     `db:"creator_platform"`
 		BaseToken                    string     `db:"base_token"`
 		PairId                       string     `db:"pair_id"`

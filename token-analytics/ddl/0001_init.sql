@@ -569,6 +569,7 @@ DECLARE
     v_lookup_value TEXT;
     v_kind INT;
     v_parts TEXT[];
+    v_token_symbol TEXT;
 BEGIN
     IF array_length(p_topics, 1) < 2 THEN
         RETURN;
@@ -576,7 +577,8 @@ BEGIN
 
     v_token_address := LOWER('0x' || substring(p_topics[2] from 27 for 40)); -- topics[1] = token address (indexed)
 
-    v_external_address_raw := decode_string_abi(p_data, 2); -- Parse ABI-encoded data: (name, symbol, externalAddress, totalSupply)
+    v_token_symbol := decode_string_abi(p_data, 1);
+    v_external_address_raw := decode_string_abi(p_data, 2);
     v_total_supply := decode_uint256(p_data, 3);
 
     IF v_external_address_raw IS NULL OR v_external_address_raw = '' THEN
@@ -595,103 +597,49 @@ BEGIN
     
     v_external_address := substring(v_external_address_raw from 2);
     
-    CASE v_platform_prefix
-        WHEN 'a' THEN
+    CASE
+        WHEN v_platform_prefix IN ('a', 'z') THEN
             v_token_type := 'profile';
-            v_parts := string_to_array(v_external_address, ':');
-            IF array_length(v_parts, 1) >= 2 THEN
-                v_creator_master_pubkey := v_parts[2]; -- [1]=kind, [2]=master
-            ELSE
-                RAISE WARNING 'Failed to parse IonConnect profile from %, skipping token creation', v_external_address_raw;
-                RETURN;
-            END IF;
-        WHEN 'b' THEN
+        WHEN v_platform_prefix IN ('b', 'y') THEN
             v_token_type := 'post';
-            v_parts := string_to_array(v_external_address, ':');
-            IF array_length(v_parts, 1) >= 2 THEN
-                v_creator_master_pubkey := v_parts[2];
-            ELSE
-                RAISE WARNING 'Failed to parse IonConnect post from %, skipping token creation', v_external_address_raw;
-                RETURN;
-            END IF;
-        WHEN 'c' THEN
+        WHEN v_platform_prefix IN ('c', 'x') THEN
             v_token_type := 'video';
-            v_parts := string_to_array(v_external_address, ':');
-            IF array_length(v_parts, 1) >= 2 THEN
-                v_creator_master_pubkey := v_parts[2];
-            ELSE
-                RAISE WARNING 'Failed to parse IonConnect video from %, skipping token creation', v_external_address_raw;
-                RETURN;
-            END IF;
-
-        WHEN 'd' THEN
-            v_token_type := 'article';
-            v_parts := string_to_array(v_external_address, ':');
-            IF array_length(v_parts, 1) >= 2 THEN
-                v_creator_master_pubkey := v_parts[2];
-            ELSE
-                RAISE WARNING 'Failed to parse IonConnect article from %, skipping token creation', v_external_address_raw;
-                RETURN;
-            END IF;
-        WHEN 'z' THEN
-            v_token_type := 'profile';
-        WHEN 'y' THEN
-            v_token_type := 'post';
-        WHEN 'x' THEN
-            v_token_type := 'video';
-        WHEN 'w' THEN
+        WHEN v_platform_prefix IN ('d', 'w') THEN
             v_token_type := 'article';
         ELSE
             RAISE WARNING 'Invalid external address format (unknown prefix ''%''): %, skipping token creation', v_platform_prefix, v_external_address_raw;
             RETURN;
     END CASE;
-    IF v_creator_master_pubkey IS NULL OR v_creator_master_pubkey = '' THEN
-        RAISE WARNING 'Failed to determine creator master key from %v', v_external_address_raw;
-        RETURN;
-    END IF;
+    
+    -- For ALL tokens, creator_master_pubkey will be populated from first Swapped event
+    v_creator_master_pubkey := NULL;
     IF v_token_type IS NULL THEN
         RAISE WARNING 'Failed to determine token type for %, skipping token creation', v_external_address;
         RETURN;
     END IF;
 
-    WITH user_data AS (
-        SELECT
-            username,
-            COALESCE(display_name, '') as display_name
-        FROM users
-        WHERE master_pubkey = v_creator_master_pubkey
-        LIMIT 1
-    )
     INSERT INTO tokens (
         created_at, updated_at, contract_address, external_address, platform,
-        ticker, total_supply, creator_master_pubkey, type, lookup, log_index
+        ticker, total_supply, creator_master_pubkey, type, log_index
     )
-    SELECT
+    VALUES (
         p_block_timestamp,
         p_block_timestamp,
         v_token_address,
         v_external_address,
         v_platform,
-        u.username,
+        v_token_symbol,
         v_total_supply,
-        v_creator_master_pubkey,
+        v_creator_master_pubkey, -- NULL, will be filled on first swap
         v_token_type,
-        LOWER(TRIM(
-            COALESCE(v_token_address, '') || ' ' ||
-            u.username || ' ' ||
-            COALESCE(u.display_name, '')
-        )),
         p_log_index
-    FROM (SELECT 1) dummy
-    LEFT JOIN user_data u ON v_creator_master_pubkey IS NOT NULL AND v_creator_master_pubkey != ''
+    )
     ON CONFLICT (external_address) DO UPDATE SET
         updated_at = EXCLUDED.updated_at,
         total_supply = EXCLUDED.total_supply,
-        creator_master_pubkey = EXCLUDED.creator_master_pubkey,
         contract_address = EXCLUDED.contract_address,
         platform = EXCLUDED.platform,
         ticker = COALESCE(EXCLUDED.ticker, tokens.ticker),
-        lookup = EXCLUDED.lookup,
         log_index = COALESCE(EXCLUDED.log_index, tokens.log_index);
 
     RAISE DEBUG 'TokenCreated processed: token=%', v_token_address;
@@ -840,15 +788,38 @@ BEGIN
 
     v_delta_market_cap := v_sign * (v_token_amount / 1e18) * v_price_usd;
 
-    UPDATE tokens
-    SET price_usd = v_price_usd,
-        market_cap_usd = GREATEST(market_cap_usd + v_delta_market_cap, 0),
-        updated_at = p_block_timestamp
-    WHERE contract_address = v_token_address;
-
     SELECT master_pubkey, external_address INTO v_user_master_pubkey, v_user_external_address
     FROM users
     WHERE LOWER(blockchain_address) = LOWER(v_user_address);
+
+    -- For ALL tokens, the first swapper is the token creator.
+    -- Only update creator_master_pubkey if this is the FIRST swap (direction=false means buy).
+    WITH user_data AS (
+        SELECT username, display_name
+        FROM users
+        WHERE master_pubkey = v_user_master_pubkey
+        LIMIT 1
+    )
+    UPDATE tokens t
+    SET price_usd = v_price_usd,
+        market_cap_usd = GREATEST(market_cap_usd + v_delta_market_cap, 0),
+        updated_at = p_block_timestamp,
+        creator_master_pubkey = CASE 
+            WHEN t.creator_master_pubkey IS NULL AND v_user_master_pubkey IS NOT NULL AND v_direction = false
+            THEN v_user_master_pubkey 
+            ELSE t.creator_master_pubkey 
+        END,
+        lookup = CASE
+            WHEN t.creator_master_pubkey IS NULL AND v_user_master_pubkey IS NOT NULL AND v_direction = false THEN
+                LOWER(TRIM(
+                    COALESCE(t.contract_address, '') || ' ' ||
+                    COALESCE(t.ticker, '') || ' ' ||
+                    COALESCE((SELECT username FROM user_data), '') || ' ' ||
+                    COALESCE((SELECT display_name FROM user_data), '')
+                ))
+            ELSE t.lookup
+        END
+    WHERE contract_address = v_token_address;
 
     v_cost_usd := (v_input_amount / 1e18) * v_ion_price_usd;
 
