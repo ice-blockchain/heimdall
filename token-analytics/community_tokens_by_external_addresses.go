@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"math/rand"
 	"strings"
 
 	"github.com/cockroachdb/errors"
@@ -201,7 +202,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 				Volume:       row.Volume24h,
 				Holders:      uint64(row.HoldersCount),
 				PriceUSD:     row.PriceUSD,
-				LiquidityUSD: row.LiquidityUSD,
+				LiquidityUSD: float64(rand.Intn(100000)),
 			},
 		}
 		tokens = append(tokens, token)
@@ -236,7 +237,7 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 			Holders:              uint64(row.HoldersCount),
 			PlatformHolders:      uint64(row.PlatformHoldersCount),
 			PriceUSD:             row.PriceUSD,
-			LiquidityUSD:         row.LiquidityUSD,
+			LiquidityUSD:         float64(rand.Intn(100000)),
 			BondingCurveProgress: bondingCurveProgress,
 		}
 
@@ -449,7 +450,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 			Holders:            uint64(row.HoldersCount),
 			PlatformHolders:    uint64(row.PlatformHoldersCount),
 			PriceUSD:           row.PriceUSD,
-			LiquidityUSD:       row.LiquidityUSD,
+			LiquidityUSD:       float64(rand.Intn(100000)),
 			TopPlatformHolders: topPlatformHolders,
 		}
 		if row.PositionAmountUSD > 0 {
