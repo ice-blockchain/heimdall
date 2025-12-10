@@ -245,6 +245,7 @@ type (
 		PairId                       string     `db:"pair_id"`
 		MarketCapUSD                 float64    `db:"market_cap_usd"`
 		PriceUSD                     float64    `db:"price_usd"`
+		LiquidityUSD                 float64    `db:"liquidity_usd"`
 		Volume24h                    float64    `db:"volume_24h"`
 		PositionAmountUSD            float64    `db:"position_amount_usd"`
 		PositionTotalInvestedUSD     float64    `db:"position_total_invested_usd"`
