@@ -20,7 +20,7 @@ type (
 		Offset uint64 `form:"offset" swaggerignore:"true"`
 	}
 	TokenInfoRequest struct {
-		ExternalAddresses         []string `form:"externalAddresses" required:"true" swaggerignore:"true"`
+		ExternalAddresses         []string `form:"externalAddresses" swaggerignore:"true"`
 		IncludeTopPlatformHolders *uint32  `form:"includeTopPlatformHolders" swaggerignore:"true"`
 		Keyword                   string   `form:"keyword" swaggerignore:"true"`
 		PaginationRequest
@@ -90,7 +90,7 @@ type (
 //	@Description	Returns community tokens information for the given Ion Connect addresses.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			externalAddresses			query		[]string	true	"External addresses of the tokens"					example(0x1234...,0x5678...)
+//	@Param			externalAddresses			query		[]string	true	"External addresses of the tokens"					collectionFormat(multi)
 //	@Param			includeTopPlatformHolders	query		int			false	"Number of top platform holders to include (1-10)"	minimum(1)	maximum(10)	example(3)
 //	@Param			keyword						query		string		false	"Search keyword for filtering tokens"				example("bitcoin")
 //	@Param			limit						query		uint32		false	"Number of items to return (requires keyword)"		example(10)
@@ -104,8 +104,8 @@ type (
 //	@Security		XCom
 //	@Router			/v1/community-tokens [GET].
 func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[TokenInfoRequest]) (*server.Response[[]*ta.CommunityToken], error) {
-	if len(req.Data.ExternalAddresses) == 0 {
-		return nil, server.BadRequest(errors.New("externalAddresses[] is required"), invalidPropertiesErrorCode)
+	if req.Data.Keyword == "" && len(req.Data.ExternalAddresses) == 0 {
+		return nil, server.BadRequest(errors.New("either externalAddresses[] or keyword is required"), invalidPropertiesErrorCode)
 	}
 	if req.Data.IncludeTopPlatformHolders != nil {
 		if *req.Data.IncludeTopPlatformHolders < 1 || *req.Data.IncludeTopPlatformHolders > 10 {
@@ -609,7 +609,7 @@ func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *serv
 //	@Router			/v1sse/community-tokens/{externalAddressOrViewType}/latest-trades [GET].
 //	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/latest-trades [GET].
 func (s *service) StreamCommunityTokensLatestTrades(ctx context.Context, req *server.Request[TradeRequest]) (server.StreamEventEmitter[ta.Trade], error) {
-	return s.latestTradesStream(req.Data.ExternalAddress, req.Data.Limit, 0)
+	return s.latestTradesStream(req.Data.ExternalAddress, req.Data.Limit, req.Data.Offset)
 }
 
 // StreamCommunityTokensTradingStats godoc
@@ -740,46 +740,50 @@ func (s *service) tradingStatsStream(ionContentAddress string) (server.StreamEve
 func (s *service) latestTradesStream(ionContentAddress string, limit, offset uint64) (server.StreamEventEmitter[ta.Trade], error) {
 	return func(ctx context.Context) (<-chan server.StreamEvent[ta.Trade], error) {
 		events := make(chan server.StreamEvent[ta.Trade], limit)
-		trades, lastTs, err := s.tokenAnalytics.GetLatestTrades(ctx, ionContentAddress, limit, offset, nil)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get initial last trades %v", ionContentAddress)
-		}
-		for _, t := range trades {
-			events <- server.StreamEvent[ta.Trade]{
-				Err:  nil,
-				Data: t,
-				Type: "message",
+
+		var currentLastTs *time.Time
+		sendData := func() bool {
+			trades, newLastTs, err := s.tokenAnalytics.GetLatestTrades(ctx, ionContentAddress, limit, offset, currentLastTs)
+			if err != nil {
+				events <- server.StreamEvent[ta.Trade]{
+					Type: "error",
+					Data: nil,
+					Err:  err,
+				}
+
+				return false
 			}
+			for _, trade := range trades {
+				events <- server.StreamEvent[ta.Trade]{
+					Type: "message",
+					Data: trade,
+				}
+			}
+			if len(trades) > 0 {
+				currentLastTs = &newLastTs
+			}
+
+			return true
 		}
 
-		ticker := time.NewTicker(1 * time.Second) // TODO: cfg?
+		ticker := time.NewTicker(1 * time.Second)
 		go func() {
 			defer close(events)
 			defer ticker.Stop()
+			if !sendData() {
+				return
+			}
 			for ctx.Err() == nil {
 				select {
 				case <-ctx.Done():
 					return
+
 				case <-ticker.C:
-					trades, lastTs, err = s.tokenAnalytics.GetLatestTrades(ctx, ionContentAddress, limit, 0, &lastTs)
-					if err != nil {
-						events <- server.StreamEvent[ta.Trade]{
-							Err:  err,
-							Data: nil,
-							Type: "error",
-						}
-						return
-					}
-					for _, t := range trades {
-						events <- server.StreamEvent[ta.Trade]{
-							Err:  nil,
-							Data: t,
-							Type: "message",
-						}
-					}
+					sendData()
 				}
 			}
 		}()
+
 		return events, nil
 	}, nil
 }

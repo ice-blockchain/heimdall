@@ -16,11 +16,11 @@ import (
 )
 
 func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Context, externalAddresses []string, requestorMasterPubkey string, includeTopPlatformHolders *uint32, keyword string, limit, offset uint64) ([]*CommunityToken, error) {
-	if len(externalAddresses) == 0 {
-		return []*CommunityToken{}, nil
-	}
 	if keyword != "" {
 		return t.searchCommunityTokens(ctx, externalAddresses, requestorMasterPubkey, keyword, limit, offset)
+	}
+	if len(externalAddresses) == 0 {
+		return []*CommunityToken{}, nil
 	}
 
 	if includeTopPlatformHolders != nil && *includeTopPlatformHolders > 0 {
@@ -37,7 +37,7 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 			COALESCE(creator.display_name, '') as description,
 			COALESCE(creator.avatar, '') as image_url,
 			t.ticker,
-			t.total_supply,
+			COALESCE(t.total_supply, '0') as total_supply,
 			t.created_at,
 			COALESCE(t.creator_master_pubkey, '') as creator_master_pubkey,
 			creator.username as creator_username,
@@ -78,6 +78,20 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 
 func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddresses []string, requestorMasterPubkey string, keyword string, limit, offset uint64) ([]*CommunityToken, error) {
 	kw := strings.ToLower(keyword)
+	var whereClause string
+	args := []interface{}{}
+	argIndex := 1
+
+	if len(externalAddresses) > 0 {
+		whereClause = fmt.Sprintf(`WHERE t.external_address = ANY($%d) AND t.lookup LIKE '%%' || $%d || '%%'`, argIndex, argIndex+1)
+		args = append(args, externalAddresses, kw)
+		argIndex += 2
+	} else {
+		whereClause = fmt.Sprintf(`WHERE t.lookup LIKE '%%' || $%d || '%%'`, argIndex)
+		args = append(args, kw)
+		argIndex++
+	}
+
 	query := `
 		WITH candidates AS (
 			SELECT 
@@ -90,6 +104,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 				t.market_cap_usd,
 				t.price_usd,
 				t.holders_count,
+				t.total_supply,
 				tv.volume_24h,
 				creator.username,
 				creator.display_name,
@@ -98,20 +113,19 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 				creator.external_address as creator_external_address,
 				creator.platform_group as creator_platform,
 				GREATEST(
-					similarity(t.lookup, $2),
-					word_similarity($2, t.lookup)
+					similarity(t.lookup, ` + fmt.Sprintf(`$%d`, argIndex-1) + `),
+					word_similarity(` + fmt.Sprintf(`$%d`, argIndex-1) + `, t.lookup)
 				) + 
 				CASE 
-					WHEN t.lookup LIKE $2 || ' %' THEN 1.0
-					WHEN t.lookup LIKE $2 || '%' THEN 0.5
+					WHEN t.lookup LIKE ` + fmt.Sprintf(`$%d`, argIndex-1) + ` || ' %' THEN 1.0
+					WHEN t.lookup LIKE ` + fmt.Sprintf(`$%d`, argIndex-1) + ` || '%' THEN 0.5
 					ELSE 0.0
 				END AS relevance_score
 			FROM tokens t
 			LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
 			LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
-			WHERE t.external_address = ANY($1)
-			  AND t.lookup LIKE '%' || $2 || '%'
-			ORDER BY t.lookup <-> $2
+			` + whereClause + `
+			ORDER BY t.lookup <-> ` + fmt.Sprintf(`$%d`, argIndex-1) + `
 			LIMIT 250
 		)
 		SELECT 
@@ -133,12 +147,10 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 			COALESCE(market_cap_usd, 0) as market_cap_usd,
 			COALESCE(price_usd, 0) as price_usd,
 			COALESCE(volume_24h / 1e18, 0) as volume_24h,
+			COALESCE(total_supply, '0') as total_supply,
 			COALESCE(holders_count, 0) as holders_count
 		FROM candidates
 		ORDER BY relevance_score DESC, volume_24h DESC, created_at DESC`
-
-	args := []interface{}{externalAddresses, kw}
-	argIndex := 3
 
 	if limit > 0 {
 		query += fmt.Sprintf(` LIMIT $%d`, argIndex)
@@ -165,6 +177,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", row.CreatorExternalAddress, row.CreatorPlatform, err)
 		}
 
+		totalSupply, _ := new(big.Int).SetString(row.TotalSupply, 10)
 		token := &CommunityToken{
 			Type:        row.Type,
 			Title:       row.Title,
@@ -181,6 +194,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 			},
 			MarketData: MarketData{
 				MarketCap: row.MarketCapUSD,
+				Supply:    weiToUint64FromBigInt(totalSupply),
 				Volume:    row.Volume24h,
 				Holders:   uint64(row.HoldersCount),
 				PriceUSD:  row.PriceUSD,
@@ -209,9 +223,11 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 			}
 		}
 
+		totalSupply, _ := new(big.Int).SetString(row.TotalSupply, 10)
 		marketData := MarketData{
 			Ticker:               row.Ticker,
 			MarketCap:            row.MarketCapUSD,
+			Supply:               weiToUint64FromBigInt(totalSupply),
 			Volume:               row.Volume24h,
 			Holders:              uint64(row.HoldersCount),
 			PlatformHolders:      uint64(row.PlatformHoldersCount),
@@ -273,7 +289,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 				COALESCE(creator.display_name, '') as description,
 				COALESCE(creator.avatar, '') as image_url,
 				t.ticker,
-				t.total_supply,
+				COALESCE(t.total_supply, '0') as total_supply,
 				COALESCE(t.creator_master_pubkey, '') as creator_master_pubkey,
 				creator.username as creator_username,
 				COALESCE(creator.display_name, '') as creator_display,
@@ -417,9 +433,11 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 		if err != nil {
 			return nil, err
 		}
+		totalSupply, _ := new(big.Int).SetString(row.TotalSupply, 10)
 		marketData := MarketData{
 			Ticker:             row.Ticker,
 			MarketCap:          row.MarketCapUSD,
+			Supply:             weiToUint64FromBigInt(totalSupply),
 			Volume:             row.Volume24h,
 			Holders:            uint64(row.HoldersCount),
 			PlatformHolders:    uint64(row.PlatformHoldersCount),

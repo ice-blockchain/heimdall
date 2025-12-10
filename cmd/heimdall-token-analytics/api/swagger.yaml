@@ -118,6 +118,8 @@ definitions:
         $ref: '#/definitions/tokenanalytics.Position'
       priceUSD:
         type: number
+      supply:
+        type: integer
       ticker:
         type: string
       topPlatformHolders:
@@ -251,8 +253,8 @@ paths:
       description: Returns community tokens information for the given Ion Connect
         addresses.
       parameters:
-      - description: External addresses of the tokens
-        example: 0x1234...,0x5678...
+      - collectionFormat: multi
+        description: External addresses of the tokens
         in: query
         items:
           type: string
