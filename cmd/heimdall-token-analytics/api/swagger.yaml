@@ -261,7 +261,6 @@ paths:
         items:
           type: string
         name: externalAddresses
-        required: true
         type: array
       - description: Number of top platform holders to include (1-10)
         example: 3

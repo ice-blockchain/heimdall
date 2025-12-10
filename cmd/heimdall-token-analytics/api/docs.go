@@ -38,8 +38,7 @@ const docTemplate = `{
                         "collectionFormat": "multi",
                         "description": "External addresses of the tokens",
                         "name": "externalAddresses",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "maximum": 10,
