@@ -90,7 +90,7 @@ type (
 //	@Description	Returns community tokens information for the given Ion Connect addresses.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			externalAddresses			query		[]string	true	"External addresses of the tokens"					collectionFormat(multi)
+//	@Param			externalAddresses			query		[]string	false	"External addresses of the tokens"					collectionFormat(multi)
 //	@Param			includeTopPlatformHolders	query		int			false	"Number of top platform holders to include (1-10)"	minimum(1)	maximum(10)	example(3)
 //	@Param			keyword						query		string		false	"Search keyword for filtering tokens"				example("bitcoin")
 //	@Param			limit						query		uint32		false	"Number of items to return (requires keyword)"		example(10)
@@ -105,7 +105,7 @@ type (
 //	@Router			/v1/community-tokens [GET].
 func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[TokenInfoRequest]) (*server.Response[[]*ta.CommunityToken], error) {
 	if req.Data.Keyword == "" && len(req.Data.ExternalAddresses) == 0 {
-		return nil, server.BadRequest(errors.New("either externalAddresses[] or keyword is required"), invalidPropertiesErrorCode)
+		return nil, server.BadRequest(errors.New("externalAddresses[] is required when keyword is not provided"), invalidPropertiesErrorCode)
 	}
 	if req.Data.IncludeTopPlatformHolders != nil {
 		if *req.Data.IncludeTopPlatformHolders < 1 || *req.Data.IncludeTopPlatformHolders > 10 {
