@@ -351,12 +351,16 @@ func (t *tokenAnalytics) processLog(ctx context.Context, tx *txEvent, logEvent *
 		return t.onRouteSelected(ctx, tx, ev)
 	case *bondingcurve.LogVerificationChecked:
 		return t.onVerificationChecked(ctx, tx, ev)
+	case *bondingcurve.LogUniswapSwapped:
+		return t.onUniswapSwapped(ctx, tx, ev)
+	case *bondingcurve.LogPoolCreated:
+		return t.onUniswapPoolCreated(ctx, tx, ev)
 	}
 
 	return nil
 }
 
-func (t *tokenAnalytics) createStreamForContractAddress(ctx context.Context, contractAddress string) error {
+func (t *tokenAnalytics) createStreamForContractAddress(ctx context.Context, contractAddress string, isUniswapPool bool) error {
 	_, err := storage.Exec(ctx, t.ingestedDataDB, `INSERT INTO streams(contract_address) VALUES ($1);`, contractAddress)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrReadOnly) {
@@ -368,8 +372,11 @@ func (t *tokenAnalytics) createStreamForContractAddress(ctx context.Context, con
 		}
 		return fmt.Errorf("failed to check stream duplicate: %w", err)
 	}
-
-	stream, err := t.quickNode.CreateStream(ctx, contractAddress, contractAddress)
+	streamName := contractAddress
+	if isUniswapPool {
+		streamName = "pool_" + streamName
+	}
+	stream, err := t.quickNode.CreateStream(ctx, streamName, contractAddress)
 	if err != nil {
 		_, rollbackErr := storage.Exec(ctx, t.ingestedDataDB, `DELETE FROM streams WHERE contract_address = $1;`, contractAddress)
 		return errors.Join(err, rollbackErr)

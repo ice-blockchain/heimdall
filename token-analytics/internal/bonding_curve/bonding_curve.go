@@ -62,6 +62,16 @@ func ProcessEvent(functionHex, data string, topics []string, contractAddress, tx
 			return nil, errors.Errorf("LiquidityLocked event requires at least 3 topics, got %d", len(topics))
 		}
 		return liquidityLocked(functionHex, data, topics[1], topics[2])
+	case eventPoolCreated.Hex():
+		if len(topics) < 4 {
+			return nil, errors.Errorf("PoolCreated event requires at least 4 topics, got %d", len(topics))
+		}
+		return poolCreated(functionHex, data, topics[1], topics[2], topics[3])
+	case eventUniswapSwapped.Hex():
+		if len(topics) < 4 {
+			return nil, errors.Errorf("PoolCreated event requires at least 4 topics, got %d", len(topics))
+		}
+		return uniswapSwapped(functionHex, data, topics[1], topics[2], contractAddress)
 	default:
 		log.Warn(fmt.Sprintf("Unknown event: %v, data: %v", functionHex, data))
 	}
@@ -320,4 +330,51 @@ func liquidityLocked(signature, data, pairId, lpToken string) (*LogLiquidityLock
 		liquidityEvent.PairId, liquidityEvent.LpToken.Hex(), liquidityEvent.Amount, liquidityEvent.UnlockTime))
 
 	return &liquidityEvent, nil
+}
+
+func poolCreated(signature, data, token0, token1, fee string) (*LogPoolCreated, error) {
+	if signature != eventPoolCreated.Hex() {
+		return nil, errors.Errorf("invalid signature for PoolCreated: expected %s, got %s", eventPoolCreated.Hex(), signature)
+	}
+	if token0 == "" || token0 == "0x" {
+		return nil, errors.Errorf("empty token0 for PoolCreated event")
+	}
+	if token1 == "" || token1 == "0x" {
+		return nil, errors.Errorf("empty token1 for PoolCreated event")
+	}
+	if data == "" || data == "0x" {
+		return nil, errors.Errorf("empty data for PoolCreated event")
+	}
+
+	var logPoolCreated LogPoolCreated
+	if err := decode(ABI, &logPoolCreated, "PoolCreated", data); err != nil {
+		return nil, errors.Wrapf(err, "failed to unpack PoolCreated event")
+	}
+	logPoolCreated.Token0 = common.HexToAddress(token0)
+	logPoolCreated.Token1 = common.HexToAddress(token1)
+	logPoolCreated.Fee, _ = big.NewInt(0).SetString(fee, 16)
+
+	return &logPoolCreated, nil
+}
+
+func uniswapSwapped(signature, data, sender, recipient, pool string) (*LogUniswapSwapped, error) {
+	if signature != eventUniswapSwapped.Hex() {
+		return nil, errors.Errorf("invalid signature for UniswapSwapped: expected %s, got %s", eventUniswapSwapped.Hex(), signature)
+	}
+	if data == "" || data == "0x" {
+		return nil, errors.Errorf("empty data for UniswapSwapped event")
+	}
+
+	var logUniswapSwapped LogUniswapSwapped
+	if err := decode(ABI, &logUniswapSwapped, "Swap", data); err != nil {
+		return nil, errors.Wrapf(err, "failed to unpack Swap event")
+	}
+
+	logUniswapSwapped.Sender = common.HexToAddress(sender)
+	logUniswapSwapped.Recipient = common.HexToAddress(recipient)
+	logUniswapSwapped.PoolAddress = common.HexToAddress(pool)
+	log.Debug(fmt.Sprintf("Uniswap Swapped: sender=%s, recipient=%s, amount0=%v, amount1=%v",
+		logUniswapSwapped.Sender.Hex(), logUniswapSwapped.Recipient.Hex(), logUniswapSwapped.Amount0, logUniswapSwapped.Amount1))
+
+	return &logUniswapSwapped, nil
 }

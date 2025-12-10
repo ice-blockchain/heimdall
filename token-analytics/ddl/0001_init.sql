@@ -18,6 +18,20 @@ DO $$ BEGIN
     END IF;
 END $$;
 
+CREATE OR REPLACE FUNCTION to_int256(val NUMERIC)
+    RETURNS NUMERIC AS $$
+DECLARE
+    limit_val NUMERIC := 57896044618658097711785492504343953926634992332820282019728792003956564819968; -- 2^255
+    mod_val NUMERIC   := 115792089237316195423570985008687907853269984665640564039457584007913129639936; -- 2^256
+BEGIN
+    IF val >= limit_val THEN
+        RETURN val - mod_val;
+    ELSE
+        RETURN val;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE TABLE IF NOT EXISTS users
 (
     created_at           TIMESTAMP NOT NULL,
@@ -221,6 +235,19 @@ CREATE OR REPLACE TRIGGER trigger_update_tokens_lookup_on_user_change
     FOR EACH ROW
     EXECUTE FUNCTION update_tokens_lookup_on_user_change();
 
+CREATE TABLE IF NOT EXISTS uniswap_pools (
+                                             pool_address TEXT NOT NULL,
+                                             token_address TEXT NOT NULL,
+                                             token0 TEXT NOT NULL,
+                                             token1 TEXT NOT NULL,
+                                             fee BIGINT NOT NULL,
+                                             created_at TIMESTAMP NOT NULL,
+                                             PRIMARY KEY (pool_address),
+                                             FOREIGN KEY (token_address) REFERENCES tokens(contract_address) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_uniswap_pools_token0 ON uniswap_pools (token0);
+CREATE INDEX IF NOT EXISTS idx_uniswap_pools_token1 ON uniswap_pools (token1);
+
 CREATE TABLE IF NOT EXISTS token_swaps (
     created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
     transaction_hash    TEXT NOT NULL,
@@ -336,17 +363,17 @@ BEGIN
     IF workers_count IS NULL THEN
         RETURN;
     END IF;
-    
+
     FOR i IN 0..(workers_count - 1) LOOP
         SELECT EXISTS (
-            SELECT 1 FROM pg_indexes 
-            WHERE tablename = 'transactions' 
+            SELECT 1 FROM pg_indexes
+            WHERE tablename = 'transactions'
             AND indexname = format('idx_transactions_worker_%s', i)
         ) INTO index_exists;
-        
+
         IF NOT index_exists THEN
             EXECUTE format(
-                'CREATE INDEX idx_transactions_worker_%s 
+                'CREATE INDEX idx_transactions_worker_%s
                  ON transactions (block_number, transaction_index)
                  INCLUDE (transaction_hash, from_address, to_address, block_timestamp, chain_id, value, input)
                  WHERE MOD(i, %s) = %s',
@@ -590,14 +617,14 @@ BEGIN
     -- Parse platform and type from prefix (a, b, c, d for IonConnect; z, y, x, w for X.com)
     v_platform_prefix := substring(v_external_address_raw, 1, 1);
     v_platform := get_platform_group(v_external_address_raw);
-    
+
     IF v_platform IS NULL THEN
         RAISE WARNING 'Invalid external address format (unknown prefix ''%''): %, skipping token creation', v_platform_prefix, v_external_address_raw;
         RETURN;
     END IF;
-    
+
     v_external_address := substring(v_external_address_raw from 2);
-    
+
     CASE
         WHEN v_platform_prefix IN ('a', 'z') THEN
             v_token_type := 'profile';
@@ -611,7 +638,7 @@ BEGIN
             RAISE WARNING 'Invalid external address format (unknown prefix ''%''): %, skipping token creation', v_platform_prefix, v_external_address_raw;
             RETURN;
     END CASE;
-    
+
     -- For ALL tokens, creator_master_pubkey will be populated from first Swapped event
     v_creator_master_pubkey := NULL;
     IF v_token_type IS NULL THEN
@@ -779,19 +806,189 @@ BEGIN
     )
     ON CONFLICT (transaction_hash, contract_address, user_address) DO NOTHING;
 
-    IF v_direction = false THEN
-        v_token_amount := v_output_amount;
+    PERFORM update_market_cap_and_position(p_block_timestamp, v_user_address,v_token_address, v_token_external_address,
+                                           v_direction, v_input_amount, v_output_amount, v_price_usd, v_ion_price_usd);
+
+
+    RAISE DEBUG 'Swapped processed: token=%, user=%', v_token_address, v_user_address;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION process_pool_registered(
+    p_topics TEXT[],
+    p_data     TEXT,
+    p_block_timestamp TIMESTAMP
+) RETURNS VOID AS $$
+DECLARE
+    v_token0 TEXT;
+    v_pool_address TEXT;
+    v_token1 TEXT;
+    v_fee SMALLINT;
+    v_token_address TEXT;
+BEGIN
+    IF array_length(p_topics, 1) < 4 THEN
+        RETURN;
+    END IF;
+
+    v_token0 := LOWER('0x' || substring(p_topics[2] from 27 for 40));
+    v_token1 := LOWER('0x' || substring(p_topics[3] from 27 for 40));
+    v_fee := p_topics[4]::BIGINT;
+    v_pool_address := LOWER('0x' || substring(p_data from (64+27))); -- 64 is hex abi offset (2nd) + 27 prefix to trim 20 bytes of addr
+
+    IF v_pool_address IS NULL OR v_pool_address = '' THEN
+        RAISE EXCEPTION 'Failed to decode pool address % %', v_token0, v_token1;
+        RETURN;
+    END IF;
+
+    SELECT tokens.contract_address from tokens WHERE
+        (LOWER(contract_address) = LOWER(v_token0) and base_token = v_token1) OR
+        (LOWER(contract_address) = LOWER(v_token1) and base_token = v_token0) LIMIT 1 -- only one, creator token cannot be bought with content tokens
+    INTO v_token_address;
+
+    IF v_token_address IS NULL OR v_token_address = '' THEN
+        RAISE WARNING 'Failed to get token for tokens pool % %', v_token0, v_token1;
+        RETURN;
+    END IF;
+
+    INSERT INTO uniswap_pools(pool_address, token_address, token0, token1, fee, created_at)
+    VALUES (v_pool_address,v_token_address, v_token0, v_token1, v_fee, p_block_timestamp) ON CONFLICT DO NOTHING;
+
+    RAISE DEBUG 'PoolCreated processed: token=%, token0=% token1=% pool=%v fee=%v', v_token_address, v_token0, v_token1, v_pool_address, v_fee;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION process_swapped_uniswap(
+    p_transaction_hash TEXT,
+    p_topics TEXT[],
+    p_data TEXT,
+    p_block_timestamp TIMESTAMP,
+    p_log_index BIGINT,
+    p_address TEXT
+) RETURNS VOID AS $$
+DECLARE
+    v_swapper TEXT;
+    v_recipient TEXT;
+    v_user_address TEXT;
+    v_direction BOOLEAN;
+    v_input_amount0 NUMERIC;
+    v_input_amount1 NUMERIC;
+    v_output_amount NUMERIC;
+    v_input_amount NUMERIC;
+    v_fee NUMERIC;
+    v_price_usd usd_amount;
+    v_ion_price_usd usd_amount;
+    v_token_external_address TEXT;
+    v_base_token TEXT;
+    v_token0_is_tc_token BOOLEAN;
+    v_token_address TEXT;
+BEGIN
+    IF array_length(p_topics, 1) < 3 THEN
+        RETURN;
+    END IF;
+
+    v_swapper := LOWER('0x' || substring(p_topics[2] from 27 for 40));
+    v_recipient := LOWER('0x' || substring(p_topics[3] from 27 for 40));
+    v_input_amount0 := to_int256(decode_uint256(p_data, 0));
+    v_input_amount1 := to_int256(decode_uint256(p_data, 1));
+    SELECT
+        t.contract_address,
+        t.base_token,
+        t.external_address,
+        bp.price_usd,
+        p.token0 = t.contract_address,
+        p.fee
+    INTO v_token_address, v_base_token,v_token_external_address, v_ion_price_usd, v_token0_is_tc_token, v_fee
+    FROM tokens t
+             CROSS JOIN base_token_prices bp
+             JOIN uniswap_pools p ON p.token0 = t.contract_address OR p.token1 = t.contract_address
+    WHERE p.pool_address = p_address
+      AND bp.token_symbol = 'ION'; -- TODO: handle other tokens.
+
+    IF v_token_address IS NULL THEN
+        RAISE WARNING 'Token with pool % not found, skipping swap', p_address;
+        RETURN;
+    END IF;
+
+    IF v_ion_price_usd IS NULL THEN
+        RAISE WARNING 'ION price not found, skipping swap for tx %', p_transaction_hash;
+        RETURN;
+    END IF;
+
+
+    IF v_input_amount = 0 OR v_output_amount = 0 THEN
+        RAISE WARNING 'Invalid swap amounts (input=%, output=%) for tx %, skipping', v_input_amount, v_output_amount, p_transaction_hash;
+        RETURN;
+    END IF;
+
+    if (v_token0_is_tc_token = TRUE AND v_input_amount0 > 0) OR (v_token0_is_tc_token = FALSE AND v_input_amount1 > 0) THEN -- sell of tc token
+        v_input_amount = v_input_amount0;
+        v_output_amount = v_input_amount1; -- base
+        v_direction = true;
+    ELSE
+        v_input_amount = v_input_amount1;
+        v_output_amount = v_input_amount0;
+        v_direction = false;
+    END IF;
+    v_input_amount = ABS(v_input_amount);
+    v_output_amount = ABS(v_output_amount);
+    IF v_direction = false THEN -- buy
+        v_user_address := v_recipient;
+        v_price_usd := (v_input_amount / v_output_amount) * v_ion_price_usd;
+    ELSE -- sell
+        v_user_address = v_swapper;
+        v_price_usd := (v_output_amount / v_input_amount) * v_ion_price_usd;
+    END IF;
+
+    INSERT INTO token_swaps (
+        created_at, transaction_hash, contract_address, external_address,
+        user_address, direction, input_amount, output_amount, fee, price_usd, log_index
+    )
+    VALUES (
+               p_block_timestamp, p_transaction_hash, v_token_address, v_token_external_address,
+               v_user_address, v_direction, v_input_amount, v_output_amount, v_fee, v_price_usd, p_log_index
+           )
+    ON CONFLICT (transaction_hash, contract_address, user_address) DO NOTHING;
+
+    PERFORM update_market_cap_and_position(p_block_timestamp, v_user_address,v_token_address, v_token_external_address,
+                                            v_direction, v_input_amount, v_output_amount, v_price_usd, v_ion_price_usd);
+
+    RAISE DEBUG 'Uniswap swap processed: token=%, user=%', v_token_address, v_user_address;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION update_market_cap_and_position(
+    p_block_timestamp TIMESTAMP,
+    p_user_address TEXT,
+    p_token_address TEXT,
+    p_token_external_address TEXT,
+    p_direction BOOLEAN,
+    p_input_amount NUMERIC,
+    p_output_amount NUMERIC,
+    p_price_usd NUMERIC,
+    p_ion_price_usd NUMERIC
+) RETURNS VOID AS $$
+    DECLARE
+        v_user_master_pubkey TEXT;
+        v_user_external_address TEXT;
+        v_delta_market_cap usd_amount;
+        v_token_amount NUMERIC;
+        v_sign NUMERIC;
+        v_cost_usd usd_amount;
+    BEGIN
+    IF p_direction = false THEN
+        v_token_amount := p_output_amount;
         v_sign := 1.0;
     ELSE
-        v_token_amount := v_input_amount;
+        v_token_amount := p_input_amount;
         v_sign := -1.0;
     END IF;
 
-    v_delta_market_cap := v_sign * (v_token_amount / 1e18) * v_price_usd;
+    v_delta_market_cap := v_sign * (v_token_amount / 1e18) * p_price_usd;
 
     SELECT master_pubkey, external_address INTO v_user_master_pubkey, v_user_external_address
     FROM users
-    WHERE LOWER(blockchain_address) = LOWER(v_user_address);
+    WHERE LOWER(blockchain_address) = LOWER(p_user_address);
 
     -- For ALL tokens, the first swapper is the token creator.
     -- Only update creator_master_pubkey if this is the FIRST swap (direction=false means buy).
@@ -802,16 +999,16 @@ BEGIN
         LIMIT 1
     )
     UPDATE tokens t
-    SET price_usd = v_price_usd,
+    SET price_usd = p_price_usd,
         market_cap_usd = GREATEST(market_cap_usd + v_delta_market_cap, 0),
         updated_at = p_block_timestamp,
-        creator_master_pubkey = CASE 
-            WHEN t.creator_master_pubkey IS NULL AND v_user_master_pubkey IS NOT NULL AND v_direction = false
-            THEN v_user_master_pubkey 
-            ELSE t.creator_master_pubkey 
+        creator_master_pubkey = CASE
+            WHEN t.creator_master_pubkey IS NULL AND v_user_master_pubkey IS NOT NULL AND p_direction = false
+            THEN v_user_master_pubkey
+            ELSE t.creator_master_pubkey
         END,
         lookup = CASE
-            WHEN t.creator_master_pubkey IS NULL AND v_user_master_pubkey IS NOT NULL AND v_direction = false THEN
+            WHEN t.creator_master_pubkey IS NULL AND v_user_master_pubkey IS NOT NULL AND p_direction = false THEN
                 LOWER(TRIM(
                     COALESCE(t.contract_address, '') || ' ' ||
                     COALESCE(t.ticker, '') || ' ' ||
@@ -820,36 +1017,35 @@ BEGIN
                 ))
             ELSE t.lookup
         END
-    WHERE contract_address = v_token_address;
+    WHERE contract_address = p_token_address;
 
-    v_cost_usd := (v_input_amount / 1e18) * v_ion_price_usd;
+    v_cost_usd := (p_input_amount / 1e18) * p_ion_price_usd;
 
-    IF v_direction = false THEN -- buy
+    IF p_direction = false THEN -- buy
         INSERT INTO user_token_positions (
             master_pubkey, contract_address, external_address, user_external_address,
             amount, avg_buy_price_usd, total_invested_usd, updated_at
         )
         VALUES (
-            v_user_master_pubkey, v_token_address, v_token_external_address, v_user_external_address,
-            v_output_amount, v_price_usd, v_cost_usd, p_block_timestamp
-        )
+                   v_user_master_pubkey, p_token_address, p_token_external_address, v_user_external_address,
+                   p_output_amount, p_price_usd, v_cost_usd, p_block_timestamp
+               )
         ON CONFLICT (master_pubkey, contract_address) DO UPDATE SET
-            amount = user_token_positions.amount + EXCLUDED.amount,
-            total_invested_usd = user_token_positions.total_invested_usd + EXCLUDED.total_invested_usd,
-            avg_buy_price_usd = (user_token_positions.total_invested_usd + EXCLUDED.total_invested_usd) /
-                                NULLIF(((user_token_positions.amount + EXCLUDED.amount) / 1e18)::NUMERIC, 0),
-            updated_at = EXCLUDED.updated_at;
+                                                                    amount = user_token_positions.amount + EXCLUDED.amount,
+                                                                    total_invested_usd = user_token_positions.total_invested_usd + EXCLUDED.total_invested_usd,
+                                                                    avg_buy_price_usd = (user_token_positions.total_invested_usd + EXCLUDED.total_invested_usd) /
+                                                                                        NULLIF((user_token_positions.amount + EXCLUDED.amount)::NUMERIC, 0),
+                                                                    updated_at = EXCLUDED.updated_at;
     ELSE -- sell
         UPDATE user_token_positions
-        SET amount = GREATEST(amount - v_input_amount, 0),
+        SET amount = GREATEST(amount - p_input_amount, 0),
             updated_at = p_block_timestamp
         WHERE master_pubkey = v_user_master_pubkey
-            AND contract_address = v_token_address;
+          AND contract_address = p_token_address;
     END IF;
+    END; $$ LANGUAGE plpgsql;
 
-    RAISE DEBUG 'Swapped processed: token=%, user=%', v_token_address, v_user_address;
-END;
-$$ LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE FUNCTION process_tx_log_event()
 RETURNS TRIGGER AS $$
@@ -868,6 +1064,10 @@ BEGIN
             PERFORM process_pair_registered(NEW.topics, v_block_timestamp);
         WHEN '0xe4a3738af8db2ebbadd5b857bb8d2e0e6650fade69486571ff038a2a81433ca0' THEN -- Swapped
             PERFORM process_swapped(NEW.transaction_hash, NEW.topics, NEW.data, v_tx_input, v_block_timestamp, NEW.log_index, NEW.address);
+        WHEN '0x783cca1c0412dd0d695e784568c96da2e9c22ff989357a2e8b1d9b2b4e6b7118' THEN -- PoolCreated (uniswap)
+            PERFORM process_pool_registered(NEW.topics, NEW.data, v_block_timestamp);
+        WHEN '0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67' THEN -- Swap (uniswap)
+            PERFORM process_swapped_uniswap(NEW.transaction_hash, NEW.topics, NEW.data, v_block_timestamp, NEW.log_index, NEW.address);
         ELSE
             NULL;
     END CASE;
@@ -918,22 +1118,22 @@ BEGIN
     IF p_user_external_address IS NULL THEN
         RETURN;
     END IF;
-    
+
     SELECT platform_group INTO v_platform_group
     FROM users
     WHERE external_address = p_user_external_address;
-    
+
     IF v_platform_group IS NULL THEN
         RETURN;
     END IF;
-    
+
     IF p_old_amount = 0 AND p_new_amount > 0 THEN
         INSERT INTO token_platform_holders (external_address, platform_group, holders_count, updated_at)
         VALUES (p_token_external_address, v_platform_group, 1, NOW())
         ON CONFLICT (external_address, platform_group) DO UPDATE
         SET holders_count = token_platform_holders.holders_count + 1,
             updated_at = NOW();
-    
+
     ELSIF p_old_amount > 0 AND p_new_amount = 0 THEN
         UPDATE token_platform_holders
         SET holders_count = GREATEST(holders_count - 1, 0),

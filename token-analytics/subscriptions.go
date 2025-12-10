@@ -6,11 +6,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/cockroachdb/errors"
 	"github.com/puzpuzpuz/xsync/v4"
-
-	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
-	"github.com/ice-blockchain/wintr/log"
 )
 
 func newSubscriptions(ctx context.Context) interface {
@@ -18,8 +14,8 @@ func newSubscriptions(ctx context.Context) interface {
 	Notifier
 } {
 	s := &subscriptions{
-		swaps:    make(chan *bondingcurve.LogTokenSwapped),
-		swapSubs: xsync.NewMap[string, chan *bondingcurve.LogTokenSwapped](),
+		swaps:    make(chan string),
+		swapSubs: xsync.NewMap[string, chan struct{}](),
 	}
 
 	go s.routeSwapsToSubscribers(ctx)
@@ -31,34 +27,29 @@ func (s *subscriptions) routeSwapsToSubscribers(ctx context.Context) {
 	go func() {
 		<-ctx.Done()
 		close(s.swaps)
-		s.swapSubs.Range(func(key string, value chan *bondingcurve.LogTokenSwapped) bool {
+		s.swapSubs.Range(func(key string, value chan struct{}) bool {
 			close(value)
 			return true
 		})
 	}()
-	for newSwap := range s.swaps {
-		ionAddrOfNewSwap, _, err := detectExternalAddressFromSwap(newSwap)
-		if err != nil {
-			log.Error(errors.Wrapf(err, "failed to detect ion connect address from swap"))
-			continue
-		}
-		dest, ok := s.swapSubs.Load(ionAddrOfNewSwap)
+	for newSwapAddr := range s.swaps {
+		dest, ok := s.swapSubs.Load(newSwapAddr)
 		if ok {
-			dest <- newSwap
+			dest <- struct{}{}
 		}
 	}
 }
 
-func (s *subscriptions) SubscribeOnSwaps(externalAddress string) <-chan *bondingcurve.LogTokenSwapped {
-	swaps, _ := s.swapSubs.LoadOrCompute(externalAddress, func() (newValue chan *bondingcurve.LogTokenSwapped, cancel bool) {
-		return make(chan *bondingcurve.LogTokenSwapped), false
+func (s *subscriptions) SubscribeOnSwaps(externalAddress string) <-chan struct{} {
+	swaps, _ := s.swapSubs.LoadOrCompute(externalAddress, func() (newValue chan struct{}, cancel bool) {
+		return make(chan struct{}), false
 	})
 	return swaps
 }
 
-func (s *subscriptions) NotifySwap(ev *bondingcurve.LogTokenSwapped) {
+func (s *subscriptions) NotifySwap(externalAddress string) {
 	select {
-	case s.swaps <- ev:
+	case s.swaps <- externalAddress:
 	case <-time.After(10 * time.Millisecond): // Just in case if reader get stuck, TODO: remove when we'll have proper subs/notify flow
 	}
 }
