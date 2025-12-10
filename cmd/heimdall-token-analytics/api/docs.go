@@ -1548,6 +1548,9 @@ const docTemplate = `{
                 "holders": {
                     "type": "integer"
                 },
+                "liquidityUSD": {
+                    "type": "number"
+                },
                 "marketCap": {
                     "type": "number"
                 },

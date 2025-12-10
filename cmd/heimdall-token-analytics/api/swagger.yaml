@@ -110,6 +110,8 @@ definitions:
         $ref: '#/definitions/tokenanalytics.BondingCurveProgress'
       holders:
         type: integer
+      liquidityUSD:
+        type: number
       marketCap:
         type: number
       platformHolders:
