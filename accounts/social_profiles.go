@@ -230,6 +230,7 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 	if profile.Avatar != nil {
 		avatarStr = *profile.Avatar
 	}
+	verified := profile.Verified
 	if syncErr := a.tokenAnalyticsRepo.UpsertUser(
 		ctx,
 		profile.UserID,
@@ -238,7 +239,7 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 		profile.Username,
 		profile.DisplayName,
 		avatarStr,
-		profile.Verified,
+		&verified,
 		profile.IONConnectRelays,
 	); syncErr != nil {
 		result = errors.Join(result, fmt.Errorf("%w: failed to sync user to token-analytics", syncErr))

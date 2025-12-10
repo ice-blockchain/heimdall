@@ -169,10 +169,17 @@ func (t *tokenAnalytics) HealthCheck(ctx context.Context) error {
 	return nil
 }
 
-func (t *tokenAnalyticsUsers) UpsertUser(ctx context.Context, id, masterPubkey, blockchainAddress, username, displayName, avatar string, verified bool, ionConnectRelays []string) error {
+func (t *tokenAnalyticsUsers) UpsertUser(ctx context.Context, id, masterPubkey, blockchainAddress, username, displayName, avatar string, verified *bool, ionConnectRelays []string) error {
 	lookup := strings.ToLower(strings.TrimSpace(username + " " + displayName))
-
 	externalAddress := BuildProfileExternalAddress(masterPubkey)
+	verifiedVal := false
+	if verified != nil {
+		verifiedVal = *verified
+	}
+	relays := ionConnectRelays
+	if relays == nil {
+		relays = []string{}
+	}
 
 	_, err := storage.Exec(ctx, t.ingestedDataDB, `
 		INSERT INTO users (
@@ -185,22 +192,25 @@ func (t *tokenAnalyticsUsers) UpsertUser(ctx context.Context, id, masterPubkey, 
 		DO UPDATE SET
 			updated_at = NOW(),
 			id = EXCLUDED.id,
+			blockchain_address = EXCLUDED.blockchain_address,
 			external_address = EXCLUDED.external_address,
-			username = EXCLUDED.username,
-			display_name = EXCLUDED.display_name,
-			avatar = EXCLUDED.avatar,
-			lookup = EXCLUDED.lookup,
-			ion_connect_relays = EXCLUDED.ion_connect_relays,
-			verified = EXCLUDED.verified,
+			username = COALESCE(NULLIF(EXCLUDED.username, ''), users.username),
+			display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name),
+			avatar = COALESCE(NULLIF(EXCLUDED.avatar, ''), users.avatar),
+			lookup = CASE 
+				WHEN EXCLUDED.username != '' OR EXCLUDED.display_name != '' THEN 
+					LOWER(TRIM(COALESCE(NULLIF(EXCLUDED.username, ''), users.username) || ' ' || COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name)))
+				ELSE users.lookup
+			END,
+			ion_connect_relays = CASE WHEN $11 THEN EXCLUDED.ion_connect_relays ELSE users.ion_connect_relays END,
+			verified = CASE WHEN $11 THEN EXCLUDED.verified ELSE users.verified END,
 			platform_group = EXCLUDED.platform_group
-	`, id, masterPubkey, username, displayName, avatar, lookup, ionConnectRelays, verified, externalAddress, blockchainAddress)
-	if err != nil {
-		return fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err)
-	}
+	`, id, masterPubkey, username, displayName, avatar, lookup, relays, verifiedVal, externalAddress, blockchainAddress, verified != nil && ionConnectRelays != nil)
 
 	log.Error(fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err))
 	// TODO: return an error here later.
 	return nil
+
 }
 
 func (t *tokenAnalyticsUsers) SetVerified(ctx context.Context, masterPubkey string) error {
@@ -590,7 +600,7 @@ func initializeWorkersConfig(ctx context.Context, db *storage.DB, workers uint) 
 	return nil
 }
 
-func (dummyUserRepository) UpsertUser(context.Context, string, string, string, string, string, string, bool, []string) error {
+func (dummyUserRepository) UpsertUser(context.Context, string, string, string, string, string, string, *bool, []string) error {
 	return nil
 }
 

@@ -136,7 +136,7 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 		return []string{s.accounts.PublicKey()}
 	}))
 	s.hashtagStatistics = hashtagstatistics.New(ctx)
-	s.nftContent = nftcontent.New(ctx, s.accounts, ionIndexer)
+	s.nftContent = nftcontent.New(ctx, s.accounts, ionIndexer, s.tokenAnalytics)
 	s.following = following.New(ctx)
 	s.deviceIdentificationProxy = accounts.NewDeviceIdentificationProxy(ctx, s.cfg.Version)
 	publicKey := s.accounts.PublicKey()

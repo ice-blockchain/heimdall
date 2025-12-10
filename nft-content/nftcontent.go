@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"slices"
+	"strings"
 
 	"github.com/goccy/go-json"
 	"github.com/nbd-wtf/go-nostr"
@@ -14,21 +15,23 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 
 	indexer "github.com/ice-blockchain/heimdall/ion-indexer"
+	tokenanalytics "github.com/ice-blockchain/heimdall/token-analytics"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
-func New(ctx context.Context, walletFetcher OwnerAddressFetcher, indexer indexer.Indexer) NFTContent {
+func New(ctx context.Context, walletFetcher OwnerAddressFetcher, indexer indexer.Indexer, userRepo tokenanalytics.UserRepository) NFTContent {
 	db := storage.MustConnect(ctx, applicationYamlKey, storage.NewStringDDL(ddl))
 
 	var cfg Config
 	config.MustLoadFromKey(applicationYamlKey, &cfg)
 	nft := &nftContent{
-		db:            db,
-		walletFetcher: walletFetcher,
-		config:        &cfg,
-		indexer:       indexer,
+		db:             db,
+		walletFetcher:  walletFetcher,
+		config:         &cfg,
+		indexer:        indexer,
+		userRepository: userRepo,
 	}
 	walletFetcher.SetProviderForUnsupportedNFTs(nft.indexer)
 	return nft
@@ -45,6 +48,9 @@ func (n *nftContent) Process(ctx context.Context, events model.Events) error {
 	}
 	contentType := getNFTContentType(contentEvent)
 	if contentType == NFTContentTypeAccount {
+		if err := n.updateUserBSCAddress(ctx, contentEvent); err != nil {
+			return errors.Wrap(err, "failed to update user bsc address for account type")
+		}
 		owner, err := n.getOwnerWalletAddress(ctx, contentEvent)
 		if err != nil {
 			return errors.Wrapf(err, "failed to detect owner of nft items for profile %v", contentEvent.GetMasterPublicKey())
@@ -56,6 +62,41 @@ func (n *nftContent) Process(ctx context.Context, events model.Events) error {
 	}
 
 	return nil
+}
+
+func (n *nftContent) updateUserBSCAddress(ctx context.Context, profileEvent *model.Event) error {
+	var profileContent model.ProfileMetadataContent
+	if err := json.Unmarshal([]byte(profileEvent.Content), &profileContent); err != nil {
+		return errors.Wrap(err, "failed to unmarshal profile metadata content")
+	}
+	bscAddress := ""
+	for network, walletAddr := range profileContent.Wallets {
+		if strings.EqualFold(network, "bsc") {
+			bscAddress = walletAddr
+
+			break
+		}
+	}
+	if bscAddress == "" {
+		return nil
+	}
+	masterPubkey := profileEvent.GetMasterPublicKey()
+	username := profileContent.Name
+	displayName := profileContent.DisplayName
+	avatar := profileContent.Picture
+	err := n.userRepository.UpsertUser(
+		ctx,
+		masterPubkey, // id
+		masterPubkey, // masterPubkey
+		bscAddress,
+		username,
+		displayName,
+		avatar,
+		nil,
+		nil,
+	)
+
+	return errors.Wrap(err, "failed to update user BSC address in token-analytics")
 }
 
 func (n *nftContent) GetNFTCollectionMetadata(ctx context.Context, masterPubkey string) (*NFTResponse, *NFTCollectionMetadata, error) {
