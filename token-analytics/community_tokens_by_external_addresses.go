@@ -48,6 +48,7 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 			creator.platform_group as creator_platform,
 			COALESCE(t.market_cap_usd, 0) as market_cap_usd,
 			COALESCE(t.price_usd, 0) as price_usd,
+			t.liquidity_usd,
 			COALESCE(t.base_token, '') as base_token,
 			COALESCE(t.pair_id, '') as pair_id,
 			COALESCE(tv.volume_24h / 1e18, 0) as volume_24h,
@@ -103,6 +104,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 				t.creator_master_pubkey,
 				t.market_cap_usd,
 				t.price_usd,
+				t.liquidity_usd,
 				t.holders_count,
 				t.total_supply,
 				tv.volume_24h,
@@ -146,6 +148,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 			creator_platform,
 			COALESCE(market_cap_usd, 0) as market_cap_usd,
 			COALESCE(price_usd, 0) as price_usd,
+			liquidity_usd,
 			COALESCE(volume_24h / 1e18, 0) as volume_24h,
 			COALESCE(total_supply, '0') as total_supply,
 			COALESCE(holders_count, 0) as holders_count
@@ -193,11 +196,12 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 				Addresses: creatorAddresses,
 			},
 			MarketData: MarketData{
-				MarketCap: row.MarketCapUSD,
-				Supply:    weiToUint64FromBigInt(totalSupply),
-				Volume:    row.Volume24h,
-				Holders:   uint64(row.HoldersCount),
-				PriceUSD:  row.PriceUSD,
+				MarketCap:    row.MarketCapUSD,
+				Supply:       weiToUint64FromBigInt(totalSupply),
+				Volume:       row.Volume24h,
+				Holders:      uint64(row.HoldersCount),
+				PriceUSD:     row.PriceUSD,
+				LiquidityUSD: row.LiquidityUSD,
 			},
 		}
 		tokens = append(tokens, token)
@@ -232,6 +236,7 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 			Holders:              uint64(row.HoldersCount),
 			PlatformHolders:      uint64(row.PlatformHoldersCount),
 			PriceUSD:             row.PriceUSD,
+			LiquidityUSD:         row.LiquidityUSD,
 			BondingCurveProgress: bondingCurveProgress,
 		}
 
@@ -299,6 +304,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 				creator.platform_group as creator_platform,
 				COALESCE(t.market_cap_usd, 0) as market_cap_usd,
 				COALESCE(t.price_usd, 0) as price_usd,
+				t.liquidity_usd as liquidity_usd,
 				COALESCE(tv.volume_24h / 1e18, 0) as volume_24h,
 				COALESCE(t.holders_count, 0) as holders_count,
 				COALESCE(tph.holders_count, 0) as platform_holders_count,
@@ -368,6 +374,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 					t.creator_master_pubkey,
 					t.market_cap_usd,
 					t.price_usd,
+					t.liquidity_usd,
 					t.holders_count,
 					t.bonding_curve_current_amount,
 					t.bonding_curve_goal_amount,
@@ -442,6 +449,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 			Holders:            uint64(row.HoldersCount),
 			PlatformHolders:    uint64(row.PlatformHoldersCount),
 			PriceUSD:           row.PriceUSD,
+			LiquidityUSD:       row.LiquidityUSD,
 			TopPlatformHolders: topPlatformHolders,
 		}
 		if row.PositionAmountUSD > 0 {

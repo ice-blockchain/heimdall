@@ -41,6 +41,7 @@ type (
 		Supply               uint64                `json:"supply"`
 		Volume               float64               `json:"volume"`
 		PriceUSD             float64               `json:"priceUSD"`
+		LiquidityUSD         float64               `json:"liquidityUSD"`
 		Holders              uint64                `json:"holders"`
 		PlatformHolders      uint64                `json:"platformHolders"`
 		BondingCurveProgress *BondingCurveProgress `json:"bondingCurveProgress,omitempty"`

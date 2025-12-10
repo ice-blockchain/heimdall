@@ -180,6 +180,7 @@ CREATE TABLE IF NOT EXISTS tokens (
     pair_id                         TEXT,
     market_cap_usd                  usd_amount DEFAULT 0,
     price_usd                       usd_amount DEFAULT 0,
+    liquidity_usd                   usd_amount DEFAULT 0,
     holders_count                   BIGINT DEFAULT 0,
     bonding_curve_current_amount    uint256 DEFAULT 0,
     bonding_curve_goal_amount       uint256 DEFAULT 0,
@@ -942,4 +943,3 @@ BEGIN
     END IF;
 END;
 $$ LANGUAGE plpgsql;
-
