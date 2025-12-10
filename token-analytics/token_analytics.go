@@ -118,7 +118,7 @@ func New(ctx context.Context) TokenAnalytics {
 	}
 
 	go t.startIONPriceSyncer(ctx)
-	if false {
+	if true {
 		generator := &dummyDataGenerator{
 			Target:                      db,
 			IONTokenAddress:             cfg.IONTokenAddress,
