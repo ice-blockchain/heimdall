@@ -35,7 +35,7 @@ const docTemplate = `{
                         "items": {
                             "type": "string"
                         },
-                        "example": "0x1234...,0x5678...",
+                        "collectionFormat": "multi",
                         "description": "External addresses of the tokens",
                         "name": "externalAddresses",
                         "in": "query",
@@ -1548,6 +1548,9 @@ const docTemplate = `{
                 "holders": {
                     "type": "integer"
                 },
+                "liquidityUSD": {
+                    "type": "number"
+                },
                 "marketCap": {
                     "type": "number"
                 },
@@ -1559,6 +1562,9 @@ const docTemplate = `{
                 },
                 "priceUSD": {
                     "type": "number"
+                },
+                "supply": {
+                    "type": "integer"
                 },
                 "ticker": {
                     "type": "string"

@@ -329,7 +329,12 @@ func (r *Request[REQ]) parse(ctx *gin.Context) *Request[REQ] {
 		slog.ErrorContext(ctx, "request data is not a struct", "type", fmt.Sprintf("%T", r.Data))
 		panic("request data is not a struct")
 	}
+	r.parseStruct(elem)
 
+	return r
+}
+
+func (r *Request[REQ]) parseStruct(elem reflect.Type) {
 	const enabled = "true"
 	fieldCount := elem.NumField()
 	for i := range fieldCount {
@@ -341,6 +346,7 @@ func (r *Request[REQ]) parse(ctx *gin.Context) *Request[REQ] {
 		if field.Anonymous && field.Type.Kind() == reflect.Struct {
 			var m NoAuthRequired
 			r.allowUnauthorized = r.allowUnauthorized || field.Type == reflect.TypeOf(m)
+			r.parseStruct(field.Type)
 		}
 		if jsonTag := tag.Get("json"); jsonTag != "" && jsonTag != "-" {
 			r.bindings[bindingJSON] = struct{}{}
@@ -360,8 +366,6 @@ func (r *Request[REQ]) parse(ctx *gin.Context) *Request[REQ] {
 			r.bindings[bindingFormMultipart] = struct{}{}
 		}
 	}
-
-	return r
 }
 
 func (r *Request[REQ]) bind() error {

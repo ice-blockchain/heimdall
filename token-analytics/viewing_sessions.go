@@ -171,7 +171,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 		t.created_at,
 		t.ticker,
 		t.total_supply,
-		COALESCE(t.creator_master_pubkey, '') as creator_master_pubkey,
+		t.creator_master_pubkey,
 		creator.username as creator_username,
 		COALESCE(creator.display_name, '') as creator_display,
 		creator.verified as creator_verified,
@@ -186,7 +186,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 		COALESCE(t.bonding_curve_current_amount_usd, 0) as bonding_curve_current_amount_usd,
 		COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd
 		FROM tokens t
-		LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
+		INNER JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
 		WHERE t.external_address = ANY($1)
 	`
 	tokensPtr, err := storage.Select[tokenRow](ctx, t.ingestedDataDB, query, externalAddresses)
@@ -211,9 +211,9 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 		var volume float64
 		if sessionType == sessionTypeTop {
 			marketCap = scoresMap[addr]
-			volume = weiToFloat64FromBigFloat(new(big.Float).SetFloat64(additionalMetrics[addr]))
+			volume = additionalMetrics[addr] / 1e18
 		} else {
-			volume = weiToFloat64FromBigFloat(new(big.Float).SetFloat64(scoresMap[addr]))
+			volume = scoresMap[addr] / 1e18
 			marketCap = additionalMetrics[addr]
 		}
 
@@ -238,6 +238,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 			}
 		}
 
+		totalSupply, _ := new(big.Int).SetString(token.TotalSupply, 10)
 		result = append(result, &CommunityToken{
 			Type:        token.Type,
 			Title:       token.Title,
@@ -253,7 +254,9 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 				Addresses: creatorExternalAddresses,
 			},
 			MarketData: MarketData{
+				Ticker:               token.Ticker,
 				MarketCap:            marketCap,
+				Supply:               weiToUint64FromBigInt(totalSupply),
 				Volume:               volume,
 				Holders:              uint64(token.HoldersCount),
 				PriceUSD:             token.PriceUSD,
