@@ -87,7 +87,7 @@ func (gen *dummyDataGenerator) Run(ctx context.Context) {
 		BaseToken:           "2c73996BaBF1a06c2C057177353293f7cA0907c8",
 		PairId:              "0xc481c7a805798bc81ca4cbf0803d38bd785357f2ab3b22b70e42dedc13046e15",
 		CreatorVerified:     false,
-	})
+	}, PlatformGroupIonConnect)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrReadOnly) {
 			log.Info("skipping inserting dummy data, DB is read-only")
@@ -99,12 +99,20 @@ func (gen *dummyDataGenerator) Run(ctx context.Context) {
 	gen.startNewTokenGenerator(ctx, uuid.NewString())
 }
 
-func (gen *dummyDataGenerator) createTokenWithBuysOrSellsProcessor(ctx context.Context, stream string) context.CancelFunc {
+func (gen *dummyDataGenerator) createTokenWithBuysOrSellsProcessor(ctx context.Context, stream string, platformGroup string) context.CancelFunc {
+	if platformGroup == PlatformGroupXCom {
+		return gen.createXComTokenWithBuysOrSellsProcessor(ctx, stream)
+	}
+
+	return gen.createIonConnectTokenWithBuysOrSellsProcessor(ctx, stream)
+}
+
+func (gen *dummyDataGenerator) createIonConnectTokenWithBuysOrSellsProcessor(ctx context.Context, stream string) context.CancelFunc {
 	kinds := []int{0, 30023, 30023, 30175}
 	kind := kinds[rand.Intn(len(kinds)-1)]
 	dTag := uuid.NewString()
 
-	_, master, err := gen.createUser(ctx, mustRandomHex(32))
+	_, master, err := gen.createUserForPlatform(ctx, mustRandomHex(32), PlatformGroupIonConnect)
 	if err != nil {
 		log.Error(errors.Wrapf(err, "failed to create user for token generation"))
 		return nil
@@ -116,13 +124,13 @@ func (gen *dummyDataGenerator) createTokenWithBuysOrSellsProcessor(ctx context.C
 		platformPrefix := string(PlatformIonConnectProfile) // "a"
 		externalAddress = platformPrefix + BuildProfileExternalAddress(master)
 	} else if kind == nostr.KindArticle {
-		platformPrefix := string(PlatformIonConnectArticle) // "c"
+		platformPrefix := string(PlatformIonConnectArticle) // "d"
 		externalAddress = platformPrefix + BuildContentExternalAddress(kind, master, dTag)
 	} else if kind == model.CustomIONKindEditableTextNote {
 		platformPrefix := string(PlatformIonConnectPost) // "b"
 		externalAddress = platformPrefix + BuildContentExternalAddress(kind, master, dTag)
 	} else {
-		platformPrefix := string(PlatformIonConnectVideo) // "d"
+		platformPrefix := string(PlatformIonConnectVideo) // "c"
 		externalAddress = platformPrefix + BuildContentExternalAddress(kind, master, dTag)
 	}
 	names := []string{
@@ -144,16 +152,78 @@ func (gen *dummyDataGenerator) createTokenWithBuysOrSellsProcessor(ctx context.C
 		PairId:              "0x" + mustRandomHex(32),
 		CreatorVerified:     rand.Intn(2) == 0,
 	}
-	if err := gen.generateToken(ctx, stream, tok); err != nil {
+	if err := gen.generateToken(ctx, stream, tok, PlatformGroupIonConnect); err != nil {
 		log.Error(errors.Wrapf(err, "failed to insert dummy tx data"))
 		return nil
 	}
 
-	log.Info(fmt.Sprintf("Started token generator for token %v on stream %v by %v", tok.ContractAddress, stream, master))
+	log.Info(fmt.Sprintf("Started IonConnect token generator for token %v on stream %v by %v", tok.ContractAddress, stream, master))
 
 	deadline := time.Now().Add(gen.TokenGeneratorTTL)
 	ctx, cancel := context.WithDeadline(ctx, deadline)
-	gen.startBuysOrSellsProcessor(ctx, tok, stream, deadline)
+	gen.startBuysOrSellsProcessor(ctx, tok, stream, deadline, PlatformGroupIonConnect)
+
+	return cancel
+}
+
+func (gen *dummyDataGenerator) createXComTokenWithBuysOrSellsProcessor(ctx context.Context, stream string) context.CancelFunc {
+	tokenTypes := []struct {
+		prefix string
+		kind   string
+	}{
+		{string(PlatformXComProfile), "profile"}, // z
+		{string(PlatformXComPost), "post"},       // y
+		{string(PlatformXComVideo), "video"},     // x
+		{string(PlatformXComArticle), "article"}, // w
+	}
+
+	tokenType := tokenTypes[rand.Intn(len(tokenTypes))]
+
+	handle := mustRandomHex(8)
+	_, master, err := gen.createUserForPlatform(ctx, handle, PlatformGroupXCom)
+	if err != nil {
+		log.Error(errors.Wrapf(err, "failed to create X.com user for token generation"))
+
+		return nil
+	}
+	var externalAddress string
+	if tokenType.kind == "profile" {
+		externalAddress = tokenType.prefix + handle // z{handle}
+	} else {
+		postID := mustRandomHex(8)
+		externalAddress = tokenType.prefix + postID
+	}
+	names := []string{
+		"X Token Pro",
+		"Tweet Master",
+		"Viral Post",
+		"X Infinity",
+	}
+	displayName := names[rand.Int31n(int32(len(names)))]
+	symbol := strings.ToLower(strings.ReplaceAll(displayName, " ", ""))
+
+	tok := &tokenRow{
+		ContractAddress:     generateDummyContractAddress(),
+		CreatorMasterPubkey: master,
+		ExternalAddress:     externalAddress,
+		Title:               displayName,
+		Ticker:              symbol,
+		TotalSupply:         "1000000000000000000" + strings.Repeat("0", rand.Intn(8)+1),
+		BaseToken:           strings.TrimPrefix(gen.IONTokenAddress, "0x"),
+		PairId:              "0x" + mustRandomHex(32),
+		CreatorVerified:     rand.Intn(2) == 0,
+	}
+
+	if err := gen.generateToken(ctx, stream, tok, PlatformGroupXCom); err != nil {
+		log.Error(errors.Wrapf(err, "failed to insert dummy X.com tx data"))
+		return nil
+	}
+
+	log.Info(fmt.Sprintf("Started X.com token generator for token %v (%v) on stream %v by %v", tok.ContractAddress, tokenType.kind, stream, master))
+
+	deadline := time.Now().Add(gen.TokenGeneratorTTL)
+	ctx, cancel := context.WithDeadline(ctx, deadline)
+	gen.startBuysOrSellsProcessor(ctx, tok, stream, deadline, PlatformGroupXCom)
 
 	return cancel
 }
@@ -180,6 +250,7 @@ func (gen *dummyDataGenerator) startNewTokenGenerator(ctx context.Context, strea
 	}()
 
 	fire <- struct{}{}
+	platformToggle := 0 // 0 for IonConnect, 1 for X.com
 	go func() {
 		for ctx.Err() == nil {
 			select {
@@ -189,7 +260,14 @@ func (gen *dummyDataGenerator) startNewTokenGenerator(ctx context.Context, strea
 				if int(gen.activeTokensWorkers.Load()) >= int(gen.MaxTokenGens) {
 					continue
 				}
-				gen.createTokenWithBuysOrSellsProcessor(ctx, stream)
+				var platformGroup string
+				if platformToggle%2 == 0 {
+					platformGroup = PlatformGroupIonConnect
+				} else {
+					platformGroup = PlatformGroupXCom
+				}
+				platformToggle++
+				gen.createTokenWithBuysOrSellsProcessor(ctx, stream, platformGroup)
 			}
 		}
 	}()
@@ -215,7 +293,7 @@ func calculateTxCountForDeadline(ttl time.Duration, deadline time.Time) (int, ti
 	return 1, time.Minute
 }
 
-func (gen *dummyDataGenerator) startBuysOrSellsProcessor(ctx context.Context, tokenData *tokenRow, stream string, deadline time.Time) {
+func (gen *dummyDataGenerator) startBuysOrSellsProcessor(ctx context.Context, tokenData *tokenRow, stream string, deadline time.Time, platformGroup string) {
 	ticker := time.NewTicker(5 * time.Second)
 	fire := make(chan int, 1)
 
@@ -249,7 +327,7 @@ func (gen *dummyDataGenerator) startBuysOrSellsProcessor(ctx context.Context, to
 				return
 			case txCount := <-fire:
 				insCtx, insCancel := context.WithTimeout(ctx, time.Second*10)
-				if err := gen.generateBuyOrSellBatch(insCtx, stream, tokenData, txCount); err != nil {
+				if err := gen.generateBuyOrSellBatch(insCtx, stream, tokenData, txCount, platformGroup); err != nil {
 					log.Error(errors.Wrapf(err, "failed to insert dummy tx data"))
 				}
 				insCancel()
@@ -258,11 +336,18 @@ func (gen *dummyDataGenerator) startBuysOrSellsProcessor(ctx context.Context, to
 	}()
 }
 
-func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, stream string, token *tokenRow, totalTx int) error {
+func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, stream string, token *tokenRow, totalTx int, platformGroup string) error {
 	blockNum := atomic.AddUint64(&gen.InsertBlockIndex, 1)
 	txsForBlock := []string{}
 	for range totalTx {
-		userBlockChainAddr, _, err := gen.createUser(ctx, mustRandomHex(32))
+		var userMasterPubkey string
+		if platformGroup == PlatformGroupXCom {
+			userMasterPubkey = mustRandomHex(8)
+		} else {
+			userMasterPubkey = mustRandomHex(32)
+		}
+
+		userBlockChainAddr, _, err := gen.createUserForPlatform(ctx, userMasterPubkey, platformGroup)
 		if err != nil {
 			return err
 		}
@@ -354,11 +439,11 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 	return errors.Wrapf(err, "failed to insert dummy tx data")
 }
 
-func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string, seedData *tokenRow) error {
+func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string, seedData *tokenRow, platformGroup string) error {
 	blockNum := atomic.AddUint64(&gen.InsertBlockIndex, 1)
 	txHash := mustRandomHex(32)
 	blockHash := mustRandomHex(32)
-	ownerBlockchainAddr, _, err := gen.createUser(ctx, seedData.CreatorMasterPubkey)
+	ownerBlockchainAddr, _, err := gen.createUserForPlatform(ctx, seedData.CreatorMasterPubkey, platformGroup)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create user for token generation")
 	}
@@ -569,8 +654,7 @@ func generateDummyContractAddress() string {
 
 	return hex.EncodeToString(buf.Bytes())
 }
-
-func (gen *dummyDataGenerator) createUser(ctx context.Context, masterPubkey string) (blockchainAddress string, master string, err error) {
+func (gen *dummyDataGenerator) createUserForPlatform(ctx context.Context, masterPubkey string, platformGroup string) (blockchainAddress string, master string, err error) {
 	gen.usersLock.RLock()
 	if len(gen.createdUsers) >= int(gen.MaxUsers) {
 		userIdx := rand.Intn(len(gen.createdUsers) - 1)
@@ -604,7 +688,14 @@ func (gen *dummyDataGenerator) createUser(ctx context.Context, masterPubkey stri
 	verified := rand.Intn(2) == 0
 	lookup := strings.ToLower(strings.TrimSpace(username + " " + displayName))
 	ionConnectRelays := []string{"wss://141.95.59.70:4443", "wss://181.41.142.217:4443", "wss://94.100.16.233:4443"}
-	externalAddress := BuildProfileExternalAddress(masterPubkey)
+
+	var externalAddress string
+	if platformGroup == PlatformGroupXCom {
+		externalAddress = masterPubkey // Twitter userId
+	} else {
+		externalAddress = BuildProfileExternalAddress(masterPubkey)
+	}
+
 	_, err = storage.Exec(ctx, gen.Target, `
 		INSERT INTO users (
 			created_at, updated_at, id, master_pubkey, blockchain_address, external_address, username, 
@@ -624,12 +715,12 @@ func (gen *dummyDataGenerator) createUser(ctx context.Context, masterPubkey stri
 			ion_connect_relays = EXCLUDED.ion_connect_relays,
 			verified = EXCLUDED.verified,
 			platform_group = EXCLUDED.platform_group
-	`, id, masterPubkey, "0x"+blockchainAddress, externalAddress, username, displayName, lookup, ionConnectRelays, verified, PlatformGroupIonConnect)
+	`, id, masterPubkey, "0x"+blockchainAddress, externalAddress, username, displayName, lookup, ionConnectRelays, verified, platformGroup)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err)
 	}
 
-	log.Info(fmt.Sprintf("Created dummy user %v: %v with blockchain address 0x%v", username, masterPubkey, blockchainAddress))
+	log.Info(fmt.Sprintf("Created dummy user %v: %v with blockchain address 0x%v for platform %v", username, masterPubkey, blockchainAddress, platformGroup))
 
 	gen.createdUsers = append(gen.createdUsers, blockchainAddress)
 	if gen.userBlockChainToMaster == nil {

@@ -44,6 +44,7 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 			COALESCE(creator.display_name, '') as creator_display,
 			creator.verified as creator_verified,
 			COALESCE(creator.avatar, '') as creator_avatar,
+			creator.external_address as creator_external_address,
 			creator.platform_group as creator_platform,
 			COALESCE(t.market_cap_usd, 0) as market_cap_usd,
 			COALESCE(t.price_usd, 0) as price_usd,
@@ -94,6 +95,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 				creator.display_name,
 				creator.verified,
 				creator.avatar,
+				creator.external_address as creator_external_address,
 				creator.platform_group as creator_platform,
 				GREATEST(
 					similarity(t.lookup, $2),
@@ -126,6 +128,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 			COALESCE(display_name, '') as creator_display,
 			verified as creator_verified,
 			COALESCE(avatar, '') as creator_avatar,
+			creator_external_address as creator_external_address,
 			creator_platform,
 			COALESCE(market_cap_usd, 0) as market_cap_usd,
 			COALESCE(price_usd, 0) as price_usd,
@@ -157,9 +160,9 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 		if err != nil {
 			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", row.ExternalAddress, row.Platform, err)
 		}
-		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(BuildProfileExternalAddress(row.CreatorMasterPubkey), row.CreatorPlatform)
+		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(row.CreatorExternalAddress, row.CreatorPlatform)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s (platform %s): %w", row.CreatorMasterPubkey, row.CreatorPlatform, err)
+			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", row.CreatorExternalAddress, row.CreatorPlatform, err)
 		}
 
 		token := &CommunityToken{
@@ -230,9 +233,9 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 		if err != nil {
 			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", row.ExternalAddress, row.Platform, err)
 		}
-		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(BuildProfileExternalAddress(row.CreatorMasterPubkey), row.CreatorPlatform)
+		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(row.CreatorExternalAddress, row.CreatorPlatform)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s (platform %s): %w", row.CreatorMasterPubkey, row.CreatorPlatform, err)
+			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", row.CreatorExternalAddress, row.CreatorPlatform, err)
 		}
 		token := &CommunityToken{
 			Type:        row.Type,
@@ -276,6 +279,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 				COALESCE(creator.display_name, '') as creator_display,
 				creator.verified as creator_verified,
 				COALESCE(creator.avatar, '') as creator_avatar,
+				creator.external_address as creator_external_address,
 				creator.platform_group as creator_platform,
 				COALESCE(t.market_cap_usd, 0) as market_cap_usd,
 				COALESCE(t.price_usd, 0) as price_usd,
@@ -436,9 +440,9 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 		if err != nil {
 			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", row.ExternalAddress, row.Platform, err)
 		}
-		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(BuildProfileExternalAddress(row.CreatorMasterPubkey), row.CreatorPlatform)
+		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(row.CreatorExternalAddress, row.CreatorPlatform)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s (platform %s): %w", row.CreatorMasterPubkey, row.CreatorPlatform, err)
+			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", row.CreatorExternalAddress, row.CreatorPlatform, err)
 		}
 		token := &CommunityToken{
 			Type:        row.Type,

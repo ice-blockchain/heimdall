@@ -72,7 +72,7 @@ func (t *tokenAnalytics) GetHolderPositions(ctx context.Context, tokenExternalAd
 
 		rank := uint64(1)
 		if r, ok := rankings[row.ExternalAddress]; ok {
-			rank = uint64(r) + 1
+			rank = uint64(r)
 		}
 		holderAddresses, err := buildAddressesFromExternalAddressAndPlatform(row.ExternalAddress, row.Platform)
 		if err != nil {
