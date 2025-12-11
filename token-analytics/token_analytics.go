@@ -228,14 +228,6 @@ func (t *tokenAnalyticsUsers) SetVerified(ctx context.Context, masterPubkey stri
 	return nil
 }
 
-func (t *tokenAnalyticsUsers) DeleteUser(ctx context.Context, masterPubkey string) error {
-	if _, err := storage.Exec(ctx, t.ingestedDataDB, `DELETE FROM users WHERE master_pubkey = $1`, masterPubkey); err != nil {
-		return errors.Wrapf(err, "failed to delete user %v", masterPubkey)
-	}
-
-	return nil
-}
-
 func (t *tokenAnalytics) MustStart(ctx context.Context) {
 	for workerIdx := range t.cfg.Workers {
 		t.wg.Go(func() {
@@ -613,10 +605,6 @@ func (dummyUserRepository) UpsertUser(context.Context, string, string, string, s
 }
 
 func (dummyUserRepository) SetVerified(context.Context, string) error {
-	return nil
-}
-
-func (dummyUserRepository) DeleteUser(context.Context, string) error {
 	return nil
 }
 
