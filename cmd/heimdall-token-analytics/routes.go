@@ -53,7 +53,7 @@ func (s *service) RegisterREST(router gin.IRouter) {
 
 	tokensV1.GET("/:externalAddressOrViewType/latest-trades", server.RootHandler(s.GetCommunityTokensTradesByAddress))
 	tokensV1.GET("/:externalAddressOrViewType/positions", server.RootHandler(s.GetCommunityTokenHolderPositions))
-	tokensV1.PUT("/:externalAddressOrViewType/external-data", server.RootHandler(s.SyncCommunityTokenExternalData))
+	tokensV1.PUT("/twitterProfiles/external-data", server.RootHandler(s.SyncCommunityTokenExternalData))
 
 	api.SwaggerInfo.Version = readVersionString()
 	router.GET("/docs", func(c *gin.Context) {

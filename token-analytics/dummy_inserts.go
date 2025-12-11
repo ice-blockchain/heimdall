@@ -688,6 +688,15 @@ func (gen *dummyDataGenerator) createUserForPlatform(ctx context.Context, master
 	verified := rand.Intn(2) == 0
 	lookup := strings.ToLower(strings.TrimSpace(username + " " + displayName))
 	ionConnectRelays := []string{"wss://141.95.59.70:4443", "wss://181.41.142.217:4443", "wss://94.100.16.233:4443"}
+	avatarURLs := []string{
+		"https://api.dicebear.com/7.x/avataaars/svg?seed=" + username,
+		"https://api.dicebear.com/7.x/lorelei/svg?seed=" + username,
+		"https://api.dicebear.com/7.x/personas/svg?seed=" + username,
+		"https://api.dicebear.com/7.x/bottts/svg?seed=" + username,
+		"https://api.dicebear.com/7.x/identicon/svg?seed=" + username,
+		"https://ui-avatars.com/api/?name=" + username + "&background=random&size=300",
+	}
+	avatarURL := avatarURLs[rand.Intn(len(avatarURLs))]
 
 	var externalAddress string
 	if platformGroup == PlatformGroupXCom {
@@ -699,9 +708,9 @@ func (gen *dummyDataGenerator) createUserForPlatform(ctx context.Context, master
 	_, err = storage.Exec(ctx, gen.Target, `
 		INSERT INTO users (
 			created_at, updated_at, id, master_pubkey, blockchain_address, external_address, username, 
-			display_name, lookup, ion_connect_relays, verified, platform_group
+			display_name, avatar, lookup, ion_connect_relays, verified, platform_group
 		) VALUES (
-			NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+			NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
 		)
 		ON CONFLICT (master_pubkey) 
 		DO UPDATE SET
@@ -711,11 +720,12 @@ func (gen *dummyDataGenerator) createUserForPlatform(ctx context.Context, master
 			external_address = EXCLUDED.external_address,
 			username = EXCLUDED.username,
 			display_name = EXCLUDED.display_name,
+			avatar = EXCLUDED.avatar,
 			lookup = EXCLUDED.lookup,
 			ion_connect_relays = EXCLUDED.ion_connect_relays,
 			verified = EXCLUDED.verified,
 			platform_group = EXCLUDED.platform_group
-	`, id, masterPubkey, "0x"+blockchainAddress, externalAddress, username, displayName, lookup, ionConnectRelays, verified, platformGroup)
+	`, id, masterPubkey, "0x"+blockchainAddress, externalAddress, username, displayName, avatarURL, lookup, ionConnectRelays, verified, platformGroup)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err)
 	}

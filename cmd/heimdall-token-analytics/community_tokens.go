@@ -60,19 +60,20 @@ type (
 		Limit           uint32 `form:"limit" swaggerignore:"true"`
 	}
 	ExternalDataRequest struct {
-		ExternalAddress string                  `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
-		Body            ExternalDataRequestBody `json:",inline"`
+		Body ExternalDataRequestBody `json:",inline"`
 	}
 	ExternalDataRequestBody struct {
-		CreatorUsername    string `json:"creatorUsername" example:"johndoe"`
-		CreatorDisplayName string `json:"creatorDisplayName" example:"John Doe"`
-		CreatorAvatar      string `json:"creatorAvatar" example:"https://example.com/avatar.png"`
-		CreatorVerified    bool   `json:"creatorVerified" example:"true"`
-		HolderUsername     string `json:"holderUsername" example:"janedoe"`
-		HolderDisplayName  string `json:"holderDisplayName" example:"Jane Doe"`
-		HolderAvatar       string `json:"holderAvatar" example:"https://example.com/holder-avatar.png"`
-		HolderVerified     bool   `json:"holderVerified" example:"false"`
-		HolderBNBBSCWallet string `json:"holderBNBBSCWallet" example:"0x1234567890abcdef1234567890abcdef12345678"`
+		CreatorExternalAddress string `json:"creatorExternalAddress" example:"1234567890"`
+		CreatorUsername        string `json:"creatorUsername" example:"johndoe"`
+		CreatorDisplayName     string `json:"creatorDisplayName" example:"John Doe"`
+		CreatorAvatar          string `json:"creatorAvatar" example:"https://example.com/avatar.png"`
+		CreatorVerified        bool   `json:"creatorVerified" example:"true"`
+		HolderExternalAddress  string `json:"holderExternalAddress" example:"9876543210"`
+		HolderUsername         string `json:"holderUsername" example:"janedoe"`
+		HolderDisplayName      string `json:"holderDisplayName" example:"Jane Doe"`
+		HolderAvatar           string `json:"holderAvatar" example:"https://example.com/holder-avatar.png"`
+		HolderVerified         bool   `json:"holderVerified" example:"false"`
+		HolderBNBBSCWallet     string `json:"holderBNBBSCWallet" example:"0x1234567890abcdef1234567890abcdef12345678"`
 	}
 	OHLCVRequest struct {
 		ExternalAddress string `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
@@ -311,28 +312,28 @@ func (s *service) GetCommunityTokenHolderPositions(ctx context.Context, req *ser
 // SyncCommunityTokenExternalData godoc
 //
 //	@Schemes
-//	@Description	Syncs external creator information for a community token.
+//	@Description	Syncs external creator information for Twitter profile tokens.
 //	@Tags			Tokens
 //	@Accept			json
 //	@Produce		json
-//	@Param			externalAddressOrViewType	path	string					true	"External address"
-//	@Param			body						body	ExternalDataRequestBody	true	"Creator information"
-//	@Success		200							"OK - Data synced successfully"
-//	@Failure		400							{object}	server.ResponseErrorBody	"if request body is invalid"
-//	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
-//	@Failure		500							{object}	server.ResponseErrorBody
-//	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
+//	@Param			body	body	ExternalDataRequestBody	true	"Creator and holder information"
+//	@Success		200		"OK - Data synced successfully"
+//	@Failure		400		{object}	server.ResponseErrorBody	"if request body is invalid"
+//	@Failure		401		{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		500		{object}	server.ResponseErrorBody
+//	@Failure		504		{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
 //	@Security		XCom
-//	@Router			/v1/community-tokens/{externalAddressOrViewType}/external-data [PUT].
+//	@Router			/v1/community-tokens/twitterProfiles/external-data [PUT].
 func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *server.Request[ExternalDataRequest]) (*server.Response[any], error) {
 	if err := s.tokenAnalytics.UpdateTokenExternalData(
 		ctx,
-		req.Data.ExternalAddress,
+		req.Data.Body.CreatorExternalAddress,
 		req.Data.Body.CreatorUsername,
 		req.Data.Body.CreatorDisplayName,
 		req.Data.Body.CreatorAvatar,
 		req.Data.Body.CreatorVerified,
+		req.Data.Body.HolderExternalAddress,
 		req.Data.Body.HolderUsername,
 		req.Data.Body.HolderDisplayName,
 		req.Data.Body.HolderAvatar,

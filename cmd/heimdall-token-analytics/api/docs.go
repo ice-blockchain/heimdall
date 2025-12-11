@@ -118,6 +118,68 @@ const docTemplate = `{
                 ]
             }
         },
+        "/v1/community-tokens/twitterProfiles/external-data": {
+            "put": {
+                "description": "Syncs external creator information for Twitter profile tokens.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tokens"
+                ],
+                "parameters": [
+                    {
+                        "description": "Creator and holder information",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.ExternalDataRequestBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK - Data synced successfully"
+                    },
+                    "400": {
+                        "description": "if request body is invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    },
+                    {
+                        "XCom": []
+                    }
+                ]
+            }
+        },
         "/v1/community-tokens/{externalAddressOrViewType}": {
             "get": {
                 "description": "Returns community tokens information for the given Ion Connect addresses.",
@@ -168,75 +230,6 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/tokenanalytics.CommunityToken"
                             }
-                        }
-                    },
-                    "401": {
-                        "description": "if auth token is missing or invalid",
-                        "schema": {
-                            "$ref": "#/definitions/server.ResponseErrorBody"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/server.ResponseErrorBody"
-                        }
-                    },
-                    "504": {
-                        "description": "if request times out",
-                        "schema": {
-                            "$ref": "#/definitions/server.ResponseErrorBody"
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "Nostr": []
-                    },
-                    {
-                        "XCom": []
-                    }
-                ]
-            }
-        },
-        "/v1/community-tokens/{externalAddressOrViewType}/external-data": {
-            "put": {
-                "description": "Syncs external creator information for a community token.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Tokens"
-                ],
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "External address",
-                        "name": "externalAddressOrViewType",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Creator information",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/main.ExternalDataRequestBody"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK - Data synced successfully"
-                    },
-                    "400": {
-                        "description": "if request body is invalid",
-                        "schema": {
-                            "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     },
                     "401": {
@@ -1398,6 +1391,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "John Doe"
                 },
+                "creatorExternalAddress": {
+                    "type": "string",
+                    "example": "1234567890"
+                },
                 "creatorUsername": {
                     "type": "string",
                     "example": "johndoe"
@@ -1417,6 +1414,10 @@ const docTemplate = `{
                 "holderDisplayName": {
                     "type": "string",
                     "example": "Jane Doe"
+                },
+                "holderExternalAddress": {
+                    "type": "string",
+                    "example": "9876543210"
                 },
                 "holderUsername": {
                     "type": "string",

@@ -15,8 +15,9 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
-func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context, externalAddress, creatorUsername, creatorDisplayName, creatorAvatar string, creatorVerified bool,
-	holderUsername, holderDisplayName, holderAvatar string, holderVerified bool, holderBNBBSCWallet string) error {
+func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
+	creatorExternalAddress, creatorUsername, creatorDisplayName, creatorAvatar string, creatorVerified bool,
+	holderExternalAddress, holderUsername, holderDisplayName, holderAvatar string, holderVerified bool, holderBNBBSCWallet string) error {
 
 	query := `
 		INSERT INTO users (
@@ -25,7 +26,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context, externalAd
 		)
 		VALUES 
 			(NOW(), NOW(), $1, $1, '', $1, $2, $3, $4, $5, LOWER($2 || ' ' || COALESCE($3, '')), 'xcom'::platform_type),
-			(NOW(), NOW(), $6, $6, $6, $6, $7, $8, $9, $10, LOWER($7 || ' ' || COALESCE($8, '')), 'xcom'::platform_type)
+			(NOW(), NOW(), $6, $6, $7, $6, $8, $9, $10, $11, LOWER($8 || ' ' || COALESCE($9, '')), 'xcom'::platform_type)
 		ON CONFLICT (master_pubkey) 
 		DO UPDATE SET
 			external_address = EXCLUDED.external_address,
@@ -40,11 +41,12 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context, externalAd
 	`
 
 	_, err := storage.Exec(ctx, t.ingestedDataDB, query,
-		externalAddress,
+		creatorExternalAddress,
 		creatorUsername,
 		creatorDisplayName,
 		creatorAvatar,
 		creatorVerified,
+		holderExternalAddress,
 		holderBNBBSCWallet,
 		holderUsername,
 		holderDisplayName,
