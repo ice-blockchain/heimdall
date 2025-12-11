@@ -62,7 +62,7 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 			COALESCE((utp.amount::NUMERIC / 1e18) * t.price_usd, 0) as position_amount_usd,
 			COALESCE(utp.total_invested_usd, 0) as position_total_invested_usd
 		FROM tokens t
-		LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
+		INNER JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
 		LEFT JOIN user_token_positions utp ON utp.external_address = t.external_address AND utp.master_pubkey = $2
 		LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 		LEFT JOIN token_platform_holders tph ON tph.external_address = t.external_address 
@@ -101,6 +101,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 				t.external_address,
 				t.platform as platform,
 				t.type,
+				t.ticker,
 				t.created_at,
 				t.creator_master_pubkey,
 				t.market_cap_usd,
@@ -125,7 +126,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 					ELSE 0.0
 				END AS relevance_score
 			FROM tokens t
-			LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
+			INNER JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
 			LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 			` + whereClause + `
 			ORDER BY t.lookup <-> ` + fmt.Sprintf(`$%d`, argIndex-1) + `
@@ -136,6 +137,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 			external_address,
 			platform,
 			type,
+			ticker,
 			username as title,
 			COALESCE(display_name, '') as description,
 			COALESCE(avatar, '') as image_url,
@@ -197,6 +199,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 				Addresses: creatorAddresses,
 			},
 			MarketData: MarketData{
+				Ticker:       row.Ticker,
 				MarketCap:    row.MarketCapUSD,
 				Supply:       weiToUint64FromBigInt(totalSupply),
 				Volume:       row.Volume24h,
@@ -350,10 +353,10 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 
 		fromJoinsClause = `FROM %s t
 			LEFT JOIN requestor_platform rp ON true
-			LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
+			INNER JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
 			LEFT JOIN user_token_positions utp ON utp.external_address = t.external_address AND utp.master_pubkey = $2
 			LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
-			LEFT JOIN token_platform_holders tph ON tph.external_address = t.external_address 
+			LEFT JOIN token_platform_holders tph ON tph.external_address = t.external_address
 				AND (rp.platform_group IS NULL OR tph.platform_group = rp.platform_group)`
 	)
 
