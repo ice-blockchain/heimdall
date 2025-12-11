@@ -84,7 +84,7 @@ func (n *nftContent) updateUserBSCAddress(ctx context.Context, profileEvent *mod
 	}
 	bscAddress := ""
 	for network, walletAddr := range profileContent.Wallets {
-		if strings.EqualFold(network, "bsc") || strings.EqualFold(network, "bsc-testnet") {
+		if strings.EqualFold(network, "bsc") || strings.EqualFold(network, "bsctestnet") {
 			bscAddress = walletAddr
 
 			break
