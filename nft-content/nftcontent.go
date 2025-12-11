@@ -48,14 +48,28 @@ func (n *nftContent) Process(ctx context.Context, events model.Events) error {
 	}
 	contentType := getNFTContentType(contentEvent)
 	if contentType == NFTContentTypeAccount {
+		var profileContent model.ProfileMetadataContent
+		if err := json.Unmarshal([]byte(contentEvent.Content), &profileContent); err != nil {
+			return errors.Wrap(err, "failed to unmarshal profile metadata content")
+		}
+		hasNFTCollections := len(profileContent.IONContentNFTCollections) > 0
+		record, err := n.getAccountTypeRecord(ctx, contentEvent.GetMasterPublicKey())
+		if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
+			return errors.Wrap(err, "failed to get account type record")
+		}
+		nftRecordExists := record != nil
+		if hasNFTCollections && !nftRecordExists {
+			owner, err := n.getOwnerWalletAddress(ctx, contentEvent)
+			if err != nil {
+				return errors.Wrapf(err, "failed to detect owner of nft items for profile %v", contentEvent.GetMasterPublicKey())
+			}
+			return errors.Wrap(n.insertNFTContentForAccountType(ctx, contentEvent, owner), "failed to insert nft content for account type")
+		}
 		if err := n.updateUserBSCAddress(ctx, contentEvent); err != nil {
 			return errors.Wrap(err, "failed to update user bsc address for account type")
 		}
-		owner, err := n.getOwnerWalletAddress(ctx, contentEvent)
-		if err != nil {
-			return errors.Wrapf(err, "failed to detect owner of nft items for profile %v", contentEvent.GetMasterPublicKey())
-		}
-		return errors.Wrap(n.insertNFTContentForAccountType(ctx, contentEvent, owner), "failed to insert nft content for account type")
+
+		return nil
 	}
 	if err := n.insertNFTContent(ctx, contentEvent, eventProfileMetadata, contentType); err != nil {
 		return errors.Wrapf(err, "database insertion failed for event: %s", contentEvent.ID)
@@ -71,16 +85,19 @@ func (n *nftContent) updateUserBSCAddress(ctx context.Context, profileEvent *mod
 	}
 	bscAddress := ""
 	for network, walletAddr := range profileContent.Wallets {
-		if strings.EqualFold(network, "bsc") {
+		if strings.EqualFold(network, "bsc") || strings.EqualFold(network, "bsc-testnet") {
 			bscAddress = walletAddr
 
 			break
 		}
 	}
+	masterPubkey := profileEvent.GetMasterPublicKey()
 	if bscAddress == "" {
+		if err := n.userRepository.DeleteUser(ctx, masterPubkey); err != nil {
+			return errors.Wrap(err, "failed to delete user from token-analytics")
+		}
 		return nil
 	}
-	masterPubkey := profileEvent.GetMasterPublicKey()
 	username := profileContent.Name
 	displayName := profileContent.DisplayName
 	avatar := profileContent.Picture

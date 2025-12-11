@@ -27,6 +27,7 @@ type (
 		HealthCheck(ctx context.Context) error
 		UpsertUser(ctx context.Context, id, masterPubkey, blockchainAddress, username, displayName, avatar string, verified *bool, ionConnectRelays []string) error
 		SetVerified(ctx context.Context, masterPubkey string) error
+		DeleteUser(ctx context.Context, masterPubkey string) error
 	}
 
 	TokenAnalytics interface {
