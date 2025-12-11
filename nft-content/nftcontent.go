@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"slices"
+	"strings"
 
 	"github.com/goccy/go-json"
 	"github.com/nbd-wtf/go-nostr"
@@ -14,21 +15,23 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 
 	indexer "github.com/ice-blockchain/heimdall/ion-indexer"
+	tokenanalytics "github.com/ice-blockchain/heimdall/token-analytics"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
-func New(ctx context.Context, walletFetcher OwnerAddressFetcher, indexer indexer.Indexer) NFTContent {
+func New(ctx context.Context, walletFetcher OwnerAddressFetcher, indexer indexer.Indexer, userRepo tokenanalytics.UserRepository) NFTContent {
 	db := storage.MustConnect(ctx, applicationYamlKey, storage.NewStringDDL(ddl))
 
 	var cfg Config
 	config.MustLoadFromKey(applicationYamlKey, &cfg)
 	nft := &nftContent{
-		db:            db,
-		walletFetcher: walletFetcher,
-		config:        &cfg,
-		indexer:       indexer,
+		db:             db,
+		walletFetcher:  walletFetcher,
+		config:         &cfg,
+		indexer:        indexer,
+		userRepository: userRepo,
 	}
 	walletFetcher.SetProviderForUnsupportedNFTs(nft.indexer)
 	return nft
@@ -45,14 +48,69 @@ func (n *nftContent) Process(ctx context.Context, events model.Events) error {
 	}
 	contentType := getNFTContentType(contentEvent)
 	if contentType == NFTContentTypeAccount {
-		owner, err := n.getOwnerWalletAddress(ctx, contentEvent)
-		if err != nil {
-			return errors.Wrapf(err, "failed to detect owner of nft items for profile %v", contentEvent.GetMasterPublicKey())
+		var profileContent model.ProfileMetadataContent
+		if err := json.Unmarshal([]byte(contentEvent.Content), &profileContent); err != nil {
+			return errors.Wrap(err, "failed to unmarshal profile metadata content")
 		}
-		return errors.Wrap(n.insertNFTContentForAccountType(ctx, contentEvent, owner), "failed to insert nft content for account type")
+		hasNFTCollections := len(profileContent.IONContentNFTCollections) > 0
+		userID, nftRecordExists, err := n.checkNFTRecordExists(ctx, contentEvent.GetMasterPublicKey())
+		if err != nil {
+			return errors.Wrap(err, "failed to check nft record existence")
+		}
+		if hasNFTCollections && !nftRecordExists {
+			owner, err := n.getOwnerWalletAddress(ctx, contentEvent)
+			if err != nil {
+				return errors.Wrapf(err, "failed to detect owner of nft items for profile %v", contentEvent.GetMasterPublicKey())
+			}
+			return errors.Wrap(n.insertNFTContentForAccountType(ctx, contentEvent, owner), "failed to insert nft content for account type")
+		}
+		if err := n.updateUserBSCAddress(ctx, contentEvent, userID); err != nil {
+			return errors.Wrap(err, "failed to update user bsc address for account type")
+		}
+
+		return nil
 	}
 	if err := n.insertNFTContent(ctx, contentEvent, eventProfileMetadata, contentType); err != nil {
 		return errors.Wrapf(err, "database insertion failed for event: %s", contentEvent.ID)
+	}
+
+	return nil
+}
+
+func (n *nftContent) updateUserBSCAddress(ctx context.Context, profileEvent *model.Event, userID string) error {
+	var profileContent model.ProfileMetadataContent
+	if err := json.Unmarshal([]byte(profileEvent.Content), &profileContent); err != nil {
+		return errors.Wrap(err, "failed to unmarshal profile metadata content")
+	}
+	bscAddress := ""
+	for network, walletAddr := range profileContent.Wallets {
+		if strings.EqualFold(network, "bsc") || strings.EqualFold(network, "bsctestnet") {
+			bscAddress = walletAddr
+
+			break
+		}
+	}
+	masterPubkey := profileEvent.GetMasterPublicKey()
+	displayName := profileContent.DisplayName
+	avatar := profileContent.Picture
+	if bscAddress == "" {
+		displayName = "Hidden"
+		avatar = ""
+	}
+
+	err := n.userRepository.UpsertUser(
+		ctx,
+		userID,
+		masterPubkey,
+		bscAddress,
+		profileContent.Name,
+		displayName,
+		avatar,
+		nil,
+		nil,
+	)
+	if err != nil {
+		return errors.Wrap(err, "failed to update user BSC address in token-analytics")
 	}
 
 	return nil
@@ -239,6 +297,24 @@ func (n *nftContent) insertNFTContent(ctx context.Context, contentEvent *model.E
 	}
 
 	return errors.Wrap(n.insertNFTContentForContentType(ctx, contentEvent, accountRecord, contentType), "failed to insert nft content for content type")
+}
+
+func (n *nftContent) checkNFTRecordExists(ctx context.Context, masterPubKey string) (userID string, nftExists bool, err error) {
+	stmt := `SELECT u.id, nc.content_address
+			 FROM users u
+			 LEFT JOIN nft_content nc ON nc.master_pubkey = u.master_pubkey 
+			                          AND nc.type = 'account'::nft_content_type
+			 WHERE u.master_pubkey = $1`
+
+	result, err := storage.Get[struct {
+		UserID         string  `db:"id"`
+		ContentAddress *string `db:"content_address"`
+	}](ctx, n.db, stmt, masterPubKey)
+	if err != nil {
+		return "", false, errors.Wrap(err, "failed to check nft record existence")
+	}
+
+	return result.UserID, result.ContentAddress != nil, nil
 }
 
 func (n *nftContent) getAccountTypeRecord(ctx context.Context, masterPubKey string) (*NFTCollectionItemMetadata, error) {

@@ -13,6 +13,7 @@ import (
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/coins"
 	indexer "github.com/ice-blockchain/heimdall/ion-indexer"
+	tokenanalytics "github.com/ice-blockchain/heimdall/token-analytics"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
@@ -133,9 +134,10 @@ var (
 
 type (
 	nftContent struct {
-		db            *storage.DB
-		config        *Config
-		walletFetcher OwnerAddressFetcher
-		indexer       indexer.Indexer
+		db             *storage.DB
+		config         *Config
+		walletFetcher  OwnerAddressFetcher
+		indexer        indexer.Indexer
+		userRepository tokenanalytics.UserRepository
 	}
 )
