@@ -15,45 +15,70 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
-func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context, externalAddress, creatorUsername, creatorDisplayName, creatorAvatar string, creatorVerified bool,
-	holderUsername, holderDisplayName, holderAvatar string, holderVerified bool, holderBNBBSCWallet string) error {
+func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
+	masterPubkey, userExternalAddress, userUsername, userDisplayName, userAvatar string, userVerified bool,
+	userBNBBSCWallet string) error {
 
-	query := `
+	userQuery := `
 		INSERT INTO users (
 			created_at, updated_at, id, master_pubkey, blockchain_address, 
 			external_address, username, display_name, avatar, verified, lookup, platform_group
 		)
-		VALUES 
-			(NOW(), NOW(), $1, $1, '', $1, $2, $3, $4, $5, LOWER($2 || ' ' || COALESCE($3, '')), 'xcom'::platform_type),
-			(NOW(), NOW(), $6, $6, $6, $6, $7, $8, $9, $10, LOWER($7 || ' ' || COALESCE($8, '')), 'xcom'::platform_type)
+		VALUES (
+			NOW(), NOW(), $1, $1, $2, $3, $4, $5, $6, $7, LOWER($4 || ' ' || COALESCE($5, '')), 'xcom'::platform_type
+		)
 		ON CONFLICT (master_pubkey) 
 		DO UPDATE SET
-			external_address = EXCLUDED.external_address,
-			username = EXCLUDED.username,
-			display_name = EXCLUDED.display_name,
-			avatar = EXCLUDED.avatar,
+			external_address = COALESCE(NULLIF(EXCLUDED.external_address, ''), users.external_address),
+			username = COALESCE(NULLIF(EXCLUDED.username, ''), users.username),
+			display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name),
+			avatar = COALESCE(NULLIF(EXCLUDED.avatar, ''), users.avatar),
 			verified = EXCLUDED.verified,
 			blockchain_address = COALESCE(NULLIF(EXCLUDED.blockchain_address, ''), users.blockchain_address),
-			lookup = EXCLUDED.lookup,
+			lookup = COALESCE(NULLIF(EXCLUDED.lookup, ''), users.lookup),
 			platform_group = EXCLUDED.platform_group,
 			updated_at = NOW()
 	`
 
-	_, err := storage.Exec(ctx, t.ingestedDataDB, query,
-		externalAddress,
-		creatorUsername,
-		creatorDisplayName,
-		creatorAvatar,
-		creatorVerified,
-		holderBNBBSCWallet,
-		holderUsername,
-		holderDisplayName,
-		holderAvatar,
-		holderVerified,
+	_, err := storage.Exec(ctx, t.ingestedDataDB, userQuery,
+		masterPubkey,
+		userBNBBSCWallet,
+		userExternalAddress,
+		userUsername,
+		userDisplayName,
+		userAvatar,
+		userVerified,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to upsert user external data: %w", err)
+		return fmt.Errorf("failed to update logged-in user profile: %w", err)
 	}
+
+	return nil
+}
+
+func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
+	tokenExternalAddress, userExternalAddress, userUsername, userDisplayName, userAvatar string, userVerified bool,
+	userBNBBSCWallet, tokenDescription, tokenImageURL string) error {
+
+	if userExternalAddress != "" || userUsername != "" || userDisplayName != "" || userAvatar != "" || userBNBBSCWallet != "" {
+		if err := t.UpdateLoggedInUserProfile(
+			ctx,
+			userExternalAddress,
+			userExternalAddress,
+			userUsername,
+			userDisplayName,
+			userAvatar,
+			userVerified,
+			userBNBBSCWallet,
+		); err != nil {
+			return fmt.Errorf("failed to update user profile: %w", err)
+		}
+	}
+
+	// TODO: Update token information using tokenExternalAddress
+	_ = tokenExternalAddress
+	_ = tokenDescription
+	_ = tokenImageURL
 
 	return nil
 }

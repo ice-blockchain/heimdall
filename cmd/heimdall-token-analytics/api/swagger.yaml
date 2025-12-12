@@ -3,32 +3,29 @@
 definitions:
   main.ExternalDataRequestBody:
     properties:
-      creatorAvatar:
+      tokenDescription:
+        example: My awesome token
+        type: string
+      tokenImageURL:
+        example: https://example.com/token.png
+        type: string
+      userAvatar:
         example: https://example.com/avatar.png
         type: string
-      creatorDisplayName:
-        example: John Doe
-        type: string
-      creatorUsername:
-        example: johndoe
-        type: string
-      creatorVerified:
-        example: true
-        type: boolean
-      holderAvatar:
-        example: https://example.com/holder-avatar.png
-        type: string
-      holderBNBBSCWallet:
+      userBNBBSCWallet:
         example: 0x1234567890abcdef1234567890abcdef12345678
         type: string
-      holderDisplayName:
-        example: Jane Doe
+      userDisplayName:
+        example: John Doe
         type: string
-      holderUsername:
-        example: janedoe
+      userExternalAddress:
+        example: "1234567890"
         type: string
-      holderVerified:
-        example: false
+      userUsername:
+        example: johndoe
+        type: string
+      userVerified:
+        example: true
         type: boolean
     type: object
   main.SessionViewCreateResponse:
@@ -374,14 +371,18 @@ paths:
     put:
       consumes:
       - application/json
-      description: Syncs external creator information for a community token.
+      description: |-
+        Syncs external user and token information. At least one field must be provided. Requires authentication.
+        Special case: when externalAddressOrViewType is "twitterProfiles", updates the logged-in user's profile.
+        Otherwise, updates token information associated with the specified external address
       parameters:
-      - description: External address
+      - description: Token external address or 'twitterProfiles' for logged-in user
+          profile update
         in: path
         name: externalAddressOrViewType
         required: true
         type: string
-      - description: Creator information
+      - description: User and token information
         in: body
         name: body
         required: true
@@ -393,7 +394,7 @@ paths:
         "200":
           description: OK - Data synced successfully
         "400":
-          description: if request body is invalid
+          description: if request body is invalid or all fields are empty
           schema:
             $ref: '#/definitions/server.ResponseErrorBody'
         "401":

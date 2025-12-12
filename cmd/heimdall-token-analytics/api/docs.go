@@ -201,7 +201,7 @@ const docTemplate = `{
         },
         "/v1/community-tokens/{externalAddressOrViewType}/external-data": {
             "put": {
-                "description": "Syncs external creator information for a community token.",
+                "description": "Syncs external user and token information. At least one field must be provided. Requires authentication.\nSpecial case: when externalAddressOrViewType is \"twitterProfiles\", updates the logged-in user's profile.\nOtherwise, updates token information associated with the specified external address",
                 "consumes": [
                     "application/json"
                 ],
@@ -214,13 +214,13 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "External address",
+                        "description": "Token external address or 'twitterProfiles' for logged-in user profile update",
                         "name": "externalAddressOrViewType",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Creator information",
+                        "description": "User and token information",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -234,7 +234,7 @@ const docTemplate = `{
                         "description": "OK - Data synced successfully"
                     },
                     "400": {
-                        "description": "if request body is invalid",
+                        "description": "if request body is invalid or all fields are empty",
                         "schema": {
                             "$ref": "#/definitions/server.ResponseErrorBody"
                         }
@@ -1390,41 +1390,37 @@ const docTemplate = `{
         "main.ExternalDataRequestBody": {
             "type": "object",
             "properties": {
-                "creatorAvatar": {
+                "tokenDescription": {
+                    "type": "string",
+                    "example": "My awesome token"
+                },
+                "tokenImageURL": {
+                    "type": "string",
+                    "example": "https://example.com/token.png"
+                },
+                "userAvatar": {
                     "type": "string",
                     "example": "https://example.com/avatar.png"
                 },
-                "creatorDisplayName": {
-                    "type": "string",
-                    "example": "John Doe"
-                },
-                "creatorUsername": {
-                    "type": "string",
-                    "example": "johndoe"
-                },
-                "creatorVerified": {
-                    "type": "boolean",
-                    "example": true
-                },
-                "holderAvatar": {
-                    "type": "string",
-                    "example": "https://example.com/holder-avatar.png"
-                },
-                "holderBNBBSCWallet": {
+                "userBNBBSCWallet": {
                     "type": "string",
                     "example": "0x1234567890abcdef1234567890abcdef12345678"
                 },
-                "holderDisplayName": {
+                "userDisplayName": {
                     "type": "string",
-                    "example": "Jane Doe"
+                    "example": "John Doe"
                 },
-                "holderUsername": {
+                "userExternalAddress": {
                     "type": "string",
-                    "example": "janedoe"
+                    "example": "1234567890"
                 },
-                "holderVerified": {
+                "userUsername": {
+                    "type": "string",
+                    "example": "johndoe"
+                },
+                "userVerified": {
                     "type": "boolean",
-                    "example": false
+                    "example": true
                 }
             }
         },
