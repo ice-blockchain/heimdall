@@ -82,7 +82,7 @@ func (b *bondingCurve) progress(ctx context.Context, pairId common.Hash) (*Bondi
 	opts := &bind.CallOpts{Pending: true, Context: ctx}
 	info, err := client.BondingProgress(opts, pairIdBytes)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get progress from bondijng curve", b.cfg.BondingCurve.SmartContractAddress)
+		return nil, errors.Wrapf(err, "failed to get progress from bonding curve %v", b.cfg.BondingCurve.SmartContractAddress)
 	}
 	return &info, nil
 }
