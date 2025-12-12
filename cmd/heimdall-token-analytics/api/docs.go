@@ -225,7 +225,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.ExternalDataRequestBody"
+                            "$ref": "#/definitions/main.ExternalDataRequest"
                         }
                     }
                 ],
@@ -1387,7 +1387,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "main.ExternalDataRequestBody": {
+        "main.ExternalDataRequest": {
             "type": "object",
             "properties": {
                 "tokenDescription": {
