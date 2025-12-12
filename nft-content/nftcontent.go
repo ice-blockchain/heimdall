@@ -18,7 +18,7 @@ import (
 	tokenanalytics "github.com/ice-blockchain/heimdall/token-analytics"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/config"
-	"github.com/ice-blockchain/wintr/connectors/storage/v2"
+	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
 func New(ctx context.Context, walletFetcher OwnerAddressFetcher, indexer indexer.Indexer, userRepo tokenanalytics.UserRepository) NFTContent {
@@ -91,6 +91,15 @@ func (n *nftContent) updateUserBSCAddress(ctx context.Context, profileEvent *mod
 		}
 	}
 	masterPubkey := profileEvent.GetMasterPublicKey()
+	if bscAddress == "" {
+		user, err := n.userRepository.GetUser(ctx, masterPubkey)
+		if err != nil {
+			return errors.Wrap(err, "failed to get user from token-analytics")
+		}
+		if user == nil {
+			return nil
+		}
+	}
 	displayName := profileContent.DisplayName
 	avatar := profileContent.Picture
 	if bscAddress == "" {
@@ -305,11 +314,11 @@ func (n *nftContent) checkNFTRecordExists(ctx context.Context, masterPubKey stri
 			 LEFT JOIN nft_content nc ON nc.master_pubkey = u.master_pubkey 
 			                          AND nc.type = 'account'::nft_content_type
 			 WHERE u.master_pubkey = $1`
-
-	result, err := storage.Get[struct {
+	type row struct {
 		UserID         string  `db:"id"`
 		ContentAddress *string `db:"content_address"`
-	}](ctx, n.db, stmt, masterPubKey)
+	}
+	result, err := storage.Get[row](ctx, n.db, stmt, masterPubKey)
 	if err != nil {
 		return "", false, errors.Wrap(err, "failed to check nft record existence")
 	}

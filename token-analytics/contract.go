@@ -22,11 +22,26 @@ import (
 )
 
 type (
+	UserRecord struct {
+		ID                string   `db:"id"`
+		MasterPubkey      string   `db:"master_pubkey"`
+		BlockchainAddress string   `db:"blockchain_address"`
+		ExternalAddress   string   `db:"external_address"`
+		Username          string   `db:"username"`
+		DisplayName       string   `db:"display_name"`
+		Avatar            string   `db:"avatar"`
+		Lookup            string   `db:"lookup"`
+		IONConnectRelays  []string `db:"ion_connect_relays"`
+		Verified          bool     `db:"verified"`
+		PlatformGroup     string   `db:"platform_group"`
+	}
+
 	UserRepository interface {
 		Close() error
 		HealthCheck(ctx context.Context) error
 		UpsertUser(ctx context.Context, id, masterPubkey, blockchainAddress, username, displayName, avatar string, verified *bool, ionConnectRelays []string) error
 		SetVerified(ctx context.Context, masterPubkey string) error
+		GetUser(ctx context.Context, masterPubkey string) (*UserRecord, error)
 	}
 
 	TokenAnalytics interface {
