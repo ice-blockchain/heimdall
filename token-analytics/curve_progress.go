@@ -16,32 +16,36 @@ import (
 )
 
 func (t *tokenAnalytics) GetBondingCurveProgress(ctx context.Context, externalAddress string) (*BondingCurveProgress, error) {
-	type tokenInfo struct {
-		PairId string `db:"pair_id"`
-	}
-	result, err := storage.Get[tokenInfo](ctx, t.ingestedDataDB, `
+	p, _, err := t.getBondingCurveProgress(ctx, externalAddress)
+	return p, err
+}
+func (t *tokenAnalytics) getBondingCurveProgress(ctx context.Context, externalAddress string) (*BondingCurveProgress, string, error) {
+	pairId, err := storage.Get[string](ctx, t.ingestedDataDB, `
 		SELECT t.pair_id FROM tokens t WHERE t.external_address = $1`, externalAddress)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find token by external address %v: %w", externalAddress, err)
+		return nil, "", fmt.Errorf("failed to find token by external address %v: %w", externalAddress, err)
 	}
-	progress, err := t.bondingCurve.Progress(ctx, common.HexToHash(result.PairId))
+	if pairId == nil {
+		return nil, "", fmt.Errorf("token %v not found", externalAddress)
+	}
+	progress, err := t.bondingCurve.Progress(ctx, common.HexToHash(*pairId))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get curve progress for token %v (pair %v): %w", externalAddress, result.PairId, err)
+		return nil, "", fmt.Errorf("failed to get curve progress for token %v (pair %v): %w", externalAddress, pairId, err)
 	}
 	basePrice := t.ionPriceUSD.Load()
-	return toModel(progress, *basePrice), nil
+	return toModel(progress, *basePrice), *pairId, nil
 }
 
 func (t *tokenAnalytics) SubscribeBondingCurveProgress(ctx context.Context, externalAddress string, addToStream func(*BondingCurveProgress, error)) error {
-	currentProgress, err := t.GetBondingCurveProgress(ctx, externalAddress)
+	currentProgress, pairId, err := t.getBondingCurveProgress(ctx, externalAddress)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get initial bonding curve ptogress for token %v", externalAddress)
+		return errors.Wrapf(err, "failed to get initial bonding curve progress for token %v", externalAddress)
 	}
 	addToStream(currentProgress, nil)
 	updates, hasAtLeastOneSubscriptionForToken, stopUpdater := t.subscriptions.SubscribeOnBondingCurveProgress(ctx, externalAddress)
 
 	if !hasAtLeastOneSubscriptionForToken {
-		if err = t.startBondingCurveProgressUpdater(stopUpdater, externalAddress); err != nil {
+		if err = t.startBondingCurveProgressUpdater(stopUpdater, externalAddress, pairId); err != nil {
 			return errors.Wrapf(err, "failed to start bonding curve progress updater for %v", externalAddress)
 		}
 	}
@@ -64,20 +68,7 @@ func progressToUSD(progress *bondingcurve.BondingCurveProgress, basePrice float6
 	return goalUSD, currentRaisedUSD
 }
 
-func (t *tokenAnalytics) startBondingCurveProgressUpdater(stop <-chan struct{}, externalAddress string) error {
-	type tokenToUpdate struct {
-		PairID          string `db:"pair_id"`
-		ExternalAddress string `db:"external_address"`
-	}
-	fetchCtx, fetchCancel := context.WithTimeout(context.Background(), 30*stdlibtime.Second)
-	token, err := storage.Get[tokenToUpdate](fetchCtx, t.ingestedDataDB, `
-		SELECT pair_id, external_address FROM tokens 
-		WHERE NOT (contract_address LIKE '0xdeadbeef%') -- TODO: remove with dummy inserter
-		AND external_address = $1`, externalAddress)
-	fetchCancel()
-	if err != nil {
-		return fmt.Errorf("failed to find tokens for bonding curve progress update %v: %w", externalAddress, err)
-	}
+func (t *tokenAnalytics) startBondingCurveProgressUpdater(stop <-chan struct{}, externalAddress, pairId string) error {
 	ticker := stdlibtime.NewTicker(t.cfg.BondingCurve.BondingCurveProgressUpdateFrequency)
 	go func() {
 		defer ticker.Stop()
@@ -87,7 +78,7 @@ func (t *tokenAnalytics) startBondingCurveProgressUpdater(stop <-chan struct{}, 
 				return
 			case <-ticker.C:
 				updateCtx, updateCancel := context.WithTimeout(context.Background(), 30*stdlibtime.Second)
-				if err := t.updateBondingProgress(updateCtx, token.ExternalAddress, token.PairID); err != nil {
+				if err := t.updateBondingProgress(updateCtx, externalAddress, pairId); err != nil {
 					log.Error(fmt.Errorf("failed to update bonding curve progress in background: %w", err))
 				}
 				updateCancel()
@@ -97,7 +88,7 @@ func (t *tokenAnalytics) startBondingCurveProgressUpdater(stop <-chan struct{}, 
 	return nil
 }
 
-func (t *tokenAnalytics) updateBondingProgress(ctx context.Context, externalAddress string, pairId string) error {
+func (t *tokenAnalytics) updateBondingProgress(ctx context.Context, externalAddress, pairId string) error {
 	log.Debug(fmt.Sprintf("updating bonding curve progress for %v", externalAddress))
 	progress, err := t.bondingCurve.Progress(ctx, common.HexToHash(pairId))
 	if err != nil {
@@ -118,7 +109,7 @@ func (t *tokenAnalytics) updateBondingProgress(ctx context.Context, externalAddr
 			updated_at = NOW()
 		WHERE t.external_address = $1`, externalAddress, progress.SoldTokens, progress.TokensRaised, progress.BondingTokensGoal, currentRaisedUSD, goalUSD, progress.Migrated)
 	if err != nil {
-		return fmt.Errorf("failed to batch update bonding curves for token %v: %w", externalAddress, err)
+		return fmt.Errorf("failed to update bonding curve for token %v: %w", externalAddress, err)
 	}
 	t.subscriptions.NotifyBondingCurveProgress(externalAddress, toModel(progress, *basePriceInUsd))
 	return nil

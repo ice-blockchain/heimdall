@@ -629,12 +629,10 @@ paths:
         name: type
         required: true
         type: string
-      - description: Address of base token to exchange from / to (for creator / x
-          tokens) example(
-        example: '"0x2c73996BaBF1a06c2C057177353293f7cA0907c8"'
+      - description: Amount of tokens to exchange, by default 1
         in: query
-        name: baseToken
-        type: string
+        name: amount
+        type: integer
       produces:
       - application/json
       responses:

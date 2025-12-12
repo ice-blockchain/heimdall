@@ -13,7 +13,7 @@ import (
 type (
 	Subscriptions interface {
 		SubscribeOnSwaps(ctx context.Context, externalAddress string) (notifyEvents <-chan struct{}, atLeastOneSubExists bool, lastSubClosed <-chan struct{})
-		SubscribeOnBondingCurveProgress(ctx context.Context, externalAddress string) (nofity <-chan *BondingCurveProgress, atLeastOneSubExists bool, lastSubClosed <-chan struct{})
+		SubscribeOnBondingCurveProgress(ctx context.Context, externalAddress string) (notify <-chan *BondingCurveProgress, atLeastOneSubExists bool, lastSubClosed <-chan struct{})
 	}
 	Notifier interface {
 		NotifySwap(externalAddress string)
