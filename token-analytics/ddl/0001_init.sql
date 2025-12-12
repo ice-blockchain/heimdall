@@ -990,6 +990,7 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
     FROM users
     WHERE LOWER(blockchain_address) = LOWER(p_user_address);
 
+    -- TODO: remove when bsc wallet is pk.
     IF v_user_master_pubkey IS NULL THEN
         RAISE WARNING 'User not found for address %, skipping position update', p_user_address;
 
