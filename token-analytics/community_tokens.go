@@ -58,7 +58,7 @@ func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
 
 func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	tokenExternalAddress, userExternalAddress, userUsername, userDisplayName, userAvatar string, userVerified bool,
-	userBNBBSCWallet, tokenDescription, tokenImageURL string) error {
+	userBNBBSCWallet, tokenTitle, tokenDescription, tokenImageURL string) error {
 
 	if userExternalAddress != "" || userUsername != "" || userDisplayName != "" || userAvatar != "" || userBNBBSCWallet != "" {
 		if err := t.UpdateLoggedInUserProfile(
@@ -77,6 +77,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 
 	// TODO: Update token information using tokenExternalAddress
 	_ = tokenExternalAddress
+	_ = tokenTitle
 	_ = tokenDescription
 	_ = tokenImageURL
 

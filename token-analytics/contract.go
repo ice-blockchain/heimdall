@@ -48,7 +48,7 @@ type (
 			userBNBBSCWallet string) error
 		UpdateTokenExternalData(ctx context.Context,
 			tokenExternalAddress, userExternalAddress, userUsername, userDisplayName, userAvatar string, userVerified bool,
-			userBNBBSCWallet, tokenDescription, tokenImageURL string) error
+			userBNBBSCWallet, tokenTitle, tokenDescription, tokenImageURL string) error
 		GetHolderPositions(ctx context.Context, tokenExternalAddress string, holderExternalAddresses []string) ([]*HolderPosition, error)
 	}
 
