@@ -990,6 +990,18 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
     FROM users
     WHERE LOWER(blockchain_address) = LOWER(p_user_address);
 
+    IF v_user_master_pubkey IS NULL THEN
+        RAISE WARNING 'User not found for address %, skipping position update', p_user_address;
+
+        UPDATE tokens
+        SET price_usd = p_price_usd,
+            market_cap_usd = GREATEST(market_cap_usd + v_delta_market_cap, 0),
+            updated_at = p_block_timestamp
+        WHERE contract_address = p_token_address;
+
+        RETURN;
+    END IF;
+
     -- For ALL tokens, the first swapper is the token creator.
     -- Only update creator_master_pubkey if this is the FIRST swap (direction=false means buy).
     WITH user_data AS (
