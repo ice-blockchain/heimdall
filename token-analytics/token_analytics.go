@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	stdlog "log"
+	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
@@ -615,6 +616,39 @@ func initializeWorkersConfig(ctx context.Context, db *storage.DB, workers uint) 
 	return nil
 }
 
+func (t *tokenAnalytics) GenerateTokenSuggestion(content, creatorName, creatorUsername, creatorBio string) *SuggestCreationDetailsResponse {
+	tickerLength := 3 + randInt(4)
+	ticker := make([]byte, tickerLength)
+	for i := range ticker {
+		if i < tickerLength-1 || randInt(2) == 0 {
+			ticker[i] = byte('A' + randInt(26))
+		} else {
+			ticker[i] = byte('0' + randInt(10))
+		}
+	}
+	var nameBase string
+	if creatorUsername != "" {
+		nameBase = creatorUsername
+	} else if creatorName != "" {
+		nameBase = creatorName
+	} else {
+		nameBase = "Token"
+	}
+
+	suffixes := []string{"Coin", "Token", "Finance", "Protocol", "Network", "Chain", "Verse", "World", "DAO", "Project"}
+	name := nameBase + " " + suffixes[randInt(len(suffixes))]
+
+	avatarStyles := []string{"avataaars", "lorelei", "personas", "bottts", "identicon", "initials"}
+	seed := fmt.Sprintf("%s%d", string(ticker), time.Now().UnixNano())
+	picture := fmt.Sprintf("https://api.dicebear.com/7.x/%s/svg?seed=%s", avatarStyles[randInt(len(avatarStyles))], seed)
+
+	return &SuggestCreationDetailsResponse{
+		Ticker:  string(ticker),
+		Name:    name,
+		Picture: picture,
+	}
+}
+
 func (dummyUserRepository) UpsertUser(context.Context, string, string, string, string, string, string, *bool, []string) error {
 	return nil
 }
@@ -633,4 +667,8 @@ func (dummyUserRepository) HealthCheck(context.Context) error {
 
 func (dummyUserRepository) Close() error {
 	return nil
+}
+
+func randInt(n int) int {
+	return rand.Intn(n)
 }

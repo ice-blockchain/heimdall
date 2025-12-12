@@ -74,6 +74,15 @@ type (
 		TokenDescription    string `json:"tokenDescription,omitempty" example:"My awesome token"`
 		TokenImageURL       string `json:"tokenImageURL,omitempty" example:"https://example.com/token.png"`
 	}
+	SuggestCreationDetailsRequest struct {
+		Content string                        `json:"content" example:"some post text"`
+		Creator SuggestCreationDetailsCreator `json:"creator"`
+	}
+	SuggestCreationDetailsCreator struct {
+		Name     string `json:"name" example:"John Doe"`
+		Username string `json:"username" example:"jdoe"`
+		Bio      string `json:"bio" example:"Something"`
+	}
 	OHLCVRequest struct {
 		ExternalAddress string `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
 		Interval        string `form:"interval" swaggerignore:"true"` // e.g., "1m", "5m", "1h", etc.
@@ -322,6 +331,7 @@ func (s *service) GetCommunityTokenHolderPositions(ctx context.Context, req *ser
 //	@Success		200							"OK - Data synced successfully"
 //	@Failure		400							{object}	server.ResponseErrorBody	"if request body is invalid or all fields are empty"
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		409							{object}	server.ResponseErrorBody	"if duplicate data conflict occurs"
 //	@Failure		500							{object}	server.ResponseErrorBody
 //	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
@@ -346,6 +356,9 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 			req.Data.UserVerified,
 			req.Data.UserBNBBSCWallet,
 		); err != nil {
+			if errors.Is(err, ta.ErrDuplicate) {
+				return nil, server.Conflict(err, "DATA_CONFLICT")
+			}
 			return nil, fmt.Errorf("failed to update user profile: %w", err)
 		}
 	} else {
@@ -362,12 +375,39 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 			req.Data.TokenDescription,
 			req.Data.TokenImageURL,
 		); err != nil {
+			if errors.Is(err, ta.ErrDuplicate) {
+				return nil, server.Conflict(err, "DATA_CONFLICT")
+			}
 			return nil, fmt.Errorf("failed to update token external data: %w", err)
 		}
 	}
 
 	return &server.Response[any]{
 		Data: nil,
+		Code: 200,
+	}, nil
+}
+
+// SuggestCreationDetails godoc
+//
+//	@Schemes
+//	@Description	Suggests token creation details (ticker, name, picture) based on content and creator information
+//	@Tags			Tokens
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		SuggestCreationDetailsRequest	true	"Content and creator information"
+//	@Success		200		{object}	server.Response[ta.SuggestCreationDetailsResponse]
+//	@Failure		400		{object}	server.ResponseErrorBody	"if request body is invalid"
+//	@Failure		500		{object}	server.ResponseErrorBody
+//	@Failure		504		{object}	server.ResponseErrorBody	"if request times out"
+//	@Security		Nostr
+//	@Security		XCom
+//	@Router			/v1/community-tokens/suggest-creation-details [POST].
+func (s *service) SuggestCreationDetails(ctx context.Context, req *server.Request[SuggestCreationDetailsRequest]) (*server.Response[ta.SuggestCreationDetailsResponse], error) {
+	suggestion := s.tokenAnalytics.GenerateTokenSuggestion(req.Data.Content, req.Data.Creator.Name, req.Data.Creator.Username, req.Data.Creator.Bio)
+
+	return &server.Response[ta.SuggestCreationDetailsResponse]{
+		Data: suggestion,
 		Code: 200,
 	}, nil
 }

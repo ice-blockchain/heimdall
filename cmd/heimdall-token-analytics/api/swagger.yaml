@@ -41,6 +41,44 @@ definitions:
         example: 1800
         type: integer
     type: object
+  main.SuggestCreationDetailsCreator:
+    properties:
+      bio:
+        example: Something
+        type: string
+      name:
+        example: John Doe
+        type: string
+      username:
+        example: jdoe
+        type: string
+    type: object
+  main.SuggestCreationDetailsRequest:
+    properties:
+      content:
+        example: some post text
+        type: string
+      creator:
+        $ref: '#/definitions/main.SuggestCreationDetailsCreator'
+    type: object
+  server.Response-tokenanalytics_SuggestCreationDetailsResponse:
+    properties:
+      code:
+        type: integer
+      contentType:
+        type: string
+      data:
+        $ref: '#/definitions/tokenanalytics.SuggestCreationDetailsResponse'
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      raw:
+        items:
+          format: int32
+          type: integer
+        type: array
+    type: object
   server.ResponseErrorBody:
     properties:
       code:
@@ -158,6 +196,18 @@ definitions:
         type: number
       rank:
         type: integer
+    type: object
+  tokenanalytics.SuggestCreationDetailsResponse:
+    properties:
+      name:
+        example: Something even cooler
+        type: string
+      picture:
+        example: https://example.com/some_cool_pic.webp
+        type: string
+      ticker:
+        example: SOMETHING_COOL
+        type: string
     type: object
   tokenanalytics.TopHolderPosition:
     properties:
@@ -404,6 +454,10 @@ paths:
           description: if auth token is missing or invalid
           schema:
             $ref: '#/definitions/server.ResponseErrorBody'
+        "409":
+          description: if duplicate data conflict occurs
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
         "500":
           description: Internal Server Error
           schema:
@@ -610,6 +664,43 @@ paths:
             type: array
         "401":
           description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
+      - XCom: []
+      tags:
+      - Tokens
+  /v1/community-tokens/suggest-creation-details:
+    post:
+      consumes:
+      - application/json
+      description: Suggests token creation details (ticker, name, picture) based on
+        content and creator information
+      parameters:
+      - description: Content and creator information
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/main.SuggestCreationDetailsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/server.Response-tokenanalytics_SuggestCreationDetailsResponse'
+        "400":
+          description: if request body is invalid
           schema:
             $ref: '#/definitions/server.ResponseErrorBody'
         "500":

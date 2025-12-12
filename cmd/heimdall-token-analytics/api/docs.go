@@ -118,6 +118,65 @@ const docTemplate = `{
                 ]
             }
         },
+        "/v1/community-tokens/suggest-creation-details": {
+            "post": {
+                "description": "Suggests token creation details (ticker, name, picture) based on content and creator information",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tokens"
+                ],
+                "parameters": [
+                    {
+                        "description": "Content and creator information",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.SuggestCreationDetailsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/server.Response-tokenanalytics_SuggestCreationDetailsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "if request body is invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    },
+                    {
+                        "XCom": []
+                    }
+                ]
+            }
+        },
         "/v1/community-tokens/{externalAddressOrViewType}": {
             "get": {
                 "description": "Returns community tokens information for the given Ion Connect addresses.",
@@ -241,6 +300,12 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "409": {
+                        "description": "if duplicate data conflict occurs",
                         "schema": {
                             "$ref": "#/definitions/server.ResponseErrorBody"
                         }
@@ -1430,6 +1495,62 @@ const docTemplate = `{
                 }
             }
         },
+        "main.SuggestCreationDetailsCreator": {
+            "type": "object",
+            "properties": {
+                "bio": {
+                    "type": "string",
+                    "example": "Something"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "jdoe"
+                }
+            }
+        },
+        "main.SuggestCreationDetailsRequest": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "example": "some post text"
+                },
+                "creator": {
+                    "$ref": "#/definitions/main.SuggestCreationDetailsCreator"
+                }
+            }
+        },
+        "server.Response-tokenanalytics_SuggestCreationDetailsResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "contentType": {
+                    "type": "string"
+                },
+                "data": {
+                    "$ref": "#/definitions/tokenanalytics.SuggestCreationDetailsResponse"
+                },
+                "headers": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "raw": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            }
+        },
         "server.ResponseErrorBody": {
             "type": "object",
             "properties": {
@@ -1607,6 +1728,23 @@ const docTemplate = `{
                 },
                 "rank": {
                     "type": "integer"
+                }
+            }
+        },
+        "tokenanalytics.SuggestCreationDetailsResponse": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "example": "Something even cooler"
+                },
+                "picture": {
+                    "type": "string",
+                    "example": "https://example.com/some_cool_pic.webp"
+                },
+                "ticker": {
+                    "type": "string",
+                    "example": "SOMETHING_COOL"
                 }
             }
         },
