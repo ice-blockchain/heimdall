@@ -21,6 +21,7 @@ type (
 	}
 
 	Addresses struct {
+		Blockchain string `json:"blockchain,omitempty"`
 		IonConnect string `json:"ionConnect,omitempty"`
 		Twitter    string `json:"twitter,omitempty"`
 	}
@@ -184,4 +185,14 @@ func buildAddressesFromExternalAddressAndPlatform(externalAddress, platform stri
 	default:
 		return Addresses{}, fmt.Errorf("unknown platform '%s' for external_address: %s", platform, externalAddress)
 	}
+}
+
+func buildTokenAddressesFromContractAndExternalAddress(contractAddress, externalAddress, platform string) (Addresses, error) {
+	addresses, err := buildAddressesFromExternalAddressAndPlatform(externalAddress, platform)
+	if err != nil {
+		return Addresses{}, err
+	}
+	addresses.Blockchain = contractAddress
+
+	return addresses, nil
 }

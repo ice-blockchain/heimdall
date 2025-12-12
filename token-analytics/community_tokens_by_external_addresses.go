@@ -174,7 +174,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 	}
 	tokens := make([]*CommunityToken, 0, len(rows))
 	for _, row := range rows {
-		tokenAddresses, err := buildAddressesFromExternalAddressAndPlatform(row.ExternalAddress, row.Platform)
+		tokenAddresses, err := buildTokenAddressesFromContractAndExternalAddress(row.ContractAddress, row.ExternalAddress, row.Platform)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", row.ExternalAddress, row.Platform, err)
 		}
@@ -254,9 +254,9 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 				marketData.Position = *position
 			}
 		}
-		tokenAddresses, err := buildAddressesFromExternalAddressAndPlatform(row.ExternalAddress, row.Platform)
+		tokenAddresses, err := buildTokenAddressesFromContractAndExternalAddress(row.ContractAddress, row.ExternalAddress, row.Platform)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", row.ExternalAddress, row.Platform, err)
+			return nil, fmt.Errorf("failed to build token addresses from contract_address %s, external_address %s (platform %s): %w", row.ContractAddress, row.ExternalAddress, row.Platform, err)
 		}
 		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(row.CreatorExternalAddress, row.CreatorPlatform)
 		if err != nil {
@@ -466,7 +466,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 				marketData.Position = *position
 			}
 		}
-		tokenAddresses, err := buildAddressesFromExternalAddressAndPlatform(row.ExternalAddress, row.Platform)
+		tokenAddresses, err := buildTokenAddressesFromContractAndExternalAddress(row.ContractAddress, row.ExternalAddress, row.Platform)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", row.ExternalAddress, row.Platform, err)
 		}
