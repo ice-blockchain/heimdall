@@ -60,20 +60,18 @@ type (
 		Limit           uint32 `form:"limit" swaggerignore:"true"`
 	}
 	ExternalDataRequest struct {
-		Body ExternalDataRequestBody `json:",inline"`
+		ExternalAddress string `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
+		ExternalDataRequestBody
 	}
 	ExternalDataRequestBody struct {
-		CreatorExternalAddress string `json:"creatorExternalAddress" example:"1234567890"`
-		CreatorUsername        string `json:"creatorUsername" example:"johndoe"`
-		CreatorDisplayName     string `json:"creatorDisplayName" example:"John Doe"`
-		CreatorAvatar          string `json:"creatorAvatar" example:"https://example.com/avatar.png"`
-		CreatorVerified        bool   `json:"creatorVerified" example:"true"`
-		HolderExternalAddress  string `json:"holderExternalAddress" example:"9876543210"`
-		HolderUsername         string `json:"holderUsername" example:"janedoe"`
-		HolderDisplayName      string `json:"holderDisplayName" example:"Jane Doe"`
-		HolderAvatar           string `json:"holderAvatar" example:"https://example.com/holder-avatar.png"`
-		HolderVerified         bool   `json:"holderVerified" example:"false"`
-		HolderBNBBSCWallet     string `json:"holderBNBBSCWallet" example:"0x1234567890abcdef1234567890abcdef12345678"`
+		UserExternalAddress string `json:"userExternalAddress,omitempty" example:"1234567890"`
+		UserUsername        string `json:"userUsername,omitempty" example:"johndoe"`
+		UserDisplayName     string `json:"userDisplayName,omitempty" example:"John Doe"`
+		UserAvatar          string `json:"userAvatar,omitempty" example:"https://example.com/avatar.png"`
+		UserVerified        bool   `json:"userVerified,omitempty" example:"true"`
+		UserBNBBSCWallet    string `json:"userBNBBSCWallet,omitempty" example:"0x1234567890abcdef1234567890abcdef12345678"`
+		TokenDescription    string `json:"tokenDescription,omitempty" example:"My awesome token"`
+		TokenImageURL       string `json:"tokenImageURL,omitempty" example:"https://example.com/token.png"`
 	}
 	OHLCVRequest struct {
 		ExternalAddress string `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
@@ -312,35 +310,58 @@ func (s *service) GetCommunityTokenHolderPositions(ctx context.Context, req *ser
 // SyncCommunityTokenExternalData godoc
 //
 //	@Schemes
-//	@Description	Syncs external creator information for Twitter profile tokens.
+//	@Description	Syncs external user and token information. At least one field must be provided. Requires authentication.
+//	@Description	Special case: when externalAddressOrViewType is "twitterProfiles", updates the logged-in user's profile.
+//	@Description	Otherwise, updates token information associated with the specified external address
 //	@Tags			Tokens
 //	@Accept			json
 //	@Produce		json
-//	@Param			body	body	ExternalDataRequestBody	true	"Creator and holder information"
-//	@Success		200		"OK - Data synced successfully"
-//	@Failure		400		{object}	server.ResponseErrorBody	"if request body is invalid"
-//	@Failure		401		{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
-//	@Failure		500		{object}	server.ResponseErrorBody
-//	@Failure		504		{object}	server.ResponseErrorBody	"if request times out"
+//	@Param			externalAddressOrViewType	path	string				true	"Token external address or 'twitterProfiles' for logged-in user profile update"
+//	@Param			body						body	ExternalDataRequest	true	"User and token information"
+//	@Success		200							"OK - Data synced successfully"
+//	@Failure		400							{object}	server.ResponseErrorBody	"if request body is invalid or all fields are empty"
+//	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		500							{object}	server.ResponseErrorBody
+//	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
 //	@Security		XCom
-//	@Router			/v1/community-tokens/twitterProfiles/external-data [PUT].
+//	@Router			/v1/community-tokens/{externalAddressOrViewType}/external-data [PUT].
 func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *server.Request[ExternalDataRequest]) (*server.Response[any], error) {
-	if err := s.tokenAnalytics.UpdateTokenExternalData(
-		ctx,
-		req.Data.Body.CreatorExternalAddress,
-		req.Data.Body.CreatorUsername,
-		req.Data.Body.CreatorDisplayName,
-		req.Data.Body.CreatorAvatar,
-		req.Data.Body.CreatorVerified,
-		req.Data.Body.HolderExternalAddress,
-		req.Data.Body.HolderUsername,
-		req.Data.Body.HolderDisplayName,
-		req.Data.Body.HolderAvatar,
-		req.Data.Body.HolderVerified,
-		req.Data.Body.HolderBNBBSCWallet,
-	); err != nil {
-		return nil, fmt.Errorf("failed to update token external data: %w", err)
+	hasUserData := req.Data.UserExternalAddress != "" || req.Data.UserUsername != "" ||
+		req.Data.UserDisplayName != "" || req.Data.UserAvatar != "" || req.Data.UserBNBBSCWallet != ""
+	hasTokenData := req.Data.TokenDescription != "" || req.Data.TokenImageURL != ""
+	if !hasUserData && !hasTokenData {
+		return nil, server.BadRequest(errors.New("at least one field must be provided"), invalidPropertiesErrorCode)
+	}
+
+	if req.Data.ExternalAddress == "twitterProfiles" {
+		if err := s.tokenAnalytics.UpdateLoggedInUserProfile(
+			ctx,
+			req.Token.GetMasterPublicKey(),
+			req.Data.UserExternalAddress,
+			req.Data.UserUsername,
+			req.Data.UserDisplayName,
+			req.Data.UserAvatar,
+			req.Data.UserVerified,
+			req.Data.UserBNBBSCWallet,
+		); err != nil {
+			return nil, fmt.Errorf("failed to update user profile: %w", err)
+		}
+	} else {
+		if err := s.tokenAnalytics.UpdateTokenExternalData(
+			ctx,
+			req.Data.ExternalAddress,
+			req.Data.UserExternalAddress,
+			req.Data.UserUsername,
+			req.Data.UserDisplayName,
+			req.Data.UserAvatar,
+			req.Data.UserVerified,
+			req.Data.UserBNBBSCWallet,
+			req.Data.TokenDescription,
+			req.Data.TokenImageURL,
+		); err != nil {
+			return nil, fmt.Errorf("failed to update token external data: %w", err)
+		}
 	}
 
 	return &server.Response[any]{

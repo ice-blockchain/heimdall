@@ -43,9 +43,12 @@ type (
 		CreateViewingSession(ctx context.Context, sessionType, clientIP, deviceKey string, tokenType *string) (sessionID string, ttl uint64, err error)
 		GetTopHolders(ctx context.Context, externalAddress string, limit int64) ([]*TopHolderPosition, error)
 		GetTokensFromViewingSession(ctx context.Context, sessionType, sessionID, keyword string, limit, offset uint64) ([]*CommunityToken, error)
+		UpdateLoggedInUserProfile(ctx context.Context,
+			masterPubkey, userExternalAddress, userUsername, userDisplayName, userAvatar string, userVerified bool,
+			userBNBBSCWallet string) error
 		UpdateTokenExternalData(ctx context.Context,
-			creatorExternalAddress, creatorUsername, creatorDisplayName, creatorAvatar string, creatorVerified bool,
-			holderExternalAddress, holderUsername, holderDisplayName, holderAvatar string, holderVerified bool, holderBNBBSCWallet string) error
+			tokenExternalAddress, userExternalAddress, userUsername, userDisplayName, userAvatar string, userVerified bool,
+			userBNBBSCWallet, tokenDescription, tokenImageURL string) error
 		GetHolderPositions(ctx context.Context, tokenExternalAddress string, holderExternalAddresses []string) ([]*HolderPosition, error)
 	}
 

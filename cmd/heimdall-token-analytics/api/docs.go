@@ -118,68 +118,6 @@ const docTemplate = `{
                 ]
             }
         },
-        "/v1/community-tokens/twitterProfiles/external-data": {
-            "put": {
-                "description": "Syncs external creator information for Twitter profile tokens.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Tokens"
-                ],
-                "parameters": [
-                    {
-                        "description": "Creator and holder information",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/main.ExternalDataRequestBody"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK - Data synced successfully"
-                    },
-                    "400": {
-                        "description": "if request body is invalid",
-                        "schema": {
-                            "$ref": "#/definitions/server.ResponseErrorBody"
-                        }
-                    },
-                    "401": {
-                        "description": "if auth token is missing or invalid",
-                        "schema": {
-                            "$ref": "#/definitions/server.ResponseErrorBody"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/server.ResponseErrorBody"
-                        }
-                    },
-                    "504": {
-                        "description": "if request times out",
-                        "schema": {
-                            "$ref": "#/definitions/server.ResponseErrorBody"
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "Nostr": []
-                    },
-                    {
-                        "XCom": []
-                    }
-                ]
-            }
-        },
         "/v1/community-tokens/{externalAddressOrViewType}": {
             "get": {
                 "description": "Returns community tokens information for the given Ion Connect addresses.",
@@ -230,6 +168,75 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/tokenanalytics.CommunityToken"
                             }
+                        }
+                    },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    },
+                    {
+                        "XCom": []
+                    }
+                ]
+            }
+        },
+        "/v1/community-tokens/{externalAddressOrViewType}/external-data": {
+            "put": {
+                "description": "Syncs external user and token information. At least one field must be provided. Requires authentication.\nSpecial case: when externalAddressOrViewType is \"twitterProfiles\", updates the logged-in user's profile.\nOtherwise, updates token information associated with the specified external address",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tokens"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Token external address or 'twitterProfiles' for logged-in user profile update",
+                        "name": "externalAddressOrViewType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "User and token information",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.ExternalDataRequestBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK - Data synced successfully"
+                    },
+                    "400": {
+                        "description": "if request body is invalid or all fields are empty",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     },
                     "401": {
@@ -1383,49 +1390,37 @@ const docTemplate = `{
         "main.ExternalDataRequestBody": {
             "type": "object",
             "properties": {
-                "creatorAvatar": {
+                "tokenDescription": {
+                    "type": "string",
+                    "example": "My awesome token"
+                },
+                "tokenImageURL": {
+                    "type": "string",
+                    "example": "https://example.com/token.png"
+                },
+                "userAvatar": {
                     "type": "string",
                     "example": "https://example.com/avatar.png"
                 },
-                "creatorDisplayName": {
-                    "type": "string",
-                    "example": "John Doe"
-                },
-                "creatorExternalAddress": {
-                    "type": "string",
-                    "example": "1234567890"
-                },
-                "creatorUsername": {
-                    "type": "string",
-                    "example": "johndoe"
-                },
-                "creatorVerified": {
-                    "type": "boolean",
-                    "example": true
-                },
-                "holderAvatar": {
-                    "type": "string",
-                    "example": "https://example.com/holder-avatar.png"
-                },
-                "holderBNBBSCWallet": {
+                "userBNBBSCWallet": {
                     "type": "string",
                     "example": "0x1234567890abcdef1234567890abcdef12345678"
                 },
-                "holderDisplayName": {
+                "userDisplayName": {
                     "type": "string",
-                    "example": "Jane Doe"
+                    "example": "John Doe"
                 },
-                "holderExternalAddress": {
+                "userExternalAddress": {
                     "type": "string",
-                    "example": "9876543210"
+                    "example": "1234567890"
                 },
-                "holderUsername": {
+                "userUsername": {
                     "type": "string",
-                    "example": "janedoe"
+                    "example": "johndoe"
                 },
-                "holderVerified": {
+                "userVerified": {
                     "type": "boolean",
-                    "example": false
+                    "example": true
                 }
             }
         },

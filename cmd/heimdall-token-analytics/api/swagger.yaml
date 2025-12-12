@@ -3,38 +3,29 @@
 definitions:
   main.ExternalDataRequestBody:
     properties:
-      creatorAvatar:
+      tokenDescription:
+        example: My awesome token
+        type: string
+      tokenImageURL:
+        example: https://example.com/token.png
+        type: string
+      userAvatar:
         example: https://example.com/avatar.png
         type: string
-      creatorDisplayName:
-        example: John Doe
-        type: string
-      creatorExternalAddress:
-        example: "1234567890"
-        type: string
-      creatorUsername:
-        example: johndoe
-        type: string
-      creatorVerified:
-        example: true
-        type: boolean
-      holderAvatar:
-        example: https://example.com/holder-avatar.png
-        type: string
-      holderBNBBSCWallet:
+      userBNBBSCWallet:
         example: 0x1234567890abcdef1234567890abcdef12345678
         type: string
-      holderDisplayName:
-        example: Jane Doe
+      userDisplayName:
+        example: John Doe
         type: string
-      holderExternalAddress:
-        example: "9876543210"
+      userExternalAddress:
+        example: "1234567890"
         type: string
-      holderUsername:
-        example: janedoe
+      userUsername:
+        example: johndoe
         type: string
-      holderVerified:
-        example: false
+      userVerified:
+        example: true
         type: boolean
     type: object
   main.SessionViewCreateResponse:
@@ -376,6 +367,53 @@ paths:
       - XCom: []
       tags:
       - Tokens
+  /v1/community-tokens/{externalAddressOrViewType}/external-data:
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Syncs external user and token information. At least one field must be provided. Requires authentication.
+        Special case: when externalAddressOrViewType is "twitterProfiles", updates the logged-in user's profile.
+        Otherwise, updates token information associated with the specified external address
+      parameters:
+      - description: Token external address or 'twitterProfiles' for logged-in user
+          profile update
+        in: path
+        name: externalAddressOrViewType
+        required: true
+        type: string
+      - description: User and token information
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/main.ExternalDataRequestBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK - Data synced successfully
+        "400":
+          description: if request body is invalid or all fields are empty
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
+      - XCom: []
+      tags:
+      - Tokens
   /v1/community-tokens/{externalAddressOrViewType}/latest-trades:
     get:
       description: Returns trade history for a specific community token address.
@@ -567,44 +605,6 @@ paths:
             items:
               $ref: '#/definitions/tokenanalytics.CommunityToken'
             type: array
-        "401":
-          description: if auth token is missing or invalid
-          schema:
-            $ref: '#/definitions/server.ResponseErrorBody'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/server.ResponseErrorBody'
-        "504":
-          description: if request times out
-          schema:
-            $ref: '#/definitions/server.ResponseErrorBody'
-      security:
-      - Nostr: []
-      - XCom: []
-      tags:
-      - Tokens
-  /v1/community-tokens/twitterProfiles/external-data:
-    put:
-      consumes:
-      - application/json
-      description: Syncs external creator information for Twitter profile tokens.
-      parameters:
-      - description: Creator and holder information
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/main.ExternalDataRequestBody'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK - Data synced successfully
-        "400":
-          description: if request body is invalid
-          schema:
-            $ref: '#/definitions/server.ResponseErrorBody'
         "401":
           description: if auth token is missing or invalid
           schema:
