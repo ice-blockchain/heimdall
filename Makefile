@@ -268,5 +268,4 @@ all: checkLicense checkModVersion checkIfAllDependenciesAreUpToDate checkGenerat
 local: addLicense updateGoModVersion updateAllDependencies generate build buildMultiPlatformDockerImage download-ip2location-sample test coverage benchmark lint clean
 dockerfile: binary-specific-service
 abigen:
-	go get -tool github.com/ethereum/go-ethereum/cmd/abigen@latest
 	go tool abigen --abi token-analytics/internal/bonding_curve/.abi/bonding_curve.json --pkg bondingcurve --type bondingCurveToken --out token-analytics/internal/bonding_curve/token.go
