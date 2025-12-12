@@ -1567,6 +1567,9 @@ const docTemplate = `{
         "tokenanalytics.Addresses": {
             "type": "object",
             "properties": {
+                "blockchain": {
+                    "type": "string"
+                },
                 "ionConnect": {
                     "type": "string"
                 },

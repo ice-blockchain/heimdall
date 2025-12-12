@@ -219,7 +219,7 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 
 	tokens := make([]*CommunityToken, 0, len(rows))
 	for _, row := range rows {
-		tokenAddresses, err := buildAddressesFromExternalAddressAndPlatform(row.ExternalAddress, row.Platform)
+		tokenAddresses, err := buildTokenAddressesFromContractAndExternalAddress(row.ContractAddress, row.ExternalAddress, row.Platform)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", row.ExternalAddress, row.Platform, err)
 		}

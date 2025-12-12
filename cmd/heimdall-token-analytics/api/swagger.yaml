@@ -90,6 +90,8 @@ definitions:
     type: object
   tokenanalytics.Addresses:
     properties:
+      blockchain:
+        type: string
       ionConnect:
         type: string
       twitter:
