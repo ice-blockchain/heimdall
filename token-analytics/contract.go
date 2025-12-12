@@ -36,6 +36,12 @@ type (
 		PlatformGroup     string   `db:"platform_group"`
 	}
 
+	SuggestCreationDetailsResponse struct {
+		Ticker  string `json:"ticker" example:"SOMETHING_COOL"`
+		Name    string `json:"name" example:"Something even cooler"`
+		Picture string `json:"picture" example:"https://example.com/some_cool_pic.webp"`
+	}
+
 	UserRepository interface {
 		Close() error
 		HealthCheck(ctx context.Context) error
@@ -65,6 +71,7 @@ type (
 			tokenExternalAddress, userExternalAddress, userUsername, userDisplayName, userAvatar string, userVerified bool,
 			userBNBBSCWallet, tokenTitle, tokenDescription, tokenImageURL string) error
 		GetHolderPositions(ctx context.Context, tokenExternalAddress string, holderExternalAddresses []string) ([]*HolderPosition, error)
+		GenerateTokenSuggestion(content, creatorName, creatorUsername, creatorBio string) *SuggestCreationDetailsResponse
 	}
 
 	SavePoint struct {
@@ -170,6 +177,7 @@ const (
 
 var (
 	ErrSessionNotFound = errors.New("session not found")
+	ErrDuplicate       = errors.New("duplicate entry")
 )
 
 type (

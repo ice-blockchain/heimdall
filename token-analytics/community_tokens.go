@@ -50,6 +50,9 @@ func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
 		userVerified,
 	)
 	if err != nil {
+		if storage.IsErr(err, storage.ErrDuplicate) {
+			return errors.Wrapf(ErrDuplicate, "failed to update logged-in user profile for master pubkey: %v", userExternalAddress)
+		}
 		return fmt.Errorf("failed to update logged-in user profile: %w", err)
 	}
 
@@ -71,7 +74,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 			userVerified,
 			userBNBBSCWallet,
 		); err != nil {
-			return fmt.Errorf("failed to update user profile: %w", err)
+			return errors.Wrap(err, "failed to update user profile")
 		}
 	}
 
