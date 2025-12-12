@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: ice License 1.0
 
 definitions:
-  main.ExternalDataRequestBody:
+  main.ExternalDataRequest:
     properties:
       tokenDescription:
         example: My awesome token
@@ -387,7 +387,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/main.ExternalDataRequestBody'
+          $ref: '#/definitions/main.ExternalDataRequest'
       produces:
       - application/json
       responses:
