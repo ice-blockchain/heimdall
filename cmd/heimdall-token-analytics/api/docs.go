@@ -1398,6 +1398,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "https://example.com/token.png"
                 },
+                "tokenTitle": {
+                    "type": "string",
+                    "example": "My Awesome Token"
+                },
                 "userAvatar": {
                     "type": "string",
                     "example": "https://example.com/avatar.png"

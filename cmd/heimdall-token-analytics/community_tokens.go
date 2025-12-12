@@ -70,6 +70,7 @@ type (
 		UserAvatar          string `json:"userAvatar,omitempty" example:"https://example.com/avatar.png"`
 		UserVerified        bool   `json:"userVerified,omitempty" example:"true"`
 		UserBNBBSCWallet    string `json:"userBNBBSCWallet,omitempty" example:"0x1234567890abcdef1234567890abcdef12345678"`
+		TokenTitle          string `json:"tokenTitle,omitempty" example:"My Awesome Token"`
 		TokenDescription    string `json:"tokenDescription,omitempty" example:"My awesome token"`
 		TokenImageURL       string `json:"tokenImageURL,omitempty" example:"https://example.com/token.png"`
 	}
@@ -329,7 +330,7 @@ func (s *service) GetCommunityTokenHolderPositions(ctx context.Context, req *ser
 func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *server.Request[ExternalDataRequest]) (*server.Response[any], error) {
 	hasUserData := req.Data.UserExternalAddress != "" || req.Data.UserUsername != "" ||
 		req.Data.UserDisplayName != "" || req.Data.UserAvatar != "" || req.Data.UserBNBBSCWallet != ""
-	hasTokenData := req.Data.TokenDescription != "" || req.Data.TokenImageURL != ""
+	hasTokenData := req.Data.TokenTitle != "" || req.Data.TokenDescription != "" || req.Data.TokenImageURL != ""
 	if !hasUserData && !hasTokenData {
 		return nil, server.BadRequest(errors.New("at least one field must be provided"), invalidPropertiesErrorCode)
 	}
@@ -357,6 +358,7 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 			req.Data.UserAvatar,
 			req.Data.UserVerified,
 			req.Data.UserBNBBSCWallet,
+			req.Data.TokenTitle,
 			req.Data.TokenDescription,
 			req.Data.TokenImageURL,
 		); err != nil {

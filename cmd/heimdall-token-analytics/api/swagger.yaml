@@ -9,6 +9,9 @@ definitions:
       tokenImageURL:
         example: https://example.com/token.png
         type: string
+      tokenTitle:
+        example: My Awesome Token
+        type: string
       userAvatar:
         example: https://example.com/avatar.png
         type: string
