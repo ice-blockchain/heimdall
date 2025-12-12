@@ -5,18 +5,14 @@ package tokenanalytics
 import (
 	"context"
 	"fmt"
-	"math/big"
-	"strings"
 	stdlibtime "time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
-	"golang.org/x/sync/errgroup"
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
-	"github.com/ice-blockchain/wintr/time"
 )
 
 func (t *tokenAnalytics) GetBondingCurveProgress(ctx context.Context, externalAddress string) (*BondingCurveProgress, error) {
@@ -42,130 +38,89 @@ func (t *tokenAnalytics) SubscribeBondingCurveProgress(ctx context.Context, exte
 		return errors.Wrapf(err, "failed to get initial bonding curve ptogress for token %v", externalAddress)
 	}
 	addToStream(currentProgress, nil)
-	updates := t.subscriptions.SubscribeOnBondingCurveProgress(externalAddress)
+	updates, hasAtLeastOneSubscriptionForToken, stopUpdater := t.subscriptions.SubscribeOnBondingCurveProgress(ctx, externalAddress)
+
+	if !hasAtLeastOneSubscriptionForToken {
+		if err = t.startBondingCurveProgressUpdater(stopUpdater, externalAddress); err != nil {
+			return errors.Wrapf(err, "failed to start bonding curve progress updater for %v", externalAddress)
+		}
+	}
 	go func() {
-		for newCurveProgress := range updates {
+		for ctx.Err() == nil {
+			newCurveProgress, ok := <-updates
+			if !ok {
+				return
+			}
 			addToStream(newCurveProgress, nil)
 		}
+		fmt.Println("bonding curve progress updater stopped")
 	}()
 	return nil
 }
 
 func progressToUSD(progress *bondingcurve.BondingCurveProgress, basePrice float64) (float64, float64) {
-	toTokensGoal := new(big.Float).Quo(new(big.Float).SetInt(progress.BondingTokensGoal), big.NewFloat(1e18))
-	goalUSDBig := new(big.Float).Mul(toTokensGoal, big.NewFloat(basePrice))
-	goalUSD, _ := goalUSDBig.Float64()
-	toTokensRaised := new(big.Float).Quo(new(big.Float).SetInt(progress.TokensRaised), big.NewFloat(1e18))
-	currentRaisedUSDBig := new(big.Float).Mul(toTokensRaised, big.NewFloat(basePrice))
-	currentRaisedUSD, _ := currentRaisedUSDBig.Float64()
+	goalUSD := toUSD(progress.BondingTokensGoal, basePrice)
+	currentRaisedUSD := toUSD(progress.TokensRaised, basePrice)
 	return goalUSD, currentRaisedUSD
 }
 
-func (t *tokenAnalytics) bondingCurveProgressUpdater(ctx context.Context) {
-	ticker := stdlibtime.NewTicker(500 * stdlibtime.Millisecond)
+func (t *tokenAnalytics) startBondingCurveProgressUpdater(stop <-chan struct{}, externalAddress string) error {
+	type tokenToUpdate struct {
+		PairID          string `db:"pair_id"`
+		ExternalAddress string `db:"external_address"`
+	}
+	fetchCtx, fetchCancel := context.WithTimeout(context.Background(), 30*stdlibtime.Second)
+	token, err := storage.Get[tokenToUpdate](fetchCtx, t.ingestedDataDB, `
+		SELECT pair_id, external_address FROM tokens 
+		WHERE NOT (contract_address LIKE '0xdeadbeef%') -- TODO: remove with dummy inserter
+		AND external_address = $1`, externalAddress)
+	fetchCancel()
+	if err != nil {
+		return fmt.Errorf("failed to find tokens for bonding curve progress update %v: %w", externalAddress, err)
+	}
+	ticker := stdlibtime.NewTicker(t.cfg.BondingCurve.BondingCurveProgressUpdateFrequency)
 	go func() {
 		defer ticker.Stop()
-		for ctx.Err() == nil {
+		for {
 			select {
-			case <-ctx.Done():
+			case <-stop:
 				return
 			case <-ticker.C:
-				updateCtx, updateCancel := context.WithTimeout(ctx, 30*stdlibtime.Second)
-				if err := t.updateBondingProgress(updateCtx); err != nil {
+				updateCtx, updateCancel := context.WithTimeout(context.Background(), 30*stdlibtime.Second)
+				if err := t.updateBondingProgress(updateCtx, token.ExternalAddress, token.PairID); err != nil {
 					log.Error(fmt.Errorf("failed to update bonding curve progress in background: %w", err))
 				}
 				updateCancel()
 			}
 		}
 	}()
+	return nil
 }
 
-type progressResult struct {
-	*bondingcurve.BondingCurveProgress
-	ContractAddress string
-}
-
-func (t *tokenAnalytics) updateBondingProgress(ctx context.Context) error {
-	now := time.Now()
-	type tokenToUpdate struct {
-		ContractAddress string `db:"contract_address"`
-		PairID          string `db:"pair_id"`
-		ExternalAddress string `db:"external_address"`
-	}
-	tokens, err := storage.Select[tokenToUpdate](ctx, t.ingestedDataDB, `
-		SELECT contract_address, pair_id, external_address FROM tokens 
-		WHERE NOT (contract_address LIKE '0xdeadbeef%') -- TODO: remove with dummy inserter
-		ORDER BY updated_at DESC 
-		LIMIT $1`, t.cfg.ConcurrentBondingCurveUpdates)
+func (t *tokenAnalytics) updateBondingProgress(ctx context.Context, externalAddress string, pairId string) error {
+	log.Debug(fmt.Sprintf("updating bonding curve progress for %v", externalAddress))
+	progress, err := t.bondingCurve.Progress(ctx, common.HexToHash(pairId))
 	if err != nil {
-		return fmt.Errorf("failed to select tokens for bonding curve progress update: %w", err)
-	}
-	if len(tokens) == 0 {
-		return nil
-	}
-
-	var eg errgroup.Group
-	res := make(chan progressResult, t.cfg.ConcurrentBondingCurveUpdates)
-	for _, token := range tokens {
-		eg.Go(func() error {
-			p, e := t.bondingCurve.Progress(ctx, common.HexToHash(token.PairID))
-			res <- progressResult{
-				BondingCurveProgress: p,
-				ContractAddress:      token.ContractAddress,
-			}
-			return e
-		})
-	}
-	if err = eg.Wait(); err != nil {
-		return fmt.Errorf("failed to fetch tokens bonding curve progress: %w", err)
-	}
-	close(res)
-	progressResults := make(map[string]progressResult, len(res))
-	for r := range res {
-		progressResults[r.ContractAddress] = r
+		return fmt.Errorf("failed to get bonding curve progress for token %v (pair %v): %w", externalAddress, pairId, err)
 	}
 	basePriceInUsd := t.ionPriceUSD.Load()
-	params := []any{now}
-	placeholders, extraParams := t.buildBondingCurveProgressUpdate(now, *basePriceInUsd, progressResults)
-	params = append(params, extraParams...)
 
-	query := fmt.Sprintf(`
+	goalUSD, currentRaisedUSD := progressToUSD(progress, *basePriceInUsd)
+	_, err = storage.Exec(ctx, t.ingestedDataDB, `
 		UPDATE tokens AS t
 		SET
-		    bonding_curve_current_amount = v.bonding_curve_current_amount,
-		    bonding_curve_raised_amount = v.bonding_curve_raised_amount,
-		    bonding_curve_goal_amount = v.bonding_curve_goal_amount,
-		    bonding_curve_current_amount_usd = v.bonding_curve_current_amount_usd,
-		    bonding_curve_goal_amount_usd = v.bonding_curve_goal_amount_usd,
-		    bonding_curve_migrated = v.bonding_curve_migrated,
-			updated_at = $1
-		FROM (VALUES %v) AS v(contract_address, bonding_curve_current_amount, bonding_curve_raised_amount, bonding_curve_goal_amount, bonding_curve_current_amount_usd, bonding_curve_goal_amount_usd, bonding_curve_migrated)
-		WHERE t.contract_address = v.contract_address
-	`, placeholders)
-
-	updated, err := storage.Exec(ctx, t.ingestedDataDB, query, params...)
-	if updated != uint64(len(tokens)) && err == nil {
-		err = errors.Errorf("expected to update %v tokens, but updated only %v (%v)", len(tokens), updated, func() string {
-			ids := ""
-			for _, t := range tokens {
-				ids += fmt.Sprintf("%v,", t.ContractAddress)
-			}
-			return ids
-		}())
-	}
+		    bonding_curve_current_amount = $2,
+		    bonding_curve_raised_amount = $3,
+		    bonding_curve_goal_amount = $4,
+		    bonding_curve_current_amount_usd = $5,
+		    bonding_curve_goal_amount_usd = $6,
+		    bonding_curve_migrated = $7,
+			updated_at = NOW()
+		WHERE t.external_address = $1`, externalAddress, progress.SoldTokens, progress.TokensRaised, progress.BondingTokensGoal, currentRaisedUSD, goalUSD, progress.Migrated)
 	if err != nil {
-		return fmt.Errorf("failed to batch update bonding curves for tokens %v: %w", func() string {
-			ids := ""
-			for _, t := range tokens {
-				ids += fmt.Sprintf("%v,", t.ContractAddress)
-			}
-			return ids
-		}(), err)
+		return fmt.Errorf("failed to batch update bonding curves for token %v: %w", externalAddress, err)
 	}
-	for _, token := range tokens {
-		progressRes := progressResults[token.ContractAddress]
-		t.subscriptions.NotifyBondingCurveProgress(token.ExternalAddress, toModel(progressRes.BondingCurveProgress, *basePriceInUsd))
-	}
+	t.subscriptions.NotifyBondingCurveProgress(externalAddress, toModel(progress, *basePriceInUsd))
 	return nil
 }
 
@@ -179,19 +134,4 @@ func toModel(progress *bondingcurve.BondingCurveProgress, basePriceInUsd float64
 		Migrated:         progress.Migrated,
 		RaisedAmount:     weiToUint64FromBigInt(progress.TokensRaised), // base tokens
 	}
-}
-
-func (t *tokenAnalytics) buildBondingCurveProgressUpdate(now *time.Time, basePriceInUsd float64, progress map[string]progressResult) (sql string, params []any) {
-	placeholders := make([]string, 0, len(progress))
-	idx := 2
-	params = make([]any, 0, len(progress)*7)
-	for _, res := range progress {
-		goalUSD, currentRaisedUSD := progressToUSD(res.BondingCurveProgress, basePriceInUsd)
-		// TODO: liquidity_usd, once progress will return it
-		params = append(params, res.ContractAddress, res.SoldTokens, res.TokensRaised, res.BondingTokensGoal, currentRaisedUSD, goalUSD, res.Migrated)
-		placeholders = append(placeholders, fmt.Sprintf(""+
-			"(                  $%[1]v,                $%[2]v::uint256, $%[3]v::uint256, $%[4]v::uint256,     $%[5]v::usd_amount,  $%[6]v::usd_amount,  $%[7]v::BOOLEAN)", idx, idx+1, idx+2, idx+3, idx+4, idx+5, idx+6))
-		idx += 7
-	}
-	return strings.Join(placeholders, ", \n"), params
 }

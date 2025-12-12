@@ -266,7 +266,7 @@ func StreamHandler[REQ, RESP any](fn StreamHandlerFunc[REQ, RESP]) gin.HandlerFu
 			return
 		}
 
-		emitter, respErr := fn(ctx, &req)
+		emitter, respErr := fn(ctx.Request.Context(), &req)
 		if respErr != nil {
 			handleRequestError(ctx, respErr)
 			return

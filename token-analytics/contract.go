@@ -181,11 +181,11 @@ type (
 	config struct {
 		IONTokenAddress string `yaml:"ionTokenAddress"`
 		BondingCurve    struct {
-			SmartContractAddress string `yaml:"smartContractAddress"`
+			SmartContractAddress                string              `yaml:"smartContractAddress"`
+			BondingCurveProgressUpdateFrequency stdlibtime.Duration `yaml:"bondingCurveProgressUpdateFrequency"`
 		} `yaml:"bondingCurve" mapstructure:"bondingCurve"`
-		Workers                       uint `yaml:"workers"`
-		ConcurrentBondingCurveUpdates uint `yaml:"concurrentBondingCurveUpdates"`
-		BatchSize                     uint `yaml:"batchSize"`
+		Workers   uint `yaml:"workers"`
+		BatchSize uint `yaml:"batchSize"`
 	}
 	dummyUserRepository struct{}
 	tokenAnalytics      struct {

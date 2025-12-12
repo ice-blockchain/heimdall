@@ -787,16 +787,16 @@ func (s *service) StreamCommunityTokensTradingStats(ctx context.Context, req *se
 //	@Router			/v1sse/community-tokens/{externalAddressOrViewType}/ohlcv [GET].
 //	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/ohlcv [GET].
 func (s *service) StreamCommunityTokensOHLCV(ctx context.Context, req *server.Request[OHLCVRequest]) (server.StreamEventEmitter[ta.OHLCV], error) {
-	return s.ohlcvStream(req.Data.ExternalAddress, req.Data.Interval)
+	return s.ohlcvStream(ctx, req.Data.ExternalAddress, req.Data.Interval)
 }
 
-func (s *service) ohlcvStream(ionContentAddress string, intervalStr string) (server.StreamEventEmitter[ta.OHLCV], error) {
+func (s *service) ohlcvStream(ctx context.Context, ionContentAddress string, intervalStr string) (server.StreamEventEmitter[ta.OHLCV], error) {
 	interval := ta.Interval(intervalStr)
 	if err := interval.Validate(); err != nil {
 		return nil, errors.Wrapf(err, "invalid interval")
 	}
 	now := time.Now().In(time.UTC)
-	emitter, err := wrapIntoStream[ta.OHLCV](100, func(ctx context.Context, addToStream func(t *ta.OHLCV, err error)) error {
+	emitter, err := wrapIntoStream[ta.OHLCV](100, func(addToStream func(t *ta.OHLCV, err error)) error {
 		if err := s.tokenAnalytics.SubscribeOHLVC(ctx, now, ionContentAddress, interval, addToStream); err != nil {
 			return errors.Wrapf(err, "failed to subscribe to OHLCV for %v", ionContentAddress)
 		}
@@ -824,7 +824,7 @@ func (s *service) ohlcvStream(ionContentAddress string, intervalStr string) (ser
 //	@Router			/v1sse/community-tokens/{externalAddressOrViewType}/bondingCurveProgress [GET].
 //	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/bondingCurveProgress [GET].
 func (s *service) StreamCommunityTokenBondingCurveProgress(ctx context.Context, req *server.Request[BondingCurveProgressRequest]) (server.StreamEventEmitter[ta.BondingCurveProgress], error) {
-	emitter, err := wrapIntoStream[ta.BondingCurveProgress](100, func(ctx context.Context, addToStream func(t *ta.BondingCurveProgress, err error)) error {
+	emitter, err := wrapIntoStream[ta.BondingCurveProgress](100, func(addToStream func(t *ta.BondingCurveProgress, err error)) error {
 		if err := s.tokenAnalytics.SubscribeBondingCurveProgress(ctx, req.Data.ExternalAddress, addToStream); err != nil {
 			return errors.Wrapf(err, "failed to subscribe to bonding curve progress for %v", req.Data.ExternalAddress)
 		}
@@ -836,7 +836,7 @@ func (s *service) StreamCommunityTokenBondingCurveProgress(ctx context.Context, 
 	return emitter, nil
 }
 
-func wrapIntoStream[T any](initialBuffer int, impl func(ctx context.Context, addToStream func(t *T, err error)) error) (server.StreamEventEmitter[T], error) {
+func wrapIntoStream[T any](initialBuffer int, impl func(addToStream func(t *T, err error)) error) (server.StreamEventEmitter[T], error) {
 	events := make(chan server.StreamEvent[T], initialBuffer)
 	addWithWrap := func(t *T, err error) {
 		if err != nil {
@@ -853,7 +853,7 @@ func wrapIntoStream[T any](initialBuffer int, impl func(ctx context.Context, add
 		}
 	}
 	return func(ctx context.Context) (<-chan server.StreamEvent[T], error) {
-		if err := impl(ctx, addWithWrap); err != nil {
+		if err := impl(addWithWrap); err != nil {
 			return nil, errors.Wrapf(err, "failed to call stream implementation")
 		}
 		return events, nil

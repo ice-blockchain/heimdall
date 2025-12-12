@@ -48,6 +48,9 @@ func New(ctx context.Context, applicationYamlKey string) BondingCurve {
 			log.Panic(errors.Wrapf(err, "failed to init bonding curve contract caller with %v (%v)", rpcAddr, i))
 		}
 	}
+	if len(b.contractClients) == 0 {
+		log.Panic(errors.New("no rpc endpoints provided for bonding curve"))
+	}
 	return b
 }
 

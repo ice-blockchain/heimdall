@@ -114,7 +114,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 		return 0, 0, fmt.Errorf("failed to get pricing for token %v (%v): %w", externalAddress, result.ContractAddress, err)
 	}
 	basePrice := t.ionPriceUSD.Load()
-	amoundUsd := toUSD(resAmount, *basePrice)
+	amountUsd = toUSD(resAmount, *basePrice)
 	return weiToUint64FromBigInt(resAmount), amountUsd, nil
 }
 
