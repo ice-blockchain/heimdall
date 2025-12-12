@@ -1194,6 +1194,40 @@ paths:
       - XCom: []
       tags:
       - stream
+  /v1ws/community-tokens/{externalAddressOrViewType}/bondingCurveProgress:
+    get:
+      description: Streams updates of bonding curve progress
+      parameters:
+      - description: External address
+        example: '"0x1234..."'
+        in: path
+        name: externalAddressOrViewType
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/tokenanalytics.BondingCurveProgress'
+        "401":
+          description: if auth token is missing or invalid
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      security:
+      - Nostr: []
+      - XCom: []
+      tags:
+      - stream
   /v1ws/community-tokens/{externalAddressOrViewType}/latest-trades:
     get:
       description: Streams latest trades for a specific community token address.

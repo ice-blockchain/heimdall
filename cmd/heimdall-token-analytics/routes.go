@@ -86,4 +86,5 @@ func (s *service) RegisterWS(router gin.IRouter) {
 	tokenWebsocketV1.GET("/:externalAddressOrViewType/latest-trades", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokensLatestTrades)))
 	tokenWebsocketV1.GET("/:externalAddressOrViewType/trading-stats", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokensTradingStats)))
 	tokenWebsocketV1.GET("/:externalAddressOrViewType/ohlcv", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokensOHLCV)))
+	tokenWebsocketV1.GET("/:externalAddressOrViewType/bondingCurveProgress", server.WebsocketHandler(server.Stream2WebsocketHandler(s.StreamCommunityTokenBondingCurveProgress)))
 }

@@ -156,7 +156,7 @@ func tokenSwapped(signature, data, contractAddress, swapperTopic, pairIdTopic, t
 
 	method, ok := ABI.Methods["swap"]
 	if !ok {
-		return nil, errors.Errorf("failed to find swap method in bonding curve abi")
+		log.Panic(errors.Errorf("failed to find swap method in bonding curve abi"))
 	}
 	err = method.Inputs.UnpackIntoMap(tokenSwapParams, decodedTxInput)
 	if err != nil {

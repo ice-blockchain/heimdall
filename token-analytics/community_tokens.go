@@ -114,9 +114,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 		return 0, 0, fmt.Errorf("failed to get pricing for token %v (%v): %w", externalAddress, result.ContractAddress, err)
 	}
 	basePrice := t.ionPriceUSD.Load()
-	amountInTokens := new(big.Float).Quo(new(big.Float).SetInt(resAmount), big.NewFloat(1e18))
-	amountInUsdBig := new(big.Float).Mul(amountInTokens, big.NewFloat(*basePrice))
-	amountUsd, _ = amountInUsdBig.Float64()
+	amoundUsd := toUSD(resAmount, *basePrice)
 	return weiToUint64FromBigInt(resAmount), amountUsd, nil
 }
 
@@ -260,6 +258,13 @@ func weiToFloat64FromBigInt(weiAmount *big.Int) float64 {
 	result, _ := amountBigFloat.Float64()
 
 	return result
+}
+
+func toUSD(amount *big.Int, basePrice float64) float64 {
+	amountInTokens := new(big.Float).Quo(new(big.Float).SetInt(amount), big.NewFloat(1e18))
+	amountInUsdBig := new(big.Float).Mul(amountInTokens, big.NewFloat(basePrice))
+	amountUsd, _ := amountInUsdBig.Float64()
+	return amountUsd
 }
 
 func weiToFloat64FromBigFloat(weiAmount *big.Float) float64 {

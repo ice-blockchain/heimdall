@@ -1380,6 +1380,61 @@ const docTemplate = `{
                 ]
             }
         },
+        "/v1ws/community-tokens/{externalAddressOrViewType}/bondingCurveProgress": {
+            "get": {
+                "description": "Streams updates of bonding curve progress",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "stream"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"0x1234...\"",
+                        "description": "External address",
+                        "name": "externalAddressOrViewType",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/tokenanalytics.BondingCurveProgress"
+                        }
+                    },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    },
+                    {
+                        "XCom": []
+                    }
+                ]
+            }
+        },
         "/v1ws/community-tokens/{externalAddressOrViewType}/latest-trades": {
             "get": {
                 "description": "Streams latest trades for a specific community token address.",

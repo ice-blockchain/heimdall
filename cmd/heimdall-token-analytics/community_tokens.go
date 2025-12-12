@@ -822,6 +822,7 @@ func (s *service) ohlcvStream(ionContentAddress string, intervalStr string) (ser
 //	@Security		Nostr
 //	@Security		XCom
 //	@Router			/v1sse/community-tokens/{externalAddressOrViewType}/bondingCurveProgress [GET].
+//	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/bondingCurveProgress [GET].
 func (s *service) StreamCommunityTokenBondingCurveProgress(ctx context.Context, req *server.Request[BondingCurveProgressRequest]) (server.StreamEventEmitter[ta.BondingCurveProgress], error) {
 	emitter, err := wrapIntoStream[ta.BondingCurveProgress](100, func(ctx context.Context, addToStream func(t *ta.BondingCurveProgress, err error)) error {
 		if err := s.tokenAnalytics.SubscribeBondingCurveProgress(ctx, req.Data.ExternalAddress, addToStream); err != nil {
