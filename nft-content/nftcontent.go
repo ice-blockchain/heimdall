@@ -57,7 +57,7 @@ func (n *nftContent) Process(ctx context.Context, events model.Events) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to check nft record existence")
 		}
-		if hasNFTCollections && !nftRecordExists {
+		if !hasNFTCollections && !nftRecordExists {
 			owner, err := n.getOwnerWalletAddress(ctx, contentEvent)
 			if err != nil {
 				return errors.Wrapf(err, "failed to detect owner of nft items for profile %v", contentEvent.GetMasterPublicKey())
