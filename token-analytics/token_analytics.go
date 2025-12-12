@@ -228,6 +228,21 @@ func (t *tokenAnalyticsUsers) SetVerified(ctx context.Context, masterPubkey stri
 	return nil
 }
 
+func (t *tokenAnalyticsUsers) GetUser(ctx context.Context, masterPubkey string) (*UserRecord, error) {
+	user, err := storage.Get[UserRecord](ctx, t.ingestedDataDB,
+		`SELECT id, master_pubkey, blockchain_address, external_address, username, 
+		        display_name, avatar, lookup, ion_connect_relays, verified, platform_group 
+		 FROM users WHERE master_pubkey = $1`, masterPubkey)
+	if err != nil {
+		if storage.IsErr(err, storage.ErrNotFound) {
+			return nil, nil
+		}
+
+		return nil, errors.Wrap(err, "failed to get user")
+	}
+	return user, nil
+}
+
 func (t *tokenAnalytics) MustStart(ctx context.Context) {
 	for workerIdx := range t.cfg.Workers {
 		t.wg.Go(func() {
@@ -606,6 +621,10 @@ func (dummyUserRepository) UpsertUser(context.Context, string, string, string, s
 
 func (dummyUserRepository) SetVerified(context.Context, string) error {
 	return nil
+}
+
+func (dummyUserRepository) GetUser(context.Context, string) (*UserRecord, error) {
+	return nil, nil
 }
 
 func (dummyUserRepository) HealthCheck(context.Context) error {
