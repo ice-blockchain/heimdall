@@ -304,6 +304,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/server.ResponseErrorBody"
                         }
                     },
+                    "409": {
+                        "description": "if duplicate data conflict occurs",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {

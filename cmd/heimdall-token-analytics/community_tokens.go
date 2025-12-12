@@ -331,6 +331,7 @@ func (s *service) GetCommunityTokenHolderPositions(ctx context.Context, req *ser
 //	@Success		200							"OK - Data synced successfully"
 //	@Failure		400							{object}	server.ResponseErrorBody	"if request body is invalid or all fields are empty"
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		409							{object}	server.ResponseErrorBody	"if duplicate data conflict occurs"
 //	@Failure		500							{object}	server.ResponseErrorBody
 //	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
