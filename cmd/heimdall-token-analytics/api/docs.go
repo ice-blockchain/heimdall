@@ -689,10 +689,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/tokenanalytics.CommunityToken"
-                            }
+                            "$ref": "#/definitions/tokenanalytics.CommunityToken"
                         }
                     },
                     "400": {
@@ -895,10 +892,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/tokenanalytics.TopHolderPosition"
-                            }
+                            "$ref": "#/definitions/tokenanalytics.TopHolderPosition"
                         }
                     },
                     "401": {
@@ -1089,10 +1083,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/tokenanalytics.CommunityToken"
-                            }
+                            "$ref": "#/definitions/tokenanalytics.CommunityToken"
                         }
                     },
                     "400": {
@@ -1295,10 +1286,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/tokenanalytics.TopHolderPosition"
-                            }
+                            "$ref": "#/definitions/tokenanalytics.TopHolderPosition"
                         }
                     },
                     "401": {

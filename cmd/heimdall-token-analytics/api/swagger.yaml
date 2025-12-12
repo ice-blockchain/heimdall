@@ -695,9 +695,7 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/tokenanalytics.CommunityToken'
-            type: array
+            $ref: '#/definitions/tokenanalytics.CommunityToken'
         "400":
           description: Bad Request
           schema:
@@ -829,9 +827,7 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/tokenanalytics.TopHolderPosition'
-            type: array
+            $ref: '#/definitions/tokenanalytics.TopHolderPosition'
         "401":
           description: if auth token is missing or invalid
           schema:
@@ -953,9 +949,7 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/tokenanalytics.CommunityToken'
-            type: array
+            $ref: '#/definitions/tokenanalytics.CommunityToken'
         "400":
           description: Bad Request
           schema:
@@ -1087,9 +1081,7 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/tokenanalytics.TopHolderPosition'
-            type: array
+            $ref: '#/definitions/tokenanalytics.TopHolderPosition'
         "401":
           description: if auth token is missing or invalid
           schema:

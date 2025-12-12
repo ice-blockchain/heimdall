@@ -465,7 +465,7 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 //	@Param			externalAddressOrViewType	path		string	true	"View type (latest, featured, top, trending, or bondingCurveProgress)"	example("latest","featured","top","trending","bondingCurveProgress")
 //	@Param			viewingSessionId			query		string	false	"Viewing session ID (required for top/trending/bondingCurveProgress)"	example("550e8400-e29b-41d4-a716-446655440000")
 //	@Param			type						query		string	false	"Token type filter (profile, post, video, article, or anyPost)"			example("profile")
-//	@Success		200							{array}		ta.CommunityToken
+//	@Success		200							{object}	ta.CommunityToken
 //	@Failure		400							{object}	server.ResponseErrorBody
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500							{object}	server.ResponseErrorBody
@@ -474,13 +474,13 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 //	@Security		XCom
 //	@Router			/v1sse/community-tokens/{externalAddressOrViewType} [GET].
 //	@Router			/v1ws/community-tokens/{externalAddressOrViewType} [GET].
-func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoStreamTypeAndSessionQuery]) (server.StreamEventEmitter[[]*ta.CommunityToken], error) {
+func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.Request[TokenInfoStreamTypeAndSessionQuery]) (server.StreamEventEmitter[ta.CommunityToken], error) {
 	if (req.Data.ViewType == ta.TokenTypeTop || req.Data.ViewType == ta.TokenTypeTrending || req.Data.ViewType == ta.TokenTypeBondingCurveProgress) && req.Data.ViewingSessionID == "" {
 		return nil, server.BadRequest(errors.New("viewingSessionId is required for top, trending, and bondingCurveProgress types"), invalidPropertiesErrorCode)
 	}
 	limit := uint64(100)
-	return func(ctx context.Context) (<-chan server.StreamEvent[[]*ta.CommunityToken], error) {
-		events := make(chan server.StreamEvent[[]*ta.CommunityToken], 100)
+	return func(ctx context.Context) (<-chan server.StreamEvent[ta.CommunityToken], error) {
+		events := make(chan server.StreamEvent[ta.CommunityToken], limit)
 
 		sendData := func() bool {
 			var tokens []*ta.CommunityToken
@@ -493,19 +493,21 @@ func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.R
 
 			if err != nil {
 				slog.ErrorContext(ctx, "failed to get community tokens for streaming", "error", err, "type", req.Data.Type, "sessionID", req.Data.ViewingSessionID)
-				events <- server.StreamEvent[[]*ta.CommunityToken]{
+				events <- server.StreamEvent[ta.CommunityToken]{
 					Type: "error",
-					Data: nil,
 					Err:  err,
 				}
 
 				return false
 			}
 
-			events <- server.StreamEvent[[]*ta.CommunityToken]{
-				Type: "message",
-				Data: &tokens,
+			for _, token := range tokens {
+				events <- server.StreamEvent[ta.CommunityToken]{
+					Type: "message",
+					Data: token,
+				}
 			}
+
 			slog.DebugContext(ctx, "sent community tokens update", "type", req.Data.Type, "sessionID", req.Data.ViewingSessionID, "count", len(tokens))
 
 			return true
@@ -549,7 +551,7 @@ func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.R
 //	@Produce		json
 //	@Param			externalAddressOrViewType	path		string	true	"External address"			example("0x1234...")
 //	@Param			limit						query		uint32	false	"Number of items to return"	example(10)
-//	@Success		200							{object}	[]ta.TopHolderPosition
+//	@Success		200							{object}	ta.TopHolderPosition
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500							{object}	server.ResponseErrorBody
 //	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
@@ -557,7 +559,7 @@ func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.R
 //	@Security		XCom
 //	@Router			/v1sse/community-tokens/{externalAddressOrViewType}/top-holders [GET].
 //	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/top-holders [GET].
-func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *server.Request[TopHoldersRequest]) (server.StreamEventEmitter[[]*ta.TopHolderPosition], error) {
+func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *server.Request[TopHoldersRequest]) (server.StreamEventEmitter[ta.TopHolderPosition], error) {
 	ionConnectAddress := req.Data.ExternalAddress
 	limit := req.Data.Limit
 	if limit == 0 {
@@ -567,21 +569,23 @@ func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *serv
 		limit = 200
 	}
 
-	return func(ctx context.Context) (<-chan server.StreamEvent[[]*ta.TopHolderPosition], error) {
-		events := make(chan server.StreamEvent[[]*ta.TopHolderPosition], 2)
+	return func(ctx context.Context) (<-chan server.StreamEvent[ta.TopHolderPosition], error) {
+		events := make(chan server.StreamEvent[ta.TopHolderPosition], limit+1)
 		holders, err := s.tokenAnalytics.GetTopHolders(ctx, ionConnectAddress, int64(limit))
 		if err != nil {
 			return nil, fmt.Errorf("failed to get initial top holders: %w", err)
 		}
-		events <- server.StreamEvent[[]*ta.TopHolderPosition]{
-			Type: "message",
-			Data: &holders,
+
+		for _, holder := range holders {
+			events <- server.StreamEvent[ta.TopHolderPosition]{
+				Type: "message",
+				Data: holder,
+			}
 		}
 
-		emptyHolders := make([]*ta.TopHolderPosition, 0)
-		events <- server.StreamEvent[[]*ta.TopHolderPosition]{
+		events <- server.StreamEvent[ta.TopHolderPosition]{
 			Type: "eose",
-			Data: &emptyHolders,
+			Data: nil,
 		}
 
 		ticker := time.NewTicker(1 * time.Second)
@@ -596,16 +600,18 @@ func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *serv
 				case <-ticker.C:
 					holders, err := s.tokenAnalytics.GetTopHolders(ctx, ionConnectAddress, int64(limit))
 					if err != nil {
-						events <- server.StreamEvent[[]*ta.TopHolderPosition]{
+						events <- server.StreamEvent[ta.TopHolderPosition]{
 							Err:  err,
-							Data: nil,
 							Type: "error",
 						}
 						return
 					}
-					events <- server.StreamEvent[[]*ta.TopHolderPosition]{
-						Type: "message",
-						Data: &holders,
+
+					for _, holder := range holders {
+						events <- server.StreamEvent[ta.TopHolderPosition]{
+							Type: "message",
+							Data: holder,
+						}
 					}
 				}
 			}
