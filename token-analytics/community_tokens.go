@@ -88,7 +88,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	return nil
 }
 
-func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, inputAmount *big.Int) (amount uint64, amountUsd float64, err error) {
+func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType) (amount uint64, amountUsd float64, err error) {
 	type tokenInfo struct {
 		BaseToken       string `db:"base_token"`
 		ContractAddress string `db:"contract_address"`
@@ -109,10 +109,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 	if common.HexToAddress(baseToken).String() != common.HexToAddress(t.cfg.IONTokenAddress).String() {
 		return 0, 0, fmt.Errorf("unsupported base token %v (token %v)", baseToken, externalAddress)
 	}
-	amountToConvert := inputAmount
-	if amountToConvert == nil {
-		amountToConvert = new(big.Int).SetUint64(1e18)
-	}
+	amountToConvert := new(big.Int).SetUint64(1e18)
 	resAmount, err := t.bondingCurve.Pricing(ctx, common.HexToAddress(result.BaseToken), common.HexToAddress(result.ContractAddress), amountToConvert, tradeType == TradeTypeSell)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to get pricing for token %v (%v): %w", externalAddress, result.ContractAddress, err)

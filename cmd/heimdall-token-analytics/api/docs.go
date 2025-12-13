@@ -545,7 +545,7 @@ const docTemplate = `{
         },
         "/v1/community-tokens/{externalAddressOrViewType}/pricing": {
             "get": {
-                "description": "Returns pricing for the community token",
+                "description": "Returns pricing for the community token (per 1 = 1e18wei base)",
                 "produces": [
                     "application/json"
                 ],
@@ -567,12 +567,6 @@ const docTemplate = `{
                         "name": "type",
                         "in": "query",
                         "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Amount of tokens to exchange, by default 1",
-                        "name": "amount",
-                        "in": "query"
                     }
                 ],
                 "responses": {
