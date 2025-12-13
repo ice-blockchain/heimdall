@@ -121,7 +121,6 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	allValidConfigNames["apps-runtime_ion-app"] = func(_ *config, _ *Version) (any, Version) {
 		return appsRuntimeCfg.IONApp, Version(appsRuntimeCfg.IONApp.Version)
 	}
-	s.tokenAnalytics = tokenanalytics.NewUserRepository(ctx)
 	testnet := false
 	for _, n := range s.coins.GetAllNetworks() {
 		if n.IsTestnet {
@@ -130,7 +129,7 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 		}
 	}
 	ionIndexer := indexer.New(testnet)
-	s.accounts = accounts.New(ctx, s.coins, s.relays, &appsRuntimeCfg, s.tokenAnalytics, ionIndexer)
+	s.accounts = accounts.New(ctx, s.coins, s.relays, &appsRuntimeCfg, ionIndexer)
 	s.validation = validation.New(ctx, validation.WithIONIdentityPublicKeys(func() []string {
 		return []string{s.accounts.PublicKey()}
 	}))
