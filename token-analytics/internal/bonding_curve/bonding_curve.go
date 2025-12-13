@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/v2"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/jellydator/ttlcache/v3"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/singleflight"
 
@@ -32,7 +33,11 @@ func init() {
 func New(ctx context.Context, applicationYamlKey string) BondingCurve {
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
-	b := &bondingCurve{cfg: cfg, pricingSingleflight: new(singleflight.Group)}
+	b := &bondingCurve{
+		cfg:                 cfg,
+		pricingSingleflight: new(singleflight.Group),
+		priceCache:          ttlcache.New[string, *big.Int](ttlcache.WithTTL[string, *big.Int](cfg.BondingCurve.BondingCurveProgressUpdateFrequency)),
+	}
 	b.rpcClients = make([]*ethclient.Client, len(cfg.BondingCurve.RPCEndpoints), len(cfg.BondingCurve.RPCEndpoints))
 	b.contractClients = make([]*BondingCurveTokenCaller, len(cfg.BondingCurve.RPCEndpoints), len(cfg.BondingCurve.RPCEndpoints))
 	contractAddr := common.HexToAddress(cfg.BondingCurve.SmartContractAddress)
@@ -52,6 +57,11 @@ func New(ctx context.Context, applicationYamlKey string) BondingCurve {
 	if len(b.contractClients) == 0 {
 		log.Panic(errors.New("no rpc endpoints provided for bonding curve"))
 	}
+	go b.priceCache.Start()
+	go func() {
+		<-ctx.Done()
+		b.priceCache.Stop()
+	}()
 	return b
 }
 
@@ -60,9 +70,14 @@ func (b *bondingCurve) Pricing(ctx context.Context, baseToken, targetToken commo
 	if sale {
 		token = baseToken
 	}
+	priceForToken := b.priceCache.Get(token.Hex())
+	if priceForToken != nil && priceForToken.Value() != nil {
+		return priceForToken.Value(), nil
+	}
 	res, err, _ := b.pricingSingleflight.Do(token.Hex(), func() (any, error) {
 		return b.pricingWithRetry(ctx, baseToken, targetToken, amount, sale)
 	})
+	b.priceCache.Set(token.Hex(), res.(*big.Int), b.cfg.BondingCurve.BondingCurveProgressUpdateFrequency)
 	return res.(*big.Int), err
 }
 

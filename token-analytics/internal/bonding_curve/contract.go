@@ -6,11 +6,13 @@ import (
 	"context"
 	_ "embed"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/jellydator/ttlcache/v3"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -173,11 +175,13 @@ type (
 		rpcClients          []*ethclient.Client
 		contractClients     []*BondingCurveTokenCaller
 		pricingSingleflight *singleflight.Group
+		priceCache          *ttlcache.Cache[string, *big.Int]
 	}
 	config struct {
 		BondingCurve struct {
-			SmartContractAddress string   `yaml:"smartContractAddress"`
-			RPCEndpoints         []string `yaml:"rpcEndpoints"`
+			SmartContractAddress                string        `yaml:"smartContractAddress"`
+			BondingCurveProgressUpdateFrequency time.Duration `yaml:"bondingCurveProgressUpdateFrequency"`
+			RPCEndpoints                        []string      `yaml:"rpcEndpoints"`
 		} `yaml:"bondingCurve" mapstructure:"bondingCurve"`
 	}
 )
