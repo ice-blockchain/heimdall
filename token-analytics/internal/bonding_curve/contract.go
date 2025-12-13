@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"golang.org/x/sync/singleflight"
 )
 
 type (
@@ -167,10 +168,11 @@ var (
 
 type (
 	bondingCurve struct {
-		cfg             config
-		clientLBIndex   uint64
-		rpcClients      []*ethclient.Client
-		contractClients []*BondingCurveTokenCaller
+		cfg                 config
+		clientLBIndex       uint64
+		rpcClients          []*ethclient.Client
+		contractClients     []*BondingCurveTokenCaller
+		pricingSingleflight *singleflight.Group
 	}
 	config struct {
 		BondingCurve struct {

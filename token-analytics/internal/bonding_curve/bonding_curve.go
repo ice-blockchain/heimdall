@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/singleflight"
 
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/log"
@@ -31,7 +32,7 @@ func init() {
 func New(ctx context.Context, applicationYamlKey string) BondingCurve {
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
-	b := &bondingCurve{cfg: cfg}
+	b := &bondingCurve{cfg: cfg, pricingSingleflight: new(singleflight.Group)}
 	b.rpcClients = make([]*ethclient.Client, len(cfg.BondingCurve.RPCEndpoints), len(cfg.BondingCurve.RPCEndpoints))
 	b.contractClients = make([]*BondingCurveTokenCaller, len(cfg.BondingCurve.RPCEndpoints), len(cfg.BondingCurve.RPCEndpoints))
 	contractAddr := common.HexToAddress(cfg.BondingCurve.SmartContractAddress)
@@ -55,6 +56,18 @@ func New(ctx context.Context, applicationYamlKey string) BondingCurve {
 }
 
 func (b *bondingCurve) Pricing(ctx context.Context, baseToken, targetToken common.Address, amount *big.Int, sale bool) (price *big.Int, err error) {
+	token := targetToken
+	if sale {
+		token = baseToken
+	}
+	res, err, _ := b.pricingSingleflight.Do(token.Hex(), func() (any, error) {
+		return b.pricingWithRetry(ctx, baseToken, targetToken, amount, sale)
+	})
+	return res.(*big.Int), err
+}
+
+func (b *bondingCurve) pricingWithRetry(ctx context.Context, baseToken, targetToken common.Address, amount *big.Int, sale bool) (price *big.Int, err error) {
+	log.Debug(fmt.Sprintf("Getting pricing for tokens %v %v", targetToken.Hex(), baseToken.Hex()))
 	err = b.retry(ctx, func() error {
 		price, err = b.pricing(ctx, baseToken, targetToken, amount, sale)
 		return err

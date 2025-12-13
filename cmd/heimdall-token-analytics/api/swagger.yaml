@@ -616,7 +616,7 @@ paths:
       - Tokens
   /v1/community-tokens/{externalAddressOrViewType}/pricing:
     get:
-      description: Returns pricing for the community token
+      description: Returns pricing for the community token (per 1 = 1e18wei base)
       parameters:
       - description: External address of the token
         example: '"0:9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f:"'
@@ -629,10 +629,6 @@ paths:
         name: type
         required: true
         type: string
-      - description: Amount of tokens to exchange, by default 1
-        in: query
-        name: amount
-        type: integer
       produces:
       - application/json
       responses:
