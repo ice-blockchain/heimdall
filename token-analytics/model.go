@@ -51,10 +51,12 @@ type (
 	}
 
 	BondingCurveProgress struct {
-		CurrentAmount    uint64  `json:"currentAmount"`
+		CurrentAmount    uint64  `json:"currentAmount"` // bonded tokens
 		GoalAmount       uint64  `json:"goalAmount"`
-		CurrentAmountUSD float64 `json:"currentAmountUSD"`
+		RaisedAmount     uint64  `json:"raisedAmount"`     // base tokens
+		CurrentAmountUSD float64 `json:"currentAmountUSD"` // from base
 		GoalAmountUSD    float64 `json:"goalAmountUSD"`
+		Migrated         bool    `json:"migrated"`
 	}
 
 	Position struct {

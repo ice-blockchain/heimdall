@@ -267,3 +267,5 @@ start-seeding:
 all: checkLicense checkModVersion checkIfAllDependenciesAreUpToDate checkGenerated build download-ip2location-sample test coverage benchmark clean
 local: addLicense updateGoModVersion updateAllDependencies generate build buildMultiPlatformDockerImage download-ip2location-sample test coverage benchmark lint clean
 dockerfile: binary-specific-service
+abigen:
+	go tool abigen --abi token-analytics/internal/bonding_curve/.abi/bonding_curve.json --pkg bondingcurve --type bondingCurveToken --out token-analytics/internal/bonding_curve/token.go

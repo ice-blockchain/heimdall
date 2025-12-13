@@ -258,6 +258,67 @@ const docTemplate = `{
                 ]
             }
         },
+        "/v1/community-tokens/{externalAddressOrViewType}/bondingCurveProgress": {
+            "get": {
+                "description": "Returns progress of bonding curve for the community token",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tokens"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"0:9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f:\"",
+                        "description": "External address of the token",
+                        "name": "externalAddressOrViewType",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/tokenanalytics.BondingCurveProgress"
+                        }
+                    },
+                    "400": {
+                        "description": "if request parameters are invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    },
+                    {
+                        "XCom": []
+                    }
+                ]
+            }
+        },
         "/v1/community-tokens/{externalAddressOrViewType}/external-data": {
             "put": {
                 "description": "Syncs external user and token information. At least one field must be provided. Requires authentication.\nSpecial case: when externalAddressOrViewType is \"twitterProfiles\", updates the logged-in user's profile.\nOtherwise, updates token information associated with the specified external address",
@@ -444,6 +505,83 @@ const docTemplate = `{
                             "type": "array",
                             "items": {
                                 "$ref": "#/definitions/tokenanalytics.HolderPosition"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "if request parameters are invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    },
+                    {
+                        "XCom": []
+                    }
+                ]
+            }
+        },
+        "/v1/community-tokens/{externalAddressOrViewType}/pricing": {
+            "get": {
+                "description": "Returns pricing for the community token",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tokens"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"0:9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f:\"",
+                        "description": "External address of the token",
+                        "name": "externalAddressOrViewType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Buy or sell(",
+                        "name": "type",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Amount of tokens to exchange, by default 1",
+                        "name": "amount",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/tokenanalytics.BondingCurveProgress"
                             }
                         }
                     },
@@ -761,6 +899,61 @@ const docTemplate = `{
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    },
+                    {
+                        "XCom": []
+                    }
+                ]
+            }
+        },
+        "/v1sse/community-tokens/{externalAddressOrViewType}/bondingCurveProgress": {
+            "get": {
+                "description": "Streams updates of bonding curve progress",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "stream"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"0x1234...\"",
+                        "description": "External address",
+                        "name": "externalAddressOrViewType",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/tokenanalytics.BondingCurveProgress"
                         }
                     },
                     "401": {
@@ -1155,6 +1348,61 @@ const docTemplate = `{
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "401": {
+                        "description": "if auth token is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    },
+                    {
+                        "XCom": []
+                    }
+                ]
+            }
+        },
+        "/v1ws/community-tokens/{externalAddressOrViewType}/bondingCurveProgress": {
+            "get": {
+                "description": "Streams updates of bonding curve progress",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "stream"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"0x1234...\"",
+                        "description": "External address",
+                        "name": "externalAddressOrViewType",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/tokenanalytics.BondingCurveProgress"
                         }
                     },
                     "401": {
@@ -1582,9 +1830,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "currentAmount": {
+                    "description": "bonded tokens",
                     "type": "integer"
                 },
                 "currentAmountUSD": {
+                    "description": "from base",
                     "type": "number"
                 },
                 "goalAmount": {
@@ -1592,6 +1842,13 @@ const docTemplate = `{
                 },
                 "goalAmountUSD": {
                     "type": "number"
+                },
+                "migrated": {
+                    "type": "boolean"
+                },
+                "raisedAmount": {
+                    "description": "base tokens",
+                    "type": "integer"
                 }
             }
         },
@@ -1849,8 +2106,8 @@ const docTemplate = `{
                 "sell"
             ],
             "x-enum-varnames": [
-                "tradeTypeBuy",
-                "tradeTypeSell"
+                "TradeTypeBuy",
+                "TradeTypeSell"
             ]
         },
         "tokenanalytics.User": {

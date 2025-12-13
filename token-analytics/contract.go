@@ -14,6 +14,7 @@ import (
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rcrowley/go-metrics"
 
+	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/quicknode"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
@@ -72,6 +73,9 @@ type (
 			userBNBBSCWallet, tokenTitle, tokenDescription, tokenImageURL string) error
 		GetHolderPositions(ctx context.Context, tokenExternalAddress string, holderExternalAddresses []string) ([]*HolderPosition, error)
 		GenerateTokenSuggestion(content, creatorName, creatorUsername, creatorBio string) *SuggestCreationDetailsResponse
+		GetBondingCurveProgress(ctx context.Context, externalAddress string) (*BondingCurveProgress, error)
+		SubscribeBondingCurveProgress(context.Context, string, func(*BondingCurveProgress, error)) error
+		GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amountToConvert *big.Int) (uint64, float64, error)
 	}
 
 	SavePoint struct {
@@ -91,13 +95,6 @@ type (
 
 	Interval   string
 	WindowSize stdlibtime.Duration
-
-	Subscriptions interface {
-		SubscribeOnSwaps(externalAddress string) <-chan struct{}
-	}
-	Notifier interface {
-		NotifySwap(externalAddress string)
-	}
 )
 
 const (
@@ -135,8 +132,8 @@ var (
 
 const (
 	applicationYamlKey = "token-analytics"
-	tradeTypeBuy       = TradeType("buy")
-	tradeTypeSell      = TradeType("sell")
+	TradeTypeBuy       = TradeType("buy")
+	TradeTypeSell      = TradeType("sell")
 
 	volumeUpdateInterval                     = 1 * stdlibtime.Minute
 	volume24hMaterializedViewRefreshInterval = 30 * stdlibtime.Second
@@ -184,7 +181,8 @@ type (
 	config struct {
 		IONTokenAddress string `yaml:"ionTokenAddress"`
 		BondingCurve    struct {
-			SmartContractAddress string `yaml:"smartContractAddress"`
+			SmartContractAddress                string              `yaml:"smartContractAddress"`
+			BondingCurveProgressUpdateFrequency stdlibtime.Duration `yaml:"bondingCurveProgressUpdateFrequency"`
 		} `yaml:"bondingCurve" mapstructure:"bondingCurve"`
 		Workers   uint `yaml:"workers"`
 		BatchSize uint `yaml:"batchSize"`
@@ -199,6 +197,7 @@ type (
 		shutdown        func() error
 		cfg             *config
 		wg              *sync.WaitGroup
+		bondingCurve    bondingcurve.BondingCurve
 		ionPriceUSD     *atomic.Pointer[float64]
 		// TODO: xmap for latest creator token prices to calc content token price
 		bondingCurveContractAddress string
@@ -212,10 +211,6 @@ type (
 		ingestedDataDB *storage.DB
 		shutdown       func() error
 		cfg            *config
-	}
-	subscriptions struct {
-		swaps    chan string // externalAddresses, think if we need some interface unifing uniswap and curve swaps
-		swapSubs *xsync.Map[string, chan struct{}]
 	}
 	txEvent struct {
 		BlockTimestamp   *time.Time  `db:"block_timestamp"`

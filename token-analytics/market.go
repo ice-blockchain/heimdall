@@ -99,12 +99,12 @@ func buyOrSell(direction bool, inputAmount, outputAmount *big.Int) (trade TradeT
 		if outputAmount.Sign() > 0 {
 			priceInBaseFloat.Quo(new(big.Float).SetInt(inputAmount), new(big.Float).SetInt(outputAmount))
 		}
-		return tradeTypeBuy, input, output, priceInBaseFloat
+		return TradeTypeBuy, input, output, priceInBaseFloat
 	} else { // sell (Direction=true)
 		if inputAmount.Sign() > 0 {
 			priceInBaseFloat.Quo(new(big.Float).SetInt(outputAmount), new(big.Float).SetInt(inputAmount))
 		}
-		return tradeTypeSell, output, input, priceInBaseFloat
+		return TradeTypeSell, output, input, priceInBaseFloat
 	}
 }
 
@@ -203,7 +203,7 @@ func (t *tokenAnalytics) SubscribeOHLVC(ctx context.Context, now stdlibtime.Time
 	for i := range ohlcvs {
 		addToStream(ohlcvs[i], nil)
 	}
-	swaps := t.subscriptions.SubscribeOnSwaps(externalAddress)
+	swaps, _, _ := t.subscriptions.SubscribeOnSwaps(ctx, externalAddress)
 	candleStick, _ := t.ohclvRecentData.LoadOrCompute(externalAddress, func() (newValue *recentCandlestick, cancel bool) {
 		return newRecentCandlestick(), false
 	})

@@ -100,6 +100,7 @@ func New(ctx context.Context) TokenAnalytics {
 		cfg:                         &cfg,
 		quickNode:                   qn,
 		metrics:                     registry,
+		bondingCurve:                bondingcurve.New(ctx, applicationYamlKey),
 		ohclvRecentData:             xsync.NewMap[string, *recentCandlestick](),
 		subscriptions:               newSubscriptions(ctx),
 		shutdown: func() error {
@@ -119,6 +120,7 @@ func New(ctx context.Context) TokenAnalytics {
 	}
 
 	go t.startIONPriceSyncer(ctx)
+
 	if true {
 		generator := &dummyDataGenerator{
 			Target:                      db,

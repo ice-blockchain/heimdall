@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math/big"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -90,6 +91,19 @@ type (
 	HolderPositionsRequest struct {
 		ExternalAddress         string   `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
 		ExternalHolderAddresses []string `form:"externalHolderAddresses" required:"true" swaggerignore:"true"`
+	}
+	BondingCurveProgressRequest struct {
+		ExternalAddress string `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
+	}
+	BondingCurveProgressResponse = ta.BondingCurveProgress
+	PricingRequest               struct {
+		ExternalAddress string   `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
+		Type            string   `form:"type" swaggerignore:"true" example:"buy"`
+		Amount          *big.Int `form:"amount" swaggerignore:"true" example:"100000000000"`
+	}
+	PriceResponse struct {
+		Amount    uint64  `json:"amount"`
+		AmountUSD float64 `json:"amountUSD"`
 	}
 )
 
@@ -315,6 +329,63 @@ func (s *service) GetCommunityTokenHolderPositions(ctx context.Context, req *ser
 	}
 
 	return server.OK(&positions), nil
+}
+
+// GetCommunityTokenBondingCurveProgress godoc
+//
+//	@Schemes
+//	@Description	Returns progress of bonding curve for the community token
+//	@Tags			Tokens
+//	@Produce		json
+//	@Param			externalAddressOrViewType	path		string	true	"External address of the token"	example("0:9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f:")
+//	@Success		200							{object}	ta.BondingCurveProgress
+//	@Failure		400							{object}	server.ResponseErrorBody	"if request parameters are invalid"
+//	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		500							{object}	server.ResponseErrorBody
+//	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
+//	@Security		Nostr
+//	@Security		XCom
+//	@Router			/v1/community-tokens/{externalAddressOrViewType}/bondingCurveProgress [GET].
+func (s *service) GetCommunityTokenBondingCurveProgress(ctx context.Context, req *server.Request[BondingCurveProgressRequest]) (*server.Response[*BondingCurveProgressResponse], error) {
+	progress, err := s.tokenAnalytics.GetBondingCurveProgress(ctx, req.Data.ExternalAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get bonding curve progress for token %v: %w", req.Data.ExternalAddress, err)
+	}
+
+	return server.OK(&progress), nil
+}
+
+// GetCommunityTokenPricing godoc
+//
+//	@Schemes
+//	@Description	Returns pricing for the community token
+//	@Tags			Tokens
+//	@Produce		json
+//	@Param			externalAddressOrViewType	path		string	true	"External address of the token"	example("0:9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f:")
+//	@Param			type						query		string	true	"Buy or sell("buy")
+//	@Param			amount						query		int		false	"Amount of tokens to exchange, by default 1"
+//	@Success		200							{array}		ta.BondingCurveProgress
+//	@Failure		400							{object}	server.ResponseErrorBody	"if request parameters are invalid"
+//	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		500							{object}	server.ResponseErrorBody
+//	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
+//	@Security		Nostr
+//	@Security		XCom
+//	@Router			/v1/community-tokens/{externalAddressOrViewType}/pricing [GET].
+func (s *service) GetCommunityTokenPricing(ctx context.Context, req *server.Request[PricingRequest]) (*server.Response[PriceResponse], error) {
+	tradeType := ta.TradeType(req.Data.Type)
+	if tradeType != ta.TradeTypeBuy && tradeType != ta.TradeTypeSell {
+		return nil, server.BadRequest(errors.Errorf("invalid type %v", tradeType), invalidPropertiesErrorCode)
+	}
+	amount, amountUsd, err := s.tokenAnalytics.GetTokenPricing(ctx, req.Data.ExternalAddress, tradeType, req.Data.Amount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pricing for token %v: %w", req.Data.ExternalAddress, err)
+	}
+
+	return server.OK(&PriceResponse{
+		Amount:    amount,
+		AmountUSD: amountUsd,
+	}), nil
 }
 
 // SyncCommunityTokenExternalData godoc
@@ -718,16 +789,16 @@ func (s *service) StreamCommunityTokensTradingStats(ctx context.Context, req *se
 //	@Router			/v1sse/community-tokens/{externalAddressOrViewType}/ohlcv [GET].
 //	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/ohlcv [GET].
 func (s *service) StreamCommunityTokensOHLCV(ctx context.Context, req *server.Request[OHLCVRequest]) (server.StreamEventEmitter[ta.OHLCV], error) {
-	return s.ohlcvStream(req.Data.ExternalAddress, req.Data.Interval)
+	return s.ohlcvStream(ctx, req.Data.ExternalAddress, req.Data.Interval)
 }
 
-func (s *service) ohlcvStream(ionContentAddress string, intervalStr string) (server.StreamEventEmitter[ta.OHLCV], error) {
+func (s *service) ohlcvStream(ctx context.Context, ionContentAddress string, intervalStr string) (server.StreamEventEmitter[ta.OHLCV], error) {
 	interval := ta.Interval(intervalStr)
 	if err := interval.Validate(); err != nil {
 		return nil, errors.Wrapf(err, "invalid interval")
 	}
 	now := time.Now().In(time.UTC)
-	emitter, err := wrapIntoStream[ta.OHLCV](100, func(ctx context.Context, addToStream func(t *ta.OHLCV, err error)) error {
+	emitter, err := wrapIntoStream[ta.OHLCV](100, func(addToStream func(t *ta.OHLCV, err error)) error {
 		if err := s.tokenAnalytics.SubscribeOHLVC(ctx, now, ionContentAddress, interval, addToStream); err != nil {
 			return errors.Wrapf(err, "failed to subscribe to OHLCV for %v", ionContentAddress)
 		}
@@ -739,7 +810,35 @@ func (s *service) ohlcvStream(ionContentAddress string, intervalStr string) (ser
 	return emitter, nil
 }
 
-func wrapIntoStream[T any](initialBuffer int, impl func(ctx context.Context, addToStream func(t *T, err error)) error) (server.StreamEventEmitter[T], error) {
+// StreamCommunityTokenBondingCurveProgress godoc
+//
+//	@Schemes
+//	@Description	Streams updates of bonding curve progress
+//	@Tags			stream
+//	@Produce		json
+//	@Param			externalAddressOrViewType	path		string	true	"External address"	example("0x1234...")
+//	@Success		200							{object}	ta.BondingCurveProgress
+//	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		500							{object}	server.ResponseErrorBody
+//	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
+//	@Security		Nostr
+//	@Security		XCom
+//	@Router			/v1sse/community-tokens/{externalAddressOrViewType}/bondingCurveProgress [GET].
+//	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/bondingCurveProgress [GET].
+func (s *service) StreamCommunityTokenBondingCurveProgress(ctx context.Context, req *server.Request[BondingCurveProgressRequest]) (server.StreamEventEmitter[ta.BondingCurveProgress], error) {
+	emitter, err := wrapIntoStream[ta.BondingCurveProgress](100, func(addToStream func(t *ta.BondingCurveProgress, err error)) error {
+		if err := s.tokenAnalytics.SubscribeBondingCurveProgress(ctx, req.Data.ExternalAddress, addToStream); err != nil {
+			return errors.Wrapf(err, "failed to subscribe to bonding curve progress for %v", req.Data.ExternalAddress)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return emitter, nil
+}
+
+func wrapIntoStream[T any](initialBuffer int, impl func(addToStream func(t *T, err error)) error) (server.StreamEventEmitter[T], error) {
 	events := make(chan server.StreamEvent[T], initialBuffer)
 	addWithWrap := func(t *T, err error) {
 		if err != nil {
@@ -756,7 +855,7 @@ func wrapIntoStream[T any](initialBuffer int, impl func(ctx context.Context, add
 		}
 	}
 	return func(ctx context.Context) (<-chan server.StreamEvent[T], error) {
-		if err := impl(ctx, addWithWrap); err != nil {
+		if err := impl(addWithWrap); err != nil {
 			return nil, errors.Wrapf(err, "failed to call stream implementation")
 		}
 		return events, nil

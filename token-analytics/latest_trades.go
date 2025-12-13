@@ -77,10 +77,10 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, externalAddress st
 		var tokenAmountWeiStr string
 		var typ TradeType
 		if !swaps[i].Direction { // Direction=false is buy
-			typ = tradeTypeBuy
+			typ = TradeTypeBuy
 			tokenAmountWeiStr = swaps[i].Output // User receives tokens
 		} else { // Direction=true is sell
-			typ = tradeTypeSell
+			typ = TradeTypeSell
 			tokenAmountWeiStr = swaps[i].Input // User sends tokens
 		}
 		tokenAmountWeiBigInt := new(big.Int)
