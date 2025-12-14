@@ -51,7 +51,6 @@ CREATE TABLE IF NOT EXISTS users
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users (created_at);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_users_master_pubkey ON users (master_pubkey);
 CREATE INDEX IF NOT EXISTS idx_users_external_address ON users (external_address);
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX IF NOT EXISTS idx_users_lookup_gist ON users USING gist (lookup gist_trgm_ops);

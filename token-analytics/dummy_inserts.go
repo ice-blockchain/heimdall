@@ -171,12 +171,7 @@ func (gen *dummyDataGenerator) createIonConnectTokenWithBuysOrSellsProcessor(ctx
 	ctx, cancel := context.WithDeadline(ctx, deadline)
 
 	gen.startBuysOrSellsProcessor(ctx, tok, stream, deadline, PlatformGroupIonConnect)
-
-	// Wait 5 seconds for token to be processed by triggers before starting bonding curve updater
-	go func() {
-		time.Sleep(5 * time.Second)
-		gen.startBondingCurveProgressUpdater(ctx, tok, deadline)
-	}()
+	gen.startBondingCurveProgressUpdater(ctx, tok, deadline)
 
 	return cancel
 }
@@ -240,12 +235,7 @@ func (gen *dummyDataGenerator) createXComTokenWithBuysOrSellsProcessor(ctx conte
 	ctx, cancel := context.WithDeadline(ctx, deadline)
 
 	gen.startBuysOrSellsProcessor(ctx, tok, stream, deadline, PlatformGroupXCom)
-
-	// Wait 5 seconds for token to be processed by triggers before starting bonding curve updater
-	go func() {
-		time.Sleep(5 * time.Second)
-		gen.startBondingCurveProgressUpdater(ctx, tok, deadline)
-	}()
+	gen.startBondingCurveProgressUpdater(ctx, tok, deadline)
 
 	return cancel
 }
@@ -318,9 +308,9 @@ func calculateTxCountForDeadline(ttl time.Duration, deadline time.Time) (int, ti
 func (gen *dummyDataGenerator) startBondingCurveProgressUpdater(ctx context.Context, tokenData *tokenRow, deadline time.Time) {
 	log.Info(fmt.Sprintf("Starting bonding curve updater for token %v", tokenData.ContractAddress))
 
-	ticker := time.NewTicker(2 * time.Second)
+	_, nextTick := calculateTxCountForDeadline(gen.TokenGeneratorTTL, deadline)
+	ticker := time.NewTicker(nextTick)
 	fire := make(chan struct{}, 1)
-	updateCount := atomic.Int32{}
 
 	go func() {
 		defer ticker.Stop()
@@ -330,10 +320,8 @@ func (gen *dummyDataGenerator) startBondingCurveProgressUpdater(ctx context.Cont
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				if updateCount.Load() > 30 {
-					_, nextTick := calculateTxCountForDeadline(gen.TokenGeneratorTTL, deadline)
-					ticker.Reset(nextTick)
-				}
+				_, nextTick := calculateTxCountForDeadline(gen.TokenGeneratorTTL, deadline)
+				ticker.Reset(nextTick)
 				select {
 				case fire <- struct{}{}:
 				default:
@@ -354,9 +342,6 @@ func (gen *dummyDataGenerator) startBondingCurveProgressUpdater(ctx context.Cont
 				log.Info(fmt.Sprintf("Bonding curve updater for token %v stopped (context done)", tokenData.ContractAddress))
 				return
 			case <-fire:
-				updateCount.Add(1)
-				log.Info(fmt.Sprintf("Bonding curve updater fired for token %v (update #%d)", tokenData.ContractAddress, updateCount.Load()))
-
 				remaining := time.Until(deadline)
 				if remaining <= 0 {
 					log.Info(fmt.Sprintf("Bonding curve updater for token %v stopped (deadline reached)", tokenData.ContractAddress))
@@ -403,10 +388,6 @@ func (gen *dummyDataGenerator) startBondingCurveProgressUpdater(ctx context.Cont
 				baseLiquidity := 1000.0                                        // $1000 base liquidity
 				liquidityUSD := baseLiquidity * (1.0 + progressPercentage*4.0) // Grows 5x
 
-				log.Info(fmt.Sprintf("Executing UPDATE for token %v: current=%s, raised=%s, goal=%s, currentUSD=%.2f, goalUSD=%.2f, liquidity=%.2f, migrated=%v",
-					tokenData.ContractAddress, currentAmountInt.String(), raisedAmountInt.String(), goalAmount.String(),
-					currentAmountUSD, goalAmountUSD, liquidityUSD, migrated))
-
 				updateCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 				contractAddr := tokenData.ContractAddress
 				if !strings.HasPrefix(contractAddr, "0x") {
@@ -428,13 +409,15 @@ func (gen *dummyDataGenerator) startBondingCurveProgressUpdater(ctx context.Cont
 				cancel()
 
 				if err != nil {
-					log.Error(errors.Wrapf(err, "failed to update bonding curve progress for token %v", tokenData.ContractAddress))
+					log.Error(errors.Wrapf(err, "failed to update bonding curve progress for token %v, stopping updater", tokenData.ContractAddress))
+					return
 				} else if rowsAffected > 0 {
 					log.Info(fmt.Sprintf("✓ SUCCESS: Updated bonding curve for token %v: progress=%.1f%%, liquidity=$%.2f, current=%s, goal=%s",
 						tokenData.ContractAddress, progressPercentage*100, liquidityUSD,
 						currentAmountInt.String(), goalAmount.String()))
 				} else {
-					log.Warn(fmt.Sprintf("✗ FAIL: Bonding curve update for token %v affected 0 rows - token NOT FOUND in DB!", tokenData.ContractAddress))
+					log.Warn(fmt.Sprintf("✗ FAIL: Bonding curve update for token %v affected 0 rows - token NOT FOUND in DB, stopping updater", tokenData.ContractAddress))
+					return
 				}
 			}
 		}
@@ -488,9 +471,9 @@ func (gen *dummyDataGenerator) getOrCreateTokenUserPool(ctx context.Context, tok
 }
 
 func (gen *dummyDataGenerator) startBuysOrSellsProcessor(ctx context.Context, tokenData *tokenRow, stream string, deadline time.Time, platformGroup string) {
-	ticker := time.NewTicker(3 * time.Second)
+	txCount, nextTick := calculateTxCountForDeadline(gen.TokenGeneratorTTL, deadline)
+	ticker := time.NewTicker(nextTick)
 	fire := make(chan int, 1)
-	swapCount := atomic.Int32{}
 
 	gen.activeTokensWorkers.Add(1)
 
@@ -502,16 +485,8 @@ func (gen *dummyDataGenerator) startBuysOrSellsProcessor(ctx context.Context, to
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				var txCount int
-				var nextTick time.Duration
-
-				if swapCount.Load() > 20 {
-					txCount, nextTick = calculateTxCountForDeadline(gen.TokenGeneratorTTL, deadline)
-					ticker.Reset(nextTick)
-				} else {
-					txCount = 3 + rand.Intn(3)
-				}
-
+				txCount, nextTick = calculateTxCountForDeadline(gen.TokenGeneratorTTL, deadline)
+				ticker.Reset(nextTick)
 				select {
 				case fire <- txCount:
 				default:
@@ -521,7 +496,7 @@ func (gen *dummyDataGenerator) startBuysOrSellsProcessor(ctx context.Context, to
 		}
 	}()
 
-	fire <- 5
+	fire <- txCount
 
 	go func() {
 		defer gen.activeTokensWorkers.Add(-1)
@@ -531,7 +506,6 @@ func (gen *dummyDataGenerator) startBuysOrSellsProcessor(ctx context.Context, to
 			case <-ctx.Done():
 				return
 			case txCount := <-fire:
-				swapCount.Add(1)
 				insCtx, insCancel := context.WithTimeout(ctx, time.Second*10)
 				if err := gen.generateBuyOrSellBatch(insCtx, stream, tokenData, txCount, platformGroup); err != nil {
 					log.Error(errors.Wrapf(err, "failed to insert dummy tx data"))

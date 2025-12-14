@@ -64,51 +64,80 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	tokenExternalAddress, userExternalAddress, userUsername, userDisplayName, userAvatar string, userVerified bool,
 	userBNBBSCWallet, tokenTitle, tokenDescription, tokenImageURL string) error {
 
-	query := `
-		WITH user_update AS (
-			INSERT INTO users (
-				created_at, updated_at, id, master_pubkey, blockchain_address, 
-				external_address, username, display_name, avatar, verified, lookup, platform_group
-			)
-			SELECT 
-				NOW(), NOW(), $1, $1, $2, $3, $4, $5, $6, $7, LOWER($4 || ' ' || COALESCE($5, '')), 'xcom'::platform_type
-			WHERE $1 != '' OR $2 != '' OR $3 != '' OR $4 != '' OR $5 != '' OR $6 != ''
-			ON CONFLICT (master_pubkey) 
-			DO UPDATE SET
-				external_address = COALESCE(NULLIF(EXCLUDED.external_address, ''), users.external_address),
-				username = COALESCE(NULLIF(EXCLUDED.username, ''), users.username),
-				display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name),
-				avatar = COALESCE(NULLIF(EXCLUDED.avatar, ''), users.avatar),
-				verified = EXCLUDED.verified,
-				blockchain_address = COALESCE(NULLIF(EXCLUDED.blockchain_address, ''), users.blockchain_address),
-				lookup = COALESCE(NULLIF(EXCLUDED.lookup, ''), users.lookup),
-				platform_group = EXCLUDED.platform_group,
-				updated_at = NOW()
-			RETURNING master_pubkey
+	hasUserData := userExternalAddress != "" || userBNBBSCWallet != "" || userUsername != "" ||
+		userDisplayName != "" || userAvatar != ""
+	hasTokenData := tokenTitle != "" || tokenDescription != "" || tokenImageURL != ""
+	if !hasUserData && !hasTokenData {
+		return nil
+	}
+	const userUpsertSQL = `
+		INSERT INTO users (
+			created_at, updated_at, id, master_pubkey, blockchain_address, 
+			external_address, username, display_name, avatar, verified, lookup, platform_group
 		)
-		UPDATE tokens
-		SET 
-			title = CASE WHEN $8 != '' THEN $8 ELSE title END,
-			description = CASE WHEN $9 != '' THEN $9 ELSE description END,
-			image_url = CASE WHEN $10 != '' THEN $10 ELSE image_url END,
+		VALUES (
+			NOW(), NOW(), $1, $1, $2, $3, $4, $5, $6, $7, LOWER($4 || ' ' || COALESCE($5, '')), 'xcom'::platform_type
+		)
+		ON CONFLICT (master_pubkey) 
+		DO UPDATE SET
+			external_address = COALESCE(NULLIF(EXCLUDED.external_address, ''), users.external_address),
+			username = COALESCE(NULLIF(EXCLUDED.username, ''), users.username),
+			display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name),
+			avatar = COALESCE(NULLIF(EXCLUDED.avatar, ''), users.avatar),
+			verified = EXCLUDED.verified,
+			blockchain_address = COALESCE(NULLIF(EXCLUDED.blockchain_address, ''), users.blockchain_address),
+			lookup = CASE
+				WHEN EXCLUDED.username != '' OR EXCLUDED.display_name != '' THEN
+					LOWER(TRIM(COALESCE(NULLIF(EXCLUDED.username, ''), users.username) || ' ' || COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name)))
+				ELSE users.lookup
+			END,
+			platform_group = EXCLUDED.platform_group,
 			updated_at = NOW()
-		WHERE external_address = $11
-			AND ($8 != '' OR $9 != '' OR $10 != '')
-	`
+`
 
-	_, err := storage.Exec(ctx, t.ingestedDataDB, query,
-		userExternalAddress,  // $1
-		userBNBBSCWallet,     // $2
-		userExternalAddress,  // $3
-		userUsername,         // $4
-		userDisplayName,      // $5
-		userAvatar,           // $6
-		userVerified,         // $7
-		tokenTitle,           // $8
-		tokenDescription,     // $9
-		tokenImageURL,        // $10
-		tokenExternalAddress, // $11
-	)
+	var query string
+	var args []interface{}
+	if hasUserData && hasTokenData {
+		query = `
+			WITH user_update AS (
+				` + userUpsertSQL + `
+				RETURNING master_pubkey
+			)
+			UPDATE tokens
+			SET 
+				title = CASE WHEN $8 != '' THEN $8 ELSE title END,
+				description = CASE WHEN $9 != '' THEN $9 ELSE description END,
+				image_url = CASE WHEN $10 != '' THEN $10 ELSE image_url END,
+				updated_at = NOW()
+			WHERE external_address = $11
+			RETURNING contract_address;
+		`
+		args = []interface{}{
+			userExternalAddress, userBNBBSCWallet, userExternalAddress, userUsername,
+			userDisplayName, userAvatar, userVerified, tokenTitle, tokenDescription,
+			tokenImageURL, tokenExternalAddress,
+		}
+	} else if hasUserData {
+		query = userUpsertSQL + ` RETURNING master_pubkey;`
+		args = []interface{}{
+			userExternalAddress, userBNBBSCWallet, userExternalAddress, userUsername,
+			userDisplayName, userAvatar, userVerified,
+		}
+	} else {
+		query = `
+			UPDATE tokens
+			SET 
+				title = CASE WHEN $1 != '' THEN $1 ELSE title END,
+				description = CASE WHEN $2 != '' THEN $2 ELSE description END,
+				image_url = CASE WHEN $3 != '' THEN $3 ELSE image_url END,
+				updated_at = NOW()
+			WHERE external_address = $4
+			RETURNING contract_address;
+		`
+		args = []interface{}{tokenTitle, tokenDescription, tokenImageURL, tokenExternalAddress}
+	}
+
+	_, err := storage.Exec(ctx, t.ingestedDataDB, query, args...)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrDuplicate) {
 			return errors.Wrapf(ErrDuplicate, "failed to update token external data for: %v", userExternalAddress)
