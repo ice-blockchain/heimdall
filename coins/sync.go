@@ -175,12 +175,13 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 
 		// TODO: reorder flow to sync via coins first, then unmatched - via tokens
 		// For now here is hack to fetch ice price via coins all the time, as tokens/dex has outdated price
-		hasICE := slices.Contains(contractAddrs, "0xc335df7c25b72eec661d5aa32a7c2b7b2a1d1874") ||
-			slices.Contains(contractAddrs, "0x79f05c263055ba20ee0e814acd117c20caa10e0c") ||
-			slices.Contains(contractAddrs, "E9aPbhb5xRVGP2L6qJixfJC5qWAzECpUFUxnGx3wUiND") ||
-			slices.Contains(contractAddrs, "0xAB8EBCC9eecc20Bd30c7b75c7b4e8fcCcFBf01aB")
+		hasICE := slices.ContainsFunc(contractAddrs, func(s string) bool {
+			return strings.EqualFold(s, "0xc335df7c25b72eec661d5aa32a7c2b7b2a1d1874") || // ice bsc
+				strings.EqualFold(s, "0x79f05c263055ba20ee0e814acd117c20caa10e0c") || // ice eth
+				strings.EqualFold(s, "E9aPbhb5xRVGP2L6qJixfJC5qWAzECpUFUxnGx3wUiND") || // ice solana
+				strings.EqualFold(s, "0xAB8EBCC9eecc20Bd30c7b75c7b4e8fcCcFBf01aB") // ice arbitrum
+		})
 		if hasICE {
-
 			tokens = slices.DeleteFunc(tokens, func(t *coingecko.Coin) bool {
 				s := t.ContractAddress
 				return strings.EqualFold(s, "0xc335df7c25b72eec661d5aa32a7c2b7b2a1d1874") || // ice bsc
@@ -200,7 +201,9 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 			for notFetchedContractAddr := range notFetched {
 				coinGeckoID := ids[network+":@:@:"+notFetchedContractAddr]
 				if coinGeckoID != "" {
-					coinIDs = append(coinIDs, coinGeckoID)
+					if !slices.Contains(coinIDs, coinGeckoID) {
+						coinIDs = append(coinIDs, coinGeckoID)
+					}
 					// in coins api cg dont contain contract address and network so we have to match it on our side
 					// to restore for internal id calculation
 					networks[coinGeckoID] = network + ":@:@:" + notFetchedContractAddr
