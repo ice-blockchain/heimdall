@@ -32,7 +32,7 @@ require (
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ice-blockchain/go/src v0.0.0-20251117100638-ebce142e0ce4
-	github.com/ice-blockchain/subzero v1.482.0
+	github.com/ice-blockchain/subzero v1.483.0
 	github.com/ice-blockchain/wintr v1.170.0
 	github.com/imroc/req/v3 v3.56.0
 	github.com/jackc/pgx/v5 v5.7.6
@@ -85,7 +85,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0 // indirect
 	github.com/MicahParks/keyfunc v1.9.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251211224604-2e727cd2e6fe // indirect
+	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251213223233-751f36331c62 // indirect
 	github.com/VictoriaMetrics/fastcache v1.13.0 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.41.0 // indirect
@@ -155,7 +155,7 @@ require (
 	github.com/docker/docker v28.5.2+incompatible // indirect
 	github.com/docker/go-connections v0.6.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
-	github.com/dundee/gdu/v5 v5.32.1-0.20251209115503-b885127f17bd // indirect
+	github.com/dundee/gdu/v5 v5.32.1-0.20251212163858-03a085bfab84 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.9.1 // indirect
 	github.com/emicklei/dot v1.6.2 // indirect
