@@ -100,20 +100,17 @@ definitions:
   tokenanalytics.BondingCurveProgress:
     properties:
       currentAmount:
-        description: bonded tokens
-        type: integer
+        type: string
       currentAmountUSD:
-        description: from base
         type: number
       goalAmount:
-        type: integer
+        type: string
       goalAmountUSD:
         type: number
       migrated:
         type: boolean
       raisedAmount:
-        description: base tokens
-        type: integer
+        type: string
     type: object
   tokenanalytics.CommunityToken:
     properties:
@@ -137,7 +134,7 @@ definitions:
   tokenanalytics.HolderPosition:
     properties:
       amount:
-        type: integer
+        type: string
       amountUSD:
         type: number
       holder:
@@ -168,7 +165,7 @@ definitions:
       priceUSD:
         type: number
       supply:
-        type: integer
+        type: string
       ticker:
         type: string
       topPlatformHolders:
@@ -196,7 +193,7 @@ definitions:
   tokenanalytics.Position:
     properties:
       amount:
-        type: integer
+        type: string
       amountUSD:
         type: number
       pnl:
@@ -237,11 +234,11 @@ definitions:
       addresses:
         $ref: '#/definitions/tokenanalytics.Addresses'
       amount:
-        type: integer
+        type: string
       amountUSD:
         type: number
       balance:
-        type: integer
+        type: string
       balanceUSD:
         type: number
       createdAt:

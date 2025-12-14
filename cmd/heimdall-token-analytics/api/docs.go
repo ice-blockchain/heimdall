@@ -1824,15 +1824,13 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "currentAmount": {
-                    "description": "bonded tokens",
-                    "type": "integer"
+                    "type": "string"
                 },
                 "currentAmountUSD": {
-                    "description": "from base",
                     "type": "number"
                 },
                 "goalAmount": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "goalAmountUSD": {
                     "type": "number"
@@ -1841,8 +1839,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "raisedAmount": {
-                    "description": "base tokens",
-                    "type": "integer"
+                    "type": "string"
                 }
             }
         },
@@ -1879,7 +1876,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "amount": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "amountUSD": {
                     "type": "number"
@@ -1926,7 +1923,7 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "supply": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "ticker": {
                     "type": "string"
@@ -1969,7 +1966,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "amount": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "amountUSD": {
                     "type": "number"
@@ -2031,13 +2028,13 @@ const docTemplate = `{
                     "$ref": "#/definitions/tokenanalytics.Addresses"
                 },
                 "amount": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "amountUSD": {
                     "type": "number"
                 },
                 "balance": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "balanceUSD": {
                     "type": "number"
