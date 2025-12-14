@@ -284,17 +284,18 @@ func (a *accounts) GetUser(ctx context.Context, userIDOrMasterKey string) (*User
 func (a *accounts) upsertUserAfterRegistrationAndCreateWalletView(ctx context.Context, now *time.Time, res map[string]any, visitorID, devicePubkey, earlyAccessEmail string) (*string, string, error) {
 	userID, username := dfns.ExtractUser(res, "username")
 	walletID, walletPubKey := dfns.ExtractMainWallet(res)
+	bscWallet, _ := dfns.ExtractMainWallet(res, dfns.BscWalletNetworkMainNet, dfns.BscWalletNetworkTestNet)
 	usr, err := a.upsertUserFromRegistration(ctx, now, res, walletPubKey, visitorID, devicePubkey, earlyAccessEmail)
 	if err != nil {
 		return nil, "", errors.Wrapf(err, "failed to upsert users masterkey and visitorId")
 	}
-	if _, err := a.createDefaultWalletView(ctx, userID, username, walletID, false); err != nil {
+	if _, err = a.createDefaultWalletView(ctx, userID, username, walletID, bscWallet, false); err != nil {
 		return nil, "", errors.Wrapf(err, "failed to create default walletview for user %v", userID)
 	}
 	return usr.DuplicateOf, usr.MasterPubKey, nil
 }
 
-func (a *accounts) createDefaultWalletView(ctx context.Context, userID, username, walletID string, linkToTON bool) (*WalletView, error) {
+func (a *accounts) createDefaultWalletView(ctx context.Context, userID, username, walletID, bscWallet string, linkToTON bool) (*WalletView, error) {
 	coins := []*CoinMapping{}
 	for _, dc := range a.cfg.DefaultCoinsInWalletView {
 		defCoins, has := defaultCoins[dc]
@@ -311,6 +312,11 @@ func (a *accounts) createDefaultWalletView(ctx context.Context, userID, username
 			} else if linkToTON && c.SymbolGroup == defaultWalletViewCoinSymbolGroupForOldAccounts && (strings.EqualFold(c.Network, dfns.DefaultWalletNetworkMainNetForOldAccounts) || strings.EqualFold(c.Network, dfns.DefaultWalletNetworkTestNetForOldAccounts)) {
 				coins = append(coins, &CoinMapping{
 					WalletID: &walletID,
+					CoinID:   c.ID,
+				})
+			} else if strings.EqualFold(c.Network, dfns.BscWalletNetworkMainNet) || strings.EqualFold(c.Network, dfns.BscWalletNetworkTestNet) {
+				coins = append(coins, &CoinMapping{
+					WalletID: &bscWallet,
 					CoinID:   c.ID,
 				})
 			} else {
