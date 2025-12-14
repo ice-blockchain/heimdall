@@ -256,18 +256,20 @@ type (
 		ImageURL                     string     `db:"image_url"`
 		Ticker                       string     `db:"ticker"`
 		TotalSupply                  string     `db:"total_supply"`
-		CreatorMasterPubkey          string     `db:"creator_master_pubkey"`
-		CreatorUsername              string     `db:"creator_username"`
-		CreatorDisplay               string     `db:"creator_display"`
-		CreatorAvatar                string     `db:"creator_avatar"`
-		CreatorExternalAddress       string     `db:"creator_external_address"`
-		CreatorPlatform              string     `db:"creator_platform"`
+		CreatorBlockchainAddress     *string    `db:"creator_blockchain_address"`
+		CreatorUsername              *string    `db:"creator_username"`
+		CreatorDisplay               *string    `db:"creator_display"`
+		CreatorAvatar                *string    `db:"creator_avatar"`
+		CreatorExternalAddress       *string    `db:"creator_external_address"`
+		CreatorPlatform              *string    `db:"creator_platform"`
+		CreatorBnbBscAddress         *string    `db:"creator_bnb_bsc_address"`
 		BaseToken                    string     `db:"base_token"`
 		PairId                       string     `db:"pair_id"`
 		MarketCapUSD                 float64    `db:"market_cap_usd"`
 		PriceUSD                     float64    `db:"price_usd"`
 		LiquidityUSD                 float64    `db:"liquidity_usd"`
 		Volume24h                    float64    `db:"volume_24h"`
+		PositionAmount               string     `db:"position_amount"`
 		PositionAmountUSD            float64    `db:"position_amount_usd"`
 		PositionTotalInvestedUSD     float64    `db:"position_total_invested_usd"`
 		HoldersCount                 int64      `db:"holders_count"`
@@ -285,45 +287,46 @@ type (
 	}
 
 	holderPositionRow struct {
-		MasterPubkey     string  `db:"master_pubkey"`
-		Username         string  `db:"username"`
-		DisplayName      string  `db:"display_name"`
-		Avatar           string  `db:"avatar"`
+		MasterPubkey     *string `db:"master_pubkey"`
+		Username         *string `db:"username"`
+		DisplayName      *string `db:"display_name"`
+		Avatar           *string `db:"avatar"`
 		Verified         bool    `db:"verified"`
-		ExternalAddress  string  `db:"external_address"`
-		Platform         string  `db:"platform"`
+		ExternalAddress  *string `db:"external_address"`
+		Platform         *string `db:"platform"`
 		Amount           string  `db:"amount"`
 		TotalInvestedUSD float64 `db:"total_invested_usd"`
 		PriceUSD         float64 `db:"price_usd"`
 	}
 
 	tokenSwap struct {
-		CreatedAt              *time.Time `db:"created_at"`
-		TransactionHash        string     `db:"transaction_hash"`
-		ContractAddress        string     `db:"contract_address"`
-		ExternalAddress        string     `db:"external_address"`
-		Platform               string     `db:"platform"`
-		UserAddress            string     `db:"user_address"`
-		CreatorMasterPubkey    string     `db:"creator_master_pubkey"`
-		CreatorUsername        string     `db:"creator_username"`
-		CreatorDisplay         string     `db:"creator_display"`
-		CreatorAvatar          string     `db:"creator_avatar"`
-		CreatorExternalAddress string     `db:"creator_external_address"`
-		CreatorPlatform        string     `db:"creator_platform"`
-		HolderMasterPubkey     string     `db:"holder_master_pubkey"`
-		HolderUsername         string     `db:"holder_username"`
-		HolderDisplay          string     `db:"holder_display"`
-		HolderAvatar           string     `db:"holder_avatar"`
-		HolderExternalAddress  string     `db:"holder_external_address"`
-		HolderPlatform         string     `db:"holder_platform"`
-		Input                  string     `db:"input_amount"`
-		Output                 string     `db:"output_amount"`
-		PriceUSD               float64    `db:"price_usd"`
-		BalanceUSD             float64    `db:"balance_usd"`
-		Balance                string     `db:"balance"`
-		Direction              bool       `db:"direction"`
-		CreatorVerified        bool       `db:"creator_verified"`
-		HolderVerified         bool       `db:"holder_verified"`
+		CreatedAt                *time.Time `db:"created_at"`
+		TransactionHash          string     `db:"transaction_hash"`
+		ContractAddress          string     `db:"contract_address"`
+		ExternalAddress          string     `db:"external_address"`
+		Platform                 string     `db:"platform"`
+		UserBlockchainAddress    string     `db:"user_blockchain_address"`
+		CreatorBlockchainAddress *string    `db:"creator_blockchain_address"`
+		CreatorUsername          *string    `db:"creator_username"`
+		CreatorDisplay           *string    `db:"creator_display"`
+		CreatorAvatar            *string    `db:"creator_avatar"`
+		CreatorExternalAddress   *string    `db:"creator_external_address"`
+		CreatorPlatform          *string    `db:"creator_platform"`
+		CreatorBnbBscAddress     *string    `db:"creator_bnb_bsc_address"`
+		HolderMasterPubkey       *string    `db:"holder_master_pubkey"`
+		HolderUsername           *string    `db:"holder_username"`
+		HolderDisplay            *string    `db:"holder_display"`
+		HolderAvatar             *string    `db:"holder_avatar"`
+		HolderExternalAddress    *string    `db:"holder_external_address"`
+		HolderPlatform           *string    `db:"holder_platform"`
+		Input                    string     `db:"input_amount"`
+		Output                   string     `db:"output_amount"`
+		PriceUSD                 float64    `db:"price_usd"`
+		BalanceUSD               float64    `db:"balance_usd"`
+		Balance                  string     `db:"balance"`
+		Direction                bool       `db:"direction"`
+		CreatorVerified          bool       `db:"creator_verified"`
+		HolderVerified           bool       `db:"holder_verified"`
 	}
 	trade struct {
 		Timestamp       time.Time       `db:"timestamp"`
@@ -340,21 +343,23 @@ type (
 	}
 
 	holderWithTokenData struct {
-		CreatorMasterPubkey   string  `db:"creator_master_pubkey"`
-		CreatorUsername       string  `db:"creator_username"`
-		CreatorDisplay        string  `db:"creator_display"`
-		CreatorAvatar         string  `db:"creator_avatar"`
-		CreatorPlatform       string  `db:"creator_platform"`
-		TotalSupply           string  `db:"total_supply"`
-		HolderMasterPubkey    string  `db:"holder_master_pubkey"`
-		HolderUsername        string  `db:"holder_username"`
-		HolderDisplay         string  `db:"holder_display"`
-		HolderAvatar          string  `db:"holder_avatar"`
-		HolderExternalAddress string  `db:"holder_external_address"`
-		HolderPlatform        string  `db:"holder_platform"`
-		PriceUSD              float64 `db:"price_usd"`
-		CreatorVerified       bool    `db:"creator_verified"`
-		HolderVerified        bool    `db:"holder_verified"`
+		CreatorBlockchainAddress *string `db:"creator_blockchain_address"`
+		CreatorUsername          *string `db:"creator_username"`
+		CreatorDisplay           *string `db:"creator_display"`
+		CreatorAvatar            *string `db:"creator_avatar"`
+		CreatorExternalAddress   *string `db:"creator_external_address"`
+		CreatorPlatform          *string `db:"creator_platform"`
+		CreatorBnbBscAddress     *string `db:"creator_bnb_bsc_address"`
+		TotalSupply              string  `db:"total_supply"`
+		HolderMasterPubkey       *string `db:"holder_master_pubkey"`
+		HolderUsername           *string `db:"holder_username"`
+		HolderDisplay            *string `db:"holder_display"`
+		HolderAvatar             *string `db:"holder_avatar"`
+		HolderExternalAddress    *string `db:"holder_external_address"`
+		HolderPlatform           *string `db:"holder_platform"`
+		PriceUSD                 float64 `db:"price_usd"`
+		CreatorVerified          bool    `db:"creator_verified"`
+		HolderVerified           bool    `db:"holder_verified"`
 	}
 	recentCandlestick struct {
 		o               atomic.Pointer[OHLCV]
@@ -363,13 +368,13 @@ type (
 	}
 
 	holderMetadata struct {
-		HolderMasterPubkey    string `json:"holder_master_pubkey"`
-		HolderUsername        string `json:"holder_username"`
-		HolderDisplay         string `json:"holder_display"`
-		HolderVerified        bool   `json:"holder_verified"`
-		HolderAvatar          string `json:"holder_avatar"`
-		HolderExternalAddress string `json:"holder_external_address"`
-		HolderPlatform        string `json:"holder_platform"`
+		HolderMasterPubkey    *string `json:"holder_master_pubkey"`
+		HolderUsername        *string `json:"holder_username"`
+		HolderDisplay         *string `json:"holder_display"`
+		HolderVerified        bool    `json:"holder_verified"`
+		HolderAvatar          *string `json:"holder_avatar"`
+		HolderExternalAddress *string `json:"holder_external_address"`
+		HolderPlatform        *string `json:"holder_platform"`
 	}
 
 	tokenRowWithTopPlatformHolders struct {

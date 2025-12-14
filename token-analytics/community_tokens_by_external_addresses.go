@@ -5,8 +5,8 @@ package tokenanalytics
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"math/rand"
+	"strconv"
 	"strings"
 
 	"github.com/cockroachdb/errors"
@@ -34,19 +34,20 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 			t.external_address,
 			t.platform as platform,
 			t.type,
-			creator.username as title,
-			COALESCE(creator.display_name, '') as description,
-			COALESCE(creator.avatar, '') as image_url,
+			COALESCE(t.title, '') as title,
+			COALESCE(t.description, '') as description,
+			COALESCE(t.image_url, '') as image_url,
 			t.ticker,
 			COALESCE(t.total_supply, '0') as total_supply,
 			t.created_at,
-			COALESCE(t.creator_master_pubkey, '') as creator_master_pubkey,
+			t.creator_blockchain_address,
 			creator.username as creator_username,
-			COALESCE(creator.display_name, '') as creator_display,
+			creator.display_name as creator_display,
 			creator.verified as creator_verified,
-			COALESCE(creator.avatar, '') as creator_avatar,
+			creator.avatar as creator_avatar,
 			creator.external_address as creator_external_address,
 			creator.platform_group as creator_platform,
+			t.bnb_bsc_metadata_owner_address as creator_bnb_bsc_address,
 			COALESCE(t.market_cap_usd, 0) as market_cap_usd,
 			COALESCE(t.price_usd, 0) as price_usd,
 			t.liquidity_usd,
@@ -59,11 +60,12 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 			COALESCE(t.bonding_curve_goal_amount, '0') as bonding_curve_goal_amount,
 			COALESCE(t.bonding_curve_current_amount_usd, 0) as bonding_curve_current_amount_usd,
 			COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd,
+			COALESCE(utp.amount, '0') as position_amount,
 			COALESCE((utp.amount::NUMERIC / 1e18) * t.price_usd, 0) as position_amount_usd,
 			COALESCE(utp.total_invested_usd, 0) as position_total_invested_usd
 		FROM tokens t
-		INNER JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
-		LEFT JOIN user_token_positions utp ON utp.external_address = t.external_address AND utp.master_pubkey = $2
+		LEFT JOIN users creator ON LOWER(creator.blockchain_address) = LOWER(t.creator_blockchain_address)
+		LEFT JOIN user_token_positions utp ON utp.external_address = t.external_address AND utp.user_external_address = (SELECT external_address FROM users WHERE master_pubkey = $2)
 		LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 		LEFT JOIN token_platform_holders tph ON tph.external_address = t.external_address 
 			AND tph.platform_group = (SELECT platform_group FROM users WHERE master_pubkey = $2)
@@ -85,15 +87,16 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 	argIndex := 1
 
 	if len(externalAddresses) > 0 {
-		whereClause = fmt.Sprintf(`WHERE t.external_address = ANY($%d) AND t.lookup LIKE '%%' || $%d || '%%'`, argIndex, argIndex+1)
+		whereClause = `WHERE t.external_address = ANY($` + strconv.Itoa(argIndex) + `) AND t.lookup LIKE '%%' || $` + strconv.Itoa(argIndex+1) + ` || '%%'`
 		args = append(args, externalAddresses, kw)
 		argIndex += 2
 	} else {
-		whereClause = fmt.Sprintf(`WHERE t.lookup LIKE '%%' || $%d || '%%'`, argIndex)
+		whereClause = `WHERE t.lookup LIKE '%%' || $` + strconv.Itoa(argIndex) + ` || '%%'`
 		args = append(args, kw)
 		argIndex++
 	}
 
+	kwParam := strconv.Itoa(argIndex - 1)
 	query := `
 		WITH candidates AS (
 			SELECT 
@@ -103,33 +106,36 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 				t.type,
 				t.ticker,
 				t.created_at,
-				t.creator_master_pubkey,
+				t.creator_blockchain_address,
 				t.market_cap_usd,
 				t.price_usd,
 				t.liquidity_usd,
 				t.holders_count,
 				t.total_supply,
+				COALESCE(t.title, '') as title,
+				COALESCE(t.description, '') as description,
+				COALESCE(t.image_url, '') as image_url,
 				tv.volume_24h,
-				creator.username,
-				creator.display_name,
-				creator.verified,
-				creator.avatar,
+				creator.username as creator_username,
+				creator.display_name as creator_display,
+				creator.verified as creator_verified,
+				creator.avatar as creator_avatar,
 				creator.external_address as creator_external_address,
 				creator.platform_group as creator_platform,
 				GREATEST(
-					similarity(t.lookup, ` + fmt.Sprintf(`$%d`, argIndex-1) + `),
-					word_similarity(` + fmt.Sprintf(`$%d`, argIndex-1) + `, t.lookup)
+					similarity(t.lookup, $` + kwParam + `),
+					word_similarity($` + kwParam + `, t.lookup)
 				) + 
 				CASE 
-					WHEN t.lookup LIKE ` + fmt.Sprintf(`$%d`, argIndex-1) + ` || ' %' THEN 1.0
-					WHEN t.lookup LIKE ` + fmt.Sprintf(`$%d`, argIndex-1) + ` || '%' THEN 0.5
+					WHEN t.lookup LIKE $` + kwParam + ` || ' %' THEN 1.0
+					WHEN t.lookup LIKE $` + kwParam + ` || '%' THEN 0.5
 					ELSE 0.0
 				END AS relevance_score
 			FROM tokens t
-			INNER JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
+			LEFT JOIN users creator ON LOWER(creator.blockchain_address) = LOWER(t.creator_blockchain_address)
 			LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 			` + whereClause + `
-			ORDER BY t.lookup <-> ` + fmt.Sprintf(`$%d`, argIndex-1) + `
+			ORDER BY t.lookup <-> $` + kwParam + `
 			LIMIT 250
 		)
 		SELECT 
@@ -138,16 +144,16 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 			platform,
 			type,
 			ticker,
-			username as title,
-			COALESCE(display_name, '') as description,
-			COALESCE(avatar, '') as image_url,
+			title,
+			description,
+			image_url,
 			created_at,
-			COALESCE(creator_master_pubkey, '') as creator_master_pubkey,
-			username as creator_username,
-			COALESCE(display_name, '') as creator_display,
-			verified as creator_verified,
-			COALESCE(avatar, '') as creator_avatar,
-			creator_external_address as creator_external_address,
+			creator_blockchain_address as creator_blockchain_address,
+			creator_username,
+			creator_display,
+			creator_verified,
+			creator_avatar,
+			creator_external_address,
 			creator_platform,
 			COALESCE(market_cap_usd, 0) as market_cap_usd,
 			COALESCE(price_usd, 0) as price_usd,
@@ -159,12 +165,12 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 		ORDER BY relevance_score DESC, volume_24h DESC, created_at DESC`
 
 	if limit > 0 {
-		query += fmt.Sprintf(` LIMIT $%d`, argIndex)
+		query += ` LIMIT $` + strconv.Itoa(argIndex)
 		args = append(args, limit)
 		argIndex++
 	}
 	if offset > 0 {
-		query += fmt.Sprintf(` OFFSET $%d`, argIndex)
+		query += ` OFFSET $` + strconv.Itoa(argIndex)
 		args = append(args, offset)
 	}
 
@@ -178,12 +184,11 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 		if err != nil {
 			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", row.ExternalAddress, row.Platform, err)
 		}
-		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(row.CreatorExternalAddress, row.CreatorPlatform)
+		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(strVal(row.CreatorExternalAddress), strVal(row.CreatorPlatform), strVal(row.CreatorBnbBscAddress))
 		if err != nil {
-			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", row.CreatorExternalAddress, row.CreatorPlatform, err)
+			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", strVal(row.CreatorExternalAddress), strVal(row.CreatorPlatform), err)
 		}
 
-		totalSupply, _ := new(big.Int).SetString(row.TotalSupply, 10)
 		token := &CommunityToken{
 			Type:        row.Type,
 			Title:       row.Title,
@@ -201,7 +206,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 			MarketData: MarketData{
 				Ticker:       row.Ticker,
 				MarketCap:    row.MarketCapUSD,
-				Supply:       weiToUint64FromBigInt(totalSupply),
+				Supply:       row.TotalSupply,
 				Volume:       row.Volume24h,
 				Holders:      uint64(row.HoldersCount),
 				PriceUSD:     row.PriceUSD,
@@ -221,21 +226,18 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 			row.ContractAddress, row.PositionAmountUSD, row.PositionTotalInvestedUSD))
 		var bondingCurveProgress *BondingCurveProgress
 		if row.BondingCurveCurrentAmount != "" && row.BondingCurveCurrentAmount != "0" && row.BondingCurveGoalAmount != "" && row.BondingCurveGoalAmount != "0" {
-			currentAmount, _ := new(big.Int).SetString(row.BondingCurveCurrentAmount, 10)
-			goalAmount, _ := new(big.Int).SetString(row.BondingCurveGoalAmount, 10)
 			bondingCurveProgress = &BondingCurveProgress{
-				CurrentAmount:    weiToUint64FromBigInt(currentAmount),
-				GoalAmount:       weiToUint64FromBigInt(goalAmount),
+				CurrentAmount:    row.BondingCurveCurrentAmount,
+				GoalAmount:       row.BondingCurveGoalAmount,
 				CurrentAmountUSD: row.BondingCurveCurrentAmountUSD,
 				GoalAmountUSD:    row.BondingCurveGoalAmountUSD,
 			}
 		}
 
-		totalSupply, _ := new(big.Int).SetString(row.TotalSupply, 10)
 		marketData := MarketData{
 			Ticker:               row.Ticker,
 			MarketCap:            row.MarketCapUSD,
-			Supply:               weiToUint64FromBigInt(totalSupply),
+			Supply:               row.TotalSupply,
 			Volume:               row.Volume24h,
 			Holders:              uint64(row.HoldersCount),
 			PlatformHolders:      uint64(row.PlatformHoldersCount),
@@ -244,23 +246,23 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 			BondingCurveProgress: bondingCurveProgress,
 		}
 
-		if row.PositionAmountUSD > 0 {
+		if row.PositionAmount != "" && row.PositionAmount != "0" {
 			externalAddress := BuildProfileExternalAddress(requestorMasterPubkey)
-			position, err := t.getUserTokenPositionRanking(ctx, externalAddress, row.ExternalAddress, row.PositionAmountUSD, row.PositionTotalInvestedUSD)
+			position, err := t.getUserTokenPositionRanking(ctx, externalAddress, row.ExternalAddress, row.PositionAmount, row.PositionAmountUSD, row.PositionTotalInvestedUSD)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get user position ranking for token %v", row.ExternalAddress)
 			}
 			if position != nil {
-				marketData.Position = *position
+				marketData.Position = position
 			}
 		}
 		tokenAddresses, err := buildTokenAddressesFromContractAndExternalAddress(row.ContractAddress, row.ExternalAddress, row.Platform)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build token addresses from contract_address %s, external_address %s (platform %s): %w", row.ContractAddress, row.ExternalAddress, row.Platform, err)
 		}
-		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(row.CreatorExternalAddress, row.CreatorPlatform)
+		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(strVal(row.CreatorExternalAddress), strVal(row.CreatorPlatform), strVal(row.CreatorBnbBscAddress))
 		if err != nil {
-			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", row.CreatorExternalAddress, row.CreatorPlatform, err)
+			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", strVal(row.CreatorExternalAddress), strVal(row.CreatorPlatform), err)
 		}
 		token := &CommunityToken{
 			Type:        row.Type,
@@ -294,18 +296,19 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 			t.external_address,
 			t.platform as platform,
 			t.type,
-			creator.username as title,
-				COALESCE(creator.display_name, '') as description,
-				COALESCE(creator.avatar, '') as image_url,
+				COALESCE(t.title, '') as title,
+				COALESCE(t.description, '') as description,
+				COALESCE(t.image_url, '') as image_url,
 				t.ticker,
 				COALESCE(t.total_supply, '0') as total_supply,
-				COALESCE(t.creator_master_pubkey, '') as creator_master_pubkey,
+				t.creator_blockchain_address as creator_blockchain_address,
 				creator.username as creator_username,
-				COALESCE(creator.display_name, '') as creator_display,
+				creator.display_name as creator_display,
 				creator.verified as creator_verified,
-				COALESCE(creator.avatar, '') as creator_avatar,
+				creator.avatar as creator_avatar,
 				creator.external_address as creator_external_address,
 				creator.platform_group as creator_platform,
+				t.bnb_bsc_metadata_owner_address as creator_bnb_bsc_address,
 				COALESCE(t.market_cap_usd, 0) as market_cap_usd,
 				COALESCE(t.price_usd, 0) as price_usd,
 				t.liquidity_usd as liquidity_usd,
@@ -316,6 +319,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 				COALESCE(t.bonding_curve_goal_amount, '0') as bonding_curve_goal_amount,
 				COALESCE(t.bonding_curve_current_amount_usd, 0) as bonding_curve_current_amount_usd,
 				COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd,
+				COALESCE(utp.amount, '0') as position_amount,
 				COALESCE((utp.amount::NUMERIC / 1e18) * t.price_usd, 0) as position_amount_usd,
 				COALESCE(utp.total_invested_usd, 0) as position_total_invested_usd,
 				COALESCE(
@@ -333,15 +337,15 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 					FROM (
 						SELECT
 							holder.master_pubkey as holder_master_pubkey,
-							COALESCE(holder.username, '') as holder_username,
-							COALESCE(holder.display_name, '') as holder_display,
-							COALESCE(holder.verified, false) as holder_verified,
-							COALESCE(holder.avatar, '') as holder_avatar,
-							COALESCE(holder.external_address, '') as holder_external_address,
-							COALESCE(holder.platform_group, 'ionconnect') as holder_platform,
+							holder.username as holder_username,
+							holder.display_name as holder_display,
+							holder.verified as holder_verified,
+							holder.avatar as holder_avatar,
+							holder.external_address as holder_external_address,
+							holder.platform_group as holder_platform,
 							utp_holders.amount as amount
 						FROM user_token_positions utp_holders
-						LEFT JOIN users holder ON holder.master_pubkey = utp_holders.master_pubkey
+						LEFT JOIN users holder ON LOWER(holder.blockchain_address) = LOWER(utp_holders.user_blockchain_address)
 						LEFT JOIN requestor_platform rp ON true
 						WHERE utp_holders.external_address = t.external_address
 						  AND (rp.platform_group IS NULL OR holder.platform_group = rp.platform_group)
@@ -353,8 +357,8 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 
 		fromJoinsClause = `FROM %s t
 			LEFT JOIN requestor_platform rp ON true
-			INNER JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
-			LEFT JOIN user_token_positions utp ON utp.external_address = t.external_address AND utp.master_pubkey = $2
+			LEFT JOIN users creator ON LOWER(creator.blockchain_address) = LOWER(t.creator_blockchain_address)
+			LEFT JOIN user_token_positions utp ON utp.external_address = t.external_address AND utp.user_external_address = (SELECT external_address FROM users WHERE master_pubkey = $2)
 			LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 			LEFT JOIN token_platform_holders tph ON tph.external_address = t.external_address
 				AND (rp.platform_group IS NULL OR tph.platform_group = rp.platform_group)`
@@ -375,7 +379,11 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 					t.type,
 					t.ticker,
 					t.total_supply,
-					t.creator_master_pubkey,
+					t.creator_blockchain_address,
+					t.title,
+					t.description,
+					t.image_url,
+					t.bnb_bsc_metadata_owner_address,
 					t.market_cap_usd,
 					t.price_usd,
 					t.liquidity_usd,
@@ -444,11 +452,10 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 		if err != nil {
 			return nil, err
 		}
-		totalSupply, _ := new(big.Int).SetString(row.TotalSupply, 10)
 		marketData := MarketData{
 			Ticker:             row.Ticker,
 			MarketCap:          row.MarketCapUSD,
-			Supply:             weiToUint64FromBigInt(totalSupply),
+			Supply:             row.TotalSupply,
 			Volume:             row.Volume24h,
 			Holders:            uint64(row.HoldersCount),
 			PlatformHolders:    uint64(row.PlatformHoldersCount),
@@ -456,23 +463,23 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 			LiquidityUSD:       float64(rand.Intn(100000)),
 			TopPlatformHolders: topPlatformHolders,
 		}
-		if row.PositionAmountUSD > 0 {
+		if row.PositionAmount != "" && row.PositionAmount != "0" {
 			externalAddress := BuildProfileExternalAddress(requestorMasterPubkey)
-			position, err := t.getUserTokenPositionRanking(ctx, externalAddress, row.ExternalAddress, row.PositionAmountUSD, row.PositionTotalInvestedUSD)
+			position, err := t.getUserTokenPositionRanking(ctx, externalAddress, row.ExternalAddress, row.PositionAmount, row.PositionAmountUSD, row.PositionTotalInvestedUSD)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get user position ranking for token %v", row.ExternalAddress)
 			}
 			if position != nil {
-				marketData.Position = *position
+				marketData.Position = position
 			}
 		}
 		tokenAddresses, err := buildTokenAddressesFromContractAndExternalAddress(row.ContractAddress, row.ExternalAddress, row.Platform)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", row.ExternalAddress, row.Platform, err)
 		}
-		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(row.CreatorExternalAddress, row.CreatorPlatform)
+		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(strVal(row.CreatorExternalAddress), strVal(row.CreatorPlatform), strVal(row.CreatorBnbBscAddress))
 		if err != nil {
-			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", row.CreatorExternalAddress, row.CreatorPlatform, err)
+			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", strVal(row.CreatorExternalAddress), strVal(row.CreatorPlatform), err)
 		}
 		token := &CommunityToken{
 			Type:        row.Type,
@@ -495,7 +502,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 	return tokens, nil
 }
 
-func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, userExternalAddress, tokenExternalAddress string, amountUSD, totalInvested float64) (*Position, error) {
+func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, userExternalAddress, tokenExternalAddress, amountWei string, amountUSD, totalInvested float64) (*Position, error) {
 	key := keyUserPositionOfToken(tokenExternalAddress)
 	balanceFloat, err := t.processedDataDB.ZScore(ctx, key, userExternalAddress).Result()
 	if err != nil {
@@ -516,11 +523,10 @@ func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, userEx
 		}
 	}
 	pnl, pnlPercentage := calculatePnL(amountUSD, totalInvested)
-	balanceUint64 := uint64(balanceFloat)
 
 	return &Position{
 		Rank:          uint64(rank + 1),
-		Amount:        balanceUint64,
+		Amount:        amountWei,
 		AmountUSD:     amountUSD,
 		PnL:           pnl,
 		PnLPercentage: pnlPercentage,

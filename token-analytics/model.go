@@ -27,10 +27,10 @@ type (
 	}
 
 	User struct {
-		MasterPubkey     string    `json:"-"`
-		Username         string    `json:"name,omitempty"`
-		Display          string    `json:"display,omitempty"`
-		Avatar           string    `json:"avatar,omitempty"`
+		MasterPubkey     *string   `json:"-"`
+		Username         *string   `json:"name,omitempty"`
+		Display          *string   `json:"display,omitempty"`
+		Avatar           *string   `json:"avatar,omitempty"`
 		Addresses        Addresses `json:"addresses,omitempty"`
 		IONConnectRelays []string  `json:"-"`
 		Verified         bool      `json:"verified"`
@@ -39,7 +39,7 @@ type (
 	MarketData struct {
 		Ticker               string                `json:"ticker,omitempty"`
 		MarketCap            float64               `json:"marketCap"`
-		Supply               uint64                `json:"supply"`
+		Supply               string                `json:"supply"`
 		Volume               float64               `json:"volume"`
 		PriceUSD             float64               `json:"priceUSD"`
 		LiquidityUSD         float64               `json:"liquidityUSD"`
@@ -47,24 +47,24 @@ type (
 		PlatformHolders      uint64                `json:"platformHolders"`
 		BondingCurveProgress *BondingCurveProgress `json:"bondingCurveProgress,omitempty"`
 		TopPlatformHolders   []HolderPosition      `json:"topPlatformHolders,omitempty"`
-		Position             Position              `json:"position,omitempty"`
+		Position             *Position             `json:"position,omitempty"`
 	}
 
 	BondingCurveProgress struct {
-		CurrentAmount    uint64  `json:"currentAmount"` // bonded tokens
-		GoalAmount       uint64  `json:"goalAmount"`
-		RaisedAmount     uint64  `json:"raisedAmount"`     // base tokens
-		CurrentAmountUSD float64 `json:"currentAmountUSD"` // from base
+		CurrentAmount    string  `json:"currentAmount"`
+		GoalAmount       string  `json:"goalAmount"`
+		RaisedAmount     string  `json:"raisedAmount"`
+		CurrentAmountUSD float64 `json:"currentAmountUSD"`
 		GoalAmountUSD    float64 `json:"goalAmountUSD"`
 		Migrated         bool    `json:"migrated"`
 	}
 
 	Position struct {
-		Rank          uint64  `json:"rank"`
-		Amount        uint64  `json:"amount"`
-		AmountUSD     float64 `json:"amountUSD"`
-		PnL           float64 `json:"pnl"`
-		PnLPercentage float64 `json:"pnlPercentage"`
+		Rank          uint64  `json:"rank,omitempty"`
+		Amount        string  `json:"amount,omitempty"`
+		AmountUSD     float64 `json:"amountUSD,omitempty"`
+		PnL           float64 `json:"pnl,omitempty"`
+		PnLPercentage float64 `json:"pnlPercentage,omitempty"`
 	}
 
 	TradePosition struct {
@@ -72,15 +72,15 @@ type (
 		Addresses  Addresses `json:"addresses,omitzero"`
 		Type       TradeType `json:"type,omitempty"`
 		Holder     User      `json:"holder,omitzero"`
-		Amount     uint64    `json:"amount"`
+		Amount     string    `json:"amount"`
 		AmountUSD  float64   `json:"amountUSD"`
-		Balance    uint64    `json:"balance"`
+		Balance    string    `json:"balance"`
 		BalanceUSD float64   `json:"balanceUSD"`
 	}
 
 	Trade struct {
 		Creator  User          `json:"creator,omitzero"`
-		Position TradePosition `json:"position,omitzero"`
+		Position TradePosition `json:"position,omitempty"`
 	}
 
 	TradeStatsAggregate struct {
@@ -113,7 +113,7 @@ type (
 	HolderPosition struct {
 		Holder        User    `json:"holder"`
 		Rank          uint64  `json:"rank"`
-		Amount        uint64  `json:"amount"`
+		Amount        string  `json:"amount"`
 		AmountUSD     float64 `json:"amountUSD"`
 		SupplyShare   float64 `json:"supplyShare,omitempty"`
 		PnL           float64 `json:"pnl,omitempty"`
@@ -168,25 +168,32 @@ func IsContentType(tokenType string) bool {
 	return tokenType == TokenTypePost || tokenType == TokenTypeVideo || tokenType == TokenTypeArticle
 }
 
-func buildAddressesFromExternalAddressAndPlatform(externalAddress, platform string) (Addresses, error) {
+func buildAddressesFromExternalAddressAndPlatform(externalAddress, platform string, bnbBscAddress ...string) (Addresses, error) {
 	if externalAddress == "" {
-		return Addresses{}, fmt.Errorf("external_address cannot be empty")
+		return Addresses{}, nil
 	}
 	if platform == "" {
 		return Addresses{}, fmt.Errorf("platform cannot be empty")
 	}
+
+	var addresses Addresses
 	switch platform {
 	case PlatformGroupIonConnect:
-		return Addresses{
+		addresses = Addresses{
 			IonConnect: externalAddress,
-		}, nil
+		}
 	case PlatformGroupXCom:
-		return Addresses{
+		addresses = Addresses{
 			Twitter: externalAddress,
-		}, nil
+		}
+		if len(bnbBscAddress) > 0 && bnbBscAddress[0] != "" {
+			addresses.Blockchain = bnbBscAddress[0]
+		}
 	default:
 		return Addresses{}, fmt.Errorf("unknown platform '%s' for external_address: %s", platform, externalAddress)
 	}
+
+	return addresses, nil
 }
 
 func buildTokenAddressesFromContractAndExternalAddress(contractAddress, externalAddress, platform string) (Addresses, error) {

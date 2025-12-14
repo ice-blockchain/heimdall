@@ -35,25 +35,26 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 			t.platform as platform,
 			t.type,
 			t.created_at,
-			creator.username as title,
-			COALESCE(creator.display_name, '') as description,
-			COALESCE(creator.avatar, '') as image_url,
+			COALESCE(t.title, '') as title,
+			COALESCE(t.description, '') as description,
+			COALESCE(t.image_url, '') as image_url,
 			t.ticker,
 			t.total_supply,
-			COALESCE(t.creator_master_pubkey, '') as creator_master_pubkey,
+			t.creator_blockchain_address as creator_blockchain_address,
 			creator.username as creator_username,
-			COALESCE(creator.display_name, '') as creator_display,
+			creator.display_name as creator_display,
 			creator.verified as creator_verified,
-			COALESCE(creator.avatar, '') as creator_avatar,
+			creator.avatar as creator_avatar,
 			creator.external_address as creator_external_address,
 			creator.platform_group as creator_platform,
+			t.bnb_bsc_metadata_owner_address as creator_bnb_bsc_address,
 			COALESCE(t.market_cap_usd, 0) as market_cap_usd,
 			COALESCE(t.price_usd, 0) as price_usd,
 			COALESCE(tv.volume_24h / 1e18, 0) as volume_24h,
 			COALESCE(t.holders_count, 0) as holders_count`
 
 		fromJoinsClause = `FROM %s t
-		INNER JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
+		LEFT JOIN users creator ON LOWER(creator.blockchain_address) = LOWER(t.creator_blockchain_address)
 		LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address`
 	)
 
@@ -84,10 +85,14 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 					t.created_at,
 					t.ticker,
 					t.total_supply,
-					t.creator_master_pubkey,
+					t.creator_blockchain_address,
 					t.market_cap_usd,
 					t.price_usd,
 					t.holders_count,
+					COALESCE(t.title, '') as title,
+					COALESCE(t.description, '') as description,
+					COALESCE(t.image_url, '') as image_url,
+					COALESCE(t.bnb_bsc_metadata_owner_address, '') as bnb_bsc_metadata_owner_address,
 					GREATEST(
 						similarity(t.lookup, $%d),
 						word_similarity($%d, t.lookup)
@@ -134,9 +139,9 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 		if err != nil {
 			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", row.ExternalAddress, row.Platform, err)
 		}
-		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(row.CreatorExternalAddress, row.CreatorPlatform)
+		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(strVal(row.CreatorExternalAddress), strVal(row.CreatorPlatform), strVal(row.CreatorBnbBscAddress))
 		if err != nil {
-			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", row.CreatorExternalAddress, row.CreatorPlatform, err)
+			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", strVal(row.CreatorExternalAddress), strVal(row.CreatorPlatform), err)
 		}
 		token := &CommunityToken{
 			Type:        row.Type,
@@ -174,25 +179,26 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 			t.platform,
 			t.type,
 			t.created_at,
-			creator.username as title,
-			COALESCE(creator.display_name, '') as description,
-			COALESCE(creator.avatar, '') as image_url,
+			COALESCE(t.title, '') as title,
+			COALESCE(t.description, '') as description,
+			COALESCE(t.image_url, '') as image_url,
 			t.ticker,
 			t.total_supply,
-			COALESCE(t.creator_master_pubkey, '') as creator_master_pubkey,
+			t.creator_blockchain_address as creator_blockchain_address,
 			creator.username as creator_username,
-			COALESCE(creator.display_name, '') as creator_display,
+			creator.display_name as creator_display,
 			creator.verified as creator_verified,
-			COALESCE(creator.avatar, '') as creator_avatar,
+			creator.avatar as creator_avatar,
 			creator.external_address as creator_external_address,
 			creator.platform_group as creator_platform,
+			t.bnb_bsc_metadata_owner_address as creator_bnb_bsc_address,
 			COALESCE(t.market_cap_usd, 0) as market_cap_usd,
 			COALESCE(t.price_usd, 0) as price_usd,
 			COALESCE(tv.volume_24h / 1e18, 0) as volume_24h,
 			COALESCE(t.holders_count, 0) as holders_count
 		FROM tokens t
 		INNER JOIN tokens_featured tf ON tf.external_address = t.external_address
-		INNER JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
+		LEFT JOIN users creator ON LOWER(creator.blockchain_address) = LOWER(t.creator_blockchain_address)
 		LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 	`
 
@@ -223,9 +229,9 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 		if err != nil {
 			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", row.ExternalAddress, row.Platform, err)
 		}
-		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(row.CreatorExternalAddress, row.CreatorPlatform)
+		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(strVal(row.CreatorExternalAddress), strVal(row.CreatorPlatform), strVal(row.CreatorBnbBscAddress))
 		if err != nil {
-			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", row.CreatorExternalAddress, row.CreatorPlatform, err)
+			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", strVal(row.CreatorExternalAddress), strVal(row.CreatorPlatform), err)
 		}
 		token := &CommunityToken{
 			Type:        row.Type,
@@ -244,6 +250,7 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 			MarketData: MarketData{
 				Ticker:    row.Ticker,
 				MarketCap: row.MarketCapUSD,
+				Supply:    row.TotalSupply,
 				Volume:    row.Volume24h,
 				Holders:   uint64(row.HoldersCount),
 				PriceUSD:  row.PriceUSD,

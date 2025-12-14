@@ -35,23 +35,25 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 
 	query := `
 		SELECT 
-			t.creator_master_pubkey as creator_master_pubkey,
+			t.creator_blockchain_address as creator_blockchain_address,
 			creator.username as creator_username,
-			COALESCE(creator.display_name, '') as creator_display,
+			creator.display_name as creator_display,
 			creator.verified as creator_verified,
-			COALESCE(creator.avatar, '') as creator_avatar,
+			creator.avatar as creator_avatar,
 			creator.platform_group as creator_platform,
+			t.bnb_bsc_metadata_owner_address as creator_bnb_bsc_address,
+			creator.external_address as creator_external_address,
 			t.price_usd as price_usd,
 			t.total_supply as total_supply,
 			holder.master_pubkey as holder_master_pubkey,
 			holder.username as holder_username,
-			COALESCE(holder.display_name, '') as holder_display,
+			holder.display_name as holder_display,
 			holder.verified as holder_verified,
-			COALESCE(holder.avatar, '') as holder_avatar,
+			holder.avatar as holder_avatar,
 			holder.external_address as holder_external_address,
 			holder.platform_group as holder_platform
 		FROM tokens t
-		LEFT JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
+		LEFT JOIN users creator ON LOWER(creator.blockchain_address) = LOWER(t.creator_blockchain_address)
 		JOIN users holder ON holder.external_address = ANY($2)
 		WHERE t.external_address = $1
 	`
@@ -74,7 +76,9 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []*holderWithTokenData) ([]*TopHolderPosition, error) {
 	holderDataMap := make(map[string]*holderWithTokenData)
 	for i := range rows {
-		holderDataMap[rows[i].HolderExternalAddress] = rows[i]
+		if rows[i].HolderExternalAddress != nil {
+			holderDataMap[*rows[i].HolderExternalAddress] = rows[i]
+		}
 	}
 	holders := make([]*TopHolderPosition, 0, len(rankings))
 	for rank, z := range rankings {
@@ -94,17 +98,17 @@ func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []
 			totalSupplyFloat = 0
 		}
 		amountTokens := z.Score
-		amountUint64 := uint64(amountTokens)
+		amountWei := tokensToWeiBigInt(amountTokens)
 		amountUSD := amountTokens * holderData.PriceUSD
 		supplyShare := calculateSupplyShare(amountTokens, totalSupplyFloat)
 
-		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(BuildProfileExternalAddress(holderData.CreatorMasterPubkey), holderData.CreatorPlatform)
+		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(strVal(holderData.CreatorExternalAddress), strVal(holderData.CreatorPlatform), strVal(holderData.CreatorBnbBscAddress))
 		if err != nil {
-			return nil, fmt.Errorf("failed to build creator addresses from master_pubkey %s (platform %s): %w", holderData.CreatorMasterPubkey, holderData.CreatorPlatform, err)
+			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", strVal(holderData.CreatorExternalAddress), strVal(holderData.CreatorPlatform), err)
 		}
-		holderAddresses, err := buildAddressesFromExternalAddressAndPlatform(userExternalAddress, holderData.HolderPlatform)
+		holderAddresses, err := buildAddressesFromExternalAddressAndPlatform(userExternalAddress, strVal(holderData.HolderPlatform))
 		if err != nil {
-			return nil, fmt.Errorf("failed to build holder addresses from external_address %s (platform %s): %w", userExternalAddress, holderData.HolderPlatform, err)
+			return nil, fmt.Errorf("failed to build holder addresses from external_address %s (platform %s): %w", userExternalAddress, strVal(holderData.HolderPlatform), err)
 		}
 		holder := &TopHolderPosition{
 			Creator: User{
@@ -124,7 +128,7 @@ func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []
 					Addresses:    holderAddresses,
 				},
 				Rank:        uint64(rank + 1),
-				Amount:      amountUint64,
+				Amount:      amountWei.String(),
 				AmountUSD:   amountUSD,
 				SupplyShare: supplyShare,
 			},
