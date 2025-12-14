@@ -26,13 +26,13 @@ func ExtractUser(res map[string]any, usernameField string) (userID, identityKeyN
 	return
 }
 
-func ExtractMainWallet(res map[string]any) (walletID, walletPubKey string) {
+func ExtractMainWallet(res map[string]any, networks ...string) (walletID, walletPubKey string) {
 	if walletsI, hasWallets := res["wallets"]; hasWallets {
 		wallets := walletsI.([]any)
 		for _, walletI := range wallets {
 			if walletI != nil {
 				wallet := walletI.(map[string]any)
-				if walletID, walletPubKey = CheckMainWallet(wallet); walletID == "" && walletPubKey == "" {
+				if walletID, walletPubKey = CheckMainWallet(wallet, networks...); walletID == "" && walletPubKey == "" {
 					continue
 				} else if walletID != "" && walletPubKey != "" {
 					break
@@ -47,8 +47,12 @@ func CheckMainWallet(wallet Wallet, networks ...string) (walletID, walletPubKey 
 	if len(networks) == 0 {
 		networks = []string{DefaultWalletNetworkTestNet, DefaultWalletNetworkMainNet}
 	}
+	expectedName := defaultWalletName
+	if slices.Contains(networks, BscWalletNetworkTestNet) || slices.Contains(networks, BscWalletNetworkMainNet) {
+		expectedName = defaultWalletName + "-bsc"
+	}
 	if nameI, hasName := wallet["name"]; hasName && nameI != nil {
-		if name, ok := nameI.(string); !ok || name != defaultWalletName {
+		if name, ok := nameI.(string); !ok || name != expectedName {
 			return "", ""
 		}
 	}
