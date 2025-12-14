@@ -104,6 +104,10 @@ func (gen *dummyDataGenerator) Run(ctx context.Context) {
 		log.Panic(errors.Wrapf(err, "failed to insert token data"))
 	}
 
+	// Wait for first token to be fully processed by all triggers and workers
+	log.Info("Waiting 5 seconds for first token to be processed...")
+	time.Sleep(5 * time.Second)
+
 	gen.startNewTokenGenerator(ctx, uuid.NewString())
 }
 
@@ -843,25 +847,25 @@ func generateDummyContractAddress() string {
 	return hex.EncodeToString(buf.Bytes())
 }
 func (gen *dummyDataGenerator) createUserForPlatform(ctx context.Context, masterPubkey string, platformGroup string) (blockchainAddress string, master string, err error) {
-	gen.usersLock.RLock()
-	if len(gen.createdUsers) >= int(gen.MaxUsers) {
-		userIdx := rand.Intn(len(gen.createdUsers) - 1)
-		blockchainAddress = gen.createdUsers[userIdx]
-		gen.usersLock.RUnlock()
-		return blockchainAddress, gen.userBlockChainToMaster[blockchainAddress], nil
-	}
-	gen.usersLock.RUnlock()
-
 	gen.usersLock.Lock()
 	defer gen.usersLock.Unlock()
 
+	// Check if user with this masterPubkey already exists
+	for existingAddr, existingMaster := range gen.userBlockChainToMaster {
+		if existingMaster == masterPubkey {
+			log.Info(fmt.Sprintf("User with masterPubkey %v already exists, reusing blockchain address 0x%v", masterPubkey, existingAddr))
+			return existingAddr, masterPubkey, nil
+		}
+	}
+
 	if len(gen.createdUsers) >= int(gen.MaxUsers) {
-		userIdx := rand.Intn(len(gen.createdUsers) - 1)
+		userIdx := rand.Intn(len(gen.createdUsers))
 		blockchainAddress = gen.createdUsers[userIdx]
 		return blockchainAddress, gen.userBlockChainToMaster[blockchainAddress], nil
 	}
 
 	blockchainAddress = mustRandomHex(20)
+
 	id := "us-0x" + blockchainAddress
 	names := []string{
 		"Diwata Lea",
@@ -870,9 +874,10 @@ func (gen *dummyDataGenerator) createUserForPlatform(ctx context.Context, master
 		"Posidonius Enara",
 		"Edwena İldar",
 	}
-	idx := rand.Int31n(int32(len(names) - 1))
+	idx := rand.Int31n(int32(len(names)))
 	displayName := names[idx]
-	username := strings.ToLower(strings.ReplaceAll(displayName, " ", ""))
+	usernameBase := strings.ToLower(strings.ReplaceAll(displayName, " ", ""))
+	username := usernameBase + mustRandomHex(4)
 	verified := rand.Intn(2) == 0
 	lookup := strings.ToLower(strings.TrimSpace(username + " " + displayName))
 	ionConnectRelays := []string{"wss://141.95.59.70:4443", "wss://181.41.142.217:4443", "wss://94.100.16.233:4443"}
@@ -900,11 +905,11 @@ func (gen *dummyDataGenerator) createUserForPlatform(ctx context.Context, master
 		) VALUES (
 			NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
 		)
-		ON CONFLICT (master_pubkey) 
+		ON CONFLICT (blockchain_address) 
 		DO UPDATE SET
 			updated_at = NOW(),
 			id = EXCLUDED.id,
-			blockchain_address = EXCLUDED.blockchain_address,
+			master_pubkey = EXCLUDED.master_pubkey,
 			external_address = EXCLUDED.external_address,
 			username = EXCLUDED.username,
 			display_name = EXCLUDED.display_name,
@@ -915,7 +920,11 @@ func (gen *dummyDataGenerator) createUserForPlatform(ctx context.Context, master
 			platform_group = EXCLUDED.platform_group
 	`, id, masterPubkey, "0x"+blockchainAddress, externalAddress, username, displayName, avatarURL, lookup, ionConnectRelays, verified, platformGroup)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err)
+		if storage.IsErr(err, storage.ErrDuplicate) {
+			log.Info(fmt.Sprintf("User %v already exists (duplicate OK), using blockchain address 0x%v", masterPubkey, blockchainAddress))
+		} else {
+			return "", "", fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err)
+		}
 	}
 
 	log.Info(fmt.Sprintf("Created dummy user %v: %v with blockchain address 0x%v for platform %v", username, masterPubkey, blockchainAddress, platformGroup))

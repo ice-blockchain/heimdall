@@ -28,14 +28,14 @@ func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
 		VALUES (
 			NOW(), NOW(), $1, $1, $2, $3, $4, $5, $6, $7, LOWER($4 || ' ' || COALESCE($5, '')), 'xcom'::platform_type
 		)
-		ON CONFLICT (master_pubkey) 
+		ON CONFLICT (blockchain_address) 
 		DO UPDATE SET
+			master_pubkey = EXCLUDED.master_pubkey,
 			external_address = COALESCE(NULLIF(EXCLUDED.external_address, ''), users.external_address),
 			username = COALESCE(NULLIF(EXCLUDED.username, ''), users.username),
 			display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name),
 			avatar = COALESCE(NULLIF(EXCLUDED.avatar, ''), users.avatar),
 			verified = EXCLUDED.verified,
-			blockchain_address = COALESCE(NULLIF(EXCLUDED.blockchain_address, ''), users.blockchain_address),
 			lookup = COALESCE(NULLIF(EXCLUDED.lookup, ''), users.lookup),
 			platform_group = EXCLUDED.platform_group,
 			updated_at = NOW()
@@ -78,14 +78,14 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 		VALUES (
 			NOW(), NOW(), $1, $1, $2, $3, $4, $5, $6, $7, LOWER($4 || ' ' || COALESCE($5, '')), 'xcom'::platform_type
 		)
-		ON CONFLICT (master_pubkey) 
+		ON CONFLICT (blockchain_address) 
 		DO UPDATE SET
+			master_pubkey = EXCLUDED.master_pubkey,
 			external_address = COALESCE(NULLIF(EXCLUDED.external_address, ''), users.external_address),
 			username = COALESCE(NULLIF(EXCLUDED.username, ''), users.username),
 			display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name),
 			avatar = COALESCE(NULLIF(EXCLUDED.avatar, ''), users.avatar),
 			verified = EXCLUDED.verified,
-			blockchain_address = COALESCE(NULLIF(EXCLUDED.blockchain_address, ''), users.blockchain_address),
 			lookup = CASE
 				WHEN EXCLUDED.username != '' OR EXCLUDED.display_name != '' THEN
 					LOWER(TRIM(COALESCE(NULLIF(EXCLUDED.username, ''), users.username) || ' ' || COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name)))
@@ -93,7 +93,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 			END,
 			platform_group = EXCLUDED.platform_group,
 			updated_at = NOW()
-`
+	`
 
 	var query string
 	var args []interface{}
@@ -101,7 +101,6 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 		query = `
 			WITH user_update AS (
 				` + userUpsertSQL + `
-				RETURNING master_pubkey
 			)
 			UPDATE tokens
 			SET 
@@ -109,8 +108,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 				description = CASE WHEN $9 != '' THEN $9 ELSE description END,
 				image_url = CASE WHEN $10 != '' THEN $10 ELSE image_url END,
 				updated_at = NOW()
-			WHERE external_address = $11
-			RETURNING contract_address;
+			WHERE external_address = $11;
 		`
 		args = []interface{}{
 			userExternalAddress, userBNBBSCWallet, userExternalAddress, userUsername,
@@ -118,7 +116,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 			tokenImageURL, tokenExternalAddress,
 		}
 	} else if hasUserData {
-		query = userUpsertSQL + ` RETURNING master_pubkey;`
+		query = userUpsertSQL + `;`
 		args = []interface{}{
 			userExternalAddress, userBNBBSCWallet, userExternalAddress, userUsername,
 			userDisplayName, userAvatar, userVerified,
@@ -131,8 +129,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 				description = CASE WHEN $2 != '' THEN $2 ELSE description END,
 				image_url = CASE WHEN $3 != '' THEN $3 ELSE image_url END,
 				updated_at = NOW()
-			WHERE external_address = $4
-			RETURNING contract_address;
+			WHERE external_address = $4;
 		`
 		args = []interface{}{tokenTitle, tokenDescription, tokenImageURL, tokenExternalAddress}
 	}
