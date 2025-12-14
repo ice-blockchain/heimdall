@@ -116,6 +116,7 @@ accounts:
     allowedClientApiKeys:
     #  - bogus
   defaultCoinsInWalletView:
+    - ion
     - ice
     - binancecoin
     - bitcoin
