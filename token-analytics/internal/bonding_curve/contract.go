@@ -137,7 +137,7 @@ type (
 	}
 	BondingCurveProgress = BondingCurveBondingInfo
 	BondingCurve         interface {
-		Pricing(ctx context.Context, baseToken, targetToken common.Address, amount *big.Int, sale bool) (*big.Int, error)
+		Pricing(ctx context.Context, baseToken common.Address, targetToken []byte, amount *big.Int, sale bool) (*big.Int, error)
 		Progress(ctx context.Context, pairId common.Hash) (*BondingCurveProgress, error)
 	}
 )

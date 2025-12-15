@@ -4,6 +4,7 @@ package tokenanalytics
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -154,6 +155,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 		BaseToken       string `db:"base_token"`
 		ContractAddress string `db:"contract_address"`
 	}
+	contractOrFatAddress := []byte{}
 	result, err := storage.Get[tokenInfo](ctx, t.ingestedDataDB, `
 		SELECT 
 		    t.base_token,
@@ -161,13 +163,12 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 		FROM tokens t WHERE t.external_address = $1`, externalAddress)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
-			contractAddress := common.HexToAddress(externalAddress)
-			if contractAddress.String() == "0x0000000000000000000000000000000000000000" {
-				return nil, 0, errors.Errorf("invalid address %v", externalAddress)
-			}
 			result = &tokenInfo{
-				BaseToken:       t.cfg.IONTokenAddress,
-				ContractAddress: contractAddress.String(),
+				BaseToken: t.cfg.IONTokenAddress,
+			}
+			contractOrFatAddress, err = hex.DecodeString(strings.TrimPrefix(externalAddress, "0x"))
+			if err != nil {
+				return nil, 0, errors.Errorf("invalid address %v", externalAddress)
 			}
 			err = nil
 		}
@@ -175,7 +176,11 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 			return nil, 0, fmt.Errorf("failed to find token by external address %v: %w", externalAddress, err)
 		}
 	}
+
 	baseToken := result.BaseToken
+	if len(contractOrFatAddress) == 0 {
+		contractOrFatAddress = common.HexToAddress(result.ContractAddress).Bytes()
+	}
 	if common.HexToAddress(baseToken).String() != common.HexToAddress(t.cfg.IONTokenAddress).String() {
 		return nil, 0, fmt.Errorf("unsupported base token %v (token %v)", baseToken, externalAddress)
 	}
@@ -188,7 +193,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 		amountUsd = toUSD(amountToConvert, *basePrice)
 		return amountToConvert, amountUsd, nil
 	}
-	resAmount, err := t.bondingCurve.Pricing(ctx, common.HexToAddress(result.BaseToken), common.HexToAddress(result.ContractAddress), amountToConvert, tradeType == TradeTypeSell)
+	resAmount, err := t.bondingCurve.Pricing(ctx, common.HexToAddress(result.BaseToken), contractOrFatAddress, amountToConvert, tradeType == TradeTypeSell)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get pricing for token %v (%v): %w", externalAddress, result.ContractAddress, err)
 	}
