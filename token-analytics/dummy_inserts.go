@@ -121,7 +121,7 @@ func (gen *dummyDataGenerator) createTokenWithBuysOrSellsProcessor(ctx context.C
 
 func (gen *dummyDataGenerator) createIonConnectTokenWithBuysOrSellsProcessor(ctx context.Context, stream string) context.CancelFunc {
 	kinds := []int{0, 30023, 30023, 30175}
-	kind := kinds[rand.Intn(len(kinds)-1)]
+	kind := kinds[rand.Intn(len(kinds))]
 	dTag := uuid.NewString()
 
 	_, master, err := gen.createUserForPlatform(ctx, mustRandomHex(32), PlatformGroupIonConnect)
@@ -151,7 +151,7 @@ func (gen *dummyDataGenerator) createIonConnectTokenWithBuysOrSellsProcessor(ctx
 		"ToTheMooN",
 		"HODL token",
 	}
-	displayName := names[rand.Int31n(int32(len(names)-1))]
+	displayName := names[rand.Int31n(int32(len(names)))]
 	symbol := strings.ToLower(strings.ReplaceAll(displayName, " ", ""))
 	tok := &tokenRow{
 		ContractAddress:          generateDummyContractAddress(),

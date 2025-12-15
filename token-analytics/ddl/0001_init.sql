@@ -279,7 +279,7 @@ CREATE TABLE IF NOT EXISTS user_token_positions (
     user_blockchain_address TEXT NOT NULL,
     contract_address        TEXT NOT NULL,
     external_address        TEXT NOT NULL,
-    user_external_address   TEXT NOT NULL,
+    user_external_address   TEXT, 
     amount                  uint256 NOT NULL DEFAULT 0,
     avg_buy_price_usd       usd_amount DEFAULT 0,
     total_invested_usd      usd_amount DEFAULT 0,
@@ -1047,7 +1047,7 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
         )
         VALUES (
                    p_user_blockchain_address, p_token_address, p_token_external_address, 
-                   COALESCE(v_user_external_address, ''), -- Empty string if user not found
+                   v_user_external_address, 
                    p_output_amount, p_price_usd, v_cost_usd, p_block_timestamp
                )
         ON CONFLICT (user_blockchain_address, contract_address) DO UPDATE SET
@@ -1056,7 +1056,7 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
                                                                     avg_buy_price_usd = (user_token_positions.total_invested_usd + EXCLUDED.total_invested_usd) /
                                                                                         NULLIF((user_token_positions.amount + EXCLUDED.amount)::NUMERIC, 0),
                                                                     updated_at = EXCLUDED.updated_at,
-                                                                    user_external_address = COALESCE(EXCLUDED.user_external_address, user_token_positions.user_external_address);
+                                                                    user_external_address = COALESCE(EXCLUDED.user_external_address, user_token_positions.user_external_address); -- Update only if new value is not NULL
     ELSE -- sell
         UPDATE user_token_positions
         SET amount = GREATEST(amount - p_input_amount, 0),

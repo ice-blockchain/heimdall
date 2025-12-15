@@ -101,11 +101,11 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, externalAddress st
 		if err != nil {
 			log.Warn(fmt.Sprintf("failed to build creator addresses for swap %s: %v", swaps[i].TransactionHash, err))
 		}
-		holderAddresses, err := buildAddressesFromExternalAddressAndPlatform(holderExternalAddress, strVal(swaps[i].HolderPlatform))
+		holderAddresses, err := buildAddressesFromExternalAddressAndPlatform(holderExternalAddress, strVal(swaps[i].HolderPlatform), "")
 		if err != nil {
 			log.Warn(fmt.Sprintf("failed to build holder addresses for swap %s: %v", swaps[i].TransactionHash, err))
 		}
-		tokenAddresses, err := buildAddressesFromExternalAddressAndPlatform(swaps[i].ExternalAddress, swaps[i].Platform)
+		tokenAddresses, err := buildAddressesFromExternalAddressAndPlatform(swaps[i].ExternalAddress, swaps[i].Platform, "")
 		if err != nil {
 			log.Warn(fmt.Sprintf("failed to build token addresses for swap %s: %v", swaps[i].TransactionHash, err))
 			tokenAddresses = Addresses{}

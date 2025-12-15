@@ -191,11 +191,11 @@ func (t *tokenAnalyticsUsers) UpsertUser(ctx context.Context, id, masterPubkey, 
 		) VALUES (
 			NOW(), NOW(), $1, $2, $10, $9, $3, $4, $5, $6, $7, $8, 'ionconnect'::platform_type
 		)
-		ON CONFLICT (master_pubkey) 
+		ON CONFLICT (blockchain_address) 
 		DO UPDATE SET
 			updated_at = NOW(),
 			id = EXCLUDED.id,
-			blockchain_address = EXCLUDED.blockchain_address,
+			master_pubkey = EXCLUDED.master_pubkey,
 			external_address = EXCLUDED.external_address,
 			username = COALESCE(NULLIF(EXCLUDED.username, ''), users.username),
 			display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name),
