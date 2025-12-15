@@ -77,6 +77,10 @@ func (tx transaction) ToHistory(network, walletId, walletAddress string) (Wallet
 	if err != nil {
 		return nil, errors.Wrapf(err, "malformed tx from indexer, failed to decode tx hash %v", tx.Hash)
 	}
+	traceId, err := base64.StdEncoding.DecodeString(tx.TraceId)
+	if err != nil {
+		return nil, errors.Wrapf(err, "malformed tx from indexer, failed to decode tx trace_id %v", tx.TraceId)
+	}
 	incomingMessageHash, err := base64.StdEncoding.DecodeString(tx.InMsg.Hash)
 	if err != nil {
 		return nil, errors.Wrapf(err, "malformed tx from indexer, failed to decode in msg hash %v", tx.Hash)
@@ -114,7 +118,7 @@ func (tx transaction) ToHistory(network, walletId, walletAddress string) (Wallet
 		"direction":    direction,
 		"blockNumber":  tx.BlockRef.Seqno,
 		"timestamp":    time.Unix(tx.Now, 0).Format(time.RFC3339),
-		"txHash":       hex.EncodeToString(txHash),
+		"txHash":       hex.EncodeToString(traceId),
 		"externalHash": hex.EncodeToString(incomingMessageHash),
 		"index":        hex.EncodeToString(txHash),
 		"from":         sourceAddr.Bounce(false).String(),
