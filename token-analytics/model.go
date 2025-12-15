@@ -5,7 +5,8 @@ package tokenanalytics
 import (
 	"fmt"
 	"strconv"
-	"time"
+
+	"github.com/ice-blockchain/wintr/time"
 )
 
 type (
@@ -14,8 +15,8 @@ type (
 		Title       string     `json:"title,omitempty"`
 		Description string     `json:"description,omitempty"`
 		ImageURL    string     `json:"imageUrl,omitempty"`
-		CreatedAt   time.Time  `json:"createdAt,omitzero"`
-		Addresses   Addresses  `json:"addresses,omitzero"`
+		CreatedAt   *time.Time `json:"createdAt,omitempty"`
+		Addresses   *Addresses `json:"addresses,omitempty"`
 		Creator     User       `json:"creator,omitzero"`
 		MarketData  MarketData `json:"marketData,omitzero"`
 	}
@@ -27,13 +28,13 @@ type (
 	}
 
 	User struct {
-		MasterPubkey     *string   `json:"-"`
-		Username         *string   `json:"name,omitempty"`
-		Display          *string   `json:"display,omitempty"`
-		Avatar           *string   `json:"avatar,omitempty"`
-		Addresses        Addresses `json:"addresses,omitempty"`
-		IONConnectRelays []string  `json:"-"`
-		Verified         *bool     `json:"verified,omitempty"`
+		MasterPubkey     *string    `json:"-"`
+		Username         *string    `json:"name,omitempty"`
+		Display          *string    `json:"display,omitempty"`
+		Avatar           *string    `json:"avatar,omitempty"`
+		Addresses        *Addresses `json:"addresses,omitempty"`
+		IONConnectRelays []string   `json:"-"`
+		Verified         *bool      `json:"verified,omitempty"`
 	}
 
 	MarketData struct {
@@ -68,14 +69,14 @@ type (
 	}
 
 	TradePosition struct {
-		CreatedAt  time.Time `json:"createdAt,omitzero"`
-		Addresses  Addresses `json:"addresses,omitzero"`
-		Type       TradeType `json:"type,omitempty"`
-		Holder     User      `json:"holder,omitzero"`
-		Amount     string    `json:"amount"`
-		AmountUSD  float64   `json:"amountUSD"`
-		Balance    string    `json:"balance"`
-		BalanceUSD float64   `json:"balanceUSD"`
+		CreatedAt  *time.Time `json:"createdAt,omitempty"`
+		Addresses  *Addresses `json:"addresses,omitempty"`
+		Type       TradeType  `json:"type,omitempty"`
+		Holder     User       `json:"holder,omitzero"`
+		Amount     string     `json:"amount"`
+		AmountUSD  float64    `json:"amountUSD"`
+		Balance    string     `json:"balance"`
+		BalanceUSD float64    `json:"balanceUSD"`
 	}
 
 	Trade struct {
@@ -168,12 +169,12 @@ func IsContentType(tokenType string) bool {
 	return tokenType == TokenTypePost || tokenType == TokenTypeVideo || tokenType == TokenTypeArticle
 }
 
-func buildAddressesFromExternalAddressAndPlatform(externalAddress, platform string, bnbBscAddress string) (Addresses, error) {
+func buildAddressesFromExternalAddressAndPlatform(externalAddress, platform string, bnbBscAddress string) (*Addresses, error) {
 	if externalAddress == "" {
-		return Addresses{}, nil
+		return nil, nil
 	}
 	if platform == "" {
-		return Addresses{}, fmt.Errorf("platform cannot be empty")
+		return nil, fmt.Errorf("platform cannot be empty")
 	}
 
 	var addresses Addresses
@@ -190,16 +191,19 @@ func buildAddressesFromExternalAddressAndPlatform(externalAddress, platform stri
 			addresses.Blockchain = bnbBscAddress
 		}
 	default:
-		return Addresses{}, fmt.Errorf("unknown platform '%s' for external_address: %s", platform, externalAddress)
+		return nil, fmt.Errorf("unknown platform '%s' for external_address: %s", platform, externalAddress)
 	}
 
-	return addresses, nil
+	return &addresses, nil
 }
 
-func buildTokenAddressesFromContractAndExternalAddress(contractAddress, externalAddress, platform string) (Addresses, error) {
+func buildTokenAddressesFromContractAndExternalAddress(contractAddress, externalAddress, platform string) (*Addresses, error) {
 	addresses, err := buildAddressesFromExternalAddressAndPlatform(externalAddress, platform, "")
 	if err != nil {
-		return Addresses{}, err
+		return nil, err
+	}
+	if addresses == nil {
+		return nil, nil
 	}
 	addresses.Blockchain = contractAddress
 

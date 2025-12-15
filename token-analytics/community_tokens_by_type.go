@@ -148,7 +148,7 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 			Title:       row.Title,
 			Description: row.Description,
 			ImageURL:    row.ImageURL,
-			CreatedAt:   *row.CreatedAt.Time,
+			CreatedAt:   row.CreatedAt,
 			Addresses:   tokenAddresses,
 			Creator: User{
 				Username:  row.CreatorUsername,
@@ -238,7 +238,7 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 			Title:       row.Title,
 			Description: row.Description,
 			ImageURL:    row.ImageURL,
-			CreatedAt:   *row.CreatedAt.Time,
+			CreatedAt:   row.CreatedAt,
 			Addresses:   tokenAddresses,
 			Creator: User{
 				Username:  row.CreatorUsername,

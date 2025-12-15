@@ -108,7 +108,7 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, externalAddress st
 		tokenAddresses, err := buildAddressesFromExternalAddressAndPlatform(swaps[i].ExternalAddress, swaps[i].Platform, "")
 		if err != nil {
 			log.Warn(fmt.Sprintf("failed to build token addresses for swap %s: %v", swaps[i].TransactionHash, err))
-			tokenAddresses = Addresses{}
+			tokenAddresses = nil
 		}
 		trades = append(trades, &Trade{
 			Creator: User{
@@ -127,7 +127,7 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, externalAddress st
 					Addresses: holderAddresses,
 				},
 				Addresses:  tokenAddresses,
-				CreatedAt:  *swaps[i].CreatedAt.Time,
+				CreatedAt:  swaps[i].CreatedAt,
 				Type:       typ,
 				Amount:     tokenAmountWeiStr,
 				AmountUSD:  amountUSD,
