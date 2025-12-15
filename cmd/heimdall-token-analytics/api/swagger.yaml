@@ -621,11 +621,16 @@ paths:
         name: externalAddressOrViewType
         required: true
         type: string
-      - description: Buy or sell(
+      - description: Buy or sell
+        example: '"buy"'
         in: query
         name: type
         required: true
         type: string
+      - description: Amount of tokens to exchange (by default = 1, 1e18)
+        in: query
+        name: amount
+        type: integer
       produces:
       - application/json
       responses:
