@@ -194,7 +194,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 			Title:       row.Title,
 			Description: row.Description,
 			ImageURL:    row.ImageURL,
-			CreatedAt:   *row.CreatedAt.Time,
+			CreatedAt:   row.CreatedAt,
 			Addresses:   tokenAddresses,
 			Creator: User{
 				Username:  row.CreatorUsername,
@@ -269,6 +269,7 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 			Title:       row.Title,
 			Description: row.Description,
 			ImageURL:    row.ImageURL,
+			CreatedAt:   row.CreatedAt,
 			Addresses:   tokenAddresses,
 			Creator: User{
 				Username:  row.CreatorUsername,
@@ -486,6 +487,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 			Title:       row.Title,
 			Description: row.Description,
 			ImageURL:    row.ImageURL,
+			CreatedAt:   row.CreatedAt,
 			Addresses:   tokenAddresses,
 			Creator: User{
 				Username:  row.CreatorUsername,

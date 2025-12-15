@@ -241,7 +241,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 			Title:       token.Title,
 			Description: token.Description,
 			ImageURL:    token.ImageURL,
-			CreatedAt:   *token.CreatedAt.Time,
+			CreatedAt:   token.CreatedAt,
 			Addresses:   tokenExternalAddresses,
 			Creator: User{
 				Username:  token.CreatorUsername,

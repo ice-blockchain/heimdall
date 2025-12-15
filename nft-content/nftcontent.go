@@ -62,7 +62,9 @@ func (n *nftContent) Process(ctx context.Context, events model.Events) error {
 			if err != nil {
 				return errors.Wrapf(err, "failed to detect owner of nft items for profile %v", contentEvent.GetMasterPublicKey())
 			}
-			return errors.Wrap(n.insertNFTContentForAccountType(ctx, contentEvent, owner), "failed to insert nft content for account type")
+			if err := n.insertNFTContentForAccountType(ctx, contentEvent, owner); err != nil {
+				return errors.Wrap(err, "failed to insert nft content for account type")
+			}
 		}
 		if err := n.updateUserBSCAddress(ctx, contentEvent, userID); err != nil {
 			return errors.Wrap(err, "failed to update user bsc address for account type")
