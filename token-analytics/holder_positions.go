@@ -23,18 +23,19 @@ func (t *tokenAnalytics) GetHolderPositions(ctx context.Context, tokenExternalAd
 		SELECT 
 			u.master_pubkey,
 			u.username as username,
-			COALESCE(u.display_name, '') as display_name,
-			COALESCE(u.avatar, '') as avatar,
-			COALESCE(u.verified, false) as verified,
-			u.external_address as external_address,
+			u.display_name as display_name,
+			u.avatar as avatar,
+			u.verified as verified,
+			utp.user_external_address as external_address,
 			u.platform_group as platform,
-			COALESCE(utp.amount, 0) as amount,
+			utp.amount as amount,
 			COALESCE(utp.total_invested_usd, 0) as total_invested_usd,
 			COALESCE(t.price_usd, 0) as price_usd
-		FROM users u
-		LEFT JOIN user_token_positions utp ON utp.master_pubkey = u.master_pubkey AND utp.external_address = $1
-		LEFT JOIN tokens t ON t.external_address = $1
-		WHERE u.external_address = ANY($2)
+		FROM user_token_positions utp
+		LEFT JOIN users u ON u.external_address = utp.user_external_address
+		INNER JOIN tokens t ON t.external_address = utp.external_address
+		WHERE utp.external_address = $1 
+		  AND utp.user_external_address = ANY($2)
 	`
 
 	rows, err := storage.Select[holderPositionRow](ctx, t.ingestedDataDB, query, tokenExternalAddress, holderExternalAddresses)
@@ -44,46 +45,46 @@ func (t *tokenAnalytics) GetHolderPositions(ctx context.Context, tokenExternalAd
 	key := keyUserPositionOfToken(tokenExternalAddress)
 	rankings := make(map[string]int64)
 	for _, row := range rows {
-		if row.ExternalAddress == "" {
+		if row.ExternalAddress == nil || *row.ExternalAddress == "" {
 			continue
 		}
-		rank, err := t.processedDataDB.ZRevRank(ctx, key, row.ExternalAddress).Result()
+		rank, err := t.processedDataDB.ZRevRank(ctx, key, *row.ExternalAddress).Result()
 		if err != nil {
 			if errors.Is(err, redis.Nil) {
 				continue
 			}
 			return nil, errors.Wrap(err, "failed to get rank from DragonflyDB")
 		}
-		rankings[row.ExternalAddress] = rank + 1
+		rankings[*row.ExternalAddress] = rank + 1
 	}
 
 	positions := make([]*HolderPosition, 0, len(rows))
 	for _, row := range rows {
+		extAddr := strVal(row.ExternalAddress)
 		amountWeiBigInt := new(big.Int)
 		if _, ok := amountWeiBigInt.SetString(row.Amount, 10); !ok {
-			log.Warn(fmt.Sprintf("failed to parse amount for holder %s: %v", row.ExternalAddress, row.Amount))
+			log.Warn(fmt.Sprintf("failed to parse amount for holder %s: %v", extAddr, row.Amount))
 			continue
 		}
 
-		amountTokens := weiToUint64FromBigInt(amountWeiBigInt)
 		amountTokensFloat := weiToFloat64FromBigInt(amountWeiBigInt)
 		amountUSD := amountTokensFloat * row.PriceUSD
 		pnl, pnlPercentage := calculatePnL(amountUSD, row.TotalInvestedUSD)
 
 		rank := uint64(1)
-		if r, ok := rankings[row.ExternalAddress]; ok {
+		if r, ok := rankings[extAddr]; ok {
 			rank = uint64(r)
 		}
-		holderAddresses, err := buildAddressesFromExternalAddressAndPlatform(row.ExternalAddress, row.Platform)
+		holderAddresses, err := buildAddressesFromExternalAddressAndPlatform(strVal(row.ExternalAddress), strVal(row.Platform), "")
 		if err != nil {
-			log.Warn(fmt.Sprintf("failed to build holder addresses from external_address %s (platform %s): %v", row.ExternalAddress, row.Platform, err))
+			log.Warn(fmt.Sprintf("failed to build holder addresses from external_address %s (platform %s): %v", extAddr, strVal(row.Platform), err))
 
 			continue
 		}
 
 		positions = append(positions, &HolderPosition{
 			Rank:          rank,
-			Amount:        amountTokens,
+			Amount:        row.Amount,
 			AmountUSD:     amountUSD,
 			PnL:           pnl,
 			PnLPercentage: pnlPercentage,

@@ -5,7 +5,6 @@ package tokenanalytics
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"sort"
 
 	"github.com/google/uuid"
@@ -165,18 +164,19 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 			t.external_address,
 			t.platform as platform,
 			t.type,
-		creator.username as title,
-		COALESCE(creator.display_name, '') as description,
-		COALESCE(creator.avatar, '') as image_url,
+		COALESCE(t.title, '') as title,
+		COALESCE(t.description, '') as description,
+		COALESCE(t.image_url, '') as image_url,
 		t.created_at,
 		t.ticker,
 		t.total_supply,
-		t.creator_master_pubkey,
+		t.creator_blockchain_address as creator_blockchain_address,
 		creator.username as creator_username,
-		COALESCE(creator.display_name, '') as creator_display,
+		creator.display_name as creator_display,
 		creator.verified as creator_verified,
-		COALESCE(creator.avatar, '') as creator_avatar,
+		creator.avatar as creator_avatar,
 		creator.platform_group as creator_platform,
+		t.bnb_bsc_metadata_owner_address as creator_bnb_bsc_address,
 		creator.external_address as creator_external_address,
 		COALESCE(t.price_usd, 0) as price_usd,
 		COALESCE(t.holders_count, 0) as holders_count,
@@ -186,7 +186,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 		COALESCE(t.bonding_curve_current_amount_usd, 0) as bonding_curve_current_amount_usd,
 		COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd
 		FROM tokens t
-		INNER JOIN users creator ON creator.master_pubkey = t.creator_master_pubkey
+		LEFT JOIN users creator ON LOWER(creator.blockchain_address) = LOWER(t.creator_blockchain_address)
 		WHERE t.external_address = ANY($1)
 	`
 	tokensPtr, err := storage.Select[tokenRow](ctx, t.ingestedDataDB, query, externalAddresses)
@@ -221,24 +221,21 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 		if err != nil {
 			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", token.ExternalAddress, token.Platform, err)
 		}
-		creatorExternalAddresses, err := buildAddressesFromExternalAddressAndPlatform(token.CreatorExternalAddress, token.CreatorPlatform)
+		creatorExternalAddresses, err := buildAddressesFromExternalAddressAndPlatform(strVal(token.CreatorExternalAddress), strVal(token.CreatorPlatform), strVal(token.CreatorBnbBscAddress))
 		if err != nil {
-			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", token.CreatorExternalAddress, token.CreatorPlatform, err)
+			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", strVal(token.CreatorExternalAddress), strVal(token.CreatorPlatform), err)
 		}
 
 		var bondingCurveProgress *BondingCurveProgress
 		if token.BondingCurveCurrentAmount != "" && token.BondingCurveGoalAmount != "" {
-			currentAmount, _ := new(big.Int).SetString(token.BondingCurveCurrentAmount, 10)
-			goalAmount, _ := new(big.Int).SetString(token.BondingCurveGoalAmount, 10)
 			bondingCurveProgress = &BondingCurveProgress{
-				CurrentAmount:    weiToUint64FromBigInt(currentAmount),
-				GoalAmount:       weiToUint64FromBigInt(goalAmount),
+				CurrentAmount:    token.BondingCurveCurrentAmount,
+				GoalAmount:       token.BondingCurveGoalAmount,
 				CurrentAmountUSD: token.BondingCurveCurrentAmountUSD,
 				GoalAmountUSD:    token.BondingCurveGoalAmountUSD,
 			}
 		}
 
-		totalSupply, _ := new(big.Int).SetString(token.TotalSupply, 10)
 		result = append(result, &CommunityToken{
 			Type:        token.Type,
 			Title:       token.Title,
@@ -256,7 +253,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 			MarketData: MarketData{
 				Ticker:               token.Ticker,
 				MarketCap:            marketCap,
-				Supply:               weiToUint64FromBigInt(totalSupply),
+				Supply:               token.TotalSupply,
 				Volume:               volume,
 				Holders:              uint64(token.HoldersCount),
 				PriceUSD:             token.PriceUSD,

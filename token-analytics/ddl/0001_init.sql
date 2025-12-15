@@ -47,11 +47,11 @@ CREATE TABLE IF NOT EXISTS users
     ion_connect_relays   TEXT[],
     verified             BOOLEAN NOT NULL DEFAULT false,
     platform_group       platform_type,
-    primary key(master_pubkey)
+    PRIMARY KEY(blockchain_address)
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users (created_at);
-CREATE INDEX IF NOT EXISTS idx_users_blockchain_address_lower ON users (LOWER(blockchain_address));
+CREATE INDEX IF NOT EXISTS idx_users_external_address ON users (external_address);
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX IF NOT EXISTS idx_users_lookup_gist ON users USING gist (lookup gist_trgm_ops);
 
@@ -188,10 +188,11 @@ CREATE TABLE IF NOT EXISTS tokens (
     platform                        platform_type NOT NULL,
     ticker                          TEXT NOT NULL,
     total_supply                    uint256 NOT NULL,
-    creator_master_pubkey           TEXT,
+    creator_blockchain_address      TEXT, 
     "type"                          TEXT NOT NULL, -- profile/post/video/article
     base_token                      TEXT,
     pair_id                         TEXT,
+    market_cap                      uint256 DEFAULT 0,
     market_cap_usd                  usd_amount DEFAULT 0,
     price_usd                       usd_amount DEFAULT 0,
     liquidity_usd                   usd_amount DEFAULT 0,
@@ -204,11 +205,14 @@ CREATE TABLE IF NOT EXISTS tokens (
     bonding_curve_migrated          BOOLEAN DEFAULT FALSE,
     lookup                          TEXT NOT NULL DEFAULT '', -- contract_address + ticker + creator lookup
     log_index                       BIGINT,
-    PRIMARY KEY (contract_address),
-    FOREIGN KEY (creator_master_pubkey) REFERENCES users(master_pubkey) ON DELETE CASCADE
+    title                           TEXT,
+    description                     TEXT,
+    image_url                       TEXT,
+    bnb_bsc_metadata_owner_address  TEXT,
+    PRIMARY KEY (contract_address)
 );
 
-CREATE INDEX IF NOT EXISTS idx_tokens_creator ON tokens (creator_master_pubkey);
+CREATE INDEX IF NOT EXISTS idx_tokens_creator ON tokens (creator_blockchain_address);
 CREATE INDEX IF NOT EXISTS idx_tokens_created_at ON tokens (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_tokens_lookup_gist ON tokens USING gist (lookup gist_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_tokens_platform ON tokens (platform);
@@ -225,7 +229,7 @@ BEGIN
         COALESCE(NEW.username, '') || ' ' ||
         COALESCE(NEW.display_name, '')
     ))
-    WHERE creator_master_pubkey = NEW.master_pubkey;
+    WHERE LOWER(creator_blockchain_address) = LOWER(NEW.blockchain_address);
 
     RETURN NEW;
 END;
@@ -251,41 +255,38 @@ CREATE INDEX IF NOT EXISTS idx_uniswap_pools_token0 ON uniswap_pools (token0);
 CREATE INDEX IF NOT EXISTS idx_uniswap_pools_token1 ON uniswap_pools (token1);
 
 CREATE TABLE IF NOT EXISTS token_swaps (
-    created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
-    transaction_hash    TEXT NOT NULL,
-    contract_address    TEXT NOT NULL,
-    external_address TEXT NOT NULL,
-    user_address        TEXT NOT NULL,
-    direction           BOOLEAN NOT NULL, -- true = buy, false = sell
-    input_amount        uint256 NOT NULL, -- base token amount (buy) or token amount (sell)
-    output_amount       uint256 NOT NULL, -- token amount (buy) or base token amount (sell)
-    fee                 uint256 NOT NULL DEFAULT 0,
-    price_usd           usd_amount NOT NULL,
-    log_index           BIGINT,
-    PRIMARY KEY (transaction_hash, contract_address, user_address),
-    FOREIGN KEY (contract_address) REFERENCES tokens(contract_address) ON DELETE CASCADE
+    created_at              TIMESTAMP NOT NULL DEFAULT NOW(),
+    transaction_hash        TEXT NOT NULL,
+    contract_address        TEXT NOT NULL,
+    external_address        TEXT NOT NULL,
+    user_blockchain_address TEXT NOT NULL,
+    direction               BOOLEAN NOT NULL, -- false = buy, true = sell
+    input_amount            uint256 NOT NULL, -- base token amount (buy) or token amount (sell)
+    output_amount           uint256 NOT NULL, -- token amount (buy) or base token amount (sell)
+    fee                     uint256 NOT NULL DEFAULT 0,
+    price_usd               usd_amount NOT NULL,
+    log_index               BIGINT,
+    PRIMARY KEY (transaction_hash, contract_address, user_blockchain_address)
 );
 
 CREATE INDEX IF NOT EXISTS idx_token_swaps_contract ON token_swaps (contract_address, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_token_swaps_ion_connect ON token_swaps (external_address, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_token_swaps_user_address_lower ON token_swaps (LOWER(user_address));
+CREATE INDEX IF NOT EXISTS idx_token_swaps_user_blockchain_address ON token_swaps (user_blockchain_address);
 CREATE INDEX IF NOT EXISTS idx_token_swaps_created_at ON token_swaps (created_at DESC);
 
 CREATE TABLE IF NOT EXISTS user_token_positions (
-    updated_at            TIMESTAMP NOT NULL DEFAULT NOW(),
-    master_pubkey         TEXT NOT NULL,
-    contract_address      TEXT NOT NULL,
-    external_address      TEXT NOT NULL,
-    user_external_address TEXT NOT NULL,
-    amount                uint256 NOT NULL DEFAULT 0,
-    avg_buy_price_usd     usd_amount DEFAULT 0,
-    total_invested_usd    usd_amount DEFAULT 0,
-    PRIMARY KEY (master_pubkey, contract_address),
-    FOREIGN KEY (master_pubkey) REFERENCES users(master_pubkey) ON DELETE CASCADE,
-    FOREIGN KEY (contract_address) REFERENCES tokens(contract_address) ON DELETE CASCADE
+    updated_at              TIMESTAMP NOT NULL DEFAULT NOW(),
+    user_blockchain_address TEXT NOT NULL,
+    contract_address        TEXT NOT NULL,
+    external_address        TEXT NOT NULL,
+    user_external_address   TEXT, 
+    amount                  uint256 NOT NULL DEFAULT 0,
+    avg_buy_price_usd       usd_amount DEFAULT 0,
+    total_invested_usd      usd_amount DEFAULT 0,
+    PRIMARY KEY (user_blockchain_address, contract_address)
 );
 
-CREATE INDEX IF NOT EXISTS idx_user_token_positions_user ON user_token_positions (master_pubkey);
+CREATE INDEX IF NOT EXISTS idx_user_token_positions_user ON user_token_positions (user_blockchain_address);
 CREATE INDEX IF NOT EXISTS idx_user_token_positions_contract ON user_token_positions (contract_address);
 CREATE INDEX IF NOT EXISTS idx_user_token_positions_ion_connect ON user_token_positions (external_address);
 
@@ -592,7 +593,6 @@ DECLARE
     v_platform platform_type;
     v_platform_prefix TEXT;
     v_total_supply NUMERIC;
-    v_creator_master_pubkey TEXT;
     v_token_type TEXT;
     v_username TEXT;
     v_display_name TEXT;
@@ -641,8 +641,7 @@ BEGIN
             RETURN;
     END CASE;
 
-    -- For ALL tokens, creator_master_pubkey will be populated from first Swapped event
-    v_creator_master_pubkey := NULL;
+    -- For ALL tokens, creator_blockchain_address will be populated from first Swapped event
     IF v_token_type IS NULL THEN
         RAISE WARNING 'Failed to determine token type for %, skipping token creation', v_external_address;
         RETURN;
@@ -650,7 +649,7 @@ BEGIN
 
     INSERT INTO tokens (
         created_at, updated_at, contract_address, external_address, platform,
-        ticker, total_supply, creator_master_pubkey, type, log_index
+        ticker, total_supply, creator_blockchain_address, type, log_index
     )
     VALUES (
         p_block_timestamp,
@@ -660,7 +659,7 @@ BEGIN
         v_platform,
         v_token_symbol,
         v_total_supply,
-        v_creator_master_pubkey, -- NULL, will be filled on first swap
+        NULL, -- Will be filled on first swap
         v_token_type,
         p_log_index
     )
@@ -723,12 +722,6 @@ DECLARE
     v_base_token TEXT;
     v_other_token TEXT;
     v_token_address TEXT;
-    v_user_master_pubkey TEXT;
-    v_user_external_address TEXT;
-    v_delta_market_cap usd_amount;
-    v_token_amount NUMERIC;
-    v_sign NUMERIC;
-    v_cost_usd usd_amount;
 BEGIN
     IF array_length(p_topics, 1) < 3 THEN
         RETURN;
@@ -740,15 +733,17 @@ BEGIN
     v_output_amount := decode_uint256(p_data, 2);
     v_fee := decode_uint256(p_data, 3);
 
-
-    v_token_external_address := decode_to_token_from_input(p_tx_input); -- Extract toToken and baseToken from tx input
-    v_base_token := decode_base_token_from_input(p_tx_input);
+    BEGIN
+        v_token_external_address := decode_to_token_from_input(p_tx_input);
+        v_base_token := decode_base_token_from_input(p_tx_input);
+    EXCEPTION WHEN OTHERS THEN
+        v_token_external_address := NULL;
+        v_base_token := NULL;
+    END;
 
     IF v_token_external_address IS NOT NULL AND length(v_token_external_address) > 0 THEN
         v_token_external_address := substring(v_token_external_address from 2);
-    END IF;
 
-    IF v_token_external_address IS NULL OR v_token_external_address = '' THEN
         SELECT
             t.contract_address,
             t.base_token,
@@ -756,21 +751,26 @@ BEGIN
             t.external_address
         INTO v_token_address, v_other_token, v_ion_price_usd, v_token_external_address
         FROM tokens t
-                 CROSS JOIN base_token_prices bp
-        WHERE (t.contract_address = p_address)
-          AND bp.token_symbol = 'ION'; -- TODO: handle other tokens.
+        CROSS JOIN base_token_prices bp
+        WHERE (t.external_address = v_token_external_address)
+            AND bp.token_symbol = 'ION';
+        IF v_token_address IS NULL THEN
+            RAISE WARNING 'Token with external_address % not found, skipping swap', v_token_external_address;
+            RETURN;
+        END IF;
     ELSE
         SELECT
             t.contract_address,
             t.base_token,
-            bp.price_usd
-        INTO v_token_address, v_other_token, v_ion_price_usd
+            bp.price_usd,
+            t.external_address
+        INTO v_token_address, v_other_token, v_ion_price_usd, v_token_external_address
         FROM tokens t
         CROSS JOIN base_token_prices bp
-        WHERE (t.external_address = v_token_external_address)
-            AND bp.token_symbol = 'ION'; -- TODO: handle other tokens.
+        WHERE (t.contract_address = p_address)
+          AND bp.token_symbol = 'ION';
         IF v_token_address IS NULL THEN
-            RAISE WARNING 'Token with external_address % not found, skipping swap', v_token_external_address;
+            RAISE WARNING 'Token with contract_address % not found, skipping swap', p_address;
             RETURN;
         END IF;
     END IF;
@@ -800,15 +800,15 @@ BEGIN
 
     INSERT INTO token_swaps (
         created_at, transaction_hash, contract_address, external_address,
-        user_address, direction, input_amount, output_amount, fee, price_usd, log_index
+        user_blockchain_address, direction, input_amount, output_amount, fee, price_usd, log_index
     )
     VALUES (
         p_block_timestamp, p_transaction_hash, v_token_address, v_token_external_address,
         v_user_address, v_direction, v_input_amount, v_output_amount, v_fee, v_price_usd, p_log_index
     )
-    ON CONFLICT (transaction_hash, contract_address, user_address) DO NOTHING;
+    ON CONFLICT (transaction_hash, contract_address, user_blockchain_address) DO NOTHING;
 
-    PERFORM update_market_cap_and_position(p_block_timestamp, v_user_address,v_token_address, v_token_external_address,
+    PERFORM update_market_cap_and_position(p_block_timestamp, v_user_address, v_token_address, v_token_external_address,
                                            v_direction, v_input_amount, v_output_amount, v_price_usd, v_ion_price_usd);
 
 
@@ -944,15 +944,15 @@ BEGIN
 
     INSERT INTO token_swaps (
         created_at, transaction_hash, contract_address, external_address,
-        user_address, direction, input_amount, output_amount, fee, price_usd, log_index
+        user_blockchain_address, direction, input_amount, output_amount, fee, price_usd, log_index
     )
     VALUES (
                p_block_timestamp, p_transaction_hash, v_token_address, v_token_external_address,
                v_user_address, v_direction, v_input_amount, v_output_amount, v_fee, v_price_usd, p_log_index
            )
-    ON CONFLICT (transaction_hash, contract_address, user_address) DO NOTHING;
+    ON CONFLICT (transaction_hash, contract_address, user_blockchain_address) DO NOTHING;
 
-    PERFORM update_market_cap_and_position(p_block_timestamp, v_user_address,v_token_address, v_token_external_address,
+    PERFORM update_market_cap_and_position(p_block_timestamp, v_user_address, v_token_address, v_token_external_address,
                                             v_direction, v_input_amount, v_output_amount, v_price_usd, v_ion_price_usd);
 
     RAISE DEBUG 'Uniswap swap processed: token=%, user=%', v_token_address, v_user_address;
@@ -961,7 +961,7 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION update_market_cap_and_position(
     p_block_timestamp TIMESTAMP,
-    p_user_address TEXT,
+    p_user_blockchain_address TEXT,
     p_token_address TEXT,
     p_token_external_address TEXT,
     p_direction BOOLEAN,
@@ -971,12 +971,15 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
     p_ion_price_usd NUMERIC
 ) RETURNS VOID AS $$
     DECLARE
-        v_user_master_pubkey TEXT;
         v_user_external_address TEXT;
         v_delta_market_cap usd_amount;
         v_token_amount NUMERIC;
         v_sign NUMERIC;
         v_cost_usd usd_amount;
+        v_username TEXT;
+        v_display_name TEXT;
+        v_avatar TEXT;
+        v_token_type TEXT;
     BEGIN
     IF p_direction = false THEN
         v_token_amount := p_output_amount;
@@ -988,47 +991,48 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
 
     v_delta_market_cap := v_sign * (v_token_amount / 1e18) * p_price_usd;
 
-    SELECT master_pubkey, external_address INTO v_user_master_pubkey, v_user_external_address
+
+    SELECT external_address, username, display_name, avatar
+    INTO v_user_external_address, v_username, v_display_name, v_avatar
     FROM users
-    WHERE LOWER(blockchain_address) = LOWER(p_user_address);
+    WHERE LOWER(blockchain_address) = LOWER(p_user_blockchain_address);
 
-    -- TODO: remove when bsc wallet is pk.
-    IF v_user_master_pubkey IS NULL THEN
-        RAISE WARNING 'User not found for address %, skipping position update', p_user_address;
+    SELECT type INTO v_token_type FROM tokens WHERE contract_address = p_token_address;
 
-        UPDATE tokens
-        SET price_usd = p_price_usd,
-            market_cap_usd = GREATEST(market_cap_usd + v_delta_market_cap, 0),
-            updated_at = p_block_timestamp
-        WHERE contract_address = p_token_address;
-
-        RETURN;
-    END IF;
-
-    -- For ALL tokens, the first swapper is the token creator.
-    -- Only update creator_master_pubkey if this is the FIRST swap (direction=false means buy).
-    WITH user_data AS (
-        SELECT username, display_name
-        FROM users
-        WHERE master_pubkey = v_user_master_pubkey
-        LIMIT 1
-    )
     UPDATE tokens t
     SET price_usd = p_price_usd,
         market_cap_usd = GREATEST(market_cap_usd + v_delta_market_cap, 0),
         updated_at = p_block_timestamp,
-        creator_master_pubkey = CASE
-            WHEN t.creator_master_pubkey IS NULL AND v_user_master_pubkey IS NOT NULL AND p_direction = false
-            THEN v_user_master_pubkey
-            ELSE t.creator_master_pubkey
+        creator_blockchain_address = CASE
+            WHEN t.creator_blockchain_address IS NULL AND p_direction = false
+            THEN p_user_blockchain_address
+            ELSE t.creator_blockchain_address
+        END,
+        ticker = CASE
+            WHEN t.creator_blockchain_address IS NULL AND p_direction = false 
+                 AND v_token_type = 'profile' AND v_username IS NOT NULL
+            THEN v_username
+            ELSE t.ticker
+        END,
+        title = CASE
+            WHEN t.creator_blockchain_address IS NULL AND p_direction = false 
+                 AND v_token_type = 'profile' AND v_display_name IS NOT NULL
+            THEN v_display_name
+            ELSE t.title
+        END,
+        image_url = CASE
+            WHEN t.creator_blockchain_address IS NULL AND p_direction = false 
+                 AND v_token_type = 'profile' AND v_avatar IS NOT NULL
+            THEN v_avatar
+            ELSE t.image_url
         END,
         lookup = CASE
-            WHEN t.creator_master_pubkey IS NULL AND v_user_master_pubkey IS NOT NULL AND p_direction = false THEN
+            WHEN t.creator_blockchain_address IS NULL AND p_direction = false AND v_username IS NOT NULL THEN
                 LOWER(TRIM(
                     COALESCE(t.contract_address, '') || ' ' ||
                     COALESCE(t.ticker, '') || ' ' ||
-                    COALESCE((SELECT username FROM user_data), '') || ' ' ||
-                    COALESCE((SELECT display_name FROM user_data), '')
+                    COALESCE(v_username, '') || ' ' ||
+                    COALESCE(v_display_name, '')
                 ))
             ELSE t.lookup
         END
@@ -1038,24 +1042,26 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
 
     IF p_direction = false THEN -- buy
         INSERT INTO user_token_positions (
-            master_pubkey, contract_address, external_address, user_external_address,
+            user_blockchain_address, contract_address, external_address, user_external_address,
             amount, avg_buy_price_usd, total_invested_usd, updated_at
         )
         VALUES (
-                   v_user_master_pubkey, p_token_address, p_token_external_address, v_user_external_address,
+                   p_user_blockchain_address, p_token_address, p_token_external_address, 
+                   v_user_external_address, 
                    p_output_amount, p_price_usd, v_cost_usd, p_block_timestamp
                )
-        ON CONFLICT (master_pubkey, contract_address) DO UPDATE SET
+        ON CONFLICT (user_blockchain_address, contract_address) DO UPDATE SET
                                                                     amount = user_token_positions.amount + EXCLUDED.amount,
                                                                     total_invested_usd = user_token_positions.total_invested_usd + EXCLUDED.total_invested_usd,
                                                                     avg_buy_price_usd = (user_token_positions.total_invested_usd + EXCLUDED.total_invested_usd) /
                                                                                         NULLIF((user_token_positions.amount + EXCLUDED.amount)::NUMERIC, 0),
-                                                                    updated_at = EXCLUDED.updated_at;
+                                                                    updated_at = EXCLUDED.updated_at,
+                                                                    user_external_address = COALESCE(EXCLUDED.user_external_address, user_token_positions.user_external_address); -- Update only if new value is not NULL
     ELSE -- sell
         UPDATE user_token_positions
         SET amount = GREATEST(amount - p_input_amount, 0),
             updated_at = p_block_timestamp
-        WHERE master_pubkey = v_user_master_pubkey
+        WHERE user_blockchain_address = p_user_blockchain_address
           AND contract_address = p_token_address;
     END IF;
     END; $$ LANGUAGE plpgsql;
@@ -1130,7 +1136,7 @@ RETURNS VOID AS $$
 DECLARE
     v_platform_group platform_type;
 BEGIN
-    IF p_user_external_address IS NULL THEN
+    IF p_user_external_address IS NULL OR p_user_external_address = '' THEN
         RETURN;
     END IF;
 

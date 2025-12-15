@@ -66,6 +66,12 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 		outputAmount = new(big.Int).Abs(ev.Amount0)
 		direction = false
 	}
+	if !direction {
+		userAddress = ev.Recipient
+	} else {
+		userAddress = ev.Sender
+	}
+
 	type userInfo struct {
 		UserExternalAddress string `db:"user_external_address"`
 	}
@@ -74,14 +80,12 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 			COALESCE(u.external_address, '') as user_external_address
 		FROM users u
 		WHERE LOWER(u.blockchain_address) = LOWER($1)
-	`, userAddress)
-	if err != nil {
+	`, userAddress.Hex())
+	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 		return fmt.Errorf("failed to find user by blockchain_address %v: %w", userAddress, err)
 	}
-	if !direction {
-		userAddress = ev.Recipient
-	} else {
-		userAddress = ev.Sender
+	if user == nil {
+		user = &userInfo{UserExternalAddress: ""}
 	}
 
 	priceInION := calculatePriceFromSwap(inputAmount, outputAmount, direction) // Price: how much ION per 1 community token
@@ -103,12 +107,18 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 
 func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTokenSwapped) error {
 	userAddr := strings.ToLower(ev.Swapper.Hex())
-
+	contractAddress := strings.ToLower(ev.Address.Hex())
 	externalAddress, _, err := detectExternalAddressFromSwap(ev)
-	if err != nil {
-		return fmt.Errorf("failed to detect external_address from tx.Input: %w", err)
+
+	isFirstSwap := err == nil && len(externalAddress) > 0
+	if isFirstSwap {
+		if toTokenParam, ok := ev.Params["toToken"]; ok {
+			if toTokenBytes, ok := toTokenParam.([]byte); ok {
+				// First swap should have toToken length > 20 (prefix + external_address)
+				isFirstSwap = len(toTokenBytes) > 20
+			}
+		}
 	}
-	externalAddress = externalAddress[1:]
 
 	type tokenAndUserInfo struct {
 		ContractAddress      string `db:"contract_address"`
@@ -117,7 +127,7 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 		UserExternalAddress  string `db:"user_external_address"`
 		TokenType            string `db:"token_type"`
 	}
-	result, err := storage.Get[tokenAndUserInfo](ctx, t.ingestedDataDB, `
+	const selectClause = `
 		SELECT 
 			t.contract_address,
 			COALESCE(t.base_token, '') as base_token,
@@ -125,18 +135,32 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 			COALESCE(u.external_address, '') as user_external_address,
 			COALESCE(t.type, '') as token_type
 		FROM tokens t
-		LEFT JOIN users u ON LOWER(u.blockchain_address) = LOWER($2)
-		WHERE t.external_address = $1
-	`, externalAddress, userAddr)
-	if err != nil {
-		return fmt.Errorf("failed to find token by external_address %v: %w", externalAddress, err)
+		LEFT JOIN users u ON LOWER(u.blockchain_address) = LOWER($2)`
+
+	var result *tokenAndUserInfo
+	if isFirstSwap {
+		// First swap: lookup by external_address
+		result, err = storage.Get[tokenAndUserInfo](ctx, t.ingestedDataDB,
+			selectClause+` WHERE t.external_address = $1`,
+			externalAddress, userAddr)
+		if err != nil {
+			return fmt.Errorf("failed to find token by external_address %v: %w", externalAddress, err)
+		}
+	} else {
+		// 1+ swaps: lookup by contract_address
+		result, err = storage.Get[tokenAndUserInfo](ctx, t.ingestedDataDB,
+			selectClause+` WHERE t.contract_address = $1`,
+			contractAddress, userAddr)
+		if err != nil {
+			return fmt.Errorf("failed to find token by contract_address %v: %w", contractAddress, err)
+		}
 	}
 
-	contractAddress := result.ContractAddress
+	contractAddress = result.ContractAddress
 	actualBaseToken := strings.ToLower(result.BaseToken)
 	expectedIONAddress := strings.ToLower(t.cfg.IONTokenAddress)
 
-	log.Debug(fmt.Sprintf("onSwap: externalAddress=%s, contractAddress=%s, baseToken=%s", externalAddress, contractAddress, actualBaseToken))
+	log.Debug(fmt.Sprintf("onSwap: contractAddress=%s, baseToken=%s", contractAddress, actualBaseToken))
 
 	if actualBaseToken == "" || actualBaseToken != expectedIONAddress {
 		return fmt.Errorf("token %v uses invalid base_token %v, expected ION token %v, swap rejected",

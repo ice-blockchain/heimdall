@@ -118,11 +118,11 @@ func (t *tokenAnalytics) updateBondingProgress(ctx context.Context, externalAddr
 func toModel(progress *bondingcurve.BondingCurveProgress, basePriceInUsd float64) *BondingCurveProgress {
 	goalUSD, currentRaisedUSD := progressToUSD(progress, basePriceInUsd)
 	return &BondingCurveProgress{
-		GoalAmount:       weiToUint64FromBigInt(progress.BondingTokensGoal),
-		CurrentAmount:    weiToUint64FromBigInt(progress.SoldTokens), // bonded tokens
+		GoalAmount:       progress.BondingTokensGoal.String(),
+		CurrentAmount:    progress.SoldTokens.String(),
 		GoalAmountUSD:    goalUSD,
 		CurrentAmountUSD: currentRaisedUSD,
 		Migrated:         progress.Migrated,
-		RaisedAmount:     weiToUint64FromBigInt(progress.TokensRaised), // base tokens
+		RaisedAmount:     progress.TokensRaised.String(),
 	}
 }

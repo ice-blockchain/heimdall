@@ -28,15 +28,19 @@ func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
 		VALUES (
 			NOW(), NOW(), $1, $1, $2, $3, $4, $5, $6, $7, LOWER($4 || ' ' || COALESCE($5, '')), 'xcom'::platform_type
 		)
-		ON CONFLICT (master_pubkey) 
+		ON CONFLICT (blockchain_address) 
 		DO UPDATE SET
+			master_pubkey = EXCLUDED.master_pubkey,
 			external_address = COALESCE(NULLIF(EXCLUDED.external_address, ''), users.external_address),
 			username = COALESCE(NULLIF(EXCLUDED.username, ''), users.username),
 			display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name),
 			avatar = COALESCE(NULLIF(EXCLUDED.avatar, ''), users.avatar),
 			verified = EXCLUDED.verified,
-			blockchain_address = COALESCE(NULLIF(EXCLUDED.blockchain_address, ''), users.blockchain_address),
-			lookup = COALESCE(NULLIF(EXCLUDED.lookup, ''), users.lookup),
+			lookup = CASE
+				WHEN EXCLUDED.username != '' OR EXCLUDED.display_name != '' THEN
+					LOWER(TRIM(COALESCE(NULLIF(EXCLUDED.username, ''), users.username) || ' ' || COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name)))
+				ELSE users.lookup
+			END,
 			platform_group = EXCLUDED.platform_group,
 			updated_at = NOW()
 	`
@@ -64,26 +68,82 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	tokenExternalAddress, userExternalAddress, userUsername, userDisplayName, userAvatar string, userVerified bool,
 	userBNBBSCWallet, tokenTitle, tokenDescription, tokenImageURL string) error {
 
-	if userExternalAddress != "" || userUsername != "" || userDisplayName != "" || userAvatar != "" || userBNBBSCWallet != "" {
-		if err := t.UpdateLoggedInUserProfile(
-			ctx,
-			userExternalAddress,
-			userExternalAddress,
-			userUsername,
-			userDisplayName,
-			userAvatar,
-			userVerified,
-			userBNBBSCWallet,
-		); err != nil {
-			return errors.Wrap(err, "failed to update user profile")
+	hasUserData := userBNBBSCWallet != "" || userUsername != "" || userDisplayName != "" || userAvatar != ""
+	hasTokenData := tokenTitle != "" || tokenDescription != "" || tokenImageURL != ""
+	if !hasUserData && !hasTokenData {
+		return nil
+	}
+	const userUpsertSQL = `
+		INSERT INTO users (
+			created_at, updated_at, id, master_pubkey, blockchain_address, 
+			external_address, username, display_name, avatar, verified, lookup, platform_group
+		)
+		VALUES (
+			NOW(), NOW(), $1, $1, $2, $3, $4, $5, $6, $7, LOWER($4 || ' ' || COALESCE($5, '')), 'xcom'::platform_type
+		)
+		ON CONFLICT (blockchain_address) 
+		DO UPDATE SET
+			master_pubkey = EXCLUDED.master_pubkey,
+			external_address = COALESCE(NULLIF(EXCLUDED.external_address, ''), users.external_address),
+			username = COALESCE(NULLIF(EXCLUDED.username, ''), users.username),
+			display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name),
+			avatar = COALESCE(NULLIF(EXCLUDED.avatar, ''), users.avatar),
+			verified = EXCLUDED.verified,
+			lookup = CASE
+				WHEN EXCLUDED.username != '' OR EXCLUDED.display_name != '' THEN
+					LOWER(TRIM(COALESCE(NULLIF(EXCLUDED.username, ''), users.username) || ' ' || COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name)))
+				ELSE users.lookup
+			END,
+			platform_group = EXCLUDED.platform_group,
+			updated_at = NOW()
+	`
+
+	var query string
+	var args []interface{}
+	if hasUserData && hasTokenData {
+		query = `
+			WITH user_update AS (
+				` + userUpsertSQL + `
+			)
+			UPDATE tokens
+			SET 
+				title = CASE WHEN $8 != '' THEN $8 ELSE title END,
+				description = CASE WHEN $9 != '' THEN $9 ELSE description END,
+				image_url = CASE WHEN $10 != '' THEN $10 ELSE image_url END,
+				updated_at = NOW()
+			WHERE external_address = $11;
+		`
+		args = []interface{}{
+			userExternalAddress, userBNBBSCWallet, userExternalAddress, userUsername,
+			userDisplayName, userAvatar, userVerified, tokenTitle, tokenDescription,
+			tokenImageURL, tokenExternalAddress,
 		}
+	} else if hasUserData {
+		query = userUpsertSQL + `;`
+		args = []interface{}{
+			userExternalAddress, userBNBBSCWallet, userExternalAddress, userUsername,
+			userDisplayName, userAvatar, userVerified,
+		}
+	} else {
+		query = `
+			UPDATE tokens
+			SET 
+				title = CASE WHEN $1 != '' THEN $1 ELSE title END,
+				description = CASE WHEN $2 != '' THEN $2 ELSE description END,
+				image_url = CASE WHEN $3 != '' THEN $3 ELSE image_url END,
+				updated_at = NOW()
+			WHERE external_address = $4;
+		`
+		args = []interface{}{tokenTitle, tokenDescription, tokenImageURL, tokenExternalAddress}
 	}
 
-	// TODO: Update token information using tokenExternalAddress
-	_ = tokenExternalAddress
-	_ = tokenTitle
-	_ = tokenDescription
-	_ = tokenImageURL
+	_, err := storage.Exec(ctx, t.ingestedDataDB, query, args...)
+	if err != nil {
+		if storage.IsErr(err, storage.ErrDuplicate) {
+			return errors.Wrapf(ErrDuplicate, "failed to update token external data for: %v", userExternalAddress)
+		}
+		return fmt.Errorf("failed to update token external data: %w", err)
+	}
 
 	return nil
 }
@@ -167,7 +227,9 @@ func (t *tokenAnalytics) buildTopPlatformHoldersFromRankings(row *tokenRowWithTo
 	}
 	holderMetadataMap := make(map[string]*holderMetadata, len(metadata))
 	for i := range metadata {
-		holderMetadataMap[metadata[i].HolderExternalAddress] = &metadata[i]
+		if metadata[i].HolderExternalAddress != nil {
+			holderMetadataMap[*metadata[i].HolderExternalAddress] = &metadata[i]
+		}
 	}
 
 	totalSupplyFloat, err := parseTotalSupply(row.TotalSupply, row.ExternalAddress)
@@ -190,11 +252,12 @@ func (t *tokenAnalytics) buildTopPlatformHoldersFromRankings(row *tokenRowWithTo
 		amountUSD := amountTokens * row.PriceUSD
 		supplyShare := calculateSupplyShare(amountTokens, totalSupplyFloat)
 
-		holderAddresses, err := buildAddressesFromExternalAddressAndPlatform(holderMeta.HolderExternalAddress, holderMeta.HolderPlatform)
+		amountWei := tokensToWeiBigInt(amountTokens)
+
+		holderAddresses, err := buildAddressesFromExternalAddressAndPlatform(strVal(holderMeta.HolderExternalAddress), strVal(holderMeta.HolderPlatform), "")
 		if err != nil {
-			return nil, fmt.Errorf("failed to build holder addresses from external_address %s (platform %s): %w", holderMeta.HolderExternalAddress, holderMeta.HolderPlatform, err)
+			return nil, fmt.Errorf("failed to build holder addresses from external_address %s (platform %s): %w", strVal(holderMeta.HolderExternalAddress), strVal(holderMeta.HolderPlatform), err)
 		}
-		amountUint64 := uint64(amountTokens)
 
 		topPlatformHolders = append(topPlatformHolders, HolderPosition{
 			Holder: User{
@@ -205,7 +268,7 @@ func (t *tokenAnalytics) buildTopPlatformHoldersFromRankings(row *tokenRowWithTo
 				Addresses: holderAddresses,
 			},
 			Rank:        uint64(rank + 1),
-			Amount:      amountUint64,
+			Amount:      amountWei.String(),
 			AmountUSD:   amountUSD,
 			SupplyShare: supplyShare,
 		})
@@ -286,4 +349,23 @@ func calculatePnL(amountUSD, totalInvestedUSD float64) (pnl float64, pnlPercenta
 	}
 
 	return pnl, pnlPercentage
+}
+
+func strVal(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+func strPtr(s string) *string {
+	return &s
+}
+
+func tokensToWeiBigInt(tokenAmount float64) *big.Int {
+	tokensBigFloat := big.NewFloat(tokenAmount)
+	weiBigFloat := new(big.Float).Mul(tokensBigFloat, big.NewFloat(1e18))
+	weiInt, _ := weiBigFloat.Int(nil)
+
+	return weiInt
 }
