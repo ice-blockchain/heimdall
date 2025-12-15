@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math/big"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -96,12 +97,13 @@ type (
 	}
 	BondingCurveProgressResponse = ta.BondingCurveProgress
 	PricingRequest               struct {
-		ExternalAddress string `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
-		Type            string `form:"type" swaggerignore:"true" example:"buy"`
+		ExternalAddress string   `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
+		Type            string   `form:"type" swaggerignore:"true" example:"buy"`
+		Amount          *big.Int `form:"amount" swaggerignore:"true" example:"100000000"`
 	}
 	PriceResponse struct {
-		Amount    uint64  `json:"amount"`
-		AmountUSD float64 `json:"amountUSD"`
+		Amount    *big.Int `json:"amount"`
+		AmountUSD float64  `json:"amountUSD"`
 	}
 )
 
@@ -360,7 +362,8 @@ func (s *service) GetCommunityTokenBondingCurveProgress(ctx context.Context, req
 //	@Tags			Tokens
 //	@Produce		json
 //	@Param			externalAddressOrViewType	path		string	true	"External address of the token"	example("0:9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f:")
-//	@Param			type						query		string	true	"Buy or sell("buy")
+//	@Param			type						query		string	true	"Buy or sell"					example("buy")
+//	@Param			amount						query		int		false	"Amount of tokens to exchange (by default = 1, 1e18)"
 //	@Success		200							{array}		ta.BondingCurveProgress
 //	@Failure		400							{object}	server.ResponseErrorBody	"if request parameters are invalid"
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
@@ -374,7 +377,7 @@ func (s *service) GetCommunityTokenPricing(ctx context.Context, req *server.Requ
 	if tradeType != ta.TradeTypeBuy && tradeType != ta.TradeTypeSell {
 		return nil, server.BadRequest(errors.Errorf("invalid type %v", tradeType), invalidPropertiesErrorCode)
 	}
-	amount, amountUsd, err := s.tokenAnalytics.GetTokenPricing(ctx, req.Data.ExternalAddress, tradeType)
+	amount, amountUsd, err := s.tokenAnalytics.GetTokenPricing(ctx, req.Data.ExternalAddress, tradeType, req.Data.Amount)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pricing for token %v: %w", req.Data.ExternalAddress, err)
 	}

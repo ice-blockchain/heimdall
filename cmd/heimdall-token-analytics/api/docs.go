@@ -563,10 +563,17 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Buy or sell(",
+                        "example": "\"buy\"",
+                        "description": "Buy or sell",
                         "name": "type",
                         "in": "query",
                         "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Amount of tokens to exchange (by default = 1, 1e18)",
+                        "name": "amount",
+                        "in": "query"
                     }
                 ],
                 "responses": {

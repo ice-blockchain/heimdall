@@ -70,24 +70,22 @@ func (b *bondingCurve) Pricing(ctx context.Context, baseToken, targetToken commo
 	if sale {
 		token = baseToken
 	}
-	priceForToken := b.priceCache.Get(token.Hex())
+	key := fmt.Sprintf("%v_%v_%v", token.Hex(), sale, amount.String())
+	priceForToken := b.priceCache.Get(key)
 	if priceForToken != nil && priceForToken.Value() != nil {
 		return priceForToken.Value(), nil
 	}
-	res, err, _ := b.pricingSingleflight.Do(token.Hex(), func() (any, error) {
-		return b.pricingWithRetry(ctx, baseToken, targetToken, amount, sale)
+	res, err, _ := b.pricingSingleflight.Do(key, func() (any, error) {
+		log.Debug(fmt.Sprintf("Getting pricing for tokens %v %v", targetToken.Hex(), baseToken.Hex()))
+		err = b.retry(ctx, func() error {
+			price, err = b.pricing(ctx, baseToken, targetToken, amount, sale)
+			return err
+		})
+		return price, errors.Wrapf(err, "failed to get pricing for token %v", targetToken.Hex())
 	})
-	b.priceCache.Set(token.Hex(), res.(*big.Int), b.cfg.BondingCurve.BondingCurveProgressUpdateFrequency)
-	return res.(*big.Int), err
-}
 
-func (b *bondingCurve) pricingWithRetry(ctx context.Context, baseToken, targetToken common.Address, amount *big.Int, sale bool) (price *big.Int, err error) {
-	log.Debug(fmt.Sprintf("Getting pricing for tokens %v %v", targetToken.Hex(), baseToken.Hex()))
-	err = b.retry(ctx, func() error {
-		price, err = b.pricing(ctx, baseToken, targetToken, amount, sale)
-		return err
-	})
-	return price, errors.Wrapf(err, "failed to get pricing for token %v", targetToken.Hex())
+	b.priceCache.Set(key, res.(*big.Int), b.cfg.BondingCurve.BondingCurveProgressUpdateFrequency)
+	return res.(*big.Int), err
 }
 
 func (b *bondingCurve) pricing(ctx context.Context, baseToken, targetToken common.Address, amount *big.Int, sale bool) (*big.Int, error) {

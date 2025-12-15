@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/ethereum/go-ethereum/common"
@@ -148,35 +149,52 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	return nil
 }
 
-func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType) (amount uint64, amountUsd float64, err error) {
+func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount *big.Int) (amountOut *big.Int, amountUsd float64, err error) {
 	type tokenInfo struct {
 		BaseToken       string `db:"base_token"`
 		ContractAddress string `db:"contract_address"`
-		Type            string `db:"token_type"`
-		Platform        string `db:"platform"`
 	}
 	result, err := storage.Get[tokenInfo](ctx, t.ingestedDataDB, `
 		SELECT 
 		    t.base_token,
-		    t.contract_address,
-		    "type" as token_type,
-		    platform
+		    t.contract_address
 		FROM tokens t WHERE t.external_address = $1`, externalAddress)
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to find token by external address %v: %w", externalAddress, err)
+		if storage.IsErr(err, storage.ErrNotFound) {
+			contractAddress := common.HexToAddress(externalAddress)
+			if contractAddress.String() == "0x0000000000000000000000000000000000000000" {
+				return nil, 0, errors.Errorf("invalid address %v", externalAddress)
+			}
+			result = &tokenInfo{
+				BaseToken:       t.cfg.IONTokenAddress,
+				ContractAddress: contractAddress.String(),
+			}
+			err = nil
+		}
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to find token by external address %v: %w", externalAddress, err)
+		}
 	}
 	baseToken := result.BaseToken
 	if common.HexToAddress(baseToken).String() != common.HexToAddress(t.cfg.IONTokenAddress).String() {
-		return 0, 0, fmt.Errorf("unsupported base token %v (token %v)", baseToken, externalAddress)
+		return nil, 0, fmt.Errorf("unsupported base token %v (token %v)", baseToken, externalAddress)
 	}
 	amountToConvert := new(big.Int).SetUint64(1e18)
+	if amount != nil {
+		amountToConvert = amount
+	}
+	if strings.Contains(strings.ToLower(common.HexToAddress(result.ContractAddress).String()), "dead") {
+		basePrice := t.ionPriceUSD.Load()
+		amountUsd = toUSD(amountToConvert, *basePrice)
+		return amountToConvert, amountUsd, nil
+	}
 	resAmount, err := t.bondingCurve.Pricing(ctx, common.HexToAddress(result.BaseToken), common.HexToAddress(result.ContractAddress), amountToConvert, tradeType == TradeTypeSell)
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to get pricing for token %v (%v): %w", externalAddress, result.ContractAddress, err)
+		return nil, 0, fmt.Errorf("failed to get pricing for token %v (%v): %w", externalAddress, result.ContractAddress, err)
 	}
 	basePrice := t.ionPriceUSD.Load()
 	amountUsd = toUSD(resAmount, *basePrice)
-	return weiToUint64FromBigInt(resAmount), amountUsd, nil
+	return resAmount, amountUsd, nil
 }
 
 func (t *tokenAnalytics) fetchTopPlatformHoldersRankingsBatch(ctx context.Context, rows []*tokenRowWithTopPlatformHolders, limit int64) (map[string][]holderMetadata, map[string]*redis.ZSliceCmd, error) {
