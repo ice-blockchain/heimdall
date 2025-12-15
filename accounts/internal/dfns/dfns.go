@@ -394,9 +394,7 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 	case req.URL.Path == delegatedLoginUrl:
 		extendErrBody, extendErr = c.exchangeRefreshTokenToUsername(req)
 	case req.URL.Path == initUserSignatureUrl:
-		if false { // Manual broadcast from BE disabled for now
-			extendErrBody, extendErr = c.issueUserActionForSignatureIfManualBroadcastNeeded(req)
-		}
+		extendErrBody, extendErr = c.issueUserActionWithChangedPayloadForWalletCreationAndMaybeManualTxBroadcast(req)
 	case broadcastTransactionUrlRegexp.MatchString(req.URL.Path):
 		if false { // Manual broadcast from BE disabled for now.
 			rb := &proxyResponseBody{ResponseWriter: rw, Body: respBody}
@@ -604,10 +602,14 @@ func (c *dfnsClient) issueUserActionForWalletCreation(content *struct {
 	var input struct {
 		Network      string `json:"network"`
 		WalletViewID string `json:"walletViewId"`
+		Name         string `json:"name"`
 	}
 	var err error
 	if err = json.Unmarshal([]byte(content.UserActionPayload), &input); err != nil {
 		return errors.Wrapf(err, "invalid json payload %v", content.UserActionPayload)
+	}
+	if input.WalletViewID == "" && input.Name != "" {
+		return nil
 	}
 	var updatedPayload []byte
 	if updatedPayload, err = json.Marshal(struct {
@@ -624,7 +626,7 @@ func (c *dfnsClient) issueUserActionForWalletCreation(content *struct {
 	return nil
 }
 
-func (c *dfnsClient) issueUserActionForSignatureIfManualBroadcastNeeded(req *http.Request) (*DfnsInternalError, error) {
+func (c *dfnsClient) issueUserActionWithChangedPayloadForWalletCreationAndMaybeManualTxBroadcast(req *http.Request) (*DfnsInternalError, error) {
 	return extendRequestWith[struct {
 		UserActionPayload    string `json:"userActionPayload,omitempty"`
 		UserActionHttpMethod string `json:"userActionHttpMethod"`
@@ -639,35 +641,37 @@ func (c *dfnsClient) issueUserActionForSignatureIfManualBroadcastNeeded(req *htt
 		if walletIDs := broadcastTransactionUrlRegexp.FindStringSubmatch(content.UserActionHttpPath); walletIDs == nil {
 			return c.issueUserActionForWalletCreation(content)
 		} else {
-			if len(walletIDs) < 2 {
-				return errors.Errorf("failed to get extract walletID from url %v %v", content.UserActionHttpPath, walletIDs)
-			}
-			walletID := walletIDs[1]
-			wallet, err := c.GetWallet(req.Context(), walletID)
-			if err != nil {
-				return errors.Wrapf(err, "failed to get wallet requesting to broadcast tx from %v", walletID)
-			}
-			_, walletNetwork, _ := ExtractWallet(*wallet)
-			walletNetwork = strings.ToLower(walletNetwork)
-			if walletNetwork == networkION || walletNetwork == networkIONTestnet || walletNetwork == networkTONTestnet || walletNetwork == networkTON {
-				content.UserActionHttpPath = walletSignatureUrl(walletID)
-				var txInput struct {
-					Transaction string `json:"transaction"`
+			if false { // manual broadcast
+				if len(walletIDs) < 2 {
+					return errors.Errorf("failed to get extract walletID from url %v %v", content.UserActionHttpPath, walletIDs)
 				}
-				if err = json.Unmarshal([]byte(content.UserActionPayload), &txInput); err != nil {
-					return errors.Wrapf(err, "invalid json payload %v", content.UserActionPayload)
+				walletID := walletIDs[1]
+				wallet, err := c.GetWallet(req.Context(), walletID)
+				if err != nil {
+					return errors.Wrapf(err, "failed to get wallet requesting to broadcast tx from %v", walletID)
 				}
-				var updatedPayload []byte
-				if updatedPayload, err = json.Marshal(struct {
-					Kind    string `json:"kind"`
-					Message string `json:"message"`
-				}{
-					Kind:    "Message",
-					Message: txInput.Transaction,
-				}); err != nil {
-					return errors.Wrapf(err, "failed to serialize updated payload %v", content.UserActionPayload)
+				_, walletNetwork, _ := ExtractWallet(*wallet)
+				walletNetwork = strings.ToLower(walletNetwork)
+				if walletNetwork == networkION || walletNetwork == networkIONTestnet || walletNetwork == networkTONTestnet || walletNetwork == networkTON {
+					content.UserActionHttpPath = walletSignatureUrl(walletID)
+					var txInput struct {
+						Transaction string `json:"transaction"`
+					}
+					if err = json.Unmarshal([]byte(content.UserActionPayload), &txInput); err != nil {
+						return errors.Wrapf(err, "invalid json payload %v", content.UserActionPayload)
+					}
+					var updatedPayload []byte
+					if updatedPayload, err = json.Marshal(struct {
+						Kind    string `json:"kind"`
+						Message string `json:"message"`
+					}{
+						Kind:    "Message",
+						Message: txInput.Transaction,
+					}); err != nil {
+						return errors.Wrapf(err, "failed to serialize updated payload %v", content.UserActionPayload)
+					}
+					content.UserActionPayload = string(updatedPayload)
 				}
-				content.UserActionPayload = string(updatedPayload)
 			}
 			return nil
 		}
