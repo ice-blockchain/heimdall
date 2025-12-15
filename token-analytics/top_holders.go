@@ -5,10 +5,14 @@ package tokenanalytics
 import (
 	"context"
 	"fmt"
+	"math/big"
+	"slices"
 
 	"github.com/cockroachdb/errors"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 )
@@ -45,6 +49,8 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 			creator.external_address as creator_external_address,
 			t.price_usd as price_usd,
 			t.total_supply as total_supply,
+			t.bonding_curve_migrated as bonding_curve_migrated,
+			t.pair_id as pair_id,
 			holder.master_pubkey as holder_master_pubkey,
 			holder.username as holder_username,
 			holder.display_name as holder_display,
@@ -65,6 +71,64 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 		return []*TopHolderPosition{}, nil
 	}
 
+	tokenMigrated := rows[0].BondingCurveMigrated
+	pairId := rows[0].PairId
+	creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(strVal(rows[0].CreatorExternalAddress), strVal(rows[0].CreatorPlatform), strVal(rows[0].CreatorBnbBscAddress))
+	if err != nil {
+		return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", strVal(rows[0].CreatorExternalAddress), strVal(rows[0].CreatorPlatform), err)
+	}
+	creator := &User{
+		Username:  rows[0].CreatorUsername,
+		Display:   rows[0].CreatorDisplay,
+		Verified:  rows[0].CreatorVerified,
+		Avatar:    rows[0].CreatorAvatar,
+		Addresses: creatorAddresses,
+	}
+	userIsFromOnlinePlus := false
+	if token := ctx.Value("token"); token != nil {
+		if serverToken, ok := token.(server.Token); ok {
+			userIsFromOnlinePlus = serverToken.Platform() == server.TokenTypeIonConnect
+		}
+	}
+	if !tokenMigrated && userIsFromOnlinePlus {
+		progress, err := t.bondingCurve.Progress(ctx, common.HexToHash(pairId))
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get curve progress for token %v (pair %v)", externalAddress, pairId)
+		}
+		curveScore := weiToFloat64FromBigInt(new(big.Int).Sub(progress.BondingTokensGoal, progress.SoldTokens))
+		for idx, z := range result {
+			if z.Score < curveScore {
+				basePriceInUSD := t.ionPriceUSD.Load()
+				result = slices.Insert(result, max(idx-1, 0), redis.Z{Member: t.cfg.BondingCurve.SmartContractAddress, Score: curveScore})
+				result = result[:len(result)-1]
+				curveUSD, _ := new(big.Float).Mul(new(big.Float).SetInt(new(big.Int).Sub(progress.BondingTokensGoal, progress.SoldTokens)), new(big.Float).SetFloat64(*basePriceInUSD)).Float64()
+				curvePlatform := PlatformGroupIonConnect
+				curveAvatar := bondingCurveTopHolderAvatar
+				curveDisplayName := bondingCurveTopHolderDisplayName
+				curveVerified := true
+				curveUsername := ""
+				rows = slices.Insert(rows, max(idx-1, 0), &holderWithTokenData{
+					ContentAuthorID:       creator.MasterPubkey,
+					CreatorUsername:       creator.Username,
+					CreatorDisplay:        creator.Display,
+					CreatorAvatar:         creator.Avatar,
+					CreatorPlatform:       rows[0].CreatorPlatform,
+					TotalSupply:           rows[0].TotalSupply,
+					HolderMasterPubkey:    &t.cfg.BondingCurve.SmartContractAddress,
+					HolderUsername:        &curveUsername,
+					HolderDisplay:         &curveDisplayName,
+					HolderAvatar:          &curveAvatar,
+					HolderExternalAddress: &t.cfg.BondingCurve.SmartContractAddress,
+					HolderPlatform:        &curvePlatform,
+					PriceUSD:              curveUSD,
+					CreatorVerified:       creator.Verified,
+					HolderVerified:        &curveVerified,
+				})
+				rows = rows[:len(rows)-1]
+				break
+			}
+		}
+	}
 	positions, err := buildTopHolderPositions(externalAddress, result, rows)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build top holder positions")

@@ -169,12 +169,14 @@ var (
 
 type (
 	bondingCurve struct {
-		cfg                 config
-		clientLBIndex       uint64
-		rpcClients          []*ethclient.Client
-		contractClients     []*BondingCurveTokenCaller
-		pricingSingleflight *singleflight.Group
-		priceCache          *ttlcache.Cache[string, *big.Int]
+		cfg                  config
+		clientLBIndex        uint64
+		rpcClients           []*ethclient.Client
+		contractClients      []*BondingCurveTokenCaller
+		pricingSingleflight  *singleflight.Group
+		priceCache           *ttlcache.Cache[string, *big.Int]
+		progressSingleflight *singleflight.Group
+		progressCache        *ttlcache.Cache[string, *BondingCurveProgress]
 	}
 	config struct {
 		BondingCurve struct {
