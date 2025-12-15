@@ -278,7 +278,7 @@ type (
 		BondingCurveGoalAmount       string     `db:"bonding_curve_goal_amount"`
 		BondingCurveCurrentAmountUSD float64    `db:"bonding_curve_current_amount_usd"`
 		BondingCurveGoalAmountUSD    float64    `db:"bonding_curve_goal_amount_usd"`
-		CreatorVerified              bool       `db:"creator_verified"`
+		CreatorVerified              *bool      `db:"creator_verified"`
 	}
 
 	tokenVolume24h struct {
@@ -291,7 +291,7 @@ type (
 		Username         *string `db:"username"`
 		DisplayName      *string `db:"display_name"`
 		Avatar           *string `db:"avatar"`
-		Verified         bool    `db:"verified"`
+		Verified         *bool   `db:"verified"`
 		ExternalAddress  *string `db:"external_address"`
 		Platform         *string `db:"platform"`
 		Amount           string  `db:"amount"`
@@ -325,8 +325,8 @@ type (
 		BalanceUSD               float64    `db:"balance_usd"`
 		Balance                  string     `db:"balance"`
 		Direction                bool       `db:"direction"`
-		CreatorVerified          bool       `db:"creator_verified"`
-		HolderVerified           bool       `db:"holder_verified"`
+		CreatorVerified          *bool      `db:"creator_verified"`
+		HolderVerified           *bool      `db:"holder_verified"`
 	}
 	trade struct {
 		Timestamp       time.Time       `db:"timestamp"`
@@ -358,8 +358,8 @@ type (
 		HolderExternalAddress    *string `db:"holder_external_address"`
 		HolderPlatform           *string `db:"holder_platform"`
 		PriceUSD                 float64 `db:"price_usd"`
-		CreatorVerified          bool    `db:"creator_verified"`
-		HolderVerified           bool    `db:"holder_verified"`
+		CreatorVerified          *bool   `db:"creator_verified"`
+		HolderVerified           *bool   `db:"holder_verified"`
 	}
 	recentCandlestick struct {
 		o               atomic.Pointer[OHLCV]
@@ -371,7 +371,7 @@ type (
 		HolderMasterPubkey    *string `json:"holder_master_pubkey"`
 		HolderUsername        *string `json:"holder_username"`
 		HolderDisplay         *string `json:"holder_display"`
-		HolderVerified        bool    `json:"holder_verified"`
+		HolderVerified        *bool   `json:"holder_verified"`
 		HolderAvatar          *string `json:"holder_avatar"`
 		HolderExternalAddress *string `json:"holder_external_address"`
 		HolderPlatform        *string `json:"holder_platform"`

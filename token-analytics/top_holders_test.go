@@ -28,7 +28,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				CreatorBlockchainAddress: strPtr("creator_pubkey"),
 				CreatorUsername:          strPtr("creator_user"),
 				CreatorDisplay:           strPtr("Creator Name"),
-				CreatorVerified:          true,
+				CreatorVerified:          boolPtr(true),
 				CreatorAvatar:            strPtr("https://avatar.com/creator.jpg"),
 				CreatorExternalAddress:   strPtr("0:creator_ext:"),
 				CreatorPlatform:          strPtr("ionconnect"),
@@ -37,7 +37,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderMasterPubkey:       strPtr("pubkey1"),
 				HolderUsername:           strPtr("holder1"),
 				HolderDisplay:            strPtr("Holder One"),
-				HolderVerified:           true,
+				HolderVerified:           boolPtr(true),
 				HolderAvatar:             strPtr("https://avatar.com/holder1.jpg"),
 				HolderExternalAddress:    strPtr("0:pubkey1:"),
 				HolderPlatform:           strPtr("ionconnect"),
@@ -46,7 +46,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				CreatorBlockchainAddress: strPtr("creator_pubkey"),
 				CreatorUsername:          strPtr("creator_user"),
 				CreatorDisplay:           strPtr("Creator Name"),
-				CreatorVerified:          true,
+				CreatorVerified:          boolPtr(true),
 				CreatorAvatar:            strPtr("https://avatar.com/creator.jpg"),
 				CreatorExternalAddress:   strPtr("0:creator_ext:"),
 				CreatorPlatform:          strPtr("ionconnect"),
@@ -55,7 +55,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderMasterPubkey:       strPtr("pubkey2"),
 				HolderUsername:           strPtr("holder2"),
 				HolderDisplay:            strPtr("Holder Two"),
-				HolderVerified:           false,
+				HolderVerified:           boolPtr(false),
 				HolderAvatar:             strPtr("https://avatar.com/holder2.jpg"),
 				HolderExternalAddress:    strPtr("0:pubkey2:"),
 				HolderPlatform:           strPtr("ionconnect"),
@@ -64,7 +64,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				CreatorBlockchainAddress: strPtr("creator_pubkey"),
 				CreatorUsername:          strPtr("creator_user"),
 				CreatorDisplay:           strPtr("Creator Name"),
-				CreatorVerified:          true,
+				CreatorVerified:          boolPtr(true),
 				CreatorAvatar:            strPtr("https://avatar.com/creator.jpg"),
 				CreatorExternalAddress:   strPtr("0:creator_ext:"),
 				CreatorPlatform:          strPtr("ionconnect"),
@@ -73,7 +73,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderMasterPubkey:       strPtr("pubkey3"),
 				HolderUsername:           strPtr("holder3"),
 				HolderDisplay:            strPtr("Holder Three"),
-				HolderVerified:           false,
+				HolderVerified:           boolPtr(false),
 				HolderAvatar:             strPtr(""),
 				HolderExternalAddress:    strPtr("0:pubkey3:"),
 				HolderPlatform:           strPtr("ionconnect"),
@@ -90,19 +90,19 @@ func Test_buildTopHolderPositions(t *testing.T) {
 		require.Equal(t, 1.50075, result[0].Position.AmountUSD)            // 1.0005 tokens * 1.5 USD
 		require.Equal(t, 1.0005, result[0].Position.SupplyShare)           // 1.0005 / 100 * 100
 		require.Equal(t, "0:pubkey1:", result[0].Position.Holder.Addresses.IonConnect)
-		require.True(t, result[0].Position.Holder.Verified)
+		require.True(t, *result[0].Position.Holder.Verified)
 
 		require.Equal(t, "creator_user", strVal(result[0].Creator.Username))
 		require.Equal(t, "Creator Name", strVal(result[0].Creator.Display))
 		require.Equal(t, "0:creator_ext:", result[0].Creator.Addresses.IonConnect)
-		require.True(t, result[0].Creator.Verified)
+		require.True(t, *result[0].Creator.Verified)
 
 		require.Equal(t, uint64(2), result[1].Position.Rank)
 		require.Equal(t, "holder2", strVal(result[1].Position.Holder.Username))
 		require.Equal(t, "500250000000000000", result[1].Position.Amount) // 0.50025 tokens * 1e18
 		require.Equal(t, 0.750375, result[1].Position.AmountUSD)          // 0.50025 tokens * 1.5 USD
 		require.Equal(t, 0.50025, result[1].Position.SupplyShare)         // 0.50025 / 100 * 100
-		require.False(t, result[1].Position.Holder.Verified)
+		require.False(t, *result[1].Position.Holder.Verified)
 
 		require.Equal(t, uint64(3), result[2].Position.Rank)
 		require.Equal(t, "holder3", strVal(result[2].Position.Holder.Username))
@@ -133,7 +133,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				CreatorBlockchainAddress: strPtr("creator_pubkey"),
 				CreatorUsername:          strPtr("creator"),
 				CreatorDisplay:           strPtr(""),
-				CreatorVerified:          false,
+				CreatorVerified:          boolPtr(false),
 				CreatorAvatar:            strPtr(""),
 				CreatorExternalAddress:   strPtr("0:test_creator:"),
 				CreatorPlatform:          strPtr("ionconnect"),
@@ -142,7 +142,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderMasterPubkey:       strPtr("pubkey1"),
 				HolderUsername:           strPtr("user1"),
 				HolderDisplay:            strPtr(""),
-				HolderVerified:           false,
+				HolderVerified:           boolPtr(false),
 				HolderAvatar:             strPtr(""),
 				HolderExternalAddress:    strPtr("0:test_holder1:"),
 				HolderPlatform:           strPtr("ionconnect"),
@@ -151,7 +151,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				CreatorBlockchainAddress: strPtr("creator_pubkey"),
 				CreatorUsername:          strPtr("creator"),
 				CreatorDisplay:           strPtr(""),
-				CreatorVerified:          false,
+				CreatorVerified:          boolPtr(false),
 				CreatorAvatar:            strPtr(""),
 				CreatorExternalAddress:   strPtr("0:test_creator:"),
 				CreatorPlatform:          strPtr("ionconnect"),
@@ -160,7 +160,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderMasterPubkey:       strPtr("pubkey3"),
 				HolderUsername:           strPtr("user3"),
 				HolderDisplay:            strPtr(""),
-				HolderVerified:           false,
+				HolderVerified:           boolPtr(false),
 				HolderAvatar:             strPtr(""),
 				HolderExternalAddress:    strPtr("0:test_holder3:"),
 				HolderPlatform:           strPtr("ionconnect"),
@@ -190,7 +190,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				CreatorBlockchainAddress: strPtr("creator"),
 				CreatorUsername:          strPtr("creator"),
 				CreatorDisplay:           strPtr(""),
-				CreatorVerified:          false,
+				CreatorVerified:          boolPtr(false),
 				CreatorAvatar:            strPtr(""),
 				CreatorExternalAddress:   strPtr("0:test_creator:"),
 				CreatorPlatform:          strPtr("ionconnect"),
@@ -199,7 +199,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderMasterPubkey:       strPtr("pubkey1"),
 				HolderUsername:           strPtr("user1"),
 				HolderDisplay:            strPtr(""),
-				HolderVerified:           false,
+				HolderVerified:           boolPtr(false),
 				HolderAvatar:             strPtr(""),
 				HolderExternalAddress:    strPtr("0:test_holder1:"),
 				HolderPlatform:           strPtr("ionconnect"),
@@ -208,7 +208,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				CreatorBlockchainAddress: strPtr("creator"),
 				CreatorUsername:          strPtr("creator"),
 				CreatorDisplay:           strPtr(""),
-				CreatorVerified:          false,
+				CreatorVerified:          boolPtr(false),
 				CreatorAvatar:            strPtr(""),
 				CreatorExternalAddress:   strPtr("0:test_creator:"),
 				CreatorPlatform:          strPtr("ionconnect"),
@@ -217,7 +217,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderMasterPubkey:       strPtr("pubkey2"),
 				HolderUsername:           strPtr("user2"),
 				HolderDisplay:            strPtr(""),
-				HolderVerified:           false,
+				HolderVerified:           boolPtr(false),
 				HolderAvatar:             strPtr(""),
 				HolderExternalAddress:    strPtr("0:test_holder2:"),
 				HolderPlatform:           strPtr("ionconnect"),
@@ -226,7 +226,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				CreatorBlockchainAddress: strPtr("creator"),
 				CreatorUsername:          strPtr("creator"),
 				CreatorDisplay:           strPtr(""),
-				CreatorVerified:          false,
+				CreatorVerified:          boolPtr(false),
 				CreatorAvatar:            strPtr(""),
 				CreatorExternalAddress:   strPtr("0:test_creator:"),
 				CreatorPlatform:          strPtr("ionconnect"),
@@ -235,7 +235,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderMasterPubkey:       strPtr("pubkey3"),
 				HolderUsername:           strPtr("user3"),
 				HolderDisplay:            strPtr(""),
-				HolderVerified:           false,
+				HolderVerified:           boolPtr(false),
 				HolderAvatar:             strPtr(""),
 				HolderExternalAddress:    strPtr("0:test_holder3:"),
 				HolderPlatform:           strPtr("ionconnect"),
