@@ -33,7 +33,7 @@ type (
 		Avatar           *string   `json:"avatar,omitempty"`
 		Addresses        Addresses `json:"addresses,omitempty"`
 		IONConnectRelays []string  `json:"-"`
-		Verified         bool      `json:"verified"`
+		Verified         *bool     `json:"verified,omitempty"`
 	}
 
 	MarketData struct {

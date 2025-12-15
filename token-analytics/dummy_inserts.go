@@ -94,7 +94,7 @@ func (gen *dummyDataGenerator) Run(ctx context.Context) {
 		TotalSupply:              "1000000000000000000000000",
 		BaseToken:                "2c73996BaBF1a06c2C057177353293f7cA0907c8",
 		PairId:                   "0xc481c7a805798bc81ca4cbf0803d38bd785357f2ab3b22b70e42dedc13046e15",
-		CreatorVerified:          false,
+		CreatorVerified:          boolPtr(false),
 	}, PlatformGroupIonConnect)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrReadOnly) {
@@ -162,7 +162,7 @@ func (gen *dummyDataGenerator) createIonConnectTokenWithBuysOrSellsProcessor(ctx
 		TotalSupply:              "1000000000000000000" + strings.Repeat("0", rand.Intn(8)+1),
 		BaseToken:                strings.TrimPrefix(gen.IONTokenAddress, "0x"),
 		PairId:                   "0x" + mustRandomHex(32),
-		CreatorVerified:          rand.Intn(2) == 0,
+		CreatorVerified:          boolPtr(rand.Intn(2) == 0),
 	}
 	if err := gen.generateToken(ctx, stream, tok, PlatformGroupIonConnect); err != nil {
 		log.Error(errors.Wrapf(err, "failed to insert dummy tx data"))
@@ -225,7 +225,7 @@ func (gen *dummyDataGenerator) createXComTokenWithBuysOrSellsProcessor(ctx conte
 		TotalSupply:              "1000000000000000000" + strings.Repeat("0", rand.Intn(8)+1),
 		BaseToken:                strings.TrimPrefix(gen.IONTokenAddress, "0x"),
 		PairId:                   "0x" + mustRandomHex(32),
-		CreatorVerified:          rand.Intn(2) == 0,
+		CreatorVerified:          boolPtr(rand.Intn(2) == 0),
 	}
 
 	if err := gen.generateToken(ctx, stream, tok, PlatformGroupXCom); err != nil {
@@ -936,4 +936,8 @@ func (gen *dummyDataGenerator) createUserForPlatform(ctx context.Context, master
 	gen.userBlockChainToMaster[blockchainAddress] = masterPubkey
 
 	return blockchainAddress, masterPubkey, nil
+}
+
+func boolPtr(b bool) *bool {
+	return &b
 }
