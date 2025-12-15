@@ -36,7 +36,11 @@ func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
 			display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name),
 			avatar = COALESCE(NULLIF(EXCLUDED.avatar, ''), users.avatar),
 			verified = EXCLUDED.verified,
-			lookup = COALESCE(NULLIF(EXCLUDED.lookup, ''), users.lookup),
+			lookup = CASE
+				WHEN EXCLUDED.username != '' OR EXCLUDED.display_name != '' THEN
+					LOWER(TRIM(COALESCE(NULLIF(EXCLUDED.username, ''), users.username) || ' ' || COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name)))
+				ELSE users.lookup
+			END,
 			platform_group = EXCLUDED.platform_group,
 			updated_at = NOW()
 	`
@@ -64,8 +68,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	tokenExternalAddress, userExternalAddress, userUsername, userDisplayName, userAvatar string, userVerified bool,
 	userBNBBSCWallet, tokenTitle, tokenDescription, tokenImageURL string) error {
 
-	hasUserData := userExternalAddress != "" || userBNBBSCWallet != "" || userUsername != "" ||
-		userDisplayName != "" || userAvatar != ""
+	hasUserData := userBNBBSCWallet != "" || userUsername != "" || userDisplayName != "" || userAvatar != ""
 	hasTokenData := tokenTitle != "" || tokenDescription != "" || tokenImageURL != ""
 	if !hasUserData && !hasTokenData {
 		return nil
