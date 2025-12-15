@@ -65,36 +65,36 @@ func New(ctx context.Context, applicationYamlKey string) BondingCurve {
 	return b
 }
 
-func (b *bondingCurve) Pricing(ctx context.Context, baseToken, targetToken common.Address, amount *big.Int, sale bool) (price *big.Int, err error) {
+func (b *bondingCurve) Pricing(ctx context.Context, baseToken common.Address, targetToken []byte, amount *big.Int, sale bool) (price *big.Int, err error) {
 	token := targetToken
 	if sale {
-		token = baseToken
+		token = baseToken.Bytes()
 	}
-	key := fmt.Sprintf("%v_%v_%v", token.Hex(), sale, amount.String())
+	key := fmt.Sprintf("%X_%v_%v", token, sale, amount.String())
 	priceForToken := b.priceCache.Get(key)
 	if priceForToken != nil && priceForToken.Value() != nil {
 		return priceForToken.Value(), nil
 	}
 	res, err, _ := b.pricingSingleflight.Do(key, func() (any, error) {
-		log.Debug(fmt.Sprintf("Getting pricing for tokens %v %v", targetToken.Hex(), baseToken.Hex()))
+		log.Debug(fmt.Sprintf("Getting pricing for tokens %X %v", targetToken, baseToken.Hex()))
 		err = b.retry(ctx, func() error {
 			price, err = b.pricing(ctx, baseToken, targetToken, amount, sale)
 			return err
 		})
-		return price, errors.Wrapf(err, "failed to get pricing for token %v", targetToken.Hex())
+		return price, errors.Wrapf(err, "failed to get pricing for token %X", targetToken)
 	})
 
 	b.priceCache.Set(key, res.(*big.Int), b.cfg.BondingCurve.BondingCurveProgressUpdateFrequency)
 	return res.(*big.Int), err
 }
 
-func (b *bondingCurve) pricing(ctx context.Context, baseToken, targetToken common.Address, amount *big.Int, sale bool) (*big.Int, error) {
+func (b *bondingCurve) pricing(ctx context.Context, baseToken common.Address, targetToken []byte, amount *big.Int, sale bool) (*big.Int, error) {
 	client := b.contractClients[atomic.AddUint64(&b.clientLBIndex, 1)%uint64(len(b.contractClients))]
 	opts := &bind.CallOpts{Pending: true, Context: ctx}
 	if sale {
-		return client.QuoteSellOut(opts, targetToken.Bytes(), baseToken.Bytes(), amount)
+		return client.QuoteSellOut(opts, targetToken, baseToken.Bytes(), amount)
 	}
-	return client.QuoteBuyOut(opts, baseToken.Bytes(), targetToken.Bytes(), amount)
+	return client.QuoteBuyOut(opts, baseToken.Bytes(), targetToken, amount)
 }
 
 func (b *bondingCurve) Progress(ctx context.Context, pairId common.Hash) (p *BondingCurveProgress, err error) {
