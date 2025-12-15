@@ -657,7 +657,11 @@ BEGIN
         v_token_address,
         v_external_address,
         v_platform,
-        v_token_symbol,
+        CASE 
+            WHEN v_platform = 'ionconnect' AND v_token_type IN ('post', 'video', 'article') 
+            THEN v_external_address
+            ELSE v_token_symbol
+        END,
         v_total_supply,
         NULL, -- Will be filled on first swap
         v_token_type,
@@ -980,6 +984,7 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
         v_display_name TEXT;
         v_avatar TEXT;
         v_token_type TEXT;
+        v_platform platform_type;
     BEGIN
     IF p_direction = false THEN
         v_token_amount := p_output_amount;
@@ -997,7 +1002,7 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
     FROM users
     WHERE LOWER(blockchain_address) = LOWER(p_user_blockchain_address);
 
-    SELECT type INTO v_token_type FROM tokens WHERE contract_address = p_token_address;
+    SELECT type, platform INTO v_token_type, v_platform FROM tokens WHERE contract_address = p_token_address;
 
     UPDATE tokens t
     SET price_usd = p_price_usd,
@@ -1010,19 +1015,20 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
         END,
         ticker = CASE
             WHEN t.creator_blockchain_address IS NULL AND p_direction = false 
-                 AND v_token_type = 'profile' AND v_username IS NOT NULL
+                 AND v_platform = 'ionconnect' AND v_token_type = 'profile' 
+                 AND v_username IS NOT NULL
             THEN v_username
             ELSE t.ticker
         END,
         title = CASE
             WHEN t.creator_blockchain_address IS NULL AND p_direction = false 
-                 AND v_token_type = 'profile' AND v_display_name IS NOT NULL
+                 AND v_platform = 'ionconnect' AND v_display_name IS NOT NULL
             THEN v_display_name
             ELSE t.title
         END,
         image_url = CASE
             WHEN t.creator_blockchain_address IS NULL AND p_direction = false 
-                 AND v_token_type = 'profile' AND v_avatar IS NOT NULL
+                 AND v_avatar IS NOT NULL
             THEN v_avatar
             ELSE t.image_url
         END,
