@@ -142,7 +142,6 @@ func tokenSwapped(signature, data, contractAddress, swapperTopic, pairIdTopic, t
 	if err := decode(ABI, &tokenSwappedEvent, "Swapped", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack Swapped event")
 	}
-	tokenSwappedEvent.Address = common.HexToAddress(contractAddress)
 	tokenSwappedEvent.Swapper = common.HexToAddress(swapperTopic)
 	tokenSwappedEvent.Pair = common.HexToHash(pairIdTopic)
 	if len(txInput) < 10 {
@@ -163,8 +162,8 @@ func tokenSwapped(signature, data, contractAddress, swapperTopic, pairIdTopic, t
 		return nil, errors.Wrapf(err, "failed to parse tx input")
 	}
 	tokenSwappedEvent.Params = tokenSwapParams
-	log.Debug(fmt.Sprintf("Token swapped: token=%v, swapper=%v, pair=%v, direction=%v",
-		tokenSwappedEvent.Address.Hex(), tokenSwappedEvent.Swapper.Hex(), tokenSwappedEvent.Pair.Hex(),
+	log.Debug(fmt.Sprintf("Token swapped: swapper=%v, pair=%v, direction=%v",
+		tokenSwappedEvent.Swapper.Hex(), tokenSwappedEvent.Pair.Hex(),
 		tokenSwappedEvent.Direction))
 
 	return &tokenSwappedEvent, nil
