@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS users
 
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users (created_at);
 CREATE INDEX IF NOT EXISTS idx_users_external_address ON users (external_address);
+CREATE INDEX IF NOT EXISTS idx_users_blockchain_address_lower ON users (LOWER(blockchain_address));
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX IF NOT EXISTS idx_users_lookup_gist ON users USING gist (lookup gist_trgm_ops);
 
@@ -218,6 +219,7 @@ CREATE INDEX IF NOT EXISTS idx_tokens_lookup_gist ON tokens USING gist (lookup g
 CREATE INDEX IF NOT EXISTS idx_tokens_platform ON tokens (platform);
 CREATE INDEX IF NOT EXISTS idx_tokens_type ON tokens ("type");
 CREATE INDEX IF NOT EXISTS idx_tokens_contract_address_lower ON tokens (LOWER(contract_address));
+CREATE INDEX IF NOT EXISTS idx_tokens_external_with_base ON tokens (external_address, base_token);
 
 CREATE OR REPLACE FUNCTION update_tokens_lookup_on_user_change()
 RETURNS TRIGGER AS $$
