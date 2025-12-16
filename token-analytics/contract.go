@@ -198,6 +198,7 @@ type (
 		cfg             *config
 		wg              *sync.WaitGroup
 		bondingCurve    bondingcurve.BondingCurve
+		generator       *dummyDataGenerator
 		ionPriceUSD     *atomic.Pointer[float64]
 		// TODO: xmap for latest creator token prices to calc content token price
 		bondingCurveContractAddress string

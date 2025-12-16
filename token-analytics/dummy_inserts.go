@@ -40,10 +40,10 @@ type (
 		MaxTokenGens                uint
 		MaxUsers                    uint
 		TokenGeneratorTTL           time.Duration
-
-		createdUsers           []string
-		userBlockChainToMaster map[string]string
-		usersLock              sync.RWMutex
+		SavePoint                   *SavePoint
+		createdUsers                []string
+		userBlockChainToMaster      map[string]string
+		usersLock                   sync.RWMutex
 
 		// Per-token user pools for repeated swaps
 		tokenUserPools     map[string][]tokenUser

@@ -2,11 +2,7 @@ module github.com/ice-blockchain/heimdall
 
 go 1.25.5
 
-replace (
-	github.com/nbd-wtf/go-nostr => github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5
-	github.com/quic-go/qpack => github.com/quic-go/qpack v0.5.1
-	github.com/quic-go/quic-go => github.com/quic-go/quic-go v0.56.0
-)
+replace github.com/nbd-wtf/go-nostr => github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5
 
 require (
 	dario.cat/mergo v1.0.2
@@ -34,7 +30,7 @@ require (
 	github.com/ice-blockchain/go/src v0.0.0-20251117100638-ebce142e0ce4
 	github.com/ice-blockchain/subzero v1.485.0
 	github.com/ice-blockchain/wintr v1.170.0
-	github.com/imroc/req/v3 v3.56.0
+	github.com/imroc/req/v3 v3.57.0
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/jellydator/ttlcache/v3 v3.4.0
 	github.com/lestrrat-go/jwx/v2 v2.1.6
