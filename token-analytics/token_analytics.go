@@ -122,14 +122,19 @@ func New(ctx context.Context) TokenAnalytics {
 	go t.startIONPriceSyncer(ctx)
 
 	if true {
-		generator := &dummyDataGenerator{
+		startLastBlock, err := t.getSavePoint(ctx, 0)
+		if err != nil {
+			log.Panic(errors.Wrapf(err, "failed to get save point for dummy generator"))
+		}
+		t.generator = &dummyDataGenerator{
 			Target:                      db,
 			IONTokenAddress:             cfg.IONTokenAddress,
-			InsertBlockIndex:            dummyDataLastBlock,
+			InsertBlockIndex:            startLastBlock.BlockNumber,
 			Stream:                      dummyDataStream,
 			BondingCurveContractAddress: t.bondingCurveContractAddress,
+			SavePoint:                   &SavePoint{BlockNumber: startLastBlock.BlockNumber, TransactionIndex: 0},
 		}
-		generator.Run(ctx)
+		t.generator.Run(ctx)
 	}
 	return t
 }
@@ -299,9 +304,17 @@ func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint)
 
 			continue
 		}
-
+		maxDummy := uint64(0)
+		dummyTxIndex := uint64(0)
+		hasNonDummyData := false
 		for _, tx := range eventsToProcess {
 			for _, logEvent := range tx.Logs {
+				if addr, ok := logEvent.getString("address"); ok && strings.HasPrefix(addr, "0xdeadbeef") {
+					maxDummy = max(maxDummy, tx.BlockNumber)
+					dummyTxIndex = tx.TransactionIndex
+				} else {
+					hasNonDummyData = true
+				}
 				if err = t.processLog(iterationCtx, tx, &logEvent); err != nil {
 					log.Error(fmt.Errorf("[worker %d] failed to process log %+v in tx %v: %w", workerIdx, logEvent, tx.TransactionHash, err))
 					errorsMeter.Mark(1)
@@ -310,8 +323,7 @@ func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint)
 				}
 				eventsProcessed.Mark(1)
 			}
-
-			if tx.BlockNumber > startPoint.BlockNumber {
+			if tx.BlockNumber > startPoint.BlockNumber && dummyTxIndex == 0 {
 				startPoint.BlockNumber = tx.BlockNumber
 				startPoint.TransactionIndex = tx.TransactionIndex
 				blockGauge.Update(int64(tx.BlockNumber))
@@ -320,13 +332,17 @@ func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint)
 			}
 			transactionGauge.Update(int64(tx.TransactionIndex))
 		}
+		if maxDummy > 0 && t.generator != nil {
+			t.generator.SavePoint = &SavePoint{BlockNumber: maxDummy, TransactionIndex: dummyTxIndex}
+		}
+		if hasNonDummyData {
+			if err = t.setSavePoint(iterationCtx, workerIdx, startPoint); err != nil {
+				log.Error(fmt.Errorf("[worker %d] failed to save point: %w", workerIdx, err))
+				resetVars(false)
+				iterationCancel()
 
-		if err = t.setSavePoint(iterationCtx, workerIdx, startPoint); err != nil {
-			log.Error(fmt.Errorf("[worker %d] failed to save point: %w", workerIdx, err))
-			resetVars(false)
-			iterationCancel()
-
-			continue
+				continue
+			}
 		}
 
 		iterationCancel()
@@ -430,6 +446,7 @@ func (t *tokenAnalytics) Printf(format string, args ...interface{}) {
 
 func (t *tokenAnalytics) fetchUnprocessedEvents(ctx context.Context, workerIdx uint, start *SavePoint) ([]*txEvent, error) {
 	sql := fmt.Sprintf(`
+		SELECT * FROM (
 		SELECT 
 			t.transaction_hash,
 			t.from_address,
@@ -455,16 +472,62 @@ func (t *tokenAnalytics) fetchUnprocessedEvents(ctx context.Context, workerIdx u
 					'log_index', l.log_index,
 					'removed', l.removed
 				) ORDER BY l.log_index
-			) as logs
+			) as logs, string_agg(l.address, ',') as addresses
 			FROM tx_logs l
-			WHERE l.transaction_hash = t.transaction_hash
+			WHERE l.transaction_hash = t.transaction_hash 
 		) logs_agg ON true
 		WHERE MOD(t.i, %[1]v) = %[2]v 
-			AND (t.block_number, t.transaction_index) > ($1, $2)
+			AND (
+					(t.block_number, t.transaction_index) > ($1, $2)
+				)                                        
 		ORDER BY t.block_number, t.transaction_index
-		LIMIT %[3]v;`, t.cfg.Workers, workerIdx, t.cfg.BatchSize)
-
-	events, err := storage.Select[txEvent](ctx, t.ingestedDataDB, sql, start.BlockNumber, start.TransactionIndex)
+		LIMIT %[3]v) normal
+		-- TODO: remove with dummy generator
+		UNION ALL (
+		    SELECT 
+			t.transaction_hash,
+			t.from_address,
+			t.to_address,
+			t.block_timestamp,
+			t.chain_id,
+			t.value,
+			t.input,
+			t.block_number,
+			t.transaction_index,
+			COALESCE(logs_agg.logs, '[]'::jsonb) as logs
+		FROM transactions t
+		LEFT JOIN LATERAL (
+			SELECT jsonb_agg(
+				jsonb_build_object(
+					'ingested_at', l.ingested_at,
+					'processed_at', l.processed_at,
+					'address', l.address,
+					'data', l.data,
+					'topics', l.topics,
+					'topic0', l.topic0,
+					'stream_id', l.stream_id,
+					'log_index', l.log_index,
+					'removed', l.removed
+				) ORDER BY l.log_index
+			) as logs, string_agg(l.address, ',') as addresses
+			FROM tx_logs l
+			WHERE l.transaction_hash = t.transaction_hash 
+		) logs_agg ON true
+		WHERE MOD(t.i, %[1]v) = %[2]v 
+			AND (
+					(t.block_number, t.transaction_index) > ($3,$4) AND NOT (logs_agg.addresses LIKE '%%0xdeadbeef%%')
+				)                                        
+		ORDER BY t.block_number, t.transaction_index
+		LIMIT %[3]v)
+		
+		;`, t.cfg.Workers, workerIdx, t.cfg.BatchSize)
+	args := []any{start.BlockNumber, start.TransactionIndex}
+	if t.generator != nil {
+		args = append(args, t.generator.SavePoint.BlockNumber, t.generator.SavePoint.TransactionIndex)
+	} else {
+		args = append(args, start.BlockNumber, start.TransactionIndex)
+	}
+	events, err := storage.Select[txEvent](ctx, t.ingestedDataDB, sql, args...)
 
 	return events, errors.Wrapf(err, "failed to fetch events for worker:%v", workerIdx)
 }
