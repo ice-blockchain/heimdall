@@ -233,6 +233,7 @@ type (
 		TransactionIndex uint64 `redis:"transaction_index"`
 		LogIndex         uint64 `redis:"log_index"`
 		UpdatedAt        int64  `redis:"updated_at"`
+		IsDummy          bool   `redis:"-"` // Flag to distinguish dummy vs normal savepoint
 	}
 
 	ionPricingStats struct {

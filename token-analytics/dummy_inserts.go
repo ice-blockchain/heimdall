@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
+	"github.com/puzpuzpuz/xsync/v4"
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/subzero/model"
@@ -40,7 +41,7 @@ type (
 		MaxTokenGens                uint
 		MaxUsers                    uint
 		TokenGeneratorTTL           time.Duration
-		SavePoint                   *SavePoint
+		SavePoint                   *xsync.Map[uint, *SavePoint]
 		createdUsers                []string
 		userBlockChainToMaster      map[string]string
 		usersLock                   sync.RWMutex
@@ -527,11 +528,14 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 	}
 
 	blockNum := atomic.AddUint64(&gen.InsertBlockIndex, 1)
+	baseTimestamp := time.Now().Unix()
 	txsForBlock := []string{}
-	for range totalTx {
+	for txIdx := range totalTx {
 		user := userPool[rand.Intn(len(userPool))]
 		userBlockChainAddr := user.blockchainAddress
 		buyOrSel := rand.Intn(2) == 0
+		// Each tx in batch gets unique timestamp (1 second apart)
+		txTimestamp := uint64(baseTimestamp + int64(txIdx))
 
 		minTokens := 100.0   // minimum 100 tokens
 		maxTokens := 10000.0 // maximum 10000 tokens
@@ -584,7 +588,19 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
             "0x000000000000000000000000{{.UserBlockchainAddr}}",
             "{{.Token.PairId}}"
           ]
-        }],
+        },
+       {
+          "address": "{{.Token.ContractAddress}}",
+          "data": "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "logIndex": "0x1",
+          "removed": false,
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x0000000000000000000000000dc4fd80a011b2ffec23a6e35ab6d0918f5972f3"
+          ]
+        }
+		],
       "maxFeePerGas": "0x4a817c800",
       "maxPriorityFeePerGas": "0x3b9aca00",
       "nonce": "0x6",
@@ -605,8 +621,8 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 		execErr := tmpl.Execute(buf, &dummyDataTemplateParams{
 			Stream:               stream,
 			BlockNumber:          blockNum,
-			BlockTimestamp:       uint64(time.Now().Unix()),
-			TxIndex:              1,
+			BlockTimestamp:       txTimestamp,
+			TxIndex:              uint64(txIdx + 1),
 			BlockHash:            mustRandomHex(32),
 			TxHash:               mustRandomHex(32),
 			Token:                token,

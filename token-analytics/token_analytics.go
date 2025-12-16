@@ -126,13 +126,15 @@ func New(ctx context.Context) TokenAnalytics {
 		if err != nil {
 			log.Panic(errors.Wrapf(err, "failed to get save point for dummy generator"))
 		}
+		savePointMap := xsync.NewMap[uint, *SavePoint]()
+		savePointMap.Store(0, &SavePoint{BlockNumber: startLastBlock.BlockNumber, TransactionIndex: 0})
 		t.generator = &dummyDataGenerator{
 			Target:                      db,
 			IONTokenAddress:             cfg.IONTokenAddress,
 			InsertBlockIndex:            startLastBlock.BlockNumber,
 			Stream:                      dummyDataStream,
 			BondingCurveContractAddress: t.bondingCurveContractAddress,
-			SavePoint:                   &SavePoint{BlockNumber: startLastBlock.BlockNumber, TransactionIndex: 0},
+			SavePoint:                   savePointMap,
 		}
 		t.generator.Run(ctx)
 	}
@@ -278,7 +280,11 @@ func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint)
 	if err != nil {
 		log.Panic(fmt.Errorf("failed to get save point for worker %d: %w", workerIdx, err))
 	}
-	log.Info(fmt.Sprintf("Worker %d started from block %d", workerIdx, startPoint.BlockNumber))
+	dummyStartPoint, err := t.getDummySavePoint(ctx, workerIdx)
+	if err != nil {
+		log.Panic(fmt.Errorf("failed to get dummy save point for worker %d: %w", workerIdx, err))
+	}
+	log.Info(fmt.Sprintf("Worker %d started from block %d (dummy: %d)", workerIdx, startPoint.BlockNumber, dummyStartPoint.BlockNumber))
 
 	resetVars := func(success bool) {
 		if !success {
@@ -290,7 +296,7 @@ func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint)
 	for ctx.Err() == nil {
 		iterationStart := time.Now()
 		iterationCtx, iterationCancel := context.WithTimeout(ctx, 30*time.Second)
-		eventsToProcess, err = t.fetchUnprocessedEvents(iterationCtx, workerIdx, startPoint)
+		eventsToProcess, err = t.fetchUnprocessedEvents(iterationCtx, workerIdx, startPoint, dummyStartPoint)
 		if err != nil {
 			log.Error(fmt.Errorf("[worker %d] failed to fetch new tx events: %w", workerIdx, err))
 			iterationCancel()
@@ -304,14 +310,14 @@ func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint)
 
 			continue
 		}
-		maxDummy := uint64(0)
-		dummyTxIndex := uint64(0)
 		hasNonDummyData := false
+		hasDummyData := false
 		for _, tx := range eventsToProcess {
+			isDummyTx := false
 			for _, logEvent := range tx.Logs {
 				if addr, ok := logEvent.getString("address"); ok && strings.HasPrefix(addr, "0xdeadbeef") {
-					maxDummy = max(maxDummy, tx.BlockNumber)
-					dummyTxIndex = tx.TransactionIndex
+					isDummyTx = true
+					hasDummyData = true
 				} else {
 					hasNonDummyData = true
 				}
@@ -323,21 +329,39 @@ func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint)
 				}
 				eventsProcessed.Mark(1)
 			}
-			if tx.BlockNumber > startPoint.BlockNumber && dummyTxIndex == 0 {
-				startPoint.BlockNumber = tx.BlockNumber
-				startPoint.TransactionIndex = tx.TransactionIndex
-				blockGauge.Update(int64(tx.BlockNumber))
-			} else if tx.BlockNumber == startPoint.BlockNumber && tx.TransactionIndex > startPoint.TransactionIndex {
-				startPoint.TransactionIndex = tx.TransactionIndex
+			if isDummyTx {
+				if tx.BlockNumber > dummyStartPoint.BlockNumber {
+					dummyStartPoint.BlockNumber = tx.BlockNumber
+					dummyStartPoint.TransactionIndex = tx.TransactionIndex
+				} else if tx.BlockNumber == dummyStartPoint.BlockNumber && tx.TransactionIndex > dummyStartPoint.TransactionIndex {
+					dummyStartPoint.TransactionIndex = tx.TransactionIndex
+				}
+			} else {
+				if tx.BlockNumber > startPoint.BlockNumber {
+					startPoint.BlockNumber = tx.BlockNumber
+					startPoint.TransactionIndex = tx.TransactionIndex
+					blockGauge.Update(int64(tx.BlockNumber))
+				} else if tx.BlockNumber == startPoint.BlockNumber && tx.TransactionIndex > startPoint.TransactionIndex {
+					startPoint.TransactionIndex = tx.TransactionIndex
+				}
 			}
 			transactionGauge.Update(int64(tx.TransactionIndex))
 		}
-		if maxDummy > 0 && t.generator != nil {
-			t.generator.SavePoint = &SavePoint{BlockNumber: maxDummy, TransactionIndex: dummyTxIndex}
+		if hasDummyData && t.generator != nil && t.generator.SavePoint != nil {
+			t.generator.SavePoint.Store(workerIdx, &SavePoint{BlockNumber: dummyStartPoint.BlockNumber, TransactionIndex: dummyStartPoint.TransactionIndex})
 		}
 		if hasNonDummyData {
 			if err = t.setSavePoint(iterationCtx, workerIdx, startPoint); err != nil {
 				log.Error(fmt.Errorf("[worker %d] failed to save point: %w", workerIdx, err))
+				resetVars(false)
+				iterationCancel()
+
+				continue
+			}
+		}
+		if hasDummyData {
+			if err = t.setDummySavePoint(iterationCtx, workerIdx, dummyStartPoint); err != nil {
+				log.Error(fmt.Errorf("[worker %d] failed to save dummy point: %w", workerIdx, err))
 				resetVars(false)
 				iterationCancel()
 
@@ -444,7 +468,7 @@ func (t *tokenAnalytics) Printf(format string, args ...interface{}) {
 	stdlog.Printf(format, args...)
 }
 
-func (t *tokenAnalytics) fetchUnprocessedEvents(ctx context.Context, workerIdx uint, start *SavePoint) ([]*txEvent, error) {
+func (t *tokenAnalytics) fetchUnprocessedEvents(ctx context.Context, workerIdx uint, start *SavePoint, dummyStart *SavePoint) ([]*txEvent, error) {
 	sql := fmt.Sprintf(`
 		SELECT * FROM (
 		SELECT 
@@ -478,7 +502,7 @@ func (t *tokenAnalytics) fetchUnprocessedEvents(ctx context.Context, workerIdx u
 		) logs_agg ON true
 		WHERE MOD(t.i, %[1]v) = %[2]v 
 			AND (
-					(t.block_number, t.transaction_index) > ($1, $2)
+					(t.block_number, t.transaction_index) > ($1, $2) AND NOT (logs_agg.addresses LIKE '%%0xdeadbeef%%')
 				)                                        
 		ORDER BY t.block_number, t.transaction_index
 		LIMIT %[3]v) normal
@@ -515,24 +539,22 @@ func (t *tokenAnalytics) fetchUnprocessedEvents(ctx context.Context, workerIdx u
 		) logs_agg ON true
 		WHERE MOD(t.i, %[1]v) = %[2]v 
 			AND (
-					(t.block_number, t.transaction_index) > ($3,$4) AND NOT (logs_agg.addresses LIKE '%%0xdeadbeef%%')
+					(t.block_number, t.transaction_index) > ($3,$4) AND (logs_agg.addresses LIKE '%%0xdeadbeef%%')
 				)                                        
 		ORDER BY t.block_number, t.transaction_index
 		LIMIT %[3]v)
 		
 		;`, t.cfg.Workers, workerIdx, t.cfg.BatchSize)
-	args := []any{start.BlockNumber, start.TransactionIndex}
-	if t.generator != nil {
-		args = append(args, t.generator.SavePoint.BlockNumber, t.generator.SavePoint.TransactionIndex)
-	} else {
-		args = append(args, start.BlockNumber, start.TransactionIndex)
-	}
+	args := []any{start.BlockNumber, start.TransactionIndex, dummyStart.BlockNumber, dummyStart.TransactionIndex}
 	events, err := storage.Select[txEvent](ctx, t.ingestedDataDB, sql, args...)
 
 	return events, errors.Wrapf(err, "failed to fetch events for worker:%v", workerIdx)
 }
 
 func (s *savePointData) Key() string {
+	if s.IsDummy {
+		return fmt.Sprintf("token_analytics:save_point:dummy:worker:%v", s.WorkerIdx)
+	}
 	return fmt.Sprintf("token_analytics:save_point:worker:%v", s.WorkerIdx)
 }
 
@@ -558,6 +580,37 @@ func (t *tokenAnalytics) getSavePoint(ctx context.Context, workerIdx uint) (*Sav
 		BlockNumber:      results[0].BlockNumber,
 		TransactionIndex: results[0].TransactionIndex,
 	}, nil
+}
+
+func (t *tokenAnalytics) getDummySavePoint(ctx context.Context, workerIdx uint) (*SavePoint, error) {
+	key := fmt.Sprintf("token_analytics:save_point:dummy:worker:%v", workerIdx)
+	results, err := storagev3.Get[savePointData](ctx, t.processedDataDB, key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get dummy save point for worker %v: %w", workerIdx, err)
+	}
+
+	if len(results) == 0 || results[0] == nil {
+		return &SavePoint{
+			BlockNumber:      0,
+			TransactionIndex: 0,
+		}, nil
+	}
+
+	return &SavePoint{
+		BlockNumber:      results[0].BlockNumber,
+		TransactionIndex: results[0].TransactionIndex,
+	}, nil
+}
+
+func (t *tokenAnalytics) setDummySavePoint(ctx context.Context, workerIdx uint, newSavePoint *SavePoint) error {
+	sp := &savePointData{
+		WorkerIdx:        workerIdx,
+		BlockNumber:      newSavePoint.BlockNumber,
+		TransactionIndex: newSavePoint.TransactionIndex,
+		UpdatedAt:        time.Now().UnixNano(),
+		IsDummy:          true, // Mark as dummy savepoint
+	}
+	return storagev3.Set(ctx, t.processedDataDB, sp)
 }
 
 func (t *tokenAnalytics) setSavePoint(ctx context.Context, workerIdx uint, newSavePoint *SavePoint) error {
