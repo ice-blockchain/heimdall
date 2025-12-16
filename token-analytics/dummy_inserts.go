@@ -575,7 +575,7 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
       "hash": "0x{{.TxHash}}",
       "input": "0x83362e17{{.TxInput}}",
       "logs": [{
-          "address": "0x{{.Token.ContractAddress}}",
+          "address": "0x{{.BondingCurveContract}}",
           "data": "0x{{.SwappedData}}",
           "logIndex": "0x1",
           "removed": false,

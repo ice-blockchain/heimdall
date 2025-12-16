@@ -188,7 +188,7 @@ CREATE TABLE IF NOT EXISTS tokens (
     platform                        platform_type NOT NULL,
     ticker                          TEXT NOT NULL,
     total_supply                    uint256 NOT NULL,
-    creator_blockchain_address      TEXT, 
+    creator_blockchain_address      TEXT,
     "type"                          TEXT NOT NULL, -- profile/post/video/article
     base_token                      TEXT,
     pair_id                         TEXT,
@@ -279,7 +279,7 @@ CREATE TABLE IF NOT EXISTS user_token_positions (
     user_blockchain_address TEXT NOT NULL,
     contract_address        TEXT NOT NULL,
     external_address        TEXT NOT NULL,
-    user_external_address   TEXT, 
+    user_external_address   TEXT,
     amount                  uint256 NOT NULL DEFAULT 0,
     avg_buy_price_usd       usd_amount DEFAULT 0,
     total_invested_usd      usd_amount DEFAULT 0,
@@ -657,8 +657,8 @@ BEGIN
         v_token_address,
         v_external_address,
         v_platform,
-        CASE 
-            WHEN v_platform = 'ionconnect' AND v_token_type IN ('post', 'video', 'article') 
+        CASE
+            WHEN v_platform = 'ionconnect' AND v_token_type IN ('post', 'video', 'article')
             THEN v_external_address
             ELSE v_token_symbol
         END,
@@ -715,6 +715,7 @@ CREATE OR REPLACE FUNCTION process_swapped(
 ) RETURNS VOID AS $$
 DECLARE
     v_swapper TEXT;
+    v_pair_id TEXT;
     v_user_address TEXT;
     v_direction BOOLEAN;
     v_input_amount NUMERIC;
@@ -732,6 +733,7 @@ BEGIN
     END IF;
 
     v_swapper := LOWER('0x' || substring(p_topics[2] from 27 for 40));
+    v_pair_id := LOWER(p_topics[3]);
     v_direction := (decode_uint256(p_data, 0) != 0);
     v_input_amount := decode_uint256(p_data, 1);
     v_output_amount := decode_uint256(p_data, 2);
@@ -771,10 +773,10 @@ BEGIN
         INTO v_token_address, v_other_token, v_ion_price_usd, v_token_external_address
         FROM tokens t
         CROSS JOIN base_token_prices bp
-        WHERE (t.contract_address = p_address)
+        WHERE (t.pair_id = v_pair_id)
           AND bp.token_symbol = 'ION';
         IF v_token_address IS NULL THEN
-            RAISE WARNING 'Token with contract_address % not found, skipping swap', p_address;
+            RAISE WARNING 'Token with pair % not found, skipping swap', v_pair_id;
             RETURN;
         END IF;
     END IF;
@@ -1014,20 +1016,20 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
             ELSE t.creator_blockchain_address
         END,
         ticker = CASE
-            WHEN t.creator_blockchain_address IS NULL AND p_direction = false 
-                 AND v_platform = 'ionconnect' AND v_token_type = 'profile' 
+            WHEN t.creator_blockchain_address IS NULL AND p_direction = false
+                 AND v_platform = 'ionconnect' AND v_token_type = 'profile'
                  AND v_username IS NOT NULL
             THEN v_username
             ELSE t.ticker
         END,
         title = CASE
-            WHEN t.creator_blockchain_address IS NULL AND p_direction = false 
+            WHEN t.creator_blockchain_address IS NULL AND p_direction = false
                  AND v_platform = 'ionconnect' AND v_display_name IS NOT NULL
             THEN v_display_name
             ELSE t.title
         END,
         image_url = CASE
-            WHEN t.creator_blockchain_address IS NULL AND p_direction = false 
+            WHEN t.creator_blockchain_address IS NULL AND p_direction = false
                  AND v_avatar IS NOT NULL
             THEN v_avatar
             ELSE t.image_url
@@ -1052,8 +1054,8 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
             amount, avg_buy_price_usd, total_invested_usd, updated_at
         )
         VALUES (
-                   p_user_blockchain_address, p_token_address, p_token_external_address, 
-                   v_user_external_address, 
+                   p_user_blockchain_address, p_token_address, p_token_external_address,
+                   v_user_external_address,
                    p_output_amount, p_price_usd, v_cost_usd, p_block_timestamp
                )
         ON CONFLICT (user_blockchain_address, contract_address) DO UPDATE SET

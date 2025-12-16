@@ -28,7 +28,6 @@ type (
 	}
 	LogTokenSwapped struct {
 		Event
-		Address      common.Address
 		Swapper      common.Address
 		Pair         common.Hash
 		Direction    bool

@@ -107,7 +107,6 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 
 func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTokenSwapped) error {
 	userAddr := strings.ToLower(ev.Swapper.Hex())
-	contractAddress := strings.ToLower(ev.Address.Hex())
 	externalAddress, _, err := detectExternalAddressFromSwap(ev)
 
 	isFirstSwap := err == nil && len(externalAddress) > 0
@@ -149,14 +148,14 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	} else {
 		// 1+ swaps: lookup by contract_address
 		result, err = storage.Get[tokenAndUserInfo](ctx, t.ingestedDataDB,
-			selectClause+` WHERE t.contract_address = $1`,
-			contractAddress, userAddr)
+			selectClause+` WHERE t.pair_id = $1`,
+			ev.Pair.String(), userAddr)
 		if err != nil {
-			return fmt.Errorf("failed to find token by contract_address %v: %w", contractAddress, err)
+			return fmt.Errorf("failed to find token by pair_id %v: %w", ev.Pair.Hex(), err)
 		}
 	}
 
-	contractAddress = result.ContractAddress
+	contractAddress := result.ContractAddress
 	actualBaseToken := strings.ToLower(result.BaseToken)
 	expectedIONAddress := strings.ToLower(t.cfg.IONTokenAddress)
 
@@ -180,7 +179,7 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, contractAddress, ev.Direction, ev.InputAmount, ev.OutputAmount, priceUSD, result.TokenExternalAddress, result.UserExternalAddress, result.TokenType); err != nil {
 		return errors.Wrap(err, "failed to calculate token market data and user position")
 	}
-	if err = t.registerTrade(ctx, tx, ev.Direction, ev.InputAmount, ev.OutputAmount, ev.Address.Hex(), ev.Swapper.Hex(), result.TokenExternalAddress, ev.Pair.Bytes()); err != nil {
+	if err = t.registerTrade(ctx, tx, ev.Direction, ev.InputAmount, ev.OutputAmount, result.ContractAddress, ev.Swapper.Hex(), result.TokenExternalAddress, ev.Pair.Bytes()); err != nil {
 		return errors.Wrapf(err, "failed to save trade in questdb %v", userAddr)
 	}
 	t.subscriptions.NotifySwap(result.TokenExternalAddress)
@@ -202,6 +201,9 @@ func detectExternalAddressFromSwap(ev *bondingcurve.LogTokenSwapped) (string, co
 		externalAddressParamBytes = externalAddressParamBytes[20:]
 	}
 	externalAddress := string(externalAddressParamBytes)
+	if len(externalAddress) > 0 {
+		externalAddress = externalAddress[1:]
+	}
 	return externalAddress, creatorTokenAddr, nil
 }
 
