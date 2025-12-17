@@ -543,11 +543,11 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 
 		amountInWei := new(big.Float).Mul(big.NewFloat(tokensToTrade), big.NewFloat(1e18))
 		amountBase, _ := amountInWei.Int64()
-		amountTarget := amountBase // For simplicity, use same amount
+		amountTarget, _ := new(big.Float).Mul(amountInWei, new(big.Float).SetFloat64(1+rand.Float64())).Int(nil) // Add some price fluctuations, for not all buys = 1 ion
 		data, packErr := bondingcurve.ABI.Events["Swapped"].Inputs.NonIndexed().Pack(
 			buyOrSel,
 			new(big.Int).SetInt64(amountBase),
-			new(big.Int).SetInt64(amountTarget),
+			amountTarget,
 			new(big.Int).SetInt64(0),
 		)
 		if packErr != nil {
@@ -562,7 +562,7 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 			base,
 			toToken,
 			new(big.Int).SetInt64(amountBase),
-			new(big.Int).SetInt64(amountTarget),
+			amountTarget,
 		)
 		if packErr != nil {
 			return packErr
