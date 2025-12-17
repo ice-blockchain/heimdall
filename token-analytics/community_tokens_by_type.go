@@ -40,7 +40,7 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 			COALESCE(t.image_url, '') as image_url,
 			t.ticker,
 			t.total_supply,
-			t.creator_blockchain_address as creator_blockchain_address,
+			t.content_author_id as content_author_id,
 			creator.username as creator_username,
 			creator.display_name as creator_display,
 			creator.verified as creator_verified,
@@ -54,7 +54,7 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 			COALESCE(t.holders_count, 0) as holders_count`
 
 		fromJoinsClause = `FROM %s t
-		LEFT JOIN users creator ON LOWER(creator.blockchain_address) = LOWER(t.creator_blockchain_address)
+		LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
 		LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address`
 	)
 
@@ -85,7 +85,7 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 					t.created_at,
 					t.ticker,
 					t.total_supply,
-					t.creator_blockchain_address,
+					t.content_author_id,
 					t.market_cap_usd,
 					t.price_usd,
 					t.holders_count,
@@ -184,7 +184,7 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 			COALESCE(t.image_url, '') as image_url,
 			t.ticker,
 			t.total_supply,
-			t.creator_blockchain_address as creator_blockchain_address,
+			t.content_author_id as content_author_id,
 			creator.username as creator_username,
 			creator.display_name as creator_display,
 			creator.verified as creator_verified,
@@ -198,7 +198,7 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 			COALESCE(t.holders_count, 0) as holders_count
 		FROM tokens t
 		INNER JOIN tokens_featured tf ON tf.external_address = t.external_address
-		LEFT JOIN users creator ON LOWER(creator.blockchain_address) = LOWER(t.creator_blockchain_address)
+		LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
 		LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 	`
 

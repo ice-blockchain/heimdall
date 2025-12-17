@@ -1692,23 +1692,31 @@ const docTemplate = `{
         "main.ExternalDataRequest": {
             "type": "object",
             "properties": {
-                "tokenDescription": {
+                "postAuthorAvatar": {
                     "type": "string",
-                    "example": "My awesome token"
+                    "example": "https://example.com/avatar.png"
                 },
-                "tokenImageURL": {
+                "postAuthorDisplayName": {
                     "type": "string",
-                    "example": "https://example.com/token.png"
+                    "example": "John Doe"
                 },
-                "tokenTitle": {
+                "postAuthorExternalAddress": {
                     "type": "string",
-                    "example": "My Awesome Token"
+                    "example": "30023:431cbb22566b87c35ce6cffcca5593876cc64b9085d1355944c03d865540a95b:ionconnect.app"
+                },
+                "postAuthorUsername": {
+                    "type": "string",
+                    "example": "johndoe"
+                },
+                "postAuthorVerified": {
+                    "type": "boolean",
+                    "example": true
                 },
                 "userAvatar": {
                     "type": "string",
                     "example": "https://example.com/avatar.png"
                 },
-                "userBNBBSCWallet": {
+                "userBSCWalletAddress": {
                     "type": "string",
                     "example": "0x1234567890abcdef1234567890abcdef12345678"
                 },

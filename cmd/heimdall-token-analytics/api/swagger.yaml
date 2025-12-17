@@ -3,19 +3,25 @@
 definitions:
   main.ExternalDataRequest:
     properties:
-      tokenDescription:
-        example: My awesome token
+      postAuthorAvatar:
+        example: https://example.com/avatar.png
         type: string
-      tokenImageURL:
-        example: https://example.com/token.png
+      postAuthorDisplayName:
+        example: John Doe
         type: string
-      tokenTitle:
-        example: My Awesome Token
+      postAuthorExternalAddress:
+        example: 30023:431cbb22566b87c35ce6cffcca5593876cc64b9085d1355944c03d865540a95b:ionconnect.app
         type: string
+      postAuthorUsername:
+        example: johndoe
+        type: string
+      postAuthorVerified:
+        example: true
+        type: boolean
       userAvatar:
         example: https://example.com/avatar.png
         type: string
-      userBNBBSCWallet:
+      userBSCWalletAddress:
         example: 0x1234567890abcdef1234567890abcdef12345678
         type: string
       userDisplayName:

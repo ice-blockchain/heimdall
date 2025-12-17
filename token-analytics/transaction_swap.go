@@ -79,10 +79,10 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 		SELECT 
 			COALESCE(u.external_address, '') as user_external_address
 		FROM users u
-		WHERE LOWER(u.blockchain_address) = LOWER($1)
+		WHERE LOWER(u.content_author_id) = LOWER($1)
 	`, userAddress.Hex())
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
-		return fmt.Errorf("failed to find user by blockchain_address %v: %w", userAddress, err)
+		return fmt.Errorf("failed to find user by content author id %v: %w", userAddress, err)
 	}
 	if user == nil {
 		user = &userInfo{UserExternalAddress: ""}
@@ -134,7 +134,7 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 			COALESCE(u.external_address, '') as user_external_address,
 			COALESCE(t.type, '') as token_type
 		FROM tokens t
-		LEFT JOIN users u ON LOWER(u.blockchain_address) = LOWER($2)`
+		LEFT JOIN users u ON LOWER(u.content_author_id) = LOWER($2)`
 
 	var result *tokenAndUserInfo
 	if isFirstSwap {

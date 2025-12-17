@@ -65,15 +65,18 @@ type (
 		ExternalDataRequestBody
 	}
 	ExternalDataRequestBody struct {
-		UserExternalAddress string `json:"userExternalAddress,omitempty" example:"1234567890"`
-		UserUsername        string `json:"userUsername,omitempty" example:"johndoe"`
-		UserDisplayName     string `json:"userDisplayName,omitempty" example:"John Doe"`
-		UserAvatar          string `json:"userAvatar,omitempty" example:"https://example.com/avatar.png"`
-		UserVerified        bool   `json:"userVerified,omitempty" example:"true"`
-		UserBNBBSCWallet    string `json:"userBNBBSCWallet,omitempty" example:"0x1234567890abcdef1234567890abcdef12345678"`
-		TokenTitle          string `json:"tokenTitle,omitempty" example:"My Awesome Token"`
-		TokenDescription    string `json:"tokenDescription,omitempty" example:"My awesome token"`
-		TokenImageURL       string `json:"tokenImageURL,omitempty" example:"https://example.com/token.png"`
+		UserExternalAddress  string `json:"userExternalAddress,omitempty" example:"1234567890"`
+		UserUsername         string `json:"userUsername,omitempty" example:"johndoe"`
+		UserDisplayName      string `json:"userDisplayName,omitempty" example:"John Doe"`
+		UserAvatar           string `json:"userAvatar,omitempty" example:"https://example.com/avatar.png"`
+		UserVerified         bool   `json:"userVerified,omitempty" example:"true"`
+		UserBSCWalletAddress string `json:"userBSCWalletAddress,omitempty" example:"0x1234567890abcdef1234567890abcdef12345678"`
+
+		PostAuthorExternalAddress string `json:"postAuthorExternalAddress,omitempty" example:"30023:431cbb22566b87c35ce6cffcca5593876cc64b9085d1355944c03d865540a95b:ionconnect.app"`
+		PostAuthorUsername        string `json:"postAuthorUsername,omitempty" example:"johndoe"`
+		PostAuthorDisplayName     string `json:"postAuthorDisplayName,omitempty" example:"John Doe"`
+		PostAuthorAvatar          string `json:"postAuthorAvatar,omitempty" example:"https://example.com/avatar.png"`
+		PostAuthorVerified        bool   `json:"postAuthorVerified,omitempty" example:"true"`
 	}
 	SuggestCreationDetailsRequest struct {
 		Content string                        `json:"content" example:"some post text"`
@@ -411,14 +414,13 @@ func (s *service) GetCommunityTokenPricing(ctx context.Context, req *server.Requ
 //	@Security		XCom
 //	@Router			/v1/community-tokens/{externalAddressOrViewType}/external-data [PUT].
 func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *server.Request[ExternalDataRequest]) (*server.Response[any], error) {
-	hasUserData := req.Data.UserExternalAddress != "" || req.Data.UserUsername != "" ||
-		req.Data.UserDisplayName != "" || req.Data.UserAvatar != "" || req.Data.UserBNBBSCWallet != ""
-	hasTokenData := req.Data.TokenTitle != "" || req.Data.TokenDescription != "" || req.Data.TokenImageURL != ""
-	if !hasUserData && !hasTokenData {
-		return nil, server.BadRequest(errors.New("at least one field must be provided"), invalidPropertiesErrorCode)
-	}
-
 	if req.Data.ExternalAddress == "twitterProfiles" {
+		hasUserData := req.Data.UserExternalAddress != "" || req.Data.UserUsername != "" ||
+			req.Data.UserDisplayName != "" || req.Data.UserAvatar != "" || req.Data.UserBSCWalletAddress != ""
+		if !hasUserData {
+			return nil, server.BadRequest(errors.New("at least one user field must be provided"), invalidPropertiesErrorCode)
+		}
+
 		if err := s.tokenAnalytics.UpdateLoggedInUserProfile(
 			ctx,
 			req.Token.GetMasterPublicKey(),
@@ -427,7 +429,7 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 			req.Data.UserDisplayName,
 			req.Data.UserAvatar,
 			req.Data.UserVerified,
-			req.Data.UserBNBBSCWallet,
+			req.Data.UserBSCWalletAddress,
 		); err != nil {
 			if errors.Is(err, ta.ErrDuplicate) {
 				return nil, server.Conflict(err, "DATA_CONFLICT")
@@ -435,18 +437,21 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 			return nil, fmt.Errorf("failed to update user profile: %w", err)
 		}
 	} else {
+		hasPostAuthorData := req.Data.PostAuthorExternalAddress != "" || req.Data.PostAuthorUsername != "" ||
+			req.Data.PostAuthorDisplayName != "" || req.Data.PostAuthorAvatar != ""
+		if !hasPostAuthorData {
+			return nil, server.BadRequest(errors.New("at least one post author field must be provided"), invalidPropertiesErrorCode)
+		}
+
 		if err := s.tokenAnalytics.UpdateTokenExternalData(
 			ctx,
 			req.Data.ExternalAddress,
-			req.Data.UserExternalAddress,
-			req.Data.UserUsername,
-			req.Data.UserDisplayName,
-			req.Data.UserAvatar,
-			req.Data.UserVerified,
-			req.Data.UserBNBBSCWallet,
-			req.Data.TokenTitle,
-			req.Data.TokenDescription,
-			req.Data.TokenImageURL,
+			req.Data.PostAuthorExternalAddress,
+			req.Data.PostAuthorUsername,
+			req.Data.PostAuthorDisplayName,
+			req.Data.PostAuthorAvatar,
+			req.Data.PostAuthorVerified,
+			req.Data.ExternalAddress,
 		); err != nil {
 			if errors.Is(err, ta.ErrDuplicate) {
 				return nil, server.Conflict(err, "DATA_CONFLICT")

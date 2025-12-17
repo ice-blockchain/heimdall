@@ -40,7 +40,7 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 			t.ticker,
 			COALESCE(t.total_supply, '0') as total_supply,
 			t.created_at,
-			t.creator_blockchain_address,
+			t.content_author_id,
 			creator.username as creator_username,
 			creator.display_name as creator_display,
 			creator.verified as creator_verified,
@@ -64,8 +64,8 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 			COALESCE((utp.amount::NUMERIC / 1e18) * t.price_usd, 0) as position_amount_usd,
 			COALESCE(utp.total_invested_usd, 0) as position_total_invested_usd
 		FROM tokens t
-		LEFT JOIN users creator ON LOWER(creator.blockchain_address) = LOWER(t.creator_blockchain_address)
-		LEFT JOIN user_token_positions utp ON utp.external_address = t.external_address AND utp.user_external_address = (SELECT external_address FROM users WHERE master_pubkey = $2)
+		LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
+		LEFT JOIN user_token_positions utp ON utp.external_address = t.external_address AND LOWER(utp.user_blockchain_address) = (SELECT LOWER(content_author_id) FROM users WHERE master_pubkey = $2)
 		LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 		LEFT JOIN token_platform_holders tph ON tph.external_address = t.external_address 
 			AND tph.platform_group = (SELECT platform_group FROM users WHERE master_pubkey = $2)
@@ -106,7 +106,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 				t.type,
 				t.ticker,
 				t.created_at,
-				t.creator_blockchain_address,
+				t.content_author_id,
 				t.market_cap_usd,
 				t.price_usd,
 				t.liquidity_usd,
@@ -132,7 +132,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 					ELSE 0.0
 				END AS relevance_score
 			FROM tokens t
-			LEFT JOIN users creator ON LOWER(creator.blockchain_address) = LOWER(t.creator_blockchain_address)
+			LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
 			LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 			` + whereClause + `
 			ORDER BY t.lookup <-> $` + kwParam + `
@@ -148,7 +148,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 			description,
 			image_url,
 			created_at,
-			creator_blockchain_address as creator_blockchain_address,
+			content_author_id as content_author_id,
 			creator_username,
 			creator_display,
 			creator_verified,
@@ -222,8 +222,6 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows []*tokenRow, requestorMasterPubkey string) ([]*CommunityToken, error) {
 	tokens := make([]*CommunityToken, 0, len(rows))
 	for _, row := range rows {
-		log.Debug(fmt.Sprintf("Row data: contract=%v, position_amount_usd=%v, position_invested=%v",
-			row.ContractAddress, row.PositionAmountUSD, row.PositionTotalInvestedUSD))
 		var bondingCurveProgress *BondingCurveProgress
 		if row.BondingCurveCurrentAmount != "" && row.BondingCurveCurrentAmount != "0" && row.BondingCurveGoalAmount != "" && row.BondingCurveGoalAmount != "0" {
 			bondingCurveProgress = &BondingCurveProgress{
@@ -302,7 +300,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 				COALESCE(t.image_url, '') as image_url,
 				t.ticker,
 				COALESCE(t.total_supply, '0') as total_supply,
-				t.creator_blockchain_address as creator_blockchain_address,
+				t.content_author_id as content_author_id,
 				creator.username as creator_username,
 				creator.display_name as creator_display,
 				creator.verified as creator_verified,
@@ -346,7 +344,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 							holder.platform_group as holder_platform,
 							utp_holders.amount as amount
 						FROM user_token_positions utp_holders
-						LEFT JOIN users holder ON LOWER(holder.blockchain_address) = LOWER(utp_holders.user_blockchain_address)
+						LEFT JOIN users holder ON LOWER(holder.content_author_id) = LOWER(utp_holders.user_blockchain_address)
 						LEFT JOIN requestor_platform rp ON true
 						WHERE utp_holders.external_address = t.external_address
 						  AND (rp.platform_group IS NULL OR holder.platform_group = rp.platform_group)
@@ -358,8 +356,8 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 
 		fromJoinsClause = `FROM %s t
 			LEFT JOIN requestor_platform rp ON true
-			LEFT JOIN users creator ON LOWER(creator.blockchain_address) = LOWER(t.creator_blockchain_address)
-			LEFT JOIN user_token_positions utp ON utp.external_address = t.external_address AND utp.user_external_address = (SELECT external_address FROM users WHERE master_pubkey = $2)
+			LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
+			LEFT JOIN user_token_positions utp ON utp.external_address = t.external_address AND LOWER(utp.user_blockchain_address) = (SELECT LOWER(content_author_id) FROM users WHERE master_pubkey = $2)
 			LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 			LEFT JOIN token_platform_holders tph ON tph.external_address = t.external_address
 				AND (rp.platform_group IS NULL OR tph.platform_group = rp.platform_group)`
@@ -380,7 +378,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 					t.type,
 					t.ticker,
 					t.total_supply,
-					t.creator_blockchain_address,
+					t.content_author_id,
 					t.title,
 					t.description,
 					t.image_url,
