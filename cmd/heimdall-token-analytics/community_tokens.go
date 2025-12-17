@@ -77,7 +77,6 @@ type (
 		PostAuthorDisplayName     string `json:"postAuthorDisplayName,omitempty" example:"John Doe"`
 		PostAuthorAvatar          string `json:"postAuthorAvatar,omitempty" example:"https://example.com/avatar.png"`
 		PostAuthorVerified        bool   `json:"postAuthorVerified,omitempty" example:"true"`
-		PostAuthorContentId       string `json:"postAuthorContentId,omitempty" example:"0x1234567890abcdef1234567890abcdef12345678"`
 
 		TokenTitle       string `json:"tokenTitle,omitempty" example:"My Awesome Token"`
 		TokenDescription string `json:"tokenDescription,omitempty" example:"My awesome token"`
@@ -443,13 +442,10 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 		}
 	} else {
 		hasPostAuthorData := req.Data.PostAuthorExternalAddress != "" || req.Data.PostAuthorUsername != "" ||
-			req.Data.PostAuthorDisplayName != "" || req.Data.PostAuthorAvatar != "" || req.Data.PostAuthorContentId != ""
+			req.Data.PostAuthorDisplayName != "" || req.Data.PostAuthorAvatar != ""
 		hasTokenData := req.Data.TokenTitle != "" || req.Data.TokenDescription != "" || req.Data.TokenImageURL != ""
 		if !hasPostAuthorData && !hasTokenData {
 			return nil, server.BadRequest(errors.New("at least one post author or token field must be provided"), invalidPropertiesErrorCode)
-		}
-		if hasPostAuthorData && req.Data.PostAuthorContentId == "" {
-			return nil, server.BadRequest(errors.New("postAuthorContentId is required when updating post author data"), invalidPropertiesErrorCode)
 		}
 
 		if err := s.tokenAnalytics.UpdateTokenExternalData(
@@ -460,7 +456,7 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 			req.Data.PostAuthorDisplayName,
 			req.Data.PostAuthorAvatar,
 			req.Data.PostAuthorVerified,
-			req.Data.PostAuthorContentId,
+			req.Data.ExternalAddress,
 			req.Data.TokenTitle,
 			req.Data.TokenDescription,
 			req.Data.TokenImageURL,

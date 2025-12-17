@@ -1696,10 +1696,6 @@ const docTemplate = `{
                     "type": "string",
                     "example": "https://example.com/avatar.png"
                 },
-                "postAuthorContentId": {
-                    "type": "string",
-                    "example": "0x1234567890abcdef1234567890abcdef12345678"
-                },
                 "postAuthorDisplayName": {
                     "type": "string",
                     "example": "John Doe"

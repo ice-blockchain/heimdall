@@ -68,9 +68,9 @@ func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
 
 func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	tokenExternalAddress, postAuthorExternalAddress, postAuthorUsername, postAuthorDisplayName, postAuthorAvatar string, postAuthorVerified bool,
-	postAuthorContentId, tokenTitle, tokenDescription, tokenImageURL string) error {
+	userContentId, tokenTitle, tokenDescription, tokenImageURL string) error {
 
-	hasPostAuthorData := postAuthorContentId != "" || postAuthorUsername != "" || postAuthorDisplayName != "" || postAuthorAvatar != ""
+	hasPostAuthorData := userContentId != "" || postAuthorUsername != "" || postAuthorDisplayName != "" || postAuthorAvatar != ""
 	hasTokenData := tokenTitle != "" || tokenDescription != "" || tokenImageURL != ""
 	if !hasPostAuthorData && !hasTokenData {
 		return nil
@@ -117,14 +117,14 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 			WHERE external_address = $11;
 		`
 		args = []interface{}{
-			postAuthorExternalAddress, postAuthorContentId, postAuthorExternalAddress, postAuthorUsername,
+			postAuthorExternalAddress, userContentId, postAuthorExternalAddress, postAuthorUsername,
 			postAuthorDisplayName, postAuthorAvatar, postAuthorVerified, tokenTitle, tokenDescription,
 			tokenImageURL, tokenExternalAddress,
 		}
 	} else if hasPostAuthorData {
 		query = postAuthorUpsertSQL + `;`
 		args = []interface{}{
-			postAuthorExternalAddress, postAuthorContentId, postAuthorExternalAddress, postAuthorUsername,
+			postAuthorExternalAddress, userContentId, postAuthorExternalAddress, postAuthorUsername,
 			postAuthorDisplayName, postAuthorAvatar, postAuthorVerified,
 		}
 	} else {

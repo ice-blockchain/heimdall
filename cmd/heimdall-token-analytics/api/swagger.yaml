@@ -6,9 +6,6 @@ definitions:
       postAuthorAvatar:
         example: https://example.com/avatar.png
         type: string
-      postAuthorContentId:
-        example: 0x1234567890abcdef1234567890abcdef12345678
-        type: string
       postAuthorDisplayName:
         example: John Doe
         type: string
