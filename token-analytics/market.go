@@ -284,7 +284,7 @@ func (t *tokenAnalytics) fetchTradingStats(ctx context.Context, now stdlibtime.T
 }
 func newRecentCandlestick() *recentCandlestick {
 	r := &recentCandlestick{}
-	r.reset(stdlibtime.Now())
+	r.reset(stdlibtime.Now().In(stdlibtime.UTC))
 	return r
 }
 func (o *OHLCV) Empty() bool {
@@ -293,7 +293,7 @@ func (o *OHLCV) Empty() bool {
 
 func (r *recentCandlestick) SetInterval(ctx context.Context, interval Interval) {
 	r.interval = interval
-	now := stdlibtime.Now()
+	now := stdlibtime.Now().In(stdlibtime.UTC)
 	current := r.o.Load()
 	if uint64(now.UnixNano())-current.Timestamp >= uint64(interval.Duration()) {
 		r.reset(now)
@@ -330,7 +330,7 @@ func (r *recentCandlestick) startResetTicker(ctx context.Context, interval Inter
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				r.reset(stdlibtime.Now())
+				r.reset(stdlibtime.Now().In(stdlibtime.UTC))
 			}
 		}
 	}()
