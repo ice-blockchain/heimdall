@@ -113,6 +113,7 @@ const (
 
 var (
 	validIntervals = map[Interval]WindowSize{
+		Interval("15s"): WindowSize(1 * stdlibtime.Hour),
 		Interval("1m"):  WindowSize(1 * stdlibtime.Hour),
 		Interval("2m"):  WindowSize(1 * stdlibtime.Hour),
 		Interval("3m"):  WindowSize(1 * stdlibtime.Hour),

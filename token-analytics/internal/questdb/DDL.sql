@@ -14,6 +14,19 @@ CREATE TABLE IF NOT EXISTS trades (
     transaction_hash VARCHAR
 ) TIMESTAMP(timestamp) PARTITION BY DAY WAL
 DEDUP UPSERT KEYS(timestamp, transaction_hash);
+-- Base 15s interval
+CREATE MATERIALIZED VIEW IF NOT EXISTS ohlcv_15s REFRESH IMMEDIATE AS (
+    SELECT
+    timestamp,
+    external_address,
+    first( price_in_usd ) AS open,
+    max(price_in_usd) AS high,
+    min(price_in_usd) AS low,
+    last(price_in_usd) AS close,
+    sum(price_in_usd) AS volume
+    FROM trades
+    SAMPLE BY 15s ALIGN TO CALENDAR
+), INDEX(external_address) PARTITION BY HOUR TTL 7 DAYS;
 
 -- Base 1-minute interval
 CREATE MATERIALIZED VIEW IF NOT EXISTS ohlcv_1m REFRESH EVERY 1m AS (
@@ -25,11 +38,11 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS ohlcv_1m REFRESH EVERY 1m AS (
     min(price_in_usd) AS low,
     last(price_in_usd) AS close,
     sum(price_in_usd) AS volume
-    FROM trades
+    FROM trades_15s
     SAMPLE BY 1m ALIGN TO CALENDAR
 ), INDEX(external_address) PARTITION BY HOUR TTL 7 DAYS;
 
--- 2-minute interval (based on 1m!)
+-- 2-minute interval (based on 15s!)
 CREATE MATERIALIZED VIEW IF NOT EXISTS ohlcv_2m REFRESH EVERY 1m AS (
     SELECT
     timestamp,
@@ -39,7 +52,7 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS ohlcv_2m REFRESH EVERY 1m AS (
     min(price_in_usd) AS low,
     last(price_in_usd) AS close,
     sum(price_in_usd) AS volume
-    FROM trades
+    FROM trades_15s
     SAMPLE BY 2m ALIGN TO CALENDAR
 ), INDEX(external_address) PARTITION BY HOUR TTL 7 DAYS;
 
