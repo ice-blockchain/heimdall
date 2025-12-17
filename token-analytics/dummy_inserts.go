@@ -553,13 +553,27 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 		if packErr != nil {
 			return packErr
 		}
-		base, _ := hex.DecodeString(strings.TrimPrefix(token.BaseToken, "0x"))
+		baseTokenBytes, _ := hex.DecodeString(strings.TrimPrefix(token.BaseToken, "0x"))
 		// For 1+ swaps, use contract_address directly (not external_address in bytes)
-		contractAddr, _ := hex.DecodeString(token.ContractAddress)
-		toToken := make([]byte, 20)
-		copy(toToken, contractAddr)
+		contractAddr, _ := hex.DecodeString(strings.TrimPrefix(token.ContractAddress, "0x"))
+
+		var baseToken, toToken []byte
+		if buyOrSel {
+			// SELL: baseToken = contract address, toToken = ION
+			baseToken = make([]byte, 20)
+			copy(baseToken, contractAddr)
+			toToken = make([]byte, 20)
+			copy(toToken, baseTokenBytes)
+		} else {
+			// BUY: baseToken = ION, toToken = contract address
+			baseToken = make([]byte, 20)
+			copy(baseToken, baseTokenBytes)
+			toToken = make([]byte, 20)
+			copy(toToken, contractAddr)
+		}
+
 		txInput, packErr := bondingcurve.ABI.Methods["swap"].Inputs.Pack(
-			base,
+			baseToken,
 			toToken,
 			new(big.Int).SetInt64(amountBase),
 			amountTarget,
@@ -590,7 +604,7 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
           ]
         },
        {
-          "address": "{{.Token.ContractAddress}}",
+          "address": "0x{{.Token.ContractAddress}}",
           "data": "0x0000000000000000000000000000000000000000000000000000000000000000",
           "logIndex": "0x1",
           "removed": false,

@@ -502,9 +502,12 @@ BEGIN
     -- first 20 bytes is content creator token, for content tokens
     external_address := to_token_hex;
     ext_length := char_length(external_address);
-    if ext_length > 40 THEN
-        external_address := substring(external_address from 41);
+    if ext_length <= 40 THEN
+        -- For 1+ swaps: toToken is just 20-byte contract address, no external_address
+        -- Return empty string so trigger will use pair_id lookup
+        RETURN '';
     END IF;
+    external_address := substring(external_address from 41);
     result := rtrim(convert_from(decode(external_address, 'hex'), 'UTF8'), E'\\0');
 
     RETURN result;
@@ -785,11 +788,6 @@ BEGIN
 
     IF v_ion_price_usd IS NULL THEN
         RAISE WARNING 'ION price not found, skipping swap for tx %', p_transaction_hash;
-        RETURN;
-    END IF;
-
-    IF v_base_token IS NOT NULL AND v_other_token IS NOT NULL AND LOWER(v_base_token) != LOWER(v_other_token) THEN
-        RAISE WARNING 'Base token mismatch: tx has %, token has %. Skipping swap for tx %', v_base_token, v_other_token, p_transaction_hash;
         RETURN;
     END IF;
 
