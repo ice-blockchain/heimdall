@@ -333,6 +333,7 @@ func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint)
 				if tx.BlockNumber > dummyStartPoint.BlockNumber {
 					dummyStartPoint.BlockNumber = tx.BlockNumber
 					dummyStartPoint.TransactionIndex = tx.TransactionIndex
+					dummyStartPoint.BlockTime = tx.BlockTimestamp.Time.Unix()
 				} else if tx.BlockNumber == dummyStartPoint.BlockNumber && tx.TransactionIndex > dummyStartPoint.TransactionIndex {
 					dummyStartPoint.TransactionIndex = tx.TransactionIndex
 				}
@@ -340,6 +341,7 @@ func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint)
 				if tx.BlockNumber > startPoint.BlockNumber {
 					startPoint.BlockNumber = tx.BlockNumber
 					startPoint.TransactionIndex = tx.TransactionIndex
+					startPoint.BlockTime = tx.BlockTimestamp.Time.Unix()
 					blockGauge.Update(int64(tx.BlockNumber))
 				} else if tx.BlockNumber == startPoint.BlockNumber && tx.TransactionIndex > startPoint.TransactionIndex {
 					startPoint.TransactionIndex = tx.TransactionIndex
@@ -579,6 +581,7 @@ func (t *tokenAnalytics) getSavePoint(ctx context.Context, workerIdx uint) (*Sav
 	return &SavePoint{
 		BlockNumber:      results[0].BlockNumber,
 		TransactionIndex: results[0].TransactionIndex,
+		BlockTime:        results[0].BlockTime,
 	}, nil
 }
 
@@ -599,6 +602,7 @@ func (t *tokenAnalytics) getDummySavePoint(ctx context.Context, workerIdx uint) 
 	return &SavePoint{
 		BlockNumber:      results[0].BlockNumber,
 		TransactionIndex: results[0].TransactionIndex,
+		BlockTime:        results[0].BlockTime,
 	}, nil
 }
 
@@ -608,6 +612,7 @@ func (t *tokenAnalytics) setDummySavePoint(ctx context.Context, workerIdx uint, 
 		BlockNumber:      newSavePoint.BlockNumber,
 		TransactionIndex: newSavePoint.TransactionIndex,
 		UpdatedAt:        time.Now().UnixNano(),
+		BlockTime:        newSavePoint.BlockTime,
 		IsDummy:          true, // Mark as dummy savepoint
 	}
 	return storagev3.Set(ctx, t.processedDataDB, sp)
@@ -632,6 +637,7 @@ func (t *tokenAnalytics) setSavePoint(ctx context.Context, workerIdx uint, newSa
 		WorkerIdx:        workerIdx,
 		BlockNumber:      newSavePoint.BlockNumber,
 		TransactionIndex: newSavePoint.TransactionIndex,
+		BlockTime:        newSavePoint.BlockTime,
 		UpdatedAt:        time.Now().UnixNano(),
 	}
 

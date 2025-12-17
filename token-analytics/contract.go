@@ -81,6 +81,7 @@ type (
 	SavePoint struct {
 		TransactionIndex uint64 `db:"transaction_index"`
 		BlockNumber      uint64 `db:"block_number"`
+		BlockTime        int64
 	}
 
 	ViewingSession struct {
@@ -234,6 +235,7 @@ type (
 		TransactionIndex uint64 `redis:"transaction_index"`
 		LogIndex         uint64 `redis:"log_index"`
 		UpdatedAt        int64  `redis:"updated_at"`
+		BlockTime        int64  `redis:"blockTime"`
 		IsDummy          bool   `redis:"-"` // Flag to distinguish dummy vs normal savepoint
 	}
 

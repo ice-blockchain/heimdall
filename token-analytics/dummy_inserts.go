@@ -528,7 +528,7 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 	}
 
 	blockNum := atomic.AddUint64(&gen.InsertBlockIndex, 1)
-	baseTimestamp := time.Now().Unix()
+	baseTimestamp := time.Now().In(time.UTC).Unix()
 	txsForBlock := []string{}
 	for txIdx := range totalTx {
 		user := userPool[rand.Intn(len(userPool))]
@@ -836,7 +836,7 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
 	err = tmpl.Execute(buf, &dummyDataTemplateParams{
 		Stream:                   stream,
 		BlockNumber:              blockNum,
-		BlockTimestamp:           uint64(time.Now().Unix()),
+		BlockTimestamp:           uint64(time.Now().In(time.UTC).Unix()),
 		TxIndex:                  1,
 		BlockHash:                blockHash,
 		TxHash:                   txHash,

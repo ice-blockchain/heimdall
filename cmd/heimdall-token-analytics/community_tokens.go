@@ -867,7 +867,7 @@ func wrapIntoStream[T any](initialBuffer int, impl func(addToStream func(t *T, e
 func (s *service) tradingStatsStream(ionContentAddress string) (server.StreamEventEmitter[ta.TradeStats], error) {
 	return func(ctx context.Context) (<-chan server.StreamEvent[ta.TradeStats], error) {
 		events := make(chan server.StreamEvent[ta.TradeStats], 1)
-		now := time.Now()
+		now := time.Now().In(time.UTC)
 		stats, err := s.tokenAnalytics.GetTradingStats(ctx, now, ionContentAddress)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get initial trading stats for %v", ionContentAddress)
@@ -886,7 +886,7 @@ func (s *service) tradingStatsStream(ionContentAddress string) (server.StreamEve
 				case <-ctx.Done():
 					return
 				case <-ticker.C:
-					now = time.Now()
+					now = time.Now().In(time.UTC)
 					stats, err = s.tokenAnalytics.UpdateTradingStats(ctx, now, ionContentAddress)
 					if err != nil {
 						events <- server.StreamEvent[ta.TradeStats]{
