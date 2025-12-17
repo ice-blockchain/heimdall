@@ -222,6 +222,10 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 			}
 		}
 	}
+	// TODO: remove
+	coinIDs = slices.DeleteFunc(coinIDs, func(s string) bool {
+		return strings.EqualFold(s, "ion")
+	})
 	if len(coinIDs) > 0 {
 		var coinsAndMissedTokens []*coingecko.Coin
 		coinsAndMissedTokens, err = s.coinGeckoClient.GetCoins(ctx, coinIDs)

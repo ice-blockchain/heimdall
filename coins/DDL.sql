@@ -68,7 +68,8 @@ CREATE TABLE IF NOT EXISTS nft_collections (
 DO $$ BEGIN
     if NOT exists (select 1 from coins where id = '7b471f92-ced2-38b0-e408-88e5d89e8045' and symbol = 'ion') then
         INSERT INTO coins (sync_frequency, created_at, updated_at, data_updated_at, decimals, version, price_usd, id, coingecko_coin_id, network, name, contract_address, symbol, symbol_group, icon_url, native)
-        VALUES            ('%[1]v', now(), now(), now(), 9, 0, %[2]v, '7b471f92-ced2-38b0-e408-88e5d89e8045', 'ion', 'ion', 'Ice Open Network', '', 'ion', 'ion', 'https://cdn.ice.io/online+/assets/coins/ion.svg', true)
+        VALUES            ('%[1]v', now(), now(), now(), 9, 0, (select global.value from global where global.key = 'fixed_ion_price')::DECIMAL
+                          , '7b471f92-ced2-38b0-e408-88e5d89e8045', 'ion', 'ion', 'Ice Open Network', '', 'ion', 'ion', 'https://cdn.ice.io/online+/assets/coins/ion.svg', true)
         ON CONFLICT (id) DO UPDATE SET
                                        name = 'Ice Open Network',
                                        coingecko_coin_id = 'ion',
@@ -83,6 +84,12 @@ DO $$ BEGIN
     IF NOT exists (select 1 from global where key = '%[3]v') then
         INSERT INTO global(value, key)
         VALUES ((select COALESCE(max(version),0) from coins), '%[3]v')
+        ON CONFLICT(key) DO NOTHING;
+    end if;
+
+    IF NOT exists (select 1 from global where key = 'fixed_ion_price') then
+        INSERT INTO global(value, key)
+        VALUES (0.003, 'fixed_ion_price')
         ON CONFLICT(key) DO NOTHING;
     end if;
 END$$;
