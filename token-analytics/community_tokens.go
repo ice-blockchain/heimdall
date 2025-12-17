@@ -20,17 +20,17 @@ import (
 
 func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
 	masterPubkey, userExternalAddress, userUsername, userDisplayName, userAvatar string, userVerified bool,
-	userBNBBSCWallet string) error {
+	userContentId string) error {
 
 	userQuery := `
 		INSERT INTO users (
-			created_at, updated_at, id, master_pubkey, blockchain_address, 
+			created_at, updated_at, id, master_pubkey, content_author_id, 
 			external_address, username, display_name, avatar, verified, lookup, platform_group
 		)
 		VALUES (
 			NOW(), NOW(), $1, $1, $2, $3, $4, $5, $6, $7, LOWER($4 || ' ' || COALESCE($5, '')), 'xcom'::platform_type
 		)
-		ON CONFLICT (blockchain_address) 
+		ON CONFLICT (content_author_id) 
 		DO UPDATE SET
 			master_pubkey = EXCLUDED.master_pubkey,
 			external_address = COALESCE(NULLIF(EXCLUDED.external_address, ''), users.external_address),
@@ -49,7 +49,7 @@ func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
 
 	_, err := storage.Exec(ctx, t.ingestedDataDB, userQuery,
 		masterPubkey,
-		userBNBBSCWallet,
+		userContentId,
 		userExternalAddress,
 		userUsername,
 		userDisplayName,
@@ -68,22 +68,22 @@ func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
 
 func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	tokenExternalAddress, userExternalAddress, userUsername, userDisplayName, userAvatar string, userVerified bool,
-	userBNBBSCWallet, tokenTitle, tokenDescription, tokenImageURL string) error {
+	userContentId, tokenTitle, tokenDescription, tokenImageURL string) error {
 
-	hasUserData := userBNBBSCWallet != "" || userUsername != "" || userDisplayName != "" || userAvatar != ""
+	hasUserData := userContentId != "" || userUsername != "" || userDisplayName != "" || userAvatar != ""
 	hasTokenData := tokenTitle != "" || tokenDescription != "" || tokenImageURL != ""
 	if !hasUserData && !hasTokenData {
 		return nil
 	}
 	const userUpsertSQL = `
 		INSERT INTO users (
-			created_at, updated_at, id, master_pubkey, blockchain_address, 
+			created_at, updated_at, id, master_pubkey, content_author_id, 
 			external_address, username, display_name, avatar, verified, lookup, platform_group
 		)
 		VALUES (
 			NOW(), NOW(), $1, $1, $2, $3, $4, $5, $6, $7, LOWER($4 || ' ' || COALESCE($5, '')), 'xcom'::platform_type
 		)
-		ON CONFLICT (blockchain_address) 
+		ON CONFLICT (content_author_id) 
 		DO UPDATE SET
 			master_pubkey = EXCLUDED.master_pubkey,
 			external_address = COALESCE(NULLIF(EXCLUDED.external_address, ''), users.external_address),
@@ -109,6 +109,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 			)
 			UPDATE tokens
 			SET 
+				content_author_id = $2,
 				title = CASE WHEN $8 != '' THEN $8 ELSE title END,
 				description = CASE WHEN $9 != '' THEN $9 ELSE description END,
 				image_url = CASE WHEN $10 != '' THEN $10 ELSE image_url END,
@@ -116,14 +117,14 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 			WHERE external_address = $11;
 		`
 		args = []interface{}{
-			userExternalAddress, userBNBBSCWallet, userExternalAddress, userUsername,
+			userExternalAddress, userContentId, userExternalAddress, userUsername,
 			userDisplayName, userAvatar, userVerified, tokenTitle, tokenDescription,
 			tokenImageURL, tokenExternalAddress,
 		}
 	} else if hasUserData {
 		query = userUpsertSQL + `;`
 		args = []interface{}{
-			userExternalAddress, userBNBBSCWallet, userExternalAddress, userUsername,
+			userExternalAddress, userContentId, userExternalAddress, userUsername,
 			userDisplayName, userAvatar, userVerified,
 		}
 	} else {
@@ -315,25 +316,6 @@ func calculateSupplyShare(amountTokens, totalSupply float64) float64 {
 	}
 
 	return 0.0
-}
-
-func weiToFloat64(weiAmount int64) float64 {
-	amountBigFloat := new(big.Float).SetInt64(weiAmount)
-	amountBigFloat.Quo(amountBigFloat, big.NewFloat(1e18))
-	result, _ := amountBigFloat.Float64()
-
-	return result
-}
-
-func weiToUint64FromBigInt(weiAmount *big.Int) uint64 {
-	if weiAmount == nil {
-		return 0
-	}
-	amountBigFloat := new(big.Float).SetInt(weiAmount)
-	amountBigFloat.Quo(amountBigFloat, big.NewFloat(1e18))
-	result, _ := amountBigFloat.Uint64()
-
-	return result
 }
 
 func weiToFloat64FromBigInt(weiAmount *big.Int) float64 {

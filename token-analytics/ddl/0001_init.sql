@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS users
     updated_at           TIMESTAMP NOT NULL,
     id                   TEXT NOT NULL,
     master_pubkey        TEXT NOT NULL,
-    blockchain_address   TEXT NOT NULL,
+    content_author_id    TEXT NOT NULL,
     external_address     TEXT UNIQUE,
     username             TEXT NOT NULL,
     display_name         TEXT,
@@ -47,12 +47,12 @@ CREATE TABLE IF NOT EXISTS users
     ion_connect_relays   TEXT[],
     verified             BOOLEAN NOT NULL DEFAULT false,
     platform_group       platform_type,
-    PRIMARY KEY(blockchain_address)
+    PRIMARY KEY(content_author_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users (created_at);
 CREATE INDEX IF NOT EXISTS idx_users_external_address ON users (external_address);
-CREATE INDEX IF NOT EXISTS idx_users_blockchain_address_lower ON users (LOWER(blockchain_address));
+CREATE INDEX IF NOT EXISTS idx_users_content_author_id_lower ON users (LOWER(content_author_id));
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX IF NOT EXISTS idx_users_lookup_gist ON users USING gist (lookup gist_trgm_ops);
 
@@ -189,7 +189,7 @@ CREATE TABLE IF NOT EXISTS tokens (
     platform                        platform_type NOT NULL,
     ticker                          TEXT NOT NULL,
     total_supply                    uint256 NOT NULL,
-    creator_blockchain_address      TEXT,
+    content_author_id               TEXT,
     "type"                          TEXT NOT NULL, -- profile/post/video/article
     base_token                      TEXT,
     pair_id                         TEXT,
@@ -213,7 +213,7 @@ CREATE TABLE IF NOT EXISTS tokens (
     PRIMARY KEY (contract_address)
 );
 
-CREATE INDEX IF NOT EXISTS idx_tokens_creator ON tokens (creator_blockchain_address);
+CREATE INDEX IF NOT EXISTS idx_tokens_creator ON tokens (content_author_id);
 CREATE INDEX IF NOT EXISTS idx_tokens_created_at ON tokens (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_tokens_lookup_gist ON tokens USING gist (lookup gist_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_tokens_platform ON tokens (platform);
@@ -231,7 +231,7 @@ BEGIN
         COALESCE(NEW.username, '') || ' ' ||
         COALESCE(NEW.display_name, '')
     ))
-    WHERE LOWER(creator_blockchain_address) = LOWER(NEW.blockchain_address);
+    WHERE LOWER(content_author_id) = LOWER(NEW.content_author_id);
 
     RETURN NEW;
 END;
@@ -646,7 +646,7 @@ BEGIN
             RETURN;
     END CASE;
 
-    -- For ALL tokens, creator_blockchain_address will be populated from first Swapped event
+    -- For ALL tokens, content_author_id will be populated from first Swapped event
     IF v_token_type IS NULL THEN
         RAISE WARNING 'Failed to determine token type for %, skipping token creation', v_external_address;
         RETURN;
@@ -654,7 +654,7 @@ BEGIN
 
     INSERT INTO tokens (
         created_at, updated_at, contract_address, external_address, platform,
-        ticker, total_supply, creator_blockchain_address, type, log_index
+        ticker, total_supply, content_author_id, type, log_index
     )
     VALUES (
         p_block_timestamp,
@@ -1002,7 +1002,7 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
     SELECT external_address, username, display_name, avatar
     INTO v_user_external_address, v_username, v_display_name, v_avatar
     FROM users
-    WHERE LOWER(blockchain_address) = LOWER(p_user_blockchain_address);
+    WHERE LOWER(content_author_id) = LOWER(p_user_blockchain_address);
 
     SELECT type, platform INTO v_token_type, v_platform FROM tokens WHERE contract_address = p_token_address;
 
@@ -1010,32 +1010,32 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
     SET price_usd = p_price_usd,
         market_cap_usd = GREATEST(market_cap_usd + v_delta_market_cap, 0),
         updated_at = p_block_timestamp,
-        creator_blockchain_address = CASE
-            WHEN t.creator_blockchain_address IS NULL AND p_direction = false
+        content_author_id = CASE
+            WHEN t.content_author_id IS NULL AND p_direction = false
             THEN p_user_blockchain_address
-            ELSE t.creator_blockchain_address
+            ELSE t.content_author_id
         END,
         ticker = CASE
-            WHEN t.creator_blockchain_address IS NULL AND p_direction = false
+            WHEN t.content_author_id IS NULL AND p_direction = false
                  AND v_platform = 'ionconnect' AND v_token_type = 'profile'
                  AND v_username IS NOT NULL
             THEN v_username
             ELSE t.ticker
         END,
         title = CASE
-            WHEN t.creator_blockchain_address IS NULL AND p_direction = false
+            WHEN t.content_author_id IS NULL AND p_direction = false
                  AND v_platform = 'ionconnect' AND v_display_name IS NOT NULL
             THEN v_display_name
             ELSE t.title
         END,
         image_url = CASE
-            WHEN t.creator_blockchain_address IS NULL AND p_direction = false
+            WHEN t.content_author_id IS NULL AND p_direction = false
                  AND v_avatar IS NOT NULL
             THEN v_avatar
             ELSE t.image_url
         END,
         lookup = CASE
-            WHEN t.creator_blockchain_address IS NULL AND p_direction = false AND v_username IS NOT NULL THEN
+            WHEN t.content_author_id IS NULL AND p_direction = false AND v_username IS NOT NULL THEN
                 LOWER(TRIM(
                     COALESCE(t.contract_address, '') || ' ' ||
                     COALESCE(t.ticker, '') || ' ' ||

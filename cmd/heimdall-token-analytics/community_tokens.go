@@ -65,15 +65,15 @@ type (
 		ExternalDataRequestBody
 	}
 	ExternalDataRequestBody struct {
-		UserExternalAddress string `json:"userExternalAddress,omitempty" example:"1234567890"`
-		UserUsername        string `json:"userUsername,omitempty" example:"johndoe"`
-		UserDisplayName     string `json:"userDisplayName,omitempty" example:"John Doe"`
-		UserAvatar          string `json:"userAvatar,omitempty" example:"https://example.com/avatar.png"`
-		UserVerified        bool   `json:"userVerified,omitempty" example:"true"`
-		UserBNBBSCWallet    string `json:"userBNBBSCWallet,omitempty" example:"0x1234567890abcdef1234567890abcdef12345678"`
-		TokenTitle          string `json:"tokenTitle,omitempty" example:"My Awesome Token"`
-		TokenDescription    string `json:"tokenDescription,omitempty" example:"My awesome token"`
-		TokenImageURL       string `json:"tokenImageURL,omitempty" example:"https://example.com/token.png"`
+		PostAuthorExternalAddress string `json:"postAuthorExternalAddress,omitempty" example:"1234567890"`
+		PostAuthorUsername        string `json:"postAuthorUsername,omitempty" example:"johndoe"`
+		PostAuthorDisplayName     string `json:"postAuthorDisplayName,omitempty" example:"John Doe"`
+		PostAuthorAvatar          string `json:"postAuthorAvatar,omitempty" example:"https://example.com/avatar.png"`
+		PostAuthorVerified        bool   `json:"postAuthorVerified,omitempty" example:"true"`
+		PostAuthorContentId       string `json:"postAuthorContentId" required:"true" example:"0x1234567890abcdef1234567890abcdef12345678"`
+		TokenTitle                string `json:"tokenTitle,omitempty" example:"My Awesome Token"`
+		TokenDescription          string `json:"tokenDescription,omitempty" example:"My awesome token"`
+		TokenImageURL             string `json:"tokenImageURL,omitempty" example:"https://example.com/token.png"`
 	}
 	SuggestCreationDetailsRequest struct {
 		Content string                        `json:"content" example:"some post text"`
@@ -411,10 +411,10 @@ func (s *service) GetCommunityTokenPricing(ctx context.Context, req *server.Requ
 //	@Security		XCom
 //	@Router			/v1/community-tokens/{externalAddressOrViewType}/external-data [PUT].
 func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *server.Request[ExternalDataRequest]) (*server.Response[any], error) {
-	hasUserData := req.Data.UserExternalAddress != "" || req.Data.UserUsername != "" ||
-		req.Data.UserDisplayName != "" || req.Data.UserAvatar != "" || req.Data.UserBNBBSCWallet != ""
+	hasPostAuthorData := req.Data.PostAuthorExternalAddress != "" || req.Data.PostAuthorUsername != "" ||
+		req.Data.PostAuthorDisplayName != "" || req.Data.PostAuthorAvatar != "" || req.Data.PostAuthorContentId != ""
 	hasTokenData := req.Data.TokenTitle != "" || req.Data.TokenDescription != "" || req.Data.TokenImageURL != ""
-	if !hasUserData && !hasTokenData {
+	if !hasPostAuthorData && !hasTokenData {
 		return nil, server.BadRequest(errors.New("at least one field must be provided"), invalidPropertiesErrorCode)
 	}
 
@@ -422,12 +422,12 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 		if err := s.tokenAnalytics.UpdateLoggedInUserProfile(
 			ctx,
 			req.Token.GetMasterPublicKey(),
-			req.Data.UserExternalAddress,
-			req.Data.UserUsername,
-			req.Data.UserDisplayName,
-			req.Data.UserAvatar,
-			req.Data.UserVerified,
-			req.Data.UserBNBBSCWallet,
+			req.Data.PostAuthorExternalAddress,
+			req.Data.PostAuthorUsername,
+			req.Data.PostAuthorDisplayName,
+			req.Data.PostAuthorAvatar,
+			req.Data.PostAuthorVerified,
+			req.Data.PostAuthorContentId,
 		); err != nil {
 			if errors.Is(err, ta.ErrDuplicate) {
 				return nil, server.Conflict(err, "DATA_CONFLICT")
@@ -438,12 +438,12 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 		if err := s.tokenAnalytics.UpdateTokenExternalData(
 			ctx,
 			req.Data.ExternalAddress,
-			req.Data.UserExternalAddress,
-			req.Data.UserUsername,
-			req.Data.UserDisplayName,
-			req.Data.UserAvatar,
-			req.Data.UserVerified,
-			req.Data.UserBNBBSCWallet,
+			req.Data.PostAuthorExternalAddress,
+			req.Data.PostAuthorUsername,
+			req.Data.PostAuthorDisplayName,
+			req.Data.PostAuthorAvatar,
+			req.Data.PostAuthorVerified,
+			req.Data.PostAuthorContentId,
 			req.Data.TokenTitle,
 			req.Data.TokenDescription,
 			req.Data.TokenImageURL,

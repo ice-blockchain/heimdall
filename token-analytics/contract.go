@@ -24,17 +24,17 @@ import (
 
 type (
 	UserRecord struct {
-		ID                string   `db:"id"`
-		MasterPubkey      string   `db:"master_pubkey"`
-		BlockchainAddress string   `db:"blockchain_address"`
-		ExternalAddress   string   `db:"external_address"`
-		Username          string   `db:"username"`
-		DisplayName       string   `db:"display_name"`
-		Avatar            string   `db:"avatar"`
-		Lookup            string   `db:"lookup"`
-		IONConnectRelays  []string `db:"ion_connect_relays"`
-		Verified          bool     `db:"verified"`
-		PlatformGroup     string   `db:"platform_group"`
+		ID               string   `db:"id"`
+		MasterPubkey     string   `db:"master_pubkey"`
+		ContentAuthorID  string   `db:"content_author_id"`
+		ExternalAddress  string   `db:"external_address"`
+		Username         string   `db:"username"`
+		DisplayName      string   `db:"display_name"`
+		Avatar           string   `db:"avatar"`
+		Lookup           string   `db:"lookup"`
+		IONConnectRelays []string `db:"ion_connect_relays"`
+		Verified         bool     `db:"verified"`
+		PlatformGroup    string   `db:"platform_group"`
 	}
 
 	SuggestCreationDetailsResponse struct {
@@ -46,7 +46,7 @@ type (
 	UserRepository interface {
 		Close() error
 		HealthCheck(ctx context.Context) error
-		UpsertUser(ctx context.Context, id, masterPubkey, blockchainAddress, username, displayName, avatar string, verified *bool, ionConnectRelays []string) error
+		UpsertUser(ctx context.Context, id, masterPubkey, contentAuthorID, username, displayName, avatar string, verified *bool, ionConnectRelays []string) error
 		SetVerified(ctx context.Context, masterPubkey string) error
 		GetUser(ctx context.Context, masterPubkey string) (*UserRecord, error)
 	}
@@ -67,10 +67,10 @@ type (
 		GetTokensFromViewingSession(ctx context.Context, sessionType, sessionID, keyword string, limit, offset uint64) ([]*CommunityToken, error)
 		UpdateLoggedInUserProfile(ctx context.Context,
 			masterPubkey, userExternalAddress, userUsername, userDisplayName, userAvatar string, userVerified bool,
-			userBNBBSCWallet string) error
+			userContentId string) error
 		UpdateTokenExternalData(ctx context.Context,
 			tokenExternalAddress, userExternalAddress, userUsername, userDisplayName, userAvatar string, userVerified bool,
-			userBNBBSCWallet, tokenTitle, tokenDescription, tokenImageURL string) error
+			userContentId, tokenTitle, tokenDescription, tokenImageURL string) error
 		GetHolderPositions(ctx context.Context, tokenExternalAddress string, holderExternalAddresses []string) ([]*HolderPosition, error)
 		GenerateTokenSuggestion(content, creatorName, creatorUsername, creatorBio string) *SuggestCreationDetailsResponse
 		GetBondingCurveProgress(ctx context.Context, externalAddress string) (*BondingCurveProgress, error)
@@ -261,7 +261,7 @@ type (
 		ImageURL                     string     `db:"image_url"`
 		Ticker                       string     `db:"ticker"`
 		TotalSupply                  string     `db:"total_supply"`
-		CreatorBlockchainAddress     *string    `db:"creator_blockchain_address"`
+		ContentAuthorID              *string    `db:"content_author_id"`
 		CreatorUsername              *string    `db:"creator_username"`
 		CreatorDisplay               *string    `db:"creator_display"`
 		CreatorAvatar                *string    `db:"creator_avatar"`
@@ -305,33 +305,33 @@ type (
 	}
 
 	tokenSwap struct {
-		CreatedAt                *time.Time `db:"created_at"`
-		TransactionHash          string     `db:"transaction_hash"`
-		ContractAddress          string     `db:"contract_address"`
-		ExternalAddress          string     `db:"external_address"`
-		Platform                 string     `db:"platform"`
-		UserBlockchainAddress    string     `db:"user_blockchain_address"`
-		CreatorBlockchainAddress *string    `db:"creator_blockchain_address"`
-		CreatorUsername          *string    `db:"creator_username"`
-		CreatorDisplay           *string    `db:"creator_display"`
-		CreatorAvatar            *string    `db:"creator_avatar"`
-		CreatorExternalAddress   *string    `db:"creator_external_address"`
-		CreatorPlatform          *string    `db:"creator_platform"`
-		CreatorBnbBscAddress     *string    `db:"creator_bnb_bsc_address"`
-		HolderMasterPubkey       *string    `db:"holder_master_pubkey"`
-		HolderUsername           *string    `db:"holder_username"`
-		HolderDisplay            *string    `db:"holder_display"`
-		HolderAvatar             *string    `db:"holder_avatar"`
-		HolderExternalAddress    *string    `db:"holder_external_address"`
-		HolderPlatform           *string    `db:"holder_platform"`
-		Input                    string     `db:"input_amount"`
-		Output                   string     `db:"output_amount"`
-		PriceUSD                 float64    `db:"price_usd"`
-		BalanceUSD               float64    `db:"balance_usd"`
-		Balance                  string     `db:"balance"`
-		Direction                bool       `db:"direction"`
-		CreatorVerified          *bool      `db:"creator_verified"`
-		HolderVerified           *bool      `db:"holder_verified"`
+		CreatedAt              *time.Time `db:"created_at"`
+		TransactionHash        string     `db:"transaction_hash"`
+		ContractAddress        string     `db:"contract_address"`
+		ExternalAddress        string     `db:"external_address"`
+		Platform               string     `db:"platform"`
+		UserBlockchainAddress  string     `db:"user_blockchain_address"`
+		ContentAuthorID        *string    `db:"content_author_id"`
+		CreatorUsername        *string    `db:"creator_username"`
+		CreatorDisplay         *string    `db:"creator_display"`
+		CreatorAvatar          *string    `db:"creator_avatar"`
+		CreatorExternalAddress *string    `db:"creator_external_address"`
+		CreatorPlatform        *string    `db:"creator_platform"`
+		CreatorBnbBscAddress   *string    `db:"creator_bnb_bsc_address"`
+		HolderMasterPubkey     *string    `db:"holder_master_pubkey"`
+		HolderUsername         *string    `db:"holder_username"`
+		HolderDisplay          *string    `db:"holder_display"`
+		HolderAvatar           *string    `db:"holder_avatar"`
+		HolderExternalAddress  *string    `db:"holder_external_address"`
+		HolderPlatform         *string    `db:"holder_platform"`
+		Input                  string     `db:"input_amount"`
+		Output                 string     `db:"output_amount"`
+		PriceUSD               float64    `db:"price_usd"`
+		BalanceUSD             float64    `db:"balance_usd"`
+		Balance                string     `db:"balance"`
+		Direction              bool       `db:"direction"`
+		CreatorVerified        *bool      `db:"creator_verified"`
+		HolderVerified         *bool      `db:"holder_verified"`
 	}
 	trade struct {
 		Timestamp       time.Time       `db:"timestamp"`
@@ -348,23 +348,23 @@ type (
 	}
 
 	holderWithTokenData struct {
-		CreatorBlockchainAddress *string `db:"creator_blockchain_address"`
-		CreatorUsername          *string `db:"creator_username"`
-		CreatorDisplay           *string `db:"creator_display"`
-		CreatorAvatar            *string `db:"creator_avatar"`
-		CreatorExternalAddress   *string `db:"creator_external_address"`
-		CreatorPlatform          *string `db:"creator_platform"`
-		CreatorBnbBscAddress     *string `db:"creator_bnb_bsc_address"`
-		TotalSupply              string  `db:"total_supply"`
-		HolderMasterPubkey       *string `db:"holder_master_pubkey"`
-		HolderUsername           *string `db:"holder_username"`
-		HolderDisplay            *string `db:"holder_display"`
-		HolderAvatar             *string `db:"holder_avatar"`
-		HolderExternalAddress    *string `db:"holder_external_address"`
-		HolderPlatform           *string `db:"holder_platform"`
-		PriceUSD                 float64 `db:"price_usd"`
-		CreatorVerified          *bool   `db:"creator_verified"`
-		HolderVerified           *bool   `db:"holder_verified"`
+		ContentAuthorID        *string `db:"content_author_id"`
+		CreatorUsername        *string `db:"creator_username"`
+		CreatorDisplay         *string `db:"creator_display"`
+		CreatorAvatar          *string `db:"creator_avatar"`
+		CreatorExternalAddress *string `db:"creator_external_address"`
+		CreatorPlatform        *string `db:"creator_platform"`
+		CreatorBnbBscAddress   *string `db:"creator_bnb_bsc_address"`
+		TotalSupply            string  `db:"total_supply"`
+		HolderMasterPubkey     *string `db:"holder_master_pubkey"`
+		HolderUsername         *string `db:"holder_username"`
+		HolderDisplay          *string `db:"holder_display"`
+		HolderAvatar           *string `db:"holder_avatar"`
+		HolderExternalAddress  *string `db:"holder_external_address"`
+		HolderPlatform         *string `db:"holder_platform"`
+		PriceUSD               float64 `db:"price_usd"`
+		CreatorVerified        *bool   `db:"creator_verified"`
+		HolderVerified         *bool   `db:"holder_verified"`
 	}
 	recentCandlestick struct {
 		o               atomic.Pointer[OHLCV]

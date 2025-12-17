@@ -196,12 +196,12 @@ func (t *tokenAnalyticsUsers) UpsertUser(ctx context.Context, id, masterPubkey, 
 
 	_, err := storage.Exec(ctx, t.ingestedDataDB, `
 		INSERT INTO users (
-			created_at, updated_at, id, master_pubkey, blockchain_address, external_address, username, 
+			created_at, updated_at, id, master_pubkey, content_author_id, external_address, username, 
 			display_name, avatar, lookup, ion_connect_relays, verified, platform_group
 		) VALUES (
 			NOW(), NOW(), $1, $2, $10, $9, $3, $4, $5, $6, $7, $8, 'ionconnect'::platform_type
 		)
-		ON CONFLICT (blockchain_address) 
+		ON CONFLICT (content_author_id) 
 		DO UPDATE SET
 			updated_at = NOW(),
 			id = EXCLUDED.id,
@@ -243,7 +243,7 @@ func (t *tokenAnalyticsUsers) SetVerified(ctx context.Context, masterPubkey stri
 
 func (t *tokenAnalyticsUsers) GetUser(ctx context.Context, masterPubkey string) (*UserRecord, error) {
 	user, err := storage.Get[UserRecord](ctx, t.ingestedDataDB,
-		`SELECT id, master_pubkey, blockchain_address, external_address, username, 
+		`SELECT id, master_pubkey, content_author_id, external_address, username, 
 		        display_name, avatar, lookup, ion_connect_relays, verified, platform_group 
 		 FROM users WHERE master_pubkey = $1`, masterPubkey)
 	if err != nil {

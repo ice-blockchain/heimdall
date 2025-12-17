@@ -35,7 +35,7 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 
 	query := `
 		SELECT 
-			t.creator_blockchain_address as creator_blockchain_address,
+			t.content_author_id as content_author_id,
 			creator.username as creator_username,
 			creator.display_name as creator_display,
 			creator.verified as creator_verified,
@@ -53,7 +53,7 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 			holder.external_address as holder_external_address,
 			holder.platform_group as holder_platform
 		FROM tokens t
-		LEFT JOIN users creator ON LOWER(creator.blockchain_address) = LOWER(t.creator_blockchain_address)
+		LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
 		JOIN users holder ON holder.external_address = ANY($2)
 		WHERE t.external_address = $1
 	`

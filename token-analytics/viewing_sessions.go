@@ -170,7 +170,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 		t.created_at,
 		t.ticker,
 		t.total_supply,
-		t.creator_blockchain_address as creator_blockchain_address,
+		t.content_author_id as content_author_id,
 		creator.username as creator_username,
 		creator.display_name as creator_display,
 		creator.verified as creator_verified,
@@ -186,7 +186,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 		COALESCE(t.bonding_curve_current_amount_usd, 0) as bonding_curve_current_amount_usd,
 		COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd
 		FROM tokens t
-		LEFT JOIN users creator ON LOWER(creator.blockchain_address) = LOWER(t.creator_blockchain_address)
+		LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
 		WHERE t.external_address = ANY($1)
 	`
 	tokensPtr, err := storage.Select[tokenRow](ctx, t.ingestedDataDB, query, externalAddresses)
