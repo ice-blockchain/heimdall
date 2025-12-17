@@ -67,15 +67,15 @@ func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
 }
 
 func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
-	tokenExternalAddress, userExternalAddress, userUsername, userDisplayName, userAvatar string, userVerified bool,
-	userContentId, tokenTitle, tokenDescription, tokenImageURL string) error {
+	tokenExternalAddress, postAuthorExternalAddress, postAuthorUsername, postAuthorDisplayName, postAuthorAvatar string, postAuthorVerified bool,
+	postAuthorContentId, tokenTitle, tokenDescription, tokenImageURL string) error {
 
-	hasUserData := userContentId != "" || userUsername != "" || userDisplayName != "" || userAvatar != ""
+	hasPostAuthorData := postAuthorContentId != "" || postAuthorUsername != "" || postAuthorDisplayName != "" || postAuthorAvatar != ""
 	hasTokenData := tokenTitle != "" || tokenDescription != "" || tokenImageURL != ""
-	if !hasUserData && !hasTokenData {
+	if !hasPostAuthorData && !hasTokenData {
 		return nil
 	}
-	const userUpsertSQL = `
+	const postAuthorUpsertSQL = `
 		INSERT INTO users (
 			created_at, updated_at, id, master_pubkey, content_author_id, 
 			external_address, username, display_name, avatar, verified, lookup, platform_group
@@ -102,10 +102,10 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 
 	var query string
 	var args []interface{}
-	if hasUserData && hasTokenData {
+	if hasPostAuthorData && hasTokenData {
 		query = `
-			WITH user_update AS (
-				` + userUpsertSQL + `
+			WITH post_author_update AS (
+				` + postAuthorUpsertSQL + `
 			)
 			UPDATE tokens
 			SET 
@@ -117,15 +117,15 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 			WHERE external_address = $11;
 		`
 		args = []interface{}{
-			userExternalAddress, userContentId, userExternalAddress, userUsername,
-			userDisplayName, userAvatar, userVerified, tokenTitle, tokenDescription,
+			postAuthorExternalAddress, postAuthorContentId, postAuthorExternalAddress, postAuthorUsername,
+			postAuthorDisplayName, postAuthorAvatar, postAuthorVerified, tokenTitle, tokenDescription,
 			tokenImageURL, tokenExternalAddress,
 		}
-	} else if hasUserData {
-		query = userUpsertSQL + `;`
+	} else if hasPostAuthorData {
+		query = postAuthorUpsertSQL + `;`
 		args = []interface{}{
-			userExternalAddress, userContentId, userExternalAddress, userUsername,
-			userDisplayName, userAvatar, userVerified,
+			postAuthorExternalAddress, postAuthorContentId, postAuthorExternalAddress, postAuthorUsername,
+			postAuthorDisplayName, postAuthorAvatar, postAuthorVerified,
 		}
 	} else {
 		query = `
@@ -143,7 +143,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	_, err := storage.Exec(ctx, t.ingestedDataDB, query, args...)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrDuplicate) {
-			return errors.Wrapf(ErrDuplicate, "failed to update token external data for: %v", userExternalAddress)
+			return errors.Wrapf(ErrDuplicate, "failed to update token external data for: %v", postAuthorExternalAddress)
 		}
 		return fmt.Errorf("failed to update token external data: %w", err)
 	}

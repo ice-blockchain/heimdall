@@ -69,8 +69,8 @@ type (
 			masterPubkey, userExternalAddress, userUsername, userDisplayName, userAvatar string, userVerified bool,
 			userContentId string) error
 		UpdateTokenExternalData(ctx context.Context,
-			tokenExternalAddress, userExternalAddress, userUsername, userDisplayName, userAvatar string, userVerified bool,
-			userContentId, tokenTitle, tokenDescription, tokenImageURL string) error
+			tokenExternalAddress, postAuthorExternalAddress, postAuthorUsername, postAuthorDisplayName, postAuthorAvatar string, postAuthorVerified bool,
+			postAuthorContentId, tokenTitle, tokenDescription, tokenImageURL string) error
 		GetHolderPositions(ctx context.Context, tokenExternalAddress string, holderExternalAddresses []string) ([]*HolderPosition, error)
 		GenerateTokenSuggestion(content, creatorName, creatorUsername, creatorBio string) *SuggestCreationDetailsResponse
 		GetBondingCurveProgress(ctx context.Context, externalAddress string) (*BondingCurveProgress, error)

@@ -82,7 +82,7 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 		WHERE LOWER(u.content_author_id) = LOWER($1)
 	`, userAddress.Hex())
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
-		return fmt.Errorf("failed to find user by blockchain_address %v: %w", userAddress, err)
+		return fmt.Errorf("failed to find user by content author id %v: %w", userAddress, err)
 	}
 	if user == nil {
 		user = &userInfo{UserExternalAddress: ""}
