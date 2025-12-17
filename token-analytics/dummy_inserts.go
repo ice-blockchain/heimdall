@@ -606,7 +606,7 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
        {
           "address": "0x{{.Token.ContractAddress}}",
           "data": "0x0000000000000000000000000000000000000000000000000000000000000000",
-          "logIndex": "0x1",
+          "logIndex": "0x2",
           "removed": false,
           "topics": [
             "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",

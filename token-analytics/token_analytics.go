@@ -79,6 +79,9 @@ func New(ctx context.Context) TokenAnalytics {
 		log.Panic(errors.Wrapf(registry.Register(workerPrefix+"iteration",
 			metrics.NewCustomTimer(metrics.NewHistogram(metrics.NewExpDecaySample(10_000, 0.015)), metrics.NewMeter())),
 			"failed to register worker %d iteration timer", workerIdx))
+		log.Panic(errors.Wrapf(registry.Register(workerPrefix+"tx_to_process_fetch",
+			metrics.NewCustomTimer(metrics.NewHistogram(metrics.NewExpDecaySample(10_000, 0.015)), metrics.NewMeter())),
+			"failed to register worker %d tx_to_process_fetch", workerIdx))
 		log.Panic(errors.Wrapf(registry.Register(workerPrefix+"events_processed", metrics.NewMeter()),
 			"failed to register worker %d events meter", workerIdx))
 		log.Panic(errors.Wrapf(registry.Register(workerPrefix+"errors", metrics.NewMeter()),
@@ -122,7 +125,7 @@ func New(ctx context.Context) TokenAnalytics {
 	go t.startIONPriceSyncer(ctx)
 
 	if true {
-		startLastBlock, err := t.getSavePoint(ctx, 0)
+		startLastBlock, err := t.getDummySavePoint(ctx, 0)
 		if err != nil {
 			log.Panic(errors.Wrapf(err, "failed to get save point for dummy generator"))
 		}
@@ -267,6 +270,7 @@ func (t *tokenAnalytics) MustStart(ctx context.Context) {
 func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint) {
 	workerPrefix := fmt.Sprintf("worker_%d_", workerIdx)
 	iterationTimer := t.metrics.Get(workerPrefix + "iteration").(metrics.Timer)
+	txFetcherTimer := t.metrics.Get(workerPrefix + "tx_to_process_fetch").(metrics.Timer)
 	eventsProcessed := t.metrics.Get(workerPrefix + "events_processed").(metrics.Meter)
 	errorsMeter := t.metrics.Get(workerPrefix + "errors").(metrics.Meter)
 	blockGauge := t.metrics.Get(workerPrefix + "block_number").(metrics.Gauge)
@@ -296,6 +300,7 @@ func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint)
 	for ctx.Err() == nil {
 		iterationStart := time.Now()
 		iterationCtx, iterationCancel := context.WithTimeout(ctx, 30*time.Second)
+		fetchStart := time.Now()
 		eventsToProcess, err = t.fetchUnprocessedEvents(iterationCtx, workerIdx, startPoint, dummyStartPoint)
 		if err != nil {
 			log.Error(fmt.Errorf("[worker %d] failed to fetch new tx events: %w", workerIdx, err))
@@ -304,6 +309,8 @@ func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint)
 
 			continue
 		}
+		fetchDuration := time.Since(fetchStart)
+		txFetcherTimer.Update(fetchDuration)
 		if len(eventsToProcess) == 0 {
 			time.Sleep(1 * time.Second)
 			iterationCancel()
