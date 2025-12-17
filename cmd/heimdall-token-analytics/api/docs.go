@@ -1712,23 +1712,11 @@ const docTemplate = `{
                     "type": "boolean",
                     "example": true
                 },
-                "tokenDescription": {
-                    "type": "string",
-                    "example": "My awesome token"
-                },
-                "tokenImageURL": {
-                    "type": "string",
-                    "example": "https://example.com/token.png"
-                },
-                "tokenTitle": {
-                    "type": "string",
-                    "example": "My Awesome Token"
-                },
                 "userAvatar": {
                     "type": "string",
                     "example": "https://example.com/avatar.png"
                 },
-                "userContentId": {
+                "userBSCWalletAddress": {
                     "type": "string",
                     "example": "0x1234567890abcdef1234567890abcdef12345678"
                 },

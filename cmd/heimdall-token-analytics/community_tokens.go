@@ -65,22 +65,18 @@ type (
 		ExternalDataRequestBody
 	}
 	ExternalDataRequestBody struct {
-		UserExternalAddress string `json:"userExternalAddress,omitempty" example:"1234567890"`
-		UserUsername        string `json:"userUsername,omitempty" example:"johndoe"`
-		UserDisplayName     string `json:"userDisplayName,omitempty" example:"John Doe"`
-		UserAvatar          string `json:"userAvatar,omitempty" example:"https://example.com/avatar.png"`
-		UserVerified        bool   `json:"userVerified,omitempty" example:"true"`
-		UserContentId       string `json:"userContentId,omitempty" example:"0x1234567890abcdef1234567890abcdef12345678"`
+		UserExternalAddress  string `json:"userExternalAddress,omitempty" example:"1234567890"`
+		UserUsername         string `json:"userUsername,omitempty" example:"johndoe"`
+		UserDisplayName      string `json:"userDisplayName,omitempty" example:"John Doe"`
+		UserAvatar           string `json:"userAvatar,omitempty" example:"https://example.com/avatar.png"`
+		UserVerified         bool   `json:"userVerified,omitempty" example:"true"`
+		UserBSCWalletAddress string `json:"userBSCWalletAddress,omitempty" example:"0x1234567890abcdef1234567890abcdef12345678"`
 
 		PostAuthorExternalAddress string `json:"postAuthorExternalAddress,omitempty" example:"30023:431cbb22566b87c35ce6cffcca5593876cc64b9085d1355944c03d865540a95b:ionconnect.app"`
 		PostAuthorUsername        string `json:"postAuthorUsername,omitempty" example:"johndoe"`
 		PostAuthorDisplayName     string `json:"postAuthorDisplayName,omitempty" example:"John Doe"`
 		PostAuthorAvatar          string `json:"postAuthorAvatar,omitempty" example:"https://example.com/avatar.png"`
 		PostAuthorVerified        bool   `json:"postAuthorVerified,omitempty" example:"true"`
-
-		TokenTitle       string `json:"tokenTitle,omitempty" example:"My Awesome Token"`
-		TokenDescription string `json:"tokenDescription,omitempty" example:"My awesome token"`
-		TokenImageURL    string `json:"tokenImageURL,omitempty" example:"https://example.com/token.png"`
 	}
 	SuggestCreationDetailsRequest struct {
 		Content string                        `json:"content" example:"some post text"`
@@ -420,7 +416,7 @@ func (s *service) GetCommunityTokenPricing(ctx context.Context, req *server.Requ
 func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *server.Request[ExternalDataRequest]) (*server.Response[any], error) {
 	if req.Data.ExternalAddress == "twitterProfiles" {
 		hasUserData := req.Data.UserExternalAddress != "" || req.Data.UserUsername != "" ||
-			req.Data.UserDisplayName != "" || req.Data.UserAvatar != "" || req.Data.UserContentId != ""
+			req.Data.UserDisplayName != "" || req.Data.UserAvatar != "" || req.Data.UserBSCWalletAddress != ""
 		if !hasUserData {
 			return nil, server.BadRequest(errors.New("at least one user field must be provided"), invalidPropertiesErrorCode)
 		}
@@ -433,7 +429,7 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 			req.Data.UserDisplayName,
 			req.Data.UserAvatar,
 			req.Data.UserVerified,
-			req.Data.UserContentId,
+			req.Data.UserBSCWalletAddress,
 		); err != nil {
 			if errors.Is(err, ta.ErrDuplicate) {
 				return nil, server.Conflict(err, "DATA_CONFLICT")
@@ -443,9 +439,8 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 	} else {
 		hasPostAuthorData := req.Data.PostAuthorExternalAddress != "" || req.Data.PostAuthorUsername != "" ||
 			req.Data.PostAuthorDisplayName != "" || req.Data.PostAuthorAvatar != ""
-		hasTokenData := req.Data.TokenTitle != "" || req.Data.TokenDescription != "" || req.Data.TokenImageURL != ""
-		if !hasPostAuthorData && !hasTokenData {
-			return nil, server.BadRequest(errors.New("at least one post author or token field must be provided"), invalidPropertiesErrorCode)
+		if !hasPostAuthorData {
+			return nil, server.BadRequest(errors.New("at least one post author field must be provided"), invalidPropertiesErrorCode)
 		}
 
 		if err := s.tokenAnalytics.UpdateTokenExternalData(
@@ -457,9 +452,6 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 			req.Data.PostAuthorAvatar,
 			req.Data.PostAuthorVerified,
 			req.Data.ExternalAddress,
-			req.Data.TokenTitle,
-			req.Data.TokenDescription,
-			req.Data.TokenImageURL,
 		); err != nil {
 			if errors.Is(err, ta.ErrDuplicate) {
 				return nil, server.Conflict(err, "DATA_CONFLICT")

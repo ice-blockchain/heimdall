@@ -18,19 +18,10 @@ definitions:
       postAuthorVerified:
         example: true
         type: boolean
-      tokenDescription:
-        example: My awesome token
-        type: string
-      tokenImageURL:
-        example: https://example.com/token.png
-        type: string
-      tokenTitle:
-        example: My Awesome Token
-        type: string
       userAvatar:
         example: https://example.com/avatar.png
         type: string
-      userContentId:
+      userBSCWalletAddress:
         example: 0x1234567890abcdef1234567890abcdef12345678
         type: string
       userDisplayName:

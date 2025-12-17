@@ -68,79 +68,44 @@ func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
 
 func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	tokenExternalAddress, postAuthorExternalAddress, postAuthorUsername, postAuthorDisplayName, postAuthorAvatar string, postAuthorVerified bool,
-	userContentId, tokenTitle, tokenDescription, tokenImageURL string) error {
+	userContentId string) error {
 
-	hasPostAuthorData := userContentId != "" || postAuthorUsername != "" || postAuthorDisplayName != "" || postAuthorAvatar != ""
-	hasTokenData := tokenTitle != "" || tokenDescription != "" || tokenImageURL != ""
-	if !hasPostAuthorData && !hasTokenData {
-		return nil
-	}
-	const postAuthorUpsertSQL = `
-		INSERT INTO users (
-			created_at, updated_at, id, master_pubkey, content_author_id, 
-			external_address, username, display_name, avatar, verified, lookup, platform_group
+	query := `
+		WITH post_author_update AS (
+			INSERT INTO users (
+				created_at, updated_at, id, master_pubkey, content_author_id, 
+				external_address, username, display_name, avatar, verified, lookup, platform_group
+			)
+			VALUES (
+				NOW(), NOW(), $1, $1, $2, $3, $4, $5, $6, $7, LOWER($4 || ' ' || COALESCE($5, '')), 'xcom'::platform_type
+			)
+			ON CONFLICT (content_author_id) 
+			DO UPDATE SET
+				master_pubkey = EXCLUDED.master_pubkey,
+				external_address = COALESCE(NULLIF(EXCLUDED.external_address, ''), users.external_address),
+				username = COALESCE(NULLIF(EXCLUDED.username, ''), users.username),
+				display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name),
+				avatar = COALESCE(NULLIF(EXCLUDED.avatar, ''), users.avatar),
+				verified = EXCLUDED.verified,
+				lookup = CASE
+					WHEN EXCLUDED.username != '' OR EXCLUDED.display_name != '' THEN
+						LOWER(TRIM(COALESCE(NULLIF(EXCLUDED.username, ''), users.username) || ' ' || COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name)))
+					ELSE users.lookup
+				END,
+				platform_group = EXCLUDED.platform_group,
+				updated_at = NOW()
 		)
-		VALUES (
-			NOW(), NOW(), $1, $1, $2, $3, $4, $5, $6, $7, LOWER($4 || ' ' || COALESCE($5, '')), 'xcom'::platform_type
-		)
-		ON CONFLICT (content_author_id) 
-		DO UPDATE SET
-			master_pubkey = EXCLUDED.master_pubkey,
-			external_address = COALESCE(NULLIF(EXCLUDED.external_address, ''), users.external_address),
-			username = COALESCE(NULLIF(EXCLUDED.username, ''), users.username),
-			display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name),
-			avatar = COALESCE(NULLIF(EXCLUDED.avatar, ''), users.avatar),
-			verified = EXCLUDED.verified,
-			lookup = CASE
-				WHEN EXCLUDED.username != '' OR EXCLUDED.display_name != '' THEN
-					LOWER(TRIM(COALESCE(NULLIF(EXCLUDED.username, ''), users.username) || ' ' || COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name)))
-				ELSE users.lookup
-			END,
-			platform_group = EXCLUDED.platform_group,
+		UPDATE tokens
+		SET 
+			content_author_id = $2,
 			updated_at = NOW()
+		WHERE external_address = $8;
 	`
 
-	var query string
-	var args []interface{}
-	if hasPostAuthorData && hasTokenData {
-		query = `
-			WITH post_author_update AS (
-				` + postAuthorUpsertSQL + `
-			)
-			UPDATE tokens
-			SET 
-				content_author_id = $2,
-				title = CASE WHEN $8 != '' THEN $8 ELSE title END,
-				description = CASE WHEN $9 != '' THEN $9 ELSE description END,
-				image_url = CASE WHEN $10 != '' THEN $10 ELSE image_url END,
-				updated_at = NOW()
-			WHERE external_address = $11;
-		`
-		args = []interface{}{
-			postAuthorExternalAddress, userContentId, postAuthorExternalAddress, postAuthorUsername,
-			postAuthorDisplayName, postAuthorAvatar, postAuthorVerified, tokenTitle, tokenDescription,
-			tokenImageURL, tokenExternalAddress,
-		}
-	} else if hasPostAuthorData {
-		query = postAuthorUpsertSQL + `;`
-		args = []interface{}{
-			postAuthorExternalAddress, userContentId, postAuthorExternalAddress, postAuthorUsername,
-			postAuthorDisplayName, postAuthorAvatar, postAuthorVerified,
-		}
-	} else {
-		query = `
-			UPDATE tokens
-			SET 
-				title = CASE WHEN $1 != '' THEN $1 ELSE title END,
-				description = CASE WHEN $2 != '' THEN $2 ELSE description END,
-				image_url = CASE WHEN $3 != '' THEN $3 ELSE image_url END,
-				updated_at = NOW()
-			WHERE external_address = $4;
-		`
-		args = []interface{}{tokenTitle, tokenDescription, tokenImageURL, tokenExternalAddress}
-	}
-
-	_, err := storage.Exec(ctx, t.ingestedDataDB, query, args...)
+	_, err := storage.Exec(ctx, t.ingestedDataDB, query,
+		postAuthorExternalAddress, userContentId, postAuthorExternalAddress, postAuthorUsername,
+		postAuthorDisplayName, postAuthorAvatar, postAuthorVerified, tokenExternalAddress,
+	)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrDuplicate) {
 			return errors.Wrapf(ErrDuplicate, "failed to update token external data for: %v", postAuthorExternalAddress)
