@@ -3,6 +3,24 @@
 definitions:
   main.ExternalDataRequest:
     properties:
+      postAuthorAvatar:
+        example: https://example.com/avatar.png
+        type: string
+      postAuthorContentId:
+        example: 0x1234567890abcdef1234567890abcdef12345678
+        type: string
+      postAuthorDisplayName:
+        example: John Doe
+        type: string
+      postAuthorExternalAddress:
+        example: "1234567890"
+        type: string
+      postAuthorUsername:
+        example: johndoe
+        type: string
+      postAuthorVerified:
+        example: true
+        type: boolean
       tokenDescription:
         example: My awesome token
         type: string
@@ -12,24 +30,6 @@ definitions:
       tokenTitle:
         example: My Awesome Token
         type: string
-      userAvatar:
-        example: https://example.com/avatar.png
-        type: string
-      userBNBBSCWallet:
-        example: 0x1234567890abcdef1234567890abcdef12345678
-        type: string
-      userDisplayName:
-        example: John Doe
-        type: string
-      userExternalAddress:
-        example: "1234567890"
-        type: string
-      userUsername:
-        example: johndoe
-        type: string
-      userVerified:
-        example: true
-        type: boolean
     type: object
   main.SessionViewCreateResponse:
     properties:

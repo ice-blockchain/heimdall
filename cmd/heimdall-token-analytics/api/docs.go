@@ -1692,6 +1692,30 @@ const docTemplate = `{
         "main.ExternalDataRequest": {
             "type": "object",
             "properties": {
+                "postAuthorAvatar": {
+                    "type": "string",
+                    "example": "https://example.com/avatar.png"
+                },
+                "postAuthorContentId": {
+                    "type": "string",
+                    "example": "0x1234567890abcdef1234567890abcdef12345678"
+                },
+                "postAuthorDisplayName": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "postAuthorExternalAddress": {
+                    "type": "string",
+                    "example": "1234567890"
+                },
+                "postAuthorUsername": {
+                    "type": "string",
+                    "example": "johndoe"
+                },
+                "postAuthorVerified": {
+                    "type": "boolean",
+                    "example": true
+                },
                 "tokenDescription": {
                     "type": "string",
                     "example": "My awesome token"
@@ -1703,30 +1727,6 @@ const docTemplate = `{
                 "tokenTitle": {
                     "type": "string",
                     "example": "My Awesome Token"
-                },
-                "userAvatar": {
-                    "type": "string",
-                    "example": "https://example.com/avatar.png"
-                },
-                "userBNBBSCWallet": {
-                    "type": "string",
-                    "example": "0x1234567890abcdef1234567890abcdef12345678"
-                },
-                "userDisplayName": {
-                    "type": "string",
-                    "example": "John Doe"
-                },
-                "userExternalAddress": {
-                    "type": "string",
-                    "example": "1234567890"
-                },
-                "userUsername": {
-                    "type": "string",
-                    "example": "johndoe"
-                },
-                "userVerified": {
-                    "type": "boolean",
-                    "example": true
                 }
             }
         },
