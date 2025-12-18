@@ -287,6 +287,11 @@ type (
 		Authorization string `header:"Authorization" required:"true" swaggerignore:"true"`
 		Username      string `form:"username" required:"true"`
 	}
+	CommunityTokenAdaptorRequest struct {
+		Platform string `json:"platform" example:"x.com"`
+		PostID   string `json:"postId" example:"1234567890"`
+		APIKey   string `header:"X-API-Key" required:"true" swaggerignore:"true"`
+	}
 )
 
 const (
@@ -343,6 +348,7 @@ type (
 		Host                    string   `yaml:"host"`
 		Version                 string   `yaml:"version"`
 		APIKey                  []string `yaml:"api-key" mapstructure:"api-key"`
+		CommunityTokenAPIKey    string   `yaml:"communityTokenAPIKey" mapstructure:"communityTokenAPIKey"`
 		AppleAppSiteAssociation string   `yaml:"appleAppSiteAssociation"`
 		AssetLinks              string   `yaml:"assetLinks"`
 		RequiredAppVersions     struct {

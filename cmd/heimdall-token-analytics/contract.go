@@ -17,7 +17,9 @@ type (
 			KeyPath  string `yaml:"keyPath"`
 			Port     uint32 `yaml:"port"`
 		} `yaml:"httpServer"`
-		Development bool `yaml:"development"`
+		Development           bool   `yaml:"development"`
+		IdentityServiceURL    string `yaml:"identityServiceUrl"`
+		IdentityServiceAPIKey string `yaml:"identityServiceApiKey"`
 	}
 
 	service struct {

@@ -211,6 +211,7 @@ CREATE TABLE IF NOT EXISTS tokens (
     image_url                       TEXT,
     bnb_bsc_metadata_owner_address  TEXT,
     affiliate_bsc_address           TEXT,
+    ion_connect_address             TEXT, -- ION Connect address for xcom tokens (kind 31175 event address)
     PRIMARY KEY (contract_address)
 );
 

@@ -106,6 +106,7 @@ func New(ctx context.Context) TokenAnalytics {
 		bondingCurve:                bondingcurve.New(ctx, applicationYamlKey),
 		ohclvRecentData:             xsync.NewMap[string, *recentCandlestick](),
 		subscriptions:               newSubscriptions(ctx),
+		identityClient:              newIdentityClient(cfg.IdentityServiceURL, cfg.IdentityServiceAPIKey),
 		shutdown: func() error {
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
