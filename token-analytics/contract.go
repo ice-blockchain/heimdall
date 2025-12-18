@@ -177,6 +177,8 @@ const (
 	bondingCurveTopHolderDisplayName = "Bonding Curve"
 	// TODO: replace
 	bondingCurveTopHolderAvatar = "https://cdn.ice.io/online+/assets/coins/ion.svg"
+
+	fatAddressHeaderSize = 64
 )
 
 var (

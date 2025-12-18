@@ -816,13 +816,17 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
 	totalSupply, _ := new(big.Int).SetString(seedData.TotalSupply, 10)
 
 	// For first swap: toToken = 64 zero bytes (see fat address in contact) + external_address (as string bytes)
-	nameLen := randInt(255)
-	symbolLen := randInt(255)
 	typ := seedData.ExternalAddress[0]
-	toToken := append(make([]byte, 64+symbolLen+nameLen), []byte(seedData.ExternalAddress[1:])...)
-	toToken[0] = byte(symbolLen)
-	toToken[1] = byte(nameLen)
+	toToken := append(make([]byte, 64+len(seedData.Ticker)+len(seedData.Title)), []byte(seedData.ExternalAddress[1:])...)
+	toToken[0] = byte(len(seedData.Ticker))
+	toToken[1] = byte(len(seedData.Title))
+	toToken[2] = byte(len(seedData.ExternalAddress[1:]))
 	toToken[3] = byte(typ)
+	copy(toToken[4:], common.HexToAddress(ownerBlockchainAddr).Bytes()) // creatorAddress
+	copy(toToken[24:], common.HexToAddress("0x").Bytes())               // affiliateAddress
+	copy(toToken[44:], common.HexToAddress("0x").Bytes())               // creatorTokenAddress
+	copy(toToken[64:], seedData.Ticker)
+	copy(toToken[64+len(seedData.Ticker):], seedData.Title)
 	txInput, err := bondingcurve.ABI.Methods["swap"].Inputs.Pack(
 		base,
 		toToken,
@@ -842,7 +846,7 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
 	bondedTokenCreatedData, err := bondingcurve.ABI.Events["BondingTokenCreated"].Inputs.NonIndexed().Pack(
 		seedData.Title,
 		seedData.Ticker,
-		common.HexToAddress("0x"),   // creatorTokenAddress for contentT
+		common.HexToAddress("0x"),   // creatorTokenAddress for content tokens
 		seedData.ExternalAddress[0], // externalType
 		seedData.ExternalAddress[1:],
 		common.HexToAddress(ownerBlockchainAddr), // creatorAddress

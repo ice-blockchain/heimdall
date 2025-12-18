@@ -197,12 +197,14 @@ func detectExternalAddressFromSwap(ev *bondingcurve.LogTokenSwapped) (string, co
 	}
 	var creatorTokenAddr common.Address
 	var affiliateAddr common.Address
-	if len(externalAddressParamBytes) > 64 {
+	if len(externalAddressParamBytes) > fatAddressHeaderSize {
 		creatorTokenAddr = common.BytesToAddress(externalAddressParamBytes[4:24])
 		affiliateAddr = common.BytesToAddress(externalAddressParamBytes[24:44])
 		symbolLen := int(externalAddressParamBytes[0])
 		nameLen := int(externalAddressParamBytes[1])
-		externalAddressParamBytes = externalAddressParamBytes[64+symbolLen+nameLen:]
+		if len(externalAddressParamBytes) > fatAddressHeaderSize+symbolLen+nameLen {
+			externalAddressParamBytes = externalAddressParamBytes[fatAddressHeaderSize+symbolLen+nameLen:]
+		}
 	}
 	externalAddress := string(externalAddressParamBytes)
 	return externalAddress, creatorTokenAddr, affiliateAddr, nil
