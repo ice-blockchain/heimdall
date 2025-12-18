@@ -13,9 +13,9 @@ cmd/heimdall-identity-io:
     android: 9.9.9
     ios: 9.9.9
   tokenizedCommunities:
-    bondingCurveSmartContractAddress: 0x0DC4FD80a011b2FFec23a6e35Ab6D0918F5972F3
-    addressVersion: 1
-    abiVersion: 1
+    bondingCurveSmartContractAddress: 0x8B5a70A21aF8Bd7BdB38c0fAc5CF3A81079D2595
+    addressVersion: 5
+    abiVersion: 5
   supportedSwapTokens:
     version: 1
     tokens:
@@ -434,7 +434,7 @@ token-analytics:
   workers: 10
   batchSize: 2
   bondingCurve:
-    smartContractAddress: 0x0DC4FD80a011b2FFec23a6e35Ab6D0918F5972F3
+    smartContractAddress: 0x8B5a70A21aF8Bd7BdB38c0fAc5CF3A81079D2595
     bondingCurveProgressUpdateFrequency: 500ms
     rpcEndpoints:
       - https://bogus.pro/bogus/
