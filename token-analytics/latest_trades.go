@@ -56,7 +56,7 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, externalAddress st
 		LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(tokens.content_author_id)
 		LEFT JOIN users holder ON LOWER(holder.content_author_id) = LOWER(token_swaps.user_blockchain_address)
 		LEFT JOIN user_token_positions utp ON utp.external_address = token_swaps.external_address AND LOWER(utp.user_blockchain_address) = LOWER(token_swaps.user_blockchain_address)
-			WHERE tokens.external_address = $1 %[3]v
+		WHERE token_swaps.external_address = $1 %[3]v
 		ORDER BY token_swaps.created_at DESC
 		LIMIT %[1]v OFFSET %[2]v
 	`, limit, offset, timeClause)
