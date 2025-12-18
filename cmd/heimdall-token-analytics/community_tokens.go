@@ -105,11 +105,11 @@ type (
 		Amount          *big.Int `form:"amount" swaggerignore:"true" example:"100000000"`
 	}
 	PriceResponse struct {
-		Amount      *big.Int `json:"amount"`
-		AmountBNB   *big.Int `json:"amountBNB"`
-		AmountUSD   float64  `json:"amountUSD"`
-		IONPriceUSD float64  `json:"usdPriceION"`
-		BNBPriceUSD float64  `json:"usdPriceBNB"`
+		Amount      string  `json:"amount"`
+		AmountBNB   string  `json:"amountBNB"`
+		AmountUSD   float64 `json:"amountUSD"`
+		IONPriceUSD float64 `json:"usdPriceION"`
+		BNBPriceUSD float64 `json:"usdPriceBNB"`
 	}
 )
 
@@ -389,8 +389,8 @@ func (s *service) GetCommunityTokenPricing(ctx context.Context, req *server.Requ
 	}
 
 	return server.OK(&PriceResponse{
-		Amount:      amount,
-		AmountBNB:   amountBnb,
+		Amount:      amount.String(),
+		AmountBNB:   amountBnb.String(),
 		AmountUSD:   amountUsd,
 		BNBPriceUSD: bnbPrice,
 		IONPriceUSD: ionPrice,

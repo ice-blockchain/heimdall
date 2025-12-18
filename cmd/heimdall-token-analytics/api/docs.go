@@ -1686,9 +1686,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "big.Int": {
-            "type": "object"
-        },
         "main.ExternalDataRequest": {
             "type": "object",
             "properties": {
@@ -1742,10 +1739,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "amount": {
-                    "$ref": "#/definitions/big.Int"
+                    "type": "string"
                 },
                 "amountBNB": {
-                    "$ref": "#/definitions/big.Int"
+                    "type": "string"
                 },
                 "amountUSD": {
                     "type": "number"
