@@ -20,11 +20,15 @@ type (
 	Event           interface{}
 	LogTokenCreated struct {
 		Event
-		Address         common.Address
-		Name            string
-		Symbol          string
-		ExternalAddress string
-		TotalSupply     *big.Int
+		Address             common.Address // indexed
+		Name                string
+		Symbol              string
+		CreatorTokenAddress common.Address
+		ExternalType        byte // goes to externalAddress[0], token type
+		ExternalAddress     string
+		CreatorAddress      common.Address
+		AffiliateAddress    common.Address
+		TotalSupply         *big.Int
 	}
 	LogTokenSwapped struct {
 		Event
@@ -146,7 +150,7 @@ var (
 	//go:embed .abi/bonding_curve.json
 	ABIJSON string
 
-	eventTokenCreated         = crypto.Keccak256Hash([]byte("BondingTokenCreated(address,string,string,string,uint256)"))
+	eventTokenCreated         = crypto.Keccak256Hash([]byte("BondingTokenCreated(address,string,string,address,uint8,string,address,address,uint256)"))
 	eventPairRegistered       = crypto.Keccak256Hash([]byte("PairRegistered(bytes32,address,address)"))
 	eventSwapped              = crypto.Keccak256Hash([]byte("Swapped(address,bytes32,bool,uint256,uint256,uint256)"))
 	eventRecipientsSet        = crypto.Keccak256Hash([]byte("RecipientsSet(bytes32,address,address,address)"))
