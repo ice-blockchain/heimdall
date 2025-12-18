@@ -1,3 +1,5 @@
+-- SPDX-License-Identifier: ice License 1.0
+
 ALTER TABLE tokens ADD COLUMN IF NOT EXISTS affiliate_bsc_address TEXT;
 
 
@@ -104,6 +106,7 @@ BEGIN
                                                  platform = EXCLUDED.platform,
                                                  ticker = COALESCE(EXCLUDED.ticker, tokens.ticker),
                                                  title = COALESCE(EXCLUDED.title, tokens.title),
+                                                 affiliate_bsc_address = COALESCE(EXCLUDED.affiliate_bsc_address, tokens.affiliate_bsc_address),
                                                  log_index = COALESCE(EXCLUDED.log_index, tokens.log_index);
 
     RAISE DEBUG 'TokenCreated processed: token=%', v_token_address;
@@ -144,11 +147,10 @@ BEGIN
     -- Extract toToken hex data (starts 32 bytes after the length word)
     data_start_pos := (to_token_offset_bytes + 32) * 2 + 1;
     to_token_hex := substring(hex_clean from data_start_pos for (to_token_length_bytes * 2));
-    -- first 20 bytes is content creator token, for content tokens
+    -- first 64+N+M bytes is header, N=symbolLen, M=nameLen
     external_address := to_token_hex;
-    raise warning 'external_address: %', external_address;
     ext_length := char_length(external_address);
-    if ext_length <= 64 THEN
+    if ext_length <= 64*2 THEN -- 64 bytes header
         -- For 1+ swaps: toToken is just 20-byte contract address, no external_address
         -- Return empty string so trigger will use pair_id lookup
         RETURN '';
