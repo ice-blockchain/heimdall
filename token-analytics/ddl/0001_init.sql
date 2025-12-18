@@ -210,6 +210,7 @@ CREATE TABLE IF NOT EXISTS tokens (
     description                     TEXT,
     image_url                       TEXT,
     bnb_bsc_metadata_owner_address  TEXT,
+    affiliate_bsc_address           TEXT,
     PRIMARY KEY (contract_address)
 );
 
