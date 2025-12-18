@@ -373,22 +373,9 @@ func (gen *dummyDataGenerator) startDummySwapsForRealTokens(ctx context.Context)
 					log.Debug("No real tokens available for dummy swap generation")
 					continue
 				}
-				tokensToProcess := 20
-				if len(realTokens) < tokensToProcess {
-					tokensToProcess = len(realTokens)
-				}
-
-				// Shuffle and pick first N tokens
-				shuffled := make([]*tokenRow, len(realTokens))
-				copy(shuffled, realTokens)
-				rand.Shuffle(len(shuffled), func(i, j int) {
-					shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
-				})
-
 				successCount := 0
-				for i := 0; i < tokensToProcess; i++ {
-					token := shuffled[i]
-					log.Debug(fmt.Sprintf("Processing real token %d/%d: %s (%s)", i+1, tokensToProcess, token.ContractAddress, token.Title))
+				for i, token := range realTokens {
+					log.Debug(fmt.Sprintf("Processing real token %d/%d: %s (%s)", i+1, len(realTokens), token.ContractAddress, token.Title))
 
 					platformGroup := PlatformGroupIonConnect
 					if len(token.ExternalAddress) > 0 {
@@ -408,7 +395,7 @@ func (gen *dummyDataGenerator) startDummySwapsForRealTokens(ctx context.Context)
 				}
 
 				if successCount > 0 {
-					log.Info(fmt.Sprintf("Generated dummy swaps for %d/%d real tokens", successCount, tokensToProcess))
+					log.Info(fmt.Sprintf("Generated dummy swaps for %d/%d real tokens", successCount, len(realTokens)))
 				}
 			}
 		}
