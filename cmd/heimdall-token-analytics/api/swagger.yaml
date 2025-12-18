@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: ice License 1.0
 
 definitions:
+  big.Int:
+    type: object
   main.ExternalDataRequest:
     properties:
       postAuthorAvatar:
@@ -36,6 +38,19 @@ definitions:
       userVerified:
         example: true
         type: boolean
+    type: object
+  main.PriceResponse:
+    properties:
+      amount:
+        $ref: '#/definitions/big.Int'
+      amountBNB:
+        $ref: '#/definitions/big.Int'
+      amountUSD:
+        type: number
+      usdPriceBNB:
+        type: number
+      usdPriceION:
+        type: number
     type: object
   main.SessionViewCreateResponse:
     properties:
@@ -643,9 +658,7 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/tokenanalytics.BondingCurveProgress'
-            type: array
+            $ref: '#/definitions/main.PriceResponse'
         "400":
           description: if request parameters are invalid
           schema:

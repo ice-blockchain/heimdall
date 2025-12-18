@@ -370,7 +370,7 @@ func (s *service) GetCommunityTokenBondingCurveProgress(ctx context.Context, req
 //	@Param			externalAddressOrViewType	path		string	true	"External address of the token"	example("0:9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f:")
 //	@Param			type						query		string	true	"Buy or sell"					example("buy")
 //	@Param			amount						query		int		false	"Amount of tokens to exchange (by default = 1, 1e18)"
-//	@Success		200							{array}		ta.BondingCurveProgress
+//	@Success		200							{object}	PriceResponse
 //	@Failure		400							{object}	server.ResponseErrorBody	"if request parameters are invalid"
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500							{object}	server.ResponseErrorBody

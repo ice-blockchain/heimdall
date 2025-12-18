@@ -580,10 +580,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/tokenanalytics.BondingCurveProgress"
-                            }
+                            "$ref": "#/definitions/main.PriceResponse"
                         }
                     },
                     "400": {
@@ -1689,6 +1686,9 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "big.Int": {
+            "type": "object"
+        },
         "main.ExternalDataRequest": {
             "type": "object",
             "properties": {
@@ -1735,6 +1735,26 @@ const docTemplate = `{
                 "userVerified": {
                     "type": "boolean",
                     "example": true
+                }
+            }
+        },
+        "main.PriceResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "$ref": "#/definitions/big.Int"
+                },
+                "amountBNB": {
+                    "$ref": "#/definitions/big.Int"
+                },
+                "amountUSD": {
+                    "type": "number"
+                },
+                "usdPriceBNB": {
+                    "type": "number"
+                },
+                "usdPriceION": {
+                    "type": "number"
                 }
             }
         },

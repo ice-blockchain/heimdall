@@ -122,6 +122,8 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 		BaseToken       string `db:"base_token"`
 		ContractAddress string `db:"contract_address"`
 	}
+	basePrice := t.ionPriceUSD.Load()
+	bnbPriceInUSD = 1000 * rand.Float64()
 	contractOrFatAddress := []byte{}
 	result, err := storage.Get[tokenInfo](ctx, t.ingestedDataDB, `
 		SELECT 
@@ -135,7 +137,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 			}
 			contractOrFatAddress, err = hex.DecodeString(strings.TrimPrefix(externalAddress, "0x"))
 			if err != nil {
-				return nil, nil, 0, 0, 0, errors.Errorf("invalid address %v", externalAddress)
+				return nil, nil, 0, *basePrice, bnbPriceInUSD, nil
 			}
 			err = nil
 		}
@@ -155,14 +157,11 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 	if amount != nil {
 		amountToConvert = amount
 	}
-	basePrice := t.ionPriceUSD.Load()
 	toBNBRatio := new(big.Int).SetInt64(int64(randInt(100000)))
-	bnbPriceInUSD = 1000 * rand.Float64()
 	if strings.Contains(strings.ToLower(common.HexToAddress(result.ContractAddress).String()), "dead") {
 		amountUsd = toUSD(amountToConvert, *basePrice)
 		return amountToConvert, new(big.Int).Mul(toBNBRatio, amountToConvert), amountUsd, *basePrice, bnbPriceInUSD, nil
 	}
-
 	resAmount, err := t.bondingCurve.Pricing(ctx, common.HexToAddress(result.BaseToken), contractOrFatAddress, amountToConvert, tradeType == TradeTypeSell)
 	if err != nil {
 		return nil, nil, 0, 0, 0, fmt.Errorf("failed to get pricing for token %v (%v): %w", externalAddress, result.ContractAddress, err)
