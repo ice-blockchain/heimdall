@@ -172,6 +172,8 @@ const (
 	defaultViewingSessionTTL = 5 * stdlibtime.Minute
 
 	schemeMigrationTableName = "wintr_token_analytics_scheme_migrations"
+
+	fatAddressHeaderSize = 64
 )
 
 var (
