@@ -15,16 +15,6 @@
         "internalType": "address",
         "name": "uniswapV3Factory_",
         "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "uniswapV3Router_",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "uniswapV3Quoter_",
-        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
@@ -47,22 +37,6 @@
   },
   {
     "inputs": [],
-    "name": "FactoryNotSet",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint24",
-        "name": "fee",
-        "type": "uint24"
-      }
-    ],
-    "name": "FeeTierNotEnabled",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "InsufficientFeeBalance",
     "type": "error"
   },
@@ -72,34 +46,8 @@
     "type": "error"
   },
   {
-    "inputs": [
-      {
-        "internalType": "uint8",
-        "name": "invalidType",
-        "type": "uint8"
-      }
-    ],
-    "name": "InvalidExternalType",
-    "type": "error"
-  },
-  {
     "inputs": [],
-    "name": "InvalidFatAddressFormat",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidPool",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidQuoter",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InverseCurveNotSupported",
+    "name": "InvalidExternalData",
     "type": "error"
   },
   {
@@ -115,22 +63,6 @@
   {
     "inputs": [],
     "name": "PairDoesNotExist",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "PoolCreateReturnedZero",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "pool",
-        "type": "address"
-      }
-    ],
-    "name": "PoolInitializeFailed",
     "type": "error"
   },
   {
@@ -161,16 +93,6 @@
   },
   {
     "inputs": [],
-    "name": "UniswapQuoteFailed",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "UniswapRouterNotSet",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "ZeroAddress",
     "type": "error"
   },
@@ -197,33 +119,9 @@
       },
       {
         "indexed": false,
-        "internalType": "address",
-        "name": "creatorTokenAddress",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint8",
-        "name": "externalType",
-        "type": "uint8"
-      },
-      {
-        "indexed": false,
         "internalType": "string",
         "name": "externalAddress",
         "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "creatorAddress",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "affiliateAddress",
-        "type": "address"
       },
       {
         "indexed": false,
@@ -736,13 +634,8 @@
       },
       {
         "internalType": "address",
-        "name": "_creatorTokenAddress",
+        "name": "_creator",
         "type": "address"
-      },
-      {
-        "internalType": "uint8",
-        "name": "_externalType",
-        "type": "uint8"
       },
       {
         "internalType": "string",
@@ -898,25 +791,6 @@
         "internalType": "struct FeePolicy.FeeBuckets",
         "name": "",
         "type": "tuple"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "pairId",
-        "type": "bytes32"
-      }
-    ],
-    "name": "getLiquidity",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "liquidityInBase",
-        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -1118,66 +992,6 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes",
-        "name": "fromToken",
-        "type": "bytes"
-      },
-      {
-        "internalType": "bytes",
-        "name": "toToken",
-        "type": "bytes"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amountIn",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "minReturn",
-        "type": "uint256"
-      },
-      {
-        "components": [
-          {
-            "internalType": "uint256",
-            "name": "value",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "deadline",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint8",
-            "name": "v",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "r",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "s",
-            "type": "bytes32"
-          }
-        ],
-        "internalType": "struct BondingCurve.PermitData",
-        "name": "permit",
-        "type": "tuple"
-      }
-    ],
-    "name": "swap",
-    "outputs": [],
-    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
