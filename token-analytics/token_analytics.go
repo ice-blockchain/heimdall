@@ -322,7 +322,16 @@ func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint)
 		for _, tx := range eventsToProcess {
 			isDummyTx := false
 			for _, logEvent := range tx.Logs {
+				// Check if this is a dummy transaction by address (dummy tokens) or stream_id (dummy swaps on real tokens)
+				isDummyLog := false
 				if addr, ok := logEvent.getString("address"); ok && strings.HasPrefix(addr, "0xdeadbeef") {
+					isDummyLog = true
+				}
+				if streamID, ok := logEvent.getString("stream_id"); ok && strings.Contains(streamID, "dummy-swaps-real-tokens") {
+					isDummyLog = true
+				}
+
+				if isDummyLog {
 					isDummyTx = true
 					hasDummyData = true
 				} else {
@@ -505,17 +514,19 @@ func (t *tokenAnalytics) fetchUnprocessedEvents(ctx context.Context, workerIdx u
 					'log_index', l.log_index,
 					'removed', l.removed
 				) ORDER BY l.log_index
-			) as logs, string_agg(l.address, ',') as addresses
+			) as logs, string_agg(l.stream_id, ',') as stream_ids
 			FROM tx_logs l
 			WHERE l.transaction_hash = t.transaction_hash 
 		) logs_agg ON true
 		WHERE MOD(t.i, %[1]v) = %[2]v 
 			AND (
-					(t.block_number, t.transaction_index) > ($1, $2) AND NOT (logs_agg.addresses LIKE '%%0xdeadbeef%%')
+					(t.block_number, t.transaction_index) > ($1, $2) 
+					AND t.to_address NOT LIKE '%%deadbeef%%'
+					AND (logs_agg.stream_ids IS NULL OR logs_agg.stream_ids NOT LIKE '%%dummy-swaps-real-tokens%%')
 				)                                        
 		ORDER BY t.block_number, t.transaction_index
 		LIMIT %[3]v) normal
-		-- TODO: remove with dummy generator
+		-- Dummy: dummy tokens (to=deadbeef) OR dummy swaps on real tokens (stream_id pattern)
 		UNION ALL (
 		    SELECT 
 			t.transaction_hash,
@@ -542,13 +553,14 @@ func (t *tokenAnalytics) fetchUnprocessedEvents(ctx context.Context, workerIdx u
 					'log_index', l.log_index,
 					'removed', l.removed
 				) ORDER BY l.log_index
-			) as logs, string_agg(l.address, ',') as addresses
+			) as logs, string_agg(l.stream_id, ',') as stream_ids
 			FROM tx_logs l
 			WHERE l.transaction_hash = t.transaction_hash 
 		) logs_agg ON true
 		WHERE MOD(t.i, %[1]v) = %[2]v 
 			AND (
-					(t.block_number, t.transaction_index) > ($3,$4) AND (logs_agg.addresses LIKE '%%0xdeadbeef%%')
+					(t.block_number, t.transaction_index) > ($3,$4) 
+					AND (t.to_address LIKE '%%deadbeef%%' OR logs_agg.stream_ids LIKE '%%dummy-swaps-real-tokens%%')
 				)                                        
 		ORDER BY t.block_number, t.transaction_index
 		LIMIT %[3]v)
