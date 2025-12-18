@@ -75,7 +75,7 @@ type (
 		GenerateTokenSuggestion(content, creatorName, creatorUsername, creatorBio string) *SuggestCreationDetailsResponse
 		GetBondingCurveProgress(ctx context.Context, externalAddress string) (*BondingCurveProgress, error)
 		SubscribeBondingCurveProgress(context.Context, string, func(*BondingCurveProgress, error)) error
-		GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount *big.Int) (*big.Int, *big.Int, float64, error)
+		GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount *big.Int) (amountInBase *big.Int, amountInBNB *big.Int, tokenPriceInUSD float64, ionPriceInUSD float64, bnbPriceInUSD float64, err error)
 	}
 
 	SavePoint struct {

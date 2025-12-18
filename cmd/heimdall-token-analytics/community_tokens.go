@@ -105,9 +105,11 @@ type (
 		Amount          *big.Int `form:"amount" swaggerignore:"true" example:"100000000"`
 	}
 	PriceResponse struct {
-		Amount    *big.Int `json:"amount"`
-		AmountBNB *big.Int `json:"amountBNB"`
-		AmountUSD float64  `json:"amountUSD"`
+		Amount      *big.Int `json:"amount"`
+		AmountBNB   *big.Int `json:"amountBNB"`
+		AmountUSD   float64  `json:"amountUSD"`
+		IONPriceUSD float64  `json:"usdPriceION"`
+		BNBPriceUSD float64  `json:"usdPriceBNB"`
 	}
 )
 
@@ -381,15 +383,17 @@ func (s *service) GetCommunityTokenPricing(ctx context.Context, req *server.Requ
 	if tradeType != ta.TradeTypeBuy && tradeType != ta.TradeTypeSell {
 		return nil, server.BadRequest(errors.Errorf("invalid type %v", tradeType), invalidPropertiesErrorCode)
 	}
-	amount, amountBnb, amountUsd, err := s.tokenAnalytics.GetTokenPricing(ctx, req.Data.ExternalAddress, tradeType, req.Data.Amount)
+	amount, amountBnb, amountUsd, ionPrice, bnbPrice, err := s.tokenAnalytics.GetTokenPricing(ctx, req.Data.ExternalAddress, tradeType, req.Data.Amount)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pricing for token %v: %w", req.Data.ExternalAddress, err)
 	}
 
 	return server.OK(&PriceResponse{
-		Amount:    amount,
-		AmountBNB: amountBnb,
-		AmountUSD: amountUsd,
+		Amount:      amount,
+		AmountBNB:   amountBnb,
+		AmountUSD:   amountUsd,
+		BNBPriceUSD: bnbPrice,
+		IONPriceUSD: ionPrice,
 	}), nil
 }
 
