@@ -28,7 +28,7 @@ import (
 
 const (
 	dummyDataLastBlock = 74298420
-	dummyDataStream    = "a69a079e-d500-42ee-af6d-22d5eb5b10df"
+	dummyDataStream    = "00000000-0000-0000-0000-000000000000"
 )
 
 type (
@@ -49,6 +49,11 @@ type (
 		// Per-token user pools for repeated swaps
 		tokenUserPools     map[string][]tokenUser
 		tokenUserPoolsLock sync.RWMutex
+
+		// Pool of REAL tokens (not dummy) for generating dummy swaps
+		realTokenPool     []*tokenRow
+		realTokenPoolLock sync.RWMutex
+		lastRealTokenSync time.Time
 
 		activeTokensWorkers atomic.Int32
 	}
@@ -95,7 +100,6 @@ func (gen *dummyDataGenerator) Run(ctx context.Context) {
 		TotalSupply:     "1000000000000000000000000",
 		BaseToken:       "2c73996BaBF1a06c2C057177353293f7cA0907c8",
 		PairId:          "0xc481c7a805798bc81ca4cbf0803d38bd785357f2ab3b22b70e42dedc13046e15",
-		CreatorVerified: boolPtr(false),
 	}, PlatformGroupIonConnect)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrReadOnly) {
@@ -108,6 +112,11 @@ func (gen *dummyDataGenerator) Run(ctx context.Context) {
 	// Wait for first token to be fully processed by all triggers and workers
 	log.Info("Waiting 5 seconds for first token to be processed...")
 	time.Sleep(5 * time.Second)
+
+	// Fetch initial pool of real tokens for dummy swap generation
+	if err := gen.fetchRealTokens(ctx); err != nil {
+		log.Error(errors.Wrap(err, "failed to fetch initial real tokens pool, will retry later"))
+	}
 
 	gen.startNewTokenGenerator(ctx, uuid.NewString())
 }
@@ -163,7 +172,6 @@ func (gen *dummyDataGenerator) createIonConnectTokenWithBuysOrSellsProcessor(ctx
 		TotalSupply:     "1000000000000000000" + strings.Repeat("0", rand.Intn(8)+1),
 		BaseToken:       strings.TrimPrefix(gen.IONTokenAddress, "0x"),
 		PairId:          "0x" + mustRandomHex(32),
-		CreatorVerified: boolPtr(rand.Intn(2) == 0),
 	}
 	if err := gen.generateToken(ctx, stream, tok, PlatformGroupIonConnect); err != nil {
 		log.Error(errors.Wrapf(err, "failed to insert dummy tx data"))
@@ -226,7 +234,6 @@ func (gen *dummyDataGenerator) createXComTokenWithBuysOrSellsProcessor(ctx conte
 		TotalSupply:     "1000000000000000000" + strings.Repeat("0", rand.Intn(8)+1),
 		BaseToken:       strings.TrimPrefix(gen.IONTokenAddress, "0x"),
 		PairId:          "0x" + mustRandomHex(32),
-		CreatorVerified: boolPtr(rand.Intn(2) == 0),
 	}
 
 	if err := gen.generateToken(ctx, stream, tok, PlatformGroupXCom); err != nil {
@@ -243,6 +250,59 @@ func (gen *dummyDataGenerator) createXComTokenWithBuysOrSellsProcessor(ctx conte
 	gen.startBondingCurveProgressUpdater(ctx, tok, deadline)
 
 	return cancel
+}
+
+func (gen *dummyDataGenerator) fetchRealTokens(ctx context.Context) error {
+	sql := `
+		SELECT
+			t.contract_address,
+			t.external_address,
+			t.title,
+			t.ticker,
+			t.total_supply,
+			t.base_token,
+			t.pair_id,
+			t.content_author_id
+		FROM tokens t
+		INNER JOIN transactions tx ON tx.to_address = t.contract_address
+		WHERE tx.dummy = FALSE
+		  AND t.pair_id IS NOT NULL
+		  AND t.base_token IS NOT NULL
+		ORDER BY t.created_at DESC
+		LIMIT 100
+	`
+
+	tokens, err := storage.Select[tokenRow](ctx, gen.Target, sql)
+	if err != nil {
+		return errors.Wrap(err, "failed to fetch real tokens")
+	}
+
+	gen.realTokenPoolLock.Lock()
+	gen.realTokenPool = tokens
+	gen.lastRealTokenSync = time.Now()
+	gen.realTokenPoolLock.Unlock()
+
+	log.Info(fmt.Sprintf("Fetched %d real tokens for dummy swap generation", len(tokens)))
+	for i, token := range tokens {
+		log.Debug(fmt.Sprintf("Real token [%d]: %s (%s)", i, token.ContractAddress, token.Title))
+	}
+	return nil
+}
+
+func (gen *dummyDataGenerator) getRealTokenPool(ctx context.Context) ([]*tokenRow, error) {
+	gen.realTokenPoolLock.RLock()
+	needsRefresh := time.Since(gen.lastRealTokenSync) > 5*time.Minute
+	gen.realTokenPoolLock.RUnlock()
+
+	if needsRefresh {
+		if err := gen.fetchRealTokens(ctx); err != nil {
+			return nil, err
+		}
+	}
+
+	gen.realTokenPoolLock.RLock()
+	defer gen.realTokenPoolLock.RUnlock()
+	return gen.realTokenPool, nil
 }
 
 func (gen *dummyDataGenerator) startNewTokenGenerator(ctx context.Context, stream string) {
@@ -285,6 +345,58 @@ func (gen *dummyDataGenerator) startNewTokenGenerator(ctx context.Context, strea
 				}
 				platformToggle++
 				gen.createTokenWithBuysOrSellsProcessor(ctx, stream, platformGroup)
+			}
+		}
+	}()
+
+	gen.startDummySwapsForRealTokens(ctx)
+}
+
+func (gen *dummyDataGenerator) startDummySwapsForRealTokens(ctx context.Context) {
+	ticker := time.NewTicker(5 * time.Second)
+
+	go func() {
+		defer ticker.Stop()
+
+		for ctx.Err() == nil {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				realTokens, err := gen.getRealTokenPool(ctx)
+				if err != nil {
+					log.Error(errors.Wrap(err, "failed to get real token pool"))
+					continue
+				}
+
+				if len(realTokens) == 0 {
+					log.Debug("No real tokens available for dummy swap generation")
+					continue
+				}
+				successCount := 0
+				for i, token := range realTokens {
+					log.Debug(fmt.Sprintf("Processing real token %d/%d: %s (%s)", i+1, len(realTokens), token.ContractAddress, token.Title))
+
+					platformGroup := PlatformGroupIonConnect
+					if len(token.ExternalAddress) > 0 {
+						prefix := token.ExternalAddress[0]
+						if prefix == 'z' || prefix == 'y' || prefix == 'x' || prefix == 'w' {
+							platformGroup = PlatformGroupXCom
+						}
+					}
+
+					// Generate 1-2 dummy swaps for this token (matching dummy token pattern)
+					txCount := 1 + rand.Intn(2)
+					if err := gen.generateBuyOrSellBatch(ctx, dummyDataStream, token, txCount, platformGroup); err != nil {
+						log.Error(errors.Wrapf(err, "failed to generate dummy swaps for real token %s", token.ContractAddress))
+					} else {
+						successCount++
+					}
+				}
+
+				if successCount > 0 {
+					log.Info(fmt.Sprintf("Generated dummy swaps for %d/%d real tokens", successCount, len(realTokens)))
+				}
 			}
 		}
 	}()
@@ -522,6 +634,13 @@ func (gen *dummyDataGenerator) startBuysOrSellsProcessor(ctx context.Context, to
 }
 
 func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, stream string, token *tokenRow, totalTx int, platformGroup string) error {
+	isRealToken := !strings.Contains(token.ContractAddress, "deadbeef")
+
+	// Use special stream_id for dummy swaps on real tokens
+	if isRealToken {
+		stream = "00000000-0000-0000-0000-000000000000"
+	}
+
 	userPool, err := gen.getOrCreateTokenUserPool(ctx, token.ContractAddress, platformGroup)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get user pool for token %s", token.ContractAddress)
@@ -541,13 +660,30 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 		maxTokens := 10000.0 // maximum 10000 tokens
 		tokensToTrade := minTokens + rand.Float64()*(maxTokens-minTokens)
 
-		amountInWei := new(big.Float).Mul(big.NewFloat(tokensToTrade), big.NewFloat(1e18))
-		amountBase, _ := amountInWei.Int64()
-		amountTarget, _ := new(big.Float).Mul(amountInWei, new(big.Float).SetFloat64(1+rand.Float64())).Int(nil) // Add some price fluctuations, for not all buys = 1 ion
+		// Price range: 100-1000 ION per token (realistic prices like $0.2 - $2 per token)
+		minPriceIon := 100.0  // 100 ION per token = $0.2 per token at ION=$0.002
+		maxPriceIon := 1000.0 // 1000 ION per token = $2 per token at ION=$0.002
+		pricePerTokenIon := minPriceIon + rand.Float64()*(maxPriceIon-minPriceIon)
+
+		tokenAmountWei := new(big.Float).Mul(big.NewFloat(tokensToTrade), big.NewFloat(1e18))
+		tokenAmount, _ := tokenAmountWei.Int(nil) // Amount of tokens in wei
+
+		ionAmountFloat := new(big.Float).Mul(big.NewFloat(tokensToTrade), big.NewFloat(pricePerTokenIon))
+		ionAmountWei := new(big.Float).Mul(ionAmountFloat, big.NewFloat(1e18))
+		ionAmount, _ := ionAmountWei.Int(nil) // Amount of ION in wei
+		var inputAmount, outputAmount *big.Int
+		if buyOrSel { // SELL
+			inputAmount = tokenAmount // selling tokens
+			outputAmount = ionAmount  // receiving ION
+		} else { // BUY
+			inputAmount = ionAmount    // paying ION
+			outputAmount = tokenAmount // receiving tokens
+		}
+
 		data, packErr := bondingcurve.ABI.Events["Swapped"].Inputs.NonIndexed().Pack(
 			buyOrSel,
-			new(big.Int).SetInt64(amountBase),
-			amountTarget,
+			inputAmount,
+			outputAmount,
 			new(big.Int).SetInt64(0),
 		)
 		if packErr != nil {
@@ -575,8 +711,8 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 		txInput, packErr := bondingcurve.ABI.Methods["swap"].Inputs.Pack(
 			baseToken,
 			toToken,
-			new(big.Int).SetInt64(amountBase),
-			amountTarget,
+			inputAmount,
+			outputAmount,
 		)
 		if packErr != nil {
 			return packErr

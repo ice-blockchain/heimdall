@@ -230,6 +230,7 @@ type (
 		Logs             txEventLogs `db:"logs"`
 		TransactionIndex uint64      `db:"transaction_index"`
 		BlockNumber      uint64      `db:"block_number"`
+		Dummy            bool        `db:"dummy"`
 	}
 
 	txEventLogs   []JSON

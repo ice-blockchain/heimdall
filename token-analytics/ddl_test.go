@@ -37,6 +37,7 @@ func helperCreateDB(t *testing.T) (*storage.DB, func()) {
 	db := storage.MustConnectWithCfg(t.Context(),
 		&storage.Cfg{
 			PrimaryURL:   connString,
+			ReplicaURLs:  []string{connString},
 			RunDDL:       true,
 			IgnoreGlobal: true,
 		},
