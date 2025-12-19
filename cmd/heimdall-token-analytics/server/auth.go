@@ -19,6 +19,7 @@ type (
 	Token interface {
 		GetMasterPublicKey() string
 		GetDevicePublicKey() string
+		Platform() string
 	}
 
 	// NoAuthRequired is a marker struct to indicate that no authentication is required for the request.
@@ -40,6 +41,10 @@ type (
 	}
 )
 
+const (
+	TokenTypeIonConnect = "ionconnect"
+	TokenTypeXCom       = "xcom"
+)
 const (
 	authContextTokenKey   = "_ta_auth_context_token"
 	authContextEnabledKey = "_ta_auth_context_enabled"
@@ -66,6 +71,9 @@ func (a *AuthContextNIP42) GetMasterPublicKey() string {
 func (a *AuthContextNIP42) GetDevicePublicKey() string {
 	return a.Event.PubKey
 }
+func (a *AuthContextNIP42) Platform() string {
+	return TokenTypeIonConnect
+}
 
 func (a *AuthContextXcom) GetMasterPublicKey() string {
 	if a.UserInfo != nil {
@@ -79,6 +87,9 @@ func (a *AuthContextXcom) GetDevicePublicKey() string {
 		return a.UserInfo.UserId
 	}
 	return ""
+}
+func (a *AuthContextXcom) Platform() string {
+	return TokenTypeXCom
 }
 
 func authGetToken(ctx *gin.Context) Token {

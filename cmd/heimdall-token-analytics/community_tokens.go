@@ -692,6 +692,7 @@ func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *serv
 	}
 
 	return func(ctx context.Context) (<-chan server.StreamEvent[ta.TopHolderPosition], error) {
+		ctx = context.WithValue(ctx, "token", req.Token)
 		events := make(chan server.StreamEvent[ta.TopHolderPosition], limit+1)
 		holders, err := s.tokenAnalytics.GetTopHolders(ctx, ionConnectAddress, int64(limit))
 		if err != nil {

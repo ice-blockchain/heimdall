@@ -34,9 +34,11 @@ func New(ctx context.Context, applicationYamlKey string) BondingCurve {
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	b := &bondingCurve{
-		cfg:                 cfg,
-		pricingSingleflight: new(singleflight.Group),
-		priceCache:          ttlcache.New[string, *big.Int](ttlcache.WithTTL[string, *big.Int](cfg.BondingCurve.BondingCurveProgressUpdateFrequency)),
+		cfg:                  cfg,
+		pricingSingleflight:  new(singleflight.Group),
+		progressSingleflight: new(singleflight.Group),
+		priceCache:           ttlcache.New[string, *big.Int](ttlcache.WithTTL[string, *big.Int](cfg.BondingCurve.BondingCurveProgressUpdateFrequency)),
+		progressCache:        ttlcache.New[string, *BondingCurveProgress](ttlcache.WithTTL[string, *BondingCurveProgress](cfg.BondingCurve.BondingCurveProgressUpdateFrequency)),
 	}
 	b.rpcClients = make([]*ethclient.Client, len(cfg.BondingCurve.RPCEndpoints), len(cfg.BondingCurve.RPCEndpoints))
 	b.contractClients = make([]*BondingCurveTokenCaller, len(cfg.BondingCurve.RPCEndpoints), len(cfg.BondingCurve.RPCEndpoints))
@@ -98,12 +100,22 @@ func (b *bondingCurve) pricing(ctx context.Context, baseToken common.Address, ta
 }
 
 func (b *bondingCurve) Progress(ctx context.Context, pairId common.Hash) (p *BondingCurveProgress, err error) {
-	err = b.retry(ctx, func() error {
-		p, err = b.progress(ctx, pairId)
-		return err
+	progressForPair := b.progressCache.Get(pairId.Hex())
+	if progressForPair != nil && progressForPair.Value() != nil {
+		return progressForPair.Value(), nil
+	}
+	res, err, _ := b.progressSingleflight.Do(pairId.Hex(), func() (any, error) {
+		log.Debug(fmt.Sprintf("Getting progress for pairId %v", pairId.Hex()))
+		err = b.retry(ctx, func() error {
+			p, err = b.progress(ctx, pairId)
+			return err
+		})
+		return p, err
 	})
-	return p, err
+	b.progressCache.Set(pairId.Hex(), res.(*BondingCurveProgress), b.cfg.BondingCurve.BondingCurveProgressUpdateFrequency)
+	return res.(*BondingCurveProgress), err
 }
+
 func (b *bondingCurve) progress(ctx context.Context, pairId common.Hash) (*BondingCurveProgress, error) {
 	client := b.contractClients[atomic.AddUint64(&b.clientLBIndex, 1)%uint64(len(b.contractClients))]
 	var pairIdBytes [32]byte

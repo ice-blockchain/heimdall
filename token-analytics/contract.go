@@ -172,6 +172,10 @@ const (
 	defaultViewingSessionTTL = 5 * stdlibtime.Minute
 
 	schemeMigrationTableName = "wintr_token_analytics_scheme_migrations"
+
+	bondingCurveTopHolderDisplayName = "Bonding Curve"
+	// TODO: replace
+	bondingCurveTopHolderAvatar = "https://cdn.ice.io/online+/assets/coins/ion.svg"
 )
 
 var (
@@ -356,6 +360,8 @@ type (
 		CreatorPlatform        *string `db:"creator_platform"`
 		CreatorBnbBscAddress   *string `db:"creator_bnb_bsc_address"`
 		TotalSupply            string  `db:"total_supply"`
+		BondingCurveMigrated   bool    `db:"bonding_curve_migrated"`
+		PairId                 string  `db:"pair_id"`
 		HolderMasterPubkey     *string `db:"holder_master_pubkey"`
 		HolderUsername         *string `db:"holder_username"`
 		HolderDisplay          *string `db:"holder_display"`
