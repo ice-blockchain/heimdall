@@ -254,20 +254,21 @@ func (gen *dummyDataGenerator) createXComTokenWithBuysOrSellsProcessor(ctx conte
 
 func (gen *dummyDataGenerator) fetchRealTokens(ctx context.Context) error {
 	sql := `
-		SELECT 
-			contract_address,
-			external_address,
-			title,
-			ticker,
-			total_supply,
-			base_token,
-			pair_id,
-			content_author_id
-		FROM tokens
-		WHERE contract_address NOT LIKE '%deadbeef%'
-		  AND pair_id IS NOT NULL
-		  AND base_token IS NOT NULL
-		ORDER BY created_at DESC
+		SELECT
+			t.contract_address,
+			t.external_address,
+			t.title,
+			t.ticker,
+			t.total_supply,
+			t.base_token,
+			t.pair_id,
+			t.content_author_id
+		FROM tokens t
+		INNER JOIN transactions tx ON tx.to_address = t.contract_address
+		WHERE tx.dummy = FALSE
+		  AND t.pair_id IS NOT NULL
+		  AND t.base_token IS NOT NULL
+		ORDER BY t.created_at DESC
 		LIMIT 100
 	`
 
