@@ -71,14 +71,12 @@ EXECUTE FUNCTION set_dummy_flag_on_transaction();
 CREATE OR REPLACE FUNCTION update_dummy_flag_from_stream()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Check if stream_id indicates dummy swap on real token
-    IF NEW.stream_id = 'a69a079e-d500-42ee-af6d-22d5eb5b10df' 
-       OR NEW.stream_id LIKE 'dummy-swaps-real-tokens-%' THEN
-        UPDATE transactions 
-        SET dummy = TRUE 
-        WHERE transaction_hash = NEW.transaction_hash 
-          AND dummy = FALSE;
-    END IF;
+   IF NEW.stream_id = '00000000-0000-0000-0000-000000000000' THEN
+       UPDATE transactions 
+       SET dummy = TRUE 
+       WHERE transaction_hash = NEW.transaction_hash 
+         AND dummy = FALSE;
+   END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

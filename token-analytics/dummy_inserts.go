@@ -28,7 +28,7 @@ import (
 
 const (
 	dummyDataLastBlock = 74298420
-	dummyDataStream    = "a69a079e-d500-42ee-af6d-22d5eb5b10df"
+	dummyDataStream    = "00000000-0000-0000-0000-000000000000"
 )
 
 type (
@@ -638,7 +638,7 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 
 	// Use special stream_id for dummy swaps on real tokens
 	if isRealToken {
-		stream = "dummy-swaps-real-tokens-" + uuid.NewString()
+		stream = "00000000-0000-0000-0000-000000000000"
 	}
 
 	userPool, err := gen.getOrCreateTokenUserPool(ctx, token.ContractAddress, platformGroup)
