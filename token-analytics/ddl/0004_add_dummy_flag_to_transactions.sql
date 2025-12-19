@@ -5,6 +5,50 @@ ALTER TABLE transactions ADD COLUMN IF NOT EXISTS dummy BOOLEAN NOT NULL DEFAULT
 CREATE INDEX IF NOT EXISTS idx_transactions_dummy ON transactions (dummy);
 CREATE INDEX IF NOT EXISTS idx_transactions_block_tx_idx ON transactions (block_number, transaction_index);
 
+CREATE OR REPLACE FUNCTION create_transactions_dummy_mod_indexes()
+RETURNS void AS $$
+DECLARE
+    workers_count INT;
+    index_exists BOOLEAN;
+    old_index_exists BOOLEAN;
+    i INT;
+BEGIN
+    SELECT value::INT INTO workers_count FROM global_settings WHERE key = 'workers';
+
+    IF workers_count IS NULL THEN
+        RETURN;
+    END IF;
+
+    FOR i IN 0..(workers_count - 1) LOOP
+        SELECT EXISTS (
+            SELECT 1 FROM pg_indexes
+            WHERE tablename = 'transactions'
+            AND indexname = format('idx_transactions_worker_%s', i)
+        ) INTO old_index_exists;
+
+        IF old_index_exists THEN
+            EXECUTE format('DROP INDEX IF EXISTS idx_transactions_worker_%s', i);
+        END IF;
+        SELECT EXISTS (
+            SELECT 1 FROM pg_indexes
+            WHERE tablename = 'transactions'
+            AND indexname = format('idx_transactions_dummy_block_tx_worker_%s', i)
+        ) INTO index_exists;
+
+        IF NOT index_exists THEN
+            EXECUTE format(
+                'CREATE INDEX idx_transactions_dummy_block_tx_worker_%s
+                 ON transactions (dummy, block_number, transaction_index)
+                 WHERE MOD(i, %s) = %s',
+                i, workers_count, i
+            );
+        END IF;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT create_transactions_dummy_mod_indexes();
+
 UPDATE transactions SET dummy = TRUE WHERE to_address LIKE '%0xdeadbeef%';
 
 CREATE OR REPLACE FUNCTION set_dummy_flag_on_transaction()
