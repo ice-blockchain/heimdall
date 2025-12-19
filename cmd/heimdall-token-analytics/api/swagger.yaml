@@ -132,6 +132,8 @@ definitions:
         type: string
       goalAmountUSD:
         type: number
+      liquidityUSD:
+        type: number
       migrated:
         type: boolean
       raisedAmount:

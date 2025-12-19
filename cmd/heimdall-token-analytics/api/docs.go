@@ -1938,6 +1938,9 @@ const docTemplate = `{
                 "goalAmountUSD": {
                     "type": "number"
                 },
+                "liquidityUSD": {
+                    "type": "number"
+                },
                 "migrated": {
                     "type": "boolean"
                 },

@@ -118,6 +118,7 @@ func (t *tokenAnalytics) updateBondingProgress(ctx context.Context, externalAddr
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate bonding curve progress for token %v: %w", externalAddress, err)
 	}
+	liquidityUSD := toUSD(progress.Liquidity, *basePriceInUsd)
 	_, err = storage.Exec(ctx, t.ingestedDataDB, `
 		UPDATE tokens AS t
 		SET
@@ -127,8 +128,9 @@ func (t *tokenAnalytics) updateBondingProgress(ctx context.Context, externalAddr
 		    bonding_curve_current_amount_usd = $5,
 		    bonding_curve_goal_amount_usd = $6,
 		    bonding_curve_migrated = $7,
+		    liquidity_usd = $8,
 			updated_at = NOW()
-		WHERE t.external_address = $1`, externalAddress, progress.SoldTokens, progress.TokensRaised, progress.BondingTokensGoal, currentRaisedUSD, goalUSD, progress.Migrated)
+		WHERE t.external_address = $1`, externalAddress, progress.SoldTokens, progress.TokensRaised, progress.BondingTokensGoal, currentRaisedUSD, goalUSD, progress.Migrated, liquidityUSD)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update bonding curve for token %v: %w", externalAddress, err)
 	}
@@ -152,5 +154,6 @@ func (t *tokenAnalytics) toBondingCurveProgressToModel(ctx context.Context, prog
 		CurrentAmountUSD: currentRaisedUSD,
 		Migrated:         progress.Migrated,
 		RaisedAmount:     progress.TokensRaised.String(),
-	}, nil
+		LiquidityUSD:     toUSD(progress.Liquidity, basePriceInUsd),
+	},nil
 }

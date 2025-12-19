@@ -60,6 +60,7 @@ type (
 		CurrentAmountUSD float64 `json:"currentAmountUSD"`
 		GoalAmountUSD    float64 `json:"goalAmountUSD"`
 		Migrated         bool    `json:"migrated"`
+		LiquidityUSD     float64 `json:"liquidityUSD"`
 	}
 
 	Position struct {

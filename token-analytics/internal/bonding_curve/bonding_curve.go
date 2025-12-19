@@ -134,7 +134,15 @@ func (b *bondingCurve) progress(ctx context.Context, pairId common.Hash) (*Bondi
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get progress from bonding curve %v", b.cfg.BondingCurve.SmartContractAddress)
 	}
-	return &info, nil
+
+	liquidity, err := client.GetLiquidity(opts, pairIdBytes)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get liquidity from bonding curve %v", b.cfg.BondingCurve.SmartContractAddress)
+	}
+	return &BondingCurveProgress{
+		BondingCurveBondingInfo: &info,
+		Liquidity:               liquidity,
+	}, nil
 }
 
 func (b *bondingCurve) retry(ctx context.Context, fn func() error) (err error) {
