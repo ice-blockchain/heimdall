@@ -117,12 +117,17 @@ func New(ctx context.Context) TokenAnalytics {
 		},
 	}
 	t.ionPriceUSD = new(atomic.Pointer[float64])
+	t.bnbPriceUSD = new(atomic.Pointer[float64])
 	go metrics.LogScaled(registry, 5*stdlibtime.Minute, 1*stdlibtime.Second, t)
 	if err := t.syncIONPrice(ctx); err != nil && !storage.IsErr(err, storage.ErrReadOnly) && !errors.Is(err, context.Canceled) {
 		log.Panic(errors.Wrapf(err, "failed to sync ion price on startup"))
 	}
+	if err := t.loadBNBPrice(ctx); err != nil && !storage.IsErr(err, storage.ErrReadOnly) && !errors.Is(err, context.Canceled) {
+		log.Panic(errors.Wrapf(err, "failed to load bnb price on startup"))
+	}
 
 	go t.startIONPriceSyncer(ctx)
+	go t.startBNBPriceLoader(ctx)
 
 	if true {
 		startLastBlock, err := t.getDummySavePoint(ctx, 0)
@@ -800,6 +805,9 @@ func (dummyUserRepository) Close() error {
 	return nil
 }
 
+func (dummyUserRepository) UpdateBNBPrice(ctx context.Context, price float64) error {
+	return nil
+}
 func randInt(n int) int {
 	return rand.Intn(n)
 }

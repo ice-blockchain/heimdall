@@ -44,13 +44,61 @@ func (t *tokenAnalytics) startIONPriceSyncer(ctx context.Context) {
 	}
 }
 
+func (t *tokenAnalytics) startBNBPriceLoader(ctx context.Context) {
+	ticker := time.NewTicker(5 * time.Second) //nolint:gosec,gomnd // Not an  issue.
+	defer ticker.Stop()
+	if err := t.loadBNBPrice(ctx); err != nil {
+		if !errors.Is(err, context.Canceled) && !storage.IsErr(err, storage.ErrReadOnly) {
+			log.Panic(errors.Wrap(err, "failed to load bnb price from db"))
+		}
+	}
+
+	for {
+		select {
+		case <-ticker.C:
+			reqCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+			err := t.loadBNBPrice(reqCtx)
+			if err != nil {
+				if storage.IsErr(err, storage.ErrReadOnly) {
+					cancel()
+
+					return
+				}
+				log.Error(errors.Wrap(err, "failed to loadBNBPrice"))
+			}
+			cancel()
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (t *tokenAnalyticsUsers) UpdateBNBPrice(ctx context.Context, price float64) error {
+	return errors.Wrapf(saveToDatabase(ctx, t.ingestedDataDB, "BNB", "BNB", price), "failed to save BNB price to database")
+}
+
+func (t *tokenAnalytics) loadBNBPrice(ctx context.Context) error {
+	price, err := storage.Get[float64](ctx, t.ingestedDataDB, `SELECT price_usd FROM base_token_prices WHERE token_address = $1`, "BNB")
+	if err != nil {
+		return errors.Wrap(err, "failed to load BNB price from db")
+	}
+
+	t.bnbPriceUSD.Store(price)
+	return nil
+}
+
 func (t *tokenAnalytics) syncIONPrice(ctx context.Context) error {
 	stats, err := fetchIONPrice(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to fetchIONPrice")
 	}
 	t.ionPriceUSD.Store(&stats.Price)
-	_, err = storage.Exec(ctx, t.ingestedDataDB, `
+
+	return errors.Wrapf(saveToDatabase(ctx, t.ingestedDataDB, "ION", t.cfg.IONTokenAddress, stats.Price), "failed to save ION price to database")
+}
+
+func saveToDatabase(ctx context.Context, db *storage.DB, symbol, tokenAddress string, price float64) (err error) {
+	_, err = storage.Exec(ctx, db, `
 		WITH old_price AS (
 			SELECT price_usd
 			FROM base_token_prices
@@ -69,12 +117,11 @@ func (t *tokenAnalytics) syncIONPrice(ctx context.Context) error {
 		SELECT $1, $3, NOW()
 		WHERE NOT EXISTS (SELECT 1 FROM old_price)
 		   OR (SELECT price_usd FROM old_price) != $3
-	`, t.cfg.IONTokenAddress, "ION", stats.Price)
+	`, tokenAddress, symbol, price)
 
 	if err != nil {
-		return errors.Wrap(err, "failed to save ION price to database")
+		return errors.Wrapf(err, "failed to save %v price to database", symbol)
 	}
-
 	return nil
 }
 

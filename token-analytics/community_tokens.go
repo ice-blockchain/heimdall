@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"math/rand"
 	"strings"
 
 	"github.com/cockroachdb/errors"
@@ -123,7 +122,9 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 		ContractAddress string `db:"contract_address"`
 	}
 	basePrice := t.ionPriceUSD.Load()
-	bnbPriceInUSD = 1000 * rand.Float64()
+	ionPriceInUSD = *basePrice
+	bnbPrice := t.bnbPriceUSD.Load()
+	bnbPriceInUSD = *bnbPrice
 	contractOrFatAddress := []byte{}
 	result, err := storage.Get[tokenInfo](ctx, t.ingestedDataDB, `
 		SELECT 
@@ -157,18 +158,21 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 	if amount != nil {
 		amountToConvert = amount
 	}
-	toBNBRatio := new(big.Int).SetInt64(int64(randInt(100000)))
+	toBNBRatio := ionPriceInUSD / bnbPriceInUSD
 	if strings.Contains(strings.ToLower(common.HexToAddress(result.ContractAddress).String()), "dead") {
 		amountUsd = toUSD(amountToConvert, *basePrice)
-		return amountToConvert, new(big.Int).Mul(toBNBRatio, amountToConvert), amountUsd, *basePrice, bnbPriceInUSD, nil
+		amountInBNB := new(big.Float).Mul(big.NewFloat(toBNBRatio), new(big.Float).SetInt(amountToConvert))
+		amountBNB, _ = amountInBNB.Int(nil)
+		return amountToConvert, amountBNB, amountUsd, *basePrice, bnbPriceInUSD, nil
 	}
 	resAmount, err := t.bondingCurve.Pricing(ctx, common.HexToAddress(result.BaseToken), contractOrFatAddress, amountToConvert, tradeType == TradeTypeSell)
 	if err != nil {
 		return nil, nil, 0, 0, 0, fmt.Errorf("failed to get pricing for token %v (%v): %w", externalAddress, result.ContractAddress, err)
 	}
 	amountUsd = toUSD(resAmount, *basePrice)
-
-	return resAmount, new(big.Int).Mul(toBNBRatio, resAmount), amountUsd, *basePrice, bnbPriceInUSD, nil
+	amountInBNB := new(big.Float).Mul(big.NewFloat(toBNBRatio), new(big.Float).SetInt(resAmount))
+	amountBNB, _ = amountInBNB.Int(nil)
+	return resAmount, amountBNB, amountUsd, *basePrice, bnbPriceInUSD, nil
 }
 
 func (t *tokenAnalytics) fetchTopPlatformHoldersRankingsBatch(ctx context.Context, rows []*tokenRowWithTopPlatformHolders, limit int64) (map[string][]holderMetadata, map[string]*redis.ZSliceCmd, error) {
