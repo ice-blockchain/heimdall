@@ -861,6 +861,13 @@ func wrapIntoStream[T any](initialBuffer int, impl func(addToStream func(t *T, e
 			}
 			return
 		}
+		if t == nil && err == nil {
+			events <- server.StreamEvent[T]{
+				Type: "eose",
+				Data: nil,
+			}
+			return
+		}
 		events <- server.StreamEvent[T]{
 			Data: t,
 			Type: "message",
