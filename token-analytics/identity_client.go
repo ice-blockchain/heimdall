@@ -27,9 +27,7 @@ type (
 	}
 
 	communityTokenAdaptorResponse struct {
-		Data struct {
-			Address string `json:"address"`
-		} `json:"data"`
+		Address string `json:"address"`
 	}
 )
 
@@ -39,7 +37,7 @@ func newIdentityClient(baseURL, apiKey string) *identityClient {
 		apiKey:  apiKey,
 		client: req.C().
 			SetCommonHeader("Accept", "application/json").
-			SetCommonHeader("Authorization", apiKey).
+			SetCommonHeader("X-API-Key", apiKey).
 			SetTimeout(30 * time.Second),
 	}
 }
@@ -92,5 +90,5 @@ func (c *identityClient) GetAdaptor(ctx context.Context, platform, postID string
 		return "", errors.Errorf("identity service returned status %d: %s", resp.GetStatusCode(), resp.String())
 	}
 
-	return response.Data.Address, nil
+	return response.Address, nil
 }

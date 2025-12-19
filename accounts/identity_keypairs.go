@@ -130,7 +130,26 @@ func (a *accounts) createInternalIdentityUsers(ctx context.Context, keypairs []k
 	if _, err := storage.Exec(ctx, a.db, sql, args...); err != nil {
 		return errors.Wrap(err, "failed to execute bulk insert")
 	}
-	log.Info(fmt.Sprintf("Created %d internal identity users", len(keypairs)))
+
+	for _, kp := range keypairs {
+		username := kp.IdentityKeyName
+		displayName := fmt.Sprintf("Identity Keypair %s", kp.PublicKey[:8])
+		verifiedVal := true
+
+		if err := a.tokenAnalyticsRepo.UpsertUser(
+			ctx,
+			kp.UserID,
+			kp.PublicKey,
+			kp.UserID,
+			username,
+			displayName,
+			"",
+			&verifiedVal,
+			kp.WriteRelayURLs,
+		); err != nil {
+			return errors.Wrap(err, "failed to sync internal identity user to token-analytics")
+		}
+	}
 
 	return nil
 }
@@ -166,6 +185,7 @@ func (a *accounts) GetNextIdentityKeypairForCommunityToken(ctx context.Context) 
 	relays, err := storage.Select[relayInfo](ctx, a.db, `
 		SELECT url FROM ion_connect_relays 
 		WHERE relay_group = $1 
+		AND relay_type = 'write'
 		AND unhealthy_started_at IS NULL
 		ORDER BY total_used_storage ASC
 	`, kp.RelayGroup)
