@@ -89,3 +89,5 @@ CREATE OR REPLACE TRIGGER update_dummy_flag_from_stream_trigger
     FOR EACH ROW
 EXECUTE FUNCTION update_dummy_flag_from_stream();
 
+
+CREATE INDEX IF NOT EXISTS idx_transactions_to_address_dummy ON transactions (to_address, dummy) WHERE dummy = FALSE;
