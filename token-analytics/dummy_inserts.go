@@ -76,7 +76,7 @@ type (
 
 func (gen *dummyDataGenerator) Run(ctx context.Context) {
 	if gen.MaxTokenGens == 0 {
-		gen.MaxTokenGens = 40
+		gen.MaxTokenGens = 5
 	}
 	if gen.MaxUsers == 0 {
 		gen.MaxUsers = 200_000
