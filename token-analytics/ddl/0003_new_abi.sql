@@ -160,9 +160,9 @@ BEGIN
     -- 2nd byte
     v_name_len := ('0x' || substring(external_address from 3 for 2))::bit(8)::int;
 
-    -- Header is 32 bytes (64 hex chars).
-    -- Offset = (32 + symbolLen + nameLen) * 2 + 1
-    v_ext_offset := (32 + v_symbol_len + v_name_len) * 2 + 1;
+    -- Header is 64 bytes (128 hex chars).
+    -- Offset = (64 + symbolLen + nameLen) * 2 + 1
+    v_ext_offset := (64 + v_symbol_len + v_name_len) * 2 + 1;
 
     external_address := substring(external_address from v_ext_offset);
     result := rtrim(convert_from(decode(external_address, 'hex'), 'UTF8'), E'\\0');
