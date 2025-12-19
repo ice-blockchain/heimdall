@@ -203,6 +203,7 @@ func (t *tokenAnalytics) SubscribeOHLVC(ctx context.Context, now stdlibtime.Time
 	for i := range ohlcvs {
 		addToStream(ohlcvs[i], nil)
 	}
+	addToStream(nil, nil) // EOSE
 	swaps, _, _ := t.subscriptions.SubscribeOnSwaps(ctx, externalAddress)
 	candleStick, _ := t.ohclvRecentData.LoadOrCompute(externalAddress, func() (newValue *recentCandlestick, cancel bool) {
 		return newRecentCandlestick(), false
