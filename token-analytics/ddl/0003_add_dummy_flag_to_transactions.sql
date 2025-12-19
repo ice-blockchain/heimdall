@@ -2,7 +2,6 @@
 
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS dummy BOOLEAN NOT NULL DEFAULT FALSE;
 
-CREATE INDEX IF NOT EXISTS idx_transactions_dummy ON transactions (dummy);
 CREATE INDEX IF NOT EXISTS idx_transactions_block_tx_idx ON transactions (block_number, transaction_index);
 
 CREATE OR REPLACE FUNCTION create_transactions_dummy_mod_indexes()
