@@ -559,7 +559,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created - returns the address (a tag) of the 31175 event",
                         "schema": {
-                            "$ref": "#/definitions/server.Response-accounts_CommunityTokenAdaptorResponse"
+                            "$ref": "#/definitions/github_com_ice-blockchain_heimdall_server.Response-accounts_CommunityTokenAdaptorResponse"
                         }
                     },
                     "400": {
@@ -2992,6 +2992,33 @@ const docTemplate = `{
             "type": "object",
             "additionalProperties": {}
         },
+        "github_com_ice-blockchain_heimdall_server.Response-accounts_CommunityTokenAdaptorResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "contentType": {
+                    "type": "string"
+                },
+                "data": {
+                    "$ref": "#/definitions/accounts.CommunityTokenAdaptorResponse"
+                },
+                "headers": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "raw": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            }
+        },
         "main.Coin": {
             "type": "object",
             "properties": {
@@ -3776,33 +3803,6 @@ const docTemplate = `{
                 "error": {
                     "type": "string",
                     "example": "something is missing"
-                }
-            }
-        },
-        "server.Response-accounts_CommunityTokenAdaptorResponse": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "integer"
-                },
-                "contentType": {
-                    "type": "string"
-                },
-                "data": {
-                    "$ref": "#/definitions/accounts.CommunityTokenAdaptorResponse"
-                },
-                "headers": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "raw": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer",
-                        "format": "int32"
-                    }
                 }
             }
         },
