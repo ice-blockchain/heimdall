@@ -97,6 +97,7 @@ func (t *tokenAnalytics) updateBondingProgress(ctx context.Context, externalAddr
 	basePriceInUsd := t.ionPriceUSD.Load()
 
 	goalUSD, currentRaisedUSD := progressToUSD(progress, *basePriceInUsd)
+	liquidityUSD := toUSD(progress.Liquidity, *basePriceInUsd)
 	_, err = storage.Exec(ctx, t.ingestedDataDB, `
 		UPDATE tokens AS t
 		SET
@@ -106,8 +107,9 @@ func (t *tokenAnalytics) updateBondingProgress(ctx context.Context, externalAddr
 		    bonding_curve_current_amount_usd = $5,
 		    bonding_curve_goal_amount_usd = $6,
 		    bonding_curve_migrated = $7,
+		    liquidity_usd = $8,
 			updated_at = NOW()
-		WHERE t.external_address = $1`, externalAddress, progress.SoldTokens, progress.TokensRaised, progress.BondingTokensGoal, currentRaisedUSD, goalUSD, progress.Migrated)
+		WHERE t.external_address = $1`, externalAddress, progress.SoldTokens, progress.TokensRaised, progress.BondingTokensGoal, currentRaisedUSD, goalUSD, progress.Migrated, liquidityUSD)
 	if err != nil {
 		return fmt.Errorf("failed to update bonding curve for token %v: %w", externalAddress, err)
 	}
@@ -124,5 +126,6 @@ func toModel(progress *bondingcurve.BondingCurveProgress, basePriceInUsd float64
 		CurrentAmountUSD: currentRaisedUSD,
 		Migrated:         progress.Migrated,
 		RaisedAmount:     progress.TokensRaised.String(),
+		LiquidityUSD:     toUSD(progress.Liquidity, basePriceInUsd),
 	}
 }
