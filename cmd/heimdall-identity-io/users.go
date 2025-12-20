@@ -251,7 +251,7 @@ func (s *service) GetConfig(
 	}
 
 	corsHdrs := map[string]string{
-		"Access-Control-Allow-Origin":  "https://x.com, https://pumpit.now",
+		"Access-Control-Allow-Origin":  "*",
 		"Access-Control-Allow-Methods": "GET, OPTIONS",
 	}
 
