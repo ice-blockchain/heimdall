@@ -37,6 +37,9 @@ type (
 		io.Closer
 		HealthCheck(ctx context.Context) error
 	}
+	BNBPriceSyncer interface {
+		UpdateBNBPrice(ctx context.Context, price float64) error
+	}
 	NftID struct {
 		ContractAddress string
 		Network         string
@@ -74,6 +77,7 @@ type (
 const (
 	// TODO: update to ion once ion updated on coin gecko.
 	DefaultWalletViewCoinSymbolGroup = "ice"
+	BNBSymbolGroup                   = "binancecoin"
 	DefaultWalletViewCoinID          = "7b471f92-ced2-38b0-e408-88e5d89e8045"
 	CollectionMetadataIndexedKey     = "__collection_metadata__"
 )
@@ -114,6 +118,7 @@ type (
 		cfg             *config
 		coinGeckoClient coingecko.Client
 		metrics         metrics.Registry
+		tokenAnalytics  BNBPriceSyncer
 	}
 	config struct {
 		Fees                    map[NetworkName]Fee            `yaml:"fees" mapstructure:"fees"`

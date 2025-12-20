@@ -49,6 +49,7 @@ type (
 		UpsertUser(ctx context.Context, id, masterPubkey, contentAuthorID, username, displayName, avatar string, verified *bool, ionConnectRelays []string) error
 		SetVerified(ctx context.Context, masterPubkey string) error
 		GetUser(ctx context.Context, masterPubkey string) (*UserRecord, error)
+		UpdateBNBPrice(ctx context.Context, price float64) error
 	}
 
 	TokenAnalytics interface {
@@ -206,6 +207,7 @@ type (
 		bondingCurve    bondingcurve.BondingCurve
 		generator       *dummyDataGenerator
 		ionPriceUSD     *atomic.Pointer[float64]
+		bnbPriceUSD     *atomic.Pointer[float64]
 		// TODO: xmap for latest creator token prices to calc content token price
 		bondingCurveContractAddress string
 		ohclvRecentData             *xsync.Map[string, *recentCandlestick]

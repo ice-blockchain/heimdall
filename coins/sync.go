@@ -21,13 +21,14 @@ import (
 	"github.com/ice-blockchain/wintr/time"
 )
 
-func MustStartSyncer(ctx context.Context, cancel context.CancelFunc) Sync {
+func MustStartSyncer(ctx context.Context, cancel context.CancelFunc, bnbPriceSyncer BNBPriceSyncer) Sync {
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	s := &coinSync{
 		cancel:          cancel,
 		cfg:             &cfg,
 		coinGeckoClient: coingecko.New(applicationYamlKey),
+		tokenAnalytics:  bnbPriceSyncer,
 	}
 
 	iceCoin, err := s.coinGeckoClient.GetCoins(ctx, []string{DefaultWalletViewCoinSymbolGroup})
@@ -43,6 +44,15 @@ func MustStartSyncer(ctx context.Context, cancel context.CancelFunc) Sync {
 	log.Panic(errors.Wrapf(registry.Register("coin_gecko_calls", metrics.NewMeter()), "failed to register coingecko call meter"))
 	go metrics.LogScaled(registry, 10*stdlibtime.Second, 1*stdlibtime.Millisecond, s)
 	s.metrics = registry
+
+	bnbCoin, err := s.coinGeckoClient.GetCoins(ctx, []string{BNBSymbolGroup})
+	log.Panic(errors.Wrapf(err, "failed to sync bnb price from coin gecko on startup"))
+	if len(bnbCoin) == 0 {
+		log.Panic(errors.Errorf("%v coin not found on coin gecko", BNBSymbolGroup))
+	}
+	if err = bnbPriceSyncer.UpdateBNBPrice(ctx, bnbCoin[0].PriceUSD); err != nil {
+		log.Panic(errors.Wrapf(err, "failed to put bnb price into token-analytics"))
+	}
 
 	go s.sync(ctx)
 
@@ -256,6 +266,15 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 	if err != nil {
 		log.Error(errors.Wrapf(err, "failed to write updated data from coin market cap for tokens prices %#v", tokensPriceData))
 		return
+	}
+	for _, c := range coinsData {
+		if strings.EqualFold(c.ID, BNBSymbolGroup) || (strings.EqualFold(c.Network, "bsc") || strings.EqualFold(c.Network, "bsctestnet") && c.Native) {
+			if err = s.tokenAnalytics.UpdateBNBPrice(ctx, c.PriceUSD); err != nil {
+				log.Error(errors.Wrapf(err, "failed to write updated data from coin market cap for tokens prices %#v", tokensPriceData))
+				return
+			}
+			break
+		}
 	}
 	if len(coinsData) > 0 || len(tokensPriceData) > 0 {
 		s.metrics.Get("iteration").(metrics.Timer).Update(time.Now().Sub(*start.Time))
