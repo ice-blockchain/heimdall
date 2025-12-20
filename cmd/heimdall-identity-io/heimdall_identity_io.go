@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/goccy/go-json"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
@@ -103,6 +104,14 @@ func mustReadJSONFile[T any](fs embed.FS, path string) T {
 }
 
 func (s *service) RegisterRoutes(router *server.Router) {
+	corsConfig := cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Content-Type", "Authorization", "X-Client-ID", "X-Language", "X-Version"},
+		AllowCredentials: false,
+	}
+	router.Use(cors.New(corsConfig))
+
 	s.setupDelegatedRPProxyRoutes(router)
 	s.setup2FARoutes(router)
 	s.setupUserRoutes(router)

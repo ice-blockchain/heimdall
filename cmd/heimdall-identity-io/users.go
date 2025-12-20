@@ -250,38 +250,15 @@ func (s *service) GetConfig(
 		return nil, server.UnprocessableEntity(errors.Errorf("version required for %v", req.Data.ConfigName), invalidPropertiesErrorCode)
 	}
 
-	corsHdrs := map[string]string{
-		"Access-Control-Allow-Origin":  "*",
-		"Access-Control-Allow-Methods": "GET, OPTIONS",
-	}
-
 	if vers > Version(0) && req.Data.Version != nil && vers <= *req.Data.Version {
-		noContentResp := server.NoContent()
-		for k, v := range corsHdrs {
-			if noContentResp.Headers == nil {
-				noContentResp.Headers = make(map[string]string)
-			}
-			noContentResp.Headers[k] = v
-		}
-
-		return noContentResp, nil
+		return server.NoContent(), nil
 	}
 
-	var response *server.Response[any]
 	if vers > Version(0) {
-		response = &server.Response[any]{Code: http.StatusOK, Data: &resp, Headers: map[string]string{"X-Version": fmt.Sprint(vers)}}
-	} else {
-		response = server.OK[any](&resp)
+		return &server.Response[any]{Code: http.StatusOK, Data: &resp, Headers: map[string]string{"X-Version": fmt.Sprint(vers)}}, nil
 	}
 
-	for k, v := range corsHdrs {
-		if response.Headers == nil {
-			response.Headers = make(map[string]string)
-		}
-		response.Headers[k] = v
-	}
-
-	return response, nil
+	return server.OK[any](&resp), nil
 }
 
 // GetContentCreators godoc
