@@ -732,6 +732,7 @@ DECLARE
     v_base_token TEXT;
     v_other_token TEXT;
     v_token_address TEXT;
+    v_total_supply NUMERIC;
 BEGIN
     IF array_length(p_topics, 1) < 3 THEN
         RETURN;
@@ -759,8 +760,9 @@ BEGIN
             t.contract_address,
             t.base_token,
             bp.price_usd,
-            t.external_address
-        INTO v_token_address, v_other_token, v_ion_price_usd, v_token_external_address
+            t.external_address,
+            t.total_supply
+        INTO v_token_address, v_other_token, v_ion_price_usd, v_token_external_address, v_total_supply
         FROM tokens t
         CROSS JOIN base_token_prices bp
         WHERE (t.external_address = v_token_external_address)
@@ -774,8 +776,9 @@ BEGIN
             t.contract_address,
             t.base_token,
             bp.price_usd,
-            t.external_address
-        INTO v_token_address, v_other_token, v_ion_price_usd, v_token_external_address
+            t.external_address,
+            t.total_supply
+        INTO v_token_address, v_other_token, v_ion_price_usd, v_token_external_address, v_total_supply
         FROM tokens t
         CROSS JOIN base_token_prices bp
         WHERE (t.pair_id = v_pair_id)
@@ -815,7 +818,7 @@ BEGIN
     ON CONFLICT (transaction_hash, contract_address, user_blockchain_address) DO NOTHING;
 
     PERFORM update_market_cap_and_position(p_block_timestamp, v_user_address, v_token_address, v_token_external_address,
-                                           v_direction, v_input_amount, v_output_amount, v_price_usd, v_ion_price_usd);
+                                           v_direction, v_input_amount, v_output_amount, v_price_usd, v_ion_price_usd, v_total_supply);
 
 
     RAISE DEBUG 'Swapped processed: token=%, user=%', v_token_address, v_user_address;
@@ -890,6 +893,7 @@ DECLARE
     v_base_token TEXT;
     v_token0_is_tc_token BOOLEAN;
     v_token_address TEXT;
+    v_total_supply NUMERIC;
 BEGIN
     IF array_length(p_topics, 1) < 3 THEN
         RETURN;
@@ -905,8 +909,9 @@ BEGIN
         t.external_address,
         bp.price_usd,
         p.token0 = t.contract_address,
-        p.fee
-    INTO v_token_address, v_base_token,v_token_external_address, v_ion_price_usd, v_token0_is_tc_token, v_fee
+        p.fee,
+        t.total_supply
+    INTO v_token_address, v_base_token,v_token_external_address, v_ion_price_usd, v_token0_is_tc_token, v_fee, v_total_supply
     FROM tokens t
              CROSS JOIN base_token_prices bp
              JOIN uniswap_pools p ON p.token0 = t.contract_address OR p.token1 = t.contract_address
@@ -959,7 +964,7 @@ BEGIN
     ON CONFLICT (transaction_hash, contract_address, user_blockchain_address) DO NOTHING;
 
     PERFORM update_market_cap_and_position(p_block_timestamp, v_user_address, v_token_address, v_token_external_address,
-                                            v_direction, v_input_amount, v_output_amount, v_price_usd, v_ion_price_usd);
+                                            v_direction, v_input_amount, v_output_amount, v_price_usd, v_ion_price_usd, v_total_supply);
 
     RAISE DEBUG 'Uniswap swap processed: token=%, user=%', v_token_address, v_user_address;
 END;
@@ -974,13 +979,14 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
     p_input_amount NUMERIC,
     p_output_amount NUMERIC,
     p_price_usd NUMERIC,
-    p_ion_price_usd NUMERIC
+    p_ion_price_usd NUMERIC,
+    p_total_supply NUMERIC
 ) RETURNS VOID AS $$
     DECLARE
         v_user_external_address TEXT;
-        v_delta_market_cap usd_amount;
-        v_token_amount NUMERIC;
-        v_sign NUMERIC;
+        v_market_cap_usd usd_amount;
+        v_market_cap_ion NUMERIC;
+        v_price_ion NUMERIC;
         v_cost_usd usd_amount;
         v_username TEXT;
         v_display_name TEXT;
@@ -989,15 +995,13 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
         v_platform platform_type;
     BEGIN
     IF p_direction = false THEN
-        v_token_amount := p_output_amount;
-        v_sign := 1.0;
+        v_price_ion := p_input_amount / p_output_amount;
     ELSE
-        v_token_amount := p_input_amount;
-        v_sign := -1.0;
+        v_price_ion := p_output_amount / p_input_amount;
     END IF;
 
-    v_delta_market_cap := v_sign * (v_token_amount / 1e18) * p_price_usd;
-
+    v_market_cap_usd := p_price_usd * (p_total_supply / 1e18);
+    v_market_cap_ion := v_price_ion * p_total_supply;
 
     SELECT external_address, username, display_name, avatar
     INTO v_user_external_address, v_username, v_display_name, v_avatar
@@ -1008,7 +1012,8 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
 
     UPDATE tokens t
     SET price_usd = p_price_usd,
-        market_cap_usd = GREATEST(market_cap_usd + v_delta_market_cap, 0),
+        market_cap_usd = v_market_cap_usd,
+        market_cap = v_market_cap_ion,
         updated_at = p_block_timestamp,
         content_author_id = CASE
             WHEN t.content_author_id IS NULL AND p_direction = false
