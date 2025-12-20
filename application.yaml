@@ -16,6 +16,7 @@ cmd/heimdall-identity-io:
     bondingCurveSmartContractAddress: 0x8B5a70A21aF8Bd7BdB38c0fAc5CF3A81079D2595
     addressVersion: 5
     abiVersion: 5
+  communityTokenAPIKey: dev-api-key
   supportedSwapTokens:
     version: 1
     tokens:
@@ -154,12 +155,9 @@ accounts:
     replicaURLs:
       - postgresql://root:pass@localhost:5437/heimdall
   privateKey: 97da572f75c23bff475bc48cd3ff193a0681e82907fb97d0a2d44ec1f0fb88b1b88d40e358e8264a3b9ca2a6abc0ba7bd2035d1647af7acdb211f4a3dccab44e
-  subzeroClusterCount: 2
   identityKeypairs:
     - privateKey: c52a18bf888379b18ba9bb1835f49b7dd2c3ebde9f1b0864f2566f61b41510dfcbc37a9ac37066c1fe508c0af62dba995bcb86277ef419260acb1a1c5cb97c36
-      relayGroup: a
     - privateKey: 0ba58ed6a830bed3239137dde811db6e905973c519636c4f06b5b4fbc0f7fac52663afe3b90183f3c894191bba6ede27851c39ffbfdecade2bcda30b67ced4a4
-      relayGroup: b
   communityTokenAPIKey: dev-api-key-change-in-production
 coins:
   testnet: true
