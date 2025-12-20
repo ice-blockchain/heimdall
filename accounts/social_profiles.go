@@ -10,7 +10,6 @@ import (
 
 	"github.com/nbd-wtf/go-nostr"
 
-	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
@@ -321,16 +320,13 @@ func (a *accounts) GetSocialProfile(ctx context.Context, userIDOrMasterKey strin
 		return nil, fmt.Errorf("%w: failed to get social profile", err)
 	}
 	res := &SocialProfile{
-		Username:      profile.Username,
-		DisplayName:   profile.DisplayName,
-		Bio:           profile.Bio,
-		Avatar:        profile.Avatar,
-		ReferralCount: profile.ReferralCount,
-	}
-	if server.LoggedInUser(ctx) != nil && ((dbUsr != nil && dbUsr.ID == server.LoggedInUser(ctx).UserID()) || userIDOrMasterKey == server.LoggedInUser(ctx).UserID()) {
-		res.Referral = profile.ReferralUsername
-		res.ReferralMasterKey = profile.ReferralMasterPubkey
-		res.ReferralCount = profile.ReferralCount
+		Username:          profile.Username,
+		DisplayName:       profile.DisplayName,
+		Bio:               profile.Bio,
+		Avatar:            profile.Avatar,
+		ReferralCount:     profile.ReferralCount,
+		Referral:          profile.ReferralUsername,
+		ReferralMasterKey: profile.ReferralMasterPubkey,
 	}
 
 	return res, nil
