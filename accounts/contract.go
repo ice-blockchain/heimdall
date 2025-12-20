@@ -283,6 +283,7 @@ type (
 		deviceIdentificationClient deviceidentification.Client
 		indexer                    indexer.Indexer
 		tokenAnalyticsRepo         TokenAnalyticsUserRepository
+		keypairRelayGroups         []string
 	}
 	verifiedUsersSync struct {
 		db                 *storage.DB
@@ -340,7 +341,6 @@ type (
 
 	IdentityKeypair struct {
 		PrivateKey string `yaml:"privateKey" mapstructure:"privateKey"`
-		RelayGroup string `yaml:"relayGroup" mapstructure:"relayGroup"`
 	}
 
 	AppsRuntimeConfig struct {

@@ -33,9 +33,17 @@ type (
 	keypairData struct {
 		PrivateKey      string
 		PublicKey       string
-		WriteRelayURLs  []string
+		AllRelaysInfo   []relayInfo
+		WriteRelayURL   string
+		RelayGroup      string
 		UserID          string
 		IdentityKeyName string
+	}
+
+	relayInfo struct {
+		URL        string `db:"url"`
+		RelayGroup string `db:"relay_group"`
+		RelayType  string `db:"relay_type"`
 	}
 )
 
@@ -49,59 +57,74 @@ func (a *accounts) InitializeIdentityKeypairs(ctx context.Context) error {
 
 		return nil
 	}
-	type relayInfo struct {
-		URL        string `db:"url"`
-		RelayGroup string `db:"relay_group"`
-		RelayType  string `db:"relay_type"`
-	}
 	allRelays, err := storage.Select[relayInfo](ctx, a.db, `
-		SELECT url, relay_group, relay_type FROM ion_connect_relays 
+		SELECT 
+			url, relay_group, relay_type
+		FROM ion_connect_relays 
 		ORDER BY relay_group, total_used_storage ASC
 	`)
 	if err != nil {
 		return errors.Wrap(err, "failed to get all relays")
 	}
-	writeRelaysByGroup := make(map[string][]string)
+	allRelaysInfoByGroup := make(map[string][]relayInfo)
+	writeRelaysByGroup := make(map[string]string)
+	relayGroupsOrder := []string{}
+	seenGroups := make(map[string]bool)
+
 	for _, r := range allRelays {
+		if !seenGroups[r.RelayGroup] {
+			relayGroupsOrder = append(relayGroupsOrder, r.RelayGroup)
+			seenGroups[r.RelayGroup] = true
+		}
+		allRelaysInfoByGroup[r.RelayGroup] = append(allRelaysInfoByGroup[r.RelayGroup], *r)
 		if r.RelayType == "write" {
-			writeRelaysByGroup[r.RelayGroup] = append(writeRelaysByGroup[r.RelayGroup], r.URL)
+			if _, exists := writeRelaysByGroup[r.RelayGroup]; exists {
+				return errors.Errorf("relay_group %s has multiple write relays, only one is allowed", r.RelayGroup)
+			}
+			writeRelaysByGroup[r.RelayGroup] = r.URL
 		}
 	}
-
+	if len(relayGroupsOrder) == 0 {
+		return nil
+	}
 	keypairs := make([]keypairData, 0, len(a.cfg.IdentityKeypairs))
 	for i, kp := range a.cfg.IdentityKeypairs {
-		if kp.PrivateKey == "" {
-			return errors.Errorf("identity keypair %d has empty privateKey", i)
-		}
-		if kp.RelayGroup == "" {
-			return errors.Errorf("identity keypair %d has empty relayGroup", i)
-		}
 		pubKey, err := model.GetPublicKey(kp.PrivateKey)
 		if err != nil {
 			return errors.Wrapf(err, "invalid identity private key at index %d", i)
 		}
-		writeRelayURLs := writeRelaysByGroup[kp.RelayGroup]
-		if len(writeRelayURLs) == 0 {
-			return errors.Errorf("no write relays found for relay_group %s", kp.RelayGroup)
-		}
+		relayGroup := relayGroupsOrder[i]
 
+		allRelaysInfo := allRelaysInfoByGroup[relayGroup]
+		if len(allRelaysInfo) == 0 {
+			return errors.Errorf("no relays found for relay_group %s", relayGroup)
+		}
+		writeRelayURL, exists := writeRelaysByGroup[relayGroup]
+		if !exists {
+			return errors.Errorf("no write relay found for relay_group %s", relayGroup)
+		}
 		keypairs = append(keypairs, keypairData{
 			PrivateKey:      kp.PrivateKey,
 			PublicKey:       pubKey,
-			WriteRelayURLs:  writeRelayURLs,
+			AllRelaysInfo:   allRelaysInfo,
+			WriteRelayURL:   writeRelayURL,
+			RelayGroup:      relayGroup,
 			UserID:          identityInternalUserPrefix + pubKey,
 			IdentityKeyName: identityInternalUserPrefix + pubKey,
 		})
+	}
+	a.keypairRelayGroups = make([]string, len(keypairs))
+	for i, kp := range keypairs {
+		a.keypairRelayGroups[i] = kp.RelayGroup
 	}
 	if err := a.createInternalIdentityUsers(ctx, keypairs); err != nil {
 		return errors.Wrap(err, "failed to create internal identity users")
 	}
 	for i, kp := range keypairs {
-		writeRelay := kp.WriteRelayURLs[rand.Intn(len(kp.WriteRelayURLs))]
-		if err := a.publishRelayListEvent(ctx, kp.PrivateKey, writeRelay); err != nil {
+		if err := a.publishRelayListEvent(ctx, kp.PrivateKey, kp.WriteRelayURL, kp.AllRelaysInfo); err != nil {
 			log.Error(errors.Wrapf(err, "failed to publish relay list for keypair %d: %s", i, kp.PublicKey))
 		}
-		log.Info(fmt.Sprintf("Identity keypair %d initialized: %s (relay: %s, user: %s)", i, kp.PublicKey, writeRelay, kp.UserID))
+		log.Info(fmt.Sprintf("Identity keypair %d initialized: %s (relay group: %s, relay: %s, user: %s)", i, kp.PublicKey, kp.RelayGroup, kp.WriteRelayURL, kp.UserID))
 	}
 
 	return nil
@@ -116,9 +139,14 @@ func (a *accounts) createInternalIdentityUsers(ctx context.Context, keypairs []k
 	var args []interface{}
 	argIdx := 1
 	for _, kp := range keypairs {
+		relayURLs := make([]string, len(kp.AllRelaysInfo))
+		for i, r := range kp.AllRelaysInfo {
+			relayURLs[i] = r.URL
+		}
+
 		values = append(values, fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, ARRAY[]::TEXT[], $%d::TEXT[])",
 			argIdx, argIdx, argIdx+1, argIdx+2, argIdx+3, argIdx+4))
-		args = append(args, nowTime, kp.UserID, kp.IdentityKeyName, kp.PublicKey, kp.WriteRelayURLs)
+		args = append(args, nowTime, kp.UserID, kp.IdentityKeyName, kp.PublicKey, relayURLs)
 		argIdx += 5
 	}
 	sql := fmt.Sprintf(`
@@ -131,45 +159,32 @@ func (a *accounts) createInternalIdentityUsers(ctx context.Context, keypairs []k
 		return errors.Wrap(err, "failed to execute bulk insert")
 	}
 
-	for _, kp := range keypairs {
-		username := kp.IdentityKeyName
-		displayName := fmt.Sprintf("Identity Keypair %s", kp.PublicKey[:8])
-		verifiedVal := true
-
-		if err := a.tokenAnalyticsRepo.UpsertUser(
-			ctx,
-			kp.UserID,
-			kp.PublicKey,
-			kp.UserID,
-			username,
-			displayName,
-			"",
-			&verifiedVal,
-			kp.WriteRelayURLs,
-		); err != nil {
-			return errors.Wrap(err, "failed to sync internal identity user to token-analytics")
-		}
-	}
-
 	return nil
 }
 
-func (a *accounts) publishRelayListEvent(ctx context.Context, privateKey, relayURL string) error {
+func (a *accounts) publishRelayListEvent(ctx context.Context, privateKey, publishToRelayURL string, allRelays []relayInfo) error {
+	pubkey, err := nostr.GetPublicKey(privateKey)
+	if err != nil {
+		return errors.Wrap(err, "failed to derive public key")
+	}
+	tags := make(nostr.Tags, 0, len(allRelays)+1)
+	tags = append(tags, nostr.Tag{"b", pubkey})
+	for _, r := range allRelays {
+		tags = append(tags, nostr.Tag{"r", r.URL, r.RelayType})
+	}
+
 	relayListEvent := &model.Event{
 		Event: nostr.Event{
 			CreatedAt: nostr.Now(),
 			Kind:      nostr.KindRelayListMetadata,
-			Tags: nostr.Tags{
-				{"r", relayURL, "write"},
-			},
-			Content: "",
+			Tags:      tags,
 		},
 	}
 	if err := relayListEvent.SignWithAlg(privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
 		return errors.Wrap(err, "failed to sign relay list event")
 	}
 
-	return errors.Wrap(publishEventsToRelay(ctx, privateKey, []string{relayURL}, []*model.Event{relayListEvent}), "failed to publish relay list event")
+	return errors.Wrap(publishEventsToRelay(ctx, privateKey, []string{publishToRelayURL}, []*model.Event{relayListEvent}), "failed to publish relay list event")
 }
 
 func (a *accounts) GetNextIdentityKeypairForCommunityToken(ctx context.Context) (*identityKeypair, error) {
@@ -179,6 +194,10 @@ func (a *accounts) GetNextIdentityKeypairForCommunityToken(ctx context.Context) 
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get public key for keypair %d", idx)
 	}
+	if idx >= len(a.keypairRelayGroups) {
+		return nil, errors.Errorf("relay group not found for keypair %d (keypairs not initialized)", idx)
+	}
+	relayGroup := a.keypairRelayGroups[idx]
 	type relayInfo struct {
 		URL string `db:"url"`
 	}
@@ -186,14 +205,13 @@ func (a *accounts) GetNextIdentityKeypairForCommunityToken(ctx context.Context) 
 		SELECT url FROM ion_connect_relays 
 		WHERE relay_group = $1 
 		AND relay_type = 'write'
-		AND unhealthy_started_at IS NULL
 		ORDER BY total_used_storage ASC
-	`, kp.RelayGroup)
+	`, relayGroup)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get relays for relay_group %s", kp.RelayGroup)
+		return nil, errors.Wrapf(err, "failed to get relays for relay_group %s", relayGroup)
 	}
 	if len(relays) == 0 {
-		return nil, errors.Errorf("no healthy relays found for relay_group %s", kp.RelayGroup)
+		return nil, errors.Errorf("no healthy relays found for relay_group %s", relayGroup)
 	}
 	selectedRelay := relays[rand.Intn(len(relays))].URL
 	keypair := &identityKeypair{

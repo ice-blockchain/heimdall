@@ -42,7 +42,7 @@ func newIdentityClient(baseURL, apiKey string) *identityClient {
 	}
 }
 
-func (c *identityClient) GetAdaptor(ctx context.Context, platform, postID string) (string, error) {
+func (c *identityClient) AdaptExternalEventToIONConnectEvent(ctx context.Context, platform, postID string) (string, error) {
 	reqBody := communityTokenAdaptorRequest{
 		Platform: platform,
 		PostID:   postID,

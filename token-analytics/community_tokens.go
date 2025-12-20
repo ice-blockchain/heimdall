@@ -74,7 +74,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	tokenExternalAddress, postAuthorExternalAddress, postAuthorUsername, postAuthorDisplayName, postAuthorAvatar string, postAuthorVerified bool,
 	userContentId, ionConnectAddress, tokenImageUrl string) error {
 
-	ionConnectAddress, err := t.identityClient.GetAdaptor(ctx, PlatformXCom, tokenExternalAddress)
+	ionConnectAddress, err := t.identityClient.AdaptExternalEventToIONConnectEvent(ctx, PlatformXCom, tokenExternalAddress)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create community token adaptor for %s", tokenExternalAddress)
 	}
