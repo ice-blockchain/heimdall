@@ -1001,7 +1001,7 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
     END IF;
 
     v_market_cap_usd := p_price_usd * (p_total_supply / 1e18);
-    v_market_cap_ion := v_price_ion * (p_total_supply / 1e18);
+    v_market_cap_ion := v_price_ion * p_total_supply;
 
     SELECT external_address, username, display_name, avatar
     INTO v_user_external_address, v_username, v_display_name, v_avatar
