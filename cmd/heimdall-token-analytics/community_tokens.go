@@ -810,7 +810,7 @@ func (s *service) ohlcvStream(ctx context.Context, ionContentAddress string, int
 		return nil, errors.Wrapf(err, "invalid interval")
 	}
 	now := time.Now().In(time.UTC)
-	emitter, err := wrapIntoStream[ta.OHLCV](100, func(addToStream func(t *ta.OHLCV, err error)) error {
+	emitter, err := wrapIntoStream[ta.OHLCV](interval.InitialBufferSize(), func(addToStream func(t *ta.OHLCV, err error)) error {
 		if err := s.tokenAnalytics.SubscribeOHLVC(ctx, now, ionContentAddress, interval, addToStream); err != nil {
 			return errors.Wrapf(err, "failed to subscribe to OHLCV for %v", ionContentAddress)
 		}

@@ -35,6 +35,13 @@ func (i *Interval) WindowSize() WindowSize {
 	window := validIntervals[*i]
 	return window
 }
+
+func (i *Interval) InitialBufferSize() int {
+	window := validIntervals[*i]
+	dur := i.Duration()
+	return int(stdlibtime.Duration(window)/dur) + 10
+}
+
 func (i *Interval) Duration() stdlibtime.Duration {
 	dur, _ := stdlibtime.ParseDuration(i.String()) // error checked on validate
 	return dur
