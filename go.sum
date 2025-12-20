@@ -313,8 +313,8 @@ github.com/gballet/go-libpcsclite v0.0.0-20190607065134-2772fd86a8ff h1:tY80oXqG
 github.com/gballet/go-libpcsclite v0.0.0-20190607065134-2772fd86a8ff/go.mod h1:x7DCsMOv1taUwEWCzT4cmDeAkigA5/QCwUodaVOe8Ww=
 github.com/gdamore/encoding v1.0.1 h1:YzKZckdBL6jVt2Gc+5p82qhrGiqMdG/eNs6Wy0u3Uhw=
 github.com/gdamore/encoding v1.0.1/go.mod h1:0Z0cMFinngz9kS1QfMjCP8TY7em3bZYeeklsSDPivEo=
-github.com/gdamore/tcell/v2 v2.13.4 h1:k4fdtdHGvLsLr2RttPnWEGTZEkEuTaL+rL6AOVFyRWU=
-github.com/gdamore/tcell/v2 v2.13.4/go.mod h1:+Wfe208WDdB7INEtCsNrAN6O2m+wsTPk1RAovjaILlo=
+github.com/gdamore/tcell/v2 v2.13.5 h1:YvWYCSr6gr2Ovs84dXbZLjDuOfQchhj8buOEqY52rpA=
+github.com/gdamore/tcell/v2 v2.13.5/go.mod h1:+Wfe208WDdB7INEtCsNrAN6O2m+wsTPk1RAovjaILlo=
 github.com/georgysavva/scany/v2 v2.1.4 h1:nrzHEJ4oQVRoiKmocRqA1IyGOmM/GQOEsg9UjMR5Ip4=
 github.com/georgysavva/scany/v2 v2.1.4/go.mod h1:fqp9yHZzM/PFVa3/rYEC57VmDx+KDch0LoqrJzkvtos=
 github.com/getkin/kin-openapi v0.53.0/go.mod h1:7Yn5whZr5kJi6t+kShccXS8ae1APpYTW6yheSwk8Yi4=
@@ -507,8 +507,8 @@ github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5 h1:
 github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5/go.mod h1:or80JBz1VHXxKN5qXBNYFooWcfjUPIQzbNUVZ7FTFzo=
 github.com/ice-blockchain/go/src v0.0.0-20251117100638-ebce142e0ce4 h1:MuIvX5CpkDfDyThLXK/GrG1+sRDJoy+YwX5SuygBeag=
 github.com/ice-blockchain/go/src v0.0.0-20251117100638-ebce142e0ce4/go.mod h1:pVzkmaIwkLaJ5cKPHPtuKyxaXiTsa/V7kbbgLmsr4Hw=
-github.com/ice-blockchain/subzero v1.488.0 h1:qni5KV9JjRzWz9zFrpjb5PAUNemrCs/IscuAweBwamY=
-github.com/ice-blockchain/subzero v1.488.0/go.mod h1:GEf7wZo5sl5MnLAbHhU4HXZVB9koJ+Dmh16Ni0n0p3g=
+github.com/ice-blockchain/subzero v1.489.0 h1:ObyMe2yHxDAdhuwVYNk3Hc0hmGQEGj4fhSN1DdVJWp0=
+github.com/ice-blockchain/subzero v1.489.0/go.mod h1:H0MW7GZhlqBS+Tp+bavjbxCv89sPn1oDmsiG51V8hCg=
 github.com/ice-blockchain/wintr v1.170.0 h1:zG0R7dOr/h5mnPsZB+KO0B3LlRhPTjueWw+31vkD5rw=
 github.com/ice-blockchain/wintr v1.170.0/go.mod h1:9TcNxsUzFaDcZAVql+/81RXHVwBP3IQOlyQ3fEAFlfU=
 github.com/icholy/digest v1.1.0 h1:HfGg9Irj7i+IX1o1QAmPfIBNu/Q5A5Tu3n/MED9k9H4=
