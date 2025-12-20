@@ -254,7 +254,7 @@ func (gen *dummyDataGenerator) createXComTokenWithBuysOrSellsProcessor(ctx conte
 
 func (gen *dummyDataGenerator) fetchRealTokens(ctx context.Context) error {
 	sql := `
-		SELECT
+		SELECT DISTINCT
 			t.contract_address,
 			t.external_address,
 			t.title,
@@ -262,17 +262,19 @@ func (gen *dummyDataGenerator) fetchRealTokens(ctx context.Context) error {
 			t.total_supply,
 			t.base_token,
 			t.pair_id,
-			t.content_author_id
+			t.content_author_id,
+			t.created_at
 		FROM tokens t
-		INNER JOIN transactions tx ON tx.to_address = t.contract_address
-		WHERE tx.dummy = FALSE
+		INNER JOIN transactions tx ON tx.from_address = t.content_author_id
+		WHERE tx.to_address = LOWER($1)
+		  AND tx.dummy = FALSE
 		  AND t.pair_id IS NOT NULL
 		  AND t.base_token IS NOT NULL
 		ORDER BY t.created_at DESC
 		LIMIT 100
 	`
 
-	tokens, err := storage.Select[tokenRow](ctx, gen.Target, sql)
+	tokens, err := storage.Select[tokenRow](ctx, gen.Target, sql, gen.BondingCurveContractAddress)
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch real tokens")
 	}
