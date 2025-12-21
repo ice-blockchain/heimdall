@@ -68,7 +68,7 @@ func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
 
 func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	tokenExternalAddress, postAuthorExternalAddress, postAuthorUsername, postAuthorDisplayName, postAuthorAvatar string, postAuthorVerified bool,
-	userContentId string) error {
+	userContentId, tokenImageUrl string) error {
 
 	query := `
 		WITH post_author_update AS (
@@ -94,17 +94,20 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 				END,
 				platform_group = EXCLUDED.platform_group,
 				updated_at = NOW()
+			RETURNING 1
 		)
 		UPDATE tokens
 		SET 
 			content_author_id = $2,
+			image_url = CASE WHEN $9 != '' THEN $9 ELSE image_url END,
 			updated_at = NOW()
+		FROM post_author_update
 		WHERE external_address = $8;
 	`
 
 	_, err := storage.Exec(ctx, t.ingestedDataDB, query,
 		postAuthorExternalAddress, userContentId, postAuthorExternalAddress, postAuthorUsername,
-		postAuthorDisplayName, postAuthorAvatar, postAuthorVerified, tokenExternalAddress,
+		postAuthorDisplayName, postAuthorAvatar, postAuthorVerified, tokenExternalAddress, tokenImageUrl,
 	)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrDuplicate) {

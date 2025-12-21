@@ -752,7 +752,7 @@ func initializeWorkersConfig(ctx context.Context, db *storage.DB, workers uint) 
 	return nil
 }
 
-func (t *tokenAnalytics) GenerateTokenSuggestion(content, creatorName, creatorUsername, creatorBio string) *SuggestCreationDetailsResponse {
+func (t *tokenAnalytics) GenerateTokenSuggestion(content, creatorName, creatorUsername, creatorBio, creatorWebsite string) *SuggestCreationDetailsResponse {
 	tickerLength := 3 + randInt(4)
 	ticker := make([]byte, tickerLength)
 	for i := range ticker {
