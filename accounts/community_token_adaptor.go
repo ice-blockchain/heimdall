@@ -4,7 +4,6 @@ package accounts
 
 import (
 	"context"
-	"crypto/tls"
 	"math/rand"
 
 	"github.com/google/uuid"
@@ -65,7 +64,7 @@ func publishEventsToRelay(ctx context.Context, privateKey string, relays []strin
 
 		return ok
 	}))
-	if err := nostrRelay.ConnectWithTLS(ctx, &tls.Config{InsecureSkipVerify: true}); err != nil {
+	if err := nostrRelay.Connect(ctx); err != nil {
 		return errors.Wrapf(err, "failed to connect to relay %s", relay)
 	}
 	defer nostrRelay.Close()

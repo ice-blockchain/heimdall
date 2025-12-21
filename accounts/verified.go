@@ -4,7 +4,6 @@ package accounts
 
 import (
 	"context"
-	"crypto/tls"
 	"math/rand"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -117,7 +116,7 @@ func (a *verifiedUsersSync) publishEvents(ctx context.Context, relays []string, 
 
 		return ok
 	}))
-	if err := nostrRelay.ConnectWithTLS(ctx, &tls.Config{InsecureSkipVerify: true}); err != nil {
+	if err := nostrRelay.Connect(ctx); err != nil {
 		return errors.Wrapf(err, "failed to connect to relay %s", relay)
 	}
 	defer nostrRelay.Close()
