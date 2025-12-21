@@ -171,6 +171,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 		t.ticker,
 		t.total_supply,
 		t.content_author_id as content_author_id,
+		t.ion_connect_address,
 		creator.username as creator_username,
 		creator.display_name as creator_display,
 		creator.verified as creator_verified,
@@ -217,7 +218,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 			marketCap = additionalMetrics[addr]
 		}
 
-		tokenExternalAddresses, err := buildTokenAddressesFromContractAndExternalAddress(token.ContractAddress, token.ExternalAddress, token.Platform)
+		tokenExternalAddresses, err := buildTokenAddressesFromContractAndExternalAddress(token.ContractAddress, token.ExternalAddress, token.Platform, strVal(token.IonConnectAddress))
 		if err != nil {
 			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", token.ExternalAddress, token.Platform, err)
 		}

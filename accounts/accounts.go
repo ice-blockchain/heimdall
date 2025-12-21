@@ -49,8 +49,8 @@ func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *App
 		}()
 		smsSender = sms.New(applicationYamlKey)
 	}()
-	if cfg.PrivateKey == "" {
-		panic("[accounts] private key is not set")
+	if len(cfg.IdentityKeypairs) == 0 {
+		panic("[accounts] identity keypairs are not set")
 	}
 	acc := accounts{
 		db:                         db,
@@ -61,7 +61,7 @@ func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *App
 		smsSender:                  smsSender,
 		cfg:                        &cfg,
 		concurrentlyGeneratedCodes: make(map[TwoFAOptionEnum]*sync.Map),
-		privateKey:                 cfg.PrivateKey,
+		privateKey:                 cfg.IdentityKeypairs[0],
 		relaysRepo:                 relays,
 		appsRuntimeConfig:          runtimeConfig,
 		tokenAnalyticsRepo:         tokenAnalyticsRepo,
@@ -88,14 +88,13 @@ func NewVerifiedQueueRepository(ctx context.Context, tokenAnalyticsRepo TokenAna
 	db := storage.MustConnect(ctx, applicationYamlKey, storage.NewStringDDL(ddl))
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
-	if cfg.PrivateKey == "" {
-		panic("[verified-users-sync] private key is not set")
+	if len(cfg.IdentityKeypairs) == 0 {
+		panic("[verified-users-sync] identity keypairs are not set")
 	}
-
 	vSync := verifiedUsersSync{
 		db:                 db,
 		shutdown:           db.Close,
-		privateKey:         cfg.PrivateKey,
+		privateKey:         cfg.IdentityKeypairs[0],
 		tokenAnalyticsRepo: tokenAnalyticsRepo,
 	}
 
@@ -129,7 +128,7 @@ func ParseErrAsDelegatedInternalErr(err error) error {
 }
 
 func (a *accounts) PublicKey() string {
-	pubKey, err := model.GetPublicKey(a.cfg.PrivateKey)
+	pubKey, err := model.GetPublicKey(a.cfg.IdentityKeypairs[0])
 	if err != nil {
 		panic(errors.Wrap(err, "failed to get public key from private key"))
 	}

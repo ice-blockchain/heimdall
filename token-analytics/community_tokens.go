@@ -70,6 +70,12 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	tokenExternalAddress, postAuthorExternalAddress, postAuthorUsername, postAuthorDisplayName, postAuthorAvatar string, postAuthorVerified bool,
 	userContentId, tokenImageUrl string) error {
 
+	ionConnectAddress, err := t.identityClient.AdaptExternalEventToIONConnectEvent(ctx, "x.com", tokenExternalAddress)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create community token adaptor for %s", tokenExternalAddress)
+	}
+	log.Debug(fmt.Sprintf("Created community token adaptor for %s: %s", tokenExternalAddress, ionConnectAddress))
+
 	query := `
 		WITH post_author_update AS (
 			INSERT INTO users (
@@ -100,14 +106,15 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 		SET 
 			content_author_id = $2,
 			image_url = CASE WHEN $9 != '' THEN $9 ELSE image_url END,
+			ion_connect_address = $8,
 			updated_at = NOW()
 		FROM post_author_update
-		WHERE external_address = $8;
+		WHERE external_address = $10;
 	`
 
-	_, err := storage.Exec(ctx, t.ingestedDataDB, query,
+	_, err = storage.Exec(ctx, t.ingestedDataDB, query,
 		postAuthorExternalAddress, userContentId, postAuthorExternalAddress, postAuthorUsername,
-		postAuthorDisplayName, postAuthorAvatar, postAuthorVerified, tokenExternalAddress, tokenImageUrl,
+		postAuthorDisplayName, postAuthorAvatar, postAuthorVerified, ionConnectAddress, tokenImageUrl, tokenExternalAddress,
 	)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrDuplicate) {

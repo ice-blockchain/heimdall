@@ -525,6 +525,64 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/community-tokens/adaptors": {
+            "post": {
+                "description": "Creates a kind 31175 Nostr event for a X.com community token and publishes it to the relay.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CommunityTokens"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "API Key for authentication",
+                        "name": "X-API-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Request body",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.CommunityTokenAdaptorRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created - returns the address (a tag) of the 31175 event",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ice-blockchain_heimdall_server.Response-accounts_CommunityTokenAdaptorResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/config/{configName}": {
             "get": {
                 "produces": [
@@ -2751,6 +2809,15 @@ const docTemplate = `{
                 }
             }
         },
+        "accounts.CommunityTokenAdaptorResponse": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "example": "31175:a1b2c3d4e5f6..."
+                }
+            }
+        },
         "accounts.LiteUser": {
             "type": "object",
             "properties": {
@@ -2925,6 +2992,33 @@ const docTemplate = `{
             "type": "object",
             "additionalProperties": {}
         },
+        "github_com_ice-blockchain_heimdall_server.Response-accounts_CommunityTokenAdaptorResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "contentType": {
+                    "type": "string"
+                },
+                "data": {
+                    "$ref": "#/definitions/accounts.CommunityTokenAdaptorResponse"
+                },
+                "headers": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "raw": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            }
+        },
         "main.Coin": {
             "type": "object",
             "properties": {
@@ -2966,6 +3060,19 @@ const docTemplate = `{
                 },
                 "version": {
                     "type": "integer"
+                }
+            }
+        },
+        "main.CommunityTokenAdaptorRequest": {
+            "type": "object",
+            "properties": {
+                "platform": {
+                    "type": "string",
+                    "example": "x.com"
+                },
+                "postId": {
+                    "type": "string",
+                    "example": "1234567890"
                 }
             }
         },

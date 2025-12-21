@@ -193,8 +193,10 @@ type (
 			SmartContractAddress                string              `yaml:"smartContractAddress"`
 			BondingCurveProgressUpdateFrequency stdlibtime.Duration `yaml:"bondingCurveProgressUpdateFrequency"`
 		} `yaml:"bondingCurve" mapstructure:"bondingCurve"`
-		Workers   uint `yaml:"workers"`
-		BatchSize uint `yaml:"batchSize"`
+		Workers               uint   `yaml:"workers"`
+		BatchSize             uint   `yaml:"batchSize"`
+		IdentityServiceURL    string `yaml:"identityServiceUrl"`
+		IdentityServiceAPIKey string `yaml:"identityServiceApiKey"`
 	}
 	dummyUserRepository struct{}
 	tokenAnalytics      struct {
@@ -210,6 +212,7 @@ type (
 		generator       *dummyDataGenerator
 		ionPriceUSD     *atomic.Pointer[float64]
 		bnbPriceUSD     *atomic.Pointer[float64]
+		identityClient  *identityClient
 		// TODO: xmap for latest creator token prices to calc content token price
 		bondingCurveContractAddress string
 		ohclvRecentData             *xsync.Map[string, *recentCandlestick]
@@ -277,6 +280,7 @@ type (
 		CreatorExternalAddress       *string    `db:"creator_external_address"`
 		CreatorPlatform              *string    `db:"creator_platform"`
 		CreatorBnbBscAddress         *string    `db:"creator_bnb_bsc_address"`
+		IonConnectAddress            *string    `db:"ion_connect_address"`
 		BaseToken                    string     `db:"base_token"`
 		PairId                       string     `db:"pair_id"`
 		MarketCapUSD                 float64    `db:"market_cap_usd"`

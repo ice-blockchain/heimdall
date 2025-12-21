@@ -28,6 +28,12 @@ definitions:
       walletId:
         type: string
     type: object
+  accounts.CommunityTokenAdaptorResponse:
+    properties:
+      address:
+        example: 31175:a1b2c3d4e5f6...
+        type: string
+    type: object
   accounts.LiteUser:
     properties:
       avatar:
@@ -144,6 +150,24 @@ definitions:
   dfns.Asset:
     additionalProperties: {}
     type: object
+  github_com_ice-blockchain_heimdall_server.Response-accounts_CommunityTokenAdaptorResponse:
+    properties:
+      code:
+        type: integer
+      contentType:
+        type: string
+      data:
+        $ref: '#/definitions/accounts.CommunityTokenAdaptorResponse'
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      raw:
+        items:
+          format: int32
+          type: integer
+        type: array
+    type: object
   main.Coin:
     properties:
       contractAddress:
@@ -172,6 +196,15 @@ definitions:
         $ref: '#/definitions/time.Duration'
       version:
         type: integer
+    type: object
+  main.CommunityTokenAdaptorRequest:
+    properties:
+      platform:
+        example: x.com
+        type: string
+      postId:
+        example: "1234567890"
+        type: string
     type: object
   main.CompletedRegistration:
     additionalProperties: {}
@@ -1031,6 +1064,45 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Coins
+  /v1/community-tokens/adaptors:
+    post:
+      consumes:
+      - application/json
+      description: Creates a kind 31175 Nostr event for a X.com community token and
+        publishes it to the relay.
+      parameters:
+      - description: API Key for authentication
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      - description: Request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.CommunityTokenAdaptorRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created - returns the address (a tag) of the 31175 event
+          schema:
+            $ref: '#/definitions/github_com_ice-blockchain_heimdall_server.Response-accounts_CommunityTokenAdaptorResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - CommunityTokens
   /v1/config/{configName}:
     get:
       parameters:

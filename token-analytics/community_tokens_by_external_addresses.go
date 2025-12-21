@@ -41,6 +41,7 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 			COALESCE(t.total_supply, '0') as total_supply,
 			t.created_at,
 			t.content_author_id,
+			t.ion_connect_address,
 			creator.username as creator_username,
 			creator.display_name as creator_display,
 			creator.verified as creator_verified,
@@ -107,6 +108,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 				t.ticker,
 				t.created_at,
 				t.content_author_id,
+				t.ion_connect_address,
 				t.market_cap_usd,
 				t.price_usd,
 				t.liquidity_usd,
@@ -149,6 +151,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 			image_url,
 			created_at,
 			content_author_id as content_author_id,
+			ion_connect_address,
 			creator_username,
 			creator_display,
 			creator_verified,
@@ -180,7 +183,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 	}
 	tokens := make([]*CommunityToken, 0, len(rows))
 	for _, row := range rows {
-		tokenAddresses, err := buildTokenAddressesFromContractAndExternalAddress(row.ContractAddress, row.ExternalAddress, row.Platform)
+		tokenAddresses, err := buildTokenAddressesFromContractAndExternalAddress(row.ContractAddress, row.ExternalAddress, row.Platform, strVal(row.IonConnectAddress))
 		if err != nil {
 			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", row.ExternalAddress, row.Platform, err)
 		}
@@ -254,7 +257,7 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 				marketData.Position = position
 			}
 		}
-		tokenAddresses, err := buildTokenAddressesFromContractAndExternalAddress(row.ContractAddress, row.ExternalAddress, row.Platform)
+		tokenAddresses, err := buildTokenAddressesFromContractAndExternalAddress(row.ContractAddress, row.ExternalAddress, row.Platform, strVal(row.IonConnectAddress))
 		if err != nil {
 			return nil, fmt.Errorf("failed to build token addresses from contract_address %s, external_address %s (platform %s): %w", row.ContractAddress, row.ExternalAddress, row.Platform, err)
 		}
@@ -301,6 +304,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 				t.ticker,
 				COALESCE(t.total_supply, '0') as total_supply,
 				t.content_author_id as content_author_id,
+				t.ion_connect_address,
 				creator.username as creator_username,
 				creator.display_name as creator_display,
 				creator.verified as creator_verified,
@@ -379,6 +383,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 					t.ticker,
 					t.total_supply,
 					t.content_author_id,
+					t.ion_connect_address,
 					t.title,
 					t.description,
 					t.image_url,
@@ -472,7 +477,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 				marketData.Position = position
 			}
 		}
-		tokenAddresses, err := buildTokenAddressesFromContractAndExternalAddress(row.ContractAddress, row.ExternalAddress, row.Platform)
+		tokenAddresses, err := buildTokenAddressesFromContractAndExternalAddress(row.ContractAddress, row.ExternalAddress, row.Platform, strVal(row.IonConnectAddress))
 		if err != nil {
 			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", row.ExternalAddress, row.Platform, err)
 		}

@@ -169,7 +169,11 @@ func IsContentType(tokenType string) bool {
 	return tokenType == TokenTypePost || tokenType == TokenTypeVideo || tokenType == TokenTypeArticle
 }
 
-func buildAddressesFromExternalAddressAndPlatform(externalAddress, platform string, bnbBscAddress string) (*Addresses, error) {
+func buildAddressesFromExternalAddressAndPlatform(externalAddress, platform string, bnbBscAddress string, ionConnectAddress ...string) (*Addresses, error) {
+	ionConnect := ""
+	if len(ionConnectAddress) > 0 {
+		ionConnect = ionConnectAddress[0]
+	}
 	if externalAddress == "" {
 		return nil, nil
 	}
@@ -190,6 +194,9 @@ func buildAddressesFromExternalAddressAndPlatform(externalAddress, platform stri
 		if bnbBscAddress != "" {
 			addresses.Blockchain = bnbBscAddress
 		}
+		if ionConnect != "" {
+			addresses.IonConnect = ionConnect
+		}
 	default:
 		return nil, fmt.Errorf("unknown platform '%s' for external_address: %s", platform, externalAddress)
 	}
@@ -197,8 +204,8 @@ func buildAddressesFromExternalAddressAndPlatform(externalAddress, platform stri
 	return &addresses, nil
 }
 
-func buildTokenAddressesFromContractAndExternalAddress(contractAddress, externalAddress, platform string) (*Addresses, error) {
-	addresses, err := buildAddressesFromExternalAddressAndPlatform(externalAddress, platform, "")
+func buildTokenAddressesFromContractAndExternalAddress(contractAddress, externalAddress, platform string, ionConnectAddress ...string) (*Addresses, error) {
+	addresses, err := buildAddressesFromExternalAddressAndPlatform(externalAddress, platform, "", ionConnectAddress...)
 	if err != nil {
 		return nil, err
 	}

@@ -53,6 +53,8 @@ type (
 		IsUserVerified(ctx context.Context, masterPubKey string) (bool, []*model.Event, error)
 		HealthCheck(ctx context.Context) error
 		PublicKey() string
+		InitializeIdentityKeypairs(ctx context.Context) error
+		CreateCommunityTokenAdaptor(ctx context.Context, platform, postID string) (*CommunityTokenAdaptorResponse, error)
 		CompleteRegistration(ctx context.Context, credentials *Credentials) (CompletedRegistration, error)
 		InitRegistration(ctx context.Context, identityKeyName string, earlyAccessEmail string) (*RegistrationChallenge, error)
 		GetGlobalAccounts(ctx context.Context, currentVer uint64) ([]*LiteUser, uint64, error)
@@ -105,12 +107,15 @@ type (
 		idx  int
 		addr string
 	} // email:someone@bogus.com, for the maps to separate codes for same channel
-	StartedDelegatedRecovery = dfns.StartedDelegatedRecovery
-	LoginChallenge           = dfns.LoginChallenge
-	RegistrationChallenge    = dfns.RegistrationChallenge
-	DelegatedRelyingPartyErr = dfns.DfnsInternalError
-	BroadcastTxResponse      = dfns.BroadcastTxResponse
-	User                     struct {
+	StartedDelegatedRecovery      = dfns.StartedDelegatedRecovery
+	LoginChallenge                = dfns.LoginChallenge
+	RegistrationChallenge         = dfns.RegistrationChallenge
+	DelegatedRelyingPartyErr      = dfns.DfnsInternalError
+	BroadcastTxResponse           = dfns.BroadcastTxResponse
+	CommunityTokenAdaptorResponse struct {
+		Address string `json:"address" example:"31175:a1b2c3d4e5f6..."`
+	}
+	User struct {
 		dfns.User
 		IONConnectRelays        []*UserAssignedRelay `json:"ionConnectRelays"`
 		IONConnectIndexerRelays []string             `json:"ionConnectIndexerRelays"`
@@ -278,6 +283,7 @@ type (
 		deviceIdentificationClient deviceidentification.Client
 		indexer                    indexer.Indexer
 		tokenAnalyticsRepo         TokenAnalyticsUserRepository
+		keypairRelayGroups         []string
 	}
 	verifiedUsersSync struct {
 		db                 *storage.DB
@@ -328,7 +334,8 @@ type (
 		UserSignatureExpiration  stdlibtime.Duration `yaml:"userSignatureExpiration" mapstructure:"userSignatureExpiration"`
 		Max2FACount              int                 `yaml:"max2FACount" mapstructure:"max2FACount"`
 		DefaultCoinsInWalletView []string            `yaml:"defaultCoinsInWalletView" mapstructure:"defaultCoinsInWalletView"`
-		PrivateKey               string              `yaml:"privateKey" mapstructure:"privateKey"`
+		IdentityKeypairs         []string            `yaml:"identityKeypairs" mapstructure:"identityKeypairs"`
+		CommunityTokenAPIKey     string              `yaml:"communityTokenAPIKey" mapstructure:"communityTokenAPIKey"`
 	}
 
 	AppsRuntimeConfig struct {

@@ -41,6 +41,7 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 			t.ticker,
 			t.total_supply,
 			t.content_author_id as content_author_id,
+			t.ion_connect_address,
 			creator.username as creator_username,
 			creator.display_name as creator_display,
 			creator.verified as creator_verified,
@@ -86,6 +87,7 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 					t.ticker,
 					t.total_supply,
 					t.content_author_id,
+					t.ion_connect_address,
 					t.market_cap_usd,
 					t.price_usd,
 					t.holders_count,
@@ -135,7 +137,7 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 
 	tokens := make([]*CommunityToken, 0, len(rows))
 	for _, row := range rows {
-		tokenAddresses, err := buildAddressesFromExternalAddressAndPlatform(row.ExternalAddress, row.Platform, "")
+		tokenAddresses, err := buildAddressesFromExternalAddressAndPlatform(row.ExternalAddress, row.Platform, "", strVal(row.IonConnectAddress))
 		if err != nil {
 			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", row.ExternalAddress, row.Platform, err)
 		}
@@ -185,6 +187,7 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 			t.ticker,
 			t.total_supply,
 			t.content_author_id as content_author_id,
+			t.ion_connect_address,
 			creator.username as creator_username,
 			creator.display_name as creator_display,
 			creator.verified as creator_verified,
@@ -225,7 +228,7 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 
 	tokens := make([]*CommunityToken, 0, len(rows))
 	for _, row := range rows {
-		tokenAddresses, err := buildTokenAddressesFromContractAndExternalAddress(row.ContractAddress, row.ExternalAddress, row.Platform)
+		tokenAddresses, err := buildTokenAddressesFromContractAndExternalAddress(row.ContractAddress, row.ExternalAddress, row.Platform, strVal(row.IonConnectAddress))
 		if err != nil {
 			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", row.ExternalAddress, row.Platform, err)
 		}
