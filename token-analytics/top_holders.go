@@ -99,9 +99,12 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 		for idx, z := range result {
 			if z.Score < curveScore {
 				basePriceInUSD := t.ionPriceUSD.Load()
-				result = slices.Insert(result, max(idx-1, 0), redis.Z{Member: t.cfg.BondingCurve.SmartContractAddress, Score: curveScore})
-				result = result[:len(result)-1]
-				curveUSD, _ := new(big.Float).Mul(new(big.Float).SetInt(new(big.Int).Sub(progress.BondingTokensGoal, progress.SoldTokens)), new(big.Float).SetFloat64(*basePriceInUSD)).Float64()
+				curveRank := idx - 1 // even if -1, we do +1 in buildTopHolderPositions, and FE asked to be 0
+				result = slices.Insert(result, curveRank, redis.Z{Member: t.cfg.BondingCurve.SmartContractAddress, Score: curveScore})
+				if int64(len(result)) >= limit-1 {
+					result = result[:len(result)-1]
+				}
+				curveUSD := curveScore * (*basePriceInUSD)
 				curvePlatform := PlatformGroupIonConnect
 				curveAvatar := bondingCurveTopHolderAvatar
 				curveDisplayName := bondingCurveTopHolderDisplayName
@@ -124,7 +127,9 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 					CreatorVerified:       creator.Verified,
 					HolderVerified:        &curveVerified,
 				})
-				rows = rows[:len(rows)-1]
+				if int64(len(rows)) >= limit-1 {
+					rows = rows[:len(rows)-1]
+				}
 				break
 			}
 		}
