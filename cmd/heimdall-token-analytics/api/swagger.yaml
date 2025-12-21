@@ -18,6 +18,9 @@ definitions:
       postAuthorVerified:
         example: true
         type: boolean
+      tokenImageUrl:
+        example: https://example.com/token.png
+        type: string
       userAvatar:
         example: https://example.com/avatar.png
         type: string
@@ -70,6 +73,9 @@ definitions:
         type: string
       username:
         example: jdoe
+        type: string
+      website:
+        example: https://some.website.example.com
         type: string
     type: object
   main.SuggestCreationDetailsRequest:

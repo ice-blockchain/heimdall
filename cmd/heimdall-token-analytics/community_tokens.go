@@ -77,6 +77,7 @@ type (
 		PostAuthorDisplayName     string `json:"postAuthorDisplayName,omitempty" example:"John Doe"`
 		PostAuthorAvatar          string `json:"postAuthorAvatar,omitempty" example:"https://example.com/avatar.png"`
 		PostAuthorVerified        bool   `json:"postAuthorVerified,omitempty" example:"true"`
+		TokenImageUrl             string `json:"tokenImageUrl,omitempty" example:"https://example.com/token.png"`
 	}
 	SuggestCreationDetailsRequest struct {
 		Content string                        `json:"content" example:"some post text"`
@@ -86,6 +87,7 @@ type (
 		Name     string `json:"name" example:"John Doe"`
 		Username string `json:"username" example:"jdoe"`
 		Bio      string `json:"bio" example:"Something"`
+		Website  string `json:"website" example:"https://some.website.example.com"`
 	}
 	OHLCVRequest struct {
 		ExternalAddress string `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
@@ -442,9 +444,9 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 		}
 	} else {
 		hasPostAuthorData := req.Data.PostAuthorExternalAddress != "" || req.Data.PostAuthorUsername != "" ||
-			req.Data.PostAuthorDisplayName != "" || req.Data.PostAuthorAvatar != ""
+			req.Data.PostAuthorDisplayName != "" || req.Data.PostAuthorAvatar != "" || req.Data.TokenImageUrl != ""
 		if !hasPostAuthorData {
-			return nil, server.BadRequest(errors.New("at least one post author field must be provided"), invalidPropertiesErrorCode)
+			return nil, server.BadRequest(errors.New("at least one post author or token field must be provided"), invalidPropertiesErrorCode)
 		}
 
 		if err := s.tokenAnalytics.UpdateTokenExternalData(
@@ -455,7 +457,8 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 			req.Data.PostAuthorDisplayName,
 			req.Data.PostAuthorAvatar,
 			req.Data.PostAuthorVerified,
-			req.Data.ExternalAddress,
+			req.Data.PostAuthorExternalAddress,
+			req.Data.TokenImageUrl,
 		); err != nil {
 			if errors.Is(err, ta.ErrDuplicate) {
 				return nil, server.Conflict(err, "DATA_CONFLICT")
@@ -486,7 +489,7 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 //	@Security		XCom
 //	@Router			/v1/community-tokens/suggest-creation-details [POST].
 func (s *service) SuggestCreationDetails(ctx context.Context, req *server.Request[SuggestCreationDetailsRequest]) (*server.Response[ta.SuggestCreationDetailsResponse], error) {
-	suggestion := s.tokenAnalytics.GenerateTokenSuggestion(req.Data.Content, req.Data.Creator.Name, req.Data.Creator.Username, req.Data.Creator.Bio)
+	suggestion := s.tokenAnalytics.GenerateTokenSuggestion(req.Data.Content, req.Data.Creator.Name, req.Data.Creator.Username, req.Data.Creator.Bio, req.Data.Creator.Website)
 
 	return &server.Response[ta.SuggestCreationDetailsResponse]{
 		Data: suggestion,

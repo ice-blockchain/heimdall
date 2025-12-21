@@ -1709,6 +1709,10 @@ const docTemplate = `{
                     "type": "boolean",
                     "example": true
                 },
+                "tokenImageUrl": {
+                    "type": "string",
+                    "example": "https://example.com/token.png"
+                },
                 "userAvatar": {
                     "type": "string",
                     "example": "https://example.com/avatar.png"
@@ -1783,6 +1787,10 @@ const docTemplate = `{
                 "username": {
                     "type": "string",
                     "example": "jdoe"
+                },
+                "website": {
+                    "type": "string",
+                    "example": "https://some.website.example.com"
                 }
             }
         },

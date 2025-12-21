@@ -71,9 +71,9 @@ type (
 			userContentId string) error
 		UpdateTokenExternalData(ctx context.Context,
 			tokenExternalAddress, postAuthorExternalAddress, postAuthorUsername, postAuthorDisplayName, postAuthorAvatar string, postAuthorVerified bool,
-			userContentId string) error
+			userContentId, tokenImageUrl string) error
 		GetHolderPositions(ctx context.Context, tokenExternalAddress string, holderExternalAddresses []string) ([]*HolderPosition, error)
-		GenerateTokenSuggestion(content, creatorName, creatorUsername, creatorBio string) *SuggestCreationDetailsResponse
+		GenerateTokenSuggestion(content, creatorName, creatorUsername, creatorBio, creatorWebsite string) *SuggestCreationDetailsResponse
 		GetBondingCurveProgress(ctx context.Context, externalAddress string) (*BondingCurveProgress, error)
 		SubscribeBondingCurveProgress(context.Context, string, func(*BondingCurveProgress, error)) error
 		GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount *big.Int) (amountInBase *big.Int, amountInBNB *big.Int, tokenPriceInUSD float64, ionPriceInUSD float64, bnbPriceInUSD float64, err error)
