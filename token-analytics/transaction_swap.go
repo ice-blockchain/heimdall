@@ -107,7 +107,7 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 
 func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTokenSwapped) error {
 	userAddr := strings.ToLower(ev.Swapper.Hex())
-	externalAddress, _, err := detectExternalAddressFromSwap(ev)
+	externalAddress, _, _, err := detectExternalAddressFromSwap(ev)
 
 	isFirstSwap := err == nil && len(externalAddress) > 0
 	if isFirstSwap {
@@ -186,25 +186,28 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	return nil
 }
 
-func detectExternalAddressFromSwap(ev *bondingcurve.LogTokenSwapped) (string, common.Address, error) {
+func detectExternalAddressFromSwap(ev *bondingcurve.LogTokenSwapped) (string, common.Address, common.Address, error) {
 	externalAddressParam, ok := ev.Params["toToken"]
 	if !ok {
-		return "", common.Address{}, fmt.Errorf("failed to extract ion_connect_address from tx.Input: toToken param not found")
+		return "", common.Address{}, common.Address{}, fmt.Errorf("failed to extract ion_connect_address from tx.Input: toToken param not found")
 	}
 	externalAddressParamBytes, ok := externalAddressParam.([]byte)
 	if !ok {
-		return "", common.Address{}, fmt.Errorf("failed to extract ion_connect_address from tx.Input: toToken is not bytes")
+		return "", common.Address{}, common.Address{}, fmt.Errorf("failed to extract ion_connect_address from tx.Input: toToken is not bytes")
 	}
 	var creatorTokenAddr common.Address
-	if len(externalAddressParamBytes) > 20 {
-		creatorTokenAddr = common.BytesToAddress(externalAddressParamBytes[0:20])
-		externalAddressParamBytes = externalAddressParamBytes[20:]
+	var affiliateAddr common.Address
+	if len(externalAddressParamBytes) > fatAddressHeaderSize {
+		creatorTokenAddr = common.BytesToAddress(externalAddressParamBytes[4:24])
+		affiliateAddr = common.BytesToAddress(externalAddressParamBytes[24:44])
+		symbolLen := int(externalAddressParamBytes[0])
+		nameLen := int(externalAddressParamBytes[1])
+		if len(externalAddressParamBytes) > fatAddressHeaderSize+symbolLen+nameLen {
+			externalAddressParamBytes = externalAddressParamBytes[fatAddressHeaderSize+symbolLen+nameLen:]
+		}
 	}
 	externalAddress := string(externalAddressParamBytes)
-	if len(externalAddress) > 0 {
-		externalAddress = externalAddress[1:]
-	}
-	return externalAddress, creatorTokenAddr, nil
+	return externalAddress, creatorTokenAddr, affiliateAddr, nil
 }
 
 func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Context, tx *txEvent, contractAddress string, direction bool, input, output *big.Int, priceUSD float64, tokenExternalAddress, userExternalAddress, tokenType string) error {

@@ -15,6 +15,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/pkg/errors"
@@ -715,6 +716,13 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 			toToken,
 			inputAmount,
 			outputAmount,
+			bondingcurve.BondingCurvePermitData{ // ERC-2612, just values for serializer to pass
+				Value:    new(big.Int).SetInt64(0),
+				Deadline: new(big.Int).SetInt64(0),
+				V:        0,
+				R:        [32]byte{},
+				S:        [32]byte{},
+			},
 		)
 		if packErr != nil {
 			return packErr
@@ -807,14 +815,30 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
 	base, _ := hex.DecodeString(strings.TrimPrefix(gen.IONTokenAddress, "0x"))
 	totalSupply, _ := new(big.Int).SetString(seedData.TotalSupply, 10)
 
-	// For first swap: toToken = 20 zero bytes + external_address (as string bytes)
-	toToken := append(make([]byte, 20), []byte(seedData.ExternalAddress)...)
-
+	// For first swap: toToken = 64 zero bytes (see fat address in contact) + external_address (as string bytes)
+	typ := seedData.ExternalAddress[0]
+	toToken := append(make([]byte, 64+len(seedData.Ticker)+len(seedData.Title)), []byte(seedData.ExternalAddress[1:])...)
+	toToken[0] = byte(len(seedData.Ticker))
+	toToken[1] = byte(len(seedData.Title))
+	toToken[2] = byte(len(seedData.ExternalAddress[1:]))
+	toToken[3] = byte(typ)
+	copy(toToken[4:], common.HexToAddress(ownerBlockchainAddr).Bytes()) // creatorAddress
+	copy(toToken[24:], common.HexToAddress("0x").Bytes())               // affiliateAddress
+	copy(toToken[44:], common.HexToAddress("0x").Bytes())               // creatorTokenAddress
+	copy(toToken[64:], seedData.Ticker)
+	copy(toToken[64+len(seedData.Ticker):], seedData.Title)
 	txInput, err := bondingcurve.ABI.Methods["swap"].Inputs.Pack(
 		base,
 		toToken,
 		totalSupply,
 		totalSupply,
+		bondingcurve.BondingCurvePermitData{ // ERC-2612, just values for serializer to pass
+			Value:    new(big.Int).SetInt64(0),
+			Deadline: new(big.Int).SetInt64(0),
+			V:        0,
+			R:        [32]byte{},
+			S:        [32]byte{},
+		},
 	)
 	if err != nil {
 		return errors.Wrapf(err, "failed to pack token created tx input")
@@ -822,7 +846,11 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
 	bondedTokenCreatedData, err := bondingcurve.ABI.Events["BondingTokenCreated"].Inputs.NonIndexed().Pack(
 		seedData.Title,
 		seedData.Ticker,
-		seedData.ExternalAddress,
+		common.HexToAddress("0x"),   // creatorTokenAddress for content tokens
+		seedData.ExternalAddress[0], // externalType
+		seedData.ExternalAddress[1:],
+		common.HexToAddress(ownerBlockchainAddr), // creatorAddress
+		common.HexToAddress("0x"),                // affilate address
 		totalSupply,
 	)
 	if err != nil {
@@ -882,7 +910,7 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
           "logIndex": "0x4",
           "removed": false,
           "topics": [
-            "0x7a69aeb15d1aa44b3fec40fc8767221a5e4d2f41e58421d34db80a63f5a619c7",
+            "0xf1aad4192131f14ec094f5319421d9274539312c962d0ce8121ba86f52f25db0",
             "0x000000000000000000000000{{.Token.ContractAddress}}"
           ]
         },
