@@ -4,8 +4,9 @@ package accounts
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"strings"
 	"sync/atomic"
 
@@ -87,6 +88,11 @@ func (a *accounts) InitializeIdentityKeypairs(ctx context.Context) error {
 	if len(relayGroupsOrder) == 0 {
 		return nil
 	}
+	if len(a.cfg.IdentityKeypairs) > len(relayGroupsOrder) {
+		return errors.Errorf("number of identity keypairs (%d) exceeds number of available relay groups (%d)",
+			len(a.cfg.IdentityKeypairs), len(relayGroupsOrder))
+	}
+
 	keypairs := make([]keypairData, 0, len(a.cfg.IdentityKeypairs))
 	for i, privateKey := range a.cfg.IdentityKeypairs {
 		pubKey, err := model.GetPublicKey(privateKey)
@@ -213,7 +219,12 @@ func (a *accounts) GetNextIdentityKeypairForCommunityToken(ctx context.Context) 
 	if len(relays) == 0 {
 		return nil, errors.Errorf("no healthy relays found for relay_group %s", relayGroup)
 	}
-	selectedRelay := relays[rand.Intn(len(relays))].URL
+	randomIndex, err := rand.Int(rand.Reader, big.NewInt(int64(len(relays))))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate secure random number for relay selection")
+	}
+	selectedRelay := relays[randomIndex.Int64()].URL
+
 	keypair := &identityKeypair{
 		PrivateKey:     privateKey,
 		PublicKey:      pubKey,

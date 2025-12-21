@@ -18,10 +18,6 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
-const (
-	PlatformXCom = "x.com"
-)
-
 func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
 	masterPubkey, userExternalAddress, userUsername, userDisplayName, userAvatar string, userVerified bool,
 	userContentId string) error {
@@ -74,7 +70,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	tokenExternalAddress, postAuthorExternalAddress, postAuthorUsername, postAuthorDisplayName, postAuthorAvatar string, postAuthorVerified bool,
 	userContentId, ionConnectAddress, tokenImageUrl string) error {
 
-	ionConnectAddress, err := t.identityClient.AdaptExternalEventToIONConnectEvent(ctx, PlatformXCom, tokenExternalAddress)
+	ionConnectAddress, err := t.identityClient.AdaptExternalEventToIONConnectEvent(ctx, "x.com", tokenExternalAddress)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create community token adaptor for %s", tokenExternalAddress)
 	}

@@ -58,9 +58,6 @@ func publishEventsToRelay(ctx context.Context, privateKey string, relays []strin
 	if relay == "" {
 		return nil
 	}
-	if len(events) == 0 {
-		return nil
-	}
 
 	nostrRelay := nostr.NewRelay(ctx, relay, nostr.WithSignatureChecker(func(e *nostr.Event) bool {
 		subzeroEvent := model.Event{Event: *e}

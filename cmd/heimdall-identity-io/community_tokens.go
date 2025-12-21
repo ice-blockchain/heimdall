@@ -4,12 +4,19 @@ package main
 
 import (
 	"context"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/server"
+)
+
+var (
+	supportedPlatforms = map[string]bool{
+		accounts.PlatformXCom: true,
+	}
 )
 
 func (s *service) setupCommunityTokenRoutes(router gin.IRoutes) {
@@ -39,6 +46,15 @@ func (s *service) CreateCommunityTokenAdaptor(
 	}
 	if req.Data.APIKey != s.cfg.CommunityTokenAPIKey {
 		return nil, server.Unauthorized(errors.New("invalid API key"))
+	}
+	if req.Data.Platform == "" {
+		return nil, server.BadRequest(errors.New("platform is required"), "INVALID_PROPERTIES")
+	}
+	if !supportedPlatforms[strings.ToLower(req.Data.Platform)] {
+		return nil, server.BadRequest(errors.Errorf("unsupported platform: %s (supported: x.com)", req.Data.Platform), "UNSUPPORTED_PLATFORM")
+	}
+	if req.Data.PostID == "" {
+		return nil, server.BadRequest(errors.New("postId is required"), "INVALID_PROPERTIES")
 	}
 	resp, err := s.accounts.CreateCommunityTokenAdaptor(ctx, req.Data.Platform, req.Data.PostID)
 	if err != nil {

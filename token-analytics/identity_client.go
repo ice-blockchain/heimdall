@@ -48,12 +48,12 @@ func (c *identityClient) AdaptExternalEventToIONConnectEvent(ctx context.Context
 		PostID:   postID,
 	}
 
-	cCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	requestCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	var response communityTokenAdaptorResponse
 	resp, err := c.client.R().
-		SetContext(cCtx).
+		SetContext(requestCtx).
 		SetRetryCount(5).
 		SetRetryInterval(func(resp *req.Response, attempt int) time.Duration {
 			switch {
@@ -87,7 +87,8 @@ func (c *identityClient) AdaptExternalEventToIONConnectEvent(ctx context.Context
 	}
 
 	if resp.GetStatusCode() != http.StatusCreated {
-		return "", errors.Errorf("identity service returned status %d: %s", resp.GetStatusCode(), resp.String())
+		return "", errors.Errorf("identity service returned status %d for platform=%s postID=%s: %s",
+			resp.GetStatusCode(), platform, postID, resp.String())
 	}
 
 	return response.Address, nil
