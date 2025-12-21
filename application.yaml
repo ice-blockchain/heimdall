@@ -61,8 +61,6 @@ cmd/heimdall-token-analytics:
     port: 8888
     certPath: cmd/heimdall-identity-io/.testdata/localhost.crt
     keyPath: cmd/heimdall-identity-io/.testdata/localhost.key
-  identityServiceUrl: https://localhost:8001
-  identityServiceApiKey: dev-api-key
 accounts:
   delegated_relying_party:
     auth:
@@ -158,7 +156,6 @@ accounts:
   identityKeypairs:
     - privateKey: c52a18bf888379b18ba9bb1835f49b7dd2c3ebde9f1b0864f2566f61b41510dfcbc37a9ac37066c1fe508c0af62dba995bcb86277ef419260acb1a1c5cb97c36
     - privateKey: 0ba58ed6a830bed3239137dde811db6e905973c519636c4f06b5b4fbc0f7fac52663afe3b90183f3c894191bba6ede27851c39ffbfdecade2bcda30b67ced4a4
-  communityTokenAPIKey: dev-api-key-change-in-production
 coins:
   testnet: true
   defaultSyncFrequency: 12h
