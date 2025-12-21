@@ -96,42 +96,36 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 			return nil, errors.Wrapf(err, "failed to get curve progress for token %v (pair %v)", externalAddress, pairId)
 		}
 		curveScore := weiToFloat64FromBigInt(new(big.Int).Sub(progress.BondingTokensGoal, progress.SoldTokens))
-		for idx, z := range result {
-			if z.Score < curveScore {
-				basePriceInUSD := t.ionPriceUSD.Load()
-				curveRank := idx - 1 // even if -1, we do +1 in buildTopHolderPositions, and FE asked to be 0
-				result = slices.Insert(result, curveRank, redis.Z{Member: t.cfg.BondingCurve.SmartContractAddress, Score: curveScore})
-				if int64(len(result)) >= limit-1 {
-					result = result[:len(result)-1]
-				}
-				curveUSD := curveScore * (*basePriceInUSD)
-				curvePlatform := PlatformGroupIonConnect
-				curveAvatar := bondingCurveTopHolderAvatar
-				curveDisplayName := bondingCurveTopHolderDisplayName
-				curveVerified := true
-				curveUsername := ""
-				rows = slices.Insert(rows, max(idx-1, 0), &holderWithTokenData{
-					ContentAuthorID:       creator.MasterPubkey,
-					CreatorUsername:       creator.Username,
-					CreatorDisplay:        creator.Display,
-					CreatorAvatar:         creator.Avatar,
-					CreatorPlatform:       rows[0].CreatorPlatform,
-					TotalSupply:           rows[0].TotalSupply,
-					HolderMasterPubkey:    &t.cfg.BondingCurve.SmartContractAddress,
-					HolderUsername:        &curveUsername,
-					HolderDisplay:         &curveDisplayName,
-					HolderAvatar:          &curveAvatar,
-					HolderExternalAddress: &t.cfg.BondingCurve.SmartContractAddress,
-					HolderPlatform:        &curvePlatform,
-					PriceUSD:              curveUSD,
-					CreatorVerified:       creator.Verified,
-					HolderVerified:        &curveVerified,
-				})
-				if int64(len(rows)) >= limit-1 {
-					rows = rows[:len(rows)-1]
-				}
-				break
-			}
+		basePriceInUSD := t.ionPriceUSD.Load()
+		result = slices.Insert(result, 0, redis.Z{Member: t.cfg.BondingCurve.SmartContractAddress, Score: curveScore})
+		if int64(len(result)) >= limit-1 {
+			result = result[:len(result)-1]
+		}
+		curveUSD := curveScore * (*basePriceInUSD)
+		curvePlatform := PlatformGroupIonConnect
+		curveAvatar := bondingCurveTopHolderAvatar
+		curveDisplayName := bondingCurveTopHolderDisplayName
+		curveVerified := false
+		curveUsername := ""
+		rows = slices.Insert(rows, 0, &holderWithTokenData{
+			ContentAuthorID:       creator.MasterPubkey,
+			CreatorUsername:       creator.Username,
+			CreatorDisplay:        creator.Display,
+			CreatorAvatar:         creator.Avatar,
+			CreatorPlatform:       rows[0].CreatorPlatform,
+			TotalSupply:           rows[0].TotalSupply,
+			HolderMasterPubkey:    &t.cfg.BondingCurve.SmartContractAddress,
+			HolderUsername:        &curveUsername,
+			HolderDisplay:         &curveDisplayName,
+			HolderAvatar:          &curveAvatar,
+			HolderExternalAddress: &t.cfg.BondingCurve.SmartContractAddress,
+			HolderPlatform:        &curvePlatform,
+			PriceUSD:              curveUSD,
+			CreatorVerified:       creator.Verified,
+			HolderVerified:        &curveVerified,
+		})
+		if int64(len(rows)) >= limit-1 {
+			rows = rows[:len(rows)-1]
 		}
 	}
 	positions, err := buildTopHolderPositions(externalAddress, result, rows)
