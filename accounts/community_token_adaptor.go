@@ -68,7 +68,7 @@ func publishEventsToRelay(ctx context.Context, privateKey string, relay string, 
 	}
 	defer nostrRelay.Close()
 
-	err := nostrRelay.Publish(ctx, events[0].Event)
+	err := nostrRelay.PublishMany(ctx, nostrEvents...)
 	if err != nil {
 		if strings.Contains(err.Error(), "auth-required:") {
 			err = errors.Wrap(nostrRelay.Auth(ctx, func(event *nostr.Event) error {
@@ -83,17 +83,17 @@ func publishEventsToRelay(ctx context.Context, privateKey string, relay string, 
 			if err != nil {
 				return errors.Wrapf(err, "failed to auth to relay %s", relay)
 			}
+			if err := nostrRelay.PublishMany(ctx, nostrEvents...); err != nil {
+				eventIDs := make([]string, len(events))
+				for i, evt := range events {
+					eventIDs[i] = evt.Event.ID
+				}
+
+				return errors.Wrapf(err, "failed to publish events: %v", eventIDs)
+			}
 		} else {
 			return errors.Wrapf(err, "failed to publish event to relay %s", relay)
 		}
-	}
-	if err := nostrRelay.PublishMany(ctx, nostrEvents...); err != nil {
-		eventIDs := make([]string, len(events))
-		for i, evt := range events {
-			eventIDs[i] = evt.Event.ID
-		}
-
-		return errors.Wrapf(err, "failed to publish events: %v", eventIDs)
 	}
 
 	return nil
