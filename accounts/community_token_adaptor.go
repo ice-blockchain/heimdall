@@ -5,6 +5,7 @@ package accounts
 import (
 	"context"
 	"math/rand"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/nbd-wtf/go-nostr"
@@ -60,26 +61,34 @@ func publishEventsToRelay(ctx context.Context, privateKey string, relays []strin
 
 	nostrRelay := nostr.NewRelay(ctx, relay, nostr.WithSignatureChecker(func(e *nostr.Event) bool {
 		subzeroEvent := model.Event{Event: *e}
-		ok, _ := subzeroEvent.CheckSignature()
-
-		return ok
+		ok, err := subzeroEvent.CheckSignature()
+		return ok && err == nil
 	}))
 	if err := nostrRelay.Connect(ctx); err != nil {
 		return errors.Wrapf(err, "failed to connect to relay %s", relay)
 	}
 	defer nostrRelay.Close()
 
-	_ = nostrRelay.Publish(ctx, events[0].Event)
-	if err := nostrRelay.Auth(ctx, func(event *nostr.Event) error {
-		subZeroEvent := model.Event{Event: *event}
-		if err := subZeroEvent.SignWithAlg(privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
-			return err
+	err := nostrRelay.Publish(ctx, events[0].Event)
+	if err != nil {
+		if strings.Contains(err.Error(), "auth-required:") {
+			err = errors.Wrap(nostrRelay.Auth(ctx, func(event *nostr.Event) error {
+				subZeroEvent := model.Event{Event: *event}
+				if err := subZeroEvent.SignWithAlg(privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
+					return err
+				}
+				*event = subZeroEvent.Event
+				return nil
+			}), "failed to authenticate to relay")
+			if err != nil {
+				return errors.Wrapf(err, "failed to auth to relay %s", relay)
+			}
+			if err := nostrRelay.Publish(ctx, events[0].Event); err != nil {
+				return errors.Wrapf(err, "failed to publish event after auth to relay %s", relay)
+			}
+		} else {
+			return errors.Wrapf(err, "failed to publish event to relay %s", relay)
 		}
-		*event = subZeroEvent.Event
-
-		return nil
-	}); err != nil {
-		return errors.Wrapf(err, "failed to auth to relay %s", relay)
 	}
 	nostrEvents := make([]*nostr.Event, len(events))
 	for i, evt := range events {
