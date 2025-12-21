@@ -784,7 +784,7 @@ func (s *service) StreamCommunityTokensLatestTrades(ctx context.Context, req *se
 //	@Router			/v1sse/community-tokens/{externalAddressOrViewType}/trading-stats [GET].
 //	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/trading-stats [GET].
 func (s *service) StreamCommunityTokensTradingStats(ctx context.Context, req *server.Request[TradeRequest]) (server.StreamEventEmitter[ta.TradeStats], error) {
-	return s.tradingStatsStream(req.Data.ExternalAddress)
+	return s.tradingStatsStream(ctx, req.Data.ExternalAddress)
 }
 
 // StreamCommunityTokensOHLCV godoc
@@ -884,48 +884,18 @@ func wrapIntoStream[T any](initialBuffer int, impl func(addToStream func(t *T, e
 	}, nil
 }
 
-func (s *service) tradingStatsStream(ionContentAddress string) (server.StreamEventEmitter[ta.TradeStats], error) {
-	return func(ctx context.Context) (<-chan server.StreamEvent[ta.TradeStats], error) {
-		events := make(chan server.StreamEvent[ta.TradeStats], 1)
-		now := time.Now().In(time.UTC)
-		stats, err := s.tokenAnalytics.GetTradingStats(ctx, now, ionContentAddress)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get initial trading stats for %v", ionContentAddress)
+func (s *service) tradingStatsStream(ctx context.Context, externalAddress string) (server.StreamEventEmitter[ta.TradeStats], error) {
+	now := time.Now().In(time.UTC)
+	emitter, err := wrapIntoStream[ta.TradeStats](100, func(addToStream func(t *ta.TradeStats, err error)) error {
+		if err := s.tokenAnalytics.SubscribeTradingStats(ctx, now, externalAddress, addToStream); err != nil {
+			return errors.Wrapf(err, "failed to subscribe to trading stats updates for  %v", externalAddress)
 		}
-		events <- server.StreamEvent[ta.TradeStats]{
-			Err:  nil,
-			Data: stats,
-			Type: "message",
-		}
-		ticker := time.NewTicker(1 * time.Second) // TODO: cfg?
-		go func() {
-			defer close(events)
-			defer ticker.Stop()
-			for ctx.Err() == nil {
-				select {
-				case <-ctx.Done():
-					return
-				case <-ticker.C:
-					now = time.Now().In(time.UTC)
-					stats, err = s.tokenAnalytics.UpdateTradingStats(ctx, now, ionContentAddress)
-					if err != nil {
-						events <- server.StreamEvent[ta.TradeStats]{
-							Err:  err,
-							Data: nil,
-							Type: "error",
-						}
-						return
-					}
-					events <- server.StreamEvent[ta.TradeStats]{
-						Err:  nil,
-						Data: stats,
-						Type: "message",
-					}
-				}
-			}
-		}()
-		return events, nil
-	}, nil
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return emitter, nil
 }
 
 func (s *service) latestTradesStream(ionContentAddress string, limit, offset uint64) (server.StreamEventEmitter[ta.Trade], error) {

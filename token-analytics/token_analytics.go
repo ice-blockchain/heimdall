@@ -105,6 +105,7 @@ func New(ctx context.Context) TokenAnalytics {
 		metrics:                     registry,
 		bondingCurve:                bondingcurve.New(ctx, applicationYamlKey),
 		ohclvRecentData:             xsync.NewMap[string, *recentCandlestick](),
+		tradingStatsRecentData:      xsync.NewMap[string, *recentTradeStats](),
 		subscriptions:               newSubscriptions(ctx),
 		identityClient:              newIdentityClient(cfg.IdentityServiceURL, cfg.IdentityServiceAPIKey),
 		shutdown: func() error {
