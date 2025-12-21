@@ -68,7 +68,7 @@ func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
 
 func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	tokenExternalAddress, postAuthorExternalAddress, postAuthorUsername, postAuthorDisplayName, postAuthorAvatar string, postAuthorVerified bool,
-	userContentId, ionConnectAddress, tokenImageUrl string) error {
+	userContentId, tokenImageUrl string) error {
 
 	ionConnectAddress, err := t.identityClient.AdaptExternalEventToIONConnectEvent(ctx, "x.com", tokenExternalAddress)
 	if err != nil {
