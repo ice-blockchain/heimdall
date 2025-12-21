@@ -190,7 +190,7 @@ func (a *accounts) publishRelayListEvent(ctx context.Context, privateKey, publis
 		return errors.Wrap(err, "failed to sign relay list event")
 	}
 
-	return errors.Wrap(publishEventsToRelay(ctx, privateKey, []string{publishToRelayURL}, []*model.Event{relayListEvent}), "failed to publish relay list event")
+	return errors.Wrap(publishEventsToRelay(ctx, privateKey, publishToRelayURL, []*model.Event{relayListEvent}), "failed to publish relay list event")
 }
 
 func (a *accounts) GetNextIdentityKeypairForCommunityToken(ctx context.Context) (*identityKeypair, error) {
