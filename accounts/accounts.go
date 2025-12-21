@@ -61,7 +61,7 @@ func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *App
 		smsSender:                  smsSender,
 		cfg:                        &cfg,
 		concurrentlyGeneratedCodes: make(map[TwoFAOptionEnum]*sync.Map),
-		privateKey:                 cfg.IdentityKeypairs[0].PrivateKey,
+		privateKey:                 cfg.IdentityKeypairs[0],
 		relaysRepo:                 relays,
 		appsRuntimeConfig:          runtimeConfig,
 		tokenAnalyticsRepo:         tokenAnalyticsRepo,
@@ -94,7 +94,7 @@ func NewVerifiedQueueRepository(ctx context.Context, tokenAnalyticsRepo TokenAna
 	vSync := verifiedUsersSync{
 		db:                 db,
 		shutdown:           db.Close,
-		privateKey:         cfg.IdentityKeypairs[0].PrivateKey,
+		privateKey:         cfg.IdentityKeypairs[0],
 		tokenAnalyticsRepo: tokenAnalyticsRepo,
 	}
 
@@ -128,7 +128,7 @@ func ParseErrAsDelegatedInternalErr(err error) error {
 }
 
 func (a *accounts) PublicKey() string {
-	pubKey, err := model.GetPublicKey(a.cfg.IdentityKeypairs[0].PrivateKey)
+	pubKey, err := model.GetPublicKey(a.cfg.IdentityKeypairs[0])
 	if err != nil {
 		panic(errors.Wrap(err, "failed to get public key from private key"))
 	}

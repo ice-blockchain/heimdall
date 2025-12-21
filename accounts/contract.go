@@ -334,13 +334,8 @@ type (
 		UserSignatureExpiration  stdlibtime.Duration `yaml:"userSignatureExpiration" mapstructure:"userSignatureExpiration"`
 		Max2FACount              int                 `yaml:"max2FACount" mapstructure:"max2FACount"`
 		DefaultCoinsInWalletView []string            `yaml:"defaultCoinsInWalletView" mapstructure:"defaultCoinsInWalletView"`
-		PrivateKey               string              `yaml:"privateKey" mapstructure:"privateKey"`
-		IdentityKeypairs         []IdentityKeypair   `yaml:"identityKeypairs" mapstructure:"identityKeypairs"`
+		IdentityKeypairs         []string            `yaml:"identityKeypairs" mapstructure:"identityKeypairs"`
 		CommunityTokenAPIKey     string              `yaml:"communityTokenAPIKey" mapstructure:"communityTokenAPIKey"`
-	}
-
-	IdentityKeypair struct {
-		PrivateKey string `yaml:"privateKey" mapstructure:"privateKey"`
 	}
 
 	AppsRuntimeConfig struct {

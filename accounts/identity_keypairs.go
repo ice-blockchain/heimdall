@@ -88,8 +88,8 @@ func (a *accounts) InitializeIdentityKeypairs(ctx context.Context) error {
 		return nil
 	}
 	keypairs := make([]keypairData, 0, len(a.cfg.IdentityKeypairs))
-	for i, kp := range a.cfg.IdentityKeypairs {
-		pubKey, err := model.GetPublicKey(kp.PrivateKey)
+	for i, privateKey := range a.cfg.IdentityKeypairs {
+		pubKey, err := model.GetPublicKey(privateKey)
 		if err != nil {
 			return errors.Wrapf(err, "invalid identity private key at index %d", i)
 		}
@@ -104,7 +104,7 @@ func (a *accounts) InitializeIdentityKeypairs(ctx context.Context) error {
 			return errors.Errorf("no write relay found for relay_group %s", relayGroup)
 		}
 		keypairs = append(keypairs, keypairData{
-			PrivateKey:      kp.PrivateKey,
+			PrivateKey:      privateKey,
 			PublicKey:       pubKey,
 			AllRelaysInfo:   allRelaysInfo,
 			WriteRelayURL:   writeRelayURL,
@@ -189,8 +189,8 @@ func (a *accounts) publishRelayListEvent(ctx context.Context, privateKey, publis
 
 func (a *accounts) GetNextIdentityKeypairForCommunityToken(ctx context.Context) (*identityKeypair, error) {
 	idx := int(keypairCounter.Add(1)-1) % len(a.cfg.IdentityKeypairs)
-	kp := a.cfg.IdentityKeypairs[idx]
-	pubKey, err := model.GetPublicKey(kp.PrivateKey)
+	privateKey := a.cfg.IdentityKeypairs[idx]
+	pubKey, err := model.GetPublicKey(privateKey)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get public key for keypair %d", idx)
 	}
@@ -215,7 +215,7 @@ func (a *accounts) GetNextIdentityKeypairForCommunityToken(ctx context.Context) 
 	}
 	selectedRelay := relays[rand.Intn(len(relays))].URL
 	keypair := &identityKeypair{
-		PrivateKey:     kp.PrivateKey,
+		PrivateKey:     privateKey,
 		PublicKey:      pubKey,
 		RelayURL:       selectedRelay,
 		InternalUserID: identityInternalUserPrefix + pubKey,
