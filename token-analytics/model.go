@@ -82,8 +82,9 @@ type (
 	}
 
 	Trade struct {
-		Creator  User          `json:"creator,omitzero"`
-		Position TradePosition `json:"position,omitempty"`
+		TokenExternalAddress string        `json:"-" db:"external_address"` // matching with subscriptions
+		Creator              User          `json:"creator,omitzero"`
+		Position             TradePosition `json:"position,omitempty"`
 	}
 
 	TradeStatsAggregate struct {

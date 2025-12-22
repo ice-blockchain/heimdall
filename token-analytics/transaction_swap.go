@@ -101,7 +101,11 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 	if result.TokenType == TokenTypeProfile {
 		t.creatorTokenPricesUSD.Store(strings.ToLower(result.ContractAddress), priceUSD)
 	}
-	t.subscriptions.NotifySwap(result.TokenExternalAddress)
+	tradeInfo, err := t.fetchTradeInfoFromSwap(ctx, tx.TransactionHash)
+	if err != nil {
+		return errors.Wrapf(err, "failed to fetch trade info for tx %v token %v", tx.TransactionHash, result.TokenExternalAddress)
+	}
+	t.subscriptions.NotifySwap(tradeInfo)
 	return nil
 }
 
@@ -192,7 +196,11 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	if result.TokenType == TokenTypeProfile {
 		t.creatorTokenPricesUSD.Store(strings.ToLower(result.ContractAddress), priceUSD)
 	}
-	t.subscriptions.NotifySwap(result.TokenExternalAddress)
+	tradeInfo, err := t.fetchTradeInfoFromSwap(ctx, tx.TransactionHash)
+	if err != nil {
+		return errors.Wrapf(err, "failed to fetch trade info for tx %v token %v", tx.TransactionHash, result.TokenExternalAddress)
+	}
+	t.subscriptions.NotifySwap(tradeInfo)
 	return nil
 }
 
@@ -375,4 +383,51 @@ func (t *tokenAndUserInfo) ExternalAddress() string {
 
 func (t *tokenAndUserInfo) PriceUSD() float64 {
 	return t.PriceUsd
+}
+
+func (t *tokenAnalytics) fetchTradeInfoFromSwap(ctx context.Context, txHash string) (*Trade, error) {
+	sql := `
+		SELECT token_swaps.created_at,
+		    token_swaps.transaction_hash,
+		    token_swaps.contract_address,
+		    token_swaps.external_address,
+		    tokens.platform,
+		    token_swaps.user_blockchain_address,
+		    token_swaps.direction,
+		    token_swaps.input_amount,
+		    token_swaps.output_amount,
+		    token_swaps.price_usd,
+		    tokens.content_author_id as content_author_id,
+			creator.username as creator_username,
+			creator.display_name as creator_display,
+			creator.verified as creator_verified,
+			creator.avatar as creator_avatar,
+			creator.external_address as creator_external_address,
+			creator.platform_group as creator_platform,
+			tokens.bnb_bsc_metadata_owner_address as creator_bnb_bsc_address,
+
+			holder.master_pubkey as holder_master_pubkey,
+			holder.username as holder_username,
+			holder.display_name as holder_display,
+			holder.verified as holder_verified,
+			holder.avatar as holder_avatar,
+			holder.external_address as holder_external_address,
+			holder.platform_group as holder_platform,
+			
+			utp.amount as balance,
+			COALESCE(((utp.amount::NUMERIC / 1e18) * tokens.price_usd), 0) as balance_usd
+		FROM token_swaps 
+		JOIN tokens ON token_swaps.contract_address = tokens.contract_address
+		LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(tokens.content_author_id)
+		LEFT JOIN users holder ON LOWER(holder.content_author_id) = LOWER(token_swaps.user_blockchain_address)
+		LEFT JOIN user_token_positions utp ON utp.external_address = token_swaps.external_address AND LOWER(utp.user_blockchain_address) = LOWER(token_swaps.user_blockchain_address)
+		WHERE token_swaps.transaction_hash = $1
+	`
+	swap, err := storage.Get[tokenSwap](ctx, t.ingestedDataDB, sql, txHash)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to fetch trade for tx %v but processed it, is trigger broken?", txHash)
+	}
+	trades, _ := convertSwapsToTrades([]*tokenSwap{swap})
+
+	return trades[0], nil
 }

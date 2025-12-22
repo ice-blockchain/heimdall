@@ -66,6 +66,7 @@ type (
 		GetCommunityTokensByExternalAddresses(ctx context.Context, externalAddresses []string, requestorMasterPubkey string, includeTopPlatformHolders *uint32, keyword string, limit, offset uint64) ([]*CommunityToken, error)
 		GetCommunityTokensByType(ctx context.Context, viewType string, tokenType *string, keyword string, limit, offset uint64) ([]*CommunityToken, error)
 		GetLatestTrades(ctx context.Context, externalAddress string, limit, offset uint64, startFrom *stdlibtime.Time) (trades []*Trade, maxTs stdlibtime.Time, err error)
+		SubscribeLatestTrades(ctx context.Context, externalAddress string, addToStream func(*Trade, error)) error
 		GetOHLVCHistory(ctx context.Context, now, startPoint stdlibtime.Time, externalAddress string, interval Interval) (res []*OHLCV, err error)
 		SubscribeOHLVC(context.Context, stdlibtime.Time, string, Interval, func(*OHLCV, error)) error
 		GetTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress string) (*TradeStats, error)

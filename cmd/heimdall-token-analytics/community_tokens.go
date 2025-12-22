@@ -763,7 +763,7 @@ func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *serv
 //	@Router			/v1sse/community-tokens/{externalAddressOrViewType}/latest-trades [GET].
 //	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/latest-trades [GET].
 func (s *service) StreamCommunityTokensLatestTrades(ctx context.Context, req *server.Request[TradeRequest]) (server.StreamEventEmitter[ta.Trade], error) {
-	return s.latestTradesStream(req.Data.ExternalAddress)
+	return s.latestTradesStream(ctx, req.Data.ExternalAddress)
 }
 
 // StreamCommunityTokensTradingStats godoc
@@ -896,54 +896,15 @@ func (s *service) tradingStatsStream(ctx context.Context, externalAddress string
 	return emitter, nil
 }
 
-func (s *service) latestTradesStream(ionContentAddress string) (server.StreamEventEmitter[ta.Trade], error) {
-	limit := uint64(100)
-	offset := uint64(0)
-	return func(ctx context.Context) (<-chan server.StreamEvent[ta.Trade], error) {
-		events := make(chan server.StreamEvent[ta.Trade], limit)
-
-		now := time.Now().UTC()
-		currentLastTs := &now
-
-		sendData := func() bool {
-			trades, newLastTs, err := s.tokenAnalytics.GetLatestTrades(ctx, ionContentAddress, limit, offset, currentLastTs)
-			if err != nil {
-				events <- server.StreamEvent[ta.Trade]{
-					Type: "error",
-					Data: nil,
-					Err:  err,
-				}
-
-				return false
-			}
-			for _, trade := range trades {
-				events <- server.StreamEvent[ta.Trade]{
-					Type: "message",
-					Data: trade,
-				}
-			}
-			if len(trades) > 0 {
-				currentLastTs = &newLastTs
-			}
-
-			return true
+func (s *service) latestTradesStream(ctx context.Context, externalAddress string) (server.StreamEventEmitter[ta.Trade], error) {
+	emitter, err := wrapIntoStream[ta.Trade](1, func(addToStream func(t *ta.Trade, err error)) error {
+		if err := s.tokenAnalytics.SubscribeLatestTrades(ctx, externalAddress, addToStream); err != nil {
+			return errors.Wrapf(err, "failed to subscribe to latest-trades updates for  %v", externalAddress)
 		}
-
-		ticker := time.NewTicker(1 * time.Second)
-		go func() {
-			defer close(events)
-			defer ticker.Stop()
-			for ctx.Err() == nil {
-				select {
-				case <-ctx.Done():
-					return
-
-				case <-ticker.C:
-					sendData()
-				}
-			}
-		}()
-
-		return events, nil
-	}, nil
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return emitter, nil
 }
