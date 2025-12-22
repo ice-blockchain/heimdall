@@ -5,6 +5,7 @@ package tokenanalytics
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/ice-blockchain/wintr/time"
 )
@@ -171,7 +172,7 @@ func IsContentType(tokenType string) bool {
 
 func buildAddressesFromExternalAddressAndPlatform(externalAddress, platform string, bnbBscAddress string, ionConnectAddress ...string) (*Addresses, error) {
 	ionConnect := ""
-	if len(ionConnectAddress) > 0 {
+	if len(ionConnectAddress) > 0 && ionConnectAddress[0] != "" {
 		ionConnect = ionConnectAddress[0]
 	}
 	if externalAddress == "" {
@@ -215,4 +216,16 @@ func buildTokenAddressesFromContractAndExternalAddress(contractAddress, external
 	addresses.Blockchain = contractAddress
 
 	return addresses, nil
+}
+
+func extractIonConnectFromTokenExternalAddress(tokenExternalAddress, platform string) string {
+	if platform != PlatformGroupXCom {
+		return ""
+	}
+	parts := strings.Split(tokenExternalAddress, ":")
+	if len(parts) >= 2 {
+		return parts[1]
+	}
+
+	return ""
 }
