@@ -198,6 +198,7 @@ type (
 		BatchSize             uint   `yaml:"batchSize"`
 		IdentityServiceURL    string `yaml:"identityServiceUrl"`
 		IdentityServiceAPIKey string `yaml:"identityServiceApiKey"`
+		EnableDummyGenerator  bool   `yaml:"enableDummyGenerator"`
 	}
 	dummyUserRepository struct{}
 	tokenAnalytics      struct {

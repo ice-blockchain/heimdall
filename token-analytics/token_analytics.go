@@ -131,7 +131,8 @@ func New(ctx context.Context) TokenAnalytics {
 	go t.startIONPriceSyncer(ctx)
 	go t.startBNBPriceLoader(ctx)
 
-	if true {
+	if cfg.EnableDummyGenerator {
+		log.Info("Dummy data generator is ENABLED")
 		startLastBlock, err := t.getDummySavePoint(ctx, 0)
 		if err != nil {
 			log.Panic(errors.Wrapf(err, "failed to get save point for dummy generator"))
@@ -147,6 +148,8 @@ func New(ctx context.Context) TokenAnalytics {
 			SavePoint:                   savePointMap,
 		}
 		t.generator.Run(ctx)
+	} else {
+		log.Info("Dummy data generator is DISABLED")
 	}
 	return t
 }
