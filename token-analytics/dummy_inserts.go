@@ -650,7 +650,7 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 	}
 
 	blockNum := atomic.AddUint64(&gen.InsertBlockIndex, 1)
-	baseTimestamp := time.Now().In(time.UTC).Unix()
+	baseTimestamp := time.Now().In(time.UTC).Add(-30 * time.Second).Unix()
 	txsForBlock := []string{}
 	for txIdx := range totalTx {
 		user := userPool[rand.Intn(len(userPool))]
