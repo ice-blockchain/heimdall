@@ -1000,22 +1000,6 @@ const docTemplate = `{
                         "name": "externalAddressOrViewType",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "format": "int32",
-                        "example": 10,
-                        "description": "Number of items to return",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "format": "int32",
-                        "example": 0,
-                        "description": "Number of items to skip",
-                        "name": "offset",
-                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1449,22 +1433,6 @@ const docTemplate = `{
                         "name": "externalAddressOrViewType",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "format": "int32",
-                        "example": 10,
-                        "description": "Number of items to return",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "format": "int32",
-                        "example": 0,
-                        "description": "Number of items to skip",
-                        "name": "offset",
-                        "in": "query"
                     }
                 ],
                 "responses": {

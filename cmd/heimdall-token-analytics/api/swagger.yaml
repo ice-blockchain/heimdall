@@ -969,18 +969,6 @@ paths:
         name: externalAddressOrViewType
         required: true
         type: string
-      - description: Number of items to return
-        example: 10
-        format: int32
-        in: query
-        name: limit
-        type: integer
-      - description: Number of items to skip
-        example: 0
-        format: int32
-        in: query
-        name: offset
-        type: integer
       produces:
       - application/json
       responses:
@@ -1257,18 +1245,6 @@ paths:
         name: externalAddressOrViewType
         required: true
         type: string
-      - description: Number of items to return
-        example: 10
-        format: int32
-        in: query
-        name: limit
-        type: integer
-      - description: Number of items to skip
-        example: 0
-        format: int32
-        in: query
-        name: offset
-        type: integer
       produces:
       - application/json
       responses:
