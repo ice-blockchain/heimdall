@@ -769,6 +769,10 @@ func (s *service) StreamCommunityTokensLatestTrades(ctx context.Context, req *se
 	if limit == 0 {
 		limit = 100
 	}
+	if limit > 1000 {
+		limit = 1000
+	}
+
 	return s.latestTradesStream(req.Data.ExternalAddress, limit, 0)
 }
 
