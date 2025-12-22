@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	stdlibtime "time"
 
+	"github.com/elliotchance/orderedmap/v3"
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rcrowley/go-metrics"
 
@@ -62,7 +63,7 @@ type (
 		GetOHLVCHistory(ctx context.Context, now, startPoint stdlibtime.Time, externalAddress string, interval Interval) (res []*OHLCV, err error)
 		SubscribeOHLVC(context.Context, stdlibtime.Time, string, Interval, func(*OHLCV, error)) error
 		GetTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress string) (*TradeStats, error)
-		UpdateTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress string) (*TradeStats, error)
+		SubscribeTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress string, addToStream func(*TradeStats, error)) error
 		CreateViewingSession(ctx context.Context, sessionType, clientIP, deviceKey string, tokenType *string) (sessionID string, ttl uint64, err error)
 		GetTopHolders(ctx context.Context, externalAddress string, limit int64) ([]*TopHolderPosition, error)
 		GetTokensFromViewingSession(ctx context.Context, sessionType, sessionID, keyword string, limit, offset uint64) ([]*CommunityToken, error)
@@ -216,6 +217,7 @@ type (
 		// TODO: xmap for latest creator token prices to calc content token price
 		bondingCurveContractAddress string
 		ohclvRecentData             *xsync.Map[string, *recentCandlestick]
+		tradingStatsRecentData      *xsync.Map[string, *recentTradeStats]
 		subscriptions               interface {
 			Subscriptions
 			Notifier
@@ -386,7 +388,15 @@ type (
 		interval        Interval
 		onceStartTicker sync.Once
 	}
-
+	recentTradeStats struct {
+		stats          *TradeStats
+		initTime       int64
+		mx             sync.Mutex
+		expirations5M  *orderedmap.OrderedMap[int64, TradeStatsAggregate]
+		expirations1H  *orderedmap.OrderedMap[int64, TradeStatsAggregate]
+		expirations6H  *orderedmap.OrderedMap[int64, TradeStatsAggregate]
+		expirations24H *orderedmap.OrderedMap[int64, TradeStatsAggregate]
+	}
 	holderMetadata struct {
 		HolderMasterPubkey    *string `json:"holder_master_pubkey"`
 		HolderUsername        *string `json:"holder_username"`

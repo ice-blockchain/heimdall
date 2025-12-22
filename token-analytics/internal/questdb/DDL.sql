@@ -38,7 +38,7 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS ohlcv_1m REFRESH EVERY 1m AS (
     min(price_in_usd) AS low,
     last(price_in_usd) AS close,
     sum(price_in_usd) AS volume
-    FROM trades_15s
+    FROM trades
     SAMPLE BY 1m ALIGN TO CALENDAR
 ), INDEX(external_address) PARTITION BY HOUR TTL 7 DAYS;
 
@@ -52,7 +52,7 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS ohlcv_2m REFRESH EVERY 1m AS (
     min(price_in_usd) AS low,
     last(price_in_usd) AS close,
     sum(price_in_usd) AS volume
-    FROM trades_15s
+    FROM trades
     SAMPLE BY 2m ALIGN TO CALENDAR
 ), INDEX(external_address) PARTITION BY HOUR TTL 7 DAYS;
 

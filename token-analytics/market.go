@@ -10,10 +10,9 @@ import (
 	stdlibtime "time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/redis/go-redis/v9"
+	"github.com/elliotchance/orderedmap/v3"
 
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
-	storagev3 "github.com/ice-blockchain/wintr/connectors/storage/v3"
 	"github.com/ice-blockchain/wintr/time"
 )
 
@@ -92,6 +91,10 @@ func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, directi
 	})
 	candleStick.Update(price)
 
+	if recentTradingStats, ok := t.tradingStatsRecentData.Load(externalAddress); ok {
+		recentTradingStats.update(tx.BlockTimestamp.UnixNano(), price, tradeTyp == TradeTypeSell)
+	}
+
 	return nil
 }
 
@@ -139,66 +142,39 @@ func (t *tokenAnalytics) GetOHLVCHistory(ctx context.Context, now, startPoint st
 }
 
 func (t *tokenAnalytics) GetTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress string) (*TradeStats, error) {
-	min5, err := storagev3.Get[TradeStatsAggregate](ctx, t.processedDataDB, tradingStatsCacheKey(externalAddress, "5m"))
-	if err != nil || len(min5) == 0 {
-		return t.UpdateTradingStats(ctx, now, externalAddress)
-	}
-	hour1, err := storagev3.Get[TradeStatsAggregate](ctx, t.processedDataDB, tradingStatsCacheKey(externalAddress, "1h"))
-	if err != nil || len(hour1) == 0 {
-		return t.UpdateTradingStats(ctx, now, externalAddress)
-	}
-	hour6, err := storagev3.Get[TradeStatsAggregate](ctx, t.processedDataDB, tradingStatsCacheKey(externalAddress, "6h"))
-	if err != nil || len(hour6) == 0 {
-		return t.UpdateTradingStats(ctx, now, externalAddress)
-	}
-	hour24, err := storagev3.Get[TradeStatsAggregate](ctx, t.processedDataDB, tradingStatsCacheKey(externalAddress, "24h"))
-	if err != nil || len(hour24) == 0 {
-		return t.UpdateTradingStats(ctx, now, externalAddress)
-	}
-	return &TradeStats{
-		Bucket5Min:    min5[0],
-		Bucket1Hour:   hour1[0],
-		Bucket6Hours:  hour6[0],
-		Bucket24Hours: hour24[0],
-	}, nil
+	return t.fetchTradingStats(ctx, now, externalAddress)
 }
 
 func tradingStatsCacheKey(ionConnectAddr, interval string) string {
 	return fmt.Sprintf("trading_stats:%v:%v", ionConnectAddr, interval)
 }
 
-func (t *tokenAnalytics) UpdateTradingStats(ctx context.Context, now stdlibtime.Time, ionConnectAddress string) (*TradeStats, error) {
-	stats, err := t.fetchTradingStats(ctx, now, ionConnectAddress)
+func (t *tokenAnalytics) SubscribeTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress string, addToStream func(*TradeStats, error)) error {
+	initialStats, err := t.GetTradingStats(ctx, now, externalAddress)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to update trading stats")
+		return errors.Wrapf(err, "failed to get initial trading stats")
 	}
-	if responses, txErr := t.processedDataDB.TxPipelined(ctx, func(pipeliner redis.Pipeliner) error {
-		if pErr := pipeliner.HSet(ctx, tradingStatsCacheKey(ionConnectAddress, "5m"), storagev3.SerializeValue(stats.Bucket5Min)...).Err(); pErr != nil {
-			return pErr
-		}
-		if pErr := pipeliner.HSet(ctx, tradingStatsCacheKey(ionConnectAddress, "1h"), storagev3.SerializeValue(stats.Bucket1Hour)...).Err(); pErr != nil {
-			return pErr
-		}
-		if pErr := pipeliner.HSet(ctx, tradingStatsCacheKey(ionConnectAddress, "6h"), storagev3.SerializeValue(stats.Bucket6Hours)...).Err(); pErr != nil {
-			return pErr
-		}
-		if pErr := pipeliner.HSet(ctx, tradingStatsCacheKey(ionConnectAddress, "24h"), storagev3.SerializeValue(stats.Bucket24Hours)...).Err(); pErr != nil {
-			return pErr
-		}
-		return nil
-	}); txErr != nil {
-		return nil, errors.Wrapf(txErr, "failed to update trading stats cache for %v", ionConnectAddress)
-	} else {
-		for _, response := range responses {
-			if rerr := response.Err(); rerr != nil {
-				err = errors.Join(err, errors.Wrapf(rerr, "failed to `%v`", response.FullName()))
+	addToStream(initialStats, nil)
+
+	swaps, _, _ := t.subscriptions.SubscribeOnSwaps(ctx, externalAddress)
+	t.tradingStatsRecentData.LoadOrCompute(externalAddress, func() (*recentTradeStats, bool) {
+		return newRecentTradingStats(initialStats, now), false
+	})
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-swaps:
+				rec, ok := t.tradingStatsRecentData.Load(externalAddress)
+				if ok {
+					stats := rec.TradeStats()
+					addToStream(stats, nil)
+				}
 			}
 		}
-	}
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to update trading stats in cache for %v", ionConnectAddress)
-	}
-	return stats, nil
+	}()
+	return nil
 }
 
 func (t *tokenAnalytics) SubscribeOHLVC(ctx context.Context, now stdlibtime.Time, externalAddress string, interval Interval, addToStream func(*OHLCV, error)) error {
@@ -230,43 +206,43 @@ func (t *tokenAnalytics) SubscribeOHLVC(ctx context.Context, now stdlibtime.Time
 func (t *tokenAnalytics) fetchTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress string) (res *TradeStats, err error) {
 	sql := `SELECT
               '5m' as aggregation_interval,
-              COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount * price_in_usd ELSE 0 END)/1e18::DECIMAL(76,18),0) AS buys_total_amount_usd,
-              COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount * price_in_usd ELSE 0 END)/1e18::DECIMAL(76,18),0) AS sells_total_amount_usd,
+              COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS buys_total_amount_usd,
+              COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS sells_total_amount_usd,
               COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                    AS number_of_buys,
               COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                   AS number_of_sells,
-              COALESCE(SUM(amount * price_in_usd)/1e18::DECIMAL(76,18),0)                                             AS volume_usd
+              COALESCE(SUM(amount/1e18::DECIMAL(76,18) * price_in_usd),0)                                             AS volume_usd
        FROM trades
        WHERE timestamp >= dateadd('m', -5, $2) AND external_address = $1
        UNION ALL (
             SELECT
                    '1h' as aggregation_interval,
-                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount * price_in_usd ELSE 0 END)/1e18::DECIMAL(76,18),0)  AS buys_total_amount_usd,
-                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount * price_in_usd ELSE 0 END)/1e18::DECIMAL(76,18),0) AS sells_total_amount_usd,
+                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0)  AS buys_total_amount_usd,
+                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS sells_total_amount_usd,
                    COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                      AS number_of_buys,
                    COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                     AS number_of_sells,
-                   COALESCE(SUM(amount * price_in_usd)/1e18::DECIMAL(76,18),0)                                               AS volume_usd
+                   COALESCE(SUM(amount/1e18::DECIMAL(76,18) * price_in_usd),0)                                               AS volume_usd
             FROM trades
             WHERE timestamp >= dateadd('h', -1, $2) AND external_address = $1
        )
        UNION ALL (
             SELECT
                    '6h' as aggregation_interval,
-                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount * price_in_usd ELSE 0 END)/1e18::DECIMAL(76,18),0)  AS buys_total_amount_usd,
-                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount * price_in_usd ELSE 0 END)/1e18::DECIMAL(76,18),0) AS sells_total_amount_usd,
+                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0)  AS buys_total_amount_usd,
+                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS sells_total_amount_usd,
                    COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                      AS number_of_buys,
                    COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                     AS number_of_sells,
-                   COALESCE(SUM(amount * price_in_usd)/1e18::DECIMAL(76,18),0)                                               AS volume_usd
+                   COALESCE(SUM(amount/1e18::DECIMAL(76,18) * price_in_usd),0)                                               AS volume_usd
             FROM trades
             WHERE timestamp >= dateadd('h', -6, $2) AND external_address = $1
        )
        UNION ALL (
             SELECT
                    '24h' as aggregation_interval,
-                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount * price_in_usd ELSE 0 END)/1e18::DECIMAL(76,18),0)  AS buys_total_amount_usd,
-                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount * price_in_usd ELSE 0 END)/1e18::DECIMAL(76,18),0) AS sells_total_amount_usd,
+                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0)  AS buys_total_amount_usd,
+                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS sells_total_amount_usd,
                    COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                      AS number_of_buys,
                    COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                     AS number_of_sells,
-                   COALESCE(SUM(amount * price_in_usd)/1e18::DECIMAL(76,18),0)                                               AS volume_usd
+                   COALESCE(SUM(amount/1e18::DECIMAL(76,18) * price_in_usd),0)                                               AS volume_usd
             FROM trades
             WHERE timestamp >= dateadd('h', -24, $2) AND external_address = $1
        )`
@@ -346,4 +322,118 @@ func (r *recentCandlestick) startResetTicker(ctx context.Context, interval Inter
 
 func (r *recentCandlestick) reset(now stdlibtime.Time) {
 	r.o.Store(&OHLCV{Open: 0, High: 0, Low: 0, Close: 0, Volume: 0, Timestamp: uint64(now.Truncate(r.interval.Duration()).UnixNano())})
+}
+
+func (t *recentTradeStats) updateBucket(b *TradeStatsAggregate, priceInUSD float64, sell bool) {
+	if sell {
+		b.SellsTotalAmountUSD += priceInUSD
+		b.NumberOfSells += 1
+	} else {
+		b.BuysTotalAmountUSD += priceInUSD
+		b.NumberOfBuys += 1
+	}
+	b.VolumeUSD += priceInUSD
+	b.NetBuy = b.BuysTotalAmountUSD - b.SellsTotalAmountUSD
+}
+
+func (t *recentTradeStats) update(now int64, priceInUSD float64, sell bool) {
+	t.mx.Lock()
+	defer t.mx.Unlock()
+	diff := TradeStatsAggregate{}
+	if sell {
+		diff.SellsTotalAmountUSD = priceInUSD
+		diff.NumberOfSells = 1
+		diff.NetBuy = -priceInUSD
+	} else {
+		diff.BuysTotalAmountUSD = priceInUSD
+		diff.NumberOfBuys = 1
+		diff.NetBuy = priceInUSD
+	}
+	diff.VolumeUSD = priceInUSD
+	t.expirations5M.Set(now+int64(5*stdlibtime.Minute), diff)
+	t.expirations1H.Set(now+int64(1*stdlibtime.Hour), diff)
+	t.expirations6H.Set(now+int64(6*stdlibtime.Hour), diff)
+	t.expirations24H.Set(now+int64(24*stdlibtime.Hour), diff)
+	t.updateBucket(t.stats.Bucket5Min, priceInUSD, sell)
+	t.updateBucket(t.stats.Bucket1Hour, priceInUSD, sell)
+	t.updateBucket(t.stats.Bucket6Hours, priceInUSD, sell)
+	t.updateBucket(t.stats.Bucket24Hours, priceInUSD, sell)
+	t.expire(now, t.expirations5M, t.stats.Bucket5Min)
+	t.expire(now, t.expirations1H, t.stats.Bucket1Hour)
+	t.expire(now, t.expirations6H, t.stats.Bucket6Hours)
+	t.expire(now, t.expirations24H, t.stats.Bucket24Hours)
+}
+
+func (t *recentTradeStats) expireValueInBucket(now, ts int64, valToExpire TradeStatsAggregate, bucket *TradeStatsAggregate) (expired bool) {
+	if ts <= now {
+		bucket.NetBuy -= valToExpire.NetBuy
+		bucket.NumberOfBuys -= valToExpire.NumberOfBuys
+		bucket.NumberOfSells -= valToExpire.NumberOfSells
+		bucket.SellsTotalAmountUSD -= valToExpire.SellsTotalAmountUSD
+		bucket.BuysTotalAmountUSD -= valToExpire.BuysTotalAmountUSD
+		bucket.VolumeUSD -= valToExpire.VolumeUSD
+		return true
+	}
+	return false
+}
+
+func (t *recentTradeStats) expire(now int64, expirations *orderedmap.OrderedMap[int64, TradeStatsAggregate], bucket *TradeStatsAggregate) {
+	for ts, valToExpire := range expirations.AllFromFront() {
+		if ts >= now {
+			break
+		}
+		expired := t.expireValueInBucket(now, ts, valToExpire, bucket)
+		if expired {
+			expirations.Delete(ts)
+		}
+	}
+}
+
+func (src *TradeStats) cpy() *TradeStats {
+	if src == nil {
+		return nil
+	}
+	dst := *src
+	if src.Bucket5Min != nil {
+		b := *src.Bucket5Min
+		dst.Bucket5Min = &b
+	}
+	if src.Bucket1Hour != nil {
+		b := *src.Bucket1Hour
+		dst.Bucket1Hour = &b
+	}
+	if src.Bucket6Hours != nil {
+		b := *src.Bucket6Hours
+		dst.Bucket6Hours = &b
+	}
+	if src.Bucket24Hours != nil {
+		b := *src.Bucket24Hours
+		dst.Bucket24Hours = &b
+	}
+	return &dst
+}
+
+func (t *recentTradeStats) TradeStats() *TradeStats {
+	t.mx.Lock()
+	defer t.mx.Unlock()
+	cpy := t.stats.cpy()
+	return cpy
+}
+
+func newRecentTradingStats(initialStats *TradeStats, now stdlibtime.Time) *recentTradeStats {
+	cpy := initialStats.cpy()
+	stat := &recentTradeStats{
+		stats:          cpy,
+		initTime:       now.UnixNano(),
+		expirations5M:  orderedmap.NewOrderedMapWithCapacity[int64, TradeStatsAggregate](1),
+		expirations1H:  orderedmap.NewOrderedMapWithCapacity[int64, TradeStatsAggregate](1),
+		expirations6H:  orderedmap.NewOrderedMapWithCapacity[int64, TradeStatsAggregate](1),
+		expirations24H: orderedmap.NewOrderedMapWithCapacity[int64, TradeStatsAggregate](1),
+	}
+	stat.expirations5M.Set(now.Add(5*stdlibtime.Minute).UnixNano(), *cpy.Bucket5Min)
+	stat.expirations1H.Set(now.Add(1*stdlibtime.Hour).UnixNano(), *cpy.Bucket1Hour)
+	stat.expirations6H.Set(now.Add(6*stdlibtime.Hour).UnixNano(), *cpy.Bucket6Hours)
+	stat.expirations24H.Set(now.Add(24*stdlibtime.Hour).UnixNano(), *cpy.Bucket24Hours)
+
+	return stat
 }
