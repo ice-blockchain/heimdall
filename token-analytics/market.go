@@ -157,15 +157,20 @@ func (t *tokenAnalytics) SubscribeTradingStats(ctx context.Context, now stdlibti
 	addToStream(initialStats, nil)
 
 	swaps, _, _ := t.subscriptions.SubscribeOnSwaps(ctx, externalAddress)
-	_, _ = t.tradingStatsRecentData.LoadOrCompute(externalAddress, func() (*recentTradeStats, bool) {
+	t.tradingStatsRecentData.LoadOrCompute(externalAddress, func() (*recentTradeStats, bool) {
 		return newRecentTradingStats(initialStats, now), false
 	})
 	go func() {
-		for _ = range swaps {
-			rec, ok := t.tradingStatsRecentData.Load(externalAddress)
-			if ok {
-				stats := rec.TradeStats()
-				addToStream(stats, nil)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-swaps:
+				rec, ok := t.tradingStatsRecentData.Load(externalAddress)
+				if ok {
+					stats := rec.TradeStats()
+					addToStream(stats, nil)
+				}
 			}
 		}
 	}()
@@ -374,35 +379,61 @@ func (t *recentTradeStats) expireValueInBucket(now, ts int64, valToExpire TradeS
 
 func (t *recentTradeStats) expire(now int64, expirations *orderedmap.OrderedMap[int64, TradeStatsAggregate], bucket *TradeStatsAggregate) {
 	for ts, valToExpire := range expirations.AllFromFront() {
+		if ts >= now {
+			break
+		}
 		expired := t.expireValueInBucket(now, ts, valToExpire, bucket)
 		if expired {
 			expirations.Delete(ts)
 		}
-		if ts >= now {
-			break
-		}
 	}
+}
+
+func (src *TradeStats) cpy() *TradeStats {
+	if src == nil {
+		return nil
+	}
+	dst := *src
+	if src.Bucket5Min != nil {
+		b := *src.Bucket5Min
+		dst.Bucket5Min = &b
+	}
+	if src.Bucket1Hour != nil {
+		b := *src.Bucket1Hour
+		dst.Bucket1Hour = &b
+	}
+	if src.Bucket6Hours != nil {
+		b := *src.Bucket6Hours
+		dst.Bucket6Hours = &b
+	}
+	if src.Bucket24Hours != nil {
+		b := *src.Bucket24Hours
+		dst.Bucket24Hours = &b
+	}
+	return &dst
 }
 
 func (t *recentTradeStats) TradeStats() *TradeStats {
 	t.mx.Lock()
 	defer t.mx.Unlock()
-	return t.stats
+	cpy := t.stats.cpy()
+	return cpy
 }
 
 func newRecentTradingStats(initialStats *TradeStats, now stdlibtime.Time) *recentTradeStats {
+	cpy := initialStats.cpy()
 	stat := &recentTradeStats{
-		stats:          initialStats,
+		stats:          cpy,
 		initTime:       now.UnixNano(),
 		expirations5M:  orderedmap.NewOrderedMapWithCapacity[int64, TradeStatsAggregate](1),
 		expirations1H:  orderedmap.NewOrderedMapWithCapacity[int64, TradeStatsAggregate](1),
 		expirations6H:  orderedmap.NewOrderedMapWithCapacity[int64, TradeStatsAggregate](1),
 		expirations24H: orderedmap.NewOrderedMapWithCapacity[int64, TradeStatsAggregate](1),
 	}
-	stat.expirations5M.Set(now.Add(5*stdlibtime.Minute).UnixNano(), *initialStats.Bucket5Min)
-	stat.expirations1H.Set(now.Add(1*stdlibtime.Hour).UnixNano(), *initialStats.Bucket1Hour)
-	stat.expirations6H.Set(now.Add(6*stdlibtime.Hour).UnixNano(), *initialStats.Bucket6Hours)
-	stat.expirations24H.Set(now.Add(24*stdlibtime.Hour).UnixNano(), *initialStats.Bucket24Hours)
+	stat.expirations5M.Set(now.Add(5*stdlibtime.Minute).UnixNano(), *cpy.Bucket5Min)
+	stat.expirations1H.Set(now.Add(1*stdlibtime.Hour).UnixNano(), *cpy.Bucket1Hour)
+	stat.expirations6H.Set(now.Add(6*stdlibtime.Hour).UnixNano(), *cpy.Bucket6Hours)
+	stat.expirations24H.Set(now.Add(24*stdlibtime.Hour).UnixNano(), *cpy.Bucket24Hours)
 
 	return stat
 }
