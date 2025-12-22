@@ -902,7 +902,9 @@ func (s *service) latestTradesStream(ionContentAddress string) (server.StreamEve
 	return func(ctx context.Context) (<-chan server.StreamEvent[ta.Trade], error) {
 		events := make(chan server.StreamEvent[ta.Trade], limit)
 
-		var currentLastTs *time.Time
+		now := time.Now().UTC()
+		currentLastTs := &now
+
 		sendData := func() bool {
 			trades, newLastTs, err := s.tokenAnalytics.GetLatestTrades(ctx, ionContentAddress, limit, offset, currentLastTs)
 			if err != nil {
@@ -931,9 +933,6 @@ func (s *service) latestTradesStream(ionContentAddress string) (server.StreamEve
 		go func() {
 			defer close(events)
 			defer ticker.Stop()
-			if !sendData() {
-				return
-			}
 			for ctx.Err() == nil {
 				select {
 				case <-ctx.Done():
