@@ -753,9 +753,7 @@ func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *serv
 //	@Description	Streams latest trades for a specific community token address.
 //	@Tags			stream
 //	@Produce		json
-//	@Param			externalAddressOrViewType	path		string	true	"External address"			example("0x1234...")
-//	@Param			limit						query		uint32	false	"Number of items to return"	example(10)
-//	@Param			offset						query		uint32	false	"Number of items to skip"	example(0)
+//	@Param			externalAddressOrViewType	path		string	true	"External address"	example("0x1234...")
 //	@Success		200							{object}	ta.Trade
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500							{object}	server.ResponseErrorBody
@@ -765,15 +763,7 @@ func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *serv
 //	@Router			/v1sse/community-tokens/{externalAddressOrViewType}/latest-trades [GET].
 //	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/latest-trades [GET].
 func (s *service) StreamCommunityTokensLatestTrades(ctx context.Context, req *server.Request[TradeRequest]) (server.StreamEventEmitter[ta.Trade], error) {
-	limit := req.Data.Limit
-	if limit == 0 {
-		limit = 100
-	}
-	if limit > 1000 {
-		limit = 1000
-	}
-
-	return s.latestTradesStream(req.Data.ExternalAddress, limit, 0)
+	return s.latestTradesStream(req.Data.ExternalAddress)
 }
 
 // StreamCommunityTokensTradingStats godoc
@@ -906,7 +896,9 @@ func (s *service) tradingStatsStream(ctx context.Context, externalAddress string
 	return emitter, nil
 }
 
-func (s *service) latestTradesStream(ionContentAddress string, limit, offset uint64) (server.StreamEventEmitter[ta.Trade], error) {
+func (s *service) latestTradesStream(ionContentAddress string) (server.StreamEventEmitter[ta.Trade], error) {
+	limit := uint64(100)
+	offset := uint64(0)
 	return func(ctx context.Context) (<-chan server.StreamEvent[ta.Trade], error) {
 		events := make(chan server.StreamEvent[ta.Trade], limit)
 
