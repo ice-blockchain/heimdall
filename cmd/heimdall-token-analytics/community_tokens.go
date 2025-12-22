@@ -765,7 +765,11 @@ func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *serv
 //	@Router			/v1sse/community-tokens/{externalAddressOrViewType}/latest-trades [GET].
 //	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/latest-trades [GET].
 func (s *service) StreamCommunityTokensLatestTrades(ctx context.Context, req *server.Request[TradeRequest]) (server.StreamEventEmitter[ta.Trade], error) {
-	return s.latestTradesStream(req.Data.ExternalAddress, req.Data.Limit, req.Data.Offset)
+	limit := req.Data.Limit
+	if limit == 0 {
+		limit = 100
+	}
+	return s.latestTradesStream(req.Data.ExternalAddress, limit, 0)
 }
 
 // StreamCommunityTokensTradingStats godoc
