@@ -15,6 +15,7 @@ import (
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rcrowley/go-metrics"
 
+	"github.com/ice-blockchain/heimdall/coins"
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/quicknode"
@@ -50,9 +51,14 @@ type (
 		UpsertUser(ctx context.Context, id, masterPubkey, contentAuthorID, username, displayName, avatar string, verified *bool, ionConnectRelays []string) error
 		SetVerified(ctx context.Context, masterPubkey string) error
 		GetUser(ctx context.Context, masterPubkey string) (*UserRecord, error)
-		UpdateBNBPrice(ctx context.Context, price float64) error
 	}
-
+	CoinImport interface {
+		ImportTokenizedCommunitiesCoin(ctx context.Context, coin coins.TokenAnalyticsToken) (*coins.Coin, error)
+	}
+	PriceSync interface {
+		UpdateBNBPrice(ctx context.Context, price float64) error
+		GetTokenUpdates(ctx context.Context, contractAddresses []string) (map[string]coins.TokenAnalyticsToken, error)
+	}
 	TokenAnalytics interface {
 		Close() error
 		HealthCheck(ctx context.Context) error
@@ -215,6 +221,7 @@ type (
 		ionPriceUSD     *atomic.Pointer[float64]
 		bnbPriceUSD     *atomic.Pointer[float64]
 		identityClient  *identityClient
+		coins           CoinImport
 		// TODO: xmap for latest creator token prices to calc content token price
 		bondingCurveContractAddress string
 		ohclvRecentData             *xsync.Map[string, *recentCandlestick]
@@ -420,5 +427,17 @@ type (
 	tokenRowWithTopPlatformHolders struct {
 		tokenRow
 		TopPlatformHoldersJSON string `db:"top_platform_holders_json"`
+	}
+
+	tokenAndUserInfo struct {
+		ContractAddress      string  `db:"contract_address"`
+		BaseToken            string  `db:"base_token"`
+		TokenExternalAddress string  `db:"token_external_address"`
+		UserExternalAddress  string  `db:"user_external_address"`
+		TokenType            string  `db:"token_type"`
+		Ticker               string  `db:"ticker"`
+		Title                string  `db:"title"`
+		ImageURL             string  `db:"image_url"`
+		PriceUsd             float64 `db:"price_usd"`
 	}
 )

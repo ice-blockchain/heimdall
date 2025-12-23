@@ -19,6 +19,7 @@ import (
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rcrowley/go-metrics"
 
+	"github.com/ice-blockchain/heimdall/coins"
 	"github.com/ice-blockchain/heimdall/token-analytics/ddl"
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
@@ -33,7 +34,10 @@ func TokenizedCommunitiesBondingCurveSmartContractABI() string {
 	return bondingcurve.ABIJSON
 }
 
-func NewUserRepository(ctx context.Context) UserRepository {
+func NewUserRepository(ctx context.Context) interface {
+	UserRepository
+	PriceSync
+} {
 	var cfg config
 	var development bool
 
@@ -57,7 +61,7 @@ func NewUserRepository(ctx context.Context) UserRepository {
 	}
 }
 
-func New(ctx context.Context) TokenAnalytics {
+func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 	var cfg config
 
 	appconfig.MustLoadFromKey(applicationYamlKey, &cfg)
@@ -108,6 +112,7 @@ func New(ctx context.Context) TokenAnalytics {
 		tradingStatsRecentData:      xsync.NewMap[string, *recentTradeStats](),
 		subscriptions:               newSubscriptions(ctx),
 		identityClient:              newIdentityClient(cfg.IdentityServiceURL, cfg.IdentityServiceAPIKey),
+		coins:                       coinImport,
 		shutdown: func() error {
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
@@ -813,6 +818,32 @@ func (dummyUserRepository) Close() error {
 func (dummyUserRepository) UpdateBNBPrice(ctx context.Context, price float64) error {
 	return nil
 }
+func (dummyUserRepository) GetTokenUpdates(ctx context.Context, contractAddress []string) (map[string]coins.TokenAnalyticsToken, error) {
+	return nil, nil
+}
+
+type dummyToken struct{}
+
+func (d *dummyToken) Address() string {
+	return ""
+}
+
+func (d *dummyToken) Name() string {
+	return ""
+}
+
+func (d *dummyToken) Symbol() string {
+	return ""
+}
+
+func (d *dummyToken) IconUrl() string {
+	return ""
+}
+
+func (d *dummyToken) PriceUSD() float64 {
+	return 0
+}
+
 func randInt(n int) int {
 	return rand.Intn(n)
 }

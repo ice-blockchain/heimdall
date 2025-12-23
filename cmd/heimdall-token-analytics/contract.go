@@ -22,6 +22,7 @@ type (
 
 	service struct {
 		tokenAnalytics ta.TokenAnalytics
+		coins          ta.CoinImport
 		httpServer     server.Server
 	}
 )

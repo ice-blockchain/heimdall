@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/ice-blockchain/heimdall/coins"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 )
@@ -281,6 +282,25 @@ func (t *tokenAnalytics) buildTopPlatformHoldersFromRankings(row *tokenRowWithTo
 	}
 
 	return topPlatformHolders, nil
+}
+
+func (t *tokenAnalyticsUsers) GetTokenUpdates(ctx context.Context, contractAddresses []string) (map[string]coins.TokenAnalyticsToken, error) {
+	result, err := storage.Select[tokenAndUserInfo](ctx, t.ingestedDataDB, `
+		SELECT 
+		    t.contract_address,
+		    COALESCE(t.title, '') as title,
+		    COALESCE(t.ticker, '') as ticker,
+		    COALESCE(t.image_url, '') as image_url,
+		    t.price_usd
+		FROM tokens t WHERE t.contract_address = ANY($1)`, contractAddresses)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get token updates: %w", err)
+	}
+	tokenUpdates := make(map[string]coins.TokenAnalyticsToken, len(contractAddresses))
+	for _, t := range result {
+		tokenUpdates[t.ContractAddress] = t
+	}
+	return tokenUpdates, nil
 }
 
 func parseTotalSupply(totalSupply, tokenAddress string) (float64, error) {

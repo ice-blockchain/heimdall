@@ -21,7 +21,7 @@ import (
 	"github.com/ice-blockchain/wintr/time"
 )
 
-func MustStartSyncer(ctx context.Context, cancel context.CancelFunc, bnbPriceSyncer BNBPriceSyncer) Sync {
+func MustStartSyncer(ctx context.Context, cancel context.CancelFunc, bnbPriceSyncer TokenAnalyticsPriceSyncer) Sync {
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	s := &coinSync{
@@ -231,6 +231,13 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 				log.Error(errors.Wrapf(err, "failed to remove errornous tokens from queue"))
 			}
 		}
+		tokenizedCommunityTokens, err := s.tokenAnalytics.GetTokenUpdates(ctx, tokensAddrs.TokenizedCommunitiesTokens)
+		if err != nil {
+			log.Error(errors.Wrapf(err, "failed to get updates for tokenized community tokens: %v", tokensAddrs.TokenizedCommunitiesTokens))
+		}
+		for _, t := range tokenizedCommunityTokens {
+			coinsData = append(coinsData, tokenizedCommunityTokenToCoin(t))
+		}
 	}
 	if len(coinIDs) > 0 {
 		var coinsAndMissedTokens []*coingecko.Coin
@@ -280,7 +287,6 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 		s.metrics.Get("iteration").(metrics.Timer).Update(time.Now().Sub(*start.Time))
 	}
 }
-
 func (s *coinSync) getTokens(maxBatch int, callCoinGecko func(ctx context.Context, network string, contractAddresses []string) ([]*coingecko.Coin, error)) func(ctx context.Context, network string, contractAddresses []string) ([]*coingecko.Coin, error) {
 	return func(ctx context.Context, network string, contractAddresses []string) ([]*coingecko.Coin, error) {
 		res := make([]*coingecko.Coin, 0)
@@ -326,14 +332,28 @@ func (s *coinSync) fetchSyncableCoins(ctx context.Context, now *time.Time) (map[
 	coins, err := storage.Select[coinToSync](ctx, s.db,
 		fmt.Sprintf(`SELECT network, 
        		 array_agg(t.network||':@:@:'||t.coingecko_coin_id)  FILTER (WHERE t.contract_address = '') AS coin_ids,
-       		 array_agg(t.coingecko_coin_id||':@:@:'||t.contract_address) FILTER (WHERE t.contract_address != '')  AS contract_addresses,
-       		 array_agg((t.data_updated_at < $1)) @> ARRAY[TRUE] as sync_token_full_data 
+       		 array_agg(t.coingecko_coin_id||':@:@:'||t.contract_address) FILTER (WHERE t.contract_address != '' and tokenized_community_token = FALSE)  AS contract_addresses,
+       		 array_agg((t.data_updated_at < $1)) @> ARRAY[TRUE] as sync_token_full_data,
+       		 ARRAY[]::TEXT[] as tokenized_communities_tokens
 			 FROM (
 				SELECT * FROM coins_sync_queue
 				INNER JOIN coins ON coins_sync_queue.coin_id = coins.id
 				ORDER BY coins_sync_queue.created_at ASC
-				LIMIT %v
-			 ) t GROUP BY network`, coinSyncIterationBatchSize), expiredDataAt,
+				LIMIT %[1]v
+			 ) t GROUP BY network
+			 UNION ALL SELECT
+			 'bsc',
+			  ARRAY[]::TEXT[] AS coin_ids,
+       		  ARRAY[]::TEXT[] AS contract_addresses,
+       		  TRUE as sync_token_full_data, 
+			  array_agg(t2.contract_address) FILTER (WHERE t2.contract_address != '' and tokenized_community_token = TRUE)  AS tokenized_communities_tokens
+			  FROM (
+				SELECT * FROM coins_sync_queue
+				INNER JOIN coins ON coins_sync_queue.coin_id = coins.id
+				ORDER BY coins_sync_queue.created_at ASC
+				LIMIT %[1]v
+			 ) t2	
+			 `, coinSyncIterationBatchSize), expiredDataAt,
 	)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to fetch coins to sync data")

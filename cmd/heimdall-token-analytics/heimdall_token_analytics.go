@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server"
+	"github.com/ice-blockchain/heimdall/coins"
 	tokenanalytics "github.com/ice-blockchain/heimdall/token-analytics"
 )
 
@@ -73,7 +74,8 @@ func (s *service) MustStart(ctx context.Context) {
 
 func (s *service) Init(ctx context.Context, cfg *Config) {
 	s.httpServer = server.New(cfg.Server())
-	s.tokenAnalytics = tokenanalytics.New(ctx)
+	s.coins = coins.NewCoinImport(ctx)
+	s.tokenAnalytics = tokenanalytics.New(ctx, s.coins)
 	s.tokenAnalytics.MustStart(ctx)
 }
 

@@ -44,8 +44,9 @@ func (s *service) RegisterRoutes(router *server.Router) {
 }
 
 func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
-	s.tokenAnalytics = tokenanalytics.NewUserRepository(ctx)
-	s.coinSyncer = coins.MustStartSyncer(ctx, cancel, s.tokenAnalytics)
+	ta := tokenanalytics.NewUserRepository(ctx)
+	s.tokenAnalytics = ta
+	s.coinSyncer = coins.MustStartSyncer(ctx, cancel, ta)
 	s.verifiedQueueRepository = accounts.NewVerifiedQueueRepository(ctx, s.tokenAnalytics)
 	s.relayLivenessCheck = relaymanagement.NewRelaysSync(ctx)
 
