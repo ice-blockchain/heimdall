@@ -328,8 +328,9 @@ func weiToFloat64FromBigFloat(weiAmount *big.Float) float64 {
 	return convertedResult
 }
 
-func calculatePnL(amountUSD, totalInvestedUSD float64) (pnl float64, pnlPercentage float64) {
-	pnl = amountUSD - totalInvestedUSD
+func calculatePnL(amountUSD, totalInvestedUSD, totalRealizedUSD float64) (pnl float64, pnlPercentage float64) {
+	totalValue := amountUSD + totalRealizedUSD
+	pnl = totalValue - totalInvestedUSD
 	pnlPercentage = 0.0
 	if totalInvestedUSD > 0 {
 		pnlPercentage = (pnl / totalInvestedUSD) * 100
