@@ -153,14 +153,28 @@ func tokenSwapped(signature, data, contractAddress, swapperTopic, pairIdTopic, t
 		return nil, errors.Wrapf(err, "failed to parse tx input hex: %v", txInput[10:])
 	}
 
-	method, ok := ABI.Methods["swap"]
+	// Try 5-param version first (swap(bytes,bytes,uint256,uint256,PermitData))
+	method5, ok := ABI.Methods["swap"]
 	if !ok {
 		log.Panic(errors.Errorf("failed to find swap method in bonding curve abi"))
 	}
-	err = method.Inputs.UnpackIntoMap(tokenSwapParams, decodedTxInput)
+	err = method5.Inputs.UnpackIntoMap(tokenSwapParams, decodedTxInput)
+
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to parse tx input")
+		// Fallback to 4-param version. TODO: remove as soon as permit is used.
+		swap4ParamABI := `[{"inputs":[{"internalType":"bytes","name":"fromToken","type":"bytes"},{"internalType":"bytes","name":"toToken","type":"bytes"},{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"minReturn","type":"uint256"}],"name":"swap","outputs":[],"stateMutability":"nonpayable","type":"function"}]`
+		abi4Param, err := abi.JSON(strings.NewReader(swap4ParamABI))
+		if err != nil {
+			log.Panic(errors.Wrapf(err, "failed to parse 4-param swap ABI"))
+		}
+
+		method4 := abi4Param.Methods["swap"]
+		err = method4.Inputs.UnpackIntoMap(tokenSwapParams, decodedTxInput)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse tx input (tried both 5-param and 4-param swap)")
+		}
 	}
+
 	tokenSwappedEvent.Params = tokenSwapParams
 	log.Debug(fmt.Sprintf("Token swapped: swapper=%v, pair=%v, direction=%v",
 		tokenSwappedEvent.Swapper.Hex(), tokenSwappedEvent.Pair.Hex(),
