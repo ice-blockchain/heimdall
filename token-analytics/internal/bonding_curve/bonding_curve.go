@@ -28,6 +28,9 @@ func init() {
 	var err error
 	ABI, err = abi.JSON(strings.NewReader(ABIJSON))
 	log.Panic(errors.Wrapf(err, "failed to parse bonding curve abi"))
+
+	abi4Param, err = abi.JSON(strings.NewReader(swap4ParamABIJSON))
+	log.Panic(errors.Wrapf(err, "failed to parse 4-param swap ABI"))
 }
 
 func New(ctx context.Context, applicationYamlKey string) BondingCurve {

@@ -169,12 +169,7 @@ func (a *accounts) createInternalIdentityUsers(ctx context.Context, keypairs []k
 }
 
 func (a *accounts) publishRelayListEvent(ctx context.Context, privateKey, publishToRelayURL string, allRelays []relayInfo) error {
-	pubkey, err := nostr.GetPublicKey(privateKey)
-	if err != nil {
-		return errors.Wrap(err, "failed to derive public key")
-	}
-	tags := make(nostr.Tags, 0, len(allRelays)+1)
-	tags = append(tags, nostr.Tag{"b", pubkey})
+	tags := make(nostr.Tags, 0, len(allRelays))
 	for _, r := range allRelays {
 		tags = append(tags, nostr.Tag{"r", r.URL, r.RelayType})
 	}

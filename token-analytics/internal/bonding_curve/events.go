@@ -15,6 +15,13 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
+// TODO: Remove this once all transactions use the 5-parameter swap with permit.
+const swap4ParamABIJSON = `[{"inputs":[{"internalType":"bytes","name":"fromToken","type":"bytes"},{"internalType":"bytes","name":"toToken","type":"bytes"},{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"minReturn","type":"uint256"}],"name":"swap","outputs":[],"stateMutability":"nonpayable","type":"function"}]`
+
+var (
+	abi4Param abi.ABI
+)
+
 func ProcessEvent(functionHex, data string, topics []string, contractAddress, txInput string) (Event, error) {
 	switch functionHex {
 	case eventTokenCreated.Hex():
@@ -153,14 +160,22 @@ func tokenSwapped(signature, data, contractAddress, swapperTopic, pairIdTopic, t
 		return nil, errors.Wrapf(err, "failed to parse tx input hex: %v", txInput[10:])
 	}
 
-	method, ok := ABI.Methods["swap"]
+	// Try 5-param version first (swap(bytes,bytes,uint256,uint256,PermitData))
+	method5, ok := ABI.Methods["swap"]
 	if !ok {
 		log.Panic(errors.Errorf("failed to find swap method in bonding curve abi"))
 	}
-	err = method.Inputs.UnpackIntoMap(tokenSwapParams, decodedTxInput)
+	err = method5.Inputs.UnpackIntoMap(tokenSwapParams, decodedTxInput)
+
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to parse tx input")
+		// Fallback to 4-param version.  TODO: remove as soon as permit is used.
+		method4 := abi4Param.Methods["swap"]
+		err = method4.Inputs.UnpackIntoMap(tokenSwapParams, decodedTxInput)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse tx input (tried both 5-param and 4-param swap)")
+		}
 	}
+
 	tokenSwappedEvent.Params = tokenSwapParams
 	log.Debug(fmt.Sprintf("Token swapped: swapper=%v, pair=%v, direction=%v",
 		tokenSwappedEvent.Swapper.Hex(), tokenSwappedEvent.Pair.Hex(),
