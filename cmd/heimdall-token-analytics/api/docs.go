@@ -1869,6 +1869,9 @@ const docTemplate = `{
                 "imageUrl": {
                     "type": "string"
                 },
+                "launcher": {
+                    "$ref": "#/definitions/tokenanalytics.User"
+                },
                 "marketData": {
                     "$ref": "#/definitions/tokenanalytics.MarketData"
                 },
