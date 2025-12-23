@@ -301,6 +301,13 @@ type (
 		BondingCurveCurrentAmountUSD float64    `db:"bonding_curve_current_amount_usd"`
 		BondingCurveGoalAmountUSD    float64    `db:"bonding_curve_goal_amount_usd"`
 		CreatorVerified              *bool      `db:"creator_verified"`
+		LauncherUsername             *string    `db:"launcher_username"`
+		LauncherDisplay              *string    `db:"launcher_display"`
+		LauncherAvatar               *string    `db:"launcher_avatar"`
+		LauncherExternalAddress      *string    `db:"launcher_external_address"`
+		LauncherPlatform             *string    `db:"launcher_platform"`
+		LauncherVerified             *bool      `db:"launcher_verified"`
+		LauncherBlockchainAddress    *string    `db:"launcher_blockchain_address"`
 	}
 
 	tokenVolume24h struct {

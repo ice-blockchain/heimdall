@@ -19,6 +19,7 @@ type (
 		CreatedAt   *time.Time `json:"createdAt,omitempty"`
 		Addresses   *Addresses `json:"addresses,omitempty"`
 		Creator     User       `json:"creator,omitzero"`
+		Launcher    *User      `json:"launcher,omitzero"`
 		MarketData  MarketData `json:"marketData,omitzero"`
 	}
 
