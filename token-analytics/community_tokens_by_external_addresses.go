@@ -64,13 +64,29 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 			COALESCE(utp.amount, '0') as position_amount,
 			COALESCE((utp.amount::NUMERIC / 1e18) * t.price_usd, 0) as position_amount_usd,
 			COALESCE(utp.total_invested_usd, 0) as position_total_invested_usd,
-			COALESCE(utp.total_realized_usd, 0) as position_total_realized_usd
+			COALESCE(utp.total_realized_usd, 0) as position_total_realized_usd,
+			launcher.username as launcher_username,
+			launcher.display_name as launcher_display,
+			launcher.verified as launcher_verified,
+			launcher.avatar as launcher_avatar,
+			launcher.external_address as launcher_external_address,
+			launcher.platform_group as launcher_platform,
+			first_swap.user_blockchain_address as launcher_blockchain_address
 		FROM tokens t
 		LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
 		LEFT JOIN user_token_positions utp ON utp.external_address = t.external_address AND LOWER(utp.user_blockchain_address) = (SELECT LOWER(content_author_id) FROM users WHERE master_pubkey = $2)
 		LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 		LEFT JOIN token_platform_holders tph ON tph.external_address = t.external_address 
 			AND tph.platform_group = (SELECT platform_group FROM users WHERE master_pubkey = $2)
+		LEFT JOIN LATERAL (
+			SELECT user_blockchain_address
+			FROM token_swaps
+			WHERE token_swaps.contract_address = t.contract_address
+				AND direction = false
+			ORDER BY created_at ASC
+			LIMIT 1
+		) first_swap ON t.platform = 'xcom'
+		LEFT JOIN users launcher ON LOWER(launcher.content_author_id) = LOWER(first_swap.user_blockchain_address)
 		WHERE t.external_address = ANY($1)
 		ORDER BY t.created_at DESC
 	`
@@ -125,6 +141,13 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 				creator.avatar as creator_avatar,
 				creator.external_address as creator_external_address,
 				creator.platform_group as creator_platform,
+				launcher.username as launcher_username,
+				launcher.display_name as launcher_display,
+				launcher.verified as launcher_verified,
+				launcher.avatar as launcher_avatar,
+				launcher.external_address as launcher_external_address,
+				launcher.platform_group as launcher_platform,
+				first_swap.user_blockchain_address as launcher_blockchain_address,
 				GREATEST(
 					similarity(t.lookup, $` + kwParam + `),
 					word_similarity($` + kwParam + `, t.lookup)
@@ -137,6 +160,15 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 			FROM tokens t
 			LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
 			LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
+			LEFT JOIN LATERAL (
+				SELECT user_blockchain_address
+				FROM token_swaps
+				WHERE token_swaps.contract_address = t.contract_address
+					AND direction = false
+				ORDER BY created_at ASC
+				LIMIT 1
+			) first_swap ON t.platform = 'xcom'
+			LEFT JOIN users launcher ON LOWER(launcher.content_author_id) = LOWER(first_swap.user_blockchain_address)
 			` + whereClause + `
 			ORDER BY t.lookup <-> $` + kwParam + `
 			LIMIT 250
@@ -159,6 +191,13 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 			creator_avatar,
 			creator_external_address,
 			creator_platform,
+			launcher_username,
+			launcher_display,
+			launcher_verified,
+			launcher_avatar,
+			launcher_external_address,
+			launcher_platform,
+			launcher_blockchain_address,
 			COALESCE(market_cap_usd, 0) as market_cap_usd,
 			COALESCE(price_usd, 0) as price_usd,
 			liquidity_usd,
@@ -274,6 +313,27 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 		if err != nil {
 			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", strVal(row.CreatorExternalAddress), strVal(row.CreatorPlatform), err)
 		}
+		var launcher *User
+		if row.Platform == PlatformGroupXCom && row.LauncherUsername != nil {
+			launcherAddresses, err := buildAddressesFromExternalAddressAndPlatform(
+				strVal(row.LauncherExternalAddress),
+				strVal(row.LauncherPlatform),
+				strVal(row.LauncherBlockchainAddress),
+				"",
+			)
+			if err != nil {
+				return nil, fmt.Errorf("failed to build launcher addresses from external_address %s (platform %s): %w", strVal(row.LauncherExternalAddress), strVal(row.LauncherPlatform), err)
+			}
+
+			launcher = &User{
+				Username:  row.LauncherUsername,
+				Display:   row.LauncherDisplay,
+				Verified:  row.LauncherVerified,
+				Avatar:    row.LauncherAvatar,
+				Addresses: launcherAddresses,
+			}
+		}
+
 		token := &CommunityToken{
 			Type:        row.Type,
 			Title:       row.Title,
@@ -288,6 +348,7 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 				Avatar:    row.CreatorAvatar,
 				Addresses: creatorAddresses,
 			},
+			Launcher:   launcher,
 			MarketData: marketData,
 		}
 		tokens = append(tokens, token)
@@ -335,6 +396,13 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 				COALESCE((utp.amount::NUMERIC / 1e18) * t.price_usd, 0) as position_amount_usd,
 				COALESCE(utp.total_invested_usd, 0) as position_total_invested_usd,
 				COALESCE(utp.total_realized_usd, 0) as position_total_realized_usd,
+				launcher.username as launcher_username,
+				launcher.display_name as launcher_display,
+				launcher.verified as launcher_verified,
+				launcher.avatar as launcher_avatar,
+				launcher.external_address as launcher_external_address,
+				launcher.platform_group as launcher_platform,
+				first_swap.user_blockchain_address as launcher_blockchain_address,
 				COALESCE(
 					(SELECT JSON_AGG(
 						JSON_BUILD_OBJECT(
@@ -374,7 +442,16 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 			LEFT JOIN user_token_positions utp ON utp.external_address = t.external_address AND LOWER(utp.user_blockchain_address) = (SELECT LOWER(content_author_id) FROM users WHERE master_pubkey = $2)
 			LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 			LEFT JOIN token_platform_holders tph ON tph.external_address = t.external_address
-				AND (rp.platform_group IS NULL OR tph.platform_group = rp.platform_group)`
+				AND (rp.platform_group IS NULL OR tph.platform_group = rp.platform_group)
+			LEFT JOIN LATERAL (
+				SELECT user_blockchain_address
+				FROM token_swaps
+				WHERE token_swaps.contract_address = t.contract_address
+					AND direction = false
+				ORDER BY created_at ASC
+				LIMIT 1
+			) first_swap ON t.platform = 'xcom'
+			LEFT JOIN users launcher ON LOWER(launcher.content_author_id) = LOWER(first_swap.user_blockchain_address)`
 	)
 
 	var query string
