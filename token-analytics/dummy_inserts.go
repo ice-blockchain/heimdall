@@ -867,7 +867,7 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
 		externalType,                             // externalType as uint8
 		externalAddressWithoutPrefix,             // externalAddress WITHOUT prefix
 		common.HexToAddress(ownerBlockchainAddr), // creatorAddress
-		common.HexToAddress("0x"),                // affilate address
+		common.HexToAddress("0x"),                // affiliate address
 		totalSupply,
 	)
 	if err != nil {
