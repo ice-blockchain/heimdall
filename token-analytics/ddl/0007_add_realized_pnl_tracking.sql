@@ -1,9 +1,7 @@
 -- SPDX-License-Identifier: ice License 1.0
 
--- Add total_realized_usd column (stores total revenue from sells, not PnL)
-ALTER TABLE user_token_positions ADD COLUMN IF NOT EXISTS total_realized_usd NUMERIC(78, 18) DEFAULT 0;
+ALTER TABLE user_token_positions ADD COLUMN IF NOT EXISTS total_realized_usd usd_amount DEFAULT 0;
 
--- Update update_market_cap_and_position function to track realized revenue from sells
 CREATE OR REPLACE FUNCTION update_market_cap_and_position(
     p_block_timestamp TIMESTAMP,
     p_user_blockchain_address TEXT,
