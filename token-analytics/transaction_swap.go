@@ -107,15 +107,24 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 
 func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTokenSwapped) error {
 	userAddr := strings.ToLower(ev.Swapper.Hex())
-	externalAddress, _, _, err := detectExternalAddressFromSwap(ev)
-
-	isFirstSwap := err == nil && len(externalAddress) > 0
+	toTokenParam, ok := ev.Params["toToken"]
+	if !ok {
+		return fmt.Errorf("toToken param not found in swap event")
+	}
+	toTokenBytes, ok := toTokenParam.([]byte)
+	if !ok {
+		return fmt.Errorf("toToken is not []byte")
+	}
+	isFirstSwap := len(toTokenBytes) > 64
+	var externalAddress string
+	var err error
 	if isFirstSwap {
-		if toTokenParam, ok := ev.Params["toToken"]; ok {
-			if toTokenBytes, ok := toTokenParam.([]byte); ok {
-				// First swap should have toToken length > 20 (prefix + external_address)
-				isFirstSwap = len(toTokenBytes) > 20
-			}
+		externalAddress, _, _, err = extractExternalAddressFromToToken(toTokenBytes)
+		if err != nil {
+			return fmt.Errorf("failed to extract external_address from first swap: %w", err)
+		}
+		if externalAddress == "" {
+			return fmt.Errorf("external_address is empty for first swap")
 		}
 	}
 
@@ -145,14 +154,16 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 		if err != nil {
 			return fmt.Errorf("failed to find token by external_address %v: %w", externalAddress, err)
 		}
+		log.Debug(fmt.Sprintf("First swap detected: external_address=%s, contract=%s", externalAddress, result.ContractAddress))
 	} else {
-		// 1+ swaps: lookup by contract_address
+		// 1+ swaps: lookup by pair_id
 		result, err = storage.Get[tokenAndUserInfo](ctx, t.ingestedDataDB,
 			selectClause+` WHERE t.pair_id = $1`,
 			ev.Pair.String(), userAddr)
 		if err != nil {
 			return fmt.Errorf("failed to find token by pair_id %v: %w", ev.Pair.Hex(), err)
 		}
+		log.Debug(fmt.Sprintf("Subsequent swap detected: pair_id=%s, contract=%s", ev.Pair.Hex(), result.ContractAddress))
 	}
 
 	contractAddress := result.ContractAddress
@@ -186,27 +197,20 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	return nil
 }
 
-func detectExternalAddressFromSwap(ev *bondingcurve.LogTokenSwapped) (string, common.Address, common.Address, error) {
-	externalAddressParam, ok := ev.Params["toToken"]
-	if !ok {
-		return "", common.Address{}, common.Address{}, fmt.Errorf("failed to extract ion_connect_address from tx.Input: toToken param not found")
-	}
-	externalAddressParamBytes, ok := externalAddressParam.([]byte)
-	if !ok {
-		return "", common.Address{}, common.Address{}, fmt.Errorf("failed to extract ion_connect_address from tx.Input: toToken is not bytes")
-	}
+func extractExternalAddressFromToToken(toTokenBytes []byte) (string, common.Address, common.Address, error) {
 	var creatorTokenAddr common.Address
 	var affiliateAddr common.Address
-	if len(externalAddressParamBytes) > fatAddressHeaderSize {
-		creatorTokenAddr = common.BytesToAddress(externalAddressParamBytes[4:24])
-		affiliateAddr = common.BytesToAddress(externalAddressParamBytes[24:44])
-		symbolLen := int(externalAddressParamBytes[0])
-		nameLen := int(externalAddressParamBytes[1])
-		if len(externalAddressParamBytes) > fatAddressHeaderSize+symbolLen+nameLen {
-			externalAddressParamBytes = externalAddressParamBytes[fatAddressHeaderSize+symbolLen+nameLen:]
+	if len(toTokenBytes) > fatAddressHeaderSize {
+		creatorTokenAddr = common.BytesToAddress(toTokenBytes[4:24])
+		affiliateAddr = common.BytesToAddress(toTokenBytes[24:44])
+		symbolLen := int(toTokenBytes[0])
+		nameLen := int(toTokenBytes[1])
+		if len(toTokenBytes) > fatAddressHeaderSize+symbolLen+nameLen {
+			toTokenBytes = toTokenBytes[fatAddressHeaderSize+symbolLen+nameLen:]
 		}
 	}
-	externalAddress := string(externalAddressParamBytes)
+	externalAddress := string(toTokenBytes)
+
 	return externalAddress, creatorTokenAddr, affiliateAddr, nil
 }
 
