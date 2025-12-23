@@ -992,11 +992,7 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
         v_price_ion NUMERIC;
         v_cost_usd usd_amount;
         v_realized_usd usd_amount;
-        v_username TEXT;
-        v_display_name TEXT;
         v_avatar TEXT;
-        v_token_type TEXT;
-        v_platform platform_type;
     BEGIN
     IF p_direction = false THEN
         v_price_ion := p_input_amount / p_output_amount;
@@ -1007,12 +1003,10 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
     v_market_cap_usd := p_price_usd * (p_total_supply / 1e18);
     v_market_cap_ion := v_price_ion * p_total_supply;
 
-    SELECT external_address, username, display_name, avatar
-    INTO v_user_external_address, v_username, v_display_name, v_avatar
+    SELECT external_address, avatar
+    INTO v_user_external_address, v_avatar
     FROM users
     WHERE LOWER(content_author_id) = LOWER(p_user_blockchain_address);
-
-    SELECT type, platform INTO v_token_type, v_platform FROM tokens WHERE contract_address = p_token_address;
 
     UPDATE tokens t
     SET price_usd = p_price_usd,
@@ -1024,34 +1018,11 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
             THEN p_user_blockchain_address
             ELSE t.content_author_id
         END,
-        ticker = CASE
-            WHEN t.content_author_id IS NULL AND p_direction = false
-                 AND v_platform = 'ionconnect' AND v_token_type = 'profile'
-                 AND v_username IS NOT NULL
-            THEN v_username
-            ELSE t.ticker
-        END,
-        title = CASE
-            WHEN t.content_author_id IS NULL AND p_direction = false
-                 AND v_platform = 'ionconnect' AND v_display_name IS NOT NULL
-            THEN v_display_name
-            ELSE t.title
-        END,
         image_url = CASE
             WHEN t.content_author_id IS NULL AND p_direction = false
                  AND v_avatar IS NOT NULL
             THEN v_avatar
             ELSE t.image_url
-        END,
-        lookup = CASE
-            WHEN t.content_author_id IS NULL AND p_direction = false AND v_username IS NOT NULL THEN
-                LOWER(TRIM(
-                    COALESCE(t.contract_address, '') || ' ' ||
-                    COALESCE(t.ticker, '') || ' ' ||
-                    COALESCE(v_username, '') || ' ' ||
-                    COALESCE(v_display_name, '')
-                ))
-            ELSE t.lookup
         END
     WHERE contract_address = p_token_address;
 
