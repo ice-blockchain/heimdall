@@ -287,6 +287,7 @@ CREATE TABLE IF NOT EXISTS user_token_positions (
     amount                  uint256 NOT NULL DEFAULT 0,
     avg_buy_price_usd       usd_amount DEFAULT 0,
     total_invested_usd      usd_amount DEFAULT 0,
+    total_realized_usd      usd_amount DEFAULT 0,
     PRIMARY KEY (user_blockchain_address, contract_address)
 );
 
@@ -990,6 +991,7 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
         v_market_cap_ion NUMERIC;
         v_price_ion NUMERIC;
         v_cost_usd usd_amount;
+        v_realized_usd usd_amount;
         v_username TEXT;
         v_display_name TEXT;
         v_avatar TEXT;
@@ -1058,23 +1060,26 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
     IF p_direction = false THEN -- buy
         INSERT INTO user_token_positions (
             user_blockchain_address, contract_address, external_address, user_external_address,
-            amount, avg_buy_price_usd, total_invested_usd, updated_at
+            amount, avg_buy_price_usd, total_invested_usd, total_realized_usd, updated_at
         )
         VALUES (
                    p_user_blockchain_address, p_token_address, p_token_external_address,
                    v_user_external_address,
-                   p_output_amount, p_price_usd, v_cost_usd, p_block_timestamp
+                   p_output_amount, p_price_usd, v_cost_usd, 0, p_block_timestamp
                )
         ON CONFLICT (user_blockchain_address, contract_address) DO UPDATE SET
-                                                                    amount = user_token_positions.amount + EXCLUDED.amount,
-                                                                    total_invested_usd = user_token_positions.total_invested_usd + EXCLUDED.total_invested_usd,
-                                                                    avg_buy_price_usd = (user_token_positions.total_invested_usd + EXCLUDED.total_invested_usd) /
-                                                                                        NULLIF((user_token_positions.amount + EXCLUDED.amount)::NUMERIC, 0),
-                                                                    updated_at = EXCLUDED.updated_at,
-                                                                    user_external_address = COALESCE(EXCLUDED.user_external_address, user_token_positions.user_external_address); -- Update only if new value is not NULL
+            amount = user_token_positions.amount + EXCLUDED.amount,
+            total_invested_usd = user_token_positions.total_invested_usd + EXCLUDED.total_invested_usd,
+            avg_buy_price_usd = (user_token_positions.total_invested_usd + EXCLUDED.total_invested_usd) /
+                                NULLIF((user_token_positions.amount + EXCLUDED.amount)::NUMERIC, 0),
+            updated_at = EXCLUDED.updated_at,
+            user_external_address = COALESCE(EXCLUDED.user_external_address, user_token_positions.user_external_address);
     ELSE -- sell
+        v_realized_usd := (p_output_amount / 1e18) * p_ion_price_usd;
+
         UPDATE user_token_positions
         SET amount = GREATEST(amount - p_input_amount, 0),
+            total_realized_usd = COALESCE(total_realized_usd, 0) + v_realized_usd,
             updated_at = p_block_timestamp
         WHERE user_blockchain_address = p_user_blockchain_address
           AND contract_address = p_token_address;

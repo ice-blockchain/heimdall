@@ -63,7 +63,8 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 			COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd,
 			COALESCE(utp.amount, '0') as position_amount,
 			COALESCE((utp.amount::NUMERIC / 1e18) * t.price_usd, 0) as position_amount_usd,
-			COALESCE(utp.total_invested_usd, 0) as position_total_invested_usd
+			COALESCE(utp.total_invested_usd, 0) as position_total_invested_usd,
+			COALESCE(utp.total_realized_usd, 0) as position_total_realized_usd
 		FROM tokens t
 		LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
 		LEFT JOIN user_token_positions utp ON utp.external_address = t.external_address AND LOWER(utp.user_blockchain_address) = (SELECT LOWER(content_author_id) FROM users WHERE master_pubkey = $2)
@@ -253,7 +254,7 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 
 		if row.PositionAmount != "" && row.PositionAmount != "0" {
 			externalAddress := BuildProfileExternalAddress(requestorMasterPubkey)
-			position, err := t.getUserTokenPositionRanking(ctx, externalAddress, row.ExternalAddress, row.PositionAmount, row.PositionAmountUSD, row.PositionTotalInvestedUSD)
+			position, err := t.getUserTokenPositionRanking(ctx, externalAddress, row.ExternalAddress, row.PositionAmount, row.PositionAmountUSD, row.PositionTotalInvestedUSD, row.PositionTotalRealizedUSD)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get user position ranking for token %v", row.ExternalAddress)
 			}
@@ -333,6 +334,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 				COALESCE(utp.amount, '0') as position_amount,
 				COALESCE((utp.amount::NUMERIC / 1e18) * t.price_usd, 0) as position_amount_usd,
 				COALESCE(utp.total_invested_usd, 0) as position_total_invested_usd,
+				COALESCE(utp.total_realized_usd, 0) as position_total_realized_usd,
 				COALESCE(
 					(SELECT JSON_AGG(
 						JSON_BUILD_OBJECT(
@@ -477,7 +479,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 		}
 		if row.PositionAmount != "" && row.PositionAmount != "0" {
 			externalAddress := BuildProfileExternalAddress(requestorMasterPubkey)
-			position, err := t.getUserTokenPositionRanking(ctx, externalAddress, row.ExternalAddress, row.PositionAmount, row.PositionAmountUSD, row.PositionTotalInvestedUSD)
+			position, err := t.getUserTokenPositionRanking(ctx, externalAddress, row.ExternalAddress, row.PositionAmount, row.PositionAmountUSD, row.PositionTotalInvestedUSD, row.PositionTotalRealizedUSD)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get user position ranking for token %v", row.ExternalAddress)
 			}
@@ -519,7 +521,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 	return tokens, nil
 }
 
-func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, userExternalAddress, tokenExternalAddress, amountWei string, amountUSD, totalInvested float64) (*Position, error) {
+func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, userExternalAddress, tokenExternalAddress, amountWei string, amountUSD, totalInvested, totalRealized float64) (*Position, error) {
 	key := keyUserPositionOfToken(tokenExternalAddress)
 	balanceFloat, err := t.processedDataDB.ZScore(ctx, key, userExternalAddress).Result()
 	if err != nil {
@@ -539,7 +541,7 @@ func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, userEx
 			return nil, errors.Wrap(err, "failed to get rank from DragonflyDB")
 		}
 	}
-	pnl, pnlPercentage := calculatePnL(amountUSD, totalInvested)
+	pnl, pnlPercentage := calculatePnL(amountUSD, totalInvested, totalRealized)
 
 	return &Position{
 		Rank:          uint64(rank + 1),

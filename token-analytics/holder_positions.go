@@ -30,6 +30,7 @@ func (t *tokenAnalytics) GetHolderPositions(ctx context.Context, tokenExternalAd
 			u.platform_group as platform,
 			utp.amount as amount,
 			COALESCE(utp.total_invested_usd, 0) as total_invested_usd,
+			COALESCE(utp.total_realized_usd, 0) as total_realized_usd,
 			COALESCE(t.price_usd, 0) as price_usd
 		FROM user_token_positions utp
 		LEFT JOIN users u ON u.external_address = utp.user_external_address
@@ -69,7 +70,7 @@ func (t *tokenAnalytics) GetHolderPositions(ctx context.Context, tokenExternalAd
 
 		amountTokensFloat := weiToFloat64FromBigInt(amountWeiBigInt)
 		amountUSD := amountTokensFloat * row.PriceUSD
-		pnl, pnlPercentage := calculatePnL(amountUSD, row.TotalInvestedUSD)
+		pnl, pnlPercentage := calculatePnL(amountUSD, row.TotalInvestedUSD, row.TotalRealizedUSD)
 
 		rank := uint64(1)
 		if r, ok := rankings[extAddr]; ok {

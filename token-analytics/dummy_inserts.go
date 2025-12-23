@@ -815,18 +815,35 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
 	base, _ := hex.DecodeString(strings.TrimPrefix(gen.IONTokenAddress, "0x"))
 	totalSupply, _ := new(big.Int).SetString(seedData.TotalSupply, 10)
 
-	// For first swap: toToken = 64 zero bytes (see fat address in contact) + external_address (as string bytes)
-	typ := seedData.ExternalAddress[0]
-	toToken := append(make([]byte, 64+len(seedData.Ticker)+len(seedData.Title)), []byte(seedData.ExternalAddress[1:])...)
-	toToken[0] = byte(len(seedData.Ticker))
-	toToken[1] = byte(len(seedData.Title))
-	toToken[2] = byte(len(seedData.ExternalAddress[1:]))
-	toToken[3] = byte(typ)
-	copy(toToken[4:], common.HexToAddress(ownerBlockchainAddr).Bytes()) // creatorAddress
-	copy(toToken[24:], common.HexToAddress("0x").Bytes())               // affiliateAddress
-	copy(toToken[44:], common.HexToAddress("0x").Bytes())               // creatorTokenAddress
-	copy(toToken[64:], seedData.Ticker)
-	copy(toToken[64+len(seedData.Ticker):], seedData.Title)
+	// For first swap: toToken = "fat address" format
+	// Header (64 bytes): symbolLen(1) + titleLen(1) + extAddrLen(1) + extType(1) + creatorAddr(20) + affiliateAddr(20) + creatorTokenAddr(20)
+	// Followed by: symbol + title + externalAddress (without prefix)
+	externalAddressWithoutPrefix := seedData.ExternalAddress[1:]
+	externalType := uint8(seedData.ExternalAddress[0])
+
+	headerSize := 64
+	symbolLen := len(seedData.Ticker)
+	titleLen := len(seedData.Title)
+	extAddrLen := len(externalAddressWithoutPrefix)
+
+	toTokenSize := headerSize + symbolLen + titleLen + extAddrLen
+	toToken := make([]byte, toTokenSize)
+
+	// Header (64 bytes)
+	toToken[0] = byte(symbolLen)
+	toToken[1] = byte(titleLen)
+	toToken[2] = byte(extAddrLen)
+	toToken[3] = byte(externalType)
+	copy(toToken[4:24], common.HexToAddress(ownerBlockchainAddr).Bytes()) // creatorAddress
+	copy(toToken[24:44], common.HexToAddress("0x").Bytes())               // affiliateAddress
+	copy(toToken[44:64], common.HexToAddress("0x").Bytes())               // creatorTokenAddress (for content tokens)
+
+	offset := headerSize
+	copy(toToken[offset:], []byte(seedData.Ticker))
+	offset += symbolLen
+	copy(toToken[offset:], []byte(seedData.Title))
+	offset += titleLen
+	copy(toToken[offset:], []byte(externalAddressWithoutPrefix))
 	txInput, err := bondingcurve.ABI.Methods["swap"].Inputs.Pack(
 		base,
 		toToken,
@@ -846,9 +863,9 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
 	bondedTokenCreatedData, err := bondingcurve.ABI.Events["BondingTokenCreated"].Inputs.NonIndexed().Pack(
 		seedData.Title,
 		seedData.Ticker,
-		common.HexToAddress("0x"),   // creatorTokenAddress for content tokens
-		seedData.ExternalAddress[0], // externalType
-		seedData.ExternalAddress[1:],
+		common.HexToAddress("0x"),                // creatorTokenAddress for content tokens
+		externalType,                             // externalType as uint8
+		externalAddressWithoutPrefix,             // externalAddress WITHOUT prefix
 		common.HexToAddress(ownerBlockchainAddr), // creatorAddress
 		common.HexToAddress("0x"),                // affilate address
 		totalSupply,
@@ -1002,7 +1019,7 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
 	err = tmpl.Execute(buf, &dummyDataTemplateParams{
 		Stream:                 stream,
 		BlockNumber:            blockNum,
-		BlockTimestamp:         uint64(time.Now().In(time.UTC).Unix()),
+		BlockTimestamp:         uint64(time.Now().In(time.UTC).Add(-60 * time.Second).Unix()), // Create token 1 minute in the past
 		TxIndex:                1,
 		BlockHash:              blockHash,
 		TxHash:                 txHash,
