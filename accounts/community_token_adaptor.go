@@ -35,6 +35,7 @@ func (a *accounts) CreateCommunityTokenAdaptor(ctx context.Context, platform, po
 				{"k", "1"},
 				{"platform", platform},
 				{"t", "community_token"},
+				{"b", keypair.PublicKey},
 			},
 		},
 	}
