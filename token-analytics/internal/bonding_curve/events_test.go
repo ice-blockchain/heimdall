@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,16 +29,14 @@ func TestTokenSwapped(t *testing.T) {
 		require.NoError(t, err, "Should parse first swap (4-param) without error")
 		require.NotNil(t, event)
 		require.NotNil(t, event.Params)
-		assert.Contains(t, event.Params, "fromToken")
-		assert.Contains(t, event.Params, "toToken")
-		assert.Contains(t, event.Params, "amountIn")
-		assert.Contains(t, event.Params, "minReturn")
+		require.Contains(t, event.Params, "fromToken")
+		require.Contains(t, event.Params, "toToken")
+		require.Contains(t, event.Params, "amountIn")
+		require.Contains(t, event.Params, "minReturn")
 		// Verify toToken is fat address (> 64 bytes for first swap)
 		toToken, ok := event.Params["toToken"].([]byte)
 		require.True(t, ok, "toToken should be []byte")
-		assert.Greater(t, len(toToken), 64, "First swap should have fat address (>64 bytes)")
-
-		t.Logf("✅ First swap parsed successfully: toToken length = %d bytes", len(toToken))
+		require.Greater(t, len(toToken), 64, "First swap should have fat address (>64 bytes)")
 	})
 
 	t.Run("subsequent_swap_with_thin_address_4param", func(t *testing.T) {
@@ -59,17 +56,15 @@ func TestTokenSwapped(t *testing.T) {
 		require.NotNil(t, event)
 		require.NotNil(t, event.Params)
 
-		assert.Contains(t, event.Params, "fromToken")
-		assert.Contains(t, event.Params, "toToken")
-		assert.Contains(t, event.Params, "amountIn")
-		assert.Contains(t, event.Params, "minReturn")
+		require.Contains(t, event.Params, "fromToken")
+		require.Contains(t, event.Params, "toToken")
+		require.Contains(t, event.Params, "amountIn")
+		require.Contains(t, event.Params, "minReturn")
 
 		// Verify toToken is thin address (20 bytes for subsequent swaps)
 		toToken, ok := event.Params["toToken"].([]byte)
 		require.True(t, ok, "toToken should be []byte")
-		assert.Equal(t, 20, len(toToken), "Subsequent swap should have thin address (20 bytes)")
-
-		t.Logf("✅ Subsequent swap parsed successfully: toToken length = %d bytes", len(toToken))
+		require.Equal(t, 20, len(toToken), "Subsequent swap should have thin address (20 bytes)")
 	})
 
 	t.Run("swap_with_permit_5param", func(t *testing.T) {
@@ -106,15 +101,13 @@ func TestTokenSwapped(t *testing.T) {
 		require.NotNil(t, event)
 		require.NotNil(t, event.Params)
 
-		assert.Contains(t, event.Params, "fromToken")
-		assert.Contains(t, event.Params, "toToken")
-		assert.Contains(t, event.Params, "amountIn")
-		assert.Contains(t, event.Params, "minReturn")
+		require.Contains(t, event.Params, "fromToken")
+		require.Contains(t, event.Params, "toToken")
+		require.Contains(t, event.Params, "amountIn")
+		require.Contains(t, event.Params, "minReturn")
 		permit, ok := event.Params["permit"]
 		require.True(t, ok, "permit MUST be present in 5-param swap")
 		require.NotNil(t, permit, "permit MUST NOT be nil")
-
-		t.Logf("✅ 5-param swap with permit parsed successfully: %+v", permit)
 	})
 }
 
@@ -132,15 +125,13 @@ func TestTokenCreated(t *testing.T) {
 
 		require.NoError(t, err, "Should parse TokenCreated event without error")
 		require.NotNil(t, event)
-		assert.Equal(t, strings.ToLower("0x0f93afe4f21f8885b99932214c66be3ff42e2162"), strings.ToLower(event.Address.Hex()))
-		assert.Equal(t, "digitalocean Finance", event.Name)
-		assert.Equal(t, "RBNXVT", event.Symbol)
-		assert.NotNil(t, event.TotalSupply)
-		assert.Equal(t, uint8(0x79), event.ExternalType)              // externalType = 121 (0x79)
-		assert.Equal(t, "2003146478903001394", event.ExternalAddress) // Twitter user ID
-		assert.Equal(t, strings.ToLower("0x41e0385d6c933a11a705b93b04a728ad80c3a67c"), strings.ToLower(event.CreatorAddress.Hex()))
-
-		t.Logf("✅ TokenCreated event parsed successfully: %s (%s)", event.Name, event.Symbol)
+		require.Equal(t, strings.ToLower("0x0f93afe4f21f8885b99932214c66be3ff42e2162"), strings.ToLower(event.Address.Hex()))
+		require.Equal(t, "digitalocean Finance", event.Name)
+		require.Equal(t, "RBNXVT", event.Symbol)
+		require.NotNil(t, event.TotalSupply)
+		require.Equal(t, uint8(0x79), event.ExternalType)              // externalType = 121 (0x79)
+		require.Equal(t, "2003146478903001394", event.ExternalAddress) // Twitter user ID
+		require.Equal(t, strings.ToLower("0x41e0385d6c933a11a705b93b04a728ad80c3a67c"), strings.ToLower(event.CreatorAddress.Hex()))
 	})
 
 	t.Run("invalid_signature", func(t *testing.T) {
@@ -150,10 +141,8 @@ func TestTokenCreated(t *testing.T) {
 			"0x25c4b7a88c2d4be2558cf3ba68d42e0b46cbe388",
 			"0x000000000000000000000000def456789012345678901234567890abcdef456",
 		)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid signature")
-
-		t.Logf("✅ TokenCreated correctly rejects invalid signature")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid signature")
 	})
 
 	t.Run("empty_data", func(t *testing.T) {
@@ -163,10 +152,8 @@ func TestTokenCreated(t *testing.T) {
 			"0x25c4b7a88c2d4be2558cf3ba68d42e0b46cbe388",
 			"0x000000000000000000000000def456789012345678901234567890abcdef456",
 		)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "empty data")
-
-		t.Logf("✅ TokenCreated correctly rejects empty data")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "empty data")
 	})
 }
 
@@ -186,13 +173,10 @@ func TestPairRegistered(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, event)
-		assert.Equal(t, strings.ToLower(pairId), strings.ToLower(event.PairId.Hex()))
+		require.Equal(t, strings.ToLower(pairId), strings.ToLower(event.PairId.Hex()))
 		// BaseToken and OtherToken are returned as normal addresses (20 bytes), not as topics (32 bytes with 0x00... prefix)
-		assert.Equal(t, strings.ToLower("0x2c73996babf1a06c2c057177353293f7ca0907c8"), strings.ToLower(event.BaseToken.Hex()))
-		assert.Equal(t, strings.ToLower("0x0f93afe4f21f8885b99932214c66be3ff42e2162"), strings.ToLower(event.OtherToken.Hex()))
-
-		t.Logf("✅ PairRegistered event parsed successfully: PairId=%s, BaseToken=%s, OtherToken=%s",
-			event.PairId.Hex(), event.BaseToken.Hex(), event.OtherToken.Hex())
+		require.Equal(t, strings.ToLower("0x2c73996babf1a06c2c057177353293f7ca0907c8"), strings.ToLower(event.BaseToken.Hex()))
+		require.Equal(t, strings.ToLower("0x0f93afe4f21f8885b99932214c66be3ff42e2162"), strings.ToLower(event.OtherToken.Hex()))
 	})
 
 	t.Run("invalid_signature", func(t *testing.T) {
@@ -203,8 +187,8 @@ func TestPairRegistered(t *testing.T) {
 			"0x000000000000000000000000fffe00ab26d8d121a51717306adbebc70b8b7247",
 			"0x00000000000000000000000025c4b7a88c2d4be2558cf3ba68d42e0b46cbe388",
 		)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid signature")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid signature")
 	})
 }
 
@@ -220,9 +204,7 @@ func TestFeeAccrued(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, event)
-		assert.NotEqual(t, [32]byte{}, event.PairId)
-
-		t.Logf("✅ FeeAccrued event parsed successfully")
+		require.NotEqual(t, [32]byte{}, event.PairId)
 	})
 }
 
@@ -235,20 +217,18 @@ func TestSlippageChecked(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, event)
-		assert.NotNil(t, event.MinReturn)
-		assert.NotNil(t, event.ActualOut)
-		assert.Equal(t, pairId, event.PairId.Hex())
+		require.NotNil(t, event.MinReturn)
+		require.NotNil(t, event.ActualOut)
+		require.Equal(t, pairId, event.PairId.Hex())
 		// minReturn = 0xdbd2fc137a30000 = 987654321000000000
 		// actualOut = 0xde0b6b3a7640000 = 1000000000000000000
-		assert.True(t, event.MinReturn.Cmp(event.ActualOut) < 0, "minReturn should be less than actualOut")
-
-		t.Logf("✅ SlippageChecked event parsed successfully: minReturn=%s, actualOut=%s", event.MinReturn.String(), event.ActualOut.String())
+		require.True(t, event.MinReturn.Cmp(event.ActualOut) < 0, "minReturn should be less than actualOut")
 	})
 
 	t.Run("empty_pairId", func(t *testing.T) {
 		_, err := slippageChecked(eventSlippageChecked.Hex(), "0x0000", "")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "empty pairId")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "empty pairId")
 	})
 }
 
@@ -264,11 +244,9 @@ func TestLiquidityLocked(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, event)
-		assert.NotNil(t, event.Amount)
-		assert.NotNil(t, event.UnlockTime)
-		assert.NotEqual(t, "0x0000000000000000000000000000000000000000", event.LpToken.Hex())
-
-		t.Logf("✅ LiquidityLocked event parsed successfully")
+		require.NotNil(t, event.Amount)
+		require.NotNil(t, event.UnlockTime)
+		require.NotEqual(t, "0x0000000000000000000000000000000000000000", event.LpToken.Hex())
 	})
 }
 
@@ -283,9 +261,7 @@ func TestProcessEvent(t *testing.T) {
 		)
 
 		require.NoError(t, err)
-		assert.Nil(t, event, "Unknown events should return nil")
-
-		t.Logf("✅ ProcessEvent correctly handled unknown event")
+		require.Nil(t, event, "Unknown events should return nil")
 	})
 
 	t.Run("insufficient_topics_for_tokenCreated", func(t *testing.T) {
@@ -297,9 +273,7 @@ func TestProcessEvent(t *testing.T) {
 			"",
 		)
 
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "requires at least 2 topics")
-
-		t.Logf("✅ ProcessEvent correctly rejects insufficient topics")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "requires at least 2 topics")
 	})
 }

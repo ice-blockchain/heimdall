@@ -15,6 +15,13 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
+// TODO: Remove this once all transactions use the 5-parameter swap with permit.
+const swap4ParamABIJSON = `[{"inputs":[{"internalType":"bytes","name":"fromToken","type":"bytes"},{"internalType":"bytes","name":"toToken","type":"bytes"},{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"minReturn","type":"uint256"}],"name":"swap","outputs":[],"stateMutability":"nonpayable","type":"function"}]`
+
+var (
+	abi4Param abi.ABI
+)
+
 func ProcessEvent(functionHex, data string, topics []string, contractAddress, txInput string) (Event, error) {
 	switch functionHex {
 	case eventTokenCreated.Hex():
@@ -161,13 +168,7 @@ func tokenSwapped(signature, data, contractAddress, swapperTopic, pairIdTopic, t
 	err = method5.Inputs.UnpackIntoMap(tokenSwapParams, decodedTxInput)
 
 	if err != nil {
-		// Fallback to 4-param version. TODO: remove as soon as permit is used.
-		swap4ParamABI := `[{"inputs":[{"internalType":"bytes","name":"fromToken","type":"bytes"},{"internalType":"bytes","name":"toToken","type":"bytes"},{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"minReturn","type":"uint256"}],"name":"swap","outputs":[],"stateMutability":"nonpayable","type":"function"}]`
-		abi4Param, err := abi.JSON(strings.NewReader(swap4ParamABI))
-		if err != nil {
-			log.Panic(errors.Wrapf(err, "failed to parse 4-param swap ABI"))
-		}
-
+		// Fallback to 4-param version.  TODO: remove as soon as permit is used.
 		method4 := abi4Param.Methods["swap"]
 		err = method4.Inputs.UnpackIntoMap(tokenSwapParams, decodedTxInput)
 		if err != nil {
