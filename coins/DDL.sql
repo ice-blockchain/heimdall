@@ -18,10 +18,10 @@ CREATE TABLE IF NOT EXISTS coins (
                                      symbol              TEXT NOT NULL,
                                      symbol_group        TEXT NOT NULL,
                                      icon_url            TEXT NOT NULL DEFAULT '',
-                                     tc_external_address TEXT, -- for tokenized community tokens
                                      price_usd           NUMERIC NOT NULL DEFAULT 0,
                                      decimals            SMALLINT NOT NULL,
                                      native              BOOL NOT NULL DEFAULT FALSE,
+                                     tc_external_address TEXT, -- for tokenized community tokens
                                      primary key(id)
 ) WITH (FILLFACTOR = 70);
 
