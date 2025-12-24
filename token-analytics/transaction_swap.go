@@ -191,7 +191,10 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	}
 	if isFirstSwap {
 		result.PriceUsd = priceUSD
-		_, err = t.coins.ImportTokenizedCommunitiesCoin(ctx, result)
+		if _, err = t.coins.ImportTokenizedCommunitiesCoin(ctx, result); err != nil {
+			return errors.Wrapf(err, "failed to import tokenized community coin %v %v", result.TokenExternalAddress, result.ContractAddress)
+		}
+
 	}
 	t.subscriptions.NotifySwap(result.TokenExternalAddress)
 	return nil
