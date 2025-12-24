@@ -288,6 +288,7 @@ func (t *tokenAnalyticsUsers) GetTokenUpdates(ctx context.Context, contractAddre
 	result, err := storage.Select[tokenAndUserInfo](ctx, t.ingestedDataDB, `
 		SELECT 
 		    t.contract_address,
+		    t.external_address as token_external_address,
 		    COALESCE(t.title, '') as title,
 		    COALESCE(t.ticker, '') as ticker,
 		    COALESCE(t.image_url, '') as image_url,

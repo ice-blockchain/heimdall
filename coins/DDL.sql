@@ -5,23 +5,23 @@ CREATE TABLE IF NOT EXISTS global (
 ) WITH (FILLFACTOR = 70);
 
 CREATE TABLE IF NOT EXISTS coins (
-                                     sync_frequency    INTERVAL NOT NULL,
-                                     created_at        TIMESTAMP NOT NULL,
-                                     updated_at        TIMESTAMP NOT NULL,
-                                     data_updated_at   TIMESTAMP NOT NULL,
-                                     version           BIGINT NOT NULL,
-                                     coingecko_coin_id TEXT NOT NULL DEFAULT '',
-                                     id                TEXT NOT NULL,
-                                     network           TEXT NOT NULL,
-                                     name              TEXT NOT NULL,
-                                     contract_address  TEXT NOT NULL DEFAULT '',
-                                     symbol            TEXT NOT NULL,
-                                     symbol_group      TEXT NOT NULL,
-                                     icon_url          TEXT NOT NULL DEFAULT '',
-                                     price_usd         NUMERIC NOT NULL DEFAULT 0,
-                                     decimals          SMALLINT NOT NULL,
-                                     native            BOOL NOT NULL DEFAULT FALSE,
-                                     tokenized_community_token BOOL NOT NULL DEFAULT FALSE,
+                                     sync_frequency      INTERVAL NOT NULL,
+                                     created_at          TIMESTAMP NOT NULL,
+                                     updated_at          TIMESTAMP NOT NULL,
+                                     data_updated_at     TIMESTAMP NOT NULL,
+                                     version             BIGINT NOT NULL,
+                                     coingecko_coin_id   TEXT NOT NULL DEFAULT '',
+                                     id                  TEXT NOT NULL,
+                                     network             TEXT NOT NULL,
+                                     name                TEXT NOT NULL,
+                                     contract_address    TEXT NOT NULL DEFAULT '',
+                                     symbol              TEXT NOT NULL,
+                                     symbol_group        TEXT NOT NULL,
+                                     icon_url            TEXT NOT NULL DEFAULT '',
+                                     tc_external_address TEXT, -- for tokenized community tokens
+                                     price_usd           NUMERIC NOT NULL DEFAULT 0,
+                                     decimals            SMALLINT NOT NULL,
+                                     native              BOOL NOT NULL DEFAULT FALSE,
                                      primary key(id)
 ) WITH (FILLFACTOR = 70);
 
@@ -181,4 +181,4 @@ UPDATE coins SET
                  decimals = 10
 where network = 'polkadot' and lower(symbol) = 'dot' and decimals > 10;
 
-ALTER TABLE coins ADD COLUMN IF NOT EXISTS tokenized_community_token BOOL NOT NULL DEFAULT FALSE;
+ALTER TABLE coins ADD COLUMN IF NOT EXISTS tc_external_address TEXT;

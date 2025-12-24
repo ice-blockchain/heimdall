@@ -351,6 +351,9 @@ func (t *tokenAndUserInfo) Symbol() string {
 func (t *tokenAndUserInfo) IconUrl() string {
 	return t.ImageURL
 }
+func (t *tokenAndUserInfo) ExternalAddress() string {
+	return t.TokenExternalAddress
+}
 
 func (t *tokenAndUserInfo) PriceUSD() float64 {
 	return t.PriceUsd

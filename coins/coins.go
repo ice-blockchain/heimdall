@@ -183,16 +183,17 @@ func (c *coinsRepository) Import(ctx context.Context, network, contractAddress s
 					ContractAddress: contractAddress,
 				}
 			}
-			isTokenizedCommunityToken := false
+			var tokenizedCommunityExternalAddress *string
 			tokenizedCommunityTokens, tErr := c.tokenAnalytics.GetTokenUpdates(ctx, []string{contractAddress})
 			if tErr == nil && tokenizedCommunityTokens != nil {
 				if tokenizedCommunityToken, ok := tokenizedCommunityTokens[contractAddress]; ok && strings.EqualFold(tokenizedCommunityToken.Address(), contractAddress) {
-					isTokenizedCommunityToken = true
+					extAddr := tokenizedCommunityTokens[contractAddress].ExternalAddress()
+					tokenizedCommunityExternalAddress = &extAddr
 					token = tokenizedCommunityTokenToCoin(tokenizedCommunityTokens[contractAddress])
 					retErr = nil
 				}
 			}
-			existingCoin, err = c.upsertCoin(ctx, now, token, isTokenizedCommunityToken)
+			existingCoin, err = c.upsertCoin(ctx, now, token, tokenizedCommunityExternalAddress)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to import coin")
 			}
@@ -220,7 +221,8 @@ func (c *coinsRepository) ImportTokenizedCommunitiesCoin(ctx context.Context, co
 	existingCoin, err := c.getCoinByContractAddress(ctx, coin.Address())
 	if err != nil {
 		if errors.Is(err, ErrNotFound) || (existingCoin != nil && existingCoin.PriceUSD == 0) {
-			existingCoin, err = c.upsertCoin(ctx, now, tokenizedCommunityTokenToCoin(coin), true)
+			externalAddress := coin.ExternalAddress()
+			existingCoin, err = c.upsertCoin(ctx, now, tokenizedCommunityTokenToCoin(coin), &externalAddress)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to save tokenized coin %v", coin.Address())
 			}
@@ -264,18 +266,18 @@ func MapNetworkFromCoinGecko(cgNetwork, symbolGroup string) (mappedNetwork strin
 	return network.ID, priority, nil
 }
 
-func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *coingecko.Coin, tokenizedCommunity bool) (*coin, error) {
+func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *coingecko.Coin, tokenizedCommunityExternalAddress *string) (*coin, error) {
 	sql := fmt.Sprintf(`
 	WITH insert_data AS (
 		SELECT * from (VALUES (
 				$2::INTERVAL,             $1::TIMESTAMP,         $1::TIMESTAMP,         $1::TIMESTAMP,          $3::SMALLINT,     (select value from global where key = '%[1]v')::BIGINT,      $4::NUMERIC,        $5,  $6,
-				$7,      $8,    $9,              $10,   $11,          $12,      false,    $13::BOOLEAN
+				$7,      $8,    $9,              $10,   $11,          $12,      false,    $13::TEXT
 		)) as t(sync_frequency, created_at, updated_at, data_updated_at, decimals, version,                             price_usd, id, coingecko_coin_id,
-				network, name, contract_address, symbol, symbol_group, icon_url, native, tokenized_community_token)
+				network, name, contract_address, symbol, symbol_group, icon_url, native, tc_external_address)
 		WHERE NOT EXISTS (SELECT 1 FROM coins WHERE symbol_group = $9) -- restrict contract_address to be eq symbol_group of existing coins
 	)
 	INSERT INTO coins (sync_frequency, created_at, updated_at, data_updated_at, decimals, version,                             price_usd, id, coingecko_coin_id,
-		network, name, contract_address, symbol, symbol_group, icon_url, native, tokenized_community_token) 
+		network, name, contract_address, symbol, symbol_group, icon_url, native, tc_external_address) 
 		SELECT * from insert_data
 		ON CONFLICT (id) DO UPDATE SET
 		sync_frequency = excluded.sync_frequency,
@@ -302,7 +304,7 @@ func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *c
 			RETURNING *;`, keyCoinsMaxVersion)
 
 	updated, err := storage.ExecOne[coin](ctx, c.db, sql, now, syncFrequency(c.cfg, tok.ID), tok.Decimals, tok.PriceUSD, generateInternalID(tok, nil),
-		tok.ID, tok.Network, tok.Name, tok.ContractAddress, tok.Symbol, tok.SymbolGroup(), tok.IconUrl, tokenizedCommunity)
+		tok.ID, tok.Network, tok.Name, tok.ContractAddress, tok.Symbol, tok.SymbolGroup(), tok.IconUrl, tokenizedCommunityExternalAddress)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to upsert token data %+v", tok)
 	}

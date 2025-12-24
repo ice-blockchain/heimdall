@@ -822,28 +822,6 @@ func (dummyUserRepository) GetTokenUpdates(ctx context.Context, contractAddress 
 	return nil, nil
 }
 
-type dummyToken struct{}
-
-func (d *dummyToken) Address() string {
-	return ""
-}
-
-func (d *dummyToken) Name() string {
-	return ""
-}
-
-func (d *dummyToken) Symbol() string {
-	return ""
-}
-
-func (d *dummyToken) IconUrl() string {
-	return ""
-}
-
-func (d *dummyToken) PriceUSD() float64 {
-	return 0
-}
-
 func randInt(n int) int {
 	return rand.Intn(n)
 }

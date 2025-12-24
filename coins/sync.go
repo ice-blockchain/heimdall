@@ -332,7 +332,7 @@ func (s *coinSync) fetchSyncableCoins(ctx context.Context, now *time.Time) (map[
 	coins, err := storage.Select[coinToSync](ctx, s.db,
 		fmt.Sprintf(`SELECT network, 
        		 array_agg(t.network||':@:@:'||t.coingecko_coin_id)  FILTER (WHERE t.contract_address = '') AS coin_ids,
-       		 array_agg(t.coingecko_coin_id||':@:@:'||t.contract_address) FILTER (WHERE t.contract_address != '' and tokenized_community_token = FALSE)  AS contract_addresses,
+       		 array_agg(t.coingecko_coin_id||':@:@:'||t.contract_address) FILTER (WHERE t.contract_address != '' and tc_external_address IS NULL)  AS contract_addresses,
        		 array_agg((t.data_updated_at < $1)) @> ARRAY[TRUE] as sync_token_full_data,
        		 ARRAY[]::TEXT[] as tokenized_communities_tokens
 			 FROM (
@@ -346,7 +346,7 @@ func (s *coinSync) fetchSyncableCoins(ctx context.Context, now *time.Time) (map[
 			  ARRAY[]::TEXT[] AS coin_ids,
        		  ARRAY[]::TEXT[] AS contract_addresses,
        		  TRUE as sync_token_full_data, 
-			  array_agg(t2.contract_address) FILTER (WHERE t2.contract_address != '' and tokenized_community_token = TRUE)  AS tokenized_communities_tokens
+			  array_agg(t2.contract_address) FILTER (WHERE t2.contract_address != '' and tc_external_address IS NOT NULL)  AS tokenized_communities_tokens
 			  FROM (
 				SELECT * FROM coins_sync_queue
 				INNER JOIN coins ON coins_sync_queue.coin_id = coins.id
