@@ -82,7 +82,7 @@ func (t *tokenAnalytics) startBondingCurveProgressUpdater(ctx context.Context, s
 				updateCtx, updateCancel := context.WithTimeout(ctx, 30*stdlibtime.Second)
 				if err := t.updateBondingProgress(updateCtx, externalAddress, pairId); err != nil {
 					if storage.IsErr(err, storage.ErrReadOnly) {
-						log.Warn("Database is read-only, stopping bonding curve progress updater for token ", externalAddress)
+						log.Warn(fmt.Sprintf("Database is read-only, stopping bonding curve progress updater for token %s", externalAddress))
 						updateCancel()
 						return
 					}
