@@ -326,6 +326,7 @@ func (c *coinsRepository) GetAllCoins(ctx context.Context) (uint64, []*SymbolGro
 		'' as symbol,
 		'' as symbol_group,
 		'' as icon_url,
+		'' as tc_external_address,
 		0 as price_usd,
 		0 as decimals,
 		false as native
