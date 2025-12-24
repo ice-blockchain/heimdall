@@ -45,9 +45,7 @@ func (t *tokenAnalytics) SubscribeBondingCurveProgress(ctx context.Context, exte
 	updates, hasAtLeastOneSubscriptionForToken, stopUpdater := t.subscriptions.SubscribeOnBondingCurveProgress(ctx, externalAddress)
 
 	if !hasAtLeastOneSubscriptionForToken {
-		if err = t.startBondingCurveProgressUpdater(stopUpdater, externalAddress, pairId); err != nil {
-			return errors.Wrapf(err, "failed to start bonding curve progress updater for %v", externalAddress)
-		}
+		t.startBondingCurveProgressUpdater(ctx, stopUpdater, externalAddress, pairId)
 	}
 	go func() {
 		for ctx.Err() == nil {
@@ -68,24 +66,32 @@ func progressToUSD(progress *bondingcurve.BondingCurveProgress, basePrice float6
 	return goalUSD, currentRaisedUSD
 }
 
-func (t *tokenAnalytics) startBondingCurveProgressUpdater(stop <-chan struct{}, externalAddress, pairId string) error {
+func (t *tokenAnalytics) startBondingCurveProgressUpdater(ctx context.Context, stop <-chan struct{}, externalAddress, pairId string) {
 	ticker := stdlibtime.NewTicker(t.cfg.BondingCurve.BondingCurveProgressUpdateFrequency)
 	go func() {
 		defer ticker.Stop()
+
+		log.Info(fmt.Sprintf("Bonding curve progress updater started for %v, updating every %s", externalAddress, t.cfg.BondingCurve.BondingCurveProgressUpdateFrequency))
 		for {
 			select {
 			case <-stop:
 				return
+			case <-ctx.Done():
+				return
 			case <-ticker.C:
-				updateCtx, updateCancel := context.WithTimeout(context.Background(), 30*stdlibtime.Second)
+				updateCtx, updateCancel := context.WithTimeout(ctx, 30*stdlibtime.Second)
 				if err := t.updateBondingProgress(updateCtx, externalAddress, pairId); err != nil {
+					if storage.IsErr(err, storage.ErrReadOnly) {
+						log.Warn("Database is read-only, stopping bonding curve progress updater for token ", externalAddress)
+						updateCancel()
+						return
+					}
 					log.Error(fmt.Errorf("failed to update bonding curve progress in background: %w", err))
 				}
 				updateCancel()
 			}
 		}
 	}()
-	return nil
 }
 
 func (t *tokenAnalytics) updateBondingProgress(ctx context.Context, externalAddress, pairId string) error {
