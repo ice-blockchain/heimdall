@@ -80,7 +80,7 @@ func (t *tokenAnalytics) startBondingCurveProgressUpdater(ctx context.Context, s
 				return
 			case <-ticker.C:
 				updateCtx, updateCancel := context.WithTimeout(ctx, 30*stdlibtime.Second)
-				if err := t.updateBondingProgress(updateCtx, externalAddress, pairId); err != nil {
+				if _, err := t.updateBondingProgress(updateCtx, externalAddress, pairId); err != nil {
 					if storage.IsErr(err, storage.ErrReadOnly) {
 						log.Warn(fmt.Sprintf("Database is read-only, stopping bonding curve progress updater for token %s", externalAddress))
 						updateCancel()
@@ -94,11 +94,11 @@ func (t *tokenAnalytics) startBondingCurveProgressUpdater(ctx context.Context, s
 	}()
 }
 
-func (t *tokenAnalytics) updateBondingProgress(ctx context.Context, externalAddress, pairId string) error {
+func (t *tokenAnalytics) updateBondingProgress(ctx context.Context, externalAddress, pairId string) (*BondingCurveProgress, error) {
 	log.Debug(fmt.Sprintf("updating bonding curve progress for %v", externalAddress))
 	progress, err := t.bondingCurve.Progress(ctx, common.HexToHash(pairId))
 	if err != nil {
-		return fmt.Errorf("failed to get bonding curve progress for token %v (pair %v): %w", externalAddress, pairId, err)
+		return nil, fmt.Errorf("failed to get bonding curve progress for token %v (pair %v): %w", externalAddress, pairId, err)
 	}
 	basePriceInUsd := t.ionPriceUSD.Load()
 
@@ -115,10 +115,11 @@ func (t *tokenAnalytics) updateBondingProgress(ctx context.Context, externalAddr
 			updated_at = NOW()
 		WHERE t.external_address = $1`, externalAddress, progress.SoldTokens, progress.TokensRaised, progress.BondingTokensGoal, currentRaisedUSD, goalUSD, progress.Migrated)
 	if err != nil {
-		return fmt.Errorf("failed to update bonding curve for token %v: %w", externalAddress, err)
+		return nil, fmt.Errorf("failed to update bonding curve for token %v: %w", externalAddress, err)
 	}
-	t.subscriptions.NotifyBondingCurveProgress(externalAddress, toModel(progress, *basePriceInUsd))
-	return nil
+	m := toModel(progress, *basePriceInUsd)
+	t.subscriptions.NotifyBondingCurveProgress(externalAddress, m)
+	return m, nil
 }
 
 func toModel(progress *bondingcurve.BondingCurveProgress, basePriceInUsd float64) *BondingCurveProgress {
