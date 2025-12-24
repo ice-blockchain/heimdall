@@ -305,6 +305,8 @@ type (
 		PlatformHoldersCount         int64      `db:"platform_holders_count"`
 		BondingCurveCurrentAmount    string     `db:"bonding_curve_current_amount"`
 		BondingCurveGoalAmount       string     `db:"bonding_curve_goal_amount"`
+		BondingCurveRaisedAmount     string     `db:"bonding_curve_raised_amount"`
+		BondingCurveMigrated         bool       `db:"bonding_curve_migrated"`
 		BondingCurveCurrentAmountUSD float64    `db:"bonding_curve_current_amount_usd"`
 		BondingCurveGoalAmountUSD    float64    `db:"bonding_curve_goal_amount_usd"`
 		CreatorVerified              *bool      `db:"creator_verified"`

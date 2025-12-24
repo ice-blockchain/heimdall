@@ -61,6 +61,8 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 			COALESCE(t.bonding_curve_goal_amount, '0') as bonding_curve_goal_amount,
 			COALESCE(t.bonding_curve_current_amount_usd, 0) as bonding_curve_current_amount_usd,
 			COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd,
+			COALESCE(t.bonding_curve_migrated, FALSE) as bonding_curve_migrated,
+			COALESCE(t.bonding_curve_raised_amount, 0) as bonding_curve_raised_amount,
 			COALESCE(utp.amount, '0') as position_amount,
 			COALESCE((utp.amount::NUMERIC / 1e18) * t.price_usd, 0) as position_amount_usd,
 			COALESCE(utp.total_invested_usd, 0) as position_total_invested_usd,
@@ -93,6 +95,20 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 	rows, err := storage.Select[tokenRow](ctx, t.ingestedDataDB, query, externalAddresses, requestorMasterPubkey)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch community tokens")
+	}
+	for _, row := range rows {
+		if row.BondingCurveGoalAmount == "" || row.BondingCurveGoalAmount == "0" {
+			progress, err := t.updateBondingProgress(ctx, row.ExternalAddress, row.PairId)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to update bonding progress for token for 1st time %v", row.ExternalAddress)
+			}
+			row.BondingCurveCurrentAmount = progress.CurrentAmount
+			row.BondingCurveGoalAmount = progress.GoalAmount
+			row.BondingCurveCurrentAmountUSD = progress.CurrentAmountUSD
+			row.BondingCurveGoalAmountUSD = progress.GoalAmountUSD
+			row.BondingCurveRaisedAmount = progress.RaisedAmount
+			row.BondingCurveMigrated = progress.Migrated
+		}
 	}
 
 	return t.buildCommunityTokensFromRows(ctx, rows, requestorMasterPubkey)
@@ -276,6 +292,8 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 				GoalAmount:       row.BondingCurveGoalAmount,
 				CurrentAmountUSD: row.BondingCurveCurrentAmountUSD,
 				GoalAmountUSD:    row.BondingCurveGoalAmountUSD,
+				RaisedAmount:     row.BondingCurveRaisedAmount,
+				Migrated:         row.BondingCurveMigrated,
 			}
 		}
 
