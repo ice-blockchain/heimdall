@@ -308,7 +308,7 @@ func (c *client) GetNFT(ctx context.Context, network, contractAddr string) (*NFT
 }
 
 func convertTokenData(network string, tok tokenData) *Coin {
-	price, err := strconv.ParseFloat(tok.Attributes.PriceUsd, 64)
+	price, err := strconv.ParseFloat(tok.Attributes.PriceUSD, 64)
 	if err != nil {
 		log.Debug(fmt.Sprintf("%v", errors.Wrapf(err, "token response for %+v, using zero price", tok)))
 		price = 0

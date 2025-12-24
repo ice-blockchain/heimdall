@@ -32,13 +32,18 @@ type (
 		GetFees(network string) *Fee
 		ImportNFTs(ctx context.Context, network string, NFTs []WalletNFT) ([]*NFT, error)
 		GetNativeCoinForNetwork(ctx context.Context, network string) (*Coin, error)
+		CoinImport
+	}
+	CoinImport interface {
+		ImportTokenizedCommunitiesCoin(ctx context.Context, coin TokenAnalyticsToken) (*Coin, error)
 	}
 	Sync interface {
 		io.Closer
 		HealthCheck(ctx context.Context) error
 	}
-	BNBPriceSyncer interface {
+	TokenAnalyticsPriceSyncer interface {
 		UpdateBNBPrice(ctx context.Context, price float64) error
+		GetTokenUpdates(ctx context.Context, contractAddress []string) (map[string]TokenAnalyticsToken, error)
 	}
 	NftID struct {
 		ContractAddress string
@@ -72,6 +77,14 @@ type (
 		SymbolGroup string  `json:"symbol_group"`
 		Coins       []*Coin `json:"coins"`
 	}
+	TokenAnalyticsToken interface {
+		Address() string
+		Name() string
+		Symbol() string
+		IconUrl() string
+		PriceUSD() float64
+		ExternalAddress() string
+	}
 )
 
 const (
@@ -89,12 +102,13 @@ var (
 )
 
 const (
-	applicationYamlKey         = "coins"
-	initialVersion             = 0
-	coinSyncIterationDuration  = 1 * stdlibtime.Minute
-	coinSyncIterationBatchSize = 100
-	targetCoinGeckoCallsPerMin = 100
-	keyCoinsMaxVersion         = "coins_max_version"
+	applicationYamlKey                    = "coins"
+	initialVersion                        = 0
+	coinSyncIterationDuration             = 1 * stdlibtime.Minute
+	coinSyncIterationBatchSize            = 100
+	targetCoinGeckoCallsPerMin            = 100
+	keyCoinsMaxVersion                    = "coins_max_version"
+	defaultNetworkForTokenizedCommunities = "bsc" // coingecko id
 )
 
 var (
@@ -109,6 +123,7 @@ type (
 		cfg                *config
 		coinGeckoClient    coingecko.Client
 		nftCoinGeckoClient coingecko.Client
+		tokenAnalytics     TokenAnalyticsPriceSyncer
 	}
 	coinSync struct {
 		db              *storage.DB
@@ -118,7 +133,7 @@ type (
 		cfg             *config
 		coinGeckoClient coingecko.Client
 		metrics         metrics.Registry
-		tokenAnalytics  BNBPriceSyncer
+		tokenAnalytics  TokenAnalyticsPriceSyncer
 	}
 	config struct {
 		Fees                    map[NetworkName]Fee            `yaml:"fees" mapstructure:"fees"`
@@ -138,28 +153,30 @@ type (
 		WaitTime       uint64 `json:"waitTime" yaml:"waitTime"`
 	}
 	coin struct {
-		SyncFrequency   stdlibtime.Duration
-		CreatedAt       *time.Time
-		UpdatedAt       *time.Time
-		DataUpdatedAt   *time.Time
-		Decimals        uint8
-		Version         uint64
-		PriceUSD        float64
-		ID              string
-		CoinGeckoCoinID string `db:"coingecko_coin_id"`
-		Network         string
-		Name            string
-		ContractAddress string
-		Symbol          string
-		SymbolGroup     string
-		IconUrl         string
-		Native          bool
+		SyncFrequency                     stdlibtime.Duration
+		CreatedAt                         *time.Time
+		UpdatedAt                         *time.Time
+		DataUpdatedAt                     *time.Time
+		Decimals                          uint8
+		Version                           uint64
+		PriceUSD                          float64
+		ID                                string
+		CoinGeckoCoinID                   string `db:"coingecko_coin_id"`
+		Network                           string
+		Name                              string
+		ContractAddress                   string
+		Symbol                            string
+		SymbolGroup                       string
+		IconUrl                           string
+		Native                            bool
+		TokenizedCommunityExternalAddress *string `db:"tc_external_address"`
 	}
 	coinToSync struct {
-		Network           string
-		ContractAddresses []string `db:"contract_addresses"`
-		CoinGeckoCoinIDs  []string `db:"coin_ids"`
-		SyncTokenFullData bool     `db:"sync_token_full_data"`
+		Network                    string
+		ContractAddresses          []string `db:"contract_addresses"`
+		TokenizedCommunitiesTokens []string `db:"tokenized_communities_tokens"`
+		CoinGeckoCoinIDs           []string `db:"coin_ids"`
+		SyncTokenFullData          bool     `db:"sync_token_full_data"`
 	}
 	nft struct {
 		Network         string

@@ -128,20 +128,16 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 		}
 	}
 
-	type tokenAndUserInfo struct {
-		ContractAddress      string `db:"contract_address"`
-		BaseToken            string `db:"base_token"`
-		TokenExternalAddress string `db:"token_external_address"`
-		UserExternalAddress  string `db:"user_external_address"`
-		TokenType            string `db:"token_type"`
-	}
 	const selectClause = `
 		SELECT 
 			t.contract_address,
 			COALESCE(t.base_token, '') as base_token,
 			t.external_address as token_external_address,
 			COALESCE(u.external_address, '') as user_external_address,
-			COALESCE(t.type, '') as token_type
+			COALESCE(t.type, '') as token_type,
+			COALESCE(t.title,'') as title,
+			COALESCE(t.ticker,'') as ticker,
+			COALESCE(t.image_url, '') as image_url
 		FROM tokens t
 		LEFT JOIN users u ON LOWER(u.content_author_id) = LOWER($2)`
 
@@ -192,6 +188,13 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	}
 	if err = t.registerTrade(ctx, tx, ev.Direction, ev.InputAmount, ev.OutputAmount, result.ContractAddress, ev.Swapper.Hex(), result.TokenExternalAddress, ev.Pair.Bytes()); err != nil {
 		return errors.Wrapf(err, "failed to save trade in questdb %v", userAddr)
+	}
+	if isFirstSwap {
+		result.PriceUsd = priceUSD
+		if _, err = t.coins.ImportTokenizedCommunitiesCoin(ctx, result); err != nil {
+			return errors.Wrapf(err, "failed to import tokenized community coin %v %v", result.TokenExternalAddress, result.ContractAddress)
+		}
+
 	}
 	t.subscriptions.NotifySwap(result.TokenExternalAddress)
 	return nil
@@ -334,4 +337,27 @@ func getTrendingSetKeyByType(tokenType string) string {
 	default:
 		return ""
 	}
+}
+
+func (t *tokenAndUserInfo) Address() string {
+	return t.ContractAddress
+}
+
+func (t *tokenAndUserInfo) Name() string {
+	return t.Title
+}
+
+func (t *tokenAndUserInfo) Symbol() string {
+	return t.Ticker
+}
+
+func (t *tokenAndUserInfo) IconUrl() string {
+	return t.ImageURL
+}
+func (t *tokenAndUserInfo) ExternalAddress() string {
+	return t.TokenExternalAddress
+}
+
+func (t *tokenAndUserInfo) PriceUSD() float64 {
+	return t.PriceUsd
 }

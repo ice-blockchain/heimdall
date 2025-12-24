@@ -22,14 +22,26 @@ import (
 	"github.com/ice-blockchain/wintr/time"
 )
 
-func New(ctx context.Context) Coins {
+func NewCoinImport(ctx context.Context) CoinImport {
+	var cfg config
+	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
+	c := coinsRepository{
+		cfg: &cfg,
+	}
+	db := storage.MustConnect(ctx, applicationYamlKey, storage.NewStringDDL(fmt.Sprintf(ddl, stdlibtime.Duration(0), 0, keyCoinsMaxVersion)))
+	c.db = db
+	c.shutdown = db.Close
+	return &c
+}
 
+func New(ctx context.Context, tokenAnalytics TokenAnalyticsPriceSyncer) Coins {
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	c := coinsRepository{
 		cfg:                &cfg,
 		coinGeckoClient:    coingecko.New(applicationYamlKey),
 		nftCoinGeckoClient: coingecko.New("nfts"),
+		tokenAnalytics:     tokenAnalytics,
 	}
 	iceCoin, err := c.coinGeckoClient.GetCoins(ctx, []string{DefaultWalletViewCoinSymbolGroup})
 	log.Panic(errors.Wrapf(err, "failed to sync ice price from coin gecko on startup"))
@@ -171,7 +183,17 @@ func (c *coinsRepository) Import(ctx context.Context, network, contractAddress s
 					ContractAddress: contractAddress,
 				}
 			}
-			existingCoin, err = c.upsertCoin(ctx, now, token)
+			var tokenizedCommunityExternalAddress *string
+			tokenizedCommunityTokens, tErr := c.tokenAnalytics.GetTokenUpdates(ctx, []string{contractAddress})
+			if tErr == nil && tokenizedCommunityTokens != nil {
+				if tokenizedCommunityToken, ok := tokenizedCommunityTokens[contractAddress]; ok && strings.EqualFold(tokenizedCommunityToken.Address(), contractAddress) {
+					extAddr := tokenizedCommunityTokens[contractAddress].ExternalAddress()
+					tokenizedCommunityExternalAddress = &extAddr
+					token = tokenizedCommunityTokenToCoin(tokenizedCommunityTokens[contractAddress])
+					retErr = nil
+				}
+			}
+			existingCoin, err = c.upsertCoin(ctx, now, token, tokenizedCommunityExternalAddress)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to import coin")
 			}
@@ -192,6 +214,33 @@ func (c *coinsRepository) Import(ctx context.Context, network, contractAddress s
 		Decimals:        existingCoin.Decimals,
 		Native:          existingCoin.Native,
 	}, retErr
+}
+
+func (c *coinsRepository) ImportTokenizedCommunitiesCoin(ctx context.Context, coin TokenAnalyticsToken) (*Coin, error) {
+	now := time.Now()
+	existingCoin, err := c.getCoinByContractAddress(ctx, coin.Address())
+	if err != nil {
+		if errors.Is(err, ErrNotFound) || (existingCoin != nil && existingCoin.PriceUSD == 0) {
+			externalAddress := coin.ExternalAddress()
+			existingCoin, err = c.upsertCoin(ctx, now, tokenizedCommunityTokenToCoin(coin), &externalAddress)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to save tokenized coin %v", coin.Address())
+			}
+		}
+	}
+	return &Coin{
+		ID:              existingCoin.ID,
+		Name:            existingCoin.Name,
+		Symbol:          existingCoin.Symbol,
+		SymbolGroup:     existingCoin.SymbolGroup,
+		Network:         existingCoin.Network,
+		ContractAddress: existingCoin.ContractAddress,
+		IconURL:         existingCoin.IconUrl,
+		PriceUSD:        existingCoin.PriceUSD,
+		SyncFrequency:   existingCoin.SyncFrequency,
+		Decimals:        existingCoin.Decimals,
+		Native:          existingCoin.Native,
+	}, nil
 }
 
 func (c *coinsRepository) getCoinByContractAddress(ctx context.Context, contractAddress string) (*coin, error) {
@@ -217,18 +266,18 @@ func MapNetworkFromCoinGecko(cgNetwork, symbolGroup string) (mappedNetwork strin
 	return network.ID, priority, nil
 }
 
-func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *coingecko.Coin) (*coin, error) {
+func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *coingecko.Coin, tokenizedCommunityExternalAddress *string) (*coin, error) {
 	sql := fmt.Sprintf(`
 	WITH insert_data AS (
 		SELECT * from (VALUES (
 				$2::INTERVAL,             $1::TIMESTAMP,         $1::TIMESTAMP,         $1::TIMESTAMP,          $3::SMALLINT,     (select value from global where key = '%[1]v')::BIGINT,      $4::NUMERIC,        $5,  $6,
-				$7,      $8,    $9,              $10,   $11,          $12,   false
+				$7,      $8,    $9,              $10,   $11,          $12,      false,    $13::TEXT
 		)) as t(sync_frequency, created_at, updated_at, data_updated_at, decimals, version,                             price_usd, id, coingecko_coin_id,
-				network, name, contract_address, symbol, symbol_group, icon_url, native)
+				network, name, contract_address, symbol, symbol_group, icon_url, native, tc_external_address)
 		WHERE NOT EXISTS (SELECT 1 FROM coins WHERE symbol_group = $9) -- restrict contract_address to be eq symbol_group of existing coins
 	)
 	INSERT INTO coins (sync_frequency, created_at, updated_at, data_updated_at, decimals, version,                             price_usd, id, coingecko_coin_id,
-		network, name, contract_address, symbol, symbol_group, icon_url, native) 
+		network, name, contract_address, symbol, symbol_group, icon_url, native, tc_external_address) 
 		SELECT * from insert_data
 		ON CONFLICT (id) DO UPDATE SET
 		sync_frequency = excluded.sync_frequency,
@@ -255,7 +304,7 @@ func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *c
 			RETURNING *;`, keyCoinsMaxVersion)
 
 	updated, err := storage.ExecOne[coin](ctx, c.db, sql, now, syncFrequency(c.cfg, tok.ID), tok.Decimals, tok.PriceUSD, generateInternalID(tok, nil),
-		tok.ID, tok.Network, tok.Name, tok.ContractAddress, tok.Symbol, tok.SymbolGroup(), tok.IconUrl)
+		tok.ID, tok.Network, tok.Name, tok.ContractAddress, tok.Symbol, tok.SymbolGroup(), tok.IconUrl, tokenizedCommunityExternalAddress)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to upsert token data %+v", tok)
 	}
@@ -490,4 +539,18 @@ func (c *coinsRepository) GetNativeCoinForNetwork(ctx context.Context, network s
 		Native:          nativeCoin.Native,
 		Prioritized:     priority,
 	}, nil
+}
+
+func tokenizedCommunityTokenToCoin(token TokenAnalyticsToken) *coingecko.Coin {
+	return &coingecko.Coin{
+		ID:              "", // no cg id, symbol_group = contract_address
+		Symbol:          token.Symbol(),
+		Name:            token.Name(),
+		Network:         defaultNetworkForTokenizedCommunities,
+		ContractAddress: token.Address(),
+		Decimals:        18,
+		PriceUSD:        token.PriceUSD(),
+		Native:          false,
+		IconUrl:         token.IconUrl(),
+	}
 }

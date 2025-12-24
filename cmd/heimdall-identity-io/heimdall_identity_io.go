@@ -125,14 +125,15 @@ func (s *service) RegisterRoutes(router *server.Router) {
 }
 
 func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
-	s.coins = coins.New(ctx)
 	s.relays = relaymanagement.NewRelays(ctx)
 	var appsRuntimeCfg accounts.AppsRuntimeConfig
 	appcfg.MustLoadFromKey(runtimeConfigApplicationYamlKey, &appsRuntimeCfg)
 	allValidConfigNames["apps-runtime_ion-app"] = func(_ *config, _ *Version) (any, Version) {
 		return appsRuntimeCfg.IONApp, Version(appsRuntimeCfg.IONApp.Version)
 	}
-	s.tokenAnalytics = tokenanalytics.NewUserRepository(ctx)
+	ta := tokenanalytics.NewUserRepository(ctx)
+	s.tokenAnalytics = ta
+	s.coins = coins.New(ctx, ta)
 	testnet := false
 	for _, n := range s.coins.GetAllNetworks() {
 		if n.IsTestnet {

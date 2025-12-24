@@ -115,7 +115,7 @@ type (
 			ImageUrl        string `json:"image_url"`
 			CoingeckoCoinId string `json:"coingecko_coin_id"`
 			Decimals        int    `json:"decimals"`
-			PriceUsd        string `json:"price_usd"`
+			PriceUSD        string `json:"price_usd"`
 		} `json:"attributes"`
 	}
 	page[T any] struct {
