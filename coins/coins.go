@@ -326,10 +326,10 @@ func (c *coinsRepository) GetAllCoins(ctx context.Context) (uint64, []*SymbolGro
 		'' as symbol,
 		'' as symbol_group,
 		'' as icon_url,
-		'' as tc_external_address,
 		0 as price_usd,
 		0 as decimals,
-		false as native
+		false as native,
+		'' as tc_external_address
 	FROM coins LIMIT 1) t
  	UNION ALL (SELECT * FROM coins WHERE coingecko_coin_id != '');`, keyCoinsMaxVersion))
 	if err != nil {
