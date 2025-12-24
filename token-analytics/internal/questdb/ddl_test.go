@@ -23,6 +23,7 @@ func TestApplyDDL(t *testing.T) {
 			WriteURL: c.AddressHTTP,
 			PostgresConn: &storage.Cfg{
 				PrimaryURL: c.AddressPG,
+				RunDDL:     true,
 			},
 		},
 	})

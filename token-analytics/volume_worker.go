@@ -17,7 +17,7 @@ func (t *tokenAnalytics) runMaterializedViewRefreshWorker(ctx context.Context) {
 	ticker := time.NewTicker(volume24hMaterializedViewRefreshInterval)
 	defer ticker.Stop()
 
-	log.Info("Materialized view refresh worker started, refreshing every 30 seconds")
+	log.Info(fmt.Sprintf("Materialized view refresh worker started, refreshing every %s", volume24hMaterializedViewRefreshInterval))
 	if err := t.refreshMaterializedView(ctx); err != nil {
 		if storage.IsErr(err, storage.ErrReadOnly) {
 			log.Warn("Database is read-only, stopping materialized view refresh worker")
@@ -26,6 +26,7 @@ func (t *tokenAnalytics) runMaterializedViewRefreshWorker(ctx context.Context) {
 		}
 		log.Error(fmt.Errorf("failed to refresh materialized view on startup: %w", err))
 	}
+
 	for ctx.Err() == nil {
 		select {
 		case <-ctx.Done():

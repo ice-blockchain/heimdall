@@ -32,6 +32,7 @@ func (t *tokenAnalytics) startIONPriceSyncer(ctx context.Context) {
 			if err != nil {
 				if storage.IsErr(err, storage.ErrReadOnly) {
 					cancel()
+					log.Info("stopping ION price syncer. database is in read-only mode")
 
 					return
 				}
@@ -61,6 +62,7 @@ func (t *tokenAnalytics) startBNBPriceLoader(ctx context.Context) {
 			if err != nil {
 				if storage.IsErr(err, storage.ErrReadOnly) {
 					cancel()
+					log.Info("stopping BNB price loader. database is in read-only mode")
 
 					return
 				}
