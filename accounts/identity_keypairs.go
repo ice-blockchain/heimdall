@@ -123,7 +123,7 @@ func (a *accounts) InitializeIdentityKeypairs(ctx context.Context) error {
 	for i, kp := range keypairs {
 		a.keypairRelayGroups[i] = kp.RelayGroup
 	}
-	if err := a.createInternalIdentityUsers(ctx, keypairs); err != nil {
+	if err = a.createInternalIdentityUsers(ctx, keypairs); err != nil {
 		return errors.Wrap(err, "failed to create internal identity users")
 	}
 	for i, kp := range keypairs {
@@ -142,6 +142,7 @@ func (a *accounts) createInternalIdentityUsers(ctx context.Context, keypairs []k
 	}
 	nowTime := stdtime.Now()
 	var values []string
+	var socialProfilesValues []string
 	var args []interface{}
 	argIdx := 1
 	for _, kp := range keypairs {
@@ -149,18 +150,28 @@ func (a *accounts) createInternalIdentityUsers(ctx context.Context, keypairs []k
 		for i, r := range kp.AllRelaysInfo {
 			relayURLs[i] = r.URL
 		}
-
+		// created_at, updated_at, id, identity_key_name, master_pubkey, clients, ion_connect_relays
 		values = append(values, fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, ARRAY[]::TEXT[], $%d::TEXT[])",
 			argIdx, argIdx, argIdx+1, argIdx+2, argIdx+3, argIdx+4))
+		socialProfilesValues = append(socialProfilesValues, fmt.Sprintf(
+			// created_at, updated_at, master_pubkey, username, display_name, referral_master_pubkey, lookup, bio, avatar, referral_count
+			"($%d, $%d, $%d, $%d, $%d, NULL, '', NULL, NULL, 0)", argIdx, argIdx, argIdx+3, argIdx+2, argIdx+2))
 		args = append(args, nowTime, kp.UserID, kp.IdentityKeyName, kp.PublicKey, relayURLs)
 		argIdx += 5
 	}
 	sql := fmt.Sprintf(`
-		INSERT INTO users (
-			created_at, updated_at, id, identity_key_name, master_pubkey, clients, ion_connect_relays
-		) VALUES %s
+		WITH users_insert AS (
+			INSERT INTO users (
+				created_at, updated_at, id, identity_key_name, master_pubkey, clients, ion_connect_relays
+			) VALUES %[1]s
+			ON CONFLICT (master_pubkey) DO NOTHING
+		)
+        INSERT INTO social_profiles(
+			created_at, updated_at, master_pubkey, username, display_name, referral_master_pubkey, lookup, bio, avatar, referral_count
+		) VALUES %[2]s 
 		ON CONFLICT (master_pubkey) DO NOTHING
-	`, strings.Join(values, ", "))
+
+	`, strings.Join(values, ", "), strings.Join(socialProfilesValues, ", "))
 	if _, err := storage.Exec(ctx, a.db, sql, args...); err != nil {
 		return errors.Wrap(err, "failed to execute bulk insert")
 	}
