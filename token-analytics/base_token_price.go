@@ -16,19 +16,32 @@ import (
 )
 
 func (t *tokenAnalytics) startIONPriceSyncer(ctx context.Context) {
-	ticker := time.NewTicker(5 * time.Second) //nolint:gosec,gomnd // Not an  issue.
+	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-	if err := t.syncIONPrice(ctx); err != nil {
-		if !errors.Is(err, context.Canceled) && !storage.IsErr(err, storage.ErrReadOnly) {
-			log.Panic(errors.Wrap(err, "failed to syncIONPrice"))
-		}
-	}
 
+	m := storage.NewMutex(t.ingestedDataDB, "ion_price_syncer_lock")
+
+loop:
 	for {
 		select {
 		case <-ticker.C:
+			if onMaster, _ := isOnMasterNow(ctx, t.ingestedDataDB); !onMaster {
+				continue loop
+			}
+
+			lockErr := m.Lock(ctx)
+			if lockErr != nil {
+				if errors.Is(lockErr, storage.ErrMutexNotLocked) {
+					log.Debug("ION price syncer: another instance is running, skipping this tick")
+					continue loop
+				}
+				log.Error(errors.Wrap(lockErr, "ION price syncer: failed to acquire lock"))
+				continue loop
+			}
+
 			reqCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 			err := t.syncIONPrice(reqCtx)
+			m.Unlock(ctx)
 			if err != nil {
 				if storage.IsErr(err, storage.ErrReadOnly) {
 					cancel()
@@ -46,19 +59,32 @@ func (t *tokenAnalytics) startIONPriceSyncer(ctx context.Context) {
 }
 
 func (t *tokenAnalytics) startBNBPriceLoader(ctx context.Context) {
-	ticker := time.NewTicker(5 * time.Second) //nolint:gosec,gomnd // Not an  issue.
+	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-	if err := t.loadBNBPrice(ctx); err != nil {
-		if !errors.Is(err, context.Canceled) && !storage.IsErr(err, storage.ErrReadOnly) {
-			log.Panic(errors.Wrap(err, "failed to load bnb price from db"))
-		}
-	}
 
+	m := storage.NewMutex(t.ingestedDataDB, "bnb_price_syncer_lock")
+
+loop:
 	for {
 		select {
 		case <-ticker.C:
+			if onMaster, _ := isOnMasterNow(ctx, t.ingestedDataDB); !onMaster {
+				continue loop
+			}
+
+			lockErr := m.Lock(ctx)
+			if lockErr != nil {
+				if errors.Is(lockErr, storage.ErrMutexNotLocked) {
+					log.Debug("BNB price syncer: another instance is running, skipping this tick")
+					continue loop
+				}
+				log.Error(errors.Wrap(lockErr, "BNB price syncer: failed to acquire lock"))
+				continue loop
+			}
+
 			reqCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 			err := t.loadBNBPrice(reqCtx)
+			m.Unlock(ctx)
 			if err != nil {
 				if storage.IsErr(err, storage.ErrReadOnly) {
 					cancel()

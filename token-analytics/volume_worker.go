@@ -69,8 +69,8 @@ func (t *tokenAnalytics) runVolumeWorker(ctx context.Context) {
 
 func (t *tokenAnalytics) refreshMaterializedView(ctx context.Context) error {
 	startTime := time.Now()
-	if _, err := storage.Exec(ctx, t.ingestedDataDB, "SELECT refresh_token_volumes_24h()"); err != nil {
-		return fmt.Errorf("failed to refresh materialized view: %w", err)
+	if r := execOnRealMasterWithLock(ctx, t.ingestedDataDB, "refresh_token_volumes_24h", "SELECT refresh_token_volumes_24h()"); r.Error != nil {
+		return fmt.Errorf("failed to refresh materialized view: %w", r.Error)
 	}
 	duration := time.Since(startTime)
 	log.Debug(fmt.Sprintf("Refreshed materialized view in %v", duration))
