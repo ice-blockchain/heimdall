@@ -66,7 +66,8 @@ func (t *trade) Marshal(client questdb.LineSender) questdb.At {
 
 func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, direction bool, inputAmount, outputAmount *big.Int, contractAddress, userAddress, externalAddress, baseToken string, pairId []byte) error {
 	tradeTyp, baseAmount, amount, priceInBase := buyOrSell(direction, inputAmount, outputAmount)
-	priceInUSD, basePrice, err := t.calculatePriceInUSD(ctx, weiToFloat64FromBigFloat(priceInBase), baseToken)
+	priceInBaseF, _ := priceInBase.Float64()
+	priceInUSD, basePrice, err := t.calculatePriceInUSD(ctx, priceInBaseF, baseToken)
 	if err != nil {
 		return errors.Wrapf(err, "failed to calculate price in USD for base %v", baseToken)
 	}
