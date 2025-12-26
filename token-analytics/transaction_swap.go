@@ -95,7 +95,7 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 		return errors.Wrap(err, "failed to calculate token market data and user position")
 	}
 	pairId := common.HexToHash(result.PairId)
-	if err = t.registerTrade(ctx, tx, direction, inputAmount, outputAmount, result.ContractAddress, userAddress.Hex(), result.TokenExternalAddress, result.BaseToken, pairId.Bytes()); err != nil {
+	if err = t.registerTrade(ctx, tx, direction, inputAmount, outputAmount, result.ContractAddress, userAddress.Hex(), result.TokenExternalAddress, strings.ToLower(result.BaseToken), pairId.Bytes()); err != nil {
 		return errors.Wrapf(err, "failed to save trade in questdb %v %v tx %v", userAddress, user.UserExternalAddress, tx.TransactionHash)
 	}
 	t.subscriptions.NotifySwap(result.TokenExternalAddress)
@@ -176,7 +176,7 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, contractAddress, ev.Direction, ev.InputAmount, ev.OutputAmount, priceUSD, result.TokenExternalAddress, result.UserExternalAddress, result.TokenType); err != nil {
 		return errors.Wrap(err, "failed to calculate token market data and user position")
 	}
-	if err = t.registerTrade(ctx, tx, ev.Direction, ev.InputAmount, ev.OutputAmount, result.ContractAddress, ev.Swapper.Hex(), result.TokenExternalAddress, result.BaseToken, ev.Pair.Bytes()); err != nil {
+	if err = t.registerTrade(ctx, tx, ev.Direction, ev.InputAmount, ev.OutputAmount, result.ContractAddress, ev.Swapper.Hex(), result.TokenExternalAddress, actualBaseToken, ev.Pair.Bytes()); err != nil {
 		return errors.Wrapf(err, "failed to save trade in questdb %v", userAddr)
 	}
 	if isFirstSwap {
@@ -293,17 +293,20 @@ func calculatePriceFromSwap(input, output *big.Int, direction bool) float64 {
 }
 
 func (t *tokenAnalytics) calculatePriceInUSD(ctx context.Context, priceInBaseToken float64, baseToken string) (price, basePrice float64, err error) {
+	if baseToken == "" {
+		return 0, 0, errors.New("base token is empty")
+	}
 	if strings.EqualFold(baseToken, t.cfg.IONTokenAddress) {
 		ionPriceUSD := t.ionPriceUSD.Load()
 		return priceInBaseToken * (*ionPriceUSD), *ionPriceUSD, nil
 	}
-	creatorTokenPrice, ok := t.creatorTokenPricesUSD.Load(baseToken)
+	creatorTokenPrice, ok := t.creatorTokenPricesUSD.Load(strings.ToLower(baseToken))
 	if !ok {
-		basePriceP, err := storage.Get[float64](ctx, t.ingestedDataDB, `SELECT price_usd FROM base_token_prices WHERE token_address = $1`, baseToken)
+		basePriceP, err := storage.Get[float64](ctx, t.ingestedDataDB, `SELECT price_usd FROM base_token_prices WHERE token_address = $1`, strings.ToLower(baseToken))
 		if err != nil {
 			return 0, 0, errors.Wrapf(err, "failed to get price for base token %v", baseToken)
 		}
-		creatorTokenPrice, _ = t.creatorTokenPricesUSD.LoadOrStore(baseToken, *basePriceP)
+		creatorTokenPrice, _ = t.creatorTokenPricesUSD.LoadOrStore(strings.ToLower(baseToken), *basePriceP)
 	}
 	return priceInBaseToken * creatorTokenPrice, creatorTokenPrice, nil
 }

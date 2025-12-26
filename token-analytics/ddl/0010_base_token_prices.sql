@@ -83,7 +83,7 @@ BEGIN
             RAISE WARNING 'Token with pair % not found, skipping swap', v_pair_id;
             RETURN;
         END IF;
-        IF v_base_price_usd = 0 THEN
+        IF v_base_price_usd IS NULL OR v_base_price_usd = 0 THEN
             RAISE WARNING 'Token base token % not found, skipping swap', v_other_token;
             RETURN;
         END IF;

@@ -68,12 +68,14 @@ func (t *tokenAnalytics) SubscribeBondingCurveProgress(ctx context.Context, exte
 }
 
 func (t *tokenAnalytics) progressToUSD(ctx context.Context, progress *bondingcurve.BondingCurveProgress, baseToken string) (float64, float64, error) {
-	_, basePrice, err := t.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(progress.BondingTokensGoal), baseToken)
+	goalUSD, _, err := t.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(progress.BondingTokensGoal), baseToken)
 	if err != nil {
 		return 0, 0, err
 	}
-	goalUSD := toUSD(progress.BondingTokensGoal, basePrice)
-	currentRaisedUSD := toUSD(progress.TokensRaised, basePrice)
+	currentRaisedUSD, _, err := t.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(progress.TokensRaised), baseToken)
+	if err != nil {
+		return 0, 0, err
+	}
 	return goalUSD, currentRaisedUSD, nil
 }
 
