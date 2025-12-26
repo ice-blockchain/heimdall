@@ -76,7 +76,7 @@ func (t *tokenAnalytics) startBNBPriceLoader(ctx context.Context) {
 }
 
 func (t *tokenAnalyticsUsers) UpdateBNBPrice(ctx context.Context, price float64) error {
-	return errors.Wrapf(saveToDatabase(ctx, t.ingestedDataDB, "BNB", "BNB", price), "failed to save BNB price to database")
+	return errors.Wrapf(saveBaseTokenPriceToDatabase(ctx, t.ingestedDataDB, "BNB", "BNB", price), "failed to save BNB price to database")
 }
 
 func (t *tokenAnalytics) loadBNBPrice(ctx context.Context) error {
@@ -96,10 +96,10 @@ func (t *tokenAnalytics) syncIONPrice(ctx context.Context) error {
 	}
 	t.ionPriceUSD.Store(&stats.Price)
 
-	return errors.Wrapf(saveToDatabase(ctx, t.ingestedDataDB, "ION", t.cfg.IONTokenAddress, stats.Price), "failed to save ION price to database")
+	return errors.Wrapf(saveBaseTokenPriceToDatabase(ctx, t.ingestedDataDB, "ION", t.cfg.IONTokenAddress, stats.Price), "failed to save ION price to database")
 }
 
-func saveToDatabase(ctx context.Context, db *storage.DB, symbol, tokenAddress string, price float64) (err error) {
+func saveBaseTokenPriceToDatabase(ctx context.Context, db *storage.DB, symbol, tokenAddress string, price float64) (err error) {
 	_, err = storage.Exec(ctx, db, `
 		WITH old_price AS (
 			SELECT price_usd

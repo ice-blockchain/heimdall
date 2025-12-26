@@ -113,6 +113,7 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 		subscriptions:               newSubscriptions(ctx),
 		identityClient:              newIdentityClient(cfg.IdentityServiceURL, cfg.IdentityServiceAPIKey),
 		coins:                       coinImport,
+		creatorTokenPricesUSD:       xsync.NewMap[string, float64](),
 		shutdown: func() error {
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()

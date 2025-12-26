@@ -98,7 +98,7 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 	}
 	for _, row := range rows {
 		if row.BondingCurveGoalAmount == "" || row.BondingCurveGoalAmount == "0" {
-			progress, err := t.updateBondingProgress(ctx, row.ExternalAddress, row.PairId)
+			progress, err := t.updateBondingProgress(ctx, row.ExternalAddress, row.PairId, row.BaseToken)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to update bonding progress for token for 1st time %v", row.ExternalAddress)
 			}

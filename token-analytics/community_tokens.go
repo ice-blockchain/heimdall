@@ -132,8 +132,8 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 		BaseToken       string `db:"base_token"`
 		ContractAddress string `db:"contract_address"`
 	}
-	basePrice := t.ionPriceUSD.Load()
-	ionPriceInUSD = *basePrice
+	ionPrice := t.ionPriceUSD.Load()
+	ionPriceInUSD = *ionPrice
 	bnbPrice := t.bnbPriceUSD.Load()
 	bnbPriceInUSD = *bnbPrice
 	contractOrFatAddress := []byte{}
@@ -149,7 +149,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 			}
 			contractOrFatAddress, err = hex.DecodeString(strings.TrimPrefix(externalAddress, "0x"))
 			if err != nil {
-				return nil, nil, 0, *basePrice, bnbPriceInUSD, nil
+				return nil, nil, 0, *ionPrice, bnbPriceInUSD, nil
 			}
 			err = nil
 		}
@@ -158,12 +158,8 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 		}
 	}
 
-	baseToken := result.BaseToken
 	if len(contractOrFatAddress) == 0 {
 		contractOrFatAddress = common.HexToAddress(result.ContractAddress).Bytes()
-	}
-	if common.HexToAddress(baseToken).String() != common.HexToAddress(t.cfg.IONTokenAddress).String() {
-		return nil, nil, 0, 0, 0, fmt.Errorf("unsupported base token %v (token %v)", baseToken, externalAddress)
 	}
 	amountToConvert := new(big.Int).SetUint64(1e18)
 	if amount != nil {
@@ -171,19 +167,28 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 	}
 	toBNBRatio := ionPriceInUSD / bnbPriceInUSD
 	if strings.Contains(strings.ToLower(common.HexToAddress(result.ContractAddress).String()), "dead") {
-		amountUsd = toUSD(amountToConvert, *basePrice)
+		amountUsd = toUSD(amountToConvert, *ionPrice)
 		amountInBNB := new(big.Float).Mul(big.NewFloat(toBNBRatio), new(big.Float).SetInt(amountToConvert))
 		amountBNB, _ = amountInBNB.Int(nil)
-		return amountToConvert, amountBNB, amountUsd, *basePrice, bnbPriceInUSD, nil
+		return amountToConvert, amountBNB, amountUsd, *ionPrice, bnbPriceInUSD, nil
 	}
 	resAmount, err := t.bondingCurve.Pricing(ctx, common.HexToAddress(result.BaseToken), contractOrFatAddress, amountToConvert, tradeType == TradeTypeSell)
 	if err != nil {
 		return nil, nil, 0, 0, 0, fmt.Errorf("failed to get pricing for token %v (%v): %w", externalAddress, result.ContractAddress, err)
 	}
-	amountUsd = toUSD(resAmount, *basePrice)
+	var creatorPrice float64
+	amountUsd, creatorPrice, err = t.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(resAmount), result.BaseToken)
+	if err != nil {
+		return nil, nil, 0, 0, 0, fmt.Errorf("failed to get usd price for token %v (%v base %v): %w", externalAddress, result.ContractAddress, result.BaseToken, err)
+	}
+	if result.BaseToken != t.cfg.IONTokenAddress {
+		creatorRatio := ionPriceInUSD / creatorPrice
+		resAmount, _ = new(big.Float).Mul(new(big.Float).SetInt(resAmount), big.NewFloat(creatorRatio)).Int(nil)
+	}
 	amountInBNB := new(big.Float).Mul(big.NewFloat(toBNBRatio), new(big.Float).SetInt(resAmount))
 	amountBNB, _ = amountInBNB.Int(nil)
-	return resAmount, amountBNB, amountUsd, *basePrice, bnbPriceInUSD, nil
+
+	return resAmount, amountBNB, amountUsd, *ionPrice, bnbPriceInUSD, nil
 }
 
 func (t *tokenAnalytics) fetchTopPlatformHoldersRankingsBatch(ctx context.Context, rows []*tokenRowWithTopPlatformHolders, limit int64) (map[string][]holderMetadata, map[string]*redis.ZSliceCmd, error) {

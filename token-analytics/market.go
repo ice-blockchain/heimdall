@@ -64,35 +64,36 @@ func (t *trade) Marshal(client questdb.LineSender) questdb.At {
 		DecimalColumnFromString("price_in_usd", t.PriceInUsd.String())
 }
 
-func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, direction bool, inputAmount, outputAmount *big.Int, contractAddress, userAddress, externalAddress string, pairId []byte) error {
+func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, direction bool, inputAmount, outputAmount *big.Int, contractAddress, userAddress, externalAddress, baseToken string, pairId []byte) error {
 	tradeTyp, baseAmount, amount, priceInBase := buyOrSell(direction, inputAmount, outputAmount)
-	basePrice := t.ionPriceUSD.Load()
-	priceInUSD := new(big.Float).Mul(priceInBase, new(big.Float).SetFloat64(*basePrice))
+	priceInUSD, basePrice, err := t.calculatePriceInUSD(ctx, weiToFloat64FromBigFloat(priceInBase), baseToken)
+	if err != nil {
+		return errors.Wrapf(err, "failed to calculate price in USD for base %v", baseToken)
+	}
 	tradeData := &trade{
 		Timestamp:       *tx.BlockTimestamp,
 		PairAddress:     hex.EncodeToString(pairId[:]),
 		ContractAddress: contractAddress,
 		ExternalAddress: externalAddress,
-		BasePriceInUsd:  *basePrice,
+		BasePriceInUsd:  basePrice,
 		BaseAmount:      baseAmount,
 		Amount:          amount,
 		Type:            tradeTyp,
 		TraderAddress:   userAddress,
 		TransactionHash: tx.TransactionHash,
-		PriceInUsd:      priceInUSD,
+		PriceInUsd:      big.NewFloat(priceInUSD),
 	}
 
 	if err := questdb.Write(ctx, t.questDB, tradeData); err != nil {
 		return errors.Wrapf(err, "failed to insert trading data into questdb")
 	}
-	price, _ := priceInUSD.Float64()
 	candleStick, _ := t.ohclvRecentData.LoadOrCompute(externalAddress, func() (newValue *recentCandlestick, cancel bool) {
 		return newRecentCandlestick(), false
 	})
-	candleStick.Update(price)
+	candleStick.Update(priceInUSD)
 
 	if recentTradingStats, ok := t.tradingStatsRecentData.Load(externalAddress); ok {
-		recentTradingStats.update(tx.BlockTimestamp.UnixNano(), price, tradeTyp == TradeTypeSell)
+		recentTradingStats.update(tx.BlockTimestamp.UnixNano(), priceInUSD, tradeTyp == TradeTypeSell)
 	}
 
 	return nil

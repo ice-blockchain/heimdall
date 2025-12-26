@@ -208,20 +208,21 @@ type (
 	}
 	dummyUserRepository struct{}
 	tokenAnalytics      struct {
-		processedDataDB storagev3.DB
-		quickNode       quicknode.Client
-		metrics         metrics.Registry
-		ingestedDataDB  *storage.DB
-		questDB         *questdb.DB
-		shutdown        func() error
-		cfg             *config
-		wg              *sync.WaitGroup
-		bondingCurve    bondingcurve.BondingCurve
-		generator       *dummyDataGenerator
-		ionPriceUSD     *atomic.Pointer[float64]
-		bnbPriceUSD     *atomic.Pointer[float64]
-		identityClient  *identityClient
-		coins           CoinImport
+		processedDataDB       storagev3.DB
+		quickNode             quicknode.Client
+		metrics               metrics.Registry
+		ingestedDataDB        *storage.DB
+		questDB               *questdb.DB
+		shutdown              func() error
+		cfg                   *config
+		wg                    *sync.WaitGroup
+		bondingCurve          bondingcurve.BondingCurve
+		generator             *dummyDataGenerator
+		ionPriceUSD           *atomic.Pointer[float64]
+		bnbPriceUSD           *atomic.Pointer[float64]
+		creatorTokenPricesUSD *xsync.Map[string, float64]
+		identityClient        *identityClient
+		coins                 CoinImport
 		// TODO: xmap for latest creator token prices to calc content token price
 		bondingCurveContractAddress string
 		ohclvRecentData             *xsync.Map[string, *recentCandlestick]
@@ -392,6 +393,7 @@ type (
 		TotalSupply            string  `db:"total_supply"`
 		BondingCurveMigrated   bool    `db:"bonding_curve_migrated"`
 		PairId                 string  `db:"pair_id"`
+		BaseToken              string  `db:"base_token"`
 		HolderMasterPubkey     *string `db:"holder_master_pubkey"`
 		HolderUsername         *string `db:"holder_username"`
 		HolderDisplay          *string `db:"holder_display"`

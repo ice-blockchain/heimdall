@@ -51,6 +51,7 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 			t.total_supply as total_supply,
 			t.bonding_curve_migrated as bonding_curve_migrated,
 			t.pair_id as pair_id,
+			t.base_token as base_token,
 			holder.master_pubkey as holder_master_pubkey,
 			holder.username as holder_username,
 			holder.display_name as holder_display,
@@ -96,12 +97,14 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 			return nil, errors.Wrapf(err, "failed to get curve progress for token %v (pair %v)", externalAddress, pairId)
 		}
 		curveScore := weiToFloat64FromBigInt(new(big.Int).Sub(progress.BondingTokensGoal, progress.SoldTokens))
-		basePriceInUSD := t.ionPriceUSD.Load()
 		result = slices.Insert(result, 0, redis.Z{Member: t.cfg.BondingCurve.SmartContractAddress, Score: curveScore})
 		if int64(len(result)) >= limit-1 {
 			result = result[:len(result)-1]
 		}
-		curveUSD := curveScore * (*basePriceInUSD)
+		curveUSD, _, err := t.calculatePriceInUSD(ctx, curveScore, rows[0].BaseToken)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to calculate price in USD for bonding curve, token %v, baseToken %v", externalAddress, rows[0].BaseToken)
+		}
 		curvePlatform := PlatformGroupIonConnect
 		curveAvatar := bondingCurveTopHolderAvatar
 		curveDisplayName := bondingCurveTopHolderDisplayName
