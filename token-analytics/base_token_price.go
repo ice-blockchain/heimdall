@@ -25,7 +25,8 @@ loop:
 	for {
 		select {
 		case <-ticker.C:
-			if onMaster, _ := isOnMasterNow(ctx, t.ingestedDataDB); !onMaster {
+			if onMaster, err := isOnMasterNow(ctx, t.ingestedDataDB); !onMaster {
+				log.Error(errors.Wrap(err, "ION price syncer: failed to determine master status"))
 				continue loop
 			}
 
@@ -68,7 +69,8 @@ loop:
 	for {
 		select {
 		case <-ticker.C:
-			if onMaster, _ := isOnMasterNow(ctx, t.ingestedDataDB); !onMaster {
+			if onMaster, err := isOnMasterNow(ctx, t.ingestedDataDB); !onMaster {
+				log.Error(errors.Wrap(err, "BNB price syncer: failed to determine master status"))
 				continue loop
 			}
 
