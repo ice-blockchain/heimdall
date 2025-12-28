@@ -32,7 +32,7 @@ require (
 	github.com/ice-blockchain/subzero v1.493.0
 	github.com/ice-blockchain/wintr v1.170.0
 	github.com/imroc/req/v3 v3.57.0
-	github.com/jackc/pgx/v5 v5.7.6
+	github.com/jackc/pgx/v5 v5.8.0
 	github.com/jellydator/ttlcache/v3 v3.4.0
 	github.com/lestrrat-go/jwx/v2 v2.1.6
 	github.com/libdns/cloudflare v0.2.2
@@ -50,6 +50,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.40.0
 	github.com/twilio/twilio-go v1.29.0
 	github.com/xssnick/tonutils-go v1.15.5
+	github.com/zeebo/xxh3 v1.0.2
 	go.uber.org/goleak v1.3.0
 	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93
 	golang.org/x/mod v0.31.0
@@ -331,7 +332,6 @@ require (
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	github.com/zeebo/blake3 v0.2.4 // indirect
-	github.com/zeebo/xxh3 v1.0.2 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.39.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.64.0 // indirect
