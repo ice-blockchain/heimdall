@@ -49,7 +49,10 @@ func ProcessEvent(functionHex, data string, topics []string, contractAddress, tx
 	case eventFeeTransfer.Hex():
 		return feeTransfer(functionHex, data)
 	case eventMigrated.Hex():
-		return migrated(functionHex, data)
+		if len(topics) < 2 {
+			return nil, errors.Errorf("Migrated event requires at least 2 topics, got %d", len(topics))
+		}
+		return migrated(functionHex, data, topics[1])
 	case eventLiquidityClaimed.Hex():
 		return liquidityClaimed(functionHex, data)
 	case eventSlippageChecked.Hex():
@@ -58,10 +61,10 @@ func ProcessEvent(functionHex, data string, topics []string, contractAddress, tx
 		}
 		return slippageChecked(functionHex, data, topics[1])
 	case eventLiquidityLocked.Hex():
-		if len(topics) < 3 {
+		if len(topics) < 2 {
 			return nil, errors.Errorf("LiquidityLocked event requires at least 3 topics, got %d", len(topics))
 		}
-		return liquidityLocked(functionHex, data, topics[1], topics[2])
+		return liquidityLocked(functionHex, data, topics[1])
 	case eventPoolCreated.Hex():
 		if len(topics) < 4 {
 			return nil, errors.Errorf("PoolCreated event requires at least 4 topics, got %d", len(topics))
@@ -232,7 +235,7 @@ func feeTransfer(signature, data string) (*LogFeeTransfer, error) {
 	return &feeTransferEvent, nil
 }
 
-func migrated(signature, data string) (*LogMigrated, error) {
+func migrated(signature, data, pairId string) (*LogMigrated, error) {
 	if signature != eventMigrated.Hex() {
 		return nil, errors.Errorf("invalid signature for Migrated: expected %s, got %s", eventMigrated.Hex(), signature)
 	}
@@ -240,6 +243,7 @@ func migrated(signature, data string) (*LogMigrated, error) {
 		return nil, errors.Errorf("empty data for Migrated event")
 	}
 	var migratedEvent LogMigrated
+	migratedEvent.PairId = common.HexToHash(pairId)
 	if err := decode(ABI, &migratedEvent, "Migrated", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack Migrated event")
 	}
@@ -299,39 +303,31 @@ func slippageChecked(signature, data, pairId string) (*LogSlippageChecked, error
 	return &slippageEvent, nil
 }
 
-func liquidityLocked(signature, data, pairId, lpToken string) (*LogLiquidityLocked, error) {
+func liquidityLocked(signature, data, pairId string) (*LogLiquidityLocked, error) {
 	if signature != eventLiquidityLocked.Hex() {
 		return nil, errors.Errorf("invalid signature for LiquidityLocked: expected %s, got %s", eventLiquidityLocked.Hex(), signature)
 	}
 	if pairId == "" || pairId == "0x" {
 		return nil, errors.Errorf("empty pairId for LiquidityLocked event")
 	}
-	if lpToken == "" || lpToken == "0x" {
-		return nil, errors.Errorf("empty lpToken for LiquidityLocked event")
-	}
 	if data == "" || data == "0x" {
 		return nil, errors.Errorf("empty data for LiquidityLocked event")
 	}
 
 	var liquidityEvent LogLiquidityLocked
-	pairIdBytes, err := hex.DecodeString(strings.TrimPrefix(pairId, "0x"))
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to decode pairId")
-	}
-	copy(liquidityEvent.PairId[:], pairIdBytes)
-
-	liquidityEvent.LpToken = common.HexToAddress(lpToken)
+	liquidityEvent.PairId = common.HexToHash(pairId)
 
 	dataBytes, err := hex.DecodeString(strings.TrimPrefix(data, "0x"))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to decode liquidity data")
 	}
 
-	if len(dataBytes) < 64 {
+	if len(dataBytes) < 96 {
 		return nil, errors.Errorf("insufficient data for LiquidityLocked: expected 64 bytes, got %d", len(dataBytes))
 	}
-	liquidityEvent.Amount = new(big.Int).SetBytes(dataBytes[0:32])
-	liquidityEvent.UnlockTime = new(big.Int).SetBytes(dataBytes[32:64])
+	liquidityEvent.LpToken = common.BytesToAddress(dataBytes[0:32])
+	liquidityEvent.Amount = new(big.Int).SetBytes(dataBytes[32:64])
+	liquidityEvent.UnlockTime = new(big.Int).SetBytes(dataBytes[64:96])
 
 	log.Info(fmt.Sprintf("LiquidityLocked: pairId=%x, lpToken=%v, amount=%v, unlockTime=%v",
 		liquidityEvent.PairId, liquidityEvent.LpToken.Hex(), liquidityEvent.Amount, liquidityEvent.UnlockTime))
@@ -354,7 +350,7 @@ func poolCreated(signature, data, token0, token1, fee string) (*LogPoolCreated, 
 	}
 
 	var logPoolCreated LogPoolCreated
-	if err := decode(ABI, &logPoolCreated, "PoolCreated", data); err != nil {
+	if err := decode(UniswapABI, &logPoolCreated, "PoolCreated", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack PoolCreated event")
 	}
 	logPoolCreated.Token0 = common.HexToAddress(token0)

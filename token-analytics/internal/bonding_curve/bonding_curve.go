@@ -29,6 +29,9 @@ func init() {
 	ABI, err = abi.JSON(strings.NewReader(ABIJSON))
 	log.Panic(errors.Wrapf(err, "failed to parse bonding curve abi"))
 
+	UniswapABI, err = abi.JSON(strings.NewReader(UniswapABIJSON))
+	log.Panic(errors.Wrapf(err, "failed to parse uniswap abi"))
+
 	abi4Param, err = abi.JSON(strings.NewReader(swap4ParamABIJSON))
 	log.Panic(errors.Wrapf(err, "failed to parse 4-param swap ABI"))
 }
