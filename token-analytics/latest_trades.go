@@ -148,7 +148,10 @@ func (t *tokenAnalytics) SubscribeLatestTrades(ctx context.Context, externalAddr
 			select {
 			case <-ctx.Done():
 				return
-			case swappedEvent := <-swaps:
+			case swappedEvent, ok := <-swaps:
+				if !ok {
+					return
+				}
 				addToStream(swappedEvent, nil)
 			}
 		}

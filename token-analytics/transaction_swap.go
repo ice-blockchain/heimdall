@@ -101,11 +101,13 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 	if result.TokenType == TokenTypeProfile {
 		t.creatorTokenPricesUSD.Store(strings.ToLower(result.ContractAddress), priceUSD)
 	}
-	tradeInfo, err := t.fetchTradeInfoFromSwap(ctx, tx.TransactionHash)
-	if err != nil {
-		return errors.Wrapf(err, "failed to fetch trade info for tx %v token %v", tx.TransactionHash, result.TokenExternalAddress)
-	}
-	t.subscriptions.NotifySwap(tradeInfo)
+	go func() {
+		tradeInfo, err := t.fetchTradeInfoFromSwap(ctx, tx.TransactionHash)
+		if err != nil {
+			log.Error(errors.Wrapf(err, "failed to fetch trade info for tx %v token %v to notify subscribers", tx.TransactionHash, result.TokenExternalAddress))
+		}
+		t.subscriptions.NotifySwap(tradeInfo)
+	}()
 	return nil
 }
 
@@ -428,6 +430,9 @@ func (t *tokenAnalytics) fetchTradeInfoFromSwap(ctx context.Context, txHash stri
 		return nil, errors.Wrapf(err, "failed to fetch trade for tx %v but processed it, is trigger broken?", txHash)
 	}
 	trades, _ := convertSwapsToTrades([]*tokenSwap{swap})
+	if len(trades) == 0 {
+		return nil, errors.Errorf("failed to convert swap to trade: %v", swap)
+	}
 
 	return trades[0], nil
 }
