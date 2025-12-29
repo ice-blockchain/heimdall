@@ -12,18 +12,18 @@ import (
 
 type (
 	Subscriptions interface {
-		SubscribeOnSwaps(ctx context.Context, externalAddress string) (notifyEvents <-chan struct{}, atLeastOneSubExists bool, lastSubClosed <-chan struct{})
+		SubscribeOnSwaps(ctx context.Context, externalAddress string) (notifyEvents <-chan *Trade, atLeastOneSubExists bool, lastSubClosed <-chan struct{})
 		SubscribeOnBondingCurveProgress(ctx context.Context, externalAddress string) (notify <-chan *BondingCurveProgress, atLeastOneSubExists bool, lastSubClosed <-chan struct{})
 	}
 	Notifier interface {
-		NotifySwap(externalAddress string)
+		NotifySwap(trade *Trade)
 		NotifyBondingCurveProgress(externalAddress string, progress *BondingCurveProgress)
 	}
 
 	subscriptions struct {
-		swaps                           chan swapExternalAddress // externalAddresses, think if we need some interface unifing uniswap and curve swaps
+		swaps                           chan *Trade
 		bondingCurveProgressUpdates     chan bondingCurveProgressUpdate
-		swapSubs                        *xsync.Map[string, *subscription[struct{}]]
+		swapSubs                        *xsync.Map[string, *subscription[*Trade]]
 		bondingCurveProgressUpdatesSubs *xsync.Map[string, *subscription[*BondingCurveProgress]]
 		shutdown                        <-chan struct{}
 	}
@@ -41,22 +41,24 @@ type (
 
 func (b bondingCurveProgressUpdate) ExternalAddress() string      { return b.externalAddress }
 func (b bondingCurveProgressUpdate) Value() *BondingCurveProgress { return b.progress }
-func (s swapExternalAddress) ExternalAddress() string             { return string(s) }
-func (s swapExternalAddress) Value() struct{}                     { return struct{}{} }
+func (t *Trade) ExternalAddress() string {
+	return t.TokenExternalAddress
+}
+func (t *Trade) Value() *Trade { return t }
 
 func newSubscriptions(ctx context.Context) interface {
 	Subscriptions
 	Notifier
 } {
 	s := &subscriptions{
-		swaps:                           make(chan swapExternalAddress),
+		swaps:                           make(chan *Trade),
 		bondingCurveProgressUpdates:     make(chan bondingCurveProgressUpdate),
-		swapSubs:                        xsync.NewMap[string, *subscription[struct{}]](),
+		swapSubs:                        xsync.NewMap[string, *subscription[*Trade]](),
 		bondingCurveProgressUpdatesSubs: xsync.NewMap[string, *subscription[*BondingCurveProgress]](),
 		shutdown:                        ctx.Done(),
 	}
 
-	go routeToSubscribers[struct{}, swapExternalAddress](ctx, s, s.swapSubs, s.swaps)
+	go routeToSubscribers[*Trade, *Trade](ctx, s, s.swapSubs, s.swaps)
 	go routeToSubscribers[*BondingCurveProgress, bondingCurveProgressUpdate](ctx, s, s.bondingCurveProgressUpdatesSubs, s.bondingCurveProgressUpdates)
 	return s
 }
@@ -86,8 +88,8 @@ func routeToSubscribers[T any, N interface {
 	}
 }
 
-func (s *subscriptions) SubscribeOnSwaps(ctx context.Context, externalAddress string) (<-chan struct{}, bool, <-chan struct{}) {
-	return subscribe[struct{}](ctx, externalAddress, s.swapSubs)
+func (s *subscriptions) SubscribeOnSwaps(ctx context.Context, externalAddress string) (<-chan *Trade, bool, <-chan struct{}) {
+	return subscribe[*Trade](ctx, externalAddress, s.swapSubs)
 }
 func (s *subscriptions) SubscribeOnBondingCurveProgress(ctx context.Context, externalAddress string) (<-chan *BondingCurveProgress, bool, <-chan struct{}) {
 	return subscribe[*BondingCurveProgress](ctx, externalAddress, s.bondingCurveProgressUpdatesSubs)
@@ -113,9 +115,9 @@ func subscribe[T any](ctx context.Context, externalAddress string, subs *xsync.M
 	return progress.notifyClients, loaded, progress.lastClosed
 }
 
-func (s *subscriptions) NotifySwap(externalAddress string) {
+func (s *subscriptions) NotifySwap(tr *Trade) {
 	select {
-	case s.swaps <- swapExternalAddress(externalAddress):
+	case s.swaps <- tr:
 	case <-time.After(10 * time.Millisecond): // Just in case if reader get stuck, TODO: remove when we'll have proper subs/notify flow
 	case <-s.shutdown:
 	}

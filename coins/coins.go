@@ -227,6 +227,9 @@ func (c *coinsRepository) ImportTokenizedCommunitiesCoin(ctx context.Context, co
 				return nil, errors.Wrapf(err, "failed to save tokenized coin %v", coin.Address())
 			}
 		}
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to check tokenized coin existence %v", coin.Address())
+		}
 	}
 	return &Coin{
 		ID:              existingCoin.ID,

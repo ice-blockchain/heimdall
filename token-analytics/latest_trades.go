@@ -67,8 +67,12 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, externalAddress st
 		}
 		return nil, time.Time{}, errors.Wrap(err, "failed to fetch latest trades")
 	}
-	trades := make([]*Trade, 0, len(swaps))
-	var maxTs time.Time
+	trades, maxTs := convertSwapsToTrades(swaps)
+	return trades, maxTs, nil
+}
+
+func convertSwapsToTrades(swaps []*tokenSwap) (trades []*Trade, maxTs time.Time) {
+	trades = make([]*Trade, 0, len(swaps))
 	for i := range swaps {
 		if i == 0 {
 			maxTs = *swaps[i].CreatedAt.Time
@@ -106,6 +110,7 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, externalAddress st
 			log.Warn(fmt.Sprintf("failed to build holder addresses for swap %s: %v", swaps[i].TransactionHash, err))
 		}
 		trades = append(trades, &Trade{
+			TokenExternalAddress: swaps[i].ExternalAddress,
 			Creator: User{
 				Username:  swaps[i].CreatorUsername,
 				Display:   swaps[i].CreatorDisplay,
@@ -133,5 +138,23 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, externalAddress st
 			},
 		})
 	}
-	return trades, maxTs, nil
+	return
+}
+
+func (t *tokenAnalytics) SubscribeLatestTrades(ctx context.Context, externalAddress string, addToStream func(*Trade, error)) error {
+	swaps, _, _ := t.subscriptions.SubscribeOnSwaps(ctx, externalAddress)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case swappedEvent, ok := <-swaps:
+				if !ok {
+					return
+				}
+				addToStream(swappedEvent, nil)
+			}
+		}
+	}()
+	return nil
 }
