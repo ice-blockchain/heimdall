@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 )
 
@@ -208,6 +209,23 @@ func TestFeeAccrued(t *testing.T) {
 	})
 }
 
+func TestUniswapPoolCreated(t *testing.T) {
+	t.Run("valid_uniswap_pool_created", func(t *testing.T) {
+		data := "0x" +
+			"00000000000000000000000000000000000000000000000000000000000000c8" +
+			"0000000000000000000000002cc106926e4026d83cbee4d6928dec0e7ec1dc2e"
+		token0 := "0x0000000000000000000000002c73996babf1a06c2c057177353293f7ca0907c8"
+		token1 := "0x0000000000000000000000005949a291c17e46cca2f26acf773ba86ee52161b9"
+		fee := "0x0000000000000000000000000000000000000000000000000000000000002710"
+
+		event, err := poolCreated(eventPoolCreated.Hex(), data, token0, token1, fee)
+		require.NoError(t, err)
+		require.Equal(t, event.Token0.Hex(), common.HexToAddress(token0).Hex())
+		require.Equal(t, event.Token1.Hex(), common.HexToAddress(token1).Hex())
+		require.Equal(t, event.PoolAddress.Hex(), common.HexToAddress("0x2cc106926e4026d83cbee4d6928dec0e7ec1dc2e").Hex())
+	})
+}
+
 func TestSlippageChecked(t *testing.T) {
 	t.Run("valid_slippage_checked", func(t *testing.T) {
 		pairId := "0x0f5c7242a0b57acf14eaade14c8e98bbd71ca8f0bc74c76b32eadc4f6b4decf2"
@@ -235,12 +253,12 @@ func TestSlippageChecked(t *testing.T) {
 func TestLiquidityLocked(t *testing.T) {
 	t.Run("valid_liquidity_locked", func(t *testing.T) {
 		pairId := "0x51ea17cf5c8e1a25a0c9c22ff9208679b60c945cd7057c2607d35a9b110526c0"
-		lpToken := "0x000000000000000000000000abc123def456789012345678901234567890abcd"
 		data := "0x" +
+			"000000000000000000000000abc123def456789012345678901234567890abcd" + // lpToken
 			"0000000000000000000000000000000000000000000000056bc75e2d63100000" + // amount
 			"0000000000000000000000000000000000000000000000000000000065a0c4e0" // unlockTime
 
-		event, err := liquidityLocked(eventLiquidityLocked.Hex(), data, pairId, lpToken)
+		event, err := liquidityLocked(eventLiquidityLocked.Hex(), data, pairId)
 
 		require.NoError(t, err)
 		require.NotNil(t, event)

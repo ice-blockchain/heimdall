@@ -95,13 +95,13 @@ func (t *tokenAnalytics) onUniswapPoolCreated(ctx context.Context, tx *txEvent, 
 		TokenExists bool `db:"token_exists"`
 	}
 	result, err := storage.Get[tokenExists](ctx, t.ingestedDataDB, `
-		SELECT exists (SELECT 1 from tokens WHERE contract_address = $1 OR contract_address = $2) as token_exists
-	`, ev.Token0.Hex(), ev.Token1.Hex())
+		SELECT exists (SELECT 1 from tokens WHERE lower(contract_address) = $1 OR lower(contract_address) = $2) as token_exists
+	`, strings.ToLower(ev.Token0.Hex()), strings.ToLower(ev.Token1.Hex()))
 	if err != nil {
 		return fmt.Errorf("failed to find token for pool %v one of(%v, %v): %w", strings.ToLower(ev.PoolAddress.Hex()), ev.Token0.Hex(), ev.Token1.Hex(), err)
 	}
 	if !result.TokenExists {
-		log.Info(fmt.Sprintf("Ignoring PoolCreated for dead token: %v", hexAddr))
+		log.Info(fmt.Sprintf("Ignoring PoolCreated for non existing token: pool %v, token %v %v", hexAddr, strings.ToLower(ev.Token0.Hex()), strings.ToLower(ev.Token1.Hex())))
 		return nil // Not our token.
 	}
 	if err = t.createStreamForContractAddress(ctx, hexAddr, true); err != nil {

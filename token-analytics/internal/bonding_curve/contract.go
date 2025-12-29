@@ -68,9 +68,9 @@ type (
 
 	LogMigrated struct {
 		Event
-		PairId   common.Hash
-		Pair     common.Address
-		LpAmount *big.Int
+		PairId                common.Hash
+		Pool                  common.Address
+		LockedLiquidityAmount *big.Int
 	}
 
 	LogLiquidityClaimed struct {
@@ -126,7 +126,7 @@ type (
 		Token1      common.Address //indexed
 		Fee         *big.Int       // indexed
 		TickSpacing *big.Int
-		PoolAddress common.Address
+		PoolAddress common.Address `abi:"pool"`
 	}
 	LogUniswapSwapped struct {
 		Sender       common.Address
@@ -146,9 +146,12 @@ type (
 )
 
 var (
-	ABI abi.ABI
+	ABI        abi.ABI
+	UniswapABI abi.ABI
 	//go:embed .abi/bonding_curve.json
 	ABIJSON string
+	//go:embed .abi/IUniswapV3Factory.json
+	UniswapABIJSON string
 
 	eventTokenCreated         = crypto.Keccak256Hash([]byte("BondingTokenCreated(address,string,string,address,uint8,string,address,address,uint256)"))
 	eventPairRegistered       = crypto.Keccak256Hash([]byte("PairRegistered(bytes32,address,address)"))
