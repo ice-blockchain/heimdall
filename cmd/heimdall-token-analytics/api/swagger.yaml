@@ -296,6 +296,8 @@ definitions:
         type: integer
       numberOfSells:
         type: integer
+      priceDiff:
+        type: number
       sellsTotalAmountUSD:
         type: number
       volumeUSD:

@@ -30,6 +30,7 @@ func (i *Interval) Validate() error {
 	}
 	return nil
 }
+
 func (i *Interval) WindowSize() WindowSize {
 	window := validIntervals[*i]
 	return window
@@ -208,45 +209,53 @@ func (t *tokenAnalytics) SubscribeOHLVC(ctx context.Context, now stdlibtime.Time
 func (t *tokenAnalytics) fetchTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress string) (res *TradeStats, err error) {
 	sql := `SELECT
               '5m' as aggregation_interval,
-              COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS buys_total_amount_usd,
-              COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS sells_total_amount_usd,
-              COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                    AS number_of_buys,
-              COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                   AS number_of_sells,
-              COALESCE(SUM(amount/1e18::DECIMAL(76,18) * price_in_usd),0)                                             AS volume_usd
+               COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0)  AS buys_total_amount_usd,
+               COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS sells_total_amount_usd,
+               COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                                           AS number_of_buys,
+               COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                                          AS number_of_sells,
+               COALESCE(SUM(amount/1e18::DECIMAL(76,18) * price_in_usd),0)                                               AS volume_usd,
+               COALESCE(last(price_in_usd), 0)                                                                           AS current_price,
+               COALESCE(first(price_in_usd), 0)                                                                          AS price_ago
        FROM trades
        WHERE timestamp >= dateadd('m', -5, $2) AND external_address = $1
        UNION ALL (
             SELECT
                    '1h' as aggregation_interval,
-                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0)  AS buys_total_amount_usd,
-                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS sells_total_amount_usd,
-                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                      AS number_of_buys,
-                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                     AS number_of_sells,
-                   COALESCE(SUM(amount/1e18::DECIMAL(76,18) * price_in_usd),0)                                               AS volume_usd
-            FROM trades
-            WHERE timestamp >= dateadd('h', -1, $2) AND external_address = $1
+                  COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0)  AS buys_total_amount_usd,
+                  COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS sells_total_amount_usd,
+                  COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                                           AS number_of_buys,
+                  COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                                          AS number_of_sells,
+                  COALESCE(SUM(amount/1e18::DECIMAL(76,18) * price_in_usd),0)                                               AS volume_usd,
+                  COALESCE(last(price_in_usd), 0)                                                                           AS current_price,
+                  COALESCE(first(price_in_usd), 0)                                                                          AS price_ago
+           FROM trades
+           WHERE timestamp >= dateadd('h', -1, $2) AND external_address = $1
        )
        UNION ALL (
             SELECT
                    '6h' as aggregation_interval,
-                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0)  AS buys_total_amount_usd,
-                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS sells_total_amount_usd,
-                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                      AS number_of_buys,
-                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                     AS number_of_sells,
-                   COALESCE(SUM(amount/1e18::DECIMAL(76,18) * price_in_usd),0)                                               AS volume_usd
-            FROM trades
-            WHERE timestamp >= dateadd('h', -6, $2) AND external_address = $1
+                  COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0)  AS buys_total_amount_usd,
+                  COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS sells_total_amount_usd,
+                  COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                                           AS number_of_buys,
+                  COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                                          AS number_of_sells,
+                  COALESCE(SUM(amount/1e18::DECIMAL(76,18) * price_in_usd),0)                                               AS volume_usd,
+                  COALESCE(last(price_in_usd), 0)                                                                           AS current_price,
+                  COALESCE(first(price_in_usd), 0)                                                                          AS price_ago
+           FROM trades
+           WHERE timestamp >= dateadd('h', -6, $2) AND external_address = $1
        )
        UNION ALL (
             SELECT
                    '24h' as aggregation_interval,
-                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0)  AS buys_total_amount_usd,
-                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS sells_total_amount_usd,
-                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                      AS number_of_buys,
-                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                     AS number_of_sells,
-                   COALESCE(SUM(amount/1e18::DECIMAL(76,18) * price_in_usd),0)                                               AS volume_usd
-            FROM trades
-            WHERE timestamp >= dateadd('h', -24, $2) AND external_address = $1
+                  COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0)  AS buys_total_amount_usd,
+                  COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS sells_total_amount_usd,
+                  COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                                           AS number_of_buys,
+                  COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                                          AS number_of_sells,
+                  COALESCE(SUM(amount/1e18::DECIMAL(76,18) * price_in_usd),0)                                               AS volume_usd,
+                  COALESCE(last(price_in_usd), 0)                                                                           AS current_price,
+                  COALESCE(first(price_in_usd), 0)                                                                          AS price_ago
+           FROM trades
+           WHERE timestamp >= dateadd('h', -24, $2) AND external_address = $1
        )`
 	aggregates, err := questdb.Select[TradeStatsAggregate](ctx, t.questDB, sql, externalAddress, time.New(now))
 	if err != nil {
@@ -255,6 +264,9 @@ func (t *tokenAnalytics) fetchTradingStats(ctx context.Context, now stdlibtime.T
 	res = new(TradeStats)
 	for i := range aggregates {
 		aggregates[i].NetBuy = aggregates[i].BuysTotalAmountUSD - aggregates[i].SellsTotalAmountUSD
+		if aggregates[i].PriceAgo > 0 {
+			aggregates[i].PriceDiff = ((aggregates[i].CurrentPrice - aggregates[i].PriceAgo) / aggregates[i].PriceAgo) * 100
+		}
 		switch aggregates[i].AggregationInterval {
 		case "5m":
 			res.Bucket5Min = aggregates[i]
@@ -268,11 +280,13 @@ func (t *tokenAnalytics) fetchTradingStats(ctx context.Context, now stdlibtime.T
 	}
 	return res, nil
 }
+
 func newRecentCandlestick() *recentCandlestick {
 	r := &recentCandlestick{}
 	r.reset(stdlibtime.Now().In(stdlibtime.UTC))
 	return r
 }
+
 func (o *OHLCV) Empty() bool {
 	return o.Open == 0 && o.High == 0 && o.Low == 0 && o.Close == 0 && o.Volume == 0
 }
@@ -303,6 +317,7 @@ func (r *recentCandlestick) Update(priceInUsd float64) {
 	updated.Volume += priceInUsd
 	r.o.Store(&updated)
 }
+
 func (r *recentCandlestick) OHLCV() *OHLCV {
 	return r.o.Load()
 }
