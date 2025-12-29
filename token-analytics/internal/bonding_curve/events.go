@@ -322,11 +322,12 @@ func liquidityLocked(signature, data, pairId string) (*LogLiquidityLocked, error
 		return nil, errors.Wrapf(err, "failed to decode liquidity data")
 	}
 
-	if len(dataBytes) < 64 {
+	if len(dataBytes) < 96 {
 		return nil, errors.Errorf("insufficient data for LiquidityLocked: expected 64 bytes, got %d", len(dataBytes))
 	}
-	liquidityEvent.Amount = new(big.Int).SetBytes(dataBytes[0:32])
-	liquidityEvent.UnlockTime = new(big.Int).SetBytes(dataBytes[32:64])
+	liquidityEvent.LpToken = common.BytesToAddress(dataBytes[0:32])
+	liquidityEvent.Amount = new(big.Int).SetBytes(dataBytes[32:64])
+	liquidityEvent.UnlockTime = new(big.Int).SetBytes(dataBytes[64:96])
 
 	log.Info(fmt.Sprintf("LiquidityLocked: pairId=%x, lpToken=%v, amount=%v, unlockTime=%v",
 		liquidityEvent.PairId, liquidityEvent.LpToken.Hex(), liquidityEvent.Amount, liquidityEvent.UnlockTime))
