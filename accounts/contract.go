@@ -60,6 +60,7 @@ type (
 		GetGlobalAccounts(ctx context.Context, currentVer uint64) ([]*LiteUser, uint64, error)
 		GetNSFWAccounts(ctx context.Context, currentVer uint64) ([]string, uint64, error)
 		VerifyEarlyAccess(ctx context.Context, email string) error
+		UpsertDeeplink(ctx context.Context, eventAddress, deeplink string) error
 		SocialProfiles
 		Devices
 	}

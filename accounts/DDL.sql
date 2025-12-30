@@ -383,3 +383,8 @@ BEGIN
     END IF;
 END;
 $$;
+
+CREATE TABLE IF NOT EXISTS deeplinks (
+    event_address TEXT PRIMARY KEY,
+    deeplink TEXT NOT NULL
+);

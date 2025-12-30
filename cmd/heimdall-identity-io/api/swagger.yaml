@@ -168,6 +168,41 @@ definitions:
           type: integer
         type: array
     type: object
+  github_com_ice-blockchain_heimdall_server.Response-any:
+    properties:
+      code:
+        type: integer
+      contentType:
+        type: string
+      data: {}
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      raw:
+        items:
+          format: int32
+          type: integer
+        type: array
+    type: object
+  github_com_ice-blockchain_heimdall_server.Response-main_CommunityPostPreviewResponse:
+    properties:
+      code:
+        type: integer
+      contentType:
+        type: string
+      data:
+        $ref: '#/definitions/main.CommunityPostPreviewResponse'
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      raw:
+        items:
+          format: int32
+          type: integer
+        type: array
+    type: object
   main.Coin:
     properties:
       contractAddress:
@@ -195,6 +230,45 @@ definitions:
       syncFrequency:
         $ref: '#/definitions/time.Duration'
       version:
+        type: integer
+    type: object
+  main.CommunityPostAuthor:
+    properties:
+      avatar:
+        example: https://example.com/something.webp
+        type: string
+      displayName:
+        example: Mahmut Ali Jahad
+        type: string
+      name:
+        example: mahmutalijahad
+        type: string
+      verified:
+        example: true
+        type: boolean
+    type: object
+  main.CommunityPostPreviewResponse:
+    properties:
+      author:
+        $ref: '#/definitions/main.CommunityPostAuthor'
+      comments:
+        example: 12
+        type: integer
+      content:
+        example: 'Something something https://example.com/someImage.webp https://example.com/someVideo.mp4
+          #online+'
+        type: string
+      createdAt:
+        example: "2022-01-03T16:20:52.156534Z"
+        type: string
+      likes:
+        example: 12000
+        type: integer
+      onlinePlusDeeplink:
+        example: online.app://some/path/to/0xD76b5c2A23ef78368d8E34288B5b65D616B746aE
+        type: string
+      reposts:
+        example: 442
         type: integer
     type: object
   main.CommunityTokenAdaptorRequest:
@@ -412,6 +486,15 @@ definitions:
           $ref: '#/definitions/coins.Coin'
         type: array
       symbol_group:
+        type: string
+    type: object
+  main.UpdateDeeplinkRequest:
+    properties:
+      deeplink:
+        example: https://app.online.io/some/path/to/0xD76b5c2A23ef78368d8E34288B5b65D616B746aE
+        type: string
+      eventAddress:
+        example: 0xD76b5c2A23ef78368d8E34288B5b65D616B746aE
         type: string
     type: object
   main.UpsertSocialProfileRequest:
@@ -1372,6 +1455,49 @@ paths:
       summary: Get NFT collection metadata HTML preview
       tags:
       - NFT
+  /v1/onlineplus-deeplinks/{eventAddress}:
+    put:
+      consumes:
+      - application/json
+      description: Updates the deeplink for an online+ event
+      parameters:
+      - description: Authorization token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Event Address (e/a tag)
+        in: path
+        name: eventAddress
+        required: true
+        type: string
+      - description: Request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.UpdateDeeplinkRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ice-blockchain_heimdall_server.Response-any'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - CommunityTokens
   /v1/statistics/followers:
     post:
       consumes:
@@ -1928,6 +2054,41 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Users
+  /v1/users/{userIdOrMasterKey}/ion-connect-post-previews/{eventAddress}:
+    get:
+      description: Returns the preview of an Ion Connect post (online+)
+      parameters:
+      - description: User ID or Master Key
+        in: path
+        name: userIdOrMasterKey
+        required: true
+        type: string
+      - description: Event Address (Ion Connect post address)
+        in: path
+        name: eventAddress
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ice-blockchain_heimdall_server.Response-main_CommunityPostPreviewResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "404":
+          description: User or event not found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - CommunityTokens
   /v1/users/{userIdOrMasterKey}/ion-connect-relays:
     patch:
       description: Assigns relay list for the user based on his followee list

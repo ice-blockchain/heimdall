@@ -292,6 +292,29 @@ type (
 		PostID   string `json:"postId" example:"1234567890"`
 		APIKey   string `header:"X-API-Key" required:"true" swaggerignore:"true"`
 	}
+	CommunityPostPreviewRequest struct {
+		UserIDOrMasterKey string `uri:"userIdOrMasterKey" example:"user123" allowUnauthorized:"true" required:"true"`
+		EventAddress      string `uri:"eventAddress" example:"0xD76b5c2A23ef78368d8E34288B5b65D616B746aE" allowUnauthorized:"true" required:"true"`
+	}
+	CommunityPostAuthor struct {
+		Name        string `json:"name" example:"mahmutalijahad"`
+		DisplayName string `json:"displayName" example:"Mahmut Ali Jahad"`
+		Avatar      string `json:"avatar" example:"https://example.com/something.webp"`
+		Verified    bool   `json:"verified" example:"true"`
+	}
+	CommunityPostPreviewResponse struct {
+		CreatedAt          *time.Time          `json:"createdAt" example:"2022-01-03T16:20:52.156534Z"`
+		Author             CommunityPostAuthor `json:"author"`
+		Comments           int                 `json:"comments" example:"12"`
+		Reposts            int                 `json:"reposts" example:"442"`
+		Likes              int                 `json:"likes" example:"12000"`
+		Content            string              `json:"content" example:"Something something https://example.com/someImage.webp https://example.com/someVideo.mp4 #online+"`
+		OnlinePlusDeeplink string              `json:"onlinePlusDeeplink" example:"online.app://some/path/to/0xD76b5c2A23ef78368d8E34288B5b65D616B746aE"`
+	}
+	UpdateDeeplinkRequest struct {
+		EventAddress string `uri:"eventAddress" example:"0xD76b5c2A23ef78368d8E34288B5b65D616B746aE" required:"true"`
+		Deeplink     string `json:"deeplink" example:"https://app.online.io/some/path/to/0xD76b5c2A23ef78368d8E34288B5b65D616B746aE" required:"true"`
+	}
 )
 
 const (
