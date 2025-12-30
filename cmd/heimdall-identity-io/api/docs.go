@@ -980,6 +980,71 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/onlineplus-deeplinks/{eventAddress}": {
+            "put": {
+                "description": "Updates the deeplink for an online+ event",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CommunityTokens"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Event Address (e/a tag)",
+                        "name": "eventAddress",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Request body",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.UpdateDeeplinkRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ice-blockchain_heimdall_server.Response-any"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/statistics/followers": {
             "post": {
                 "description": "Process followers events (kind 3 + kind 10100)",
@@ -1964,6 +2029,59 @@ const docTemplate = `{
                     },
                     "504": {
                         "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/users/{userIdOrMasterKey}/ion-connect-post-previews/{eventAddress}": {
+            "get": {
+                "description": "Returns the preview of an Ion Connect post (online+)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CommunityTokens"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID or Master Key",
+                        "name": "userIdOrMasterKey",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Event Address (Ion Connect post address)",
+                        "name": "eventAddress",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_ice-blockchain_heimdall_server.Response-main_CommunityPostPreviewResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User or event not found",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/server.ErrorResponse"
                         }
@@ -3019,6 +3137,58 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_ice-blockchain_heimdall_server.Response-any": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "contentType": {
+                    "type": "string"
+                },
+                "data": {},
+                "headers": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "raw": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            }
+        },
+        "github_com_ice-blockchain_heimdall_server.Response-main_CommunityPostPreviewResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "contentType": {
+                    "type": "string"
+                },
+                "data": {
+                    "$ref": "#/definitions/main.CommunityPostPreviewResponse"
+                },
+                "headers": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "raw": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            }
+        },
         "main.Coin": {
             "type": "object",
             "properties": {
@@ -3060,6 +3230,59 @@ const docTemplate = `{
                 },
                 "version": {
                     "type": "integer"
+                }
+            }
+        },
+        "main.CommunityPostAuthor": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string",
+                    "example": "https://example.com/something.webp"
+                },
+                "displayName": {
+                    "type": "string",
+                    "example": "Mahmut Ali Jahad"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "mahmutalijahad"
+                },
+                "verified": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "main.CommunityPostPreviewResponse": {
+            "type": "object",
+            "properties": {
+                "author": {
+                    "$ref": "#/definitions/main.CommunityPostAuthor"
+                },
+                "comments": {
+                    "type": "integer",
+                    "example": 12
+                },
+                "content": {
+                    "type": "string",
+                    "example": "Something something https://example.com/someImage.webp https://example.com/someVideo.mp4 #online+"
+                },
+                "createdAt": {
+                    "type": "string",
+                    "example": "2022-01-03T16:20:52.156534Z"
+                },
+                "likes": {
+                    "type": "integer",
+                    "example": 12000
+                },
+                "onlinePlusDeeplink": {
+                    "type": "string",
+                    "example": "online.app://some/path/to/0xD76b5c2A23ef78368d8E34288B5b65D616B746aE"
+                },
+                "reposts": {
+                    "type": "integer",
+                    "example": 442
                 }
             }
         },
@@ -3389,6 +3612,19 @@ const docTemplate = `{
                 },
                 "symbol_group": {
                     "type": "string"
+                }
+            }
+        },
+        "main.UpdateDeeplinkRequest": {
+            "type": "object",
+            "properties": {
+                "deeplink": {
+                    "type": "string",
+                    "example": "https://app.online.io/some/path/to/0xD76b5c2A23ef78368d8E34288B5b65D616B746aE"
+                },
+                "eventAddress": {
+                    "type": "string",
+                    "example": "0xD76b5c2A23ef78368d8E34288B5b65D616B746aE"
                 }
             }
         },
