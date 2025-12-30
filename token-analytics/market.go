@@ -160,9 +160,17 @@ func (t *tokenAnalytics) SubscribeTradingStats(ctx context.Context, now stdlibti
 	addToStream(initialStats, nil)
 
 	swaps, _, _ := t.subscriptions.SubscribeOnSwaps(ctx, externalAddress)
-	t.tradingStatsRecentData.LoadOrCompute(externalAddress, func() (*recentTradeStats, bool) {
+	recentStats, _ := t.tradingStatsRecentData.LoadOrCompute(externalAddress, func() (*recentTradeStats, bool) {
 		return newRecentTradingStats(initialStats, now), false
 	})
+	recentStats.startExpirationTicker(ctx, func() {
+		rec, ok := t.tradingStatsRecentData.Load(externalAddress)
+		if ok {
+			stats := rec.TradeStats()
+			addToStream(stats, nil)
+		}
+	})
+
 	go func() {
 		for {
 			select {
@@ -351,6 +359,10 @@ func (t *recentTradeStats) updateBucket(b *TradeStatsAggregate, priceInUSD float
 	}
 	b.VolumeUSD += priceInUSD
 	b.NetBuy = b.BuysTotalAmountUSD - b.SellsTotalAmountUSD
+	b.CurrentPrice = priceInUSD
+	if b.PriceAgo > 0 {
+		b.PriceDiff = ((b.CurrentPrice - b.PriceAgo) / b.PriceAgo) * 100
+	}
 }
 
 func (t *recentTradeStats) update(now int64, priceInUSD float64, sell bool) {
@@ -367,6 +379,8 @@ func (t *recentTradeStats) update(now int64, priceInUSD float64, sell bool) {
 		diff.NetBuy = priceInUSD
 	}
 	diff.VolumeUSD = priceInUSD
+	diff.CurrentPrice = priceInUSD
+
 	t.expirations5M.Set(now+int64(5*stdlibtime.Minute), diff)
 	t.expirations1H.Set(now+int64(1*stdlibtime.Hour), diff)
 	t.expirations6H.Set(now+int64(6*stdlibtime.Hour), diff)
@@ -394,7 +408,8 @@ func (t *recentTradeStats) expireValueInBucket(now, ts int64, valToExpire TradeS
 	return false
 }
 
-func (t *recentTradeStats) expire(now int64, expirations *orderedmap.OrderedMap[int64, TradeStatsAggregate], bucket *TradeStatsAggregate) {
+func (t *recentTradeStats) expire(now int64, expirations *orderedmap.OrderedMap[int64, TradeStatsAggregate], bucket *TradeStatsAggregate) bool {
+	hasExpired := false
 	for ts, valToExpire := range expirations.AllFromFront() {
 		if ts >= now {
 			break
@@ -402,8 +417,34 @@ func (t *recentTradeStats) expire(now int64, expirations *orderedmap.OrderedMap[
 		expired := t.expireValueInBucket(now, ts, valToExpire, bucket)
 		if expired {
 			expirations.Delete(ts)
+			hasExpired = true
 		}
 	}
+
+	if hasExpired {
+		hasOldest := false
+		oldestPrice := 0.0
+		for _, val := range expirations.AllFromFront() {
+			if val.CurrentPrice > 0 {
+				oldestPrice = val.CurrentPrice
+				hasOldest = true
+				break
+			}
+		}
+
+		if hasOldest {
+			bucket.PriceAgo = oldestPrice
+		} else {
+			bucket.PriceAgo = 0
+			bucket.CurrentPrice = 0
+			bucket.PriceDiff = 0
+		}
+		if bucket.PriceAgo > 0 {
+			bucket.PriceDiff = ((bucket.CurrentPrice - bucket.PriceAgo) / bucket.PriceAgo) * 100
+		}
+	}
+
+	return hasExpired
 }
 
 func (src *TradeStats) cpy() *TradeStats {
@@ -437,6 +478,43 @@ func (t *recentTradeStats) TradeStats() *TradeStats {
 	return cpy
 }
 
+func (t *recentTradeStats) startExpirationTicker(ctx context.Context, onChanged func()) {
+	t.onceStartTicker.Do(func() {
+		ticker := stdlibtime.NewTicker(30 * stdlibtime.Second)
+		go func() {
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					t.mx.Lock()
+					oldStats := t.stats.cpy()
+					now := stdlibtime.Now().UnixNano()
+					expired5M := t.expire(now, t.expirations5M, t.stats.Bucket5Min)
+					expired1H := t.expire(now, t.expirations1H, t.stats.Bucket1Hour)
+					expired6H := t.expire(now, t.expirations6H, t.stats.Bucket6Hours)
+					expired24H := t.expire(now, t.expirations24H, t.stats.Bucket24Hours)
+
+					anyExpired := expired5M || expired1H || expired6H || expired24H
+					newStats := t.stats.cpy()
+					t.mx.Unlock()
+					if anyExpired {
+						changed := (oldStats.Bucket5Min != nil && newStats.Bucket5Min != nil && oldStats.Bucket5Min.PriceDiff != newStats.Bucket5Min.PriceDiff) ||
+							(oldStats.Bucket1Hour != nil && newStats.Bucket1Hour != nil && oldStats.Bucket1Hour.PriceDiff != newStats.Bucket1Hour.PriceDiff) ||
+							(oldStats.Bucket6Hours != nil && newStats.Bucket6Hours != nil && oldStats.Bucket6Hours.PriceDiff != newStats.Bucket6Hours.PriceDiff) ||
+							(oldStats.Bucket24Hours != nil && newStats.Bucket24Hours != nil && oldStats.Bucket24Hours.PriceDiff != newStats.Bucket24Hours.PriceDiff)
+
+						if changed {
+							onChanged()
+						}
+					}
+				}
+			}
+		}()
+	})
+}
+
 func newRecentTradingStats(initialStats *TradeStats, now stdlibtime.Time) *recentTradeStats {
 	cpy := initialStats.cpy()
 	stat := &recentTradeStats{
@@ -447,10 +525,22 @@ func newRecentTradingStats(initialStats *TradeStats, now stdlibtime.Time) *recen
 		expirations6H:  orderedmap.NewOrderedMapWithCapacity[int64, TradeStatsAggregate](1),
 		expirations24H: orderedmap.NewOrderedMapWithCapacity[int64, TradeStatsAggregate](1),
 	}
-	stat.expirations5M.Set(now.Add(5*stdlibtime.Minute).UnixNano(), *cpy.Bucket5Min)
-	stat.expirations1H.Set(now.Add(1*stdlibtime.Hour).UnixNano(), *cpy.Bucket1Hour)
-	stat.expirations6H.Set(now.Add(6*stdlibtime.Hour).UnixNano(), *cpy.Bucket6Hours)
-	stat.expirations24H.Set(now.Add(24*stdlibtime.Hour).UnixNano(), *cpy.Bucket24Hours)
+
+	bucket5M := *cpy.Bucket5Min
+	bucket5M.CurrentPrice = cpy.Bucket5Min.PriceAgo
+	stat.expirations5M.Set(now.Add(5*stdlibtime.Minute).UnixNano(), bucket5M)
+
+	bucket1H := *cpy.Bucket1Hour
+	bucket1H.CurrentPrice = cpy.Bucket1Hour.PriceAgo
+	stat.expirations1H.Set(now.Add(1*stdlibtime.Hour).UnixNano(), bucket1H)
+
+	bucket6H := *cpy.Bucket6Hours
+	bucket6H.CurrentPrice = cpy.Bucket6Hours.PriceAgo
+	stat.expirations6H.Set(now.Add(6*stdlibtime.Hour).UnixNano(), bucket6H)
+
+	bucket24H := *cpy.Bucket24Hours
+	bucket24H.CurrentPrice = cpy.Bucket24Hours.PriceAgo
+	stat.expirations24H.Set(now.Add(24*stdlibtime.Hour).UnixNano(), bucket24H)
 
 	return stat
 }

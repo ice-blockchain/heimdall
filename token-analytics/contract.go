@@ -411,13 +411,14 @@ type (
 		onceStartTicker sync.Once
 	}
 	recentTradeStats struct {
-		stats          *TradeStats
-		initTime       int64
-		mx             sync.Mutex
-		expirations5M  *orderedmap.OrderedMap[int64, TradeStatsAggregate]
-		expirations1H  *orderedmap.OrderedMap[int64, TradeStatsAggregate]
-		expirations6H  *orderedmap.OrderedMap[int64, TradeStatsAggregate]
-		expirations24H *orderedmap.OrderedMap[int64, TradeStatsAggregate]
+		stats           *TradeStats
+		initTime        int64
+		mx              sync.Mutex
+		expirations5M   *orderedmap.OrderedMap[int64, TradeStatsAggregate]
+		expirations1H   *orderedmap.OrderedMap[int64, TradeStatsAggregate]
+		expirations6H   *orderedmap.OrderedMap[int64, TradeStatsAggregate]
+		expirations24H  *orderedmap.OrderedMap[int64, TradeStatsAggregate]
+		onceStartTicker sync.Once
 	}
 	holderMetadata struct {
 		HolderMasterPubkey    *string `json:"holder_master_pubkey"`
