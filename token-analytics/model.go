@@ -95,6 +95,9 @@ type (
 		NumberOfSells       uint64  `json:"numberOfSells" db:"number_of_sells" redis:"number_of_sells"`
 		SellsTotalAmountUSD float64 `json:"sellsTotalAmountUSD" db:"sells_total_amount_usd" redis:"sells_total_amount_usd"`
 		NetBuy              float64 `json:"netBuy" redis:"net_buy"`
+		PriceDiff           float64 `json:"priceDiff" redis:"price_diff"`
+		CurrentPrice        float64 `json:"-" db:"current_price" redis:"-"`
+		PriceAgo            float64 `json:"-" db:"price_ago" redis:"-"`
 	}
 
 	TradeStats struct {

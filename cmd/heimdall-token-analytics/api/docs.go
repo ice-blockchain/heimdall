@@ -2093,6 +2093,9 @@ const docTemplate = `{
                 "numberOfSells": {
                     "type": "integer"
                 },
+                "priceDiff": {
+                    "type": "number"
+                },
                 "sellsTotalAmountUSD": {
                     "type": "number"
                 },

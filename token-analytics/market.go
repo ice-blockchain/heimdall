@@ -30,6 +30,7 @@ func (i *Interval) Validate() error {
 	}
 	return nil
 }
+
 func (i *Interval) WindowSize() WindowSize {
 	window := validIntervals[*i]
 	return window
@@ -159,9 +160,17 @@ func (t *tokenAnalytics) SubscribeTradingStats(ctx context.Context, now stdlibti
 	addToStream(initialStats, nil)
 
 	swaps, _, _ := t.subscriptions.SubscribeOnSwaps(ctx, externalAddress)
-	t.tradingStatsRecentData.LoadOrCompute(externalAddress, func() (*recentTradeStats, bool) {
+	recentStats, _ := t.tradingStatsRecentData.LoadOrCompute(externalAddress, func() (*recentTradeStats, bool) {
 		return newRecentTradingStats(initialStats, now), false
 	})
+	recentStats.startExpirationTicker(ctx, func() {
+		rec, ok := t.tradingStatsRecentData.Load(externalAddress)
+		if ok {
+			stats := rec.TradeStats()
+			addToStream(stats, nil)
+		}
+	})
+
 	go func() {
 		for {
 			select {
@@ -208,45 +217,53 @@ func (t *tokenAnalytics) SubscribeOHLVC(ctx context.Context, now stdlibtime.Time
 func (t *tokenAnalytics) fetchTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress string) (res *TradeStats, err error) {
 	sql := `SELECT
               '5m' as aggregation_interval,
-              COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS buys_total_amount_usd,
-              COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS sells_total_amount_usd,
-              COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                    AS number_of_buys,
-              COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                   AS number_of_sells,
-              COALESCE(SUM(amount/1e18::DECIMAL(76,18) * price_in_usd),0)                                             AS volume_usd
+               COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0)  AS buys_total_amount_usd,
+               COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS sells_total_amount_usd,
+               COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                                           AS number_of_buys,
+               COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                                          AS number_of_sells,
+               COALESCE(SUM(amount/1e18::DECIMAL(76,18) * price_in_usd),0)                                               AS volume_usd,
+               COALESCE(last(price_in_usd), 0)                                                                           AS current_price,
+               COALESCE(first(price_in_usd), 0)                                                                          AS price_ago
        FROM trades
        WHERE timestamp >= dateadd('m', -5, $2) AND external_address = $1
        UNION ALL (
             SELECT
                    '1h' as aggregation_interval,
-                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0)  AS buys_total_amount_usd,
-                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS sells_total_amount_usd,
-                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                      AS number_of_buys,
-                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                     AS number_of_sells,
-                   COALESCE(SUM(amount/1e18::DECIMAL(76,18) * price_in_usd),0)                                               AS volume_usd
-            FROM trades
-            WHERE timestamp >= dateadd('h', -1, $2) AND external_address = $1
+                  COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0)  AS buys_total_amount_usd,
+                  COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS sells_total_amount_usd,
+                  COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                                           AS number_of_buys,
+                  COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                                          AS number_of_sells,
+                  COALESCE(SUM(amount/1e18::DECIMAL(76,18) * price_in_usd),0)                                               AS volume_usd,
+                  COALESCE(last(price_in_usd), 0)                                                                           AS current_price,
+                  COALESCE(first(price_in_usd), 0)                                                                          AS price_ago
+           FROM trades
+           WHERE timestamp >= dateadd('h', -1, $2) AND external_address = $1
        )
        UNION ALL (
             SELECT
                    '6h' as aggregation_interval,
-                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0)  AS buys_total_amount_usd,
-                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS sells_total_amount_usd,
-                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                      AS number_of_buys,
-                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                     AS number_of_sells,
-                   COALESCE(SUM(amount/1e18::DECIMAL(76,18) * price_in_usd),0)                                               AS volume_usd
-            FROM trades
-            WHERE timestamp >= dateadd('h', -6, $2) AND external_address = $1
+                  COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0)  AS buys_total_amount_usd,
+                  COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS sells_total_amount_usd,
+                  COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                                           AS number_of_buys,
+                  COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                                          AS number_of_sells,
+                  COALESCE(SUM(amount/1e18::DECIMAL(76,18) * price_in_usd),0)                                               AS volume_usd,
+                  COALESCE(last(price_in_usd), 0)                                                                           AS current_price,
+                  COALESCE(first(price_in_usd), 0)                                                                          AS price_ago
+           FROM trades
+           WHERE timestamp >= dateadd('h', -6, $2) AND external_address = $1
        )
        UNION ALL (
             SELECT
                    '24h' as aggregation_interval,
-                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0)  AS buys_total_amount_usd,
-                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS sells_total_amount_usd,
-                   COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                      AS number_of_buys,
-                   COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                     AS number_of_sells,
-                   COALESCE(SUM(amount/1e18::DECIMAL(76,18) * price_in_usd),0)                                               AS volume_usd
-            FROM trades
-            WHERE timestamp >= dateadd('h', -24, $2) AND external_address = $1
+                  COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0)  AS buys_total_amount_usd,
+                  COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN amount/1e18::DECIMAL(76,18) * price_in_usd ELSE 0 END),0) AS sells_total_amount_usd,
+                  COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                                           AS number_of_buys,
+                  COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                                          AS number_of_sells,
+                  COALESCE(SUM(amount/1e18::DECIMAL(76,18) * price_in_usd),0)                                               AS volume_usd,
+                  COALESCE(last(price_in_usd), 0)                                                                           AS current_price,
+                  COALESCE(first(price_in_usd), 0)                                                                          AS price_ago
+           FROM trades
+           WHERE timestamp >= dateadd('h', -24, $2) AND external_address = $1
        )`
 	aggregates, err := questdb.Select[TradeStatsAggregate](ctx, t.questDB, sql, externalAddress, time.New(now))
 	if err != nil {
@@ -255,6 +272,9 @@ func (t *tokenAnalytics) fetchTradingStats(ctx context.Context, now stdlibtime.T
 	res = new(TradeStats)
 	for i := range aggregates {
 		aggregates[i].NetBuy = aggregates[i].BuysTotalAmountUSD - aggregates[i].SellsTotalAmountUSD
+		if aggregates[i].PriceAgo > 0 {
+			aggregates[i].PriceDiff = ((aggregates[i].CurrentPrice - aggregates[i].PriceAgo) / aggregates[i].PriceAgo) * 100
+		}
 		switch aggregates[i].AggregationInterval {
 		case "5m":
 			res.Bucket5Min = aggregates[i]
@@ -268,11 +288,13 @@ func (t *tokenAnalytics) fetchTradingStats(ctx context.Context, now stdlibtime.T
 	}
 	return res, nil
 }
+
 func newRecentCandlestick() *recentCandlestick {
 	r := &recentCandlestick{}
 	r.reset(stdlibtime.Now().In(stdlibtime.UTC))
 	return r
 }
+
 func (o *OHLCV) Empty() bool {
 	return o.Open == 0 && o.High == 0 && o.Low == 0 && o.Close == 0 && o.Volume == 0
 }
@@ -303,6 +325,7 @@ func (r *recentCandlestick) Update(priceInUsd float64) {
 	updated.Volume += priceInUsd
 	r.o.Store(&updated)
 }
+
 func (r *recentCandlestick) OHLCV() *OHLCV {
 	return r.o.Load()
 }
@@ -336,6 +359,10 @@ func (t *recentTradeStats) updateBucket(b *TradeStatsAggregate, priceInUSD float
 	}
 	b.VolumeUSD += priceInUSD
 	b.NetBuy = b.BuysTotalAmountUSD - b.SellsTotalAmountUSD
+	b.CurrentPrice = priceInUSD
+	if b.PriceAgo > 0 {
+		b.PriceDiff = ((b.CurrentPrice - b.PriceAgo) / b.PriceAgo) * 100
+	}
 }
 
 func (t *recentTradeStats) update(now int64, priceInUSD float64, sell bool) {
@@ -352,6 +379,8 @@ func (t *recentTradeStats) update(now int64, priceInUSD float64, sell bool) {
 		diff.NetBuy = priceInUSD
 	}
 	diff.VolumeUSD = priceInUSD
+	diff.CurrentPrice = priceInUSD
+
 	t.expirations5M.Set(now+int64(5*stdlibtime.Minute), diff)
 	t.expirations1H.Set(now+int64(1*stdlibtime.Hour), diff)
 	t.expirations6H.Set(now+int64(6*stdlibtime.Hour), diff)
@@ -379,7 +408,8 @@ func (t *recentTradeStats) expireValueInBucket(now, ts int64, valToExpire TradeS
 	return false
 }
 
-func (t *recentTradeStats) expire(now int64, expirations *orderedmap.OrderedMap[int64, TradeStatsAggregate], bucket *TradeStatsAggregate) {
+func (t *recentTradeStats) expire(now int64, expirations *orderedmap.OrderedMap[int64, TradeStatsAggregate], bucket *TradeStatsAggregate) bool {
+	hasExpired := false
 	for ts, valToExpire := range expirations.AllFromFront() {
 		if ts >= now {
 			break
@@ -387,8 +417,34 @@ func (t *recentTradeStats) expire(now int64, expirations *orderedmap.OrderedMap[
 		expired := t.expireValueInBucket(now, ts, valToExpire, bucket)
 		if expired {
 			expirations.Delete(ts)
+			hasExpired = true
 		}
 	}
+
+	if hasExpired {
+		hasOldest := false
+		oldestPrice := 0.0
+		for _, val := range expirations.AllFromFront() {
+			if val.CurrentPrice > 0 {
+				oldestPrice = val.CurrentPrice
+				hasOldest = true
+				break
+			}
+		}
+
+		if hasOldest {
+			bucket.PriceAgo = oldestPrice
+		} else {
+			bucket.PriceAgo = 0
+			bucket.CurrentPrice = 0
+			bucket.PriceDiff = 0
+		}
+		if bucket.PriceAgo > 0 {
+			bucket.PriceDiff = ((bucket.CurrentPrice - bucket.PriceAgo) / bucket.PriceAgo) * 100
+		}
+	}
+
+	return hasExpired
 }
 
 func (src *TradeStats) cpy() *TradeStats {
@@ -422,6 +478,43 @@ func (t *recentTradeStats) TradeStats() *TradeStats {
 	return cpy
 }
 
+func (t *recentTradeStats) startExpirationTicker(ctx context.Context, onChanged func()) {
+	t.onceStartTicker.Do(func() {
+		ticker := stdlibtime.NewTicker(30 * stdlibtime.Second)
+		go func() {
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					t.mx.Lock()
+					oldStats := t.stats.cpy()
+					now := stdlibtime.Now().UnixNano()
+					expired5M := t.expire(now, t.expirations5M, t.stats.Bucket5Min)
+					expired1H := t.expire(now, t.expirations1H, t.stats.Bucket1Hour)
+					expired6H := t.expire(now, t.expirations6H, t.stats.Bucket6Hours)
+					expired24H := t.expire(now, t.expirations24H, t.stats.Bucket24Hours)
+
+					anyExpired := expired5M || expired1H || expired6H || expired24H
+					newStats := t.stats.cpy()
+					t.mx.Unlock()
+					if anyExpired {
+						changed := (oldStats.Bucket5Min != nil && newStats.Bucket5Min != nil && oldStats.Bucket5Min.PriceDiff != newStats.Bucket5Min.PriceDiff) ||
+							(oldStats.Bucket1Hour != nil && newStats.Bucket1Hour != nil && oldStats.Bucket1Hour.PriceDiff != newStats.Bucket1Hour.PriceDiff) ||
+							(oldStats.Bucket6Hours != nil && newStats.Bucket6Hours != nil && oldStats.Bucket6Hours.PriceDiff != newStats.Bucket6Hours.PriceDiff) ||
+							(oldStats.Bucket24Hours != nil && newStats.Bucket24Hours != nil && oldStats.Bucket24Hours.PriceDiff != newStats.Bucket24Hours.PriceDiff)
+
+						if changed {
+							onChanged()
+						}
+					}
+				}
+			}
+		}()
+	})
+}
+
 func newRecentTradingStats(initialStats *TradeStats, now stdlibtime.Time) *recentTradeStats {
 	cpy := initialStats.cpy()
 	stat := &recentTradeStats{
@@ -432,10 +525,22 @@ func newRecentTradingStats(initialStats *TradeStats, now stdlibtime.Time) *recen
 		expirations6H:  orderedmap.NewOrderedMapWithCapacity[int64, TradeStatsAggregate](1),
 		expirations24H: orderedmap.NewOrderedMapWithCapacity[int64, TradeStatsAggregate](1),
 	}
-	stat.expirations5M.Set(now.Add(5*stdlibtime.Minute).UnixNano(), *cpy.Bucket5Min)
-	stat.expirations1H.Set(now.Add(1*stdlibtime.Hour).UnixNano(), *cpy.Bucket1Hour)
-	stat.expirations6H.Set(now.Add(6*stdlibtime.Hour).UnixNano(), *cpy.Bucket6Hours)
-	stat.expirations24H.Set(now.Add(24*stdlibtime.Hour).UnixNano(), *cpy.Bucket24Hours)
+
+	bucket5M := *cpy.Bucket5Min
+	bucket5M.CurrentPrice = cpy.Bucket5Min.PriceAgo
+	stat.expirations5M.Set(now.Add(5*stdlibtime.Minute).UnixNano(), bucket5M)
+
+	bucket1H := *cpy.Bucket1Hour
+	bucket1H.CurrentPrice = cpy.Bucket1Hour.PriceAgo
+	stat.expirations1H.Set(now.Add(1*stdlibtime.Hour).UnixNano(), bucket1H)
+
+	bucket6H := *cpy.Bucket6Hours
+	bucket6H.CurrentPrice = cpy.Bucket6Hours.PriceAgo
+	stat.expirations6H.Set(now.Add(6*stdlibtime.Hour).UnixNano(), bucket6H)
+
+	bucket24H := *cpy.Bucket24Hours
+	bucket24H.CurrentPrice = cpy.Bucket24Hours.PriceAgo
+	stat.expirations24H.Set(now.Add(24*stdlibtime.Hour).UnixNano(), bucket24H)
 
 	return stat
 }
