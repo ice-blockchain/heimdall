@@ -985,15 +985,18 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
     p_ion_price_usd NUMERIC,
     p_total_supply NUMERIC
 ) RETURNS VOID AS $$
-    DECLARE
-        v_user_external_address TEXT;
-        v_market_cap_usd usd_amount;
-        v_market_cap_ion NUMERIC;
-        v_price_ion NUMERIC;
-        v_cost_usd usd_amount;
-        v_realized_usd usd_amount;
-        v_avatar TEXT;
-    BEGIN
+DECLARE
+    v_user_external_address TEXT;
+    v_market_cap_usd usd_amount;
+    v_market_cap_ion NUMERIC;
+    v_price_ion NUMERIC;
+    v_cost_usd usd_amount;
+    v_realized_usd usd_amount;
+    v_avatar TEXT;
+    v_username TEXT;
+    v_display_name TEXT;
+    v_platform platform_type;
+BEGIN
     IF p_direction = false THEN
         v_price_ion := p_input_amount / p_output_amount;
     ELSE
@@ -1003,8 +1006,8 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
     v_market_cap_usd := p_price_usd * (p_total_supply / 1e18);
     v_market_cap_ion := v_price_ion * p_total_supply;
 
-    SELECT external_address, avatar
-    INTO v_user_external_address, v_avatar
+    SELECT external_address, avatar, username, display_name, platform_group
+    INTO v_user_external_address, v_avatar, v_username, v_display_name, v_platform
     FROM users
     WHERE LOWER(content_author_id) = LOWER(p_user_blockchain_address);
 
@@ -1015,15 +1018,25 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
         updated_at = p_block_timestamp,
         content_author_id = CASE
             WHEN t.content_author_id IS NULL AND p_direction = false
-            THEN p_user_blockchain_address
+                THEN p_user_blockchain_address
             ELSE t.content_author_id
-        END,
+            END,
         image_url = CASE
             WHEN t.content_author_id IS NULL AND p_direction = false
-                 AND v_avatar IS NOT NULL
-            THEN v_avatar
+                     AND v_platform = 'ionconnect' AND v_avatar IS NOT NULL
+                THEN v_avatar
             ELSE t.image_url
-        END
+            END,
+        lookup = CASE
+            WHEN t.content_author_id IS NULL AND p_direction = false AND v_username IS NOT NULL THEN
+                LOWER(TRIM(
+                        COALESCE(t.contract_address, '') || ' ' ||
+                        COALESCE(t.ticker, '') || ' ' ||
+                        COALESCE(v_username, '') || ' ' ||
+                        COALESCE(v_display_name, '')
+                    ))
+            ELSE t.lookup
+            END
     WHERE contract_address = p_token_address;
 
     v_cost_usd := (p_input_amount / 1e18) * p_ion_price_usd;
@@ -1055,7 +1068,7 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
         WHERE user_blockchain_address = p_user_blockchain_address
           AND contract_address = p_token_address;
     END IF;
-    END; $$ LANGUAGE plpgsql;
+END; $$ LANGUAGE plpgsql;
 
 
 
