@@ -9,7 +9,7 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
     p_input_amount NUMERIC,
     p_output_amount NUMERIC,
     p_price_usd NUMERIC,
-    p_base_price_usd NUMERIC,
+    p_ion_price_usd NUMERIC,
     p_total_supply NUMERIC
 ) RETURNS VOID AS $$
 DECLARE
@@ -66,7 +66,7 @@ BEGIN
             END
     WHERE contract_address = p_token_address;
 
-    v_cost_usd := (p_input_amount / 1e18) * p_base_price_usd;
+    v_cost_usd := (p_input_amount / 1e18) * p_ion_price_usd;
 
     IF p_direction = false THEN -- buy
         INSERT INTO user_token_positions (
@@ -86,7 +86,7 @@ BEGIN
                                                                               updated_at = EXCLUDED.updated_at,
                                                                               user_external_address = COALESCE(EXCLUDED.user_external_address, user_token_positions.user_external_address);
     ELSE -- sell
-        v_realized_usd := (p_output_amount / 1e18) * p_base_price_usd;
+        v_realized_usd := (p_output_amount / 1e18) * p_ion_price_usd;
 
         UPDATE user_token_positions
         SET amount = GREATEST(amount - p_input_amount, 0),
