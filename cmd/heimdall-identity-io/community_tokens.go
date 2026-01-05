@@ -106,14 +106,6 @@ func (s *service) GetIonConnectPostPreview(
 	postTypes := []string{"post", "video", "article"}
 	randomType := postTypes[rng.Intn(len(postTypes))]
 
-	contentVariations := []string{
-		"Check out this amazing view! 🌅 #online+",
-		"Just finished an incredible workout session 💪 https://example.com/video1.mp4 #online+",
-		"Beautiful day at the beach https://example.com/beach.webp #online+ #summer",
-		"New project launch! So excited to share this with everyone https://example.com/project.webp #online+",
-		"Coffee and coding ☕️ https://example.com/coding.webp https://example.com/timelapse.mp4 #online+ #developer",
-	}
-	randomContent := contentVariations[rng.Intn(len(contentVariations))]
 	videoURLs := []string{
 		"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
 		"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
@@ -139,22 +131,37 @@ func (s *service) GetIonConnectPostPreview(
 	}
 
 	var media []PostMedia
-	numMedia := rng.Intn(4)
-	for i := 0; i < numMedia; i++ {
-		if rng.Float32() > 0.5 {
-			thumbURL := thumbnailURLs[rng.Intn(len(thumbnailURLs))]
-			randomVideo := videoURLs[rng.Intn(len(videoURLs))]
-			media = append(media, PostMedia{
-				URL:       randomVideo,
-				Thumbnail: &thumbURL,
-				Type:      "video",
-			})
-		} else {
+	if randomType == "video" {
+		thumbURL := thumbnailURLs[rng.Intn(len(thumbnailURLs))]
+		randomVideo := videoURLs[rng.Intn(len(videoURLs))]
+		media = append(media, PostMedia{
+			URL:       randomVideo,
+			Thumbnail: &thumbURL,
+			Type:      "video",
+		})
+	} else {
+		numImages := rng.Intn(4)
+		for i := 0; i < numImages; i++ {
 			imageURL := imageURLs[rng.Intn(len(imageURLs))]
 			media = append(media, PostMedia{
 				URL:  imageURL,
 				Type: "image",
 			})
+		}
+	}
+
+	contentVariations := []string{
+		"Check out this amazing view! 🌅 #online+",
+		"Just finished an incredible workout session 💪 #online+",
+		"Beautiful day at the beach #online+ #summer",
+		"New project launch! So excited to share this with everyone #online+",
+		"Coffee and coding ☕️ #online+ #developer",
+	}
+	randomContent := contentVariations[rng.Intn(len(contentVariations))]
+
+	if len(media) > 0 {
+		for _, m := range media {
+			randomContent += " " + m.URL
 		}
 	}
 
