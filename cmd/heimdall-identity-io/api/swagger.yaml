@@ -247,6 +247,18 @@ definitions:
         example: true
         type: boolean
     type: object
+  main.CommunityPostMedia:
+    properties:
+      thumbnail:
+        example: https://example.com/somevideo1-preview.mp4
+        type: string
+      type:
+        example: video
+        type: string
+      url:
+        example: https://example.com/somevideo1.mp4
+        type: string
+    type: object
   main.CommunityPostPreviewResponse:
     properties:
       author:
@@ -264,12 +276,19 @@ definitions:
       likes:
         example: 12000
         type: integer
+      media:
+        items:
+          $ref: '#/definitions/main.CommunityPostMedia'
+        type: array
       onlinePlusDeeplink:
         example: online.app://some/path/to/0xD76b5c2A23ef78368d8E34288B5b65D616B746aE
         type: string
       reposts:
         example: 442
         type: integer
+      type:
+        example: post
+        type: string
     type: object
   main.CommunityTokenAdaptorRequest:
     properties:

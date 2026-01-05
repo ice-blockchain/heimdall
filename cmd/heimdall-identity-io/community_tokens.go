@@ -103,6 +103,9 @@ func (s *service) GetIonConnectPostPreview(
 	randomLikes := rng.Intn(50000)
 	randomTime := time.Now().UTC()
 
+	postTypes := []string{"post", "video", "article"}
+	randomType := postTypes[rng.Intn(len(postTypes))]
+
 	contentVariations := []string{
 		"Check out this amazing view! 🌅 #online+",
 		"Just finished an incredible workout session 💪 https://example.com/video1.mp4 #online+",
@@ -111,6 +114,22 @@ func (s *service) GetIonConnectPostPreview(
 		"Coffee and coding ☕️ https://example.com/coding.webp https://example.com/timelapse.mp4 #online+ #developer",
 	}
 	randomContent := contentVariations[rng.Intn(len(contentVariations))]
+	var media []CommunityPostMedia
+	numMedia := rng.Intn(4)
+	for i := 0; i < numMedia; i++ {
+		mediaType := "image"
+		var thumbnail *string
+		if rng.Float32() > 0.5 {
+			mediaType = "video"
+			thumbURL := "https://example.com/thumbnail" + string(rune('A'+i)) + ".webp"
+			thumbnail = &thumbURL
+		}
+		media = append(media, CommunityPostMedia{
+			URL:       "https://example.com/media" + string(rune('A'+i)) + ".webp",
+			Thumbnail: thumbnail,
+			Type:      mediaType,
+		})
+	}
 
 	resp := &CommunityPostPreviewResponse{
 		Author: CommunityPostAuthor{
@@ -119,6 +138,8 @@ func (s *service) GetIonConnectPostPreview(
 			Avatar:      avatarURL,
 			Verified:    rng.Float32() > 0.5,
 		},
+		Type:               randomType,
+		Media:              media,
 		Comments:           randomComments,
 		Reposts:            randomReposts,
 		Likes:              randomLikes,
