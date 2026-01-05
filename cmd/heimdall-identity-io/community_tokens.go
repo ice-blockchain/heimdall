@@ -114,21 +114,48 @@ func (s *service) GetIonConnectPostPreview(
 		"Coffee and coding ☕️ https://example.com/coding.webp https://example.com/timelapse.mp4 #online+ #developer",
 	}
 	randomContent := contentVariations[rng.Intn(len(contentVariations))]
-	var media []CommunityPostMedia
+	videoURLs := []string{
+		"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+		"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+		"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+		"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+		"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+		"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+	}
+
+	imageURLs := []string{
+		"https://placehold.co/800x600/FF6633/FFFFFF/png?text=Image+1",
+		"https://placehold.co/800x600/3366FF/FFFFFF/png?text=Image+2",
+		"https://placehold.co/800x600/33CC99/FFFFFF/png?text=Image+3",
+		"https://placehold.co/800x600/FF3366/FFFFFF/png?text=Image+4",
+		"https://placehold.co/800x600/9933FF/FFFFFF/png?text=Image+5",
+	}
+
+	thumbnailURLs := []string{
+		"https://placehold.co/400x300/0066CC/FFFFFF/png?text=Thumbnail+1",
+		"https://placehold.co/400x300/CC6600/FFFFFF/png?text=Thumbnail+2",
+		"https://placehold.co/400x300/00CC66/FFFFFF/png?text=Thumbnail+3",
+		"https://placehold.co/400x300/CC0066/FFFFFF/png?text=Thumbnail+4",
+	}
+
+	var media []PostMedia
 	numMedia := rng.Intn(4)
 	for i := 0; i < numMedia; i++ {
-		mediaType := "image"
-		var thumbnail *string
 		if rng.Float32() > 0.5 {
-			mediaType = "video"
-			thumbURL := "https://example.com/thumbnail" + string(rune('A'+i)) + ".webp"
-			thumbnail = &thumbURL
+			thumbURL := thumbnailURLs[rng.Intn(len(thumbnailURLs))]
+			randomVideo := videoURLs[rng.Intn(len(videoURLs))]
+			media = append(media, PostMedia{
+				URL:       randomVideo,
+				Thumbnail: &thumbURL,
+				Type:      "video",
+			})
+		} else {
+			imageURL := imageURLs[rng.Intn(len(imageURLs))]
+			media = append(media, PostMedia{
+				URL:  imageURL,
+				Type: "image",
+			})
 		}
-		media = append(media, CommunityPostMedia{
-			URL:       "https://example.com/media" + string(rune('A'+i)) + ".webp",
-			Thumbnail: thumbnail,
-			Type:      mediaType,
-		})
 	}
 
 	resp := &CommunityPostPreviewResponse{

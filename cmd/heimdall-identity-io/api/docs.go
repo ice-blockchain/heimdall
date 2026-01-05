@@ -3254,23 +3254,6 @@ const docTemplate = `{
                 }
             }
         },
-        "main.CommunityPostMedia": {
-            "type": "object",
-            "properties": {
-                "thumbnail": {
-                    "type": "string",
-                    "example": "https://example.com/image-preview.jpg"
-                },
-                "type": {
-                    "type": "string",
-                    "example": "video"
-                },
-                "url": {
-                    "type": "string",
-                    "example": "https://example.com/image.jpg"
-                }
-            }
-        },
         "main.CommunityPostPreviewResponse": {
             "type": "object",
             "properties": {
@@ -3296,7 +3279,7 @@ const docTemplate = `{
                 "media": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/main.CommunityPostMedia"
+                        "$ref": "#/definitions/main.PostMedia"
                     }
                 },
                 "onlinePlusDeeplink": {
@@ -3550,6 +3533,23 @@ const docTemplate = `{
                 },
                 "tier": {
                     "type": "integer"
+                }
+            }
+        },
+        "main.PostMedia": {
+            "type": "object",
+            "properties": {
+                "thumbnail": {
+                    "type": "string",
+                    "example": "https://example.com/image-preview.jpg"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "video"
+                },
+                "url": {
+                    "type": "string",
+                    "example": "https://example.com/image.jpg"
                 }
             }
         },
