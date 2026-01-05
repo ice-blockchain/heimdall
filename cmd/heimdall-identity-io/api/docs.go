@@ -3276,6 +3276,12 @@ const docTemplate = `{
                     "type": "integer",
                     "example": 12000
                 },
+                "media": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/main.PostMedia"
+                    }
+                },
                 "onlinePlusDeeplink": {
                     "type": "string",
                     "example": "online.app://some/path/to/0xD76b5c2A23ef78368d8E34288B5b65D616B746aE"
@@ -3283,6 +3289,10 @@ const docTemplate = `{
                 "reposts": {
                     "type": "integer",
                     "example": 442
+                },
+                "type": {
+                    "type": "string",
+                    "example": "post"
                 }
             }
         },
@@ -3523,6 +3533,23 @@ const docTemplate = `{
                 },
                 "tier": {
                     "type": "integer"
+                }
+            }
+        },
+        "main.PostMedia": {
+            "type": "object",
+            "properties": {
+                "thumbnail": {
+                    "type": "string",
+                    "example": "https://example.com/image-preview.jpg"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "video"
+                },
+                "url": {
+                    "type": "string",
+                    "example": "https://example.com/image.jpg"
                 }
             }
         },

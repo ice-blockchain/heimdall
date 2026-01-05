@@ -302,9 +302,16 @@ type (
 		Avatar      string `json:"avatar" example:"https://example.com/something.webp"`
 		Verified    bool   `json:"verified" example:"true"`
 	}
+	PostMedia struct {
+		Thumbnail *string `json:"thumbnail,omitempty" example:"https://example.com/image-preview.jpg"`
+		URL       string  `json:"url" example:"https://example.com/image.jpg"`
+		Type      string  `json:"type" example:"video"`
+	}
 	CommunityPostPreviewResponse struct {
 		CreatedAt          *time.Time          `json:"createdAt" example:"2022-01-03T16:20:52.156534Z"`
+		Media              []PostMedia         `json:"media,omitempty"`
 		Author             CommunityPostAuthor `json:"author"`
+		Type               string              `json:"type" example:"post"`
 		Comments           int                 `json:"comments" example:"12"`
 		Reposts            int                 `json:"reposts" example:"442"`
 		Likes              int                 `json:"likes" example:"12000"`

@@ -103,14 +103,67 @@ func (s *service) GetIonConnectPostPreview(
 	randomLikes := rng.Intn(50000)
 	randomTime := time.Now().UTC()
 
+	postTypes := []string{"post", "video", "article"}
+	randomType := postTypes[rng.Intn(len(postTypes))]
+
+	videoURLs := []string{
+		"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+		"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+		"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+		"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+		"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+		"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+	}
+
+	imageURLs := []string{
+		"https://placehold.co/800x600/FF6633/FFFFFF/png?text=Image+1",
+		"https://placehold.co/800x600/3366FF/FFFFFF/png?text=Image+2",
+		"https://placehold.co/800x600/33CC99/FFFFFF/png?text=Image+3",
+		"https://placehold.co/800x600/FF3366/FFFFFF/png?text=Image+4",
+		"https://placehold.co/800x600/9933FF/FFFFFF/png?text=Image+5",
+	}
+
+	thumbnailURLs := []string{
+		"https://placehold.co/400x300/0066CC/FFFFFF/png?text=Thumbnail+1",
+		"https://placehold.co/400x300/CC6600/FFFFFF/png?text=Thumbnail+2",
+		"https://placehold.co/400x300/00CC66/FFFFFF/png?text=Thumbnail+3",
+		"https://placehold.co/400x300/CC0066/FFFFFF/png?text=Thumbnail+4",
+	}
+
+	var media []PostMedia
+	if randomType == "video" {
+		thumbURL := thumbnailURLs[rng.Intn(len(thumbnailURLs))]
+		randomVideo := videoURLs[rng.Intn(len(videoURLs))]
+		media = append(media, PostMedia{
+			URL:       randomVideo,
+			Thumbnail: &thumbURL,
+			Type:      "video",
+		})
+	} else {
+		numImages := rng.Intn(4)
+		for i := 0; i < numImages; i++ {
+			imageURL := imageURLs[rng.Intn(len(imageURLs))]
+			media = append(media, PostMedia{
+				URL:  imageURL,
+				Type: "image",
+			})
+		}
+	}
+
 	contentVariations := []string{
 		"Check out this amazing view! 🌅 #online+",
-		"Just finished an incredible workout session 💪 https://example.com/video1.mp4 #online+",
-		"Beautiful day at the beach https://example.com/beach.webp #online+ #summer",
-		"New project launch! So excited to share this with everyone https://example.com/project.webp #online+",
-		"Coffee and coding ☕️ https://example.com/coding.webp https://example.com/timelapse.mp4 #online+ #developer",
+		"Just finished an incredible workout session 💪 #online+",
+		"Beautiful day at the beach #online+ #summer",
+		"New project launch! So excited to share this with everyone #online+",
+		"Coffee and coding ☕️ #online+ #developer",
 	}
 	randomContent := contentVariations[rng.Intn(len(contentVariations))]
+
+	if len(media) > 0 {
+		for _, m := range media {
+			randomContent += " " + m.URL
+		}
+	}
 
 	resp := &CommunityPostPreviewResponse{
 		Author: CommunityPostAuthor{
@@ -119,6 +172,8 @@ func (s *service) GetIonConnectPostPreview(
 			Avatar:      avatarURL,
 			Verified:    rng.Float32() > 0.5,
 		},
+		Type:               randomType,
+		Media:              media,
 		Comments:           randomComments,
 		Reposts:            randomReposts,
 		Likes:              randomLikes,
