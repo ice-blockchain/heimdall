@@ -3259,7 +3259,7 @@ const docTemplate = `{
             "properties": {
                 "thumbnail": {
                     "type": "string",
-                    "example": "https://example.com/somevideo1-preview.mp4"
+                    "example": "https://example.com/image-preview.jpg"
                 },
                 "type": {
                     "type": "string",
@@ -3267,7 +3267,7 @@ const docTemplate = `{
                 },
                 "url": {
                     "type": "string",
-                    "example": "https://example.com/somevideo1.mp4"
+                    "example": "https://example.com/image.jpg"
                 }
             }
         },

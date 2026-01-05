@@ -303,8 +303,8 @@ type (
 		Verified    bool   `json:"verified" example:"true"`
 	}
 	CommunityPostMedia struct {
-		Thumbnail *string `json:"thumbnail,omitempty" example:"https://example.com/somevideo1-preview.mp4"`
-		URL       string  `json:"url" example:"https://example.com/somevideo1.mp4"`
+		Thumbnail *string `json:"thumbnail,omitempty" example:"https://example.com/image-preview.jpg"`
+		URL       string  `json:"url" example:"https://example.com/image.jpg"`
 		Type      string  `json:"type" example:"video"`
 	}
 	CommunityPostPreviewResponse struct {
