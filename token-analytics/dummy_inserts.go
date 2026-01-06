@@ -210,13 +210,6 @@ func (gen *dummyDataGenerator) createXComTokenWithBuysOrSellsProcessor(ctx conte
 
 		return nil
 	}
-	var externalAddress string
-	if tokenType.kind == "profile" {
-		externalAddress = tokenType.prefix + handle // z{handle}
-	} else {
-		postID := mustRandomHex(8)
-		externalAddress = tokenType.prefix + postID
-	}
 	names := []string{
 		"X Token Pro",
 		"Tweet Master",
@@ -229,7 +222,7 @@ func (gen *dummyDataGenerator) createXComTokenWithBuysOrSellsProcessor(ctx conte
 	tok := &tokenRow{
 		ContractAddress: generateDummyContractAddress(),
 		ContentAuthorID: &master,
-		ExternalAddress: externalAddress,
+		ExternalAddress: handle,
 		Title:           displayName,
 		Ticker:          symbol,
 		TotalSupply:     "1000000000000000000" + strings.Repeat("0", rand.Intn(8)+1),
@@ -799,7 +792,8 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 	}
 	fullData := fmt.Sprintf(`{"stream": "%[1]v", "transactions": [`+strings.Join(txsForBlock, ",")+`]}`, stream)
 	sql := `INSERT INTO smart_contract_transactions(from_block_number, to_block_number, network, stream_id, data)
-			VALUES ($1, $1, 'bsc-testnet-dummy', $2, $3::JSONB)`
+			VALUES ($1, $1, 'bsc-testnet-dummy', $2, $3::JSONB)
+			ON CONFLICT (from_block_number, to_block_number, network) DO NOTHING`
 	_, err = storage.Exec(ctx, gen.Target, sql, blockNum, stream, fullData)
 	return errors.Wrapf(err, "failed to insert dummy tx data")
 }
@@ -1063,7 +1057,6 @@ func (gen *dummyDataGenerator) createUserForPlatform(ctx context.Context, master
 	gen.usersLock.Lock()
 	defer gen.usersLock.Unlock()
 
-	// Check if user with this masterPubkey already exists
 	for existingAddr, existingMaster := range gen.userBlockChainToMaster {
 		if existingMaster == masterPubkey {
 			log.Info(fmt.Sprintf("User with masterPubkey %v already exists, reusing blockchain address 0x%v", masterPubkey, existingAddr))
@@ -1118,26 +1111,10 @@ func (gen *dummyDataGenerator) createUserForPlatform(ctx context.Context, master
 		) VALUES (
 			NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
 		)
-		ON CONFLICT (content_author_id) 
-		DO UPDATE SET
-			updated_at = NOW(),
-			id = EXCLUDED.id,
-			master_pubkey = EXCLUDED.master_pubkey,
-			external_address = EXCLUDED.external_address,
-			username = EXCLUDED.username,
-			display_name = EXCLUDED.display_name,
-			avatar = EXCLUDED.avatar,
-			lookup = EXCLUDED.lookup,
-			ion_connect_relays = EXCLUDED.ion_connect_relays,
-			verified = EXCLUDED.verified,
-			platform_group = EXCLUDED.platform_group
+		ON CONFLICT (content_author_id) DO NOTHING
 	`, id, masterPubkey, "0x"+blockchainAddress, externalAddress, username, displayName, avatarURL, lookup, ionConnectRelays, verified, platformGroup)
-	if err != nil {
-		if storage.IsErr(err, storage.ErrDuplicate) {
-			log.Info(fmt.Sprintf("User %v already exists (duplicate OK), using blockchain address 0x%v", masterPubkey, blockchainAddress))
-		} else {
-			return "", "", fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err)
-		}
+	if err != nil && !storage.IsErr(err, storage.ErrDuplicate) {
+		return "", "", fmt.Errorf("failed to insert user %v: %w", masterPubkey, err)
 	}
 
 	log.Info(fmt.Sprintf("Created dummy user %v: %v with blockchain address 0x%v for platform %v", username, masterPubkey, blockchainAddress, platformGroup))
