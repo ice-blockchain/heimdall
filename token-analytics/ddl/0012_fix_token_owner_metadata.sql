@@ -112,7 +112,7 @@ BEGIN
 
     INSERT INTO tokens (
         created_at, updated_at, contract_address, external_address, platform, affiliate_bsc_address,
-        ticker, title, total_supply, content_author_id, type, bnb_bsc_metadata_owner_address, log_index
+        ticker, title, total_supply, content_author_id, type, log_index
     )
     VALUES (
         p_block_timestamp,
@@ -130,14 +130,12 @@ BEGIN
         v_total_supply,
         v_creator_address,
         v_token_type,
-        v_creator_address,
         p_log_index
     )
     ON CONFLICT (contract_address) DO UPDATE SET
         updated_at = EXCLUDED.updated_at,
         external_address = COALESCE(EXCLUDED.external_address, tokens.external_address),
         total_supply = COALESCE(EXCLUDED.total_supply, tokens.total_supply),
-        bnb_bsc_metadata_owner_address = COALESCE(EXCLUDED.bnb_bsc_metadata_owner_address, tokens.bnb_bsc_metadata_owner_address),
         platform = COALESCE(EXCLUDED.platform, tokens.platform),
         ticker = COALESCE(EXCLUDED.ticker, tokens.ticker),
         title = COALESCE(EXCLUDED.title, tokens.title),
@@ -264,3 +262,4 @@ BEGIN
     END IF;
 END; $$ LANGUAGE plpgsql;
 
+ALTER TABLE tokens DROP COLUMN IF EXISTS bnb_bsc_metadata_owner_address;

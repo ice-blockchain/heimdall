@@ -209,7 +209,6 @@ CREATE TABLE IF NOT EXISTS tokens (
     title                           TEXT,
     description                     TEXT,
     image_url                       TEXT,
-    bnb_bsc_metadata_owner_address  TEXT,
     affiliate_bsc_address           TEXT,
     ion_connect_address             TEXT, -- ION Connect address for xcom tokens (kind 31175 event address)
     PRIMARY KEY (contract_address)
@@ -653,7 +652,7 @@ BEGIN
 
     INSERT INTO tokens (
         created_at, updated_at, contract_address, external_address, platform, affiliate_bsc_address,
-        ticker, title, total_supply, content_author_id, type, bnb_bsc_metadata_owner_address, log_index
+        ticker, title, total_supply, content_author_id, type, log_index
     )
     VALUES (
                 p_block_timestamp,
@@ -671,14 +670,12 @@ BEGIN
                v_total_supply,
                v_creator_address,
                v_token_type,
-               v_creator_address,
                p_log_index
            )
     ON CONFLICT (contract_address) DO UPDATE SET
                                                  updated_at = EXCLUDED.updated_at,
                                                  external_address = EXCLUDED.external_address,
                                                  total_supply = EXCLUDED.total_supply,
-                                                 bnb_bsc_metadata_owner_address = EXCLUDED.bnb_bsc_metadata_owner_address,
                                                  platform = EXCLUDED.platform,
                                                  ticker = COALESCE(EXCLUDED.ticker, tokens.ticker),
                                                  title = COALESCE(EXCLUDED.title, tokens.title),

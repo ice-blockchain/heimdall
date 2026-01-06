@@ -48,7 +48,7 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 			creator.avatar as creator_avatar,
 			creator.external_address as creator_external_address,
 			creator.platform_group as creator_platform,
-			t.bnb_bsc_metadata_owner_address as creator_bnb_bsc_address,
+			t.content_author_id as creator_bnb_bsc_address,
 			COALESCE(t.market_cap_usd, 0) as market_cap_usd,
 			COALESCE(t.price_usd, 0) as price_usd,
 			COALESCE(tv.volume_24h / 1e18, 0) as volume_24h,
@@ -94,7 +94,6 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 					COALESCE(t.title, '') as title,
 					COALESCE(t.description, '') as description,
 					COALESCE(t.image_url, '') as image_url,
-					COALESCE(t.bnb_bsc_metadata_owner_address, '') as bnb_bsc_metadata_owner_address,
 					GREATEST(
 						similarity(t.lookup, $%d),
 						word_similarity($%d, t.lookup)
@@ -194,7 +193,7 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 			creator.avatar as creator_avatar,
 			creator.external_address as creator_external_address,
 			creator.platform_group as creator_platform,
-			t.bnb_bsc_metadata_owner_address as creator_bnb_bsc_address,
+			t.content_author_id as creator_bnb_bsc_address,
 			COALESCE(t.market_cap_usd, 0) as market_cap_usd,
 			COALESCE(t.price_usd, 0) as price_usd,
 			COALESCE(tv.volume_24h / 1e18, 0) as volume_24h,
