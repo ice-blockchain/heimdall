@@ -177,7 +177,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 		creator.verified as creator_verified,
 		creator.avatar as creator_avatar,
 		creator.platform_group as creator_platform,
-		t.bnb_bsc_metadata_owner_address as creator_bnb_bsc_address,
+		t.content_author_id as creator_bnb_bsc_address,
 		creator.external_address as creator_external_address,
 		COALESCE(t.price_usd, 0) as price_usd,
 		COALESCE(t.holders_count, 0) as holders_count,

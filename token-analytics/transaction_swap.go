@@ -406,7 +406,7 @@ func (t *tokenAnalytics) fetchTradeInfoFromSwap(ctx context.Context, txHash stri
 			creator.avatar as creator_avatar,
 			creator.external_address as creator_external_address,
 			creator.platform_group as creator_platform,
-			tokens.bnb_bsc_metadata_owner_address as creator_bnb_bsc_address,
+			tokens.content_author_id as creator_bnb_bsc_address,
 
 			holder.master_pubkey as holder_master_pubkey,
 			holder.username as holder_username,

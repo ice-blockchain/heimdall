@@ -38,9 +38,9 @@ CREATE TABLE IF NOT EXISTS users
     updated_at           TIMESTAMP NOT NULL,
     id                   TEXT NOT NULL,
     master_pubkey        TEXT NOT NULL,
-    content_author_id    TEXT NOT NULL,
+    content_author_id    TEXT NOT NULL CHECK (content_author_id <> ''),
     external_address     TEXT UNIQUE,
-    username             TEXT NOT NULL,
+    username             TEXT NOT NULL UNIQUE,
     display_name         TEXT,
     avatar               TEXT,
     lookup               TEXT NOT NULL DEFAULT '',
@@ -209,7 +209,6 @@ CREATE TABLE IF NOT EXISTS tokens (
     title                           TEXT,
     description                     TEXT,
     image_url                       TEXT,
-    bnb_bsc_metadata_owner_address  TEXT,
     affiliate_bsc_address           TEXT,
     ion_connect_address             TEXT, -- ION Connect address for xcom tokens (kind 31175 event address)
     PRIMARY KEY (contract_address)
@@ -277,6 +276,7 @@ CREATE INDEX IF NOT EXISTS idx_token_swaps_contract ON token_swaps (contract_add
 CREATE INDEX IF NOT EXISTS idx_token_swaps_ion_connect ON token_swaps (external_address, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_token_swaps_user_blockchain_address ON token_swaps (user_blockchain_address);
 CREATE INDEX IF NOT EXISTS idx_token_swaps_created_at ON token_swaps (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_token_swaps_contract_direction_created ON token_swaps (contract_address, direction, created_at ASC);
 
 CREATE TABLE IF NOT EXISTS user_token_positions (
     updated_at              TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -597,43 +597,39 @@ CREATE OR REPLACE FUNCTION process_bonded_token_created(
 DECLARE
     v_token_address TEXT;
     v_external_address TEXT;
-    v_external_address_raw TEXT;
     v_platform platform_type;
     v_platform_prefix TEXT;
     v_total_supply NUMERIC;
     v_token_type TEXT;
-    v_username TEXT;
-    v_display_name TEXT;
-    v_lookup_value TEXT;
-    v_kind INT;
-    v_parts TEXT[];
     v_token_symbol TEXT;
+    v_token_title TEXT;
+    v_creator_address TEXT;
+    v_affiliate_address TEXT;
 BEGIN
     IF array_length(p_topics, 1) < 2 THEN
         RETURN;
     END IF;
 
-    v_token_address := LOWER('0x' || substring(p_topics[2] from 27 for 40)); -- topics[1] = token address (indexed)
+    v_token_address := LOWER('0x' || substring(p_topics[2] from 27 for 40));
+    v_token_title := decode_string_abi(p_data, 0); -- name
+    v_token_symbol := decode_string_abi(p_data, 1); -- symbol
+    v_platform_prefix := CHR(decode_uint256(p_data, 3)::INT); -- index 3
+    v_external_address := decode_string_abi(p_data, 4);
+    v_creator_address := LOWER('0x' || substring(p_data from (5*64+27) for 40));
+    v_affiliate_address := LOWER('0x' || substring(p_data from (6*64+27) for 40));
+    v_total_supply := decode_uint256(p_data, 7);
 
-    v_token_symbol := decode_string_abi(p_data, 1);
-    v_external_address_raw := decode_string_abi(p_data, 2);
-    v_total_supply := decode_uint256(p_data, 3);
-
-    IF v_external_address_raw IS NULL OR v_external_address_raw = '' THEN
+    IF v_external_address IS NULL OR v_external_address = '' THEN
         RAISE WARNING 'Empty external address, skipping token creation';
         RETURN;
     END IF;
 
-    -- Parse platform and type from prefix (a, b, c, d for IonConnect; z, y, x, w for X.com)
-    v_platform_prefix := substring(v_external_address_raw, 1, 1);
-    v_platform := get_platform_group(v_external_address_raw);
+    v_platform := get_platform_group(v_platform_prefix);
 
     IF v_platform IS NULL THEN
-        RAISE WARNING 'Invalid external address format (unknown prefix ''%''): %, skipping token creation', v_platform_prefix, v_external_address_raw;
+        RAISE WARNING 'Invalid external address format (unknown prefix ''%''): %, skipping token creation', v_platform_prefix, v_external_address;
         RETURN;
     END IF;
-
-    v_external_address := substring(v_external_address_raw from 2);
 
     CASE
         WHEN v_platform_prefix IN ('a', 'z') THEN
@@ -645,43 +641,48 @@ BEGIN
         WHEN v_platform_prefix IN ('d', 'w') THEN
             v_token_type := 'article';
         ELSE
-            RAISE WARNING 'Invalid external address format (unknown prefix ''%''): %, skipping token creation', v_platform_prefix, v_external_address_raw;
+            RAISE WARNING 'Invalid external address format (unknown prefix ''%''): %, skipping token creation', v_platform_prefix, v_external_address;
             RETURN;
     END CASE;
 
-    -- For ALL tokens, content_author_id will be populated from first Swapped event
     IF v_token_type IS NULL THEN
         RAISE WARNING 'Failed to determine token type for %, skipping token creation', v_external_address;
         RETURN;
     END IF;
 
     INSERT INTO tokens (
-        created_at, updated_at, contract_address, external_address, platform,
-        ticker, total_supply, content_author_id, type, log_index
+        created_at, updated_at, contract_address, external_address, platform, affiliate_bsc_address,
+        ticker, title, total_supply, content_author_id, type, log_index
     )
     VALUES (
-        p_block_timestamp,
-        p_block_timestamp,
-        v_token_address,
-        v_external_address,
-        v_platform,
-        CASE
-            WHEN v_platform = 'ionconnect' AND v_token_type IN ('post', 'video', 'article')
-            THEN v_external_address
-            ELSE v_token_symbol
-        END,
-        v_total_supply,
-        NULL, -- Will be filled on first swap
-        v_token_type,
-        p_log_index
-    )
-    ON CONFLICT (external_address) DO UPDATE SET
-        updated_at = EXCLUDED.updated_at,
-        total_supply = EXCLUDED.total_supply,
-        contract_address = EXCLUDED.contract_address,
-        platform = EXCLUDED.platform,
-        ticker = COALESCE(EXCLUDED.ticker, tokens.ticker),
-        log_index = COALESCE(EXCLUDED.log_index, tokens.log_index);
+                p_block_timestamp,
+                p_block_timestamp,
+                v_token_address,
+                v_external_address,
+                v_platform,
+                v_affiliate_address,
+                CASE
+                    WHEN v_platform = 'ionconnect' AND v_token_type IN ('post', 'video', 'article')
+                        THEN v_external_address
+                    ELSE v_token_symbol
+                END,
+                v_token_title,
+               v_total_supply,
+               v_creator_address,
+               v_token_type,
+               p_log_index
+           )
+    ON CONFLICT (contract_address) DO UPDATE SET
+                                                 updated_at = EXCLUDED.updated_at,
+                                                 external_address = EXCLUDED.external_address,
+                                                 total_supply = EXCLUDED.total_supply,
+                                                 platform = EXCLUDED.platform,
+                                                 ticker = COALESCE(EXCLUDED.ticker, tokens.ticker),
+                                                 title = COALESCE(EXCLUDED.title, tokens.title),
+                                                 affiliate_bsc_address = COALESCE(EXCLUDED.affiliate_bsc_address, tokens.affiliate_bsc_address),
+                                                 content_author_id = COALESCE(EXCLUDED.content_author_id, tokens.content_author_id),
+                                                 type = COALESCE(EXCLUDED.type, tokens.type),
+                                                 log_index = COALESCE(EXCLUDED.log_index, tokens.log_index);
 
     RAISE DEBUG 'TokenCreated processed: token=%', v_token_address;
 END;
@@ -730,11 +731,13 @@ DECLARE
     v_output_amount NUMERIC;
     v_fee NUMERIC;
     v_price_usd usd_amount;
-    v_ion_price_usd usd_amount;
+    v_base_price_usd usd_amount;
     v_token_external_address TEXT;
     v_base_token TEXT;
     v_other_token TEXT;
     v_token_address TEXT;
+    v_token_type TEXT;
+    v_token_ticker TEXT;
     v_total_supply NUMERIC;
 BEGIN
     IF array_length(p_topics, 1) < 3 THEN
@@ -764,12 +767,14 @@ BEGIN
             t.base_token,
             bp.price_usd,
             t.external_address,
-            t.total_supply
-        INTO v_token_address, v_other_token, v_ion_price_usd, v_token_external_address, v_total_supply
+            t.total_supply,
+            t."type",
+            t.ticker
+        INTO v_token_address, v_other_token, v_base_price_usd, v_token_external_address, v_total_supply, v_token_type, v_token_ticker
         FROM tokens t
-        CROSS JOIN base_token_prices bp
+                 CROSS JOIN base_token_prices bp
         WHERE (t.external_address = v_token_external_address)
-            AND bp.token_symbol = 'ION';
+          AND lower(bp.token_address) = lower(t.base_token);
         IF v_token_address IS NULL THEN
             RAISE WARNING 'Token with external_address % not found, skipping swap', v_token_external_address;
             RETURN;
@@ -780,20 +785,26 @@ BEGIN
             t.base_token,
             bp.price_usd,
             t.external_address,
-            t.total_supply
-        INTO v_token_address, v_other_token, v_ion_price_usd, v_token_external_address, v_total_supply
+            t.total_supply,
+            t."type",
+            t.ticker
+        INTO v_token_address, v_other_token, v_base_price_usd, v_token_external_address, v_total_supply, v_token_type, v_token_ticker
         FROM tokens t
-        CROSS JOIN base_token_prices bp
-        WHERE (t.pair_id = v_pair_id)
-          AND bp.token_symbol = 'ION';
+                 LEFT JOIN base_token_prices bp ON lower(bp.token_address) = lower(t.base_token)
+        WHERE (t.pair_id = v_pair_id);
         IF v_token_address IS NULL THEN
             RAISE WARNING 'Token with pair % not found, skipping swap', v_pair_id;
             RETURN;
         END IF;
+        IF v_base_price_usd IS NULL OR v_base_price_usd = 0 THEN
+            RAISE WARNING 'Token base token % not found, skipping swap', v_other_token;
+            RETURN;
+        END IF;
     END IF;
 
-    IF v_ion_price_usd IS NULL THEN
-        RAISE WARNING 'ION price not found, skipping swap for tx %', p_transaction_hash;
+    IF v_base_price_usd IS NULL THEN
+        -- TODO: single purchase of creator and content tokens - needs to be checked how it looks like on blockchain
+        RAISE WARNING 'Base price not found, skipping swap for tx %', p_transaction_hash;
         RETURN;
     END IF;
 
@@ -805,9 +816,9 @@ BEGIN
     END IF;
 
     IF v_direction = false THEN -- buy
-        v_price_usd := (v_input_amount / v_output_amount) * v_ion_price_usd;
+        v_price_usd := (v_input_amount / v_output_amount) * v_base_price_usd;
     ELSE -- sell
-        v_price_usd := (v_output_amount / v_input_amount) * v_ion_price_usd;
+        v_price_usd := (v_output_amount / v_input_amount) * v_base_price_usd;
     END IF;
 
     INSERT INTO token_swaps (
@@ -815,15 +826,17 @@ BEGIN
         user_blockchain_address, direction, input_amount, output_amount, fee, price_usd, log_index
     )
     VALUES (
-        p_block_timestamp, p_transaction_hash, v_token_address, v_token_external_address,
-        v_user_address, v_direction, v_input_amount, v_output_amount, v_fee, v_price_usd, p_log_index
-    )
+               p_block_timestamp, p_transaction_hash, v_token_address, v_token_external_address,
+               v_user_address, v_direction, v_input_amount, v_output_amount, v_fee, v_price_usd, p_log_index
+           )
     ON CONFLICT (transaction_hash, contract_address, user_blockchain_address) DO NOTHING;
 
     PERFORM update_market_cap_and_position(p_block_timestamp, v_user_address, v_token_address, v_token_external_address,
-                                           v_direction, v_input_amount, v_output_amount, v_price_usd, v_ion_price_usd, v_total_supply);
+                                           v_direction, v_input_amount, v_output_amount, v_price_usd, v_base_price_usd, v_total_supply);
 
-
+    IF v_token_type = 'profile' THEN
+        PERFORM update_base_token_price(v_token_address, v_token_ticker, v_price_usd);
+    END IF;
     RAISE DEBUG 'Swapped processed: token=%, user=%', v_token_address, v_user_address;
 END;
 $$ LANGUAGE plpgsql;
@@ -992,10 +1005,15 @@ DECLARE
     v_price_ion NUMERIC;
     v_cost_usd usd_amount;
     v_realized_usd usd_amount;
-    v_avatar TEXT;
-    v_username TEXT;
-    v_display_name TEXT;
+    v_buyer_username TEXT;
+    v_buyer_display_name TEXT;
     v_platform platform_type;
+    v_owner_avatar TEXT;
+    v_owner_username TEXT;
+    v_owner_display_name TEXT;
+    v_owner_content_author_id TEXT;
+    v_author_pubkey TEXT;
+    v_owner_external_address TEXT;
 BEGIN
     IF p_direction = false THEN
         v_price_ion := p_input_amount / p_output_amount;
@@ -1004,36 +1022,48 @@ BEGIN
     END IF;
 
     v_market_cap_usd := p_price_usd * (p_total_supply / 1e18);
-    v_market_cap_ion := v_price_ion * p_total_supply;
+    v_market_cap_ion := v_price_ion * (p_total_supply / 1e18);
 
-    SELECT external_address, avatar, username, display_name, platform_group
-    INTO v_user_external_address, v_avatar, v_username, v_display_name, v_platform
+    -- Buyer's data for user_token_positions and lookup
+    SELECT external_address, username, display_name
+    INTO v_user_external_address, v_buyer_username, v_buyer_display_name
     FROM users
     WHERE LOWER(content_author_id) = LOWER(p_user_blockchain_address);
+
+    -- Token owner's metadata
+    v_author_pubkey := split_part(p_token_external_address, ':', 1);
+    IF v_author_pubkey = '0' THEN
+        v_owner_external_address := p_token_external_address;
+    ELSIF v_author_pubkey <> p_token_external_address THEN
+        v_author_pubkey := split_part(p_token_external_address, ':', 2);
+        v_owner_external_address := '0:' || v_author_pubkey || ':';
+    ELSE
+        v_owner_external_address := p_token_external_address;
+    END IF;
+
+    SELECT avatar, username, display_name, platform_group, content_author_id
+    INTO v_owner_avatar, v_owner_username, v_owner_display_name, v_platform, v_owner_content_author_id
+    FROM users
+    WHERE external_address = v_owner_external_address;
 
     UPDATE tokens t
     SET price_usd = p_price_usd,
         market_cap_usd = v_market_cap_usd,
         market_cap = v_market_cap_ion,
         updated_at = p_block_timestamp,
-        content_author_id = CASE
-            WHEN t.content_author_id IS NULL AND p_direction = false
-                THEN p_user_blockchain_address
-            ELSE t.content_author_id
-            END,
         image_url = CASE
-            WHEN t.content_author_id IS NULL AND p_direction = false
-                     AND v_platform = 'ionconnect' AND v_avatar IS NOT NULL
-                THEN v_avatar
+            WHEN t.image_url IS NULL AND p_direction = false
+                     AND v_platform = 'ionconnect' AND v_owner_avatar IS NOT NULL
+                THEN v_owner_avatar
             ELSE t.image_url
             END,
         lookup = CASE
-            WHEN t.content_author_id IS NULL AND p_direction = false AND v_username IS NOT NULL THEN
+            WHEN (t.lookup IS NULL OR t.lookup = '') AND p_direction = false THEN
                 LOWER(TRIM(
                         COALESCE(t.contract_address, '') || ' ' ||
                         COALESCE(t.ticker, '') || ' ' ||
-                        COALESCE(v_username, '') || ' ' ||
-                        COALESCE(v_display_name, '')
+                        COALESCE(v_owner_username, '') || ' ' ||
+                        COALESCE(v_owner_display_name, '')
                     ))
             ELSE t.lookup
             END
@@ -1070,7 +1100,33 @@ BEGIN
     END IF;
 END; $$ LANGUAGE plpgsql;
 
-
+CREATE OR REPLACE FUNCTION update_base_token_price(
+    p_token_address TEXT,
+    p_token_ticker TEXT,
+    p_price_usd usd_amount
+) RETURNS VOID AS
+$$
+BEGIN
+    WITH old_price AS (
+        SELECT price_usd
+        FROM base_token_prices
+        WHERE token_address = $1
+    ),
+         updated AS (
+             INSERT INTO base_token_prices (token_address, token_symbol, price_usd, updated_at)
+                 VALUES (p_token_address, p_token_ticker, p_price_usd, NOW())
+                 ON CONFLICT (token_address) DO UPDATE SET
+                     price_usd = EXCLUDED.price_usd,
+                     updated_at = EXCLUDED.updated_at,
+                     token_symbol = EXCLUDED.token_symbol
+                 RETURNING price_usd
+         )
+    INSERT INTO base_token_price_history (token_address, price_usd, created_at)
+    SELECT p_token_address, p_price_usd, NOW()
+    WHERE NOT EXISTS (SELECT 1 FROM old_price)
+       OR (SELECT price_usd FROM old_price) != p_price_usd;
+END;
+$$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION process_tx_log_event()
 RETURNS TRIGGER AS $$
@@ -1083,20 +1139,19 @@ BEGIN
     WHERE transaction_hash = NEW.transaction_hash;
 
     CASE NEW.topic0
-        WHEN '0x7a69aeb15d1aa44b3fec40fc8767221a5e4d2f41e58421d34db80a63f5a619c7' THEN -- BondedTokenCreated
-            PERFORM process_bonded_token_created(NEW.topics, NEW.data, v_block_timestamp, NEW.log_index);
+        WHEN '0xf1aad4192131f14ec094f5319421d9274539312c962d0ce8121ba86f52f25db0' THEN -- BondedTokenCreated
+        PERFORM process_bonded_token_created(NEW.topics, NEW.data, v_block_timestamp, NEW.log_index);
         WHEN '0x157b5bda8c36b5ae40a6f0d041dce8790309b04707aa024e9a73ee87287372b4' THEN -- PairRegistered
-            PERFORM process_pair_registered(NEW.topics, v_block_timestamp);
+        PERFORM process_pair_registered(NEW.topics, v_block_timestamp);
         WHEN '0xe4a3738af8db2ebbadd5b857bb8d2e0e6650fade69486571ff038a2a81433ca0' THEN -- Swapped
-            PERFORM process_swapped(NEW.transaction_hash, NEW.topics, NEW.data, v_tx_input, v_block_timestamp, NEW.log_index, NEW.address);
+        PERFORM process_swapped(NEW.transaction_hash, NEW.topics, NEW.data, v_tx_input, v_block_timestamp, NEW.log_index, NEW.address);
         WHEN '0x783cca1c0412dd0d695e784568c96da2e9c22ff989357a2e8b1d9b2b4e6b7118' THEN -- PoolCreated (uniswap)
-            PERFORM process_pool_registered(NEW.topics, NEW.data, v_block_timestamp);
+        PERFORM process_pool_registered(NEW.topics, NEW.data, v_block_timestamp);
         WHEN '0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67' THEN -- Swap (uniswap)
-            PERFORM process_swapped_uniswap(NEW.transaction_hash, NEW.topics, NEW.data, v_block_timestamp, NEW.log_index, NEW.address);
+        PERFORM process_swapped_uniswap(NEW.transaction_hash, NEW.topics, NEW.data, v_block_timestamp, NEW.log_index, NEW.address);
         ELSE
             NULL;
-    END CASE;
-
+        END CASE;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

@@ -45,7 +45,7 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 			creator.verified as creator_verified,
 			creator.avatar as creator_avatar,
 			creator.platform_group as creator_platform,
-			t.bnb_bsc_metadata_owner_address as creator_bnb_bsc_address,
+			t.content_author_id as creator_bnb_bsc_address,
 			creator.external_address as creator_external_address,
 			t.price_usd as price_usd,
 			t.total_supply as total_supply,
