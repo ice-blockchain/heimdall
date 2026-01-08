@@ -9,7 +9,7 @@ require (
 	github.com/alitto/pond/v2 v2.6.0
 	github.com/btcsuite/btcd v0.25.0
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.10
-	github.com/caddyserver/certmagic v0.25.0
+	github.com/caddyserver/certmagic v0.25.1
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cockroachdb/errors v1.12.0
 	github.com/dfns/dfns-sdk-go v1.0.2
@@ -29,7 +29,7 @@ require (
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ice-blockchain/go/src v0.0.0-20251117100638-ebce142e0ce4
-	github.com/ice-blockchain/subzero v1.495.0
+	github.com/ice-blockchain/subzero v1.496.0
 	github.com/ice-blockchain/wintr v1.170.0
 	github.com/imroc/req/v3 v3.57.0
 	github.com/jackc/pgx/v5 v5.8.0
@@ -48,7 +48,7 @@ require (
 	github.com/swaggo/gin-swagger v1.6.1
 	github.com/swaggo/swag v1.16.6
 	github.com/testcontainers/testcontainers-go v0.40.0
-	github.com/twilio/twilio-go v1.29.0
+	github.com/twilio/twilio-go v1.29.1
 	github.com/xssnick/tonutils-go v1.15.5
 	github.com/zeebo/xxh3 v1.0.2
 	go.uber.org/goleak v1.3.0
@@ -114,7 +114,7 @@ require (
 	github.com/bytedance/sonic v1.14.2 // indirect
 	github.com/bytedance/sonic/loader v0.4.0 // indirect
 	github.com/bzick/tokenizer v1.4.10 // indirect
-	github.com/caddyserver/zerossl v0.1.4-0.20251111225255-9a4fc4cf5dc7 // indirect
+	github.com/caddyserver/zerossl v0.1.4 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/clipperhouse/stringish v0.1.1 // indirect
@@ -191,7 +191,7 @@ require (
 	github.com/go-playground/validator/v10 v10.30.1 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
-	github.com/goccy/go-yaml v1.19.1 // indirect
+	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/gofrs/flock v0.13.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
@@ -204,7 +204,7 @@ require (
 	github.com/google/renameio/v2 v2.0.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
-	github.com/googleapis/enterprise-certificate-proxy v0.3.7 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.3.9 // indirect
 	github.com/googleapis/gax-go/v2 v2.16.0 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/graph-gophers/graphql-go v1.3.0 // indirect
@@ -287,7 +287,7 @@ require (
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
-	github.com/prometheus/common v0.67.4 // indirect
+	github.com/prometheus/common v0.67.5 // indirect
 	github.com/prometheus/procfs v0.19.2 // indirect
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
@@ -356,7 +356,7 @@ require (
 	golang.org/x/text v0.32.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 	golang.org/x/tools v0.40.0 // indirect
-	google.golang.org/api v0.258.0 // indirect
+	google.golang.org/api v0.259.0 // indirect
 	google.golang.org/appengine/v2 v2.0.6 // indirect
 	google.golang.org/genproto v0.0.0-20251222181119-0a764e51fe1b // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251222181119-0a764e51fe1b // indirect
