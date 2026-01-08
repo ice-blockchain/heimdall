@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS users
     master_pubkey        TEXT NOT NULL,
     content_author_id    TEXT NOT NULL CHECK (content_author_id <> ''),
     external_address     TEXT UNIQUE,
-    username             TEXT NOT NULL UNIQUE,
+    username             TEXT NOT NULL,
     display_name         TEXT,
     avatar               TEXT,
     lookup               TEXT NOT NULL DEFAULT '',
