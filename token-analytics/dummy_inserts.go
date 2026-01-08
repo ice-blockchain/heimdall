@@ -1029,7 +1029,10 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
 	sql := `INSERT INTO smart_contract_transactions(from_block_number, to_block_number, network, stream_id, data)
 			VALUES ($1, $1, 'bsc-testnet-dummy', $2, $3::JSONB)`
 	_, err = storage.Exec(ctx, gen.Target, sql, blockNum, stream, buf.String())
-	return errors.Wrapf(err, "failed to insert dummy contract data")
+	if err != nil && !storage.IsErr(err, storage.ErrDuplicate) {
+		return errors.Wrapf(err, "failed to insert dummy contract data")
+	}
+	return nil
 }
 
 func mustRandomHex(n int) string {
