@@ -5,7 +5,9 @@ package bondingcurve
 import (
 	"encoding/hex"
 	"fmt"
+	"math"
 	"math/big"
+	"strconv"
 	"strings"
 
 	"github.com/cockroachdb/errors"
@@ -141,6 +143,103 @@ func pairRegistered(signature, data, pairIdTopic, baseTokenTopic, otherTokenTopi
 	return &pairRegisteredEvent, nil
 }
 
+func parseHandleOps(txInput string) (*CustomHandleOps, error) {
+	// Remove "0x" prefix and function selector (4 bytes = 8 hex chars)
+	hexData := strings.TrimPrefix(txInput, "0x")
+	if len(hexData) < 8 {
+		return nil, errors.New("tx input too short for handleOps")
+	}
+	// Structure:
+	// [0:8]   - selector (0x74fa4121)
+	// [8:72]  - offset to userOps (always 0x60 = 96 bytes)
+	// [72:136] - r (signature part 1)
+	// [136:200] - vs (signature part 2, EIP-2098 compact)
+	// [200:264] - userOps length in bytes
+	// [264:...] - userOps data: sender(20) + nonce(32) + callDataLength(32) + callData
+
+	if len(hexData) < 264 {
+		return nil, errors.New("tx input too short for handleOps with userOps")
+	}
+
+	// Skip selector and read userOps offset (should be 96 bytes = 0x60)
+	userOpsOffsetHex := hexData[8:72]
+	userOpsOffset, err := strconv.ParseUint(userOpsOffsetHex, 16, 64)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse userOps offset")
+	}
+	// userOps starts at byte offset (in hex chars = offset * 2)
+	userOpsStartHex := int(userOpsOffset * 2)
+	if len(hexData) < userOpsStartHex+64 {
+		return nil, errors.New("tx input too short for userOps length")
+	}
+	// Read userOps length (32 bytes at userOpsStartHex)
+	userOpsLengthHex := hexData[userOpsStartHex : userOpsStartHex+64]
+	userOpsLength, err := strconv.ParseUint(userOpsLengthHex, 16, 64)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse userOps length")
+	}
+	// UserOps data starts right after length field
+	userOpsDataStart := userOpsStartHex + 64
+
+	// Ensure userOpsLength fits into an int before converting and using it for indexing.
+	if userOpsLength > uint64(math.MaxInt) {
+		return nil, errors.New("userOps length too large")
+	}
+	userOpsLengthInt := int(userOpsLength)
+	userOpsDataEnd := userOpsDataStart + userOpsLengthInt*2
+	if userOpsDataEnd > len(hexData) {
+		return nil, errors.New("tx input too short for userOps data")
+	}
+	userOpsDataHex := hexData[userOpsDataStart:userOpsDataEnd]
+
+	// Parse UserOps structure:
+	// [0:40]   - sender (20 bytes)
+	// [40:104] - nonce (32 bytes)
+	// [104:168] - callDataLength (32 bytes)
+	// [168:...] - callData
+	if len(userOpsDataHex) < 168 {
+		return nil, errors.New("userOps data too short")
+	}
+	sender := common.HexToAddress("0x" + userOpsDataHex[0:40])
+	nonceHex := userOpsDataHex[40:104]
+	nonce := new(big.Int)
+	nonce.SetString(nonceHex, 16)
+
+	callDataLengthHex := userOpsDataHex[104:168]
+	callDataLength, err := strconv.ParseUint(callDataLengthHex, 16, 64)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse callData length")
+	}
+
+	if callDataLength > uint64(int(math.MaxInt64)) {
+		return nil, errors.Errorf("callData length too large: %d", callDataLength)
+	}
+
+	// Extract callData
+	callDataStart := 168
+	callDataEnd := callDataStart + int(callDataLength)*2
+	if len(userOpsDataHex) < callDataEnd {
+		return nil, errors.Errorf("userOps data too short for callData: need %d, have %d", callDataEnd, len(userOpsDataHex))
+	}
+
+	callDataHex := userOpsDataHex[callDataStart:callDataEnd]
+	callData, err := hex.DecodeString(callDataHex)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to decode callData")
+	}
+	result := &CustomHandleOps{
+		Ops: []CustomUserOperation{
+			{
+				Sender:   sender,
+				Nonce:    nonce,
+				CallData: callData,
+			},
+		},
+	}
+
+	return result, nil
+}
+
 func tokenSwapped(signature, data, contractAddress, swapperTopic, pairIdTopic, txInput string) (*LogTokenSwapped, error) {
 	if signature != eventSwapped.Hex() {
 		return nil, errors.Errorf("invalid signature for Swapped: expected %s, got %s", eventSwapped.Hex(), signature)
@@ -154,32 +253,108 @@ func tokenSwapped(signature, data, contractAddress, swapperTopic, pairIdTopic, t
 	}
 	tokenSwappedEvent.Swapper = common.HexToAddress(swapperTopic)
 	tokenSwappedEvent.Pair = common.HexToHash(pairIdTopic)
+
 	if len(txInput) < 10 {
-		return nil, errors.Errorf("swap: tx input too short")
+		log.Debug(fmt.Sprintf("Token swapped: swapper=%v, pair=%v, direction=%v (no tx input params - tx too short, len=%d)",
+			tokenSwappedEvent.Swapper.Hex(), tokenSwappedEvent.Pair.Hex(), tokenSwappedEvent.Direction, len(txInput)))
+		return &tokenSwappedEvent, nil
 	}
-	tokenSwapParams := make(map[string]any)
+
+	functionSelector := txInput[:10]
+	log.Debug(fmt.Sprintf("Processing swap with function selector: %s, txInput length: %d", functionSelector, len(txInput)))
+
+	// Function selectors:
+	// handleOps (custom implementation) = 0x74fa4121
+	// swap(bytes,bytes,uint256,uint256) = 0x83362e17
+	// swap(bytes,bytes,uint256,uint256,(uint256,uint256,uint8,bytes32,bytes32)) = 0x027c101d
+	const (
+		handleOpsSelector  = "0x74fa4121" // Custom: handleOps(bytes,uint256,uint256)
+		swap4ParamSelector = "0x83362e17"
+		swap5ParamSelector = "0x027c101d"
+	)
+
+	// If this is a custom handleOps transaction, extract the inner calldata
+	if functionSelector == handleOpsSelector {
+		// Custom handleOps implementation with simplified structure:
+		// function handleOps(
+		//     bytes memory userOps,  // Single UserOperation: sender(20) + nonce(32) + callDataLength(32) + callData
+		//     uint256 r,             // Signature component 1
+		//     uint256 vs             // Signature component 2 (EIP-2098 compact)
+		// )
+		//
+		originalTxInput := txInput
+
+		handleOpsData, err := parseHandleOps(originalTxInput)
+		if err != nil {
+			log.Debug(fmt.Sprintf("Custom handleOps full parse failed (expected for truncated data): %v", err))
+		} else {
+			tokenSwappedEvent.CustomHandleOp = handleOpsData
+			log.Debug(fmt.Sprintf("✓ Parsed custom handleOps: sender=%s, nonce=%s",
+				handleOpsData.Ops[0].Sender.Hex(), handleOpsData.Ops[0].Nonce.String()))
+		}
+
+		// Search for swap selectors within the txInput to extract the actual swap() call
+		swap4Pos := strings.Index(txInput, swap4ParamSelector[2:]) // Remove "0x" prefix
+		swap5Pos := strings.Index(txInput, swap5ParamSelector[2:])
+
+		if swap4Pos > 0 {
+			// Found 4-param swap selector, extract from this position
+			txInput = "0x" + txInput[swap4Pos:]
+			functionSelector = swap4ParamSelector
+			log.Debug(fmt.Sprintf("Extracted 4-param swap from custom handleOps at position %d, new length: %d", swap4Pos, len(txInput)))
+		} else if swap5Pos > 0 {
+			// Found 5-param swap selector
+			txInput = "0x" + txInput[swap5Pos:]
+			functionSelector = swap5ParamSelector
+			log.Debug(fmt.Sprintf("Extracted 5-param swap from custom handleOps at position %d, new length: %d", swap5Pos, len(txInput)))
+		} else {
+			// No swap selector found in handleOps
+			log.Debug(fmt.Sprintf("Token swapped: swapper=%v, pair=%v, direction=%v (no swap selector found in custom handleOps)",
+				tokenSwappedEvent.Swapper.Hex(), tokenSwappedEvent.Pair.Hex(), tokenSwappedEvent.Direction))
+			return &tokenSwappedEvent, nil
+		}
+	}
+
+	if functionSelector != swap4ParamSelector && functionSelector != swap5ParamSelector {
+		log.Debug(fmt.Sprintf("Token swapped: swapper=%v, pair=%v, direction=%v (no tx input params - not a swap function, selector=%s)",
+			tokenSwappedEvent.Swapper.Hex(), tokenSwappedEvent.Pair.Hex(), tokenSwappedEvent.Direction, functionSelector))
+		return &tokenSwappedEvent, nil
+	}
+
+	// Decode swap function parameters based on the selector
+	swapParams := make(map[string]any)
 	decodedTxInput, err := hex.DecodeString(txInput[10:])
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to parse tx input hex: %v", txInput[10:])
 	}
 
-	// Try 5-param version first (swap(bytes,bytes,uint256,uint256,PermitData))
-	method5, ok := ABI.Methods["swap"]
-	if !ok {
-		log.Panic(errors.Errorf("failed to find swap method in bonding curve abi"))
-	}
-	err = method5.Inputs.UnpackIntoMap(tokenSwapParams, decodedTxInput)
-
-	if err != nil {
-		// Fallback to 4-param version.  TODO: remove as soon as permit is used.
-		method4 := abi4Param.Methods["swap"]
-		err = method4.Inputs.UnpackIntoMap(tokenSwapParams, decodedTxInput)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to parse tx input (tried both 5-param and 4-param swap)")
+	// Use the correct ABI based on function selector
+	switch functionSelector {
+	case swap5ParamSelector:
+		// 5-param version: swap(bytes,bytes,uint256,uint256,PermitData)
+		method5, ok := ABI.Methods["swap"]
+		if !ok {
+			log.Panic(errors.Errorf("failed to find 5-param swap method in bonding curve abi"))
 		}
+		err = method5.Inputs.UnpackIntoMap(swapParams, decodedTxInput)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse 5-param swap tx input")
+		}
+	case swap4ParamSelector:
+		// 4-param version: swap(bytes,bytes,uint256,uint256)
+		method4, ok := abi4Param.Methods["swap"]
+		if !ok {
+			log.Panic(errors.Errorf("failed to find 4-param swap method in abi"))
+		}
+		err = method4.Inputs.UnpackIntoMap(swapParams, decodedTxInput)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse 4-param swap tx input")
+		}
+	default:
+		return nil, errors.Errorf("unexpected function selector: %s", functionSelector)
 	}
 
-	tokenSwappedEvent.Params = tokenSwapParams
+	tokenSwappedEvent.Params = swapParams
 	log.Debug(fmt.Sprintf("Token swapped: swapper=%v, pair=%v, direction=%v",
 		tokenSwappedEvent.Swapper.Hex(), tokenSwappedEvent.Pair.Hex(),
 		tokenSwappedEvent.Direction))

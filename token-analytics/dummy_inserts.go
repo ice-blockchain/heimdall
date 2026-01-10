@@ -77,6 +77,7 @@ type (
 		SwappedData            string
 		UserBlockchainAddr     string
 		BlockTimestamp         uint64
+		EntryPointAddr         string
 	}
 )
 
@@ -91,8 +92,32 @@ func (gen *dummyDataGenerator) Run(ctx context.Context) {
 		gen.TokenGeneratorTTL = 4 * time.Hour
 	}
 
+	// Ensure BNB price exists in database for dummy mode (use price ~$600)
+	_, err := storage.Exec(ctx, gen.Target, `
+		INSERT INTO base_token_prices (token_address, token_symbol, price_usd, updated_at)
+		VALUES ('BNB', 'BNB', 600.0, NOW())
+		ON CONFLICT (token_address) DO UPDATE SET
+			price_usd = EXCLUDED.price_usd,
+			updated_at = EXCLUDED.updated_at
+	`)
+	if err != nil {
+		log.Error(errors.Wrap(err, "failed to insert dummy BNB price"))
+	}
+
+	// Ensure ION price exists in database for dummy mode (use price ~$0.01)
+	_, err = storage.Exec(ctx, gen.Target, `
+		INSERT INTO base_token_prices (token_address, token_symbol, price_usd, updated_at)
+		VALUES ($1, 'ION', 0.01, NOW())
+		ON CONFLICT (token_address) DO UPDATE SET
+			price_usd = EXCLUDED.price_usd,
+			updated_at = EXCLUDED.updated_at
+	`, strings.ToLower(gen.IONTokenAddress))
+	if err != nil {
+		log.Error(errors.Wrap(err, "failed to insert dummy ION price"))
+	}
+
 	masterPubkey := "9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f"
-	err := gen.generateToken(ctx, gen.Stream, &tokenRow{
+	err = gen.generateToken(ctx, gen.Stream, &tokenRow{
 		ContractAddress: "7307ea7ab4a7e5bcba1bf18c9495d08107d9f0d8",
 		ContentAuthorID: &masterPubkey,
 		ExternalAddress: string(PlatformIonConnectProfile) + BuildProfileExternalAddress(masterPubkey),
@@ -652,6 +677,9 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 		// Each tx in batch gets unique timestamp (1 second apart)
 		txTimestamp := uint64(baseTimestamp + int64(txIdx))
 
+		// 50% chance to generate custom handleOps transaction
+		useCustomHandleOps := rand.Intn(2) == 0
+
 		minTokens := 100.0   // minimum 100 tokens
 		maxTokens := 10000.0 // maximum 10000 tokens
 		tokensToTrade := minTokens + rand.Float64()*(maxTokens-minTokens)
@@ -704,7 +732,7 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 			copy(toToken, contractAddr)
 		}
 
-		txInput, packErr := bondingcurve.ABI.Methods["swap"].Inputs.Pack(
+		swapCalldata, packErr := bondingcurve.ABI.Methods["swap"].Inputs.Pack(
 			baseToken,
 			toToken,
 			inputAmount,
@@ -720,7 +748,129 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 		if packErr != nil {
 			return packErr
 		}
-		tmpl, tmplErr := template.New("swap_tx").Parse(`{
+
+		var txInput string
+		var entryPointAddr string
+
+		if useCustomHandleOps {
+			// Custom handleOps: send to smart account (user's address)
+			entryPointAddr = userBlockChainAddr
+			// Generate custom handleOps transaction
+			// handleOps(bytes userOps, uint256 r, uint256 vs)
+			//
+			// Structure according to specification:
+			// [1.1]: 0x74fa4121 (selector)
+			// [1.2]: offset to userOps (0x60 = 96 bytes)
+			// [1.3]: r (32 bytes signature)
+			// [1.4]: vs (32 bytes signature, EIP-2098 compact)
+			// [1.5]: userOps length (32 bytes)
+			// [2.1]: sender (20 bytes, NOT 32!)
+			// [2.2]: nonce (32 bytes)
+			// [2.3]: callDataLength (32 bytes)
+			// [2.4]: callData (variable, contains swap() call)
+
+			swapSelector := "83362e17" // swap 4-param selector
+			innerCallData := swapSelector + hex.EncodeToString(swapCalldata)
+
+			// [2.1] Sender: 20 bytes (NOT padded to 32!)
+			senderBytes, _ := hex.DecodeString(userBlockChainAddr)
+			if len(senderBytes) != 20 {
+				return errors.New("invalid sender address length")
+			}
+
+			// [2.2] Nonce: 32 bytes
+			nonce := fmt.Sprintf("%064x", rand.Uint64())
+
+			// [2.3] CallData length: 32 bytes (length in bytes)
+			callDataLengthBytes := len(innerCallData) / 2
+			callDataLength := fmt.Sprintf("%064x", callDataLengthBytes)
+
+			// [2.4] CallData: variable length (the actual swap() call)
+			callData := innerCallData
+
+			// Build userOps bytes: sender(20) + nonce(32) + callDataLength(32) + callData(variable)
+			userOpsData := userBlockChainAddr + nonce + callDataLength + callData
+
+			// [1.5] UserOps length in bytes
+			userOpsLengthBytes := len(userOpsData) / 2
+			userOpsLength := fmt.Sprintf("%064x", userOpsLengthBytes)
+
+			// [1.3] r: 32 bytes (random signature part 1)
+			r := mustRandomHex(32)
+
+			// [1.4] vs: 32 bytes (random signature part 2, EIP-2098 compact)
+			vs := mustRandomHex(32)
+
+			// [1.2] Offset to userOps: always 0x60 (96 bytes = selector(4) + offset(32) + r(32) + vs(32))
+			userOpsOffset := fmt.Sprintf("%064x", 96)
+
+			// [1.1] Selector: 0x74fa4121
+			handleOpsSelector := "74fa4121"
+
+			// Assemble: selector + offset + r + vs + length + data
+			txInput = handleOpsSelector +
+				userOpsOffset +
+				r +
+				vs +
+				userOpsLength +
+				userOpsData
+		} else {
+			// Direct swap transaction
+			txInput = hex.EncodeToString(swapCalldata)
+		}
+
+		var tmplStr string
+		if useCustomHandleOps {
+			// Custom handleOps transaction template (to EntryPoint contract)
+			tmplStr = `{
+      "accessList": [],
+      "blockHash": "0x{{.BlockHash}}",
+      "blockNumber": "{{.BlockNumber}}",
+      "blockTimestamp": "{{.BlockTimestamp}}",
+      "chainId": "0x61",
+      "from": "0x{{.UserBlockchainAddr}}",
+      "gas": "0x14af2d",
+      "gasPrice": "0x3b9aca00",
+      "hash": "0x{{.TxHash}}",
+      "input": "0x{{.TxInput}}",
+      "logs": [{
+          "address": "0x{{.BondingCurveContract}}",
+          "data": "0x{{.SwappedData}}",
+          "logIndex": "0x1",
+          "removed": false,
+          "topics": [
+            "0xe4a3738af8db2ebbadd5b857bb8d2e0e6650fade69486571ff038a2a81433ca0",
+            "0x000000000000000000000000{{.UserBlockchainAddr}}",
+            "{{.Token.PairId}}"
+          ]
+        },
+       {
+          "address": "0x{{.Token.ContractAddress}}",
+          "data": "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "logIndex": "0x2",
+          "removed": false,
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x0000000000000000000000000dc4fd80a011b2ffec23a6e35ab6d0918f5972f3"
+          ]
+        }
+		],
+      "maxFeePerGas": "0x4a817c800",
+      "maxPriorityFeePerGas": "0x3b9aca00",
+      "nonce": "0x6",
+      "r": "0xcf368ec13b2f7dfaad0bde4aac890ff51636111bb8220dfdd904aeb975f5bc0f",
+      "s": "0x229edc4496b34d243ac4980aa17955dd6928bf8f6077f386934249782b695545",
+      "to": "0x{{.EntryPointAddr}}",
+      "transactionIndex": "{{.TxIndex}}",
+      "type": "0x2",
+      "v": "0x0",
+      "value": "0x0",
+      "yParity": "0x0"
+	}`
+		} else {
+			// Direct swap transaction template
+			tmplStr = `{
       "accessList": [],
       "blockHash": "0x{{.BlockHash}}",
       "blockNumber": "{{.BlockNumber}}",
@@ -765,13 +915,16 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
       "v": "0x0",
       "value": "0x0",
       "yParity": "0x0"
-	}`)
+	}`
+		}
+		tmpl, tmplErr := template.New("swap_tx").Parse(tmplStr)
 		if tmplErr != nil {
 			return errors.Wrapf(tmplErr, "failed to insert dummy contract data: malformed template")
 		}
 		buf := bytes.NewBuffer([]byte{})
 		bondingCurveNoPrefix := strings.TrimPrefix(gen.BondingCurveContractAddress, "0x")
-		execErr := tmpl.Execute(buf, &dummyDataTemplateParams{
+
+		templateParams := &dummyDataTemplateParams{
 			Stream:               stream,
 			BlockNumber:          blockNum,
 			BlockTimestamp:       txTimestamp,
@@ -780,22 +933,38 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 			TxHash:               mustRandomHex(32),
 			Token:                token,
 			UserBlockchainAddr:   userBlockChainAddr,
-			TxInput:              hex.EncodeToString(txInput),
+			TxInput:              txInput,
 			BondingCurveContract: bondingCurveNoPrefix,
 			SwappedData:          hex.EncodeToString(data),
-		})
+		}
+
+		if useCustomHandleOps {
+			templateParams.EntryPointAddr = entryPointAddr
+		}
+
+		execErr := tmpl.Execute(buf, templateParams)
 		if execErr != nil {
 			return errors.Wrapf(execErr, "failed to insert dummy contract data: malformed template")
 		}
 
 		txsForBlock = append(txsForBlock, buf.String())
+
+		txType := "direct"
+		if useCustomHandleOps {
+			txType = "custom handleOps"
+		}
+		log.Debug(fmt.Sprintf("Generated %s swap tx for token %s: buy=%v, amount=%s",
+			txType, token.ContractAddress, !buyOrSel, inputAmount.String()))
 	}
 	fullData := fmt.Sprintf(`{"stream": "%[1]v", "transactions": [`+strings.Join(txsForBlock, ",")+`]}`, stream)
 	sql := `INSERT INTO smart_contract_transactions(from_block_number, to_block_number, network, stream_id, data)
 			VALUES ($1, $1, 'bsc-testnet-dummy', $2, $3::JSONB)
 			ON CONFLICT (from_block_number, to_block_number, network) DO NOTHING`
 	_, err = storage.Exec(ctx, gen.Target, sql, blockNum, stream, fullData)
-	return errors.Wrapf(err, "failed to insert dummy tx data")
+	if err != nil && !storage.IsErr(err, storage.ErrDuplicate) {
+		return errors.Wrapf(err, "failed to insert dummy tx data")
+	}
+	return nil
 }
 
 func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string, seedData *tokenRow, platformGroup string) error {
@@ -888,7 +1057,7 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
           "logIndex": "0x1",
           "removed": false,
           "topics": [
-            "0x{{.BondingCurveContract}}",
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
             "0x0000000000000000000000000000000000000000000000000000000000000000",
             "0x000000000000000000000000{{.BondingCurveContract}}"
           ]
@@ -1056,6 +1225,7 @@ func generateDummyContractAddress() string {
 
 	return hex.EncodeToString(buf.Bytes())
 }
+
 func (gen *dummyDataGenerator) createUserForPlatform(ctx context.Context, masterPubkey string, platformGroup string) (blockchainAddress string, master string, err error) {
 	gen.usersLock.Lock()
 	defer gen.usersLock.Unlock()
