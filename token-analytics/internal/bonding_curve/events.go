@@ -211,7 +211,7 @@ func parseHandleOps(txInput string) (*CustomHandleOps, error) {
 		return nil, errors.Wrap(err, "failed to parse callData length")
 	}
 
-	if callDataLength > uint64(math.MaxInt) {
+	if callDataLength > uint64(int(math.MaxInt64)) {
 		return nil, errors.Errorf("callData length too large: %d", callDataLength)
 	}
 
