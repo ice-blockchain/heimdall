@@ -32,14 +32,34 @@ type (
 	}
 	LogTokenSwapped struct {
 		Event
-		Swapper      common.Address
-		Pair         common.Hash
-		Direction    bool
-		TotalSupply  *big.Int
-		InputAmount  *big.Int
-		OutputAmount *big.Int
-		Fee          *big.Int
-		Params       map[string]any
+		Swapper        common.Address
+		Pair           common.Hash
+		Direction      bool
+		TotalSupply    *big.Int
+		InputAmount    *big.Int
+		OutputAmount   *big.Int
+		Fee            *big.Int
+		Params         map[string]any
+		CustomHandleOp *CustomHandleOps
+	}
+
+	CustomUserOperation struct {
+		Sender               common.Address `json:"sender"`
+		Nonce                *big.Int       `json:"nonce"`
+		InitCode             []byte         `json:"initCode"`
+		CallData             []byte         `json:"callData"`
+		CallGasLimit         *big.Int       `json:"callGasLimit"`
+		VerificationGasLimit *big.Int       `json:"verificationGasLimit"`
+		PreVerificationGas   *big.Int       `json:"preVerificationGas"`
+		MaxFeePerGas         *big.Int       `json:"maxFeePerGas"`
+		MaxPriorityFeePerGas *big.Int       `json:"maxPriorityFeePerGas"`
+		PaymasterAndData     []byte         `json:"paymasterAndData"`
+		Signature            []byte         `json:"signature"`
+	}
+
+	CustomHandleOps struct {
+		Ops         []CustomUserOperation `json:"ops"`
+		Beneficiary common.Address        `json:"beneficiary"`
 	}
 	LogRecipientsSet struct {
 		Event
@@ -146,12 +166,15 @@ type (
 )
 
 var (
-	ABI        abi.ABI
-	UniswapABI abi.ABI
+	ABI                abi.ABI
+	UniswapABI         abi.ABI
+	CustomHandleOpsABI abi.ABI
 	//go:embed .abi/bonding_curve.json
 	ABIJSON string
 	//go:embed .abi/IUniswapV3Factory.json
 	UniswapABIJSON string
+	//go:embed .abi/CustomHandleOps.json
+	CustomHandleOpsABIJSON string
 
 	eventTokenCreated         = crypto.Keccak256Hash([]byte("BondingTokenCreated(address,string,string,address,uint8,string,address,address,uint256)"))
 	eventPairRegistered       = crypto.Keccak256Hash([]byte("PairRegistered(bytes32,address,address)"))

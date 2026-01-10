@@ -32,6 +32,9 @@ func init() {
 	UniswapABI, err = abi.JSON(strings.NewReader(UniswapABIJSON))
 	log.Panic(errors.Wrapf(err, "failed to parse uniswap abi"))
 
+	CustomHandleOpsABI, err = abi.JSON(strings.NewReader(CustomHandleOpsABIJSON))
+	log.Panic(errors.Wrapf(err, "failed to parse custom handle ops abi"))
+
 	abi4Param, err = abi.JSON(strings.NewReader(swap4ParamABIJSON))
 	log.Panic(errors.Wrapf(err, "failed to parse 4-param swap ABI"))
 }
