@@ -426,11 +426,14 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 		if !hasUserData {
 			return nil, server.BadRequest(errors.New("at least one user field must be provided"), invalidPropertiesErrorCode)
 		}
-
+		userExternalAddress := req.Data.UserExternalAddress
+		if userExternalAddress == "" {
+			userExternalAddress = req.Token.GetMasterPublicKey()
+		}
 		if err := s.tokenAnalytics.UpdateLoggedInUserProfile(
 			ctx,
 			req.Token.GetMasterPublicKey(),
-			req.Data.UserExternalAddress,
+			userExternalAddress,
 			req.Data.UserUsername,
 			req.Data.UserDisplayName,
 			req.Data.UserAvatar,
