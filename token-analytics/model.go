@@ -19,7 +19,7 @@ type (
 		CreatedAt   *time.Time `json:"createdAt,omitempty"`
 		Addresses   *Addresses `json:"addresses,omitempty"`
 		Creator     User       `json:"creator,omitzero"`
-		Launcher    *User      `json:"launcher,omitzero"`
+		Launcher    *User      `json:"launcher,omitempty"`
 		MarketData  MarketData `json:"marketData,omitzero"`
 	}
 
@@ -180,7 +180,7 @@ func buildAddressesFromExternalAddressAndPlatform(externalAddress, platform stri
 	if len(ionConnectAddress) > 0 && ionConnectAddress[0] != "" {
 		ionConnect = ionConnectAddress[0]
 	}
-	if externalAddress == "" {
+	if externalAddress == "" && bnbBscAddress == "" {
 		return nil, nil
 	}
 	if platform == "" {

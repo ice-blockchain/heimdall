@@ -332,15 +332,19 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", strVal(row.CreatorExternalAddress), strVal(row.CreatorPlatform), err)
 		}
 		var launcher *User
-		if row.Platform == PlatformGroupXCom && row.LauncherUsername != nil {
+		if row.Platform == PlatformGroupXCom && row.LauncherBlockchainAddress != nil && strVal(row.LauncherBlockchainAddress) != "" {
+			launcherPlatform := strVal(row.LauncherPlatform)
+			if launcherPlatform == "" {
+				launcherPlatform = row.Platform
+			}
 			launcherAddresses, err := buildAddressesFromExternalAddressAndPlatform(
 				strVal(row.LauncherExternalAddress),
-				strVal(row.LauncherPlatform),
+				launcherPlatform,
 				strVal(row.LauncherBlockchainAddress),
 				"",
 			)
 			if err != nil {
-				return nil, fmt.Errorf("failed to build launcher addresses from external_address %s (platform %s): %w", strVal(row.LauncherExternalAddress), strVal(row.LauncherPlatform), err)
+				return nil, fmt.Errorf("failed to build launcher addresses from external_address %s (platform %s): %w", strVal(row.LauncherExternalAddress), launcherPlatform, err)
 			}
 
 			launcher = &User{
