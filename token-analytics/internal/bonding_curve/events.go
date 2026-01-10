@@ -5,6 +5,7 @@ package bondingcurve
 import (
 	"encoding/hex"
 	"fmt"
+	"math"
 	"math/big"
 	"strconv"
 	"strings"
@@ -179,7 +180,15 @@ func parseHandleOps(txInput string) (*CustomHandleOps, error) {
 	}
 	// UserOps data starts right after length field
 	userOpsDataStart := userOpsStartHex + 64
-	userOpsDataHex := hexData[userOpsDataStart : userOpsDataStart+int(userOpsLength)*2]
+
+	if userOpsLength > uint64(math.MaxInt/2) {
+		return nil, errors.New("userOps length too large")
+	}
+	userOpsDataEnd := userOpsDataStart + int(userOpsLength)*2
+	if userOpsDataEnd > len(hexData) {
+		return nil, errors.New("tx input too short for userOps data")
+	}
+	userOpsDataHex := hexData[userOpsDataStart:userOpsDataEnd]
 
 	// Parse UserOps structure:
 	// [0:40]   - sender (20 bytes)
@@ -199,6 +208,11 @@ func parseHandleOps(txInput string) (*CustomHandleOps, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse callData length")
 	}
+
+	if callDataLength > uint64(math.MaxInt) {
+		return nil, errors.Errorf("callData length too large: %d", callDataLength)
+	}
+
 	// Extract callData
 	callDataStart := 168
 	callDataEnd := callDataStart + int(callDataLength)*2
