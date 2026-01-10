@@ -181,10 +181,12 @@ func parseHandleOps(txInput string) (*CustomHandleOps, error) {
 	// UserOps data starts right after length field
 	userOpsDataStart := userOpsStartHex + 64
 
-	if userOpsLength > uint64(math.MaxInt/2) {
+	// Ensure userOpsLength fits into an int before converting and using it for indexing.
+	if userOpsLength > uint64(math.MaxInt) {
 		return nil, errors.New("userOps length too large")
 	}
-	userOpsDataEnd := userOpsDataStart + int(userOpsLength)*2
+	userOpsLengthInt := int(userOpsLength)
+	userOpsDataEnd := userOpsDataStart + userOpsLengthInt*2
 	if userOpsDataEnd > len(hexData) {
 		return nil, errors.New("tx input too short for userOps data")
 	}
