@@ -193,6 +193,9 @@ CREATE TABLE IF NOT EXISTS tokens (
     "type"                          TEXT NOT NULL, -- profile/post/video/article
     base_token                      TEXT,
     pair_id                         TEXT,
+    price_model                     TEXT,
+    start_price                     uint256,
+    end_price                       uint256,
     market_cap                      uint256 DEFAULT 0,
     market_cap_usd                  usd_amount DEFAULT 0,
     price_usd                       usd_amount DEFAULT 0,
@@ -897,12 +900,16 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION process_pair_registered(
     p_topics TEXT[],
+    p_data TEXT,
     p_block_timestamp TIMESTAMP
 ) RETURNS VOID AS $$
 DECLARE
     v_base_token TEXT;
     v_pair_id TEXT;
     v_other_token TEXT;
+    v_price_model TEXT;
+    v_start_price NUMERIC;
+    v_end_price NUMERIC;
 BEGIN
     IF array_length(p_topics, 1) < 4 THEN
         RETURN;
@@ -911,12 +918,23 @@ BEGIN
     v_pair_id := LOWER(p_topics[2]);
     v_base_token := LOWER('0x' || substring(p_topics[3] from 27 for 40));
     v_other_token := LOWER('0x' || substring(p_topics[4] from 27 for 40));
-
+    
+    v_price_model := LOWER('0x' || substring(p_data from 27 for 40)); -- priceModel at offset 0
+    v_start_price := decode_uint256(p_data, 1); -- startPrice at offset 1
+    v_end_price := decode_uint256(p_data, 2); -- endPrice at offset 2
+    
     UPDATE tokens
-    SET base_token = v_base_token, pair_id = v_pair_id, updated_at = p_block_timestamp
+    SET
+        base_token = v_base_token,
+        pair_id = v_pair_id,
+        price_model = v_price_model,
+        start_price = v_start_price,
+        end_price = v_end_price,
+        updated_at = p_block_timestamp
     WHERE LOWER(contract_address) = v_other_token;
 
-    RAISE DEBUG 'PairRegistered processed: token=%, baseToken=%', v_other_token, v_base_token;
+    RAISE DEBUG 'PairRegistered processed: token=%, baseToken=%, priceModel=%, startPrice=%, endPrice=%', 
+        v_other_token, v_base_token, v_price_model, v_start_price, v_end_price;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -1347,7 +1365,7 @@ BEGIN
         WHEN '0xf20c12ede00469181597169f5cbe631d40edec9a2a45c2e46eba231a831126dd' THEN -- BondingTokenCreated
             PERFORM process_bonded_token_created(NEW.topics, NEW.data, v_block_timestamp, NEW.log_index);
         WHEN '0x872521cd21d976cd52c101bb81804e331c479f7895644ae16140b559222fda5c' THEN -- PairRegistered
-            PERFORM process_pair_registered(NEW.topics, v_block_timestamp);
+            PERFORM process_pair_registered(NEW.topics, NEW.data, v_block_timestamp);
         WHEN '0x163f655f7f84a04389233837ff842844953ef4efba74f5d9317d37131b3a6a81' THEN -- Swapped
             PERFORM process_swapped(NEW.transaction_hash, NEW.topics, NEW.data, v_tx_input, v_block_timestamp, NEW.log_index, NEW.address);
         WHEN '0x783cca1c0412dd0d695e784568c96da2e9c22ff989357a2e8b1d9b2b4e6b7118' THEN -- PoolCreated (uniswap)

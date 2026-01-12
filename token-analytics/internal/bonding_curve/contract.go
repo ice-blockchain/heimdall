@@ -103,6 +103,9 @@ type (
 		PairId     common.Hash
 		BaseToken  common.Address
 		OtherToken common.Address
+		PriceModel common.Address
+		StartPrice *big.Int
+		EndPrice   *big.Int
 	}
 	LogSlippageChecked struct {
 		Event
@@ -175,8 +178,8 @@ var (
 	//go:embed .abi/CustomHandleOps.json
 	CustomHandleOpsABIJSON string
 
-	eventTokenCreated         = crypto.Keccak256Hash([]byte("BondingTokenCreated(address,string,string,address,uint8,string,address,address,uint256)"))
-	eventPairRegistered       = crypto.Keccak256Hash([]byte("PairRegistered(bytes32,address,address)"))
+	eventTokenCreated         = crypto.Keccak256Hash([]byte("BondingTokenCreated(address,string,string,uint8,string,uint256,address,address)"))
+	eventPairRegistered       = crypto.Keccak256Hash([]byte("PairRegistered(bytes32,address,address,address,uint256,uint256)"))
 	eventSwapped              = crypto.Keccak256Hash([]byte("Swapped(address,bytes32,bool,address,uint256,uint256,uint256)"))
 	eventRecipientsSet        = crypto.Keccak256Hash([]byte("RecipientsSet(bytes32,address,address,address)"))
 	eventFeeAccrued           = crypto.Keccak256Hash([]byte("FeeAccrued(bytes32,address,uint256,uint256,uint256,uint256)"))

@@ -132,52 +132,68 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 			t.contract_address,
 			COALESCE(t.base_token, '') as base_token,
 			t.external_address as token_external_address,
+			COALESCE(t.pair_id, '') as pair_id,
 			COALESCE(u.external_address, '') as user_external_address,
 			COALESCE(t.type, '') as token_type,
 			COALESCE(t.title,'') as title,
 			COALESCE(t.ticker,'') as ticker,
-			COALESCE(t.image_url, '') as image_url
+			COALESCE(t.image_url, '') as image_url,
+			COALESCE(t.price_usd, 0) as price_usd
 		FROM tokens t
 		LEFT JOIN users u ON LOWER(u.content_author_id) = LOWER($2)`
 
 	var result *tokenAndUserInfo
 	var err error
-	result, err = storage.Get[tokenAndUserInfo](ctx, t.ingestedDataDB,
-		selectClause+` WHERE t.pair_id = $1`,
-		ev.Pair.String(), userAddr)
+	var isFirstSwap bool
 
-	isFirstSwap := storage.IsErr(err, storage.ErrNotFound)
-	if isFirstSwap {
-		hasFatAddress := len(toTokenBytes) > fatAddressV2MinLength && toTokenBytes[0] == fatAddressV2Version
-		if !hasFatAddress {
-			return fmt.Errorf("first swap must contain Fat Address V2, but got %d bytes with version %d", len(toTokenBytes), toTokenBytes[0])
-		}
+	hasFatAddress := len(toTokenBytes) > fatAddressV2MinLength && toTokenBytes[0] == fatAddressV2Version
 
+	if hasFatAddress {
 		externalAddress, _, _, err := extractExternalAddressFromToToken(toTokenBytes)
 		if err != nil {
-			return fmt.Errorf("failed to extract external_address from first swap: %w", err)
+			return fmt.Errorf("failed to extract external_address from Fat Address: %w", err)
 		}
 		if externalAddress == "" {
-			return fmt.Errorf("external_address is empty for first swap")
+			return fmt.Errorf("external_address is empty in Fat Address")
 		}
-
 		result, err = storage.Get[tokenAndUserInfo](ctx, t.ingestedDataDB,
 			selectClause+` WHERE t.external_address = $1`,
 			externalAddress, userAddr)
-		if err != nil {
+
+		if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 			return fmt.Errorf("failed to find token by external_address %v: %w", externalAddress, err)
 		}
-		log.Debug(fmt.Sprintf("First swap detected: external_address=%s, contract=%s, pair_id=%s", externalAddress, result.ContractAddress, ev.Pair.Hex()))
-	} else if err != nil {
-		return fmt.Errorf("failed to find token by pair_id %v: %w", ev.Pair.Hex(), err)
-	} else {
-		log.Debug(fmt.Sprintf("Subsequent swap detected: pair_id=%s, contract=%s", ev.Pair.Hex(), result.ContractAddress))
+		if err == nil && strings.EqualFold(result.PairId, ev.Pair.String()) {
+			// Token found by external_address and pair_id matches → first swap
+			isFirstSwap = true
+			log.Debug(fmt.Sprintf("First swap detected: external_address=%s, contract=%s, pair_id=%s",
+				externalAddress, result.ContractAddress, ev.Pair.Hex()))
+		} else {
+			result = nil
+		}
+	}
+	if result == nil {
+		result, err = storage.Get[tokenAndUserInfo](ctx, t.ingestedDataDB,
+			selectClause+` WHERE t.pair_id = $1`,
+			ev.Pair.String(), userAddr)
+		if err != nil {
+			return fmt.Errorf("failed to find token by pair_id %v: %w", ev.Pair.Hex(), err)
+		}
+		if hasFatAddress {
+			isFirstSwap = true
+			log.Debug(fmt.Sprintf("First swap for second token in double swap: external_address=%s, contract=%s, pair_id=%s",
+				result.TokenExternalAddress, result.ContractAddress, ev.Pair.Hex()))
+		} else {
+			isFirstSwap = false
+			log.Debug(fmt.Sprintf("Subsequent swap detected: pair_id=%s, contract=%s",
+				ev.Pair.Hex(), result.ContractAddress))
+		}
 	}
 
 	contractAddress := result.ContractAddress
 	actualBaseToken := strings.ToLower(result.BaseToken)
 
-	log.Debug(fmt.Sprintf("onSwap: contractAddress=%s, baseToken=%s userAddr=%s", contractAddress, actualBaseToken, userAddr))
+	log.Debug(fmt.Sprintf("onSwap: contractAddress=%s, baseToken=%s userAddr=%s, isFirstSwap=%v", contractAddress, actualBaseToken, userAddr, isFirstSwap))
 
 	priceInBaseToken := calculatePriceFromSwap(ev.InputAmount, ev.OutputAmount, ev.Direction) // Price: how much ION per 1 community token
 	priceUSD, basePriceUSD, err := t.calculatePriceInUSD(ctx, priceInBaseToken, actualBaseToken)

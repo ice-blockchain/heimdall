@@ -434,10 +434,20 @@ func TestPairRegistered(t *testing.T) {
 		pairId := "0x0f5c7242a0b57acf14eaade14c8e98bbd71ca8f0bc74c76b32eadc4f6b4decf2"
 		baseToken := "0x0000000000000000000000002c73996babf1a06c2c057177353293f7ca0907c8"
 		otherToken := "0x0000000000000000000000000f93afe4f21f8885b99932214c66be3ff42e2162"
+		priceModel := common.HexToAddress("0xdead000000000000000000000000000000000000")
+		startPrice := big.NewInt(1000000000000000000) // 1e18
+		endPrice := big.NewInt(2000000000000000000)   // 2e18
+
+		data, err := ABI.Events["PairRegistered"].Inputs.NonIndexed().Pack(
+			priceModel,
+			startPrice,
+			endPrice,
+		)
+		require.NoError(t, err)
 
 		event, err := pairRegistered(
 			eventPairRegistered.Hex(),
-			"0x",
+			"0x"+hex.EncodeToString(data),
 			pairId,
 			baseToken,
 			otherToken,
@@ -449,6 +459,9 @@ func TestPairRegistered(t *testing.T) {
 		// BaseToken and OtherToken are returned as normal addresses (20 bytes), not as topics (32 bytes with 0x00... prefix)
 		require.Equal(t, strings.ToLower("0x2c73996babf1a06c2c057177353293f7ca0907c8"), strings.ToLower(event.BaseToken.Hex()))
 		require.Equal(t, strings.ToLower("0x0f93afe4f21f8885b99932214c66be3ff42e2162"), strings.ToLower(event.OtherToken.Hex()))
+		require.Equal(t, strings.ToLower(priceModel.Hex()), strings.ToLower(event.PriceModel.Hex()))
+		require.Equal(t, startPrice.String(), event.StartPrice.String())
+		require.Equal(t, endPrice.String(), event.EndPrice.String())
 	})
 
 	t.Run("invalid_signature", func(t *testing.T) {

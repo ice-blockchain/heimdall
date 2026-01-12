@@ -341,18 +341,12 @@ func (gen *dummyDataGenerator) createDoubleSwapTokenGenerator(ctx context.Contex
 		common.HexToAddress("0x"),
 	)
 
-	txInput, err := bondingcurve.ABI.Methods["swap"].Inputs.Pack(
+	// Use 4-param swap method (swap0 in ABI, method ID 0x83362e17) for double swap
+	txInput, err := bondingcurve.ABI.Pack("swap0",
 		base,
 		toToken,
 		totalSupply,
 		totalSupply,
-		bondingcurve.BondingCurvePermitData{
-			Value:    new(big.Int).SetInt64(0),
-			Deadline: new(big.Int).SetInt64(0),
-			V:        0,
-			R:        [32]byte{},
-			S:        [32]byte{},
-		},
 	)
 	if err != nil {
 		log.Error(errors.Wrapf(err, "failed to pack double swap tx input"))
@@ -583,6 +577,10 @@ func (gen *dummyDataGenerator) createDoubleSwapTokenGenerator(ctx context.Contex
 	log.Info(fmt.Sprintf("Created DOUBLE SWAP: ION → %v (creator) → %v (content) on stream %v by %v",
 		creatorToken.ContractAddress, contentToken.ContractAddress, stream, master))
 
+	// Wait for SQL triggers to process the double swap transaction before starting subsequent swaps
+	// This prevents race condition where startBuysOrSellsProcessor generates swaps for tokens that don't exist yet
+	time.Sleep(2 * time.Second)
+
 	deadline := time.Now().Add(gen.TokenGeneratorTTL)
 	ctx1, cancel1 := context.WithDeadline(ctx, deadline)
 	ctx2, cancel2 := context.WithDeadline(ctx, deadline)
@@ -689,7 +687,6 @@ func (gen *dummyDataGenerator) startNewTokenGenerator(ctx context.Context, strea
 
 				// Every 2nd token: create double swap (profile + content)
 				if tokenCounter%2 == 1 {
-					log.Info("Creating double swap token (profile + content)")
 					gen.createDoubleSwapTokenGenerator(ctx, stream)
 				} else {
 					var platformGroup string

@@ -439,6 +439,7 @@ type (
 		ContractAddress      string  `db:"contract_address"`
 		BaseToken            string  `db:"base_token"`
 		TokenExternalAddress string  `db:"token_external_address"`
+		PairId               string  `db:"pair_id"`
 		UserExternalAddress  string  `db:"user_external_address"`
 		TokenType            string  `db:"token_type"`
 		Ticker               string  `db:"ticker"`

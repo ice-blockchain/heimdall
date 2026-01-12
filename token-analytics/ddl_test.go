@@ -1407,3 +1407,84 @@ func TestUpdateBaseTokenPrice(t *testing.T) {
 		require.InDelta(t, 0.009, apr.Prices[2], 0.000001, "Third price: 0.009")
 	})
 }
+
+func TestProcessPairRegistered(t *testing.T) {
+	t.Parallel()
+
+	db, release := helperCreateDB(t)
+	defer release()
+	ctx := t.Context()
+
+	const (
+		testTokenAddr     = "0x1234567890abcdef1234567890abcdef12345678"
+		testExternalAddr  = "a:testuser123"
+		testPlatform      = "ionconnect"
+		testTokenType     = "profile"
+		testBaseTokenAddr = "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+		testPairID        = "0x51ea17cf5c8e1a25a0c9c22ff9208679b60c945cd7057c2607d35a9b110526c0"
+		testPriceModel    = "0xdead000000000000000000000000000000000000"
+		testStartPrice    = "1000000000000000000"
+		testEndPrice      = "2000000000000000000"
+	)
+
+	_, err := storage.Exec(ctx, db, `
+		INSERT INTO tokens (
+			created_at, updated_at, contract_address, external_address, 
+			platform, ticker, title, total_supply, type
+		) VALUES (
+			NOW(), NOW(), $1, $2, $3, 'TEST', 'Test Token', 1000000, $4
+		)
+	`, testTokenAddr, testExternalAddr, testPlatform, testTokenType)
+	require.NoError(t, err)
+
+	t.Run("process_pair_registered_with_all_params", func(t *testing.T) {
+		topics := fmt.Sprintf(`{"%s", "%s", "0x000000000000000000000000%s", "0x000000000000000000000000%s"}`,
+			"0x872521cd21d976cd52c101bb81804e331c479f7895644ae16140b559222fda5c", // PairRegistered signature
+			testPairID,
+			testBaseTokenAddr[2:], // Remove 0x
+			testTokenAddr[2:],     // Remove 0x
+		)
+		data := fmt.Sprintf("0x000000000000000000000000%s%064s%064s",
+			testPriceModel[2:], // priceModel (remove 0x, pad to 32 bytes)
+			testStartPrice[2:], // startPrice (hex, already 64 chars)
+			testEndPrice[2:],   // endPrice (hex, already 64 chars)
+		)
+		_, err := storage.Exec(ctx, db, `SELECT process_pair_registered($1::TEXT[], $2::TEXT, NOW()::TIMESTAMP)`, topics, data)
+		require.NoError(t, err)
+
+		type tokenResult struct {
+			PairID    string `db:"pair_id"`
+			BaseToken string `db:"base_token"`
+		}
+		result, err := storage.Get[tokenResult](ctx, db, `
+			SELECT pair_id, base_token 
+			FROM tokens 
+			WHERE LOWER(contract_address) = LOWER($1)
+		`, testTokenAddr)
+		require.NoError(t, err)
+		require.Equal(t, strings.ToLower(testPairID), strings.ToLower(result.PairID))
+		require.Equal(t, strings.ToLower(testBaseTokenAddr), strings.ToLower(result.BaseToken))
+	})
+
+	t.Run("process_pair_registered_insufficient_topics", func(t *testing.T) {
+		topics := `{"0x872521cd21d976cd52c101bb81804e331c479f7895644ae16140b559222fda5c", "0x1234"}`
+		data := "0x"
+
+		_, err := storage.Exec(ctx, db, `SELECT process_pair_registered($1::TEXT[], $2::TEXT, NOW()::TIMESTAMP)`, topics, data)
+		require.NoError(t, err)
+	})
+
+	t.Run("process_pair_registered_nonexistent_token", func(t *testing.T) {
+		const nonExistentToken = "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+		topics := fmt.Sprintf(`{"%s", "%s", "0x000000000000000000000000%s", "0x000000000000000000000000%s"}`,
+			"0x872521cd21d976cd52c101bb81804e331c479f7895644ae16140b559222fda5c",
+			testPairID,
+			testBaseTokenAddr[2:],
+			nonExistentToken[2:],
+		)
+		data := "0x"
+
+		_, err := storage.Exec(ctx, db, `SELECT process_pair_registered($1::TEXT[], $2::TEXT, NOW()::TIMESTAMP)`, topics, data)
+		require.NoError(t, err)
+	})
+}
