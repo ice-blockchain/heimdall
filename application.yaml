@@ -13,9 +13,9 @@ cmd/heimdall-identity-io:
     android: 9.9.9
     ios: 9.9.9
   tokenizedCommunities:
-    bondingCurveSmartContractAddress: 0x8B5a70A21aF8Bd7BdB38c0fAc5CF3A81079D2595
-    addressVersion: 5
-    abiVersion: 5
+    bondingCurveSmartContractAddress: 0x1E602c717B6b1343303E77E9DBfe45B37cf01144
+    addressVersion: 6
+    abiVersion: 6
   communityTokenAPIKey: dev-api-key
   supportedSwapTokens:
     version: 1
@@ -438,13 +438,14 @@ token-analytics:
   batchSize: 2
   enableDummyGenerator: false
   bondingCurve:
-    smartContractAddress: 0x8B5a70A21aF8Bd7BdB38c0fAc5CF3A81079D2595
+    smartContractAddress: 0x1E602c717B6b1343303E77E9DBfe45B37cf01144
     bondingCurveProgressUpdateFrequency: 500ms
     rpcEndpoints:
       - https://bogus.pro/bogus/
   identityServiceUrl: https://localhost:8001
   identityServiceApiKey: dev-api-key
   ionTokenAddress: 0x2c73996BaBF1a06c2C057177353293f7cA0907c8
+  burnAddress: 0x0000000000000000000000000000000000696F6E
   quickNode:
     startBlock: 72173309
     # update to accessible over internet, ngrok tcp, or that 23... machine

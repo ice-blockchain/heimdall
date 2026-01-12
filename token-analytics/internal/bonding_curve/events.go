@@ -49,7 +49,10 @@ func ProcessEvent(functionHex, data string, topics []string, contractAddress, tx
 	case eventFeeAccrued.Hex():
 		return feeAccrued(functionHex, data)
 	case eventFeeTransfer.Hex():
-		return feeTransfer(functionHex, data)
+		if len(topics) < 3 {
+			return nil, errors.Errorf("FeeTRansfer requires at least 3 topics, got %d", len(topics))
+		}
+		return feeTransfer(functionHex, data, topics[1], topics[2])
 	case eventMigrated.Hex():
 		if len(topics) < 2 {
 			return nil, errors.Errorf("Migrated event requires at least 2 topics, got %d", len(topics))
@@ -390,7 +393,7 @@ func feeAccrued(signature, data string) (*LogFeeAccrued, error) {
 	return &feeAccruedEvent, nil
 }
 
-func feeTransfer(signature, data string) (*LogFeeTransfer, error) {
+func feeTransfer(signature, data, pairIdTopic, toTopic string) (*LogFeeTransfer, error) {
 	if signature != eventFeeTransfer.Hex() {
 		return nil, errors.Errorf("invalid signature for FeeTransfer: expected %s, got %s", eventFeeTransfer.Hex(), signature)
 	}
@@ -401,7 +404,9 @@ func feeTransfer(signature, data string) (*LogFeeTransfer, error) {
 	if err := decode(ABI, &feeTransferEvent, "FeeTransfer", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack FeeTransfer event")
 	}
-	log.Debug(fmt.Sprintf("Fee transfer: pairId=%x", feeTransferEvent.PairId))
+	feeTransferEvent.PairId = common.HexToHash(pairIdTopic)
+	feeTransferEvent.To = common.HexToAddress(toTopic)
+	log.Debug(fmt.Sprintf("Fee transfer: pairId=%x to=%x amount=%d", feeTransferEvent.PairId, feeTransferEvent.To, feeTransferEvent.Amount))
 
 	return &feeTransferEvent, nil
 }

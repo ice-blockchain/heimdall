@@ -598,6 +598,162 @@ func TestRealProductionEventData(t *testing.T) {
 	})
 }
 
+func TestFeeTransfer(t *testing.T) {
+	t.Parallel()
+
+	db, release := helperCreateDB(t)
+	defer release()
+	ctx := t.Context()
+	ionAddress := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+	ionPriceUSD := 0.003
+
+	_, err := storage.Exec(ctx, db, `
+		INSERT INTO base_token_prices (token_address, token_symbol, price_usd, updated_at)
+		VALUES ($1, 'ION', $2, NOW())
+	`, ionAddress, ionPriceUSD)
+	require.NoError(t, err)
+
+	testUserAddr := "0x1234567890123456789012345678901234567890"
+	testUserPubkey := "89aa679f7727b79492d00c428c1a70ac9f8c28e3ae306842f059a273e484dc9b"
+	testUserExtAddr := "0:" + testUserPubkey + ":"
+	testUserID := "test-user-id-123"
+
+	_, err = storage.Exec(ctx, db, `
+		INSERT INTO users (id, master_pubkey, content_author_id, external_address, username, display_name, avatar, platform_group, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, 'testuser', 'Test User', 'https://example.com/avatar.jpg', 'ionconnect', NOW(), NOW())
+	`, testUserID, testUserPubkey, testUserAddr, testUserExtAddr)
+	require.NoError(t, err)
+
+	testTokenAddr := "0xdeadbeef00000000000000000000000000000001"
+	testTokenExtAddr := testUserExtAddr
+	testPairId := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+	totalSupply := "1000000000000000000000000" // 1,000,000 tokens
+
+	_, err = storage.Exec(ctx, db, `
+		INSERT INTO tokens (
+			contract_address, external_address, title, ticker, base_token, pair_id,
+			total_supply, type, platform, created_at, updated_at, content_author_id
+		)
+		VALUES ($1, $2, 'Test Token', 'TEST', $3, $4, $5, 'profile', 'ionconnect', NOW(), NOW(), $6)
+	`, testTokenAddr, testTokenExtAddr, ionAddress, testPairId, totalSupply, testUserAddr)
+	require.NoError(t, err)
+
+	type tokRes struct {
+		ContentAuthorId string `db:"content_author_id"`
+	}
+	tr, err := storage.Get[tokRes](ctx, db, `SELECT content_author_id from tokens where external_address = $1`, testTokenExtAddr)
+	fmt.Println(tr.ContentAuthorId)
+
+	t.Run("first fee transfer creates fee record", func(t *testing.T) {
+		blockTimestamp := "2024-01-01 12:00:00"
+		topics := []string{
+			"0xbda77c1230f2354807b9e8307932c78ac43f6b38ea2e10d9886aa30c958300f5", // FeeTransfer
+			testPairId, // PairId
+			"0x000000000000000000000000" + testUserAddr[2:], // to (creator)
+		}
+		data := "0x" +
+			"0000000000000000000000000000000000000000000000008ac7230489e80000" // 10000000000000000000
+
+		_, err := storage.Exec(ctx, db, `
+			SELECT process_fee_transfer($2, $3, $1);
+		`,
+			blockTimestamp,
+			topics,
+			data,
+		)
+		require.NoError(t, err)
+		type feeResult struct {
+			TokenExternalAddress string  `db:"token_external_address"`
+			RecipientBscAddress  string  `db:"recipient_bsc_address"`
+			Type                 string  `db:"fee_type"`
+			Amount               float64 `db:"amount"`
+		}
+		res, err := storage.Get[feeResult](ctx, db, `
+			SELECT token_external_address, recipient_bsc_address, fee_type, amount
+			FROM fees_transferred
+			WHERE token_external_address = $1
+		`, testTokenExtAddr)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		require.Equal(t, testUserAddr, res.RecipientBscAddress)
+		require.Equal(t, feeDestinationCreator, res.Type)
+		require.Equal(t, float64(10000000000000000000), res.Amount)
+	})
+	t.Run("burn", func(t *testing.T) {
+		blockTimestamp := "2024-01-01 12:00:00"
+		topics := []string{
+			"0xbda77c1230f2354807b9e8307932c78ac43f6b38ea2e10d9886aa30c958300f5", // FeeTransfer
+			testPairId, // PairId
+			"0x0000000000000000000000000000000000000000000000000000000000696f6e", // to (burn)
+		}
+		data := "0x" +
+			"0000000000000000000000000000000000000000000000008ac7230489e80000" // 10000000000000000000
+
+		_, err := storage.Exec(ctx, db, `
+			SELECT process_fee_transfer($2, $3, $1);
+		`,
+			blockTimestamp,
+			topics,
+			data,
+		)
+		require.NoError(t, err)
+
+		type feeResult struct {
+			TokenExternalAddress string  `db:"token_external_address"`
+			RecipientBscAddress  string  `db:"recipient_bsc_address"`
+			Type                 string  `db:"fee_type"`
+			Amount               float64 `db:"amount"`
+		}
+		res, err := storage.Get[feeResult](ctx, db, `
+			SELECT token_external_address, recipient_bsc_address, fee_type, amount
+			FROM fees_transferred
+			WHERE token_external_address = $1 AND recipient_bsc_address = $2
+		`, testTokenExtAddr, "0x0000000000000000000000000000000000696f6e")
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		require.Equal(t, "0x0000000000000000000000000000000000696f6e", res.RecipientBscAddress)
+		require.Equal(t, feeDestinationBurn, res.Type)
+		require.Equal(t, float64(10000000000000000000), res.Amount)
+	})
+
+	t.Run("when more fees are transferred, amount is increased", func(t *testing.T) {
+		blockTimestamp := "2024-01-01 12:00:00"
+		topics := []string{
+			"0xbda77c1230f2354807b9e8307932c78ac43f6b38ea2e10d9886aa30c958300f5", // FeeTransfer
+			testPairId, // PairId
+			"0x000000000000000000000000" + testUserAddr[2:], // to (creator)
+		}
+		data := "0x" +
+			"0000000000000000000000000000000000000000000000008ac7230489e80000" // 10000000000000000000
+
+		_, err := storage.Exec(ctx, db, `
+			SELECT process_fee_transfer($2, $3, $1);
+		`,
+			blockTimestamp,
+			topics,
+			data,
+		)
+		require.NoError(t, err)
+
+		type feeResult struct {
+			TokenExternalAddress string  `db:"token_external_address"`
+			RecipientBscAddress  string  `db:"recipient_bsc_address"`
+			Type                 string  `db:"fee_type"`
+			Amount               float64 `db:"amount"`
+		}
+		res, err := storage.Get[feeResult](ctx, db, `
+			SELECT token_external_address, recipient_bsc_address, fee_type, amount
+			FROM fees_transferred
+			WHERE token_external_address = $1 AND recipient_bsc_address = $2
+		`, testTokenExtAddr, testUserAddr)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		require.Equal(t, testUserAddr, res.RecipientBscAddress)
+		require.Equal(t, feeDestinationCreator, res.Type)
+		require.Equal(t, float64(20000000000000000000), res.Amount)
+	})
+}
+
 func TestProcessBondedTokenCreated(t *testing.T) {
 	t.Parallel()
 
