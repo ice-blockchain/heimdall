@@ -89,6 +89,10 @@ type (
 		Bio      string `json:"bio" example:"Something"`
 		Website  string `json:"website" example:"https://some.website.example.com"`
 	}
+	GetOHLCVRequest struct {
+		PaginationRequest
+		OHLCVRequest
+	}
 	OHLCVRequest struct {
 		ExternalAddress string `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
 		Interval        string `form:"interval" swaggerignore:"true"` // e.g., "1m", "5m", "1h", etc.
@@ -397,6 +401,39 @@ func (s *service) GetCommunityTokenPricing(ctx context.Context, req *server.Requ
 		BNBPriceUSD: bnbPrice,
 		IONPriceUSD: ionPrice,
 	}), nil
+}
+
+// GetCommunityTokensOHLCV godoc
+//
+//	@Schemes
+//	@Description	Get OHLCV (Open, High, Low, Close, Volume) data for a specific community token address (closed candles).
+//	@Tags			Tokens
+//	@Produce		json
+//	@Param			externalAddressOrViewType	path		string	true	"External address"	example("0x1234...")
+//	@Param			interval					query		string	true	"Time interval"		example("1m")
+//	@Param			limit						query		string	true	"Limit"				example("10")
+//	@Param			offset						query		string	true	"Offset"			example("0")
+//	@Success		200							{array}		ta.OHLCV
+//	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		500							{object}	server.ResponseErrorBody
+//	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
+//	@Security		Nostr
+//	@Security		XCom
+//	@Router			/v1/community-tokens/{externalAddressOrViewType}/ohlcv [GET].
+func (s *service) GetCommunityTokensOHLCV(ctx context.Context, req *server.Request[GetOHLCVRequest]) (*server.Response[[]*ta.OHLCV], error) {
+	interval := ta.Interval(req.Data.Interval)
+	if err := interval.Validate(); err != nil {
+		return nil, server.BadRequest(err, invalidPropertiesErrorCode)
+	}
+	now := time.Now().In(time.UTC)
+	if req.Data.Limit == 0 {
+		req.Data.Limit = uint64(interval.InitialBufferSize())
+	}
+	ohlcvs, err := s.tokenAnalytics.GetOHLVCHistory(ctx, now, req.Data.ExternalAddress, interval, req.Data.Limit, req.Data.Offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get OHLCV history for token %v: %w", req.Data.ExternalAddress, err)
+	}
+	return server.OK(&ohlcvs), nil
 }
 
 // SyncCommunityTokenExternalData godoc

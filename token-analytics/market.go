@@ -89,11 +89,12 @@ func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, directi
 	if err := questdb.Write(ctx, t.questDB, tradeData); err != nil {
 		return errors.Wrapf(err, "failed to insert trading data into questdb")
 	}
-	candleStick, _ := t.ohclvRecentData.LoadOrCompute(externalAddress, func() (newValue *recentCandlestick, cancel bool) {
-		return newRecentCandlestick(), false
-	})
-	candleStick.Update(priceInUSD)
-
+	for interval := range validIntervals {
+		candleStick, _ := t.ohclvRecentData.LoadOrCompute(interval.String()+"_"+externalAddress, func() (newValue *recentCandlestick, cancel bool) {
+			return newRecentCandlestick(), false
+		})
+		candleStick.Update(priceInUSD)
+	}
 	if recentTradingStats, ok := t.tradingStatsRecentData.Load(externalAddress); ok {
 		recentTradingStats.update(tx.BlockTimestamp.UnixNano(), priceInUSD, tradeTyp == TradeTypeSell)
 	}
@@ -121,7 +122,7 @@ func buyOrSell(direction bool, inputAmount, outputAmount *big.Int) (trade TradeT
 	}
 }
 
-func (t *tokenAnalytics) GetOHLVCHistory(ctx context.Context, now, startPoint stdlibtime.Time, externalAddress string, interval Interval) (res []*OHLCV, err error) {
+func (t *tokenAnalytics) GetOHLVCHistory(ctx context.Context, now stdlibtime.Time, externalAddress string, interval Interval, limit, offset uint64) (res []*OHLCV, err error) {
 	if err = interval.Validate(); err != nil {
 		return nil, errors.Wrapf(err, "invalid interval %v", interval.String())
 	}
@@ -134,12 +135,12 @@ func (t *tokenAnalytics) GetOHLVCHistory(ctx context.Context, now, startPoint st
 			low,
 			close,
 			volume
-		    from ohlcv_%[1]v WHERE timestamp >= $1 AND timestamp < timestamp_floor('%[1]v', $3)
-                         AND external_address = $2 ORDER BY timestamp;
+		    from ohlcv_%[1]v WHERE timestamp < timestamp_floor('%[1]v', $2)
+                         AND external_address = $1 ORDER BY timestamp DESC LIMIT $4, $4+$3;
 	`, interval.String())
-	ohlcvs, err := questdb.Select[OHLCV](ctx, t.questDB, sql, time.New(startPoint), externalAddress, time.New(now))
+	ohlcvs, err := questdb.Select[OHLCV](ctx, t.questDB, sql, externalAddress, time.New(now), limit, offset)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get ohlvc data for %v", startPoint)
+		return nil, errors.Wrapf(err, "failed to get ohlvc data for %v", externalAddress)
 	}
 	return ohlcvs, nil
 }
@@ -189,23 +190,17 @@ func (t *tokenAnalytics) SubscribeTradingStats(ctx context.Context, now stdlibti
 }
 
 func (t *tokenAnalytics) SubscribeOHLVC(ctx context.Context, now stdlibtime.Time, externalAddress string, interval Interval, addToStream func(*OHLCV, error)) error {
-	start := now.Add(-stdlibtime.Duration(interval.WindowSize()))
-	ohlcvs, err := t.GetOHLVCHistory(ctx, now, start, externalAddress, interval)
-	if err != nil {
-		return errors.Wrapf(err, "failed to get initial ohlcv data (history)")
-	}
-	for i := range ohlcvs {
-		addToStream(ohlcvs[i], nil)
-	}
-	addToStream(nil, nil) // EOSE
 	swaps, _, _ := t.subscriptions.SubscribeOnSwaps(ctx, externalAddress)
-	candleStick, _ := t.ohclvRecentData.LoadOrCompute(externalAddress, func() (newValue *recentCandlestick, cancel bool) {
+	candleStick, loaded := t.ohclvRecentData.LoadOrCompute(interval.String()+"_"+externalAddress, func() (newValue *recentCandlestick, cancel bool) {
 		return newRecentCandlestick(), false
 	})
+	if loaded {
+		addToStream(candleStick.OHLCV(), nil)
+	}
 	candleStick.SetInterval(ctx, interval)
 	go func() {
 		for _ = range swaps {
-			rec, ok := t.ohclvRecentData.Load(externalAddress)
+			rec, ok := t.ohclvRecentData.Load(interval.String() + "_" + externalAddress)
 			if ok {
 				addToStream(rec.OHLCV(), nil)
 			}

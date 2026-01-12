@@ -57,6 +57,7 @@ func (s *service) RegisterREST(router gin.IRouter) {
 	tokensV1.POST("/suggest-creation-details", server.RootHandler(s.SuggestCreationDetails))
 	tokensV1.GET("/:externalAddressOrViewType/bondingCurveProgress", server.RootHandler(s.GetCommunityTokenBondingCurveProgress))
 	tokensV1.GET("/:externalAddressOrViewType/pricing", server.RootHandler(s.GetCommunityTokenPricing))
+	tokensV1.GET("/:externalAddressOrViewType/ohlcv", server.RootHandler(s.GetCommunityTokensOHLCV))
 
 	api.SwaggerInfo.Version = readVersionString()
 	router.GET("/docs", func(c *gin.Context) {
