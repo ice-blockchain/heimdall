@@ -180,7 +180,7 @@ func buildAddressesFromExternalAddressAndPlatform(externalAddress, platform stri
 	if len(ionConnectAddress) > 0 && ionConnectAddress[0] != "" {
 		ionConnect = ionConnectAddress[0]
 	}
-	if externalAddress == "" && bnbBscAddress == "" {
+	if externalAddress == "" && bnbBscAddress == "" && ionConnect == "" {
 		return nil, nil
 	}
 	if platform == "" {
