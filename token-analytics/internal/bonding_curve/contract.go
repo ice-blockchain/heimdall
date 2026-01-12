@@ -20,22 +20,21 @@ type (
 	Event           interface{}
 	LogTokenCreated struct {
 		Event
-		Address             common.Address // indexed
-		Name                string
-		Symbol              string
-		CreatorTokenAddress common.Address
-		ExternalType        byte // goes to externalAddress[0], token type
-		ExternalAddress     string
-		CreatorAddress      common.Address
-		AffiliateAddress    common.Address
-		TotalSupply         *big.Int
+		Address          common.Address // indexed
+		Name             string
+		Symbol           string
+		ExternalType     byte
+		ExternalAddress  string
+		TotalSupply      *big.Int
+		CreatorAddress   common.Address
+		AffiliateAddress common.Address
 	}
 	LogTokenSwapped struct {
 		Event
 		Swapper        common.Address
 		Pair           common.Hash
 		Direction      bool
-		TotalSupply    *big.Int
+		FeeToken       common.Address
 		InputAmount    *big.Int
 		OutputAmount   *big.Int
 		Fee            *big.Int
@@ -178,7 +177,7 @@ var (
 
 	eventTokenCreated         = crypto.Keccak256Hash([]byte("BondingTokenCreated(address,string,string,address,uint8,string,address,address,uint256)"))
 	eventPairRegistered       = crypto.Keccak256Hash([]byte("PairRegistered(bytes32,address,address)"))
-	eventSwapped              = crypto.Keccak256Hash([]byte("Swapped(address,bytes32,bool,uint256,uint256,uint256)"))
+	eventSwapped              = crypto.Keccak256Hash([]byte("Swapped(address,bytes32,bool,address,uint256,uint256,uint256)"))
 	eventRecipientsSet        = crypto.Keccak256Hash([]byte("RecipientsSet(bytes32,address,address,address)"))
 	eventFeeAccrued           = crypto.Keccak256Hash([]byte("FeeAccrued(bytes32,address,uint256,uint256,uint256,uint256)"))
 	eventFeeTransfer          = crypto.Keccak256Hash([]byte("FeeTransfer(bytes32,address,uint256)"))

@@ -639,10 +639,18 @@ DECLARE
     swap_calldata TEXT;
     to_token_offset_bytes INT;
     to_token_length_bytes INT;
-    ext_length INT;
     to_token_hex TEXT;
     data_start_pos INT;
-    external_address TEXT;
+    
+    version INT;
+    records_count INT;
+    presence_mask INT;
+    name_len INT;
+    symbol_len INT;
+    ext_addr_len INT;
+    token_mask INT;
+    hex_offset INT;
+    external_address_hex TEXT;
     result TEXT;
 BEGIN
     swap_calldata := extract_swap_calldata_from_custom_handleops(tx_input);
@@ -652,7 +660,6 @@ BEGIN
 
     -- toToken is parameter index 1 (second parameter, after baseToken at index 0)
     to_token_offset_bytes := decode_uint256('0x' || hex_clean, 1)::INT;
-
     IF to_token_offset_bytes = 0 THEN
         RETURN '';
     END IF;
@@ -665,20 +672,57 @@ BEGIN
     -- Extract toToken hex data (starts 32 bytes after the length word)
     data_start_pos := (to_token_offset_bytes + 32) * 2 + 1;
     to_token_hex := substring(hex_clean from data_start_pos for (to_token_length_bytes * 2));
-    -- first 20 bytes is content creator token, for content tokens
-    external_address := to_token_hex;
-    ext_length := char_length(external_address);
-    if ext_length <= 40 THEN
-        -- For 1+ swaps: toToken is just 20-byte contract address, no external_address
-        -- Return empty string so trigger will use pair_id lookup
+
+    -- Thin address check (subsequent swap): 20 bytes = 40 hex chars
+    IF length(to_token_hex) <= 40 THEN
         RETURN '';
     END IF;
-    external_address := substring(external_address from 41);
-    result := rtrim(convert_from(decode(external_address, 'hex'), 'UTF8'), E'\\0');
 
+    -- Parse V2 Fat Address
+    -- Global Header (4 bytes = 8 hex chars): [version][recordsCount][presenceMask(2 bytes)]
+    version := ('x' || substring(to_token_hex from 1 for 2))::bit(8)::int;
+    IF version != 2 THEN
+        RAISE WARNING 'Unsupported fat address version: %', version;
+        RETURN '';
+    END IF;
+
+    records_count := ('x' || substring(to_token_hex from 3 for 2))::bit(8)::int;
+    presence_mask := ('x' || substring(to_token_hex from 5 for 4))::bit(16)::int;
+
+    hex_offset := 9; -- Start after global header (4 bytes = 8 hex + 1 for 1-based index)
+
+    -- FIRST token record header (8 bytes = 16 hex chars)
+    -- [nameLen][symbolLen][extAddrLen][extType][tokenMask(4 bytes)]
+    name_len := ('x' || substring(to_token_hex from hex_offset for 2))::bit(8)::int;
+    symbol_len := ('x' || substring(to_token_hex from hex_offset+2 for 2))::bit(8)::int;
+    ext_addr_len := ('x' || substring(to_token_hex from hex_offset+4 for 2))::bit(8)::int;
+    -- externalType at hex_offset+6 (not used)
+    token_mask := ('x' || substring(to_token_hex from hex_offset+8 for 8))::bit(32)::int;
+    hex_offset := hex_offset + 16;
+
+    -- Skip mandatory bonding address (20 bytes = 40 hex chars)
+    hex_offset := hex_offset + 40;
+
+    -- Skip optional bonding prices (2 x uint256 = 64 bytes = 128 hex chars) if bit 0x02 is set
+    IF (token_mask & 2) != 0 THEN
+        hex_offset := hex_offset + 128;
+    END IF;
+
+    -- Skip optional bonding supply (1 x uint256 = 32 bytes = 64 hex chars) if bit 0x04 is set
+    IF (token_mask & 4) != 0 THEN
+        hex_offset := hex_offset + 64;
+    END IF;
+
+    -- Skip name and symbol strings
+    hex_offset := hex_offset + (name_len * 2) + (symbol_len * 2);
+
+    -- Extract externalAddress string
+    external_address_hex := substring(to_token_hex from hex_offset for (ext_addr_len * 2));
+    result := rtrim(convert_from(decode(external_address_hex, 'hex'), 'UTF8'), E'\\0');
     RETURN result;
 EXCEPTION
     WHEN OTHERS THEN
+        RAISE WARNING 'decode_to_token_from_input failed: %', SQLERRM;
         RETURN '';
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
@@ -776,11 +820,11 @@ BEGIN
     v_token_address := LOWER('0x' || substring(p_topics[2] from 27 for 40));
     v_token_title := decode_string_abi(p_data, 0); -- name
     v_token_symbol := decode_string_abi(p_data, 1); -- symbol
-    v_platform_prefix := CHR(decode_uint256(p_data, 3)::INT); -- index 3
-    v_external_address := decode_string_abi(p_data, 4);
-    v_creator_address := LOWER('0x' || substring(p_data from (5*64+27) for 40));
-    v_affiliate_address := LOWER('0x' || substring(p_data from (6*64+27) for 40));
-    v_total_supply := decode_uint256(p_data, 7);
+    v_platform_prefix := CHR(decode_uint256(p_data, 2)::INT); -- externalType
+    v_external_address := decode_string_abi(p_data, 3); -- externalAddress
+    v_total_supply := decode_uint256(p_data, 4); -- totalSupply
+    v_creator_address := LOWER('0x' || substring(p_data from (5*64+27) for 40)); -- creatorAddress
+    v_affiliate_address := LOWER('0x' || substring(p_data from (6*64+27) for 40)); -- affiliateAddress
 
     IF v_external_address IS NULL OR v_external_address = '' THEN
         RAISE WARNING 'Empty external address, skipping token creation';
@@ -910,9 +954,9 @@ BEGIN
     v_swapper := LOWER('0x' || substring(p_topics[2] from 27 for 40));
     v_pair_id := LOWER(p_topics[3]);
     v_direction := (decode_uint256(p_data, 0) != 0);
-    v_input_amount := decode_uint256(p_data, 1);
-    v_output_amount := decode_uint256(p_data, 2);
-    v_fee := decode_uint256(p_data, 3);
+    v_input_amount := decode_uint256(p_data, 2);
+    v_output_amount := decode_uint256(p_data, 3);
+    v_fee := decode_uint256(p_data, 4);
 
     BEGIN
         v_token_external_address := decode_to_token_from_input(p_tx_input);
@@ -923,8 +967,6 @@ BEGIN
     END;
 
     IF v_token_external_address IS NOT NULL AND length(v_token_external_address) > 0 THEN
-        v_token_external_address := substring(v_token_external_address from 2);
-
         SELECT
             t.contract_address,
             t.base_token,
@@ -1302,16 +1344,16 @@ BEGIN
     WHERE transaction_hash = NEW.transaction_hash;
 
     CASE NEW.topic0
-        WHEN '0xf1aad4192131f14ec094f5319421d9274539312c962d0ce8121ba86f52f25db0' THEN -- BondedTokenCreated
-        PERFORM process_bonded_token_created(NEW.topics, NEW.data, v_block_timestamp, NEW.log_index);
-        WHEN '0x157b5bda8c36b5ae40a6f0d041dce8790309b04707aa024e9a73ee87287372b4' THEN -- PairRegistered
-        PERFORM process_pair_registered(NEW.topics, v_block_timestamp);
-        WHEN '0xe4a3738af8db2ebbadd5b857bb8d2e0e6650fade69486571ff038a2a81433ca0' THEN -- Swapped
-        PERFORM process_swapped(NEW.transaction_hash, NEW.topics, NEW.data, v_tx_input, v_block_timestamp, NEW.log_index, NEW.address);
+        WHEN '0xf20c12ede00469181597169f5cbe631d40edec9a2a45c2e46eba231a831126dd' THEN -- BondingTokenCreated
+            PERFORM process_bonded_token_created(NEW.topics, NEW.data, v_block_timestamp, NEW.log_index);
+        WHEN '0x872521cd21d976cd52c101bb81804e331c479f7895644ae16140b559222fda5c' THEN -- PairRegistered
+            PERFORM process_pair_registered(NEW.topics, v_block_timestamp);
+        WHEN '0x163f655f7f84a04389233837ff842844953ef4efba74f5d9317d37131b3a6a81' THEN -- Swapped
+            PERFORM process_swapped(NEW.transaction_hash, NEW.topics, NEW.data, v_tx_input, v_block_timestamp, NEW.log_index, NEW.address);
         WHEN '0x783cca1c0412dd0d695e784568c96da2e9c22ff989357a2e8b1d9b2b4e6b7118' THEN -- PoolCreated (uniswap)
-        PERFORM process_pool_registered(NEW.topics, NEW.data, v_block_timestamp);
+            PERFORM process_pool_registered(NEW.topics, NEW.data, v_block_timestamp);
         WHEN '0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67' THEN -- Swap (uniswap)
-        PERFORM process_swapped_uniswap(NEW.transaction_hash, NEW.topics, NEW.data, v_block_timestamp, NEW.log_index, NEW.address);
+            PERFORM process_swapped_uniswap(NEW.transaction_hash, NEW.topics, NEW.data, v_block_timestamp, NEW.log_index, NEW.address);
         ELSE
             NULL;
         END CASE;
@@ -1335,12 +1377,12 @@ CREATE TABLE IF NOT EXISTS token_platform_holders (
 
 CREATE INDEX IF NOT EXISTS idx_token_platform_holders_external ON token_platform_holders (external_address);
 
-CREATE OR REPLACE FUNCTION get_platform_group(p_external_address TEXT)
+CREATE OR REPLACE FUNCTION get_platform_group(p_prefix TEXT)
 RETURNS platform_type AS $$
 BEGIN
-    IF LEFT(p_external_address, 1) IN ('z','y','x','w') THEN
+    IF p_prefix IN ('z','y','x','w') THEN
         RETURN 'xcom'::platform_type;
-    ELSIF LEFT(p_external_address, 1) IN ('a','b','c','d') THEN
+    ELSIF p_prefix IN ('a','b','c','d') THEN
         RETURN 'ionconnect'::platform_type;
     ELSE
         RETURN NULL;

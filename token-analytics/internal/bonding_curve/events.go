@@ -163,7 +163,7 @@ func parseHandleOps(txInput string) (*CustomHandleOps, error) {
 
 	// Skip selector and read userOps offset (should be 96 bytes = 0x60)
 	userOpsOffsetHex := hexData[8:72]
-	userOpsOffset, err := strconv.ParseUint(userOpsOffsetHex, 16, 64)
+	userOpsOffset, err := strconv.ParseUint(userOpsOffsetHex[len(userOpsOffsetHex)-8:], 16, 32)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse userOps offset")
 	}
@@ -174,7 +174,7 @@ func parseHandleOps(txInput string) (*CustomHandleOps, error) {
 	}
 	// Read userOps length (32 bytes at userOpsStartHex)
 	userOpsLengthHex := hexData[userOpsStartHex : userOpsStartHex+64]
-	userOpsLength, err := strconv.ParseUint(userOpsLengthHex, 16, 64)
+	userOpsLength, err := strconv.ParseUint(userOpsLengthHex[len(userOpsLengthHex)-8:], 16, 32)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse userOps length")
 	}
@@ -206,7 +206,7 @@ func parseHandleOps(txInput string) (*CustomHandleOps, error) {
 	nonce.SetString(nonceHex, 16)
 
 	callDataLengthHex := userOpsDataHex[104:168]
-	callDataLength, err := strconv.ParseUint(callDataLengthHex, 16, 64)
+	callDataLength, err := strconv.ParseUint(callDataLengthHex[len(callDataLengthHex)-8:], 16, 32)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse callData length")
 	}
