@@ -266,8 +266,8 @@ github.com/docker/go-connections v0.6.0 h1:LlMG9azAe1TqfR7sO+NJttz1gy6KO7VJBh+pM
 github.com/docker/go-connections v0.6.0/go.mod h1:AahvXYshr6JgfUJGdDCs2b5EZG/vmaMAntpSFH5BFKE=
 github.com/docker/go-units v0.5.0 h1:69rxXcBk27SvSaaxTtLh/8llcHD8vYHT7WSdRZ/jvr4=
 github.com/docker/go-units v0.5.0/go.mod h1:fgPhTUdO+D/Jk86RDLlptpiXQzgHJF7gydDDbaIK4Dk=
-github.com/dundee/gdu/v5 v5.32.1-0.20251225233111-c30e03820a10 h1:td/gCTPwxygDC8KEWAM61/yYJHtleFHzMEby6MtAHhE=
-github.com/dundee/gdu/v5 v5.32.1-0.20251225233111-c30e03820a10/go.mod h1:sF94ohEg+fP/oPhReAZyyK+1b/7pVaNhUoaUsNsLYxU=
+github.com/dundee/gdu/v5 v5.32.1-0.20260109093110-737e2c4f373b h1:LMJuUoVciBEisPG7QfQ66j/OYYjKOeusRHK84pbqCgs=
+github.com/dundee/gdu/v5 v5.32.1-0.20260109093110-737e2c4f373b/go.mod h1:RH6ZEZm0AcKOfDim+KZfkoyuExayqZj7wN52Gi5WW5Q=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
 github.com/ebitengine/purego v0.9.1 h1:a/k2f2HQU3Pi399RPW1MOaZyhKJL9w/xFpKAg4q1s0A=
@@ -509,8 +509,8 @@ github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5 h1:
 github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5/go.mod h1:or80JBz1VHXxKN5qXBNYFooWcfjUPIQzbNUVZ7FTFzo=
 github.com/ice-blockchain/go/src v0.0.0-20251117100638-ebce142e0ce4 h1:MuIvX5CpkDfDyThLXK/GrG1+sRDJoy+YwX5SuygBeag=
 github.com/ice-blockchain/go/src v0.0.0-20251117100638-ebce142e0ce4/go.mod h1:pVzkmaIwkLaJ5cKPHPtuKyxaXiTsa/V7kbbgLmsr4Hw=
-github.com/ice-blockchain/subzero v1.496.0 h1:7fpNq37NduYoZl5hvrzZg4OYOl9gtiInWRab7N/+H0Y=
-github.com/ice-blockchain/subzero v1.496.0/go.mod h1:wiOK53BSO8PUl4DWGJ3IWLVeQxcypcsgQDTQXs5TsR4=
+github.com/ice-blockchain/subzero v1.497.0 h1:mHv6F35XsrRYzRCZQS6jy/MZpKzBNhd+8FcACw219pY=
+github.com/ice-blockchain/subzero v1.497.0/go.mod h1:jWJe7ZI45Hyek+Myew3mG7mHEu9EEwks/L+zx1CR348=
 github.com/ice-blockchain/wintr v1.170.0 h1:zG0R7dOr/h5mnPsZB+KO0B3LlRhPTjueWw+31vkD5rw=
 github.com/ice-blockchain/wintr v1.170.0/go.mod h1:9TcNxsUzFaDcZAVql+/81RXHVwBP3IQOlyQ3fEAFlfU=
 github.com/icholy/digest v1.1.0 h1:HfGg9Irj7i+IX1o1QAmPfIBNu/Q5A5Tu3n/MED9k9H4=
@@ -597,8 +597,8 @@ github.com/libdns/cloudflare v0.2.2 h1:XWHv+C1dDcApqazlh08Q6pjytYLgR2a+Y3xrXFu0v
 github.com/libdns/cloudflare v0.2.2/go.mod h1:w9uTmRCDlAoafAsTPnn2nJ0XHK/eaUMh86DUk8BWi60=
 github.com/libdns/libdns v1.1.1 h1:wPrHrXILoSHKWJKGd0EiAVmiJbFShguILTg9leS/P/U=
 github.com/libdns/libdns v1.1.1/go.mod h1:4Bj9+5CQiNMVGf87wjX4CY3HQJypUHRuLvlsfsZqLWQ=
-github.com/linxGnu/grocksdb v1.10.3 h1:0laII9AQ6kFxo5SjhdTfSh9EgF20piD6TMHK6YuDm+4=
-github.com/linxGnu/grocksdb v1.10.3/go.mod h1:OLQKZwiKwaJiAVCsOzWKvwiLwfZ5Vz8Md5TYR7t7pM8=
+github.com/linxGnu/grocksdb v1.10.4 h1:C9WZslnCjXxx+BL/fXCIe1pLhEri3V9vLQcBZOHadnU=
+github.com/linxGnu/grocksdb v1.10.4/go.mod h1:OLQKZwiKwaJiAVCsOzWKvwiLwfZ5Vz8Md5TYR7t7pM8=
 github.com/localtunnel/go-localtunnel v0.0.0-20170326223115-8a804488f275 h1:IZycmTpoUtQK3PD60UYBwjaCUHUP7cML494ao9/O8+Q=
 github.com/localtunnel/go-localtunnel v0.0.0-20170326223115-8a804488f275/go.mod h1:zt6UU74K6Z6oMOYJbJzYpYucqdcQwSMPBEdSvGiaUMw=
 github.com/lucasb-eyer/go-colorful v1.3.0 h1:2/yBRLdWBZKrf7gB40FoiKfAWYQ0lqNcbuQwVHXptag=
