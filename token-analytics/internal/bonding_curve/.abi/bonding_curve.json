@@ -1,32 +1,6 @@
 [
   {
-    "inputs": [
-      {
-        "internalType": "uint16",
-        "name": "feeBps_",
-        "type": "uint16"
-      },
-      {
-        "internalType": "uint64",
-        "name": "startTime_",
-        "type": "uint64"
-      },
-      {
-        "internalType": "address",
-        "name": "uniswapV3Factory_",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "uniswapV3Router_",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "uniswapV3Quoter_",
-        "type": "address"
-      }
-    ],
+    "inputs": [],
     "stateMutability": "nonpayable",
     "type": "constructor"
   },
@@ -47,18 +21,7 @@
   },
   {
     "inputs": [],
-    "name": "FactoryNotSet",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint24",
-        "name": "fee",
-        "type": "uint24"
-      }
-    ],
-    "name": "FeeTierNotEnabled",
+    "name": "InsufficientBaseLiquidity",
     "type": "error"
   },
   {
@@ -93,13 +56,56 @@
     "type": "error"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint8",
+        "name": "invalidVersion",
+        "type": "uint8"
+      }
+    ],
+    "name": "InvalidProtocolVersion",
+    "type": "error"
+  },
+  {
     "inputs": [],
     "name": "InvalidQuoter",
     "type": "error"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint8",
+        "name": "invalidCount",
+        "type": "uint8"
+      }
+    ],
+    "name": "InvalidRecordsCount",
+    "type": "error"
+  },
+  {
     "inputs": [],
-    "name": "InverseCurveNotSupported",
+    "name": "LiquidityLensNotSet",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "MigratorNotSet",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tokenA",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "tokenB",
+        "type": "address"
+      }
+    ],
+    "name": "NoFeeTokenFound",
     "type": "error"
   },
   {
@@ -109,28 +115,7 @@
   },
   {
     "inputs": [],
-    "name": "NotUnlockedYet",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "PairDoesNotExist",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "PoolCreateReturnedZero",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "pool",
-        "type": "address"
-      }
-    ],
-    "name": "PoolInitializeFailed",
     "type": "error"
   },
   {
@@ -152,11 +137,6 @@
   {
     "inputs": [],
     "name": "TokenNotMapped",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "TokenSelector",
     "type": "error"
   },
   {
@@ -197,12 +177,6 @@
       },
       {
         "indexed": false,
-        "internalType": "address",
-        "name": "creatorTokenAddress",
-        "type": "address"
-      },
-      {
-        "indexed": false,
         "internalType": "uint8",
         "name": "externalType",
         "type": "uint8"
@@ -215,6 +189,12 @@
       },
       {
         "indexed": false,
+        "internalType": "uint256",
+        "name": "totalSupply",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
         "internalType": "address",
         "name": "creatorAddress",
         "type": "address"
@@ -224,12 +204,6 @@
         "internalType": "address",
         "name": "affiliateAddress",
         "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "totalSupply",
-        "type": "uint256"
       }
     ],
     "name": "BondingTokenCreated",
@@ -313,87 +287,6 @@
         "type": "bytes32"
       },
       {
-        "indexed": false,
-        "internalType": "address",
-        "name": "to",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
-    ],
-    "name": "LiquidityClaimed",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "pairId",
-        "type": "bytes32"
-      },
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "lpToken",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "unlockTime",
-        "type": "uint256"
-      }
-    ],
-    "name": "LiquidityLocked",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "pairId",
-        "type": "bytes32"
-      },
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "pool",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "lockedLiquidityAmount",
-        "type": "uint256"
-      }
-    ],
-    "name": "Migrated",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "pairId",
-        "type": "bytes32"
-      },
-      {
         "indexed": true,
         "internalType": "address",
         "name": "baseToken",
@@ -404,6 +297,24 @@
         "internalType": "address",
         "name": "otherToken",
         "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "priceModel",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "startPrice",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "endPrice",
+        "type": "uint256"
       }
     ],
     "name": "PairRegistered",
@@ -438,62 +349,6 @@
       }
     ],
     "name": "RecipientsSet",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "token",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes32",
-        "name": "reason",
-        "type": "bytes32"
-      }
-    ],
-    "name": "RefundIssued",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "pairId",
-        "type": "bytes32"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "router",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "address[]",
-        "name": "path",
-        "type": "address[]"
-      }
-    ],
-    "name": "RouteSelected",
     "type": "event"
   },
   {
@@ -544,6 +399,12 @@
       },
       {
         "indexed": false,
+        "internalType": "address",
+        "name": "feeToken",
+        "type": "address"
+      },
+      {
+        "indexed": false,
         "internalType": "uint256",
         "name": "inputAmount",
         "type": "uint256"
@@ -562,31 +423,6 @@
       }
     ],
     "name": "Swapped",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "bool",
-        "name": "passed",
-        "type": "bool"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint8",
-        "name": "reasonCode",
-        "type": "uint8"
-      }
-    ],
-    "name": "VerificationChecked",
     "type": "event"
   },
   {
@@ -675,7 +511,12 @@
     "outputs": [
       {
         "internalType": "uint16",
-        "name": "feeBps",
+        "name": "preMigrationFeeBps",
+        "type": "uint16"
+      },
+      {
+        "internalType": "uint16",
+        "name": "postMigrationFeeBps",
         "type": "uint16"
       },
       {
@@ -735,11 +576,6 @@
         "type": "string"
       },
       {
-        "internalType": "address",
-        "name": "_creatorTokenAddress",
-        "type": "address"
-      },
-      {
         "internalType": "uint8",
         "name": "_externalType",
         "type": "uint8"
@@ -751,8 +587,18 @@
       },
       {
         "internalType": "address",
-        "name": "_baseTokenAddress",
+        "name": "_priceModel",
         "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_startPrice",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_endPrice",
+        "type": "uint256"
       },
       {
         "internalType": "uint256",
@@ -775,14 +621,9 @@
         "type": "address"
       },
       {
-        "internalType": "uint256",
-        "name": "_startPrice",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_endPrice",
-        "type": "uint256"
+        "internalType": "address",
+        "name": "_baseTokenAddress",
+        "type": "address"
       }
     ],
     "name": "createBondingToken",
@@ -915,7 +756,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "liquidityInBase",
+        "name": "",
         "type": "uint256"
       }
     ],
@@ -961,6 +802,54 @@
   {
     "inputs": [
       {
+        "internalType": "uint16",
+        "name": "preMigrationFeeBps_",
+        "type": "uint16"
+      },
+      {
+        "internalType": "uint16",
+        "name": "postMigrationFeeBps_",
+        "type": "uint16"
+      },
+      {
+        "internalType": "uint64",
+        "name": "startTime_",
+        "type": "uint64"
+      },
+      {
+        "internalType": "address",
+        "name": "uniswapV3Router_",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "uniswapV3Quoter_",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "uniswapV3MigratorHelper_",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "liquidityLens_",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "priceModel_",
+        "type": "address"
+      }
+    ],
+    "name": "initialize",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "bytes32",
         "name": "pairId",
         "type": "bytes32"
@@ -987,11 +876,16 @@
           },
           {
             "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
             "name": "lockedLiquidityAmount",
             "type": "uint256"
           }
         ],
-        "internalType": "struct UniswapV3Migrator.MigrationInfo",
+        "internalType": "struct IUniswapV3MigratorHelper.MigrationInfo",
         "name": "",
         "type": "tuple"
       }
@@ -1046,6 +940,11 @@
       {
         "internalType": "address",
         "name": "creator",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "priceModel",
         "type": "address"
       },
       {

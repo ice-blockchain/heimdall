@@ -122,23 +122,19 @@ func pairRegistered(signature, data, pairIdTopic, baseTokenTopic, otherTokenTopi
 	if signature != eventPairRegistered.Hex() {
 		return nil, errors.Errorf("invalid signature for PairRegistered: expected %s, got %s", eventPairRegistered.Hex(), signature)
 	}
-	if data != "" && data != "0x" {
-		var pairRegisteredEvent LogPairRegistered
-		if err := decode(ABI, &pairRegisteredEvent, "PairRegistered", data); err != nil {
-			return nil, errors.Wrapf(err, "failed to unpack PairRegistered event")
-		}
-		log.Debug(fmt.Sprintf("Pair registered: pairId=%x, baseToken=%s, otherToken=%s", pairRegisteredEvent.PairId, pairRegisteredEvent.BaseToken.Hex(), pairRegisteredEvent.OtherToken.Hex()))
-		return &pairRegisteredEvent, nil
-	}
-	log.Info("Pair registered (empty data, all params indexed)")
 
 	var pairRegisteredEvent LogPairRegistered
 	pairRegisteredEvent.PairId = common.HexToHash(pairIdTopic)
 	pairRegisteredEvent.BaseToken = common.HexToAddress(baseTokenTopic)
 	pairRegisteredEvent.OtherToken = common.HexToAddress(otherTokenTopic)
 
-	log.Debug(fmt.Sprintf("Pair registered: pairId=%x, baseToken=%v, otherToken=%v",
-		pairRegisteredEvent.PairId, pairRegisteredEvent.BaseToken.Hex(), pairRegisteredEvent.OtherToken.Hex()))
+	if err := decode(ABI, &pairRegisteredEvent, "PairRegistered", data); err != nil {
+		return nil, errors.Wrapf(err, "failed to unpack PairRegistered event data")
+	}
+
+	log.Debug(fmt.Sprintf("Pair registered: pairId=%x, baseToken=%s, otherToken=%s, priceModel=%s, startPrice=%v, endPrice=%v",
+		pairRegisteredEvent.PairId, pairRegisteredEvent.BaseToken.Hex(), pairRegisteredEvent.OtherToken.Hex(),
+		pairRegisteredEvent.PriceModel.Hex(), pairRegisteredEvent.StartPrice, pairRegisteredEvent.EndPrice))
 
 	return &pairRegisteredEvent, nil
 }
@@ -163,7 +159,7 @@ func parseHandleOps(txInput string) (*CustomHandleOps, error) {
 
 	// Skip selector and read userOps offset (should be 96 bytes = 0x60)
 	userOpsOffsetHex := hexData[8:72]
-	userOpsOffset, err := strconv.ParseUint(userOpsOffsetHex, 16, 64)
+	userOpsOffset, err := strconv.ParseUint(userOpsOffsetHex[len(userOpsOffsetHex)-8:], 16, 32)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse userOps offset")
 	}
@@ -174,7 +170,7 @@ func parseHandleOps(txInput string) (*CustomHandleOps, error) {
 	}
 	// Read userOps length (32 bytes at userOpsStartHex)
 	userOpsLengthHex := hexData[userOpsStartHex : userOpsStartHex+64]
-	userOpsLength, err := strconv.ParseUint(userOpsLengthHex, 16, 64)
+	userOpsLength, err := strconv.ParseUint(userOpsLengthHex[len(userOpsLengthHex)-8:], 16, 32)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse userOps length")
 	}
@@ -206,7 +202,7 @@ func parseHandleOps(txInput string) (*CustomHandleOps, error) {
 	nonce.SetString(nonceHex, 16)
 
 	callDataLengthHex := userOpsDataHex[104:168]
-	callDataLength, err := strconv.ParseUint(callDataLengthHex, 16, 64)
+	callDataLength, err := strconv.ParseUint(callDataLengthHex[len(callDataLengthHex)-8:], 16, 32)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse callData length")
 	}

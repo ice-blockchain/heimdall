@@ -5,10 +5,10 @@ package tokenanalytics
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"math/big"
-	"math/rand"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -74,10 +74,12 @@ type (
 		ContentAuthorID        string
 		BondingCurveContract   string
 		BondedTokenCreatedData string
+		PairRegisteredData     string
 		SwappedData            string
 		UserBlockchainAddr     string
 		BlockTimestamp         uint64
 		EntryPointAddr         string
+		IONTokenAddress        string
 	}
 )
 
@@ -120,13 +122,14 @@ func (gen *dummyDataGenerator) Run(ctx context.Context) {
 	err = gen.generateToken(ctx, gen.Stream, &tokenRow{
 		ContractAddress: "7307ea7ab4a7e5bcba1bf18c9495d08107d9f0d8",
 		ContentAuthorID: &masterPubkey,
-		ExternalAddress: string(PlatformIonConnectProfile) + BuildProfileExternalAddress(masterPubkey),
+		ExternalAddress: BuildProfileExternalAddress(masterPubkey),
+		Type:            "profile",
 		Title:           "Yu's token",
 		Ticker:          "posidoniusenara",
 		TotalSupply:     "1000000000000000000000000",
 		BaseToken:       "2c73996BaBF1a06c2C057177353293f7cA0907c8",
 		PairId:          "0xc481c7a805798bc81ca4cbf0803d38bd785357f2ab3b22b70e42dedc13046e15",
-	}, PlatformGroupIonConnect)
+	}, PlatformGroupIonConnect, 'a') // 'a' for IonConnect Profile
 	if err != nil {
 		if storage.IsErr(err, storage.ErrReadOnly) {
 			log.Info("skipping inserting dummy data, DB is read-only")
@@ -135,11 +138,9 @@ func (gen *dummyDataGenerator) Run(ctx context.Context) {
 		log.Panic(errors.Wrapf(err, "failed to insert token data"))
 	}
 
-	// Wait for first token to be fully processed by all triggers and workers
 	log.Info("Waiting 5 seconds for first token to be processed...")
 	time.Sleep(5 * time.Second)
 
-	// Fetch initial pool of real tokens for dummy swap generation
 	if err := gen.fetchRealTokens(ctx); err != nil {
 		log.Error(errors.Wrap(err, "failed to fetch initial real tokens pool, will retry later"))
 	}
@@ -157,7 +158,7 @@ func (gen *dummyDataGenerator) createTokenWithBuysOrSellsProcessor(ctx context.C
 
 func (gen *dummyDataGenerator) createIonConnectTokenWithBuysOrSellsProcessor(ctx context.Context, stream string) context.CancelFunc {
 	kinds := []int{0, 30023, 30023, 30175}
-	kind := kinds[rand.Intn(len(kinds))]
+	kind := kinds[cryptoRandInt(len(kinds))]
 	dTag := uuid.NewString()
 
 	_, master, err := gen.createUserForPlatform(ctx, mustRandomHex(32), PlatformGroupIonConnect)
@@ -167,19 +168,25 @@ func (gen *dummyDataGenerator) createIonConnectTokenWithBuysOrSellsProcessor(ctx
 	}
 
 	var externalAddress string
+	var tokenType string
+	var externalType uint8
 	if kind == nostr.KindProfileMetadata {
 		dTag = ""
-		platformPrefix := string(PlatformIonConnectProfile) // "a"
-		externalAddress = platformPrefix + BuildProfileExternalAddress(master)
+		externalAddress = BuildProfileExternalAddress(master)
+		tokenType = "profile"
+		externalType = 'a' // IonConnect Profile
 	} else if kind == nostr.KindArticle {
-		platformPrefix := string(PlatformIonConnectArticle) // "d"
-		externalAddress = platformPrefix + BuildContentExternalAddress(kind, master, dTag)
+		externalAddress = BuildContentExternalAddress(kind, master, dTag)
+		tokenType = "article"
+		externalType = 'd' // IonConnect Article
 	} else if kind == model.CustomIONKindEditableTextNote {
-		platformPrefix := string(PlatformIonConnectPost) // "b"
-		externalAddress = platformPrefix + BuildContentExternalAddress(kind, master, dTag)
+		externalAddress = BuildContentExternalAddress(kind, master, dTag)
+		tokenType = "post"
+		externalType = 'b' // IonConnect Post
 	} else {
-		platformPrefix := string(PlatformIonConnectVideo) // "c"
-		externalAddress = platformPrefix + BuildContentExternalAddress(kind, master, dTag)
+		externalAddress = BuildContentExternalAddress(kind, master, dTag)
+		tokenType = "post"
+		externalType = 'b' // IonConnect Post
 	}
 	names := []string{
 		"Super Duper Token",
@@ -187,19 +194,20 @@ func (gen *dummyDataGenerator) createIonConnectTokenWithBuysOrSellsProcessor(ctx
 		"ToTheMooN",
 		"HODL token",
 	}
-	displayName := names[rand.Int31n(int32(len(names)))]
+	displayName := names[cryptoRandInt(len(names))]
 	symbol := strings.ToLower(strings.ReplaceAll(displayName, " ", ""))
 	tok := &tokenRow{
 		ContractAddress: generateDummyContractAddress(),
 		ContentAuthorID: &master,
 		ExternalAddress: externalAddress,
+		Type:            tokenType,
 		Title:           displayName,
 		Ticker:          symbol,
-		TotalSupply:     "1000000000000000000" + strings.Repeat("0", rand.Intn(8)+1),
-		BaseToken:       strings.TrimPrefix(gen.IONTokenAddress, "0x"),
+		TotalSupply:     "1000000000000000000" + strings.Repeat("0", cryptoRandInt(8)+1),
+		BaseToken:       strings.ToLower(strings.TrimPrefix(gen.IONTokenAddress, "0x")),
 		PairId:          "0x" + mustRandomHex(32),
 	}
-	if err := gen.generateToken(ctx, stream, tok, PlatformGroupIonConnect); err != nil {
+	if err := gen.generateToken(ctx, stream, tok, PlatformGroupIonConnect, externalType); err != nil {
 		log.Error(errors.Wrapf(err, "failed to insert dummy tx data"))
 		return nil
 	}
@@ -226,7 +234,7 @@ func (gen *dummyDataGenerator) createXComTokenWithBuysOrSellsProcessor(ctx conte
 		{string(PlatformXComArticle), "article"}, // w
 	}
 
-	tokenType := tokenTypes[rand.Intn(len(tokenTypes))]
+	tokenType := tokenTypes[cryptoRandInt(len(tokenTypes))]
 
 	handle := mustRandomHex(8)
 	_, master, err := gen.createUserForPlatform(ctx, handle, PlatformGroupXCom)
@@ -241,21 +249,23 @@ func (gen *dummyDataGenerator) createXComTokenWithBuysOrSellsProcessor(ctx conte
 		"Viral Post",
 		"X Infinity",
 	}
-	displayName := names[rand.Int31n(int32(len(names)))]
+	displayName := names[cryptoRandInt(len(names))]
 	symbol := strings.ToLower(strings.ReplaceAll(displayName, " ", ""))
 
 	tok := &tokenRow{
 		ContractAddress: generateDummyContractAddress(),
 		ContentAuthorID: &master,
 		ExternalAddress: handle,
+		Type:            tokenType.kind,
 		Title:           displayName,
 		Ticker:          symbol,
-		TotalSupply:     "1000000000000000000" + strings.Repeat("0", rand.Intn(8)+1),
-		BaseToken:       strings.TrimPrefix(gen.IONTokenAddress, "0x"),
+		TotalSupply:     "1000000000000000000" + strings.Repeat("0", cryptoRandInt(8)+1),
+		BaseToken:       strings.ToLower(strings.TrimPrefix(gen.IONTokenAddress, "0x")),
 		PairId:          "0x" + mustRandomHex(32),
 	}
+	externalTypeByte := uint8(tokenType.prefix[0])
 
-	if err := gen.generateToken(ctx, stream, tok, PlatformGroupXCom); err != nil {
+	if err := gen.generateToken(ctx, stream, tok, PlatformGroupXCom, externalTypeByte); err != nil {
 		log.Error(errors.Wrapf(err, "failed to insert dummy X.com tx data"))
 		return nil
 	}
@@ -269,6 +279,322 @@ func (gen *dummyDataGenerator) createXComTokenWithBuysOrSellsProcessor(ctx conte
 	gen.startBondingCurveProgressUpdater(ctx, tok, deadline)
 
 	return cancel
+}
+
+// Double swap transaction: ION → Creator Token → Content Token
+func (gen *dummyDataGenerator) createDoubleSwapTokenGenerator(ctx context.Context, stream string) context.CancelFunc {
+	_, master, err := gen.createUserForPlatform(ctx, mustRandomHex(32), PlatformGroupIonConnect)
+	if err != nil {
+		log.Error(errors.Wrapf(err, "failed to create user for double swap token generation"))
+		return nil
+	}
+
+	// Creator Token (Profile)
+	creatorExternalAddress := BuildProfileExternalAddress(master)
+	creatorToken := &tokenRow{
+		ContractAddress: generateDummyContractAddress(),
+		ContentAuthorID: &master,
+		ExternalAddress: creatorExternalAddress,
+		Title:           "Creator Profile",
+		Ticker:          "CREA",
+		TotalSupply:     "1000000000000000000000000",
+		BaseToken:       strings.ToLower(strings.TrimPrefix(gen.IONTokenAddress, "0x")),
+		PairId:          "0x" + mustRandomHex(32),
+	}
+
+	// Content Token (Post)
+	kind := model.CustomIONKindEditableTextNote
+	dTag := uuid.NewString()
+	contentExternalAddress := BuildContentExternalAddress(kind, master, dTag)
+	contentToken := &tokenRow{
+		ContractAddress: generateDummyContractAddress(),
+		ContentAuthorID: &master,
+		ExternalAddress: contentExternalAddress,
+		Title:           "Content Post",
+		Ticker:          "CONT",
+		TotalSupply:     "980000000000000000000000", // slightly less due to fee on first swap
+		BaseToken:       creatorToken.ContractAddress,
+		PairId:          "0x" + mustRandomHex(32),
+	}
+
+	blockNum := atomic.AddUint64(&gen.InsertBlockIndex, 1)
+	txHash := mustRandomHex(32)
+	blockHash := mustRandomHex(32)
+	ownerBlockchainAddr, _, err := gen.createUserForPlatform(ctx, *creatorToken.ContentAuthorID, PlatformGroupIonConnect)
+	if err != nil {
+		log.Error(errors.Wrapf(err, "failed to create user for double swap"))
+		return nil
+	}
+
+	base, _ := hex.DecodeString(strings.TrimPrefix(gen.IONTokenAddress, "0x"))
+	totalSupply, _ := new(big.Int).SetString(creatorToken.TotalSupply, 10)
+
+	creatorExtType := uint8('a')
+	creatorExtAddr := creatorExternalAddress
+	contentExtType := uint8('b')
+	contentExtAddr := contentExternalAddress
+
+	toToken := buildFatAddressV2Double(
+		creatorToken.Title, creatorToken.Ticker, creatorExtAddr, creatorExtType,
+		contentToken.Title, contentToken.Ticker, contentExtAddr, contentExtType,
+		common.HexToAddress(ownerBlockchainAddr),
+		common.HexToAddress("0x"),
+	)
+
+	// Use 4-param swap method (swap0 in ABI, method ID 0x83362e17) for double swap
+	txInput, err := bondingcurve.ABI.Pack("swap0",
+		base,
+		toToken,
+		totalSupply,
+		totalSupply,
+	)
+	if err != nil {
+		log.Error(errors.Wrapf(err, "failed to pack double swap tx input"))
+
+		return nil
+	}
+
+	creatorTokenCreatedData, err := bondingcurve.ABI.Events["BondingTokenCreated"].Inputs.NonIndexed().Pack(
+		creatorToken.Title,
+		creatorToken.Ticker,
+		creatorExtType,
+		creatorExtAddr,
+		totalSupply,
+		common.HexToAddress(ownerBlockchainAddr),
+		common.HexToAddress("0x"),
+	)
+	if err != nil {
+		log.Error(errors.Wrapf(err, "failed to pack creator BondingTokenCreated"))
+
+		return nil
+	}
+
+	// Pack SECOND BondingTokenCreated event (Content Token)
+	contentTotalSupply, _ := new(big.Int).SetString(contentToken.TotalSupply, 10)
+	contentTokenCreatedData, err := bondingcurve.ABI.Events["BondingTokenCreated"].Inputs.NonIndexed().Pack(
+		contentToken.Title,
+		contentToken.Ticker,
+		contentExtType,
+		contentExtAddr,
+		contentTotalSupply,
+		common.HexToAddress(ownerBlockchainAddr),
+		common.HexToAddress("0x"),
+	)
+	if err != nil {
+		log.Error(errors.Wrapf(err, "failed to pack content BondingTokenCreated"))
+
+		return nil
+	}
+
+	// Pack FIRST Swapped event (ION → Creator)
+	firstSwappedData, err := bondingcurve.ABI.Events["Swapped"].Inputs.NonIndexed().Pack(
+		false, // direction: buy
+		common.HexToAddress(strings.ToLower(gen.IONTokenAddress)), // feeToken (ION)
+		totalSupply,   // inputAmount
+		totalSupply,   // outputAmount (1:1 at bonding curve start)
+		big.NewInt(0), // fee
+	)
+	if err != nil {
+		log.Error(errors.Wrapf(err, "failed to pack first Swapped event"))
+
+		return nil
+	}
+
+	// Pack SECOND Swapped event (Creator → Content)
+	secondSwappedData, err := bondingcurve.ABI.Events["Swapped"].Inputs.NonIndexed().Pack(
+		false, // direction: buy
+		common.HexToAddress(creatorToken.ContractAddress), // feeToken (Creator Token)
+		totalSupply,        // inputAmount (all creator tokens)
+		contentTotalSupply, // outputAmount (slightly less due to fee)
+		big.NewInt(0),      // fee
+	)
+	if err != nil {
+		log.Error(errors.Wrapf(err, "failed to pack second Swapped event"))
+
+		return nil
+	}
+
+	// Pack FIRST PairRegistered event (ION ↔ Creator)
+	startPrice := big.NewInt(1e18) // 1
+	endPrice := big.NewInt(1e18)   // 1
+	firstPairRegisteredData, err := bondingcurve.ABI.Events["PairRegistered"].Inputs.NonIndexed().Pack(
+		common.HexToAddress("0xdead"), // priceModel
+		startPrice,
+		endPrice,
+	)
+	if err != nil {
+		log.Error(errors.Wrapf(err, "failed to pack first PairRegistered event"))
+
+		return nil
+	}
+
+	// Pack SECOND PairRegistered event (Creator ↔ Content)
+	secondPairRegisteredData, err := bondingcurve.ABI.Events["PairRegistered"].Inputs.NonIndexed().Pack(
+		common.HexToAddress("0xdead"), // priceModel
+		startPrice,
+		endPrice,
+	)
+	if err != nil {
+		log.Error(errors.Wrapf(err, "failed to pack second PairRegistered event"))
+		return nil
+	}
+
+	// 2x BondingTokenCreated, 2x PairRegistered, 2x Swapped
+	tmpl, err := template.New("doubleSwap").Parse(`{
+  "stream": "{{.Stream}}",
+  "transactions": [
+    {
+      "accessList": [],
+      "blockHash": "0x{{.BlockHash}}",
+      "blockNumber": "{{.BlockNumber}}",
+      "blockTimestamp": "{{.BlockTimestamp}}",
+      "chainId": "0x61",
+      "from": "0x{{.UserBlockchainAddr}}",
+      "gas": "0x2dc6c0",
+      "gasPrice": "0x3b9aca00",
+      "hash": "0x{{.TxHash}}",
+      "input": "{{.TxInput}}",
+      "logs": [
+        {
+          "address": "0x{{.BondingCurveContract}}",
+          "data": "{{.CreatorTokenCreatedData}}",
+          "logIndex": "0x1",
+          "removed": false,
+          "topics": [
+            "0xf20c12ede00469181597169f5cbe631d40edec9a2a45c2e46eba231a831126dd",
+            "0x000000000000000000000000{{.CreatorToken.ContractAddress}}"
+          ]
+        },
+        {
+          "address": "0x{{.BondingCurveContract}}",
+          "data": "{{.FirstPairRegisteredData}}",
+          "logIndex": "0x2",
+          "removed": false,
+          "topics": [
+            "0x872521cd21d976cd52c101bb81804e331c479f7895644ae16140b559222fda5c",
+            "{{.CreatorToken.PairId}}",
+            "0x000000000000000000000000{{.CreatorToken.BaseToken}}",
+            "0x000000000000000000000000{{.CreatorToken.ContractAddress}}"
+          ]
+        },
+        {
+          "address": "0x{{.BondingCurveContract}}",
+          "data": "{{.FirstSwappedData}}",
+          "logIndex": "0x3",
+          "removed": false,
+          "topics": [
+            "0x163f655f7f84a04389233837ff842844953ef4efba74f5d9317d37131b3a6a81",
+            "0x000000000000000000000000{{.UserBlockchainAddr}}",
+            "{{.CreatorToken.PairId}}"
+          ]
+        },
+        {
+          "address": "0x{{.BondingCurveContract}}",
+          "data": "{{.ContentTokenCreatedData}}",
+          "logIndex": "0x4",
+          "removed": false,
+          "topics": [
+            "0xf20c12ede00469181597169f5cbe631d40edec9a2a45c2e46eba231a831126dd",
+            "0x000000000000000000000000{{.ContentToken.ContractAddress}}"
+          ]
+        },
+        {
+          "address": "0x{{.BondingCurveContract}}",
+          "data": "{{.SecondPairRegisteredData}}",
+          "logIndex": "0x5",
+          "removed": false,
+          "topics": [
+            "0x872521cd21d976cd52c101bb81804e331c479f7895644ae16140b559222fda5c",
+            "{{.ContentToken.PairId}}",
+            "0x000000000000000000000000{{.ContentToken.BaseToken}}",
+            "0x000000000000000000000000{{.ContentToken.ContractAddress}}"
+          ]
+        },
+        {
+          "address": "0x{{.BondingCurveContract}}",
+          "data": "{{.SecondSwappedData}}",
+          "logIndex": "0x6",
+          "removed": false,
+          "topics": [
+            "0x163f655f7f84a04389233837ff842844953ef4efba74f5d9317d37131b3a6a81",
+            "0x000000000000000000000000{{.UserBlockchainAddr}}",
+            "{{.ContentToken.PairId}}"
+          ]
+        }
+      ],
+      "maxFeePerGas": "0x3b9aca00",
+      "maxPriorityFeePerGas": "0x3b9aca00",
+      "nonce": "0x1",
+      "r": "0x1",
+      "s": "0x1",
+      "to": "0x{{.BondingCurveContract}}",
+      "transactionIndex": "0x1",
+      "type": "0x2",
+      "v": "0x0",
+      "value": "0x0",
+      "yParity": "0x0"
+    }
+  ]
+}`)
+	if err != nil {
+		log.Error(errors.Wrapf(err, "failed to parse double swap template"))
+
+		return nil
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, map[string]any{
+		"Stream":                   stream,
+		"BlockNumber":              blockNum,
+		"BlockHash":                blockHash,
+		"TxHash":                   txHash,
+		"TxInput":                  "0x" + hex.EncodeToString(txInput),
+		"UserBlockchainAddr":       strings.TrimPrefix(ownerBlockchainAddr, "0x"),
+		"BondingCurveContract":     strings.TrimPrefix(gen.BondingCurveContractAddress, "0x"),
+		"CreatorToken":             creatorToken,
+		"ContentToken":             contentToken,
+		"CreatorTokenCreatedData":  "0x" + hex.EncodeToString(creatorTokenCreatedData),
+		"ContentTokenCreatedData":  "0x" + hex.EncodeToString(contentTokenCreatedData),
+		"FirstPairRegisteredData":  "0x" + hex.EncodeToString(firstPairRegisteredData),
+		"SecondPairRegisteredData": "0x" + hex.EncodeToString(secondPairRegisteredData),
+		"FirstSwappedData":         "0x" + hex.EncodeToString(firstSwappedData),
+		"SecondSwappedData":        "0x" + hex.EncodeToString(secondSwappedData),
+		"BlockTimestamp":           uint64(time.Now().Unix()),
+	}); err != nil {
+		log.Error(errors.Wrapf(err, "failed to execute double swap template"))
+		return nil
+	}
+
+	fullData := buf.String()
+	sql := `INSERT INTO smart_contract_transactions(from_block_number, to_block_number, network, stream_id, data)
+			VALUES ($1, $1, 'bsc-testnet-dummy', $2, $3::JSONB)
+			ON CONFLICT (from_block_number, to_block_number, network) DO NOTHING`
+	if _, err = storage.Exec(ctx, gen.Target, sql, blockNum, stream, fullData); err != nil && !storage.IsErr(err, storage.ErrDuplicate) {
+		log.Error(errors.Wrapf(err, "failed to insert double swap tx data"))
+		return nil
+	}
+
+	log.Info(fmt.Sprintf("Created DOUBLE SWAP: ION → %v (creator) → %v (content) on stream %v by %v",
+		creatorToken.ContractAddress, contentToken.ContractAddress, stream, master))
+
+	// Wait for SQL triggers to process the double swap transaction before starting subsequent swaps
+	// This prevents race condition where startBuysOrSellsProcessor generates swaps for tokens that don't exist yet
+	time.Sleep(2 * time.Second)
+
+	deadline := time.Now().Add(gen.TokenGeneratorTTL)
+	ctx1, cancel1 := context.WithDeadline(ctx, deadline)
+	ctx2, cancel2 := context.WithDeadline(ctx, deadline)
+
+	gen.startBuysOrSellsProcessor(ctx1, creatorToken, stream, deadline, PlatformGroupIonConnect)
+	gen.startBondingCurveProgressUpdater(ctx1, creatorToken, deadline)
+
+	gen.startBuysOrSellsProcessor(ctx2, contentToken, stream, deadline, PlatformGroupIonConnect)
+	gen.startBondingCurveProgressUpdater(ctx2, contentToken, deadline)
+
+	return func() {
+		cancel1()
+		cancel2()
+	}
 }
 
 func (gen *dummyDataGenerator) fetchRealTokens(ctx context.Context) error {
@@ -348,7 +674,7 @@ func (gen *dummyDataGenerator) startNewTokenGenerator(ctx context.Context, strea
 	}()
 
 	fire <- struct{}{}
-	platformToggle := 0 // 0 for IonConnect, 1 for X.com
+	tokenCounter := 0 // Counter for token generation: every 3rd token is double swap
 	go func() {
 		for ctx.Err() == nil {
 			select {
@@ -358,14 +684,20 @@ func (gen *dummyDataGenerator) startNewTokenGenerator(ctx context.Context, strea
 				if int(gen.activeTokensWorkers.Load()) >= int(gen.MaxTokenGens) {
 					continue
 				}
-				var platformGroup string
-				if platformToggle%2 == 0 {
-					platformGroup = PlatformGroupIonConnect
+
+				// Every 2nd token: create double swap (profile + content)
+				if tokenCounter%2 == 1 {
+					gen.createDoubleSwapTokenGenerator(ctx, stream)
 				} else {
-					platformGroup = PlatformGroupXCom
+					var platformGroup string
+					if tokenCounter%2 == 0 {
+						platformGroup = PlatformGroupIonConnect
+					} else {
+						platformGroup = PlatformGroupXCom
+					}
+					gen.createTokenWithBuysOrSellsProcessor(ctx, stream, platformGroup)
 				}
-				platformToggle++
-				gen.createTokenWithBuysOrSellsProcessor(ctx, stream, platformGroup)
+				tokenCounter++
 			}
 		}
 	}()
@@ -407,7 +739,7 @@ func (gen *dummyDataGenerator) startDummySwapsForRealTokens(ctx context.Context)
 					}
 
 					// Generate 1-2 dummy swaps for this token (matching dummy token pattern)
-					txCount := 1 + rand.Intn(2)
+					txCount := 1 + cryptoRandInt(2)
 					if err := gen.generateBuyOrSellBatch(ctx, dummyDataStream, token, txCount, platformGroup); err != nil {
 						log.Error(errors.Wrapf(err, "failed to generate dummy swaps for real token %s", token.ContractAddress))
 					} else {
@@ -576,7 +908,7 @@ func (gen *dummyDataGenerator) getOrCreateTokenUserPool(ctx context.Context, tok
 	if pool, exists := gen.tokenUserPools[tokenContractAddress]; exists && len(pool) > 0 {
 		return pool, nil
 	}
-	poolSize := 10 + rand.Intn(11)
+	poolSize := 10 + cryptoRandInt(11)
 	pool := make([]tokenUser, 0, poolSize)
 
 	for i := 0; i < poolSize; i++ {
@@ -671,23 +1003,23 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 	baseTimestamp := time.Now().In(time.UTC).Add(-30 * time.Second).Unix()
 	txsForBlock := []string{}
 	for txIdx := range totalTx {
-		user := userPool[rand.Intn(len(userPool))]
+		user := userPool[cryptoRandInt(len(userPool))]
 		userBlockChainAddr := user.blockchainAddress
-		buyOrSel := rand.Intn(2) == 0
+		buyOrSel := cryptoRandInt(2) == 0
 		// Each tx in batch gets unique timestamp (1 second apart)
 		txTimestamp := uint64(baseTimestamp + int64(txIdx))
 
 		// 50% chance to generate custom handleOps transaction
-		useCustomHandleOps := rand.Intn(2) == 0
+		useCustomHandleOps := cryptoRandInt(2) == 0
 
 		minTokens := 100.0   // minimum 100 tokens
 		maxTokens := 10000.0 // maximum 10000 tokens
-		tokensToTrade := minTokens + rand.Float64()*(maxTokens-minTokens)
+		tokensToTrade := minTokens + cryptoRandFloat64()*(maxTokens-minTokens)
 
 		// Price range: 100-1000 ION per token (realistic prices like $0.2 - $2 per token)
 		minPriceIon := 100.0  // 100 ION per token = $0.2 per token at ION=$0.002
 		maxPriceIon := 1000.0 // 1000 ION per token = $2 per token at ION=$0.002
-		pricePerTokenIon := minPriceIon + rand.Float64()*(maxPriceIon-minPriceIon)
+		pricePerTokenIon := minPriceIon + cryptoRandFloat64()*(maxPriceIon-minPriceIon)
 
 		tokenAmountWei := new(big.Float).Mul(big.NewFloat(tokensToTrade), big.NewFloat(1e18))
 		tokenAmount, _ := tokenAmountWei.Int(nil) // Amount of tokens in wei
@@ -704,8 +1036,10 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 			outputAmount = tokenAmount // receiving tokens
 		}
 
+		feeTokenAddress := common.HexToAddress(strings.TrimPrefix(token.BaseToken, "0x"))
 		data, packErr := bondingcurve.ABI.Events["Swapped"].Inputs.NonIndexed().Pack(
 			buyOrSel,
+			feeTokenAddress,
 			inputAmount,
 			outputAmount,
 			new(big.Int).SetInt64(0),
@@ -779,7 +1113,8 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 			}
 
 			// [2.2] Nonce: 32 bytes
-			nonce := fmt.Sprintf("%064x", rand.Uint64())
+			nonceInt, _ := rand.Int(rand.Reader, new(big.Int).SetUint64(^uint64(0)))
+			nonce := fmt.Sprintf("%064x", nonceInt.Uint64())
 
 			// [2.3] CallData length: 32 bytes (length in bytes)
 			callDataLengthBytes := len(innerCallData) / 2
@@ -839,7 +1174,7 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
           "logIndex": "0x1",
           "removed": false,
           "topics": [
-            "0xe4a3738af8db2ebbadd5b857bb8d2e0e6650fade69486571ff038a2a81433ca0",
+            "0x163f655f7f84a04389233837ff842844953ef4efba74f5d9317d37131b3a6a81",
             "0x000000000000000000000000{{.UserBlockchainAddr}}",
             "{{.Token.PairId}}"
           ]
@@ -887,7 +1222,7 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
           "logIndex": "0x1",
           "removed": false,
           "topics": [
-            "0xe4a3738af8db2ebbadd5b857bb8d2e0e6650fade69486571ff038a2a81433ca0",
+            "0x163f655f7f84a04389233837ff842844953ef4efba74f5d9317d37131b3a6a81",
             "0x000000000000000000000000{{.UserBlockchainAddr}}",
             "{{.Token.PairId}}"
           ]
@@ -936,6 +1271,7 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 			TxInput:              txInput,
 			BondingCurveContract: bondingCurveNoPrefix,
 			SwappedData:          hex.EncodeToString(data),
+			IONTokenAddress:      strings.ToLower(gen.IONTokenAddress),
 		}
 
 		if useCustomHandleOps {
@@ -967,7 +1303,136 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 	return nil
 }
 
-func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string, seedData *tokenRow, platformGroup string) error {
+func buildFatAddressV2Single(name, symbol, externalAddress string, externalType byte, creatorAddr, affiliateAddr common.Address) []byte {
+	nameBytes := []byte(name)
+	symbolBytes := []byte(symbol)
+	extAddrBytes := []byte(externalAddress)
+
+	// Global Header (4 bytes)
+	globalHeader := make([]byte, 4)
+	globalHeader[0] = 2 // version
+	globalHeader[1] = 1 // recordsCount
+	presenceMask := uint16(0)
+	if creatorAddr != (common.Address{}) {
+		presenceMask |= 0x01
+	}
+	if affiliateAddr != (common.Address{}) {
+		presenceMask |= 0x02
+	}
+	globalHeader[2] = byte(presenceMask >> 8)
+	globalHeader[3] = byte(presenceMask)
+
+	// Token Header (8 bytes)
+	tokenHeader := make([]byte, 8)
+	tokenHeader[0] = byte(len(nameBytes))
+	tokenHeader[1] = byte(len(symbolBytes))
+	tokenHeader[2] = byte(len(extAddrBytes))
+	tokenHeader[3] = externalType
+	tokenMask := uint32(0) // no bonding params
+	tokenHeader[4] = byte(tokenMask >> 24)
+	tokenHeader[5] = byte(tokenMask >> 16)
+	tokenHeader[6] = byte(tokenMask >> 8)
+	tokenHeader[7] = byte(tokenMask)
+
+	// Bonding Address (20 bytes, mandatory even if zeroed)
+	bondingAddr := make([]byte, 20)
+
+	result := append(globalHeader, tokenHeader...)
+	result = append(result, bondingAddr...)
+	result = append(result, nameBytes...)
+	result = append(result, symbolBytes...)
+	result = append(result, extAddrBytes...)
+
+	// Global addresses
+	if presenceMask&0x01 != 0 {
+		result = append(result, creatorAddr.Bytes()...)
+	}
+	if presenceMask&0x02 != 0 {
+		result = append(result, affiliateAddr.Bytes()...)
+	}
+
+	return result
+}
+
+func buildFatAddressV2Double(
+	name1, symbol1, externalAddress1 string, externalType1 byte,
+	name2, symbol2, externalAddress2 string, externalType2 byte,
+	creatorAddr, affiliateAddr common.Address,
+) []byte {
+	nameBytes1 := []byte(name1)
+	symbolBytes1 := []byte(symbol1)
+	extAddrBytes1 := []byte(externalAddress1)
+
+	nameBytes2 := []byte(name2)
+	symbolBytes2 := []byte(symbol2)
+	extAddrBytes2 := []byte(externalAddress2)
+
+	// Global Header (4 bytes)
+	globalHeader := make([]byte, 4)
+	globalHeader[0] = 2 // version
+	globalHeader[1] = 2 // recordsCount = 2 for double swap
+	presenceMask := uint16(0)
+	if creatorAddr != (common.Address{}) {
+		presenceMask |= 0x01
+	}
+	if affiliateAddr != (common.Address{}) {
+		presenceMask |= 0x02
+	}
+	globalHeader[2] = byte(presenceMask >> 8)
+	globalHeader[3] = byte(presenceMask)
+
+	// First Token Header (8 bytes)
+	tokenHeader1 := make([]byte, 8)
+	tokenHeader1[0] = byte(len(nameBytes1))
+	tokenHeader1[1] = byte(len(symbolBytes1))
+	tokenHeader1[2] = byte(len(extAddrBytes1))
+	tokenHeader1[3] = externalType1
+	tokenMask1 := uint32(0) // no bonding params
+	tokenHeader1[4] = byte(tokenMask1 >> 24)
+	tokenHeader1[5] = byte(tokenMask1 >> 16)
+	tokenHeader1[6] = byte(tokenMask1 >> 8)
+	tokenHeader1[7] = byte(tokenMask1)
+
+	bondingAddr1 := make([]byte, 20)
+
+	// Second Token Header (8 bytes)
+	tokenHeader2 := make([]byte, 8)
+	tokenHeader2[0] = byte(len(nameBytes2))
+	tokenHeader2[1] = byte(len(symbolBytes2))
+	tokenHeader2[2] = byte(len(extAddrBytes2))
+	tokenHeader2[3] = externalType2
+	tokenMask2 := uint32(0)
+	tokenHeader2[4] = byte(tokenMask2 >> 24)
+	tokenHeader2[5] = byte(tokenMask2 >> 16)
+	tokenHeader2[6] = byte(tokenMask2 >> 8)
+	tokenHeader2[7] = byte(tokenMask2)
+
+	bondingAddr2 := make([]byte, 20)
+
+	result := append(globalHeader, tokenHeader1...)
+	result = append(result, bondingAddr1...)
+	result = append(result, nameBytes1...)
+	result = append(result, symbolBytes1...)
+	result = append(result, extAddrBytes1...)
+
+	result = append(result, tokenHeader2...)
+	result = append(result, bondingAddr2...)
+	result = append(result, nameBytes2...)
+	result = append(result, symbolBytes2...)
+	result = append(result, extAddrBytes2...)
+
+	// Global addresses (at the end, after BOTH token records)
+	if presenceMask&0x01 != 0 {
+		result = append(result, creatorAddr.Bytes()...)
+	}
+	if presenceMask&0x02 != 0 {
+		result = append(result, affiliateAddr.Bytes()...)
+	}
+
+	return result
+}
+
+func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string, seedData *tokenRow, platformGroup string, externalType uint8) error {
 	blockNum := atomic.AddUint64(&gen.InsertBlockIndex, 1)
 	txHash := mustRandomHex(32)
 	blockHash := mustRandomHex(32)
@@ -978,35 +1443,14 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
 	base, _ := hex.DecodeString(strings.TrimPrefix(gen.IONTokenAddress, "0x"))
 	totalSupply, _ := new(big.Int).SetString(seedData.TotalSupply, 10)
 
-	// For first swap: toToken = "fat address" format
-	// Header (64 bytes): symbolLen(1) + titleLen(1) + extAddrLen(1) + extType(1) + creatorAddr(20) + affiliateAddr(20) + creatorTokenAddr(20)
-	// Followed by: symbol + title + externalAddress (without prefix)
-	externalAddressWithoutPrefix := seedData.ExternalAddress[1:]
-	externalType := uint8(seedData.ExternalAddress[0])
-
-	headerSize := 64
-	symbolLen := len(seedData.Ticker)
-	titleLen := len(seedData.Title)
-	extAddrLen := len(externalAddressWithoutPrefix)
-
-	toTokenSize := headerSize + symbolLen + titleLen + extAddrLen
-	toToken := make([]byte, toTokenSize)
-
-	// Header (64 bytes)
-	toToken[0] = byte(symbolLen)
-	toToken[1] = byte(titleLen)
-	toToken[2] = byte(extAddrLen)
-	toToken[3] = byte(externalType)
-	copy(toToken[4:24], common.HexToAddress(ownerBlockchainAddr).Bytes()) // creatorAddress
-	copy(toToken[24:44], common.HexToAddress("0x").Bytes())               // affiliateAddress
-	copy(toToken[44:64], common.HexToAddress("0x").Bytes())               // creatorTokenAddress (for content tokens)
-
-	offset := headerSize
-	copy(toToken[offset:], []byte(seedData.Ticker))
-	offset += symbolLen
-	copy(toToken[offset:], []byte(seedData.Title))
-	offset += titleLen
-	copy(toToken[offset:], []byte(externalAddressWithoutPrefix))
+	toToken := buildFatAddressV2Single(
+		seedData.Title,
+		seedData.Ticker,
+		seedData.ExternalAddress,
+		externalType,
+		common.HexToAddress(ownerBlockchainAddr),
+		common.HexToAddress("0x"),
+	)
 	txInput, err := bondingcurve.ABI.Methods["swap"].Inputs.Pack(
 		base,
 		toToken,
@@ -1026,16 +1470,39 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
 	bondedTokenCreatedData, err := bondingcurve.ABI.Events["BondingTokenCreated"].Inputs.NonIndexed().Pack(
 		seedData.Title,
 		seedData.Ticker,
-		common.HexToAddress("0x"),                // creatorTokenAddress for content tokens
-		externalType,                             // externalType as uint8
-		externalAddressWithoutPrefix,             // externalAddress WITHOUT prefix
+		externalType,
+		seedData.ExternalAddress,
+		totalSupply,
 		common.HexToAddress(ownerBlockchainAddr), // creatorAddress
 		common.HexToAddress("0x"),                // affiliate address
-		totalSupply,
 	)
 	if err != nil {
 		return errors.Wrapf(err, "failed to pack BondingTokenCreated")
 	}
+
+	// Pack Swapped event for first swap (ION → Token)
+	swappedData, err := bondingcurve.ABI.Events["Swapped"].Inputs.NonIndexed().Pack(
+		false, // direction: buy
+		common.HexToAddress(strings.ToLower(gen.IONTokenAddress)), // feeToken (ION)
+		totalSupply,   // inputAmount
+		totalSupply,   // outputAmount (1:1 at bonding curve start)
+		big.NewInt(0), // fee
+	)
+	if err != nil {
+		return errors.Wrapf(err, "failed to pack Swapped event")
+	}
+	// Pack PairRegistered event (ION ↔ Token)
+	startPrice := big.NewInt(1e18) // 1
+	endPrice := big.NewInt(1e18)   // 1
+	pairRegisteredData, err := bondingcurve.ABI.Events["PairRegistered"].Inputs.NonIndexed().Pack(
+		common.HexToAddress("0xdead"),
+		startPrice,
+		endPrice,
+	)
+	if err != nil {
+		return errors.Wrapf(err, "failed to pack PairRegistered event")
+	}
+
 	tmpl, err := template.New("token").Parse(`{
   "stream": "{{.Stream}}",
   "transactions": [
@@ -1090,7 +1557,7 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
           "logIndex": "0x4",
           "removed": false,
           "topics": [
-            "0xf1aad4192131f14ec094f5319421d9274539312c962d0ce8121ba86f52f25db0",
+            "0xf20c12ede00469181597169f5cbe631d40edec9a2a45c2e46eba231a831126dd",
             "0x000000000000000000000000{{.Token.ContractAddress}}"
           ]
         },
@@ -1106,18 +1573,18 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
         },
         {
           "address": "0x{{.BondingCurveContract}}",
-          "data": "0x",
+          "data": "{{.PairRegisteredData}}",
           "logIndex": "0x6",
           "removed": false,
           "topics": [
-            "0x157b5bda8c36b5ae40a6f0d041dce8790309b04707aa024e9a73ee87287372b4",
+            "0x872521cd21d976cd52c101bb81804e331c479f7895644ae16140b559222fda5c",
             "{{.Token.PairId}}",
             "0x000000000000000000000000{{.Token.BaseToken}}",
             "0x000000000000000000000000{{.Token.ContractAddress}}"
           ]
         },
         {
-          "address": "0x2c73996babf1a06c2c057177353293f7ca0907c8",
+          "address": "{{.IONTokenAddress}}",
           "data": "0x0000000000000000000000000000000000000000000000000de0b6b3a7640000",
           "logIndex": "0x7",
           "removed": false,
@@ -1140,11 +1607,11 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
         },
         {
           "address": "0x{{.BondingCurveContract}}",
-          "data": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000000000000000000000000000000000000000000000",
+          "data": "{{.SwappedData}}",
           "logIndex": "0x9",
           "removed": false,
           "topics": [
-            "0xe4a3738af8db2ebbadd5b857bb8d2e0e6650fade69486571ff038a2a81433ca0",
+            "0x163f655f7f84a04389233837ff842844953ef4efba74f5d9317d37131b3a6a81",
             "0x000000000000000000000000{{.ContentAuthorID}}",
             "{{.Token.PairId}}"
           ]
@@ -1191,6 +1658,9 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
 		ContentAuthorID:        ownerBlockchainAddr,
 		BondingCurveContract:   bondingCurveNoPrefix,
 		BondedTokenCreatedData: "0x" + hex.EncodeToString(bondedTokenCreatedData),
+		PairRegisteredData:     "0x" + hex.EncodeToString(pairRegisteredData),
+		SwappedData:            "0x" + hex.EncodeToString(swappedData),
+		IONTokenAddress:        strings.ToLower(gen.IONTokenAddress),
 	})
 	if err != nil {
 		return errors.Wrapf(err, "failed to insert dummy contract data: malformed template")
@@ -1238,7 +1708,7 @@ func (gen *dummyDataGenerator) createUserForPlatform(ctx context.Context, master
 	}
 
 	if len(gen.createdUsers) >= int(gen.MaxUsers) {
-		userIdx := rand.Intn(len(gen.createdUsers))
+		userIdx := cryptoRandInt(len(gen.createdUsers))
 		blockchainAddress = gen.createdUsers[userIdx]
 		return blockchainAddress, gen.userBlockChainToMaster[blockchainAddress], nil
 	}
@@ -1253,11 +1723,11 @@ func (gen *dummyDataGenerator) createUserForPlatform(ctx context.Context, master
 		"Posidonius Enara",
 		"Edwena İldar",
 	}
-	idx := rand.Int31n(int32(len(names)))
+	idx := cryptoRandInt(len(names))
 	displayName := names[idx]
 	usernameBase := strings.ToLower(strings.ReplaceAll(displayName, " ", ""))
 	username := usernameBase + mustRandomHex(4)
-	verified := rand.Intn(2) == 0
+	verified := cryptoRandInt(2) == 0
 	lookup := strings.ToLower(strings.TrimSpace(username + " " + displayName))
 	ionConnectRelays := []string{"wss://141.95.59.70:4443", "wss://181.41.142.217:4443", "wss://94.100.16.233:4443"}
 	avatarURLs := []string{
@@ -1268,7 +1738,7 @@ func (gen *dummyDataGenerator) createUserForPlatform(ctx context.Context, master
 		"https://api.dicebear.com/7.x/identicon/svg?seed=" + username,
 		"https://ui-avatars.com/api/?name=" + username + "&background=random&size=300",
 	}
-	avatarURL := avatarURLs[rand.Intn(len(avatarURLs))]
+	avatarURL := avatarURLs[cryptoRandInt(len(avatarURLs))]
 
 	var externalAddress string
 	if platformGroup == PlatformGroupXCom {
@@ -1303,4 +1773,20 @@ func (gen *dummyDataGenerator) createUserForPlatform(ctx context.Context, master
 
 func boolPtr(b bool) *bool {
 	return &b
+}
+
+func cryptoRandInt(max int) int {
+	if max <= 0 {
+		return 0
+	}
+	n, _ := rand.Int(rand.Reader, big.NewInt(int64(max)))
+
+	return int(n.Int64())
+}
+
+func cryptoRandFloat64() float64 {
+	max := big.NewInt(1 << 53)
+	n, _ := rand.Int(rand.Reader, max)
+
+	return float64(n.Int64()) / float64(max.Int64())
 }
