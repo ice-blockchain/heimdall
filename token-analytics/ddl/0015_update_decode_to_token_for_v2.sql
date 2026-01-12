@@ -4,6 +4,8 @@ ALTER TABLE tokens ADD COLUMN IF NOT EXISTS price_model TEXT;
 ALTER TABLE tokens ADD COLUMN IF NOT EXISTS start_price uint256;
 ALTER TABLE tokens ADD COLUMN IF NOT EXISTS end_price uint256;
 
+DROP FUNCTION IF EXISTS get_platform_group(TEXT);
+
 CREATE OR REPLACE FUNCTION get_platform_group(p_prefix TEXT)
 RETURNS platform_type AS $$
 BEGIN
@@ -113,6 +115,8 @@ EXCEPTION
         RETURN '';
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
+
+DROP FUNCTION IF EXISTS process_bonded_token_created(TEXT[], TIMESTAMP);
 
 CREATE OR REPLACE FUNCTION process_bonded_token_created(
     p_topics TEXT[],
