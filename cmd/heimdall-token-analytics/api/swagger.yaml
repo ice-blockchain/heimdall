@@ -375,7 +375,13 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Returns tokens list with X_Total_Holdings header when holder
+            parameter is used
+          headers:
+            X_Total_Holdings:
+              description: Total holdings amount for the specified holder (only present
+                when holder parameter is provided)
+              type: integer
           schema:
             items:
               $ref: '#/definitions/tokenanalytics.CommunityToken'

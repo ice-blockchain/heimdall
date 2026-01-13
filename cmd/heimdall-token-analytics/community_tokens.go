@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
+	"strconv"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -24,6 +25,7 @@ type (
 		ExternalAddresses         []string `form:"externalAddresses" swaggerignore:"true"`
 		IncludeTopPlatformHolders *uint32  `form:"includeTopPlatformHolders" swaggerignore:"true"`
 		Keyword                   string   `form:"keyword" swaggerignore:"true"`
+		Holder                    string   `form:"holder" swaggerignore:"true"`
 		PaginationRequest
 	}
 	LatestTokensRequest struct {
@@ -125,12 +127,13 @@ type (
 //	@Description	Returns community tokens information for the given Ion Connect addresses.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			externalAddresses			query		[]string	false	"External addresses of the tokens"					collectionFormat(multi)
-//	@Param			includeTopPlatformHolders	query		int			false	"Number of top platform holders to include (1-10)"	minimum(1)	maximum(10)	example(3)
-//	@Param			keyword						query		string		false	"Search keyword for filtering tokens"				example("bitcoin")
-//	@Param			limit						query		uint32		false	"Number of items to return (requires keyword)"		example(10)
-//	@Param			offset						query		uint32		false	"Number of items to skip (requires keyword)"		example(0)
-//	@Success		200							{array}		ta.CommunityToken
+//	@Param			externalAddresses			query		[]string					false	"External addresses of the tokens"					collectionFormat(multi)
+//	@Param			includeTopPlatformHolders	query		int							false	"Number of top platform holders to include (1-10)"	minimum(1)	maximum(10)	example(3)
+//	@Param			keyword						query		string						false	"Search keyword for filtering tokens"				example("bitcoin")
+//	@Param			limit						query		uint32						false	"Number of items to return (requires keyword)"		example(10)
+//	@Param			offset						query		uint32						false	"Number of items to skip (requires keyword)"		example(0)
+//	@Success		200							{array}		ta.CommunityToken			"Returns tokens list with X_Total_Holdings header when holder parameter is used"
+//	@Header			200							{integer}	X_Total_Holdings			"Total holdings amount for the specified holder (only present when holder parameter is provided)"
 //	@Failure		400							{object}	server.ResponseErrorBody	"if request parameters are invalid"
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500							{object}	server.ResponseErrorBody
@@ -139,6 +142,20 @@ type (
 //	@Security		XCom
 //	@Router			/v1/community-tokens [GET].
 func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[TokenInfoRequest]) (*server.Response[[]*ta.CommunityToken], error) {
+	if req.Data.Holder != "" {
+		tokens, totalHoldings, err := s.tokenAnalytics.GetCommunityTokensByHolder(ctx, req.Data.Holder, req.Token.GetMasterPublicKey(), req.Data.Limit, req.Data.Offset)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get community tokens by holder: %w", err)
+		}
+		resp := server.OK(&tokens)
+		if resp.Headers == nil {
+			resp.Headers = make(map[string]string)
+		}
+		resp.Headers["X_Total_Holdings"] = strconv.FormatUint(totalHoldings, 10)
+
+		return resp, nil
+	}
+
 	if req.Data.Keyword == "" && len(req.Data.ExternalAddresses) == 0 {
 		return nil, server.BadRequest(errors.New("externalAddresses[] is required when keyword is not provided"), invalidPropertiesErrorCode)
 	}
