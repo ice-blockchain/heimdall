@@ -186,7 +186,10 @@ const (
 	// TODO: replace
 	bondingCurveTopHolderAvatar = "https://cdn.ice.io/online+/assets/coins/ion.svg"
 
-	fatAddressHeaderSize = 64
+	fatAddressHeaderSize    = 64
+	feeDestinationCreator   = "creator"
+	feeDestinationBurn      = "burn"
+	feeDestinationAffiliate = "affiliate"
 )
 
 var (
@@ -197,6 +200,7 @@ var (
 type (
 	config struct {
 		IONTokenAddress string `yaml:"ionTokenAddress"`
+		BurnAddress     string `yaml:"burnAddress"`
 		BondingCurve    struct {
 			SmartContractAddress                string              `yaml:"smartContractAddress"`
 			BondingCurveProgressUpdateFrequency stdlibtime.Duration `yaml:"bondingCurveProgressUpdateFrequency"`
