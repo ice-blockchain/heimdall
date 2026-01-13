@@ -150,13 +150,6 @@ const (
 	PlatformGroupXCom       = "xcom"
 )
 
-func GetPlatformFromExternalAddress(externalAddress string) Platform {
-	if len(externalAddress) < 1 {
-		return ""
-	}
-	return Platform(externalAddress[0:1])
-}
-
 // Format: 0:{master}:
 func BuildProfileExternalAddress(master string) string {
 	return "0:" + master + ":"
@@ -183,28 +176,33 @@ func buildAddressesFromExternalAddressAndPlatform(externalAddress, platform stri
 	if externalAddress == "" && bnbBscAddress == "" && ionConnect == "" {
 		return nil, nil
 	}
-	if platform == "" {
-		return nil, fmt.Errorf("platform cannot be empty")
-	}
-
 	var addresses Addresses
-	switch platform {
-	case PlatformGroupIonConnect:
-		addresses = Addresses{
-			IonConnect: externalAddress,
+	if platform != "" {
+		switch platform {
+		case PlatformGroupIonConnect:
+			addresses = Addresses{
+				IonConnect: externalAddress,
+			}
+		case PlatformGroupXCom:
+			addresses = Addresses{
+				Twitter: externalAddress,
+			}
+			if bnbBscAddress != "" {
+				addresses.Blockchain = bnbBscAddress
+			}
+			if ionConnect != "" {
+				addresses.IonConnect = ionConnect
+			}
+		default:
+			return nil, fmt.Errorf("unknown platform '%s' for external_address: %s", platform, externalAddress)
 		}
-	case PlatformGroupXCom:
-		addresses = Addresses{
-			Twitter: externalAddress,
-		}
+	} else {
 		if bnbBscAddress != "" {
 			addresses.Blockchain = bnbBscAddress
 		}
 		if ionConnect != "" {
 			addresses.IonConnect = ionConnect
 		}
-	default:
-		return nil, fmt.Errorf("unknown platform '%s' for external_address: %s", platform, externalAddress)
 	}
 
 	return &addresses, nil

@@ -150,6 +150,8 @@ func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []
 	for rank, z := range rankings {
 		userExternalAddress, ok := z.Member.(string)
 		if !ok {
+			log.Warn(fmt.Sprintf("Could not convert member to string for external_address: %v", userExternalAddress))
+
 			continue
 		}
 		holderData, exists := holderDataMap[userExternalAddress]
