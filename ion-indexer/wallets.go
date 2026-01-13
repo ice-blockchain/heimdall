@@ -9,11 +9,14 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/goccy/go-json"
 	"github.com/pkg/errors"
 	"github.com/xssnick/tonutils-go/address"
+
+	"github.com/ice-blockchain/wintr/log"
 )
 
 func (i *indexer) WalletTransactions(ctx context.Context, walletId, walletAddr string, paginationToken string, limit uint64) ([]WalletHistoryItem, *string, error) {
@@ -44,6 +47,12 @@ func (i *indexer) listTransactions(ctx context.Context, walletId, walletAddress 
 			return nil, false, err
 		}
 		res := []WalletHistoryItem{}
+		var wg sync.WaitGroup
+		type txHashWithExtHash struct {
+			txHash         string
+			txExternalHash string
+		}
+		updatedExternalHashes := make(chan txHashWithExtHash, len(transactions.Transactions))
 		for _, tx := range transactions.Transactions {
 			network := "Ion"
 			if i.testnet {
@@ -53,7 +62,37 @@ func (i *indexer) listTransactions(ctx context.Context, walletId, walletAddress 
 			if err != nil {
 				return nil, false, errors.Wrapf(err, "failed to convert tx %+v to history item", tx)
 			}
+			// Incoming txs dont have in_msg hash matching sent BoC (diff msgs for sender & receiver),
+			// but FE needs that for linking pending and completed txs
+			if history["direction"] == "In" {
+				wg.Go(func() {
+					fullTx, err := i.TxByHash(ctx, history["txHash"].(string), network, walletId, walletAddress)
+					if err != nil {
+						log.Error(errors.Wrapf(err, "failed to fetch tx by hash %v from ion indexer", tx.Hash))
+					}
+					incomingMessageHash, err := base64.StdEncoding.DecodeString(fullTx.InMsg.Hash)
+					if err != nil {
+						log.Error(errors.Wrapf(err, "malformed tx from indexer, failed to decode in msg hash %v", tx.Hash))
+					}
+					updatedExternalHashes <- txHashWithExtHash{
+						txHash:         history["txHash"].(string),
+						txExternalHash: hex.EncodeToString(incomingMessageHash),
+					}
+				})
+			}
 			res = append(res, history)
+		}
+		wg.Wait()
+		close(updatedExternalHashes)
+		for updExternalHash := range updatedExternalHashes {
+			for historyIdx := range res {
+				if res[historyIdx]["txHash"] == updExternalHash.txHash {
+					r := res[historyIdx]
+					r["externalHash"] = updExternalHash.txExternalHash
+					res[historyIdx] = r
+					break
+				}
+			}
 		}
 		continuePagination := true
 		total += uint64(len(res))
@@ -70,6 +109,26 @@ func (i *indexer) listTransactions(ctx context.Context, walletId, walletAddress 
 		return txs, &paginationToken, nil
 	}
 	return txs, nil, nil
+}
+
+func (i *indexer) TxByHash(ctx context.Context, txHash, network, walletId, walletAddress string) (*transaction, error) {
+	params := map[string]string{
+		"hash": txHash,
+	}
+	tx, _, err := indexerReq[transaction](ctx, i, "/indexer/v3/transactions", params, func(data []byte) ([]transaction, bool, error) {
+		var transactions getTransactionsIndexerResponse
+		if err := json.UnmarshalContext(ctx, data, &transactions); err != nil {
+			return nil, false, err
+		}
+		if len(transactions.Transactions) == 0 {
+			return nil, false, errors.Errorf("tx %v not found", txHash)
+		}
+		return transactions.Transactions, false, nil
+	})
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to fetch tx %v by hash from ion indexer", txHash)
+	}
+	return &tx[0], nil
 }
 
 func (tx transaction) ToHistory(network, walletId, walletAddress string) (WalletHistoryItem, error) {
