@@ -8,33 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetPlatformFromExternalAddress(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name     string
-		address  string
-		expected Platform
-	}{
-		{"IonConnect Profile", "a123456", PlatformIonConnectProfile},
-		{"IonConnect Post", "b123456:tag", PlatformIonConnectPost},
-		{"IonConnect Video", "c30175:pubkey:tag", PlatformIonConnectVideo},
-		{"IonConnect Article", "d30023:pubkey:uuid", PlatformIonConnectArticle},
-		{"X.com Article", "w123456", PlatformXComArticle},
-		{"X.com Video", "x123456", PlatformXComVideo},
-		{"X.com Post", "y123456", PlatformXComPost},
-		{"X.com Profile", "z123456", PlatformXComProfile},
-		{"Empty address", "", ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := GetPlatformFromExternalAddress(tt.address)
-			require.Equal(t, tt.expected, result)
-		})
-	}
-}
-
 func TestIsProfileType(t *testing.T) {
 	t.Parallel()
 
@@ -212,29 +185,36 @@ func TestBuildAddressesFromExternalAddressAndPlatform(t *testing.T) {
 			},
 		},
 		{
-			name:            "External address present but platform empty - should error",
-			externalAddress: "a:pubkey:creator123",
-			platform:        "",
-			bnbBscAddress:   "",
-			expectNil:       false,
-			expectError:     true,
+			name:              "External address present but platform empty - should return empty addresses",
+			externalAddress:   "a:pubkey:creator123",
+			platform:          "",
+			bnbBscAddress:     "",
+			expectNil:         false,
+			expectError:       false,
+			expectedAddresses: &Addresses{},
 		},
 		{
-			name:            "BnbBsc address present but platform empty - should error",
+			name:            "BnbBsc address present but platform empty - should use blockchain only",
 			externalAddress: "",
 			platform:        "",
 			bnbBscAddress:   "0x789ghi",
 			expectNil:       false,
-			expectError:     true,
+			expectError:     false,
+			expectedAddresses: &Addresses{
+				Blockchain: "0x789ghi",
+			},
 		},
 		{
-			name:              "IonConnect address present but platform empty - should error",
+			name:              "IonConnect address present but platform empty - should use ionConnect",
 			externalAddress:   "",
 			platform:          "",
 			bnbBscAddress:     "",
 			ionConnectAddress: []string{"a:ionpubkey:ionuser"},
 			expectNil:         false,
-			expectError:       true,
+			expectError:       false,
+			expectedAddresses: &Addresses{
+				IonConnect: "a:ionpubkey:ionuser",
+			},
 		},
 		{
 			name:            "Unknown platform - should error",
