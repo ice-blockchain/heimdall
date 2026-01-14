@@ -3074,6 +3074,9 @@
                 "syncFrequency": {
                     "$ref": "#/definitions/time.Duration"
                 },
+                "tokenizedCommunityExternalAddress": {
+                    "type": "string"
+                },
                 "version": {
                     "type": "integer"
                 }
@@ -3220,6 +3223,9 @@
                 },
                 "syncFrequency": {
                     "$ref": "#/definitions/time.Duration"
+                },
+                "tokenizedCommunityExternalAddress": {
+                    "type": "string"
                 },
                 "version": {
                     "type": "integer"
