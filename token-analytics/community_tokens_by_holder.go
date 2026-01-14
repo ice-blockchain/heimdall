@@ -64,10 +64,11 @@ func (t *tokenAnalytics) GetCommunityTokensByHolder(ctx context.Context, holderE
 			COALESCE(holder_user.token_holdings_count, 0) as token_holdings_count
 		FROM user_token_positions utp
 		INNER JOIN tokens t ON t.external_address = utp.external_address
+		LEFT JOIN users holder_user ON holder_user.external_address = $1
 		LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
 		LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 		LEFT JOIN token_platform_holders tph ON tph.external_address = t.external_address 
-			AND tph.platform_group = (SELECT platform_group FROM users WHERE external_address = $1 LIMIT 1)
+			AND tph.platform_group = holder_user.platform_group
 		LEFT JOIN LATERAL (
 			SELECT user_blockchain_address
 			FROM token_swaps
@@ -77,7 +78,6 @@ func (t *tokenAnalytics) GetCommunityTokensByHolder(ctx context.Context, holderE
 			LIMIT 1
 		) first_swap ON t.platform = 'xcom'
 		LEFT JOIN users launcher ON LOWER(launcher.content_author_id) = LOWER(first_swap.user_blockchain_address)
-		LEFT JOIN users holder_user ON holder_user.external_address = $1
 		WHERE utp.user_external_address = $1
 		  AND utp.amount > '0'
 		ORDER BY utp.amount DESC
@@ -91,6 +91,15 @@ func (t *tokenAnalytics) GetCommunityTokensByHolder(ctx context.Context, holderE
 	var totalCount uint64
 	if len(rows) > 0 {
 		totalCount = rows[0].TokenHoldingsCount
+	} else {
+		countQuery := `SELECT COALESCE(token_holdings_count, 0) as count FROM users WHERE external_address = $1`
+		countResult, countErr := storage.Get[struct{ Count uint64 }](ctx, t.ingestedDataDB, countQuery, holderExternalAddress)
+		if countErr != nil && !storage.IsErr(countErr, storage.ErrNotFound) {
+			return nil, 0, errors.Wrap(countErr, "failed to fetch token holdings count for holder")
+		}
+		if countResult != nil {
+			totalCount = countResult.Count
+		}
 	}
 	if err := t.updateBondingProgressForRows(ctx, rows); err != nil {
 		return nil, 0, errors.Wrap(err, "failed to update bonding progress for rows")

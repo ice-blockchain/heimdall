@@ -21,7 +21,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := NewForTest(ctx, db)
+	ta := helperNewForTest(t, db)
 
 	t.Run("empty addresses returns empty result", func(t *testing.T) {
 		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{}, "requestor123", nil, "", 0, 0)
@@ -639,7 +639,7 @@ func TestGetCommunityTokensByExternalAddresses_WithKeyword(t *testing.T) {
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := NewForTest(ctx, db)
+	ta := helperNewForTest(t, db)
 
 	t.Run("search by keyword returns simplified response", func(t *testing.T) {
 		helperInsertTestUser(t, ctx, db, "creator_search", "satoshi_search", "Satoshi Search", "", false, PlatformGroupIonConnect)
@@ -772,7 +772,7 @@ func TestGetCommunityTokensByExternalAddresses_WithAndWithoutKeyword(t *testing.
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := NewForTest(ctx, db)
+	ta := helperNewForTest(t, db)
 
 	// Setup test data
 	helperInsertTestUser(t, ctx, db, "creator_kw1", "alice_kw1", "Alice Keyword One", "", true, PlatformGroupIonConnect, "https://avatar1.png")
@@ -869,7 +869,7 @@ func TestGetCommunityTokensWithTopPlatformHolders_WithAndWithoutKeyword(t *testi
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := NewForTest(ctx, db)
+	ta := helperNewForTest(t, db)
 
 	helperInsertTestUser(t, ctx, db, "creator_tph1", "creator_tph1", "Creator TPH One", "", true, PlatformGroupIonConnect)
 	helperInsertTestUser(t, ctx, db, "creator_tph2", "creator_tph2", "Creator TPH Two", "", false, PlatformGroupIonConnect)
@@ -986,7 +986,7 @@ func TestGetCommunityTokensByExternalAddresses_WithTopPlatformHolders(t *testing
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := NewForTest(ctx, db)
+	ta := helperNewForTest(t, db)
 
 	t.Run("returns top platform holders", func(t *testing.T) {
 		helperInsertTestUser(t, ctx, db, "creator_top", "alice_top", "Alice Top", "", true, PlatformGroupIonConnect)
@@ -1060,7 +1060,7 @@ func TestGetCommunityTokensByPlatform(t *testing.T) {
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := NewForTest(ctx, db)
+	ta := helperNewForTest(t, db)
 
 	t.Run("xcom_platform_with_bnb_bsc_address", func(t *testing.T) {
 		xcomMasterPubkey := "1234567890"

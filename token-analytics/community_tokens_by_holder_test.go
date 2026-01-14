@@ -11,13 +11,13 @@ import (
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
-func TestGetCommunityTokensByExternalAddresses_WithHolder(t *testing.T) {
+func TestGetCommunityTokensByHolder(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := NewForTest(ctx, db)
+	ta := helperNewForTest(t, db)
 
 	t.Run("empty_holder_returns_empty_result", func(t *testing.T) {
 		tokens, totalHoldings, err := ta.GetCommunityTokensByHolder(ctx, "", "requestor_empty", 10, 0)
@@ -408,6 +408,6 @@ func TestGetCommunityTokensByExternalAddresses_WithHolder(t *testing.T) {
 		tokens, totalHoldings, err := ta.GetCommunityTokensByHolder(ctx, holderExtAddr, "holder_beyond", 10, 100)
 		require.NoError(t, err)
 		require.Empty(t, tokens, "Should return empty when offset > total")
-		require.Equal(t, uint64(0), totalHoldings, "Total holdings is 0 when no rows returned")
+		require.Equal(t, uint64(1), totalHoldings, "Total holdings equals the user's total number of holdings, even when no rows are returned for the current page")
 	})
 }
