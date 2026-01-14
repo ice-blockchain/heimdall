@@ -6,10 +6,11 @@ import (
 	"context"
 
 	"github.com/cockroachdb/errors"
-	"github.com/ice-blockchain/wintr/log"
 	"github.com/redis/go-redis/v9"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/ice-blockchain/wintr/log"
 )
 
 const (
