@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -101,7 +102,11 @@ func (s *service) GetAllIONConnectRelays(
 	ctx context.Context,
 	req *server.Request[AllRelaysReq, Relays],
 ) (successResp *server.Response[Relays], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	relays, err := s.relays.GetAllIONConnectRelays(ctx, req.Data.IONConnectRelay)
+	requestedRelayURL, err := url.Parse(req.Data.IONConnectRelay)
+	if err != nil {
+		return nil, server.UnprocessableEntity(err, wrongRelay)
+	}
+	relays, err := s.relays.GetAllIONConnectRelays(ctx, requestedRelayURL)
 	if err != nil {
 		switch {
 		case errors.Is(err, relaymanagement.ErrNoRelays):

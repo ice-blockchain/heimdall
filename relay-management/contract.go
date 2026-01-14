@@ -5,6 +5,7 @@ package relaymanagement
 import (
 	"context"
 	_ "embed"
+	"net/url"
 
 	"github.com/pkg/errors"
 
@@ -14,7 +15,7 @@ import (
 
 type (
 	Relays interface {
-		GetAllIONConnectRelays(ctx context.Context, requestedRelay string) ([]*UserAssignedRelay, error)
+		GetAllIONConnectRelays(ctx context.Context, requestedRelay *url.URL) ([]*UserAssignedRelay, error)
 		IONConnectRelaysForUser(ctx context.Context, userId string) ([]*UserAssignedRelay, error)
 	}
 	UserAssignedRelay struct {
