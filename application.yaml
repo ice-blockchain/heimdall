@@ -439,6 +439,7 @@ token-analytics:
   enableDummyGenerator: false
   bondingCurve:
     smartContractAddress: 0x1E602c717B6b1343303E77E9DBfe45B37cf01144
+    tokenFactorySmartContractAddress: 0x2F713d828C5e2c11bC21778b37cF12Da3ec01255
     bondingCurveProgressUpdateFrequency: 500ms
     rpcEndpoints:
       - https://bogus.pro/bogus/

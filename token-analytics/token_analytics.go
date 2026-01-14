@@ -100,6 +100,7 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 
 	t := &tokenAnalytics{
 		bondingCurveContractAddress: cfg.BondingCurve.SmartContractAddress,
+		tokenFactoryContractAddress: cfg.BondingCurve.TokenFactorySmartContractAddress,
 		ingestedDataDB:              db,
 		processedDataDB:             targetDB,
 		questDB:                     questDB,
@@ -151,6 +152,7 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 			InsertBlockIndex:            startLastBlock.BlockNumber,
 			Stream:                      dummyDataStream,
 			BondingCurveContractAddress: t.bondingCurveContractAddress,
+			TokenFactoryContractAddress: t.tokenFactoryContractAddress,
 			SavePoint:                   savePointMap,
 		}
 		t.generator.Run(ctx)

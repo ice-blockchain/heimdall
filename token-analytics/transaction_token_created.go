@@ -13,8 +13,8 @@ import (
 )
 
 func (t *tokenAnalytics) onTokenCreated(ctx context.Context, contractAddress string, ev *bondingcurve.LogTokenCreated) error {
-	if !strings.EqualFold(contractAddress, t.bondingCurveContractAddress) {
-		log.Debug(fmt.Sprintf("Ignoring TokenCreated from non-BondingCurve contract: %v", contractAddress))
+	if !strings.EqualFold(contractAddress, t.tokenFactoryContractAddress) {
+		log.Debug(fmt.Sprintf("Ignoring TokenCreated from non-TokenFactory contract: got %v, expected %v", contractAddress, t.tokenFactoryContractAddress))
 
 		return nil
 	}
