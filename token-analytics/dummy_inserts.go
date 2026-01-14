@@ -38,6 +38,7 @@ type (
 		InsertBlockIndex            uint64
 		Stream                      string
 		BondingCurveContractAddress string
+		TokenFactoryContractAddress string
 		IONTokenAddress             string
 		MaxTokenGens                uint
 		MaxUsers                    uint
@@ -73,6 +74,7 @@ type (
 		TxInput                string
 		ContentAuthorID        string
 		BondingCurveContract   string
+		TokenFactoryContract   string
 		BondedTokenCreatedData string
 		PairRegisteredData     string
 		SwappedData            string
@@ -456,7 +458,7 @@ func (gen *dummyDataGenerator) createDoubleSwapTokenGenerator(ctx context.Contex
       "input": "{{.TxInput}}",
       "logs": [
         {
-          "address": "0x{{.BondingCurveContract}}",
+          "address": "0x{{.TokenFactoryContract}}",
           "data": "{{.CreatorTokenCreatedData}}",
           "logIndex": "0x1",
           "removed": false,
@@ -489,7 +491,7 @@ func (gen *dummyDataGenerator) createDoubleSwapTokenGenerator(ctx context.Contex
           ]
         },
         {
-          "address": "0x{{.BondingCurveContract}}",
+          "address": "0x{{.TokenFactoryContract}}",
           "data": "{{.ContentTokenCreatedData}}",
           "logIndex": "0x4",
           "removed": false,
@@ -551,6 +553,7 @@ func (gen *dummyDataGenerator) createDoubleSwapTokenGenerator(ctx context.Contex
 		"TxInput":                  "0x" + hex.EncodeToString(txInput),
 		"UserBlockchainAddr":       strings.TrimPrefix(ownerBlockchainAddr, "0x"),
 		"BondingCurveContract":     strings.TrimPrefix(gen.BondingCurveContractAddress, "0x"),
+		"TokenFactoryContract":     strings.TrimPrefix(gen.TokenFactoryContractAddress, "0x"),
 		"CreatorToken":             creatorToken,
 		"ContentToken":             contentToken,
 		"CreatorTokenCreatedData":  "0x" + hex.EncodeToString(creatorTokenCreatedData),
@@ -1552,7 +1555,7 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
           ]
         },
         {
-          "address": "0x{{.BondingCurveContract}}",
+          "address": "0x{{.TokenFactoryContract}}",
           "data": "{{.BondedTokenCreatedData}}",
           "logIndex": "0x4",
           "removed": false,
@@ -1646,6 +1649,7 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
 	}
 	buf := bytes.NewBuffer([]byte{})
 	bondingCurveNoPrefix := strings.TrimPrefix(gen.BondingCurveContractAddress, "0x")
+	tokenFactoryNoPrefix := strings.TrimPrefix(gen.TokenFactoryContractAddress, "0x")
 	err = tmpl.Execute(buf, &dummyDataTemplateParams{
 		Stream:                 stream,
 		BlockNumber:            blockNum,
@@ -1657,6 +1661,7 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
 		TxInput:                "0x83362e17" + hex.EncodeToString(txInput),
 		ContentAuthorID:        ownerBlockchainAddr,
 		BondingCurveContract:   bondingCurveNoPrefix,
+		TokenFactoryContract:   tokenFactoryNoPrefix,
 		BondedTokenCreatedData: "0x" + hex.EncodeToString(bondedTokenCreatedData),
 		PairRegisteredData:     "0x" + hex.EncodeToString(pairRegisteredData),
 		SwappedData:            "0x" + hex.EncodeToString(swappedData),

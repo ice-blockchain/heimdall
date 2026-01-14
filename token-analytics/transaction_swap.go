@@ -31,6 +31,7 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 		TokenType            string `db:"token_type"`
 		PoolToken0           string `db:"pool_token0"`
 		PairId               string `db:"pair_id"`
+		TotalSupply          string `db:"total_supply"`
 	}
 	result, err := storage.Get[tokenInfo](ctx, t.ingestedDataDB, `
 		SELECT 
@@ -39,7 +40,8 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 			t.external_address as token_external_address,
 			COALESCE(t.type, '') as token_type,
 			p.token0 AS pool_token0,
-			t.pair_id
+			t.pair_id,
+			COALESCE(t.total_supply, '0') as total_supply
 		FROM tokens t
 		JOIN uniswap_pools p on p.token0 = t.contract_address OR p.token1 = t.contract_address
 		WHERE p.pool_address = $1
@@ -96,7 +98,7 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 
 	log.Debug(fmt.Sprintf("Uniswap on token %v: direction=%v, price=%v USD (ION price: %v), user=%v, tx:%v",
 		result.ContractAddress, direction, priceUSD, basePriceUSD, userAddress, tx.TransactionHash))
-	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, result.ContractAddress, direction, inputAmount, outputAmount, priceUSD, result.TokenExternalAddress, user.UserExternalAddress, result.TokenType); err != nil {
+	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, result.ContractAddress, direction, inputAmount, outputAmount, priceUSD, result.TokenExternalAddress, user.UserExternalAddress, result.TokenType, result.TotalSupply); err != nil {
 		return errors.Wrap(err, "failed to calculate token market data and user position")
 	}
 	pairId := common.HexToHash(result.PairId)
@@ -107,7 +109,7 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 		t.creatorTokenPricesUSD.Store(strings.ToLower(result.ContractAddress), priceUSD)
 	}
 	go func() {
-		tradeInfo, err := t.fetchTradeInfoFromSwap(ctx, tx.TransactionHash)
+		tradeInfo, err := t.fetchTradeInfoFromSwap(ctx, tx.TransactionHash, result.TokenExternalAddress)
 		if err != nil {
 			log.Error(errors.Wrapf(err, "failed to fetch trade info for tx %v token %v to notify subscribers", tx.TransactionHash, result.TokenExternalAddress))
 		}
@@ -138,7 +140,8 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 			COALESCE(t.title,'') as title,
 			COALESCE(t.ticker,'') as ticker,
 			COALESCE(t.image_url, '') as image_url,
-			COALESCE(t.price_usd, 0) as price_usd
+			COALESCE(t.price_usd, 0) as price_usd,
+			COALESCE(t.total_supply, '0') as total_supply
 		FROM tokens t
 		LEFT JOIN users u ON LOWER(u.content_author_id) = LOWER($2)`
 
@@ -204,7 +207,7 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	log.Debug(fmt.Sprintf("Swap on token %v: direction=%v, price=%v USD (ION price: %v), user=%v, tx:%v",
 		contractAddress, ev.Direction, priceUSD, basePriceUSD, userAddr, tx.TransactionHash))
 
-	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, contractAddress, ev.Direction, ev.InputAmount, ev.OutputAmount, priceUSD, result.TokenExternalAddress, result.UserExternalAddress, result.TokenType); err != nil {
+	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, contractAddress, ev.Direction, ev.InputAmount, ev.OutputAmount, priceUSD, result.TokenExternalAddress, result.UserExternalAddress, result.TokenType, result.TotalSupply); err != nil {
 		return errors.Wrap(err, "failed to calculate token market data and user position")
 	}
 	if err = t.registerTrade(ctx, tx, ev.Direction, ev.InputAmount, ev.OutputAmount, result.ContractAddress, ev.Swapper.Hex(), result.TokenExternalAddress, actualBaseToken, ev.Pair.Bytes()); err != nil {
@@ -213,16 +216,18 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	if isFirstSwap {
 		result.PriceUsd = priceUSD
 		if _, err = t.coins.ImportTokenizedCommunitiesCoin(ctx, result); err != nil {
-			return errors.Wrapf(err, "failed to import tokenized community coin %v %v", result.TokenExternalAddress, result.ContractAddress)
+			if !storage.IsErr(err, storage.ErrNotFound) {
+				return errors.Wrapf(err, "failed to import tokenized community coin %v %v", result.TokenExternalAddress, result.ContractAddress)
+			}
+			log.Debug(fmt.Sprintf("Skipping coin import for token %v: external data not found (will be imported later)", result.TokenExternalAddress))
 		}
-
 	}
 	if result.TokenType == TokenTypeProfile {
 		t.creatorTokenPricesUSD.Store(strings.ToLower(result.ContractAddress), priceUSD)
 	}
-	tradeInfo, err := t.fetchTradeInfoFromSwap(ctx, tx.TransactionHash)
+	tradeInfo, err := t.fetchTradeInfoFromSwap(ctx, tx.TransactionHash, result.TokenExternalAddress)
 	if err != nil {
-		return errors.Wrapf(err, "failed to fetch trade info for tx %v token %v", tx.TransactionHash, result.TokenExternalAddress)
+		log.Error(errors.Wrapf(err, "failed to fetch trade info for tx %v token %v to notify subscribers", tx.TransactionHash, result.TokenExternalAddress))
 	}
 	t.subscriptions.NotifySwap(tradeInfo)
 	return nil
@@ -323,17 +328,13 @@ func extractExternalAddressFromToToken(toTokenBytes []byte) (string, common.Addr
 	return externalAddress, creatorAddr, affiliateAddr, nil
 }
 
-func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Context, tx *txEvent, contractAddress string, direction bool, input, output *big.Int, priceUSD float64, tokenExternalAddress, userExternalAddress, tokenType string) error {
+func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Context, tx *txEvent, contractAddress string, direction bool, input, output *big.Int, priceUSD float64, tokenExternalAddress, userExternalAddress, tokenType, totalSupply string) error {
 	var tokenAmount *big.Int
-	var sign float64
 	if !direction { // buy (Direction=false)
 		tokenAmount = output // User receives tokens
-		sign = 1.0
 	} else { // sell (Direction=true)
 		tokenAmount = input // User sends tokens
-		sign = -1.0
 	}
-	deltaMarketCapUSD := sign * weiToFloat64FromBigInt(tokenAmount) * priceUSD
 
 	log.Debug(fmt.Sprintf("Swap processed: contractAddress=%s, tokenExternalAddress=%s, userExternalAddress=%s (will be processed by trigger on tx_logs)",
 		contractAddress, tokenExternalAddress, userExternalAddress))
@@ -352,6 +353,11 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 	} else { // sell
 		newScore = currentScore - amountFloat
 	}
+	totalSupplyBig := new(big.Int)
+	totalSupplyBig.SetString(totalSupply, 10)
+	totalSupplyFloat := weiToFloat64FromBigInt(totalSupplyBig)
+	marketCapUSD := priceUSD * totalSupplyFloat
+
 	if responses, txErr := t.processedDataDB.TxPipelined(ctx, func(pipeliner redis.Pipeliner) error {
 		if newScore <= 0 {
 			if pErr := pipeliner.ZRem(ctx, userPostitionKey, userExternalAddress).Err(); pErr != nil {
@@ -365,17 +371,26 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 				return pErr
 			}
 		}
-		if pErr := pipeliner.ZIncrBy(ctx, globalTopSetKey, deltaMarketCapUSD, tokenExternalAddress).Err(); pErr != nil {
+		if pErr := pipeliner.ZAdd(ctx, globalTopSetKey, redis.Z{
+			Score:  marketCapUSD,
+			Member: tokenExternalAddress,
+		}).Err(); pErr != nil {
 			return pErr
 		}
 		if tokenType != "" {
 			if typeSpecificKey := getTopSetKeyByType(tokenType); typeSpecificKey != "" {
-				if pErr := pipeliner.ZIncrBy(ctx, typeSpecificKey, deltaMarketCapUSD, tokenExternalAddress).Err(); pErr != nil {
+				if pErr := pipeliner.ZAdd(ctx, typeSpecificKey, redis.Z{
+					Score:  marketCapUSD,
+					Member: tokenExternalAddress,
+				}).Err(); pErr != nil {
 					return pErr
 				}
 			}
 			if IsContentType(tokenType) {
-				if pErr := pipeliner.ZIncrBy(ctx, globalTopAnyPostSetKey, deltaMarketCapUSD, tokenExternalAddress).Err(); pErr != nil {
+				if pErr := pipeliner.ZAdd(ctx, globalTopAnyPostSetKey, redis.Z{
+					Score:  marketCapUSD,
+					Member: tokenExternalAddress,
+				}).Err(); pErr != nil {
 					return pErr
 				}
 			}
@@ -487,7 +502,7 @@ func (t *tokenAndUserInfo) PriceUSD() float64 {
 	return t.PriceUsd
 }
 
-func (t *tokenAnalytics) fetchTradeInfoFromSwap(ctx context.Context, txHash string) (*Trade, error) {
+func (t *tokenAnalytics) fetchTradeInfoFromSwap(ctx context.Context, txHash string, tokenExternalAddress string) (*Trade, error) {
 	sql := `
 		SELECT token_swaps.created_at,
 		    token_swaps.transaction_hash,
@@ -516,16 +531,16 @@ func (t *tokenAnalytics) fetchTradeInfoFromSwap(ctx context.Context, txHash stri
 			holder.external_address as holder_external_address,
 			holder.platform_group as holder_platform,
 			
-			utp.amount as balance,
+			COALESCE(utp.amount, '0') as balance,
 			COALESCE(((utp.amount::NUMERIC / 1e18) * tokens.price_usd), 0) as balance_usd
 		FROM token_swaps 
 		JOIN tokens ON token_swaps.contract_address = tokens.contract_address
 		LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(tokens.content_author_id)
 		LEFT JOIN users holder ON LOWER(holder.content_author_id) = LOWER(token_swaps.user_blockchain_address)
 		LEFT JOIN user_token_positions utp ON utp.external_address = token_swaps.external_address AND LOWER(utp.user_blockchain_address) = LOWER(token_swaps.user_blockchain_address)
-		WHERE token_swaps.transaction_hash = $1
+		WHERE token_swaps.transaction_hash = $1 AND token_swaps.external_address = $2
 	`
-	swap, err := storage.Get[tokenSwap](ctx, t.ingestedDataDB, sql, txHash)
+	swap, err := storage.Get[tokenSwap](ctx, t.ingestedDataDB, sql, txHash, tokenExternalAddress)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to fetch trade for tx %v but processed it, is trigger broken?", txHash)
 	}

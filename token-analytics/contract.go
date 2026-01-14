@@ -204,6 +204,7 @@ type (
 		BurnAddress     string `yaml:"burnAddress"`
 		BondingCurve    struct {
 			SmartContractAddress                string              `yaml:"smartContractAddress"`
+			TokenFactorySmartContractAddress    string              `yaml:"tokenFactorySmartContractAddress"`
 			BondingCurveProgressUpdateFrequency stdlibtime.Duration `yaml:"bondingCurveProgressUpdateFrequency"`
 		} `yaml:"bondingCurve" mapstructure:"bondingCurve"`
 		Workers               uint   `yaml:"workers"`
@@ -231,6 +232,7 @@ type (
 		coins                 CoinImport
 		// TODO: xmap for latest creator token prices to calc content token price
 		bondingCurveContractAddress string
+		tokenFactoryContractAddress string
 		ohclvRecentData             *xsync.Map[string, *recentCandlestick]
 		tradingStatsRecentData      *xsync.Map[string, *recentTradeStats]
 		subscriptions               interface {
@@ -451,6 +453,7 @@ type (
 		Ticker               string  `db:"ticker"`
 		Title                string  `db:"title"`
 		ImageURL             string  `db:"image_url"`
+		TotalSupply          string  `db:"total_supply"`
 		PriceUsd             float64 `db:"price_usd"`
 	}
 )
