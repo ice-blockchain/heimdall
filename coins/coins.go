@@ -202,17 +202,18 @@ func (c *coinsRepository) Import(ctx context.Context, network, contractAddress s
 		}
 	}
 	return &Coin{
-		ID:              existingCoin.ID,
-		Name:            existingCoin.Name,
-		Symbol:          existingCoin.Symbol,
-		SymbolGroup:     existingCoin.SymbolGroup,
-		Network:         existingCoin.Network,
-		ContractAddress: existingCoin.ContractAddress,
-		IconURL:         existingCoin.IconUrl,
-		PriceUSD:        existingCoin.PriceUSD,
-		SyncFrequency:   existingCoin.SyncFrequency,
-		Decimals:        existingCoin.Decimals,
-		Native:          existingCoin.Native,
+		ID:                                existingCoin.ID,
+		Name:                              existingCoin.Name,
+		Symbol:                            existingCoin.Symbol,
+		SymbolGroup:                       existingCoin.SymbolGroup,
+		Network:                           existingCoin.Network,
+		ContractAddress:                   existingCoin.ContractAddress,
+		IconURL:                           existingCoin.IconUrl,
+		PriceUSD:                          existingCoin.PriceUSD,
+		SyncFrequency:                     existingCoin.SyncFrequency,
+		Decimals:                          existingCoin.Decimals,
+		Native:                            existingCoin.Native,
+		TokenizedCommunityExternalAddress: existingCoin.TokenizedCommunityExternalAddress,
 	}, retErr
 }
 
@@ -232,17 +233,18 @@ func (c *coinsRepository) ImportTokenizedCommunitiesCoin(ctx context.Context, co
 		}
 	}
 	return &Coin{
-		ID:              existingCoin.ID,
-		Name:            existingCoin.Name,
-		Symbol:          existingCoin.Symbol,
-		SymbolGroup:     existingCoin.SymbolGroup,
-		Network:         existingCoin.Network,
-		ContractAddress: existingCoin.ContractAddress,
-		IconURL:         existingCoin.IconUrl,
-		PriceUSD:        existingCoin.PriceUSD,
-		SyncFrequency:   existingCoin.SyncFrequency,
-		Decimals:        existingCoin.Decimals,
-		Native:          existingCoin.Native,
+		ID:                                existingCoin.ID,
+		Name:                              existingCoin.Name,
+		Symbol:                            existingCoin.Symbol,
+		SymbolGroup:                       existingCoin.SymbolGroup,
+		Network:                           existingCoin.Network,
+		ContractAddress:                   existingCoin.ContractAddress,
+		IconURL:                           existingCoin.IconUrl,
+		PriceUSD:                          existingCoin.PriceUSD,
+		SyncFrequency:                     existingCoin.SyncFrequency,
+		Decimals:                          existingCoin.Decimals,
+		Native:                            existingCoin.Native,
+		TokenizedCommunityExternalAddress: existingCoin.TokenizedCommunityExternalAddress,
 	}, nil
 }
 
@@ -357,19 +359,20 @@ func (c *coinsRepository) GetAllCoins(ctx context.Context) (uint64, []*SymbolGro
 			continue
 		}
 		groups[c.SymbolGroup] = append(groups[c.SymbolGroup], &Coin{
-			ID:              c.ID,
-			Name:            c.Name,
-			Symbol:          c.Symbol,
-			SymbolGroup:     c.SymbolGroup,
-			Network:         network,
-			ContractAddress: c.ContractAddress,
-			IconURL:         c.IconUrl,
-			PriceUSD:        c.PriceUSD,
-			Decimals:        c.Decimals,
-			SyncFrequency:   c.SyncFrequency,
-			Version:         &c.Version,
-			Native:          c.Native,
-			Prioritized:     priority,
+			ID:                                c.ID,
+			Name:                              c.Name,
+			Symbol:                            c.Symbol,
+			SymbolGroup:                       c.SymbolGroup,
+			Network:                           network,
+			ContractAddress:                   c.ContractAddress,
+			IconURL:                           c.IconUrl,
+			PriceUSD:                          c.PriceUSD,
+			Decimals:                          c.Decimals,
+			SyncFrequency:                     c.SyncFrequency,
+			Version:                           &c.Version,
+			Native:                            c.Native,
+			Prioritized:                       priority,
+			TokenizedCommunityExternalAddress: c.TokenizedCommunityExternalAddress,
 		})
 	}
 	res := make([]*SymbolGroupWithCoins, 0, len(groups))
@@ -402,19 +405,20 @@ func (c *coinsRepository) GetVersionedCoins(ctx context.Context, userID string, 
 			log.Error(errors.Wrapf(err, "failed to get versioned coins due to unmapped network %v %v", c.Network, c))
 		}
 		coinDiff = append(coinDiff, &Coin{
-			ID:              c.ID,
-			Name:            c.Name,
-			Symbol:          c.Symbol,
-			SymbolGroup:     c.SymbolGroup,
-			Network:         network,
-			ContractAddress: c.ContractAddress,
-			IconURL:         c.IconUrl,
-			PriceUSD:        c.PriceUSD,
-			SyncFrequency:   c.SyncFrequency,
-			Decimals:        c.Decimals,
-			Version:         &c.Version,
-			Native:          c.Native,
-			Prioritized:     priority,
+			ID:                                c.ID,
+			Name:                              c.Name,
+			Symbol:                            c.Symbol,
+			SymbolGroup:                       c.SymbolGroup,
+			Network:                           network,
+			ContractAddress:                   c.ContractAddress,
+			IconURL:                           c.IconUrl,
+			PriceUSD:                          c.PriceUSD,
+			SyncFrequency:                     c.SyncFrequency,
+			Decimals:                          c.Decimals,
+			Version:                           &c.Version,
+			Native:                            c.Native,
+			Prioritized:                       priority,
+			TokenizedCommunityExternalAddress: c.TokenizedCommunityExternalAddress,
 		})
 	}
 	return maxVersion, coinDiff, nil
@@ -435,14 +439,15 @@ func (c *coinsRepository) SyncCoins(ctx context.Context, symbolGroups []string) 
 			continue
 		}
 		bySymbolGroupAndNetwork[coin.SymbolGroup+coin.Network] = &Coin{
-			Symbol:        coin.Symbol,
-			Network:       network,
-			SymbolGroup:   coin.SymbolGroup,
-			PriceUSD:      coin.PriceUSD,
-			SyncFrequency: coin.SyncFrequency,
-			Decimals:      coin.Decimals,
-			Native:        coin.Native,
-			Prioritized:   priority,
+			Symbol:                            coin.Symbol,
+			Network:                           network,
+			SymbolGroup:                       coin.SymbolGroup,
+			PriceUSD:                          coin.PriceUSD,
+			SyncFrequency:                     coin.SyncFrequency,
+			Decimals:                          coin.Decimals,
+			Native:                            coin.Native,
+			Prioritized:                       priority,
+			TokenizedCommunityExternalAddress: coin.TokenizedCommunityExternalAddress,
 		}
 		needSync := now.Sub(*coin.UpdatedAt.Time) >= coin.SyncFrequency || (now.Sub(*coin.UpdatedAt.Time) >= 24*stdlibtime.Hour && coin.PriceUSD == 0)
 		if needSync {
@@ -483,18 +488,19 @@ func (c *coinsRepository) GetCoinsOfSymbolGroup(ctx context.Context, symbolGroup
 			continue
 		}
 		res = append(res, &Coin{
-			ID:              c.ID,
-			Name:            c.Name,
-			Symbol:          c.Symbol,
-			SymbolGroup:     c.SymbolGroup,
-			Network:         network,
-			ContractAddress: c.ContractAddress,
-			IconURL:         c.IconUrl,
-			PriceUSD:        c.PriceUSD,
-			SyncFrequency:   c.SyncFrequency,
-			Decimals:        c.Decimals,
-			Native:          c.Native,
-			Prioritized:     priority,
+			ID:                                c.ID,
+			Name:                              c.Name,
+			Symbol:                            c.Symbol,
+			SymbolGroup:                       c.SymbolGroup,
+			Network:                           network,
+			ContractAddress:                   c.ContractAddress,
+			IconURL:                           c.IconUrl,
+			PriceUSD:                          c.PriceUSD,
+			SyncFrequency:                     c.SyncFrequency,
+			Decimals:                          c.Decimals,
+			Native:                            c.Native,
+			Prioritized:                       priority,
+			TokenizedCommunityExternalAddress: c.TokenizedCommunityExternalAddress,
 		})
 	}
 	return res, nil
@@ -530,18 +536,19 @@ func (c *coinsRepository) GetNativeCoinForNetwork(ctx context.Context, network s
 		return nil, errors.Wrapf(err, "failed to get coins of symbol group due to unmapped network %v %+v", nativeCoin.Network, c)
 	}
 	return &Coin{
-		ID:              nativeCoin.ID,
-		Name:            nativeCoin.Name,
-		Symbol:          nativeCoin.Symbol,
-		SymbolGroup:     nativeCoin.SymbolGroup,
-		Network:         network,
-		ContractAddress: nativeCoin.ContractAddress,
-		IconURL:         nativeCoin.IconUrl,
-		PriceUSD:        nativeCoin.PriceUSD,
-		SyncFrequency:   nativeCoin.SyncFrequency,
-		Decimals:        nativeCoin.Decimals,
-		Native:          nativeCoin.Native,
-		Prioritized:     priority,
+		ID:                                nativeCoin.ID,
+		Name:                              nativeCoin.Name,
+		Symbol:                            nativeCoin.Symbol,
+		SymbolGroup:                       nativeCoin.SymbolGroup,
+		Network:                           network,
+		ContractAddress:                   nativeCoin.ContractAddress,
+		IconURL:                           nativeCoin.IconUrl,
+		PriceUSD:                          nativeCoin.PriceUSD,
+		SyncFrequency:                     nativeCoin.SyncFrequency,
+		Decimals:                          nativeCoin.Decimals,
+		Native:                            nativeCoin.Native,
+		Prioritized:                       priority,
+		TokenizedCommunityExternalAddress: nativeCoin.TokenizedCommunityExternalAddress,
 	}, nil
 }
 

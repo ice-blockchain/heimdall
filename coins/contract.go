@@ -50,19 +50,20 @@ type (
 		Network         string
 	}
 	Coin struct {
-		ID              string              `json:"id"`
-		Name            string              `json:"name"`
-		Symbol          string              `json:"symbol"`
-		SymbolGroup     string              `json:"symbolGroup"`
-		Network         string              `json:"network"`
-		ContractAddress string              `json:"contractAddress"`
-		IconURL         string              `json:"iconURL"`
-		PriceUSD        float64             `json:"priceUSD"`
-		Decimals        uint8               `json:"decimals"`
-		Version         *uint64             `json:"version,omitempty"`
-		Native          bool                `json:"native,omitempty"`
-		Prioritized     bool                `json:"prioritized,omitempty"`
-		SyncFrequency   stdlibtime.Duration `json:"syncFrequency"`
+		ID                                string              `json:"id"`
+		Name                              string              `json:"name"`
+		Symbol                            string              `json:"symbol"`
+		SymbolGroup                       string              `json:"symbolGroup"`
+		Network                           string              `json:"network"`
+		ContractAddress                   string              `json:"contractAddress"`
+		IconURL                           string              `json:"iconURL"`
+		PriceUSD                          float64             `json:"priceUSD"`
+		Decimals                          uint8               `json:"decimals"`
+		Version                           *uint64             `json:"version,omitempty"`
+		Native                            bool                `json:"native,omitempty"`
+		Prioritized                       bool                `json:"prioritized,omitempty"`
+		SyncFrequency                     stdlibtime.Duration `json:"syncFrequency"`
+		TokenizedCommunityExternalAddress *string             `json:"tokenizedCommunityExternalAddress,omitempty"`
 	}
 	WalletNFT map[string]any
 	NFT       struct {

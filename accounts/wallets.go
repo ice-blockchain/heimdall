@@ -83,7 +83,8 @@ func (a *accounts) createWalletView(ctx context.Context, userID, name string, it
 							  coins.symbol,
 							  coins.symbol_group as symbolGroup,
 							  coins.icon_url as iconURL,
-                              coins.native
+                              coins.native,
+                              coins.tc_external_address as tokenizedCommunityExternalAddress
 					   from wallet_views_coinids
 					   join coins on wallet_views_coinids.coinid = coins.id) t
 				   ) 
@@ -190,7 +191,8 @@ func (a *accounts) getWalletView(ctx context.Context, userID, id string, buildCo
 						  coins.symbol,
 						  coins.symbol_group as symbolGroup,
 						  coins.icon_url as iconURL,
-						  coins.native
+						  coins.native,
+						  coins.tc_external_address as tokenizedCommunityExternalAddress
 				   from wallet_views_coinids
 				   join coins on wallet_views_coinids.coinid = coins.id) t
 			   ) 
@@ -339,7 +341,8 @@ func (a *accounts) ModifyWalletView(ctx context.Context, userID, id, newName str
 							  coins.symbol,
 							  coins.symbol_group as symbolGroup,
 							  coins.icon_url as iconURL,
-							  coins.native
+							  coins.native,
+                              coins.tc_external_address as tokenizedCommunityExternalAddress
 					   from wallet_views_coinids
 					   join coins on wallet_views_coinids.coinid = coins.id) t
 				   ) 
