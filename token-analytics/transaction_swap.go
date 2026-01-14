@@ -112,6 +112,8 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 		tradeInfo, err := t.fetchTradeInfoFromSwap(ctx, tx.TransactionHash, result.TokenExternalAddress)
 		if err != nil {
 			log.Error(errors.Wrapf(err, "failed to fetch trade info for tx %v token %v to notify subscribers", tx.TransactionHash, result.TokenExternalAddress))
+
+			return
 		}
 		t.subscriptions.NotifySwap(tradeInfo)
 	}()
@@ -228,6 +230,8 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	tradeInfo, err := t.fetchTradeInfoFromSwap(ctx, tx.TransactionHash, result.TokenExternalAddress)
 	if err != nil {
 		log.Error(errors.Wrapf(err, "failed to fetch trade info for tx %v token %v to notify subscribers", tx.TransactionHash, result.TokenExternalAddress))
+
+		return nil
 	}
 	t.subscriptions.NotifySwap(tradeInfo)
 	return nil
