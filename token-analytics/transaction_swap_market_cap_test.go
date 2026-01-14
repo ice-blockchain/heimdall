@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -70,15 +69,15 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		score, err := testRedis.ZScore(ctx, globalTopSetKey, tokenExternalAddress).Result()
 		require.NoError(t, err)
-		assert.InDelta(t, expectedMarketCap, score, 0.001, "Market cap in globalTopSetKey should be 100.0")
+		require.InDelta(t, expectedMarketCap, score, 0.001, "Market cap in globalTopSetKey should be 100.0")
 
 		score, err = testRedis.ZScore(ctx, globalTopProfileSetKey, tokenExternalAddress).Result()
 		require.NoError(t, err)
-		assert.InDelta(t, expectedMarketCap, score, 0.001, "Market cap in globalTopProfileSetKey should be 100.0")
+		require.InDelta(t, expectedMarketCap, score, 0.001, "Market cap in globalTopProfileSetKey should be 100.0")
 
 		userScore, err := testRedis.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddress), userExternalAddress).Result()
 		require.NoError(t, err)
-		assert.InDelta(t, 10.0, userScore, 0.001, "User should have 10 tokens")
+		require.InDelta(t, 10.0, userScore, 0.001, "User should have 10 tokens")
 	})
 
 	t.Run("updates_market_cap_on_price_change", func(t *testing.T) {
@@ -107,7 +106,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		require.NoError(t, err)
 
 		score1, _ := testRedis.ZScore(ctx, globalTopSetKey, tokenExternalAddress).Result()
-		assert.InDelta(t, 100.0, score1, 0.001)
+		require.InDelta(t, 100.0, score1, 0.001)
 
 		// Second swap: price $0.20
 		tx2 := &txEvent{
@@ -126,7 +125,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		score2, err := testRedis.ZScore(ctx, globalTopSetKey, tokenExternalAddress).Result()
 		require.NoError(t, err)
-		assert.InDelta(t, 200.0, score2, 0.001, "Market cap should double when price doubles")
+		require.InDelta(t, 200.0, score2, 0.001, "Market cap should double when price doubles")
 	})
 
 	t.Run("handles_sell_correctly", func(t *testing.T) {
@@ -152,7 +151,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		require.NoError(t, err)
 
 		userScore1, _ := testRedis.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddress), userExternalAddress).Result()
-		assert.InDelta(t, 20.0, userScore1, 0.001)
+		require.InDelta(t, 20.0, userScore1, 0.001)
 
 		// Then: sell 5 tokens
 		tx2 := &txEvent{
@@ -173,11 +172,11 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		require.NoError(t, err)
 		userScore2, err := testRedis.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddress), userExternalAddress).Result()
 		require.NoError(t, err)
-		assert.InDelta(t, 15.0, userScore2, 0.001, "User position should be 15 tokens after selling 5")
+		require.InDelta(t, 15.0, userScore2, 0.001, "User position should be 15 tokens after selling 5")
 
 		marketCapScore, err := testRedis.ZScore(ctx, globalTopSetKey, tokenExternalAddress).Result()
 		require.NoError(t, err)
-		assert.InDelta(t, 50.0, marketCapScore, 0.001, "Market cap should decrease after sell due to lower price")
+		require.InDelta(t, 50.0, marketCapScore, 0.001, "Market cap should decrease after sell due to lower price")
 	})
 
 	t.Run("removes_user_position_when_sold_all", func(t *testing.T) {
@@ -210,6 +209,6 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = testRedis.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddress), userExternalAddress).Result()
-		assert.Equal(t, redis.Nil, err, "User should be removed from position set when balance is 0")
+		require.Equal(t, redis.Nil, err, "User should be removed from position set when balance is 0")
 	})
 }
