@@ -3081,6 +3081,9 @@ const docTemplate = `{
                 "syncFrequency": {
                     "$ref": "#/definitions/time.Duration"
                 },
+                "tokenizedCommunityExternalAddress": {
+                    "type": "string"
+                },
                 "version": {
                     "type": "integer"
                 }
@@ -3227,6 +3230,9 @@ const docTemplate = `{
                 },
                 "syncFrequency": {
                     "$ref": "#/definitions/time.Duration"
+                },
+                "tokenizedCommunityExternalAddress": {
+                    "type": "string"
                 },
                 "version": {
                     "type": "integer"
