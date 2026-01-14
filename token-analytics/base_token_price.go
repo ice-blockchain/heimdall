@@ -147,6 +147,7 @@ func saveBaseTokenPriceToDatabase(ctx context.Context, db *storage.DB, symbol, t
 		SELECT $1, $3, NOW()
 		WHERE NOT EXISTS (SELECT 1 FROM old_price)
 		   OR (SELECT price_usd FROM old_price) != $3
+		ON CONFLICT DO NOTHING
 	`, tokenAddress, symbol, price)
 
 	if err != nil {
