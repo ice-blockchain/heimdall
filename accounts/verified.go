@@ -39,9 +39,7 @@ func (a *verifiedUsersSync) ProcessNextVerifiedUsersQueue(ctx context.Context) e
 			WHERE id IN (SELECT id FROM next_user)
 			RETURNING master_pubkey, 
 				COALESCE(
-					(SELECT json_agg(json_build_object('url', i.url, 'type', i.relay_type)) 
-					 FROM ion_connect_relays i 
-					 WHERE i.url = ANY(ion_connect_relays)),
+					(SELECT json_agg(x) FROM (SELECT userurl as url, relay_type as "type" FROM ion_connect_relays join unnest(u.ion_connect_relays) AS t(userurl) ON url = userurl OR url = replace(userurl, ':4443',':443')) x),
 					'[]'::json
 				) AS ion_connect_relays
 		`

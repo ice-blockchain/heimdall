@@ -42,7 +42,7 @@ func (a *accounts) getUserByID(ctx context.Context, userID string) (*user, error
     email,
     phone_number,
     totp_authenticator_secret,
-    (select json_agg(x) from (select url, relay_type as "type" from ion_connect_relays where url=ANY(users.ion_connect_relays)) x) as ion_connect_relays,
+    (SELECT json_agg(x) FROM (SELECT userurl as url, relay_type as "type" FROM ion_connect_relays join unnest(users.ion_connect_relays) AS t(userurl) ON url = userurl OR url = replace(userurl, ':4443',':443')) x) AS ion_connect_relays,
     active_2fa_email,
     active_2fa_phone_number,
     active_2fa_totp_authenticator,
@@ -67,7 +67,7 @@ func (a *accounts) getUserByIdentityKeyName(ctx context.Context, identityKeyName
 		email,
 		phone_number,
 		totp_authenticator_secret,
-		(select json_agg(x) from (select url, relay_type as "type" from ion_connect_relays where url=ANY(users.ion_connect_relays)) x) as ion_connect_relays,
+		(SELECT json_agg(x) FROM (SELECT userurl as url, relay_type as "type" FROM ion_connect_relays join unnest(users.ion_connect_relays) AS t(userurl) ON url = userurl OR url = replace(userurl, ':4443',':443')) x) AS ion_connect_relays,
 		active_2fa_email,
 		active_2fa_phone_number,
 		active_2fa_totp_authenticator,
@@ -115,7 +115,7 @@ func (a *accounts) GetContentCreators(ctx context.Context, limit uint64, exclude
 	}
 	args = append(args, limit)
 	query := `SELECT x.master_pubkey,  s.username, s.display_name, s.avatar,
-       		  (SELECT json_agg(x) FROM (SELECT url, relay_type as "type" from ion_connect_relays where url=ANY(u.ion_connect_relays)) x) as ion_connect_relays
+       		  (SELECT json_agg(x) FROM (SELECT userurl as url, relay_type as "type" FROM ion_connect_relays join unnest(u.ion_connect_relays) AS t(userurl) ON url = userurl OR url = replace(userurl, ':4443',':443')) x) AS ion_connect_relays
 			  FROM (SELECT master_pubkey FROM content_creators ` + excludeClause + ` 
 			  ORDER BY random() LIMIT $` + strconv.Itoa(len(args)) + `) x
 			  JOIN users u ON x.master_pubkey = u.master_pubkey
@@ -161,7 +161,7 @@ func (a *accounts) fetchAndUpdateRelays(ctx context.Context, userID string, foll
 							email,
 							phone_number,
 							totp_authenticator_secret,
-							(SELECT json_agg(x) FROM (SELECT url, relay_type as "type" from ion_connect_relays where url=ANY(ion_connect_relays)) x) as ion_connect_relays,
+							(SELECT json_agg(x) FROM (SELECT userurl as url, relay_type as "type" FROM ion_connect_relays join unnest(ion_connect_relays) AS t(userurl) ON url = userurl OR url = replace(userurl, ':4443',':443')) x) AS ion_connect_relays,
 			  				active_2fa_email,
 							active_2fa_phone_number,
 							active_2fa_totp_authenticator,
@@ -694,7 +694,7 @@ func (a *accounts) InitRegistration(ctx context.Context, identityKeyName string,
 func (a *accounts) GetIONConnectRelaysForUsers(ctx context.Context, masterPubkeys []string) ([]*LiteUser, error) {
 	u, err := storage.Select[LiteUser](ctx, a.db, `SELECT 
 	users.master_pubkey, s.username, s.display_name, s.avatar,
-    (select json_agg(x) from (select url, relay_type as "type" from ion_connect_relays where url=ANY(users.ion_connect_relays)) x) as ion_connect_relays
+    (SELECT json_agg(x) FROM (SELECT userurl as url, relay_type as "type" FROM ion_connect_relays join unnest(users.ion_connect_relays) AS t(userurl) ON url = userurl OR url = replace(userurl, ':4443',':443')) x) AS ion_connect_relays
     FROM users 
     JOIN social_profiles s ON users.master_pubkey = s.master_pubkey
     where users.master_pubkey = ANY($1)`, masterPubkeys)
@@ -724,13 +724,7 @@ func (a *accounts) GetGlobalAccounts(ctx context.Context, currentVer uint64) ([]
 	}
 	stmt = `SELECT 
 					global_accounts.master_pubkey,
-    				(select json_agg(x) 
-					 from 
-						(select url, 
-								relay_type as "type" 	
-						from ion_connect_relays 
-						where url=ANY(users.ion_connect_relays)) x
-				    ) as ion_connect_relays,
+    				(SELECT json_agg(x) FROM (SELECT userurl as url, relay_type as "type" FROM ion_connect_relays join unnest(users.ion_connect_relays) AS t(userurl) ON url = userurl OR url = replace(userurl, ':4443',':443')) x) AS ion_connect_relays,
     				s.username, s.display_name, s.avatar
     		 FROM global_accounts
 				JOIN users ON users.master_pubkey = global_accounts.master_pubkey

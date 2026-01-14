@@ -56,3 +56,7 @@ DO $$ BEGIN
            relay_group
     FROM ion_connect_relays_from_best_group;
 END$$;
+
+UPDATE ion_connect_relays SET
+    url = REPLACE(ion_connect_relays.url, ':4443', ':443')
+WHERE url LIKE '%:4443%';
