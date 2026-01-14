@@ -54,7 +54,7 @@ func (m *mockCoinImport) ImportTokenizedCommunitiesCoin(ctx context.Context, coi
 	return nil, nil
 }
 
-func helperNewForTest(t *testing.T, db *storage.DB) TokenAnalytics {
+func helperNewForTest(t testing.TB, db *storage.DB) TokenAnalytics {
 	t.Helper()
 
 	ionPrice := 1.15
