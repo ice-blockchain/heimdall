@@ -407,7 +407,7 @@ func (a *accounts) SearchSocialProfiles(ctx context.Context, tpe SearchType, key
 			LIMIT $%d OFFSET $%d
 		)
 		SELECT r.master_pubkey, username, display_name, avatar,
-			   (SELECT json_agg(x) FROM (SELECT userurl as url, relay_type as "type" FROM ion_connect_relays join unnest(u.ion_connect_relays) AS t(userurl) ON url = userurl OR url = replace(userurl, ':4443',':443')) x) AS ion_connect_relays
+			   (SELECT json_agg(x) FROM (SELECT userurl as url, relay_type as "type" FROM ion_connect_relays join unnest(u.ion_connect_relays) AS t(userurl) ON url = userurl OR url = replace(userurl, ':4443','')) x) AS ion_connect_relays
 		FROM ranked r
 		%s`, kwIdx, kwIdx, kwIdx, kwIdx, whereClause, kwIdx, preIdx, limitIdx, offsetIdx, joinClause)
 

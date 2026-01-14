@@ -58,5 +58,5 @@ DO $$ BEGIN
 END$$;
 
 UPDATE ion_connect_relays SET
-    url = REPLACE(ion_connect_relays.url, ':4443', ':443')
+    url = REPLACE(ion_connect_relays.url, ':4443', '')
 WHERE url LIKE '%:4443%';

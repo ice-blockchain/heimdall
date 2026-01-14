@@ -22,12 +22,12 @@ func NewRelays(ctx context.Context) Relays {
 }
 
 func (r *relaysRepository) GetAllIONConnectRelays(ctx context.Context, requestedRelay *url.URL) ([]*UserAssignedRelay, error) {
-	search := requestedRelay.Scheme + "://" + requestedRelay.Hostname() + "%"
+	search := requestedRelay.String()
 	allRelays, err := storage.Select[struct {
 		IONConnectRelays []string `db:"ion_connect_relays"`
 	}](ctx, r.db, `SELECT array_agg(url) as ion_connect_relays 
 		FROM ion_connect_relays
-		WHERE region = (SELECT region FROM ion_connect_relays WHERE url LIKE $1)
+		WHERE region = (SELECT region FROM ion_connect_relays WHERE url = $1 OR url = replace($1, ':4443',''))
 		AND (unhealthy_started_at is NULL OR unhealthy_started_at between now()-'6 hours'::INTERVAL AND now() )`, search)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
