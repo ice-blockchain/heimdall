@@ -41,6 +41,13 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "example": "\"0:holder123:\"",
+                        "description": "Holder external address to get tokens by holder",
+                        "name": "holder",
+                        "in": "query"
+                    },
+                    {
                         "maximum": 10,
                         "minimum": 1,
                         "type": "integer",

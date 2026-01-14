@@ -347,6 +347,11 @@ paths:
           type: string
         name: externalAddresses
         type: array
+      - description: Holder external address to get tokens by holder
+        example: '"0:holder123:"'
+        in: query
+        name: holder
+        type: string
       - description: Number of top platform holders to include (1-10)
         example: 3
         in: query
