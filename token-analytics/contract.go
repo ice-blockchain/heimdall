@@ -184,8 +184,10 @@ const (
 	schemeMigrationTableName = "wintr_token_analytics_scheme_migrations"
 
 	bondingCurveTopHolderDisplayName = "Bonding Curve"
+	burnedTopHolderDisplayName       = "Burned"
 	// TODO: replace
 	bondingCurveTopHolderAvatar = "https://cdn.ice.io/online+/assets/coins/ion.svg"
+	burnedTopHolderAvatar       = "https://cdn.ice.io/online+/assets/coins/ion.svg"
 
 	fatAddressHeaderSize    = 64
 	feeDestinationCreator   = "creator"
@@ -201,9 +203,9 @@ var (
 type (
 	config struct {
 		IONTokenAddress string `yaml:"ionTokenAddress"`
-		BurnAddress     string `yaml:"burnAddress"`
 		BondingCurve    struct {
 			SmartContractAddress                string              `yaml:"smartContractAddress"`
+			BurnAddress                         string              `yaml:"burnAddress"`
 			TokenFactorySmartContractAddress    string              `yaml:"tokenFactorySmartContractAddress"`
 			BondingCurveProgressUpdateFrequency stdlibtime.Duration `yaml:"bondingCurveProgressUpdateFrequency"`
 		} `yaml:"bondingCurve" mapstructure:"bondingCurve"`
@@ -455,5 +457,8 @@ type (
 		ImageURL             string  `db:"image_url"`
 		TotalSupply          string  `db:"total_supply"`
 		PriceUsd             float64 `db:"price_usd"`
+	}
+	fee struct {
+		Amount float64 `db:"amount"`
 	}
 )

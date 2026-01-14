@@ -438,15 +438,15 @@ token-analytics:
   batchSize: 2
   enableDummyGenerator: false
   bondingCurve:
-    smartContractAddress: 0x1E602c717B6b1343303E77E9DBfe45B37cf01144
-    tokenFactorySmartContractAddress: 0x2F713d828C5e2c11bC21778b37cF12Da3ec01255
+    smartContractAddress: 0x592C08406C3161463B32E7687892Ca34d644816F
+    tokenFactorySmartContractAddress: 0x05B48bEc6c6Ae10b527687002Dd08bDDfEE0e4ec
+    burnAddress: 0x0000000000000000000000000000000000696f6e
     bondingCurveProgressUpdateFrequency: 500ms
     rpcEndpoints:
       - https://bogus.pro/bogus/
   identityServiceUrl: https://localhost:8001
   identityServiceApiKey: dev-api-key
   ionTokenAddress: 0x2c73996BaBF1a06c2C057177353293f7cA0907c8
-  burnAddress: 0x0000000000000000000000000000000000696F6E
   quickNode:
     startBlock: 72173309
     # update to accessible over internet, ngrok tcp, or that 23... machine

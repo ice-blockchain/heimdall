@@ -61,11 +61,13 @@ func helperNewForTest(t testing.TB, db *storage.DB) TokenAnalytics {
 	cfg := config{
 		BondingCurve: struct {
 			SmartContractAddress                string           `yaml:"smartContractAddress"`
+			BurnAddress                         string           `yaml:"burnAddress"`
 			TokenFactorySmartContractAddress    string           `yaml:"tokenFactorySmartContractAddress"`
 			BondingCurveProgressUpdateFrequency stdtime.Duration `yaml:"bondingCurveProgressUpdateFrequency"`
 		}{
 			SmartContractAddress:             "0x1E602c717B6b1343303E77E9DBfe45B37cf01144",
 			TokenFactorySmartContractAddress: "0x2F713d828C5e2c11bC21778b37cF12Da3ec01255",
+			BurnAddress:                      "0x0000000000000000000000000000000000696f6e",
 		},
 		Workers:         1,
 		IONTokenAddress: "0x2c73996BaBF1a06c2C057177353293f7cA0907c8",

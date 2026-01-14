@@ -68,6 +68,9 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 	if cfg.Workers == 0 {
 		cfg.Workers = 1
 	}
+	if cfg.BondingCurve.BurnAddress == "" {
+		cfg.BondingCurve.BurnAddress = "0x0000000000000000000000000000000000696f6e"
+	}
 
 	db := storage.MustConnect(ctx, applicationYamlKey, storage.NewFilesystemDDL(&ddl.Files, schemeMigrationTableName))
 	targetDB := storagev3.MustConnect(ctx, applicationYamlKey)
