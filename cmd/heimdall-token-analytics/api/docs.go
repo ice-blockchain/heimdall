@@ -41,6 +41,13 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "example": "\"0:holder123:\"",
+                        "description": "Holder external address to get tokens by holder",
+                        "name": "holder",
+                        "in": "query"
+                    },
+                    {
                         "maximum": 10,
                         "minimum": 1,
                         "type": "integer",
@@ -75,11 +82,17 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Returns tokens list with X_Total_Holdings header when holder parameter is used",
                         "schema": {
                             "type": "array",
                             "items": {
                                 "$ref": "#/definitions/tokenanalytics.CommunityToken"
+                            }
+                        },
+                        "headers": {
+                            "X_Total_Holdings": {
+                                "type": "integer",
+                                "description": "Total holdings amount for the specified holder (only present when holder parameter is provided)"
                             }
                         }
                     },

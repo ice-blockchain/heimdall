@@ -7,10 +7,16 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	stdtime "time"
 
+	"github.com/puzpuzpuz/xsync/v4"
+	"github.com/rcrowley/go-metrics"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ice-blockchain/heimdall/coins"
 	"github.com/ice-blockchain/heimdall/token-analytics/ddl"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2/fixture"
@@ -23,13 +29,65 @@ var (
 func TestMain(m *testing.M) {
 	ctx, cancel := context.WithCancel(context.Background())
 	testPgContainer = fixture.New(ctx)
+
+	dragonflyContainer, dragonflyAddr, releaseDragonfly := mustStartDragonflyContainer(ctx)
+	testRedis = mustConnectDragonfly(ctx, dragonflyAddr)
+
 	code := m.Run()
+
+	if testRedis != nil {
+		_ = testRedis.Close()
+	}
+	releaseDragonfly()
+	_ = dragonflyContainer.Terminate(ctx)
 	testPgContainer.Close(ctx)
 	cancel()
 
 	if code != 0 {
 		os.Exit(code)
 	}
+}
+
+type mockCoinImport struct{}
+
+func (m *mockCoinImport) ImportTokenizedCommunitiesCoin(ctx context.Context, coin coins.TokenAnalyticsToken) (*coins.Coin, error) {
+	return nil, nil
+}
+
+func helperNewForTest(t testing.TB, db *storage.DB) TokenAnalytics {
+	t.Helper()
+
+	ionPrice := 1.15
+	cfg := config{
+		BondingCurve: struct {
+			SmartContractAddress                string           `yaml:"smartContractAddress"`
+			BondingCurveProgressUpdateFrequency stdtime.Duration `yaml:"bondingCurveProgressUpdateFrequency"`
+		}{
+			SmartContractAddress: "0x1E602c717B6b1343303E77E9DBfe45B37cf01144",
+		},
+		Workers:         1,
+		IONTokenAddress: "0x2c73996BaBF1a06c2C057177353293f7cA0907c8",
+	}
+	ta := &tokenAnalytics{
+		bondingCurveContractAddress: cfg.BondingCurve.SmartContractAddress,
+		ingestedDataDB:              db,
+		processedDataDB:             &testRedisDB{Client: testRedis},
+		questDB:                     nil,
+		quickNode:                   nil,
+		wg:                          new(sync.WaitGroup),
+		cfg:                         &cfg,
+		metrics:                     metrics.NewRegistry(),
+		ohclvRecentData:             xsync.NewMap[string, *recentCandlestick](),
+		tradingStatsRecentData:      xsync.NewMap[string, *recentTradeStats](),
+		subscriptions:               newSubscriptions(t.Context()),
+		creatorTokenPricesUSD:       xsync.NewMap[string, float64](),
+		coins:                       &mockCoinImport{},
+		shutdown:                    func() error { return nil },
+	}
+	ta.ionPriceUSD = new(atomic.Pointer[float64])
+	ta.ionPriceUSD.Store(&ionPrice)
+
+	return ta
 }
 
 func helperCreateDB(t *testing.T) (*storage.DB, func()) {

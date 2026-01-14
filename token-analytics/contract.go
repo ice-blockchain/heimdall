@@ -64,6 +64,7 @@ type (
 		HealthCheck(ctx context.Context) error
 		MustStart(ctx context.Context)
 		GetCommunityTokensByExternalAddresses(ctx context.Context, externalAddresses []string, requestorMasterPubkey string, includeTopPlatformHolders *uint32, keyword string, limit, offset uint64) ([]*CommunityToken, error)
+		GetCommunityTokensByHolder(ctx context.Context, holderExternalAddress, requestorMasterPubkey string, limit, offset uint64) ([]*CommunityToken, uint64, error)
 		GetCommunityTokensByType(ctx context.Context, viewType string, tokenType *string, keyword string, limit, offset uint64) ([]*CommunityToken, error)
 		GetLatestTrades(ctx context.Context, externalAddress string, limit, offset uint64, startFrom *stdlibtime.Time) (trades []*Trade, maxTs stdlibtime.Time, err error)
 		SubscribeLatestTrades(ctx context.Context, externalAddress string, addToStream func(*Trade, error)) error
@@ -323,6 +324,7 @@ type (
 		LauncherPlatform             *string    `db:"launcher_platform"`
 		LauncherVerified             *bool      `db:"launcher_verified"`
 		LauncherBlockchainAddress    *string    `db:"launcher_blockchain_address"`
+		TokenHoldingsCount           uint64     `db:"token_holdings_count"`
 	}
 
 	tokenVolume24h struct {
