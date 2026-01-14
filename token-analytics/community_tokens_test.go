@@ -5,7 +5,7 @@ package tokenanalytics
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCalculatePnL(t *testing.T) {
@@ -14,15 +14,15 @@ func TestCalculatePnL(t *testing.T) {
 	t.Run("profit scenario", func(t *testing.T) {
 		// Invested $100, current value $150, no sales
 		pnl, pnlPercentage := calculatePnL(150.0, 100.0, 0.0)
-		assert.InDelta(t, 50.0, pnl, 0.01, "PnL should be $50")
-		assert.InDelta(t, 50.0, pnlPercentage, 0.01, "PnL% should be 50%")
+		require.InDelta(t, 50.0, pnl, 0.01, "PnL should be $50")
+		require.InDelta(t, 50.0, pnlPercentage, 0.01, "PnL% should be 50%")
 	})
 
 	t.Run("loss scenario", func(t *testing.T) {
 		// Invested $100, current value $80, no sales
 		pnl, pnlPercentage := calculatePnL(80.0, 100.0, 0.0)
-		assert.InDelta(t, -20.0, pnl, 0.01, "PnL should be -$20")
-		assert.InDelta(t, -20.0, pnlPercentage, 0.01, "PnL% should be -20%")
+		require.InDelta(t, -20.0, pnl, 0.01, "PnL should be -$20")
+		require.InDelta(t, -20.0, pnlPercentage, 0.01, "PnL% should be -20%")
 	})
 
 	t.Run("break even with partial sale - your example", func(t *testing.T) {
@@ -39,8 +39,8 @@ func TestCalculatePnL(t *testing.T) {
 		realized := 0.45
 
 		pnl, pnlPercentage := calculatePnL(currentHoldingValue, invested, realized)
-		assert.InDelta(t, 0.0, pnl, 0.01, "PnL should be $0 (break even)")
-		assert.InDelta(t, 0.0, pnlPercentage, 0.01, "PnL% should be 0%")
+		require.InDelta(t, 0.0, pnl, 0.01, "PnL should be $0 (break even)")
+		require.InDelta(t, 0.0, pnlPercentage, 0.01, "PnL% should be 0%")
 	})
 
 	t.Run("profit with partial sale", func(t *testing.T) {
@@ -55,8 +55,8 @@ func TestCalculatePnL(t *testing.T) {
 		realized := 60.0
 
 		pnl, pnlPercentage := calculatePnL(currentHoldingValue, invested, realized)
-		assert.InDelta(t, 15.0, pnl, 0.01, "PnL should be $15")
-		assert.InDelta(t, 15.0, pnlPercentage, 0.01, "PnL% should be 15%")
+		require.InDelta(t, 15.0, pnl, 0.01, "PnL should be $15")
+		require.InDelta(t, 15.0, pnlPercentage, 0.01, "PnL% should be 15%")
 	})
 
 	t.Run("loss with partial sale", func(t *testing.T) {
@@ -71,8 +71,8 @@ func TestCalculatePnL(t *testing.T) {
 		realized := 40.0
 
 		pnl, pnlPercentage := calculatePnL(currentHoldingValue, invested, realized)
-		assert.InDelta(t, -25.0, pnl, 0.01, "PnL should be -$25")
-		assert.InDelta(t, -25.0, pnlPercentage, 0.01, "PnL% should be -25%")
+		require.InDelta(t, -25.0, pnl, 0.01, "PnL should be -$25")
+		require.InDelta(t, -25.0, pnlPercentage, 0.01, "PnL% should be -25%")
 	})
 
 	t.Run("sold everything at profit", func(t *testing.T) {
@@ -85,8 +85,8 @@ func TestCalculatePnL(t *testing.T) {
 		realized := 120.0
 
 		pnl, pnlPercentage := calculatePnL(currentHoldingValue, invested, realized)
-		assert.InDelta(t, 20.0, pnl, 0.01, "PnL should be $20")
-		assert.InDelta(t, 20.0, pnlPercentage, 0.01, "PnL% should be 20%")
+		require.InDelta(t, 20.0, pnl, 0.01, "PnL should be $20")
+		require.InDelta(t, 20.0, pnlPercentage, 0.01, "PnL% should be 20%")
 	})
 
 	t.Run("sold everything at loss", func(t *testing.T) {
@@ -99,21 +99,21 @@ func TestCalculatePnL(t *testing.T) {
 		realized := 70.0
 
 		pnl, pnlPercentage := calculatePnL(currentHoldingValue, invested, realized)
-		assert.InDelta(t, -30.0, pnl, 0.01, "PnL should be -$30")
-		assert.InDelta(t, -30.0, pnlPercentage, 0.01, "PnL% should be -30%")
+		require.InDelta(t, -30.0, pnl, 0.01, "PnL should be -$30")
+		require.InDelta(t, -30.0, pnlPercentage, 0.01, "PnL% should be -30%")
 	})
 
 	t.Run("handles zero investment", func(t *testing.T) {
 		// Edge case: somehow got tokens without investment (airdrop?)
 		pnl, pnlPercentage := calculatePnL(100.0, 0.0, 0.0)
-		assert.Equal(t, 100.0, pnl, "PnL should equal current value")
-		assert.Equal(t, 0.0, pnlPercentage, "PnL% should be 0 when invested is 0")
+		require.Equal(t, 100.0, pnl, "PnL should equal current value")
+		require.Equal(t, 0.0, pnlPercentage, "PnL% should be 0 when invested is 0")
 	})
 
 	t.Run("doubled investment", func(t *testing.T) {
 		// Invested $100, now worth $200 (all unrealized)
 		pnl, pnlPercentage := calculatePnL(200.0, 100.0, 0.0)
-		assert.InDelta(t, 100.0, pnl, 0.01, "PnL should be $100")
-		assert.InDelta(t, 100.0, pnlPercentage, 0.01, "PnL% should be 100%")
+		require.InDelta(t, 100.0, pnl, 0.01, "PnL should be $100")
+		require.InDelta(t, 100.0, pnlPercentage, 0.01, "PnL% should be 100%")
 	})
 }
