@@ -76,8 +76,8 @@ func ProcessEvent(functionHex, data string, topics []string, contractAddress, tx
 		}
 		return poolCreated(functionHex, data, topics[1], topics[2], topics[3])
 	case eventUniswapSwapped.Hex():
-		if len(topics) < 4 {
-			return nil, errors.Errorf("PoolCreated event requires at least 4 topics, got %d", len(topics))
+		if len(topics) < 3 {
+			return nil, errors.Errorf("Swap event requires at least 3 topics, got %d", len(topics))
 		}
 		return uniswapSwapped(functionHex, data, topics[1], topics[2], contractAddress)
 	default:
@@ -99,6 +99,29 @@ func decode[T any](abi abi.ABI, res T, name, data string) error {
 		return errors.Wrapf(err, "failed to unpack event")
 	}
 	return nil
+}
+
+func toInt256(val *big.Int) *big.Int {
+	if val == nil {
+		return big.NewInt(0)
+	}
+	// 2^255 = 57896044618658097711785492504343953926634992332820282019728792003956564819968
+	limit := new(big.Int)
+	limit.Exp(big.NewInt(2), big.NewInt(255), nil)
+
+	// If val >= 2^255, it's a negative number in two's complement
+	if val.Cmp(limit) >= 0 {
+		// 2^256 = 115792089237316195423570985008687907853269984665640564039457584007913129639936
+		modVal := new(big.Int)
+		modVal.Exp(big.NewInt(2), big.NewInt(256), nil)
+
+		// Return val - 2^256 (this will be negative)
+		result := new(big.Int).Sub(val, modVal)
+
+		return result
+	}
+
+	return new(big.Int).Set(val)
 }
 
 func tokenCreated(signature, data, contractAddress, erc20TokenTopic string) (*LogTokenCreated, error) {
@@ -544,16 +567,35 @@ func uniswapSwapped(signature, data, sender, recipient, pool string) (*LogUniswa
 		return nil, errors.Errorf("empty data for UniswapSwapped event")
 	}
 
-	var logUniswapSwapped LogUniswapSwapped
-	if err := decode(ABI, &logUniswapSwapped, "Swap", data); err != nil {
+	var decoded struct {
+		Amount0      *big.Int
+		Amount1      *big.Int
+		SqrtPriceX96 *big.Int
+		Liquidity    *big.Int
+		Tick         *big.Int
+	}
+	if err := decode(UniswapPoolABI, &decoded, "Swap", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack Swap event")
 	}
 
-	logUniswapSwapped.Sender = common.HexToAddress(sender)
-	logUniswapSwapped.Recipient = common.HexToAddress(recipient)
-	logUniswapSwapped.PoolAddress = common.HexToAddress(pool)
-	log.Debug(fmt.Sprintf("Uniswap Swapped: sender=%s, recipient=%s, amount0=%v, amount1=%v",
-		logUniswapSwapped.Sender.Hex(), logUniswapSwapped.Recipient.Hex(), logUniswapSwapped.Amount0, logUniswapSwapped.Amount1))
+	// Convert uint256 to signed int256
+	amount0Signed := toInt256(decoded.Amount0)
+	amount1Signed := toInt256(decoded.Amount1)
 
-	return &logUniswapSwapped, nil
+	logUniswapSwapped := &LogUniswapSwapped{
+		Sender:       common.HexToAddress(sender),
+		Recipient:    common.HexToAddress(recipient),
+		Amount0:      amount0Signed,
+		Amount1:      amount1Signed,
+		SqrtPriceX96: decoded.SqrtPriceX96,
+		Liquidity:    decoded.Liquidity,
+		Tick:         decoded.Tick,
+		PoolAddress:  common.HexToAddress(pool),
+	}
+	log.Debug(fmt.Sprintf("Uniswap Swapped: sender=%s, recipient=%s, amount0=%v (sign=%d), amount1=%v (sign=%d)",
+		logUniswapSwapped.Sender.Hex(), logUniswapSwapped.Recipient.Hex(),
+		logUniswapSwapped.Amount0, logUniswapSwapped.Amount0.Sign(),
+		logUniswapSwapped.Amount1, logUniswapSwapped.Amount1.Sign()))
+
+	return logUniswapSwapped, nil
 }

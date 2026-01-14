@@ -510,6 +510,146 @@ func TestUniswapPoolCreated(t *testing.T) {
 	})
 }
 
+func TestUniswapSwapped(t *testing.T) {
+	t.Run("valid_uniswap_swap_buy_positive_amounts", func(t *testing.T) {
+		// Uniswap V3 Swap event structure:
+		// event Swap(
+		//     address indexed sender,
+		//     address indexed recipient,
+		//     int256 amount0,
+		//     int256 amount1,
+		//     uint160 sqrtPriceX96,
+		//     uint128 liquidity,
+		//     int24 tick
+		// )
+
+		amount0, _ := new(big.Int).SetString("1000000000000000000", 10) // 1 token (positive)
+		amount1, _ := new(big.Int).SetString("2000000000000000000", 10) // 2 tokens (positive)
+		sqrtPriceX96, _ := new(big.Int).SetString("1461446703485210103287273052203988822378723970341", 10)
+		liquidity, _ := new(big.Int).SetString("1000000000000000000", 10)
+		tick, _ := new(big.Int).SetString("887272", 10)
+
+		data := "0x" +
+			hex.EncodeToString(common.LeftPadBytes(amount0.Bytes(), 32)) +
+			hex.EncodeToString(common.LeftPadBytes(amount1.Bytes(), 32)) +
+			hex.EncodeToString(common.LeftPadBytes(sqrtPriceX96.Bytes(), 32)) +
+			hex.EncodeToString(common.LeftPadBytes(liquidity.Bytes(), 32)) +
+			hex.EncodeToString(common.LeftPadBytes(tick.Bytes(), 32))
+
+		sender := "0x00000000000000000000000041e0385d6c933a11a705b93b04a728ad80c3a67c"
+		recipient := "0x0000000000000000000000005a4cab6a30022c31534c2ada02c6ac1539d01944"
+		poolAddress := "0x2cc106926e4026d83cbee4d6928dec0e7ec1dc2e"
+
+		event, err := uniswapSwapped(eventUniswapSwapped.Hex(), data, sender, recipient, poolAddress)
+		require.NoError(t, err)
+		require.NotNil(t, event)
+		require.Equal(t, strings.ToLower(common.HexToAddress(sender).Hex()), strings.ToLower(event.Sender.Hex()))
+		require.Equal(t, strings.ToLower(common.HexToAddress(recipient).Hex()), strings.ToLower(event.Recipient.Hex()))
+		require.Equal(t, strings.ToLower(poolAddress), strings.ToLower(event.PoolAddress.Hex()))
+		require.NotNil(t, event.Amount0)
+		require.NotNil(t, event.Amount1)
+		require.Equal(t, amount0.String(), event.Amount0.String(), "Amount0 should match")
+		require.Equal(t, amount1.String(), event.Amount1.String(), "Amount1 should match")
+		require.Equal(t, int(1), event.Amount0.Sign(), "Amount0 should be positive")
+		require.Equal(t, int(1), event.Amount1.Sign(), "Amount1 should be positive")
+		require.NotNil(t, event.SqrtPriceX96)
+		require.Equal(t, sqrtPriceX96.String(), event.SqrtPriceX96.String())
+		require.NotNil(t, event.Liquidity)
+		require.Equal(t, liquidity.String(), event.Liquidity.String())
+		require.NotNil(t, event.Tick)
+		require.Equal(t, tick.String(), event.Tick.String())
+	})
+
+	t.Run("valid_uniswap_swap_with_negative_amount", func(t *testing.T) {
+		// Real-world scenario: amount0 positive (token0 sent to pool), amount1 negative (token1 received from pool)
+		amount0Positive := big.NewInt(1000000000000000000)  // +1 ETH (token0 in)
+		amount1Negative := big.NewInt(-2000000000000000000) // -2 tokens (token1 out)
+
+		// Convert negative to two's complement (uint256 representation)
+		amount1Uint256 := new(big.Int)
+		modVal := new(big.Int).Exp(big.NewInt(2), big.NewInt(256), nil)
+		amount1Uint256.Add(amount1Negative, modVal) // -2000000000000000000 + 2^256
+
+		sqrtPriceX96, _ := new(big.Int).SetString("1461446703485210103287273052203988822378723970341", 10)
+		liquidity, _ := new(big.Int).SetString("1000000000000000000", 10)
+		tick, _ := new(big.Int).SetString("887272", 10)
+
+		data := "0x" +
+			hex.EncodeToString(common.LeftPadBytes(amount0Positive.Bytes(), 32)) +
+			hex.EncodeToString(common.LeftPadBytes(amount1Uint256.Bytes(), 32)) +
+			hex.EncodeToString(common.LeftPadBytes(sqrtPriceX96.Bytes(), 32)) +
+			hex.EncodeToString(common.LeftPadBytes(liquidity.Bytes(), 32)) +
+			hex.EncodeToString(common.LeftPadBytes(tick.Bytes(), 32))
+
+		sender := "0x00000000000000000000000041e0385d6c933a11a705b93b04a728ad80c3a67c"
+		recipient := "0x0000000000000000000000005a4cab6a30022c31534c2ada02c6ac1539d01944"
+		poolAddress := "0x2cc106926e4026d83cbee4d6928dec0e7ec1dc2e"
+
+		event, err := uniswapSwapped(eventUniswapSwapped.Hex(), data, sender, recipient, poolAddress)
+		require.NoError(t, err)
+		require.NotNil(t, event)
+
+		// Check that amount0 is positive and amount1 is negative after conversion
+		require.Equal(t, int(1), event.Amount0.Sign(), "Amount0 should be positive")
+		require.Equal(t, "1000000000000000000", event.Amount0.String(), "Amount0 value should match")
+
+		require.Equal(t, int(-1), event.Amount1.Sign(), "Amount1 should be negative after toInt256 conversion")
+		require.Equal(t, "-2000000000000000000", event.Amount1.String(), "Amount1 should be -2 ETH")
+	})
+
+	t.Run("valid_uniswap_swap_with_different_amounts", func(t *testing.T) {
+		amount0, _ := new(big.Int).SetString("5000000000000000000", 10) // 5 tokens
+		amount1, _ := new(big.Int).SetString("4950000000000000000", 10) // 4.95 tokens
+		sqrtPriceX96, _ := new(big.Int).SetString("1461446703485210103287273052203988822378723970341", 10)
+		liquidity, _ := new(big.Int).SetString("2000000000000000000", 10)
+		tick, _ := new(big.Int).SetString("887200", 10)
+
+		data := "0x" +
+			hex.EncodeToString(common.LeftPadBytes(amount0.Bytes(), 32)) +
+			hex.EncodeToString(common.LeftPadBytes(amount1.Bytes(), 32)) +
+			hex.EncodeToString(common.LeftPadBytes(sqrtPriceX96.Bytes(), 32)) +
+			hex.EncodeToString(common.LeftPadBytes(liquidity.Bytes(), 32)) +
+			hex.EncodeToString(common.LeftPadBytes(tick.Bytes(), 32))
+
+		sender := "0x00000000000000000000000079d7e491506651b776483187ceb5eb75424ae51b"
+		recipient := "0x00000000000000000000000079d7e491506651b776483187ceb5eb75424ae51b"
+		poolAddress := "0xabc123def456789012345678901234567890abcd"
+
+		event, err := uniswapSwapped(eventUniswapSwapped.Hex(), data, sender, recipient, poolAddress)
+		require.NoError(t, err)
+		require.NotNil(t, event)
+		require.Equal(t, amount0.String(), event.Amount0.String())
+		require.Equal(t, amount1.String(), event.Amount1.String())
+		require.Equal(t, sqrtPriceX96.String(), event.SqrtPriceX96.String())
+		require.Equal(t, liquidity.String(), event.Liquidity.String())
+		require.Equal(t, tick.String(), event.Tick.String())
+	})
+
+	t.Run("invalid_signature", func(t *testing.T) {
+		_, err := uniswapSwapped(
+			"0xinvalid",
+			"0x0000",
+			"0x00000000000000000000000041e0385d6c933a11a705b93b04a728ad80c3a67c",
+			"0x0000000000000000000000005a4cab6a30022c31534c2ada02c6ac1539d01944",
+			"0x2cc106926e4026d83cbee4d6928dec0e7ec1dc2e",
+		)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid signature")
+	})
+
+	t.Run("empty_data", func(t *testing.T) {
+		_, err := uniswapSwapped(
+			eventUniswapSwapped.Hex(),
+			"",
+			"0x00000000000000000000000041e0385d6c933a11a705b93b04a728ad80c3a67c",
+			"0x0000000000000000000000005a4cab6a30022c31534c2ada02c6ac1539d01944",
+			"0x2cc106926e4026d83cbee4d6928dec0e7ec1dc2e",
+		)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "empty data")
+	})
+}
+
 func TestSlippageChecked(t *testing.T) {
 	t.Run("valid_slippage_checked", func(t *testing.T) {
 		pairId := "0x0f5c7242a0b57acf14eaade14c8e98bbd71ca8f0bc74c76b32eadc4f6b4decf2"
@@ -552,6 +692,70 @@ func TestLiquidityLocked(t *testing.T) {
 	})
 }
 
+func TestToInt256(t *testing.T) {
+	t.Run("positive_value_remains_positive", func(t *testing.T) {
+		// Small positive number
+		val := big.NewInt(1000000000000000000) // 1 ETH
+		result := toInt256(val)
+		require.Equal(t, int(1), result.Sign(), "Positive value should remain positive")
+		require.Equal(t, val.String(), result.String(), "Value should not change")
+	})
+
+	t.Run("large_positive_below_2_255_remains_positive", func(t *testing.T) {
+		// 2^255 - 1 (largest positive int256)
+		limit := new(big.Int)
+		limit.Exp(big.NewInt(2), big.NewInt(255), nil)
+		val := new(big.Int).Sub(limit, big.NewInt(1))
+
+		result := toInt256(val)
+		require.Equal(t, int(1), result.Sign(), "Value below 2^255 should remain positive")
+		require.Equal(t, val.String(), result.String(), "Value should not change")
+	})
+
+	t.Run("value_at_2_255_becomes_negative", func(t *testing.T) {
+		// 2^255 (should become -2^255 in two's complement)
+		val := new(big.Int)
+		val.Exp(big.NewInt(2), big.NewInt(255), nil)
+
+		result := toInt256(val)
+		require.Equal(t, int(-1), result.Sign(), "Value >= 2^255 should become negative")
+
+		// Expected: -2^255 = -57896044618658097711785492504343953926634992332820282019728792003956564819968
+		expected := new(big.Int)
+		expected.Exp(big.NewInt(2), big.NewInt(255), nil)
+		expected.Neg(expected)
+		require.Equal(t, expected.String(), result.String(), "Should equal -2^255")
+	})
+
+	t.Run("max_uint256_becomes_minus_one", func(t *testing.T) {
+		// 2^256 - 1 (max uint256, represents -1 in two's complement)
+		val := new(big.Int)
+		val.Exp(big.NewInt(2), big.NewInt(256), nil)
+		val.Sub(val, big.NewInt(1))
+
+		result := toInt256(val)
+		require.Equal(t, int(-1), result.Sign(), "Max uint256 should become -1")
+		require.Equal(t, "-1", result.String(), "Max uint256 represents -1 in two's complement")
+	})
+
+	t.Run("real_negative_swap_amount", func(t *testing.T) {
+		// Real example: -2000000000000000000 (-2 ETH) in two's complement
+		// In hex: 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE3F7D3C9DBC80000
+		val := new(big.Int)
+		val.SetString("115792089237316195423570985008687907853269984665640564039455584007913129639936", 10)
+
+		result := toInt256(val)
+		require.Equal(t, int(-1), result.Sign(), "Should be negative")
+		require.Equal(t, "-2000000000000000000", result.String(), "Should equal -2 ETH")
+	})
+
+	t.Run("nil_value_returns_zero", func(t *testing.T) {
+		result := toInt256(nil)
+		require.NotNil(t, result)
+		require.Equal(t, "0", result.String(), "nil should return 0")
+	})
+}
+
 func TestProcessEvent(t *testing.T) {
 	t.Run("unknown_event", func(t *testing.T) {
 		event, err := ProcessEvent(
@@ -577,6 +781,19 @@ func TestProcessEvent(t *testing.T) {
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "requires at least 2 topics")
+	})
+
+	t.Run("insufficient_topics_for_uniswap_swap", func(t *testing.T) {
+		_, err := ProcessEvent(
+			eventUniswapSwapped.Hex(),
+			"0x0000000000000000000000000000000000000000000000000000000000000000",
+			[]string{eventUniswapSwapped.Hex(), "0x0000000000000000000000005a4cab6a30022c31534c2ada02c6ac1539d01944"}, // Only 2 topics, but needs 3
+			"0x2cc106926e4026d83cbee4d6928dec0e7ec1dc2e",
+			"",
+		)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "requires at least 3 topics")
 	})
 }
 
