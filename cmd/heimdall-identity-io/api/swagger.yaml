@@ -133,6 +133,8 @@ definitions:
         $ref: '#/definitions/time.Duration'
       tokenizedCommunityExternalAddress:
         type: string
+      tokenizedCommunityTokenType:
+        type: string
       version:
         type: integer
     type: object
@@ -232,6 +234,8 @@ definitions:
       syncFrequency:
         $ref: '#/definitions/time.Duration'
       tokenizedCommunityExternalAddress:
+        type: string
+      tokenizedCommunityTokenType:
         type: string
       version:
         type: integer

@@ -3084,6 +3084,9 @@ const docTemplate = `{
                 "tokenizedCommunityExternalAddress": {
                     "type": "string"
                 },
+                "tokenizedCommunityTokenType": {
+                    "type": "string"
+                },
                 "version": {
                     "type": "integer"
                 }
@@ -3232,6 +3235,9 @@ const docTemplate = `{
                     "$ref": "#/definitions/time.Duration"
                 },
                 "tokenizedCommunityExternalAddress": {
+                    "type": "string"
+                },
+                "tokenizedCommunityTokenType": {
                     "type": "string"
                 },
                 "version": {

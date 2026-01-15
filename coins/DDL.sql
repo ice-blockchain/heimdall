@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS coins (
                                      decimals            SMALLINT NOT NULL,
                                      native              BOOL NOT NULL DEFAULT FALSE,
                                      tc_external_address TEXT, -- for tokenized community tokens
+                                     tc_type             TEXT, -- for tokenized community tokens
                                      primary key(id)
 ) WITH (FILLFACTOR = 70);
 
@@ -182,3 +183,10 @@ UPDATE coins SET
 where network = 'polkadot' and lower(symbol) = 'dot' and decimals > 10;
 
 ALTER TABLE coins ADD COLUMN IF NOT EXISTS tc_external_address TEXT;
+ALTER TABLE coins ADD COLUMN IF NOT EXISTS tc_type TEXT;
+UPDATE coins SET
+    tc_type = CASE
+        WHEN coins.tc_external_address LIKE '0:%%' THEN 'profile'
+        WHEN REGEXP_COUNT(coins.tc_external_address, ':') = 2 THEN 'post'
+        ELSE 'xcom' END
+WHERE tc_external_address IS NOT NULL AND tc_type IS NULL;

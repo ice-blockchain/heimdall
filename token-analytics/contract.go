@@ -451,7 +451,8 @@ type (
 		TokenExternalAddress string  `db:"token_external_address"`
 		PairId               string  `db:"pair_id"`
 		UserExternalAddress  string  `db:"user_external_address"`
-		TokenType            string  `db:"token_type"`
+		Type                 string  `db:"token_type"`
+		Platform             string  `db:"platform"`
 		Ticker               string  `db:"ticker"`
 		Title                string  `db:"title"`
 		ImageURL             string  `db:"image_url"`
