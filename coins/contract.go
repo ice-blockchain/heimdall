@@ -64,6 +64,7 @@ type (
 		Prioritized                       bool                `json:"prioritized,omitempty"`
 		SyncFrequency                     stdlibtime.Duration `json:"syncFrequency"`
 		TokenizedCommunityExternalAddress *string             `json:"tokenizedCommunityExternalAddress,omitempty"`
+		TokenizedCommunityTokenType       *string             `json:"tokenizedCommunityTokenType,omitempty"`
 	}
 	WalletNFT map[string]any
 	NFT       struct {
@@ -85,6 +86,7 @@ type (
 		IconUrl() string
 		PriceUSD() float64
 		ExternalAddress() string
+		TokenType() string
 	}
 )
 
@@ -171,6 +173,7 @@ type (
 		IconUrl                           string
 		Native                            bool
 		TokenizedCommunityExternalAddress *string `db:"tc_external_address"`
+		TokenizedCommunityTokenType       *string `db:"tc_type"`
 	}
 	coinToSync struct {
 		Network                    string

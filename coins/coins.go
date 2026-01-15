@@ -183,17 +183,19 @@ func (c *coinsRepository) Import(ctx context.Context, network, contractAddress s
 					ContractAddress: contractAddress,
 				}
 			}
-			var tokenizedCommunityExternalAddress *string
+			var tokenizedCommunityExternalAddress, tokenizedCommunityTokenType *string
 			tokenizedCommunityTokens, tErr := c.tokenAnalytics.GetTokenUpdates(ctx, []string{contractAddress})
 			if tErr == nil && tokenizedCommunityTokens != nil {
 				if tokenizedCommunityToken, ok := tokenizedCommunityTokens[contractAddress]; ok && strings.EqualFold(tokenizedCommunityToken.Address(), contractAddress) {
 					extAddr := tokenizedCommunityTokens[contractAddress].ExternalAddress()
+					typ := tokenizedCommunityTokens[contractAddress].TokenType()
 					tokenizedCommunityExternalAddress = &extAddr
+					tokenizedCommunityTokenType = &typ
 					token = tokenizedCommunityTokenToCoin(tokenizedCommunityTokens[contractAddress])
 					retErr = nil
 				}
 			}
-			existingCoin, err = c.upsertCoin(ctx, now, token, tokenizedCommunityExternalAddress)
+			existingCoin, err = c.upsertCoin(ctx, now, token, tokenizedCommunityExternalAddress, tokenizedCommunityTokenType)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to import coin")
 			}
@@ -214,6 +216,7 @@ func (c *coinsRepository) Import(ctx context.Context, network, contractAddress s
 		Decimals:                          existingCoin.Decimals,
 		Native:                            existingCoin.Native,
 		TokenizedCommunityExternalAddress: existingCoin.TokenizedCommunityExternalAddress,
+		TokenizedCommunityTokenType:       existingCoin.TokenizedCommunityTokenType,
 	}, retErr
 }
 
@@ -223,7 +226,8 @@ func (c *coinsRepository) ImportTokenizedCommunitiesCoin(ctx context.Context, co
 	if err != nil {
 		if errors.Is(err, ErrNotFound) || (existingCoin != nil && existingCoin.PriceUSD == 0) {
 			externalAddress := coin.ExternalAddress()
-			existingCoin, err = c.upsertCoin(ctx, now, tokenizedCommunityTokenToCoin(coin), &externalAddress)
+			tokenType := coin.TokenType()
+			existingCoin, err = c.upsertCoin(ctx, now, tokenizedCommunityTokenToCoin(coin), &externalAddress, &tokenType)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to save tokenized coin %v", coin.Address())
 			}
@@ -245,6 +249,7 @@ func (c *coinsRepository) ImportTokenizedCommunitiesCoin(ctx context.Context, co
 		Decimals:                          existingCoin.Decimals,
 		Native:                            existingCoin.Native,
 		TokenizedCommunityExternalAddress: existingCoin.TokenizedCommunityExternalAddress,
+		TokenizedCommunityTokenType:       existingCoin.TokenizedCommunityTokenType,
 	}, nil
 }
 
@@ -271,18 +276,18 @@ func MapNetworkFromCoinGecko(cgNetwork, symbolGroup string) (mappedNetwork strin
 	return network.ID, priority, nil
 }
 
-func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *coingecko.Coin, tokenizedCommunityExternalAddress *string) (*coin, error) {
+func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *coingecko.Coin, tokenizedCommunityExternalAddress *string, tokenizedCommunityTokenType *string) (*coin, error) {
 	sql := fmt.Sprintf(`
 	WITH insert_data AS (
 		SELECT * from (VALUES (
 				$2::INTERVAL,             $1::TIMESTAMP,         $1::TIMESTAMP,         $1::TIMESTAMP,          $3::SMALLINT,     (select value from global where key = '%[1]v')::BIGINT,      $4::NUMERIC,        $5,  $6,
-				$7,      $8,    $9,              $10,   $11,          $12,      false,    $13::TEXT
+				$7,      $8,    $9,              $10,   $11,          $12,      false,    $13::TEXT,         $14::TEXT
 		)) as t(sync_frequency, created_at, updated_at, data_updated_at, decimals, version,                             price_usd, id, coingecko_coin_id,
-				network, name, contract_address, symbol, symbol_group, icon_url, native, tc_external_address)
+				network, name, contract_address, symbol, symbol_group, icon_url, native, tc_external_address, tc_type)
 		WHERE NOT EXISTS (SELECT 1 FROM coins WHERE symbol_group = $9) -- restrict contract_address to be eq symbol_group of existing coins
 	)
 	INSERT INTO coins (sync_frequency, created_at, updated_at, data_updated_at, decimals, version,                             price_usd, id, coingecko_coin_id,
-		network, name, contract_address, symbol, symbol_group, icon_url, native, tc_external_address) 
+		network, name, contract_address, symbol, symbol_group, icon_url, native, tc_external_address, tc_type) 
 		SELECT * from insert_data
 		ON CONFLICT (id) DO UPDATE SET
 		sync_frequency = excluded.sync_frequency,
@@ -309,7 +314,7 @@ func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *c
 			RETURNING *;`, keyCoinsMaxVersion)
 
 	updated, err := storage.ExecOne[coin](ctx, c.db, sql, now, syncFrequency(c.cfg, tok.ID), tok.Decimals, tok.PriceUSD, generateInternalID(tok, nil),
-		tok.ID, tok.Network, tok.Name, tok.ContractAddress, tok.Symbol, tok.SymbolGroup(), tok.IconUrl, tokenizedCommunityExternalAddress)
+		tok.ID, tok.Network, tok.Name, tok.ContractAddress, tok.Symbol, tok.SymbolGroup(), tok.IconUrl, tokenizedCommunityExternalAddress, tokenizedCommunityTokenType)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to upsert token data %+v", tok)
 	}
@@ -334,7 +339,8 @@ func (c *coinsRepository) GetAllCoins(ctx context.Context) (uint64, []*SymbolGro
 		0 as price_usd,
 		0 as decimals,
 		false as native,
-		'' as tc_external_address
+		'' as tc_external_address,
+		'' as tc_type
 	FROM coins LIMIT 1) t
  	UNION ALL (SELECT * FROM coins WHERE coingecko_coin_id != '');`, keyCoinsMaxVersion))
 	if err != nil {
@@ -373,6 +379,7 @@ func (c *coinsRepository) GetAllCoins(ctx context.Context) (uint64, []*SymbolGro
 			Native:                            c.Native,
 			Prioritized:                       priority,
 			TokenizedCommunityExternalAddress: c.TokenizedCommunityExternalAddress,
+			TokenizedCommunityTokenType:       c.TokenizedCommunityTokenType,
 		})
 	}
 	res := make([]*SymbolGroupWithCoins, 0, len(groups))
@@ -419,6 +426,7 @@ func (c *coinsRepository) GetVersionedCoins(ctx context.Context, userID string, 
 			Native:                            c.Native,
 			Prioritized:                       priority,
 			TokenizedCommunityExternalAddress: c.TokenizedCommunityExternalAddress,
+			TokenizedCommunityTokenType:       c.TokenizedCommunityTokenType,
 		})
 	}
 	return maxVersion, coinDiff, nil
@@ -448,6 +456,7 @@ func (c *coinsRepository) SyncCoins(ctx context.Context, symbolGroups []string) 
 			Native:                            coin.Native,
 			Prioritized:                       priority,
 			TokenizedCommunityExternalAddress: coin.TokenizedCommunityExternalAddress,
+			TokenizedCommunityTokenType:       coin.TokenizedCommunityTokenType,
 		}
 		needSync := now.Sub(*coin.UpdatedAt.Time) >= coin.SyncFrequency || (now.Sub(*coin.UpdatedAt.Time) >= 24*stdlibtime.Hour && coin.PriceUSD == 0)
 		if needSync {
@@ -501,6 +510,7 @@ func (c *coinsRepository) GetCoinsOfSymbolGroup(ctx context.Context, symbolGroup
 			Native:                            c.Native,
 			Prioritized:                       priority,
 			TokenizedCommunityExternalAddress: c.TokenizedCommunityExternalAddress,
+			TokenizedCommunityTokenType:       c.TokenizedCommunityTokenType,
 		})
 	}
 	return res, nil
@@ -549,6 +559,7 @@ func (c *coinsRepository) GetNativeCoinForNetwork(ctx context.Context, network s
 		Native:                            nativeCoin.Native,
 		Prioritized:                       priority,
 		TokenizedCommunityExternalAddress: nativeCoin.TokenizedCommunityExternalAddress,
+		TokenizedCommunityTokenType:       nativeCoin.TokenizedCommunityTokenType,
 	}, nil
 }
 

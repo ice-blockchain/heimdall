@@ -143,7 +143,8 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 			COALESCE(t.ticker,'') as ticker,
 			COALESCE(t.image_url, '') as image_url,
 			COALESCE(t.price_usd, 0) as price_usd,
-			COALESCE(t.total_supply, '0') as total_supply
+			COALESCE(t.total_supply, '0') as total_supply,
+			t.platform as platform
 		FROM tokens t
 		LEFT JOIN users u ON LOWER(u.content_author_id) = LOWER($2)`
 
@@ -209,7 +210,7 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	log.Debug(fmt.Sprintf("Swap on token %v: direction=%v, price=%v USD (ION price: %v), user=%v, tx:%v",
 		contractAddress, ev.Direction, priceUSD, basePriceUSD, userAddr, tx.TransactionHash))
 
-	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, contractAddress, ev.Direction, ev.InputAmount, ev.OutputAmount, priceUSD, result.TokenExternalAddress, result.UserExternalAddress, result.TokenType, result.TotalSupply); err != nil {
+	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, contractAddress, ev.Direction, ev.InputAmount, ev.OutputAmount, priceUSD, result.TokenExternalAddress, result.UserExternalAddress, result.Type, result.TotalSupply); err != nil {
 		return errors.Wrap(err, "failed to calculate token market data and user position")
 	}
 	if err = t.registerTrade(ctx, tx, ev.Direction, ev.InputAmount, ev.OutputAmount, result.ContractAddress, ev.Swapper.Hex(), result.TokenExternalAddress, actualBaseToken, ev.Pair.Bytes()); err != nil {
@@ -224,7 +225,7 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 			log.Debug(fmt.Sprintf("Skipping coin import for token %v: external data not found (will be imported later)", result.TokenExternalAddress))
 		}
 	}
-	if result.TokenType == TokenTypeProfile {
+	if result.Type == TokenTypeProfile {
 		t.creatorTokenPricesUSD.Store(strings.ToLower(result.ContractAddress), priceUSD)
 	}
 	tradeInfo, err := t.fetchTradeInfoFromSwap(ctx, tx.TransactionHash, result.TokenExternalAddress)
@@ -500,6 +501,12 @@ func (t *tokenAndUserInfo) IconUrl() string {
 }
 func (t *tokenAndUserInfo) ExternalAddress() string {
 	return t.TokenExternalAddress
+}
+func (t *tokenAndUserInfo) TokenType() string {
+	if t.Platform == PlatformGroupXCom {
+		return PlatformGroupXCom
+	}
+	return t.Type
 }
 
 func (t *tokenAndUserInfo) PriceUSD() float64 {
