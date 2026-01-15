@@ -92,43 +92,13 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 		}
 	}
 	if !tokenMigrated && userIsFromOnlinePlus {
-		progress, err := t.bondingCurve.Progress(ctx, common.HexToHash(pairId))
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get curve progress for token %v (pair %v)", externalAddress, pairId)
+		if rows, result, err = t.enrichTopHoldersWithBongingCurve(ctx, pairId, externalAddress, rows, creator, limit, result); err != nil {
+			return nil, errors.Wrapf(err, "failed to enrich top holders with bonging curve for token %v", externalAddress)
 		}
-		curveScore := weiToFloat64FromBigInt(new(big.Int).Sub(progress.BondingTokensGoal, progress.SoldTokens))
-		result = slices.Insert(result, 0, redis.Z{Member: t.cfg.BondingCurve.SmartContractAddress, Score: curveScore})
-		if int64(len(result)) >= limit-1 {
-			result = result[:len(result)-1]
-		}
-		curveUSD, _, err := t.calculatePriceInUSD(ctx, curveScore, rows[0].BaseToken)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to calculate price in USD for bonding curve, token %v, baseToken %v", externalAddress, rows[0].BaseToken)
-		}
-		curvePlatform := PlatformGroupIonConnect
-		curveAvatar := bondingCurveTopHolderAvatar
-		curveDisplayName := bondingCurveTopHolderDisplayName
-		curveVerified := false
-		curveUsername := ""
-		rows = slices.Insert(rows, 0, &holderWithTokenData{
-			ContentAuthorID:       creator.MasterPubkey,
-			CreatorUsername:       creator.Username,
-			CreatorDisplay:        creator.Display,
-			CreatorAvatar:         creator.Avatar,
-			CreatorPlatform:       rows[0].CreatorPlatform,
-			TotalSupply:           rows[0].TotalSupply,
-			HolderMasterPubkey:    &t.cfg.BondingCurve.SmartContractAddress,
-			HolderUsername:        &curveUsername,
-			HolderDisplay:         &curveDisplayName,
-			HolderAvatar:          &curveAvatar,
-			HolderExternalAddress: &t.cfg.BondingCurve.SmartContractAddress,
-			HolderPlatform:        &curvePlatform,
-			PriceUSD:              curveUSD,
-			CreatorVerified:       creator.Verified,
-			HolderVerified:        &curveVerified,
-		})
-		if int64(len(rows)) >= limit-1 {
-			rows = rows[:len(rows)-1]
+	}
+	if userIsFromOnlinePlus {
+		if rows, result, err = t.enrichTopHoldersWithBurned(ctx, externalAddress, rows, creator, limit, result); err != nil {
+			return nil, errors.Wrapf(err, "failed to enrich top holders with burned for token %v", externalAddress)
 		}
 	}
 	positions, err := buildTopHolderPositions(externalAddress, result, rows)
@@ -137,6 +107,115 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 	}
 
 	return positions, nil
+}
+
+func (t *tokenAnalytics) enrichTopHoldersWithBurned(ctx context.Context, externalAddress string, rows []*holderWithTokenData, creator *User, limit int64, result []redis.Z) ([]*holderWithTokenData, []redis.Z, error) {
+	burnedAmount, err := storage.Get[float64](ctx, t.ingestedDataDB, `SELECT 
+    	amount/1e18 FROM fees_transferred
+    	WHERE token_external_address = $1 AND recipient_bsc_address = $2`, externalAddress, t.cfg.BondingCurve.BurnAddress)
+	if err != nil {
+		if storage.IsErr(err, storage.ErrNotFound) {
+			err = nil
+			zero := float64(0)
+			burnedAmount = &zero
+		}
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "failed to fetch burned amount for token %v", externalAddress)
+		}
+	}
+	burnedUSD, _, err := t.calculatePriceInUSD(ctx, *burnedAmount, rows[0].BaseToken)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "failed to calculate price in USD for burned amount, token %v, baseToken %v", externalAddress, rows[0].BaseToken)
+	}
+	if len(result) >= 2 {
+		result = slices.Insert(result, 1, redis.Z{Member: t.cfg.BondingCurve.BurnAddress, Score: *burnedAmount})
+	} else {
+		result = append(result, redis.Z{Member: t.cfg.BondingCurve.BurnAddress, Score: *burnedAmount})
+	}
+	if int64(len(result)) >= limit-1 {
+		result = result[:len(result)-1]
+	}
+	burnedPlatform := PlatformGroupIonConnect
+	burnedAvatar := burnedTopHolderAvatar
+	burnedDisplayName := burnedTopHolderDisplayName
+	burnedVerified := false
+	burnedUsername := ""
+	burnedRow := &holderWithTokenData{
+		ContentAuthorID:        creator.MasterPubkey,
+		CreatorUsername:        creator.Username,
+		CreatorDisplay:         creator.Display,
+		CreatorAvatar:          creator.Avatar,
+		CreatorExternalAddress: rows[0].CreatorExternalAddress,
+		CreatorPlatform:        rows[0].CreatorPlatform,
+		CreatorBnbBscAddress:   rows[0].CreatorBnbBscAddress,
+		TotalSupply:            rows[0].TotalSupply,
+		HolderMasterPubkey:     &t.cfg.BondingCurve.BurnAddress,
+		HolderUsername:         &burnedUsername,
+		HolderDisplay:          &burnedDisplayName,
+		HolderAvatar:           &burnedAvatar,
+		HolderExternalAddress:  &t.cfg.BondingCurve.BurnAddress,
+		HolderPlatform:         &burnedPlatform,
+		PriceUSD:               burnedUSD,
+		CreatorVerified:        creator.Verified,
+		HolderVerified:         &burnedVerified,
+		PairId:                 rows[0].PairId,
+		BaseToken:              rows[0].BaseToken,
+	}
+	if len(rows) >= 2 {
+		rows = slices.Insert(rows, 1, burnedRow)
+	} else {
+		rows = append(rows, burnedRow)
+	}
+	if int64(len(rows)) >= limit-1 {
+		rows = rows[:len(rows)-1]
+	}
+	return rows, result, nil
+}
+
+func (t *tokenAnalytics) enrichTopHoldersWithBongingCurve(ctx context.Context, pairId string, externalAddress string, rows []*holderWithTokenData, creator *User, limit int64, result []redis.Z) ([]*holderWithTokenData, []redis.Z, error) {
+	progress, err := t.bondingCurve.Progress(ctx, common.HexToHash(pairId))
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "failed to get curve progress for token %v (pair %v)", externalAddress, pairId)
+	}
+	curveScore := weiToFloat64FromBigInt(new(big.Int).Sub(progress.BondingTokensGoal, progress.SoldTokens))
+	result = slices.Insert(result, 0, redis.Z{Member: t.cfg.BondingCurve.SmartContractAddress, Score: curveScore})
+	if int64(len(result)) >= limit-1 {
+		result = result[:len(result)-1]
+	}
+	curveUSD, _, err := t.calculatePriceInUSD(ctx, curveScore, rows[0].BaseToken)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "failed to calculate price in USD for bonding curve, token %v, baseToken %v", externalAddress, rows[0].BaseToken)
+	}
+	curvePlatform := PlatformGroupIonConnect
+	curveAvatar := bondingCurveTopHolderAvatar
+	curveDisplayName := bondingCurveTopHolderDisplayName
+	curveVerified := false
+	curveUsername := ""
+	rows = slices.Insert(rows, 0, &holderWithTokenData{
+		ContentAuthorID:        creator.MasterPubkey,
+		CreatorUsername:        creator.Username,
+		CreatorDisplay:         creator.Display,
+		CreatorAvatar:          creator.Avatar,
+		CreatorExternalAddress: rows[0].CreatorExternalAddress,
+		CreatorPlatform:        rows[0].CreatorPlatform,
+		CreatorBnbBscAddress:   rows[0].CreatorBnbBscAddress,
+		TotalSupply:            rows[0].TotalSupply,
+		HolderMasterPubkey:     &t.cfg.BondingCurve.SmartContractAddress,
+		HolderUsername:         &curveUsername,
+		HolderDisplay:          &curveDisplayName,
+		HolderAvatar:           &curveAvatar,
+		HolderExternalAddress:  &t.cfg.BondingCurve.SmartContractAddress,
+		HolderPlatform:         &curvePlatform,
+		PriceUSD:               curveUSD,
+		CreatorVerified:        creator.Verified,
+		HolderVerified:         &curveVerified,
+		PairId:                 rows[0].PairId,
+		BaseToken:              rows[0].BaseToken,
+	})
+	if int64(len(rows)) >= limit-1 {
+		rows = rows[:len(rows)-1]
+	}
+	return rows, result, nil
 }
 
 func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []*holderWithTokenData) ([]*TopHolderPosition, error) {
