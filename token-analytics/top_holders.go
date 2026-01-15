@@ -101,7 +101,7 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 			return nil, errors.Wrapf(err, "failed to enrich top holders with burned for token %v", externalAddress)
 		}
 	}
-	positions, err := buildTopHolderPositions(externalAddress, result, rows)
+	positions, err := buildTopHolderPositions(externalAddress, result, rows, t.cfg.BondingCurve.SmartContractAddress, t.cfg.BondingCurve.BurnAddress)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build top holder positions")
 	}
@@ -218,7 +218,7 @@ func (t *tokenAnalytics) enrichTopHoldersWithBongingCurve(ctx context.Context, p
 	return rows, result, nil
 }
 
-func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []*holderWithTokenData) ([]*TopHolderPosition, error) {
+func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []*holderWithTokenData, bondingCurveContractAddress, burnAddress string) ([]*TopHolderPosition, error) {
 	holderDataMap := make(map[string]*holderWithTokenData)
 	for i := range rows {
 		if rows[i].HolderExternalAddress != nil {
@@ -257,6 +257,10 @@ func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []
 		if err != nil {
 			return nil, fmt.Errorf("failed to build holder addresses from external_address %s (platform %s): %w", userExternalAddress, strVal(holderData.HolderPlatform), err)
 		}
+		r := uint64(rank + 1)
+		if userExternalAddress == bondingCurveContractAddress || userExternalAddress == burnAddress {
+			r = 0
+		}
 		holder := &TopHolderPosition{
 			Creator: User{
 				Username:  holderData.CreatorUsername,
@@ -274,7 +278,7 @@ func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []
 					Avatar:       holderData.HolderAvatar,
 					Addresses:    holderAddresses,
 				},
-				Rank:        uint64(rank + 1),
+				Rank:        r,
 				Amount:      amountWei.String(),
 				AmountUSD:   amountUSD,
 				SupplyShare: supplyShare,

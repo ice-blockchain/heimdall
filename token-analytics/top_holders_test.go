@@ -80,7 +80,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 			},
 		}
 
-		result, err := buildTopHolderPositions(contractAddr, rankings, rows)
+		result, err := buildTopHolderPositions(contractAddr, rankings, rows, "", "")
 		require.NoError(t, err)
 		require.Len(t, result, 3)
 		require.Equal(t, uint64(1), result[0].Position.Rank)
@@ -116,7 +116,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 		t.Parallel()
 		rankings := []redis.Z{}
 		rows := []*holderWithTokenData{}
-		result, err := buildTopHolderPositions(contractAddr, rankings, rows)
+		result, err := buildTopHolderPositions(contractAddr, rankings, rows, "", "")
 		require.NoError(t, err)
 		require.Empty(t, result)
 	})
@@ -167,7 +167,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 			},
 		}
 
-		result, err := buildTopHolderPositions(contractAddr, rankings, rows)
+		result, err := buildTopHolderPositions(contractAddr, rankings, rows, "", "")
 		require.NoError(t, err)
 		require.Len(t, result, 2)
 		require.Equal(t, "user1", strVal(result[0].Position.Holder.Username))
@@ -242,7 +242,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 			},
 		}
 
-		result, err := buildTopHolderPositions(contractAddr, rankings, rows)
+		result, err := buildTopHolderPositions(contractAddr, rankings, rows, "", "")
 		require.NoError(t, err)
 
 		require.Len(t, result, 3)
