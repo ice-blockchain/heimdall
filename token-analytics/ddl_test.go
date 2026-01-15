@@ -817,6 +817,108 @@ func TestFeeTransfer(t *testing.T) {
 	})
 }
 
+func TestContractCreationTransaction(t *testing.T) {
+	t.Parallel()
+
+	db, release := helperCreateDB(t)
+	defer release()
+
+	ctx := t.Context()
+
+	t.Run("transaction with missing 'to' field uses zero address", func(t *testing.T) {
+		txHash := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+		blockTimestamp := uint64(1704110400) // 2024-01-01 12:00:00 UTC
+
+		transactionData := fmt.Sprintf(`{
+			"stream": "test-stream",
+			"transactions": [{
+				"chainId": "0x61",
+				"blockNumber": "12345678",
+				"hash": "%s",
+				"transactionIndex": "0x1",
+				"gas": "0x5208",
+				"gasPrice": "0x3b9aca00",
+				"nonce": "0x0",
+				"blockHash": "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+				"type": "0x0",
+				"value": "0x0",
+				"from": "0x1234567890123456789012345678901234567890",
+				"blockTimestamp": "%d",
+				"logs": []
+			}]
+		}`, txHash, blockTimestamp)
+
+		_, err := storage.Exec(ctx, db, `
+			INSERT INTO smart_contract_transactions(from_block_number, to_block_number, network, stream_id, data)
+			VALUES (12345678, 12345678, 'test-network', 'test-stream', $1::JSONB)
+		`, transactionData)
+		require.NoError(t, err)
+
+		type txResult struct {
+			TransactionHash string `db:"transaction_hash"`
+			ToAddress       string `db:"to_address"`
+			FromAddress     string `db:"from_address"`
+		}
+		res, err := storage.Get[txResult](ctx, db, `
+			SELECT transaction_hash, to_address, from_address
+			FROM transactions
+			WHERE transaction_hash = $1
+		`, txHash)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		require.Equal(t, txHash, res.TransactionHash)
+		require.Equal(t, "0x0000000000000000000000000000000000000000", res.ToAddress)
+		require.Equal(t, "0x1234567890123456789012345678901234567890", res.FromAddress)
+	})
+	t.Run("Contract creation with to null", func(t *testing.T) {
+		txHash := "0x04adf6c25184a223dd851857d5d6448cc7de7e849e6e7946330908e84743edda"
+		blockTimestamp := uint64(0x69675e58)
+
+		transactionData := fmt.Sprintf(`{
+			"stream": "bbe596bb-7872-4a0e-8149-bca558ad4e17",
+			"transactions": [{
+				"chainId": "0x61",
+				"blockNumber": "0x50730be",
+				"blockTimestamp": "%d",
+				"hash": "%s",
+				"transactionIndex": "0x0",
+				"gas": "0x52c26e",
+				"gasPrice": "0x2540be400",
+				"nonce": "0x2e6",
+				"blockHash": "0x9b80835ef228a360b157cd3d759fa60effd5e5dfc4223aab202c799e1ec077d4",
+				"to": null,
+				"type": "0x0",
+				"value": "0x0",
+				"from": "0x41e0385d6c933a11a705b93b04a728ad80c3a67c",
+				"input": "0x60a0604052",
+				"logs": []
+			}]
+		}`, blockTimestamp, txHash)
+
+		_, err := storage.Exec(ctx, db, `
+			INSERT INTO smart_contract_transactions(from_block_number, to_block_number, network, stream_id, data)
+			VALUES (84357310, 84357310, 'bnbchain-testnet', 'bbe596bb-7872-4a0e-8149-bca558ad4e17', $1::JSONB)
+		`, transactionData)
+		require.NoError(t, err)
+
+		type txResult struct {
+			TransactionHash string `db:"transaction_hash"`
+			ToAddress       string `db:"to_address"`
+			FromAddress     string `db:"from_address"`
+		}
+		res, err := storage.Get[txResult](ctx, db, `
+			SELECT transaction_hash, to_address, from_address
+			FROM transactions
+			WHERE transaction_hash = $1
+		`, txHash)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		require.Equal(t, txHash, res.TransactionHash)
+		require.Equal(t, "0x0000000000000000000000000000000000000000", res.ToAddress)
+		require.Equal(t, "0x41e0385d6c933a11a705b93b04a728ad80c3a67c", res.FromAddress)
+	})
+}
+
 func TestProcessBondedTokenCreated(t *testing.T) {
 	t.Parallel()
 
