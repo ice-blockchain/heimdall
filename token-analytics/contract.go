@@ -185,9 +185,9 @@ const (
 
 	bondingCurveTopHolderDisplayName = "Bonding Curve"
 	burnedTopHolderDisplayName       = "Burned"
-	// TODO: replace
-	bondingCurveTopHolderAvatar = "https://cdn.ice.io/online+/assets/coins/ion.svg"
-	burnedTopHolderAvatar       = "https://cdn.ice.io/online+/assets/coins/ion.svg"
+
+	bondingCurveTopHolderAvatar = "https://cdn.ice.io/online+/assets/coins/bondingCurve.svg"
+	burnedTopHolderAvatar       = "https://cdn.ice.io/online+/assets/coins/burned.svg"
 
 	fatAddressHeaderSize    = 64
 	feeDestinationCreator   = "creator"
