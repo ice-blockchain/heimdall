@@ -266,7 +266,7 @@ func (t *tokenAnalytics) buildTopPlatformHoldersFromRankings(row *tokenRowWithTo
 
 		amountWei := tokensToWeiBigInt(amountTokens)
 
-		holderAddresses, err := buildAddressesFromExternalAddressAndPlatform(strVal(holderMeta.HolderExternalAddress), strVal(holderMeta.HolderPlatform), "")
+		holderAddresses, err := buildUserAddressesFromExternalAddressAndPlatform(strVal(holderMeta.HolderExternalAddress), strVal(holderMeta.HolderPlatform), "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build holder addresses from external_address %s (platform %s): %w", strVal(holderMeta.HolderExternalAddress), strVal(holderMeta.HolderPlatform), err)
 		}

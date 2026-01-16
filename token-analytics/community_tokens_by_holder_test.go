@@ -187,6 +187,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		helperInsertTestUser(t, ctx, db, "holder_full", "holder_full", "Holder Full", "", false, PlatformGroupIonConnect)
 
 		tokenExt := "0:creator_full:"
+		creatorPubkey := "creator_full"
 		holderExtAddr := "0:holder_full:"
 		contractAddr := "0xFULL1111111111111111111111111111111111"
 
@@ -219,7 +220,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		require.True(t, token.Creator.Verified != nil && *token.Creator.Verified)
 		require.Equal(t, "https://avatar-full.png", strVal(token.Creator.Avatar))
 		require.NotNil(t, token.Creator.Addresses)
-		require.Equal(t, tokenExt, token.Creator.Addresses.IonConnect)
+		require.Equal(t, creatorPubkey, token.Creator.Addresses.IonConnect)
 
 		require.Equal(t, "FULL", token.MarketData.Ticker)
 		require.InDelta(t, 150.5, token.MarketData.MarketCap, 0.01)

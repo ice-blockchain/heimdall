@@ -222,7 +222,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 		if err != nil {
 			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", token.ExternalAddress, token.Platform, err)
 		}
-		creatorExternalAddresses, err := buildAddressesFromExternalAddressAndPlatform(strVal(token.CreatorExternalAddress), strVal(token.CreatorPlatform), strVal(token.CreatorBnbBscAddress))
+		creatorExternalAddresses, err := buildUserAddressesFromExternalAddressAndPlatform(strVal(token.CreatorExternalAddress), strVal(token.CreatorPlatform), strVal(token.CreatorBnbBscAddress))
 		if err != nil {
 			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", strVal(token.CreatorExternalAddress), strVal(token.CreatorPlatform), err)
 		}

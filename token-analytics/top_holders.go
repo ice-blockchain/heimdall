@@ -74,7 +74,7 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 
 	tokenMigrated := rows[0].BondingCurveMigrated
 	pairId := rows[0].PairId
-	creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(strVal(rows[0].CreatorExternalAddress), strVal(rows[0].CreatorPlatform), strVal(rows[0].CreatorBnbBscAddress))
+	creatorAddresses, err := buildUserAddressesFromExternalAddressAndPlatform(strVal(rows[0].CreatorExternalAddress), strVal(rows[0].CreatorPlatform), strVal(rows[0].CreatorBnbBscAddress))
 	if err != nil {
 		return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", strVal(rows[0].CreatorExternalAddress), strVal(rows[0].CreatorPlatform), err)
 	}
@@ -252,11 +252,11 @@ func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []
 		amountUSD := amountTokens * holderData.PriceUSD
 		supplyShare := calculateSupplyShare(amountTokens, totalSupplyFloat)
 
-		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(strVal(holderData.CreatorExternalAddress), strVal(holderData.CreatorPlatform), strVal(holderData.CreatorBnbBscAddress))
+		creatorAddresses, err := buildUserAddressesFromExternalAddressAndPlatform(strVal(holderData.CreatorExternalAddress), strVal(holderData.CreatorPlatform), strVal(holderData.CreatorBnbBscAddress))
 		if err != nil {
 			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", strVal(holderData.CreatorExternalAddress), strVal(holderData.CreatorPlatform), err)
 		}
-		holderAddresses, err := buildAddressesFromExternalAddressAndPlatform(userExternalAddress, strVal(holderData.HolderPlatform), "")
+		holderAddresses, err := buildUserAddressesFromExternalAddressAndPlatform(userExternalAddress, strVal(holderData.HolderPlatform), "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to build holder addresses from external_address %s (platform %s): %w", userExternalAddress, strVal(holderData.HolderPlatform), err)
 		}
