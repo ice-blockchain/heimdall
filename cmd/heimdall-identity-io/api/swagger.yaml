@@ -154,59 +154,6 @@ definitions:
   dfns.Asset:
     additionalProperties: {}
     type: object
-  github_com_ice-blockchain_heimdall_server.Response-accounts_CommunityTokenAdaptorResponse:
-    properties:
-      code:
-        type: integer
-      contentType:
-        type: string
-      data:
-        $ref: '#/definitions/accounts.CommunityTokenAdaptorResponse'
-      headers:
-        additionalProperties:
-          type: string
-        type: object
-      raw:
-        items:
-          format: int32
-          type: integer
-        type: array
-    type: object
-  github_com_ice-blockchain_heimdall_server.Response-any:
-    properties:
-      code:
-        type: integer
-      contentType:
-        type: string
-      data: {}
-      headers:
-        additionalProperties:
-          type: string
-        type: object
-      raw:
-        items:
-          format: int32
-          type: integer
-        type: array
-    type: object
-  github_com_ice-blockchain_heimdall_server.Response-main_CommunityPostPreviewResponse:
-    properties:
-      code:
-        type: integer
-      contentType:
-        type: string
-      data:
-        $ref: '#/definitions/main.CommunityPostPreviewResponse'
-      headers:
-        additionalProperties:
-          type: string
-        type: object
-      raw:
-        items:
-          format: int32
-          type: integer
-        type: array
-    type: object
   main.Coin:
     properties:
       contractAddress:
@@ -806,6 +753,59 @@ definitions:
         example: something is missing
         type: string
     type: object
+  server.Response-accounts_CommunityTokenAdaptorResponse:
+    properties:
+      code:
+        type: integer
+      contentType:
+        type: string
+      data:
+        $ref: '#/definitions/accounts.CommunityTokenAdaptorResponse'
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      raw:
+        items:
+          format: int32
+          type: integer
+        type: array
+    type: object
+  server.Response-any:
+    properties:
+      code:
+        type: integer
+      contentType:
+        type: string
+      data: {}
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      raw:
+        items:
+          format: int32
+          type: integer
+        type: array
+    type: object
+  server.Response-main_CommunityPostPreviewResponse:
+    properties:
+      code:
+        type: integer
+      contentType:
+        type: string
+      data:
+        $ref: '#/definitions/main.CommunityPostPreviewResponse'
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      raw:
+        items:
+          format: int32
+          type: integer
+        type: array
+    type: object
   time.Duration:
     enum:
     - -9223372036854775808
@@ -1198,7 +1198,7 @@ paths:
         "201":
           description: Created - returns the address (a tag) of the 31175 event
           schema:
-            $ref: '#/definitions/github_com_ice-blockchain_heimdall_server.Response-accounts_CommunityTokenAdaptorResponse'
+            $ref: '#/definitions/server.Response-accounts_CommunityTokenAdaptorResponse'
         "400":
           description: Bad request
           schema:
@@ -1510,7 +1510,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_ice-blockchain_heimdall_server.Response-any'
+            $ref: '#/definitions/server.Response-any'
         "400":
           description: Bad request
           schema:
@@ -2101,7 +2101,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_ice-blockchain_heimdall_server.Response-main_CommunityPostPreviewResponse'
+            $ref: '#/definitions/server.Response-main_CommunityPostPreviewResponse'
         "400":
           description: Bad request
           schema:
