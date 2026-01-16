@@ -22,6 +22,7 @@ import (
 	"github.com/ice-blockchain/heimdall/coins"
 	"github.com/ice-blockchain/heimdall/token-analytics/ddl"
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
+	"github.com/ice-blockchain/heimdall/token-analytics/internal/llm"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
 	appconfig "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
@@ -148,6 +149,7 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 		tradingStatsRecentData:      xsync.NewMap[string, *recentTradeStats](),
 		subscriptions:               newSubscriptions(ctx),
 		identityClient:              newIdentityClient(cfg.IdentityServiceURL, cfg.IdentityServiceAPIKey),
+		llmClient:                   llm.New(cfg.LLM),
 		coins:                       coinImport,
 		creatorTokenPricesUSD:       xsync.NewMap[string, float64](),
 		shutdown: func() error {
@@ -804,7 +806,7 @@ func initializeWorkersConfig(ctx context.Context, db *storage.DB, workers uint) 
 	return nil
 }
 
-func (t *tokenAnalytics) GenerateTokenSuggestion(content, creatorName, creatorUsername, creatorBio, creatorWebsite string) *SuggestCreationDetailsResponse {
+func (t *tokenAnalytics) GenerateTokenSuggestion(ctx context.Context, data *CreationDetailsData) *SuggestedCreationDetails {
 	tickerLength := 3 + randInt(4)
 	ticker := make([]byte, tickerLength)
 	for i := range ticker {
@@ -815,10 +817,10 @@ func (t *tokenAnalytics) GenerateTokenSuggestion(content, creatorName, creatorUs
 		}
 	}
 	var nameBase string
-	if creatorUsername != "" {
-		nameBase = creatorUsername
-	} else if creatorName != "" {
-		nameBase = creatorName
+	if data.Creator.Username != "" {
+		nameBase = data.Creator.Username
+	} else if data.Creator.Name != "" {
+		nameBase = data.Creator.Name
 	} else {
 		nameBase = "Token"
 	}
@@ -830,7 +832,7 @@ func (t *tokenAnalytics) GenerateTokenSuggestion(content, creatorName, creatorUs
 	seed := fmt.Sprintf("%s%d", string(ticker), time.Now().UnixNano())
 	picture := fmt.Sprintf("https://api.dicebear.com/7.x/%s/svg?seed=%s", avatarStyles[randInt(len(avatarStyles))], seed)
 
-	return &SuggestCreationDetailsResponse{
+	return &SuggestedCreationDetails{
 		Ticker:  string(ticker),
 		Name:    name,
 		Picture: picture,

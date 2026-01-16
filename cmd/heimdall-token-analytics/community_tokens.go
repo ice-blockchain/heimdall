@@ -81,16 +81,10 @@ type (
 		PostAuthorVerified        bool   `json:"postAuthorVerified,omitempty" example:"true"`
 		TokenImageUrl             string `json:"tokenImageUrl,omitempty" example:"https://example.com/token.png"`
 	}
-	SuggestCreationDetailsRequest struct {
-		Content string                        `json:"content" example:"some post text"`
-		Creator SuggestCreationDetailsCreator `json:"creator"`
-	}
-	SuggestCreationDetailsCreator struct {
-		Name     string `json:"name" example:"John Doe"`
-		Username string `json:"username" example:"jdoe"`
-		Bio      string `json:"bio" example:"Something"`
-		Website  string `json:"website" example:"https://some.website.example.com"`
-	}
+
+	SuggestCreationDetailsRequest  = ta.CreationDetailsData
+	SuggestCreationDetailsResponse = ta.SuggestedCreationDetails
+
 	GetOHLCVRequest struct {
 		PaginationRequest
 		OHLCVRequest
@@ -539,19 +533,18 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		SuggestCreationDetailsRequest	true	"Content and creator information"
-//	@Success		200		{object}	server.Response[ta.SuggestCreationDetailsResponse]
+//	@Success		200		{object}	server.Response[SuggestCreationDetailsResponse]
 //	@Failure		400		{object}	server.ResponseErrorBody	"if request body is invalid"
 //	@Failure		500		{object}	server.ResponseErrorBody
 //	@Failure		504		{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
 //	@Security		XCom
 //	@Router			/v1/community-tokens/suggest-creation-details [POST].
-func (s *service) SuggestCreationDetails(ctx context.Context, req *server.Request[SuggestCreationDetailsRequest]) (*server.Response[ta.SuggestCreationDetailsResponse], error) {
-	suggestion := s.tokenAnalytics.GenerateTokenSuggestion(req.Data.Content, req.Data.Creator.Name, req.Data.Creator.Username, req.Data.Creator.Bio, req.Data.Creator.Website)
+func (s *service) SuggestCreationDetails(ctx context.Context, req *server.Request[SuggestCreationDetailsRequest]) (*server.Response[SuggestCreationDetailsResponse], error) {
+	suggestion := s.tokenAnalytics.GenerateTokenSuggestion(ctx, req.Data)
 
-	return &server.Response[ta.SuggestCreationDetailsResponse]{
+	return &server.Response[SuggestCreationDetailsResponse]{
 		Data: suggestion,
-		Code: 200,
 	}, nil
 }
 

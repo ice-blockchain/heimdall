@@ -17,6 +17,7 @@ import (
 
 	"github.com/ice-blockchain/heimdall/coins"
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
+	"github.com/ice-blockchain/heimdall/token-analytics/internal/llm"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	storagev3 "github.com/ice-blockchain/wintr/connectors/storage/v3"
@@ -37,12 +38,6 @@ type (
 		IONConnectRelays []string `db:"ion_connect_relays"`
 		Verified         bool     `db:"verified"`
 		PlatformGroup    string   `db:"platform_group"`
-	}
-
-	SuggestCreationDetailsResponse struct {
-		Ticker  string `json:"ticker" example:"SOMETHING_COOL"`
-		Name    string `json:"name" example:"Something even cooler"`
-		Picture string `json:"picture" example:"https://example.com/some_cool_pic.webp"`
 	}
 
 	UserRepository interface {
@@ -83,7 +78,7 @@ type (
 			tokenExternalAddress, postAuthorExternalAddress, postAuthorUsername, postAuthorDisplayName, postAuthorAvatar string, postAuthorVerified bool,
 			userContentId, tokenImageUrl string) error
 		GetHolderPositions(ctx context.Context, tokenExternalAddress string, holderExternalAddresses []string) ([]*HolderPosition, error)
-		GenerateTokenSuggestion(content, creatorName, creatorUsername, creatorBio, creatorWebsite string) *SuggestCreationDetailsResponse
+		GenerateTokenSuggestion(ctx context.Context, data *CreationDetailsData) *SuggestedCreationDetails
 		GetBondingCurveProgress(ctx context.Context, externalAddress string) (*BondingCurveProgress, error)
 		SubscribeBondingCurveProgress(context.Context, string, func(*BondingCurveProgress, error)) error
 		GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount *big.Int) (amountInBase *big.Int, amountInBNB *big.Int, tokenPriceInUSD float64, ionPriceInUSD float64, bnbPriceInUSD float64, err error)
@@ -203,7 +198,8 @@ var (
 
 type (
 	config struct {
-		IONTokenAddress string `yaml:"ionTokenAddress"`
+		IONTokenAddress string     `yaml:"ionTokenAddress"`
+		LLM             llm.Config `yaml:"llm" mapstructure:"llm"`
 		BondingCurve    struct {
 			SmartContractAddress                string              `yaml:"smartContractAddress"`
 			BurnAddress                         string              `yaml:"burnAddress"`
@@ -238,6 +234,7 @@ type (
 		bnbPriceUSD           *atomic.Pointer[float64]
 		creatorTokenPricesUSD *xsync.Map[string, float64]
 		identityClient        *identityClient
+		llmClient             llm.Client
 		coins                 CoinImport
 		// TODO: xmap for latest creator token prices to calc content token price
 		bondingCurveContractAddress string
