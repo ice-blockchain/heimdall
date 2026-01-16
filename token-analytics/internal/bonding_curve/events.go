@@ -443,7 +443,7 @@ func migrated(signature, data, pairId string) (*LogMigrated, error) {
 	}
 	var migratedEvent LogMigrated
 	migratedEvent.PairId = common.HexToHash(pairId)
-	if err := decode(ABI, &migratedEvent, "Migrated", data); err != nil {
+	if err := decode(UniswapMigratorABI, &migratedEvent, "Migrated", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack Migrated event")
 	}
 	log.Debug(fmt.Sprintf("Migrated: pairId=%x", migratedEvent.PairId))
@@ -459,7 +459,7 @@ func liquidityClaimed(signature, data string) (*LogLiquidityClaimed, error) {
 		return nil, errors.Errorf("empty data for LiquidityClaimed event")
 	}
 	var liquidityClaimedEvent LogLiquidityClaimed
-	if err := decode(ABI, &liquidityClaimedEvent, "LiquidityClaimed", data); err != nil {
+	if err := decode(UniswapMigratorABI, &liquidityClaimedEvent, "LiquidityClaimed", data); err != nil {
 		return nil, errors.Wrapf(err, "failed to unpack LiquidityClaimed event")
 	}
 	log.Debug(fmt.Sprintf("Liquidity claimed: pairId=%x", liquidityClaimedEvent.PairId))

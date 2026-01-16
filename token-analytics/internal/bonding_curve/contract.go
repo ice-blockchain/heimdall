@@ -173,12 +173,15 @@ type (
 var (
 	ABI                abi.ABI
 	UniswapABI         abi.ABI
+	UniswapMigratorABI abi.ABI
 	UniswapPoolABI     abi.ABI
 	CustomHandleOpsABI abi.ABI
 	//go:embed .abi/bonding_curve.json
 	ABIJSON string
 	//go:embed .abi/IUniswapV3Factory.json
 	UniswapABIJSON string
+	//go:embed .abi/UniswapV3Migrator.json
+	UniswapMigratorABIJSON string
 	//go:embed .abi/IUniswapV3Pool.json
 	UniswapPoolABIJSON string
 	//go:embed .abi/CustomHandleOps.json
