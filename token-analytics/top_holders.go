@@ -91,17 +91,20 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 			userIsFromOnlinePlus = serverToken.Platform() == server.TokenTypeIonConnect
 		}
 	}
+	extraItemsEnriched := 0
 	if !tokenMigrated && userIsFromOnlinePlus {
 		if rows, result, err = t.enrichTopHoldersWithBongingCurve(ctx, pairId, externalAddress, rows, creator, limit, result); err != nil {
 			return nil, errors.Wrapf(err, "failed to enrich top holders with bonging curve for token %v", externalAddress)
 		}
+		extraItemsEnriched += 1
 	}
 	if userIsFromOnlinePlus {
 		if rows, result, err = t.enrichTopHoldersWithBurned(ctx, externalAddress, rows, creator, limit, result); err != nil {
 			return nil, errors.Wrapf(err, "failed to enrich top holders with burned for token %v", externalAddress)
 		}
+		extraItemsEnriched += 1
 	}
-	positions, err := buildTopHolderPositions(externalAddress, result, rows, t.cfg.BondingCurve.SmartContractAddress, t.cfg.BondingCurve.BurnAddress)
+	positions, err := buildTopHolderPositions(externalAddress, result, rows, t.cfg.BondingCurve.SmartContractAddress, t.cfg.BondingCurve.BurnAddress, extraItemsEnriched)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build top holder positions")
 	}
@@ -218,7 +221,7 @@ func (t *tokenAnalytics) enrichTopHoldersWithBongingCurve(ctx context.Context, p
 	return rows, result, nil
 }
 
-func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []*holderWithTokenData, bondingCurveContractAddress, burnAddress string) ([]*TopHolderPosition, error) {
+func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []*holderWithTokenData, bondingCurveContractAddress, burnAddress string, extraItemsEnriched int) ([]*TopHolderPosition, error) {
 	holderDataMap := make(map[string]*holderWithTokenData)
 	for i := range rows {
 		if rows[i].HolderExternalAddress != nil {
@@ -257,7 +260,11 @@ func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []
 		if err != nil {
 			return nil, fmt.Errorf("failed to build holder addresses from external_address %s (platform %s): %w", userExternalAddress, strVal(holderData.HolderPlatform), err)
 		}
-		r := uint64(rank + 1)
+		userRank := rank + 1 - extraItemsEnriched
+		if userRank <= 0 {
+			userRank = 1
+		}
+		r := uint64(userRank)
 		if userExternalAddress == bondingCurveContractAddress || userExternalAddress == burnAddress {
 			r = 0
 		}

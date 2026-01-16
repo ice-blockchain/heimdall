@@ -191,21 +191,24 @@ func (t *tokenAnalytics) SubscribeTradingStats(ctx context.Context, now stdlibti
 
 func (t *tokenAnalytics) SubscribeOHLVC(ctx context.Context, now stdlibtime.Time, externalAddress string, interval Interval, addToStream func(*OHLCV, error)) error {
 	swaps, _, _ := t.subscriptions.SubscribeOnSwaps(ctx, externalAddress)
-	candleStick, loaded := t.ohclvRecentData.LoadOrCompute(interval.String()+"_"+externalAddress, func() (newValue *recentCandlestick, cancel bool) {
-		return newRecentCandlestick(), false
-	})
+	candleStick, loaded := t.ohclvRecentData.Load(interval.String() + "_" + externalAddress)
 	if loaded {
-		addToStream(candleStick.OHLCV(), nil)
-	}
-	candleStick.SetInterval(ctx, interval)
-	go func() {
-		for _ = range swaps {
-			rec, ok := t.ohclvRecentData.Load(interval.String() + "_" + externalAddress)
-			if ok {
-				addToStream(rec.OHLCV(), nil)
-			}
+		o := candleStick.OHLCV()
+		if o.Empty() {
+			t.ohclvRecentData.Delete(interval.String() + "_" + externalAddress)
+		} else {
+			addToStream(o, nil)
 		}
-	}()
+		candleStick.SetInterval(ctx, interval)
+		go func() {
+			for _ = range swaps {
+				rec, ok := t.ohclvRecentData.Load(interval.String() + "_" + externalAddress)
+				if ok {
+					addToStream(rec.OHLCV(), nil)
+				}
+			}
+		}()
+	}
 	return nil
 }
 
