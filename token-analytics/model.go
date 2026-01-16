@@ -168,6 +168,17 @@ func IsContentType(tokenType string) bool {
 	return tokenType == TokenTypePost || tokenType == TokenTypeVideo || tokenType == TokenTypeArticle
 }
 
+func buildUserAddressesFromExternalAddressAndPlatform(externalAddress, platform string, bnbBscAddress string, ionConnectAddress ...string) (*Addresses, error) {
+	userExternalAddress := externalAddress
+	if platform == PlatformGroupIonConnect {
+		parts := strings.Split(externalAddress, ":")
+		if len(parts) >= 2 && parts[0] == "0" {
+			userExternalAddress = parts[1]
+		}
+	}
+	return buildAddressesFromExternalAddressAndPlatform(userExternalAddress, platform, bnbBscAddress, ionConnectAddress...)
+}
+
 func buildAddressesFromExternalAddressAndPlatform(externalAddress, platform string, bnbBscAddress string, ionConnectAddress ...string) (*Addresses, error) {
 	ionConnect := ""
 	if len(ionConnectAddress) > 0 && ionConnectAddress[0] != "" {

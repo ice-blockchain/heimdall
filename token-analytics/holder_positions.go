@@ -76,7 +76,7 @@ func (t *tokenAnalytics) GetHolderPositions(ctx context.Context, tokenExternalAd
 		if r, ok := rankings[extAddr]; ok {
 			rank = uint64(r)
 		}
-		holderAddresses, err := buildAddressesFromExternalAddressAndPlatform(strVal(row.ExternalAddress), strVal(row.Platform), "")
+		holderAddresses, err := buildUserAddressesFromExternalAddressAndPlatform(strVal(row.ExternalAddress), strVal(row.Platform), "")
 		if err != nil {
 			log.Warn(fmt.Sprintf("failed to build holder addresses from external_address %s (platform %s): %v", extAddr, strVal(row.Platform), err))
 

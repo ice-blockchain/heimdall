@@ -101,11 +101,11 @@ func convertSwapsToTrades(swaps []*tokenSwap) (trades []*Trade, maxTs time.Time)
 			log.Warn(fmt.Sprintf("failed to parse balance wei for swap %s: %v", swaps[i].TransactionHash, swaps[i].Balance))
 			balanceWei = big.NewInt(0)
 		}
-		creatorAddresses, err := buildAddressesFromExternalAddressAndPlatform(strVal(swaps[i].CreatorExternalAddress), strVal(swaps[i].CreatorPlatform), strVal(swaps[i].CreatorBnbBscAddress))
+		creatorAddresses, err := buildUserAddressesFromExternalAddressAndPlatform(strVal(swaps[i].CreatorExternalAddress), strVal(swaps[i].CreatorPlatform), strVal(swaps[i].CreatorBnbBscAddress))
 		if err != nil {
 			log.Warn(fmt.Sprintf("failed to build creator addresses for swap %s: %v", swaps[i].TransactionHash, err))
 		}
-		holderAddresses, err := buildAddressesFromExternalAddressAndPlatform(holderExternalAddress, strVal(swaps[i].HolderPlatform), "")
+		holderAddresses, err := buildUserAddressesFromExternalAddressAndPlatform(holderExternalAddress, strVal(swaps[i].HolderPlatform), "")
 		if err != nil {
 			log.Warn(fmt.Sprintf("failed to build holder addresses for swap %s: %v", swaps[i].TransactionHash, err))
 		}
