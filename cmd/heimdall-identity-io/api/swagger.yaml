@@ -187,25 +187,10 @@ definitions:
       version:
         type: integer
     type: object
-  main.CommunityPostAuthor:
-    properties:
-      avatar:
-        example: https://example.com/something.webp
-        type: string
-      displayName:
-        example: Mahmut Ali Jahad
-        type: string
-      name:
-        example: mahmutalijahad
-        type: string
-      verified:
-        example: true
-        type: boolean
-    type: object
   main.CommunityPostPreviewResponse:
     properties:
       author:
-        $ref: '#/definitions/main.CommunityPostAuthor'
+        $ref: '#/definitions/relaymanagement.CommunityPostAuthor'
       comments:
         example: 12
         type: integer
@@ -221,7 +206,7 @@ definitions:
         type: integer
       media:
         items:
-          $ref: '#/definitions/main.PostMedia'
+          $ref: '#/definitions/relaymanagement.PostMedia'
         type: array
       onlinePlusDeeplink:
         example: online.app://some/path/to/0xD76b5c2A23ef78368d8E34288B5b65D616B746aE
@@ -391,18 +376,6 @@ definitions:
         type: boolean
       tier:
         type: integer
-    type: object
-  main.PostMedia:
-    properties:
-      thumbnail:
-        example: https://example.com/image-preview.jpg
-        type: string
-      type:
-        example: video
-        type: string
-      url:
-        example: https://example.com/image.jpg
-        type: string
     type: object
   main.RegistrationChallenge:
     additionalProperties: {}
@@ -733,6 +706,33 @@ definitions:
         allOf:
         - $ref: '#/definitions/nftcontent.NFTContentType'
         example: Content
+    type: object
+  relaymanagement.CommunityPostAuthor:
+    properties:
+      avatar:
+        example: https://example.com/something.webp
+        type: string
+      displayName:
+        example: Mahmut Ali Jahad
+        type: string
+      name:
+        example: mahmutalijahad
+        type: string
+      verified:
+        example: true
+        type: boolean
+    type: object
+  relaymanagement.PostMedia:
+    properties:
+      thumbnail:
+        example: https://example.com/image-preview.jpg
+        type: string
+      type:
+        example: video
+        type: string
+      url:
+        example: https://example.com/image.jpg
+        type: string
     type: object
   relaymanagement.UserAssignedRelay:
     properties:

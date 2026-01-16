@@ -53,7 +53,7 @@ type (
 		IsUserVerified(ctx context.Context, masterPubKey string) (bool, []*model.Event, error)
 		HealthCheck(ctx context.Context) error
 		PublicKey() string
-		InitializeIdentityKeypairs(ctx context.Context) error
+		InitializeIdentityKeypairs(ctx context.Context, keyPairConsumer ...KeyPairConsumer) error
 		CreateCommunityTokenAdaptor(ctx context.Context, platform, postID string) (*CommunityTokenAdaptorResponse, error)
 		CompleteRegistration(ctx context.Context, credentials *Credentials) (CompletedRegistration, error)
 		InitRegistration(ctx context.Context, identityKeyName string, earlyAccessEmail string) (*RegistrationChallenge, error)
@@ -61,9 +61,14 @@ type (
 		GetNSFWAccounts(ctx context.Context, currentVer uint64) ([]string, uint64, error)
 		VerifyEarlyAccess(ctx context.Context, email string) error
 		UpsertDeeplink(ctx context.Context, eventAddress, deeplink string) error
+		GetDeeplink(ctx context.Context, eventAddress string) (string, error)
 		SocialProfiles
 		Devices
 	}
+	KeyPairConsumer interface {
+		SetKeyPair(kp interface{ PrivKey() string })
+	}
+
 	VerifiedUsersSync interface {
 		io.Closer
 		ProcessNextVerifiedUsersQueue(ctx context.Context) error

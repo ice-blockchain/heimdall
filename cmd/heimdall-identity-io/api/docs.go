@@ -3166,32 +3166,11 @@ const docTemplate = `{
                 }
             }
         },
-        "main.CommunityPostAuthor": {
-            "type": "object",
-            "properties": {
-                "avatar": {
-                    "type": "string",
-                    "example": "https://example.com/something.webp"
-                },
-                "displayName": {
-                    "type": "string",
-                    "example": "Mahmut Ali Jahad"
-                },
-                "name": {
-                    "type": "string",
-                    "example": "mahmutalijahad"
-                },
-                "verified": {
-                    "type": "boolean",
-                    "example": true
-                }
-            }
-        },
         "main.CommunityPostPreviewResponse": {
             "type": "object",
             "properties": {
                 "author": {
-                    "$ref": "#/definitions/main.CommunityPostAuthor"
+                    "$ref": "#/definitions/relaymanagement.CommunityPostAuthor"
                 },
                 "comments": {
                     "type": "integer",
@@ -3212,7 +3191,7 @@ const docTemplate = `{
                 "media": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/main.PostMedia"
+                        "$ref": "#/definitions/relaymanagement.PostMedia"
                     }
                 },
                 "onlinePlusDeeplink": {
@@ -3466,23 +3445,6 @@ const docTemplate = `{
                 },
                 "tier": {
                     "type": "integer"
-                }
-            }
-        },
-        "main.PostMedia": {
-            "type": "object",
-            "properties": {
-                "thumbnail": {
-                    "type": "string",
-                    "example": "https://example.com/image-preview.jpg"
-                },
-                "type": {
-                    "type": "string",
-                    "example": "video"
-                },
-                "url": {
-                    "type": "string",
-                    "example": "https://example.com/image.jpg"
                 }
             }
         },
@@ -3971,6 +3933,44 @@ const docTemplate = `{
                         }
                     ],
                     "example": "Content"
+                }
+            }
+        },
+        "relaymanagement.CommunityPostAuthor": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string",
+                    "example": "https://example.com/something.webp"
+                },
+                "displayName": {
+                    "type": "string",
+                    "example": "Mahmut Ali Jahad"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "mahmutalijahad"
+                },
+                "verified": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "relaymanagement.PostMedia": {
+            "type": "object",
+            "properties": {
+                "thumbnail": {
+                    "type": "string",
+                    "example": "https://example.com/image-preview.jpg"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "video"
+                },
+                "url": {
+                    "type": "string",
+                    "example": "https://example.com/image.jpg"
                 }
             }
         },

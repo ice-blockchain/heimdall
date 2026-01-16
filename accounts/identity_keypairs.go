@@ -52,7 +52,11 @@ var (
 	keypairCounter atomic.Uint64
 )
 
-func (a *accounts) InitializeIdentityKeypairs(ctx context.Context) error {
+func (kp *keypairData) PrivKey() string {
+	return kp.PrivateKey
+}
+
+func (a *accounts) InitializeIdentityKeypairs(ctx context.Context, kpConsumers ...KeyPairConsumer) error {
 	if len(a.cfg.IdentityKeypairs) == 0 {
 		log.Info("No identity keypairs configured, skipping initialization")
 
@@ -132,7 +136,9 @@ func (a *accounts) InitializeIdentityKeypairs(ctx context.Context) error {
 		}
 		log.Info(fmt.Sprintf("Identity keypair %d initialized: %s (relay group: %s, relay: %s, user: %s)", i, kp.PublicKey, kp.RelayGroup, kp.WriteRelayURL, kp.UserID))
 	}
-
+	for _, kpConsumer := range kpConsumers {
+		kpConsumer.SetKeyPair(&keypairs[0])
+	}
 	return nil
 }
 
