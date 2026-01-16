@@ -12,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/ice-blockchain/heimdall/cmd/heimdall-token-analytics/server"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 )
@@ -85,25 +84,17 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 		Avatar:    rows[0].CreatorAvatar,
 		Addresses: creatorAddresses,
 	}
-	userIsFromOnlinePlus := false
-	if token := ctx.Value("token"); token != nil {
-		if serverToken, ok := token.(server.Token); ok {
-			userIsFromOnlinePlus = serverToken.Platform() == server.TokenTypeIonConnect
-		}
-	}
 	extraItemsEnriched := 0
-	if !tokenMigrated && userIsFromOnlinePlus {
+	if !tokenMigrated {
 		if rows, result, err = t.enrichTopHoldersWithBongingCurve(ctx, pairId, externalAddress, rows, creator, limit, result); err != nil {
 			return nil, errors.Wrapf(err, "failed to enrich top holders with bonging curve for token %v", externalAddress)
 		}
 		extraItemsEnriched += 1
 	}
-	if userIsFromOnlinePlus {
-		if rows, result, err = t.enrichTopHoldersWithBurned(ctx, externalAddress, rows, creator, limit, result); err != nil {
-			return nil, errors.Wrapf(err, "failed to enrich top holders with burned for token %v", externalAddress)
-		}
-		extraItemsEnriched += 1
+	if rows, result, err = t.enrichTopHoldersWithBurned(ctx, externalAddress, rows, creator, limit, result); err != nil {
+		return nil, errors.Wrapf(err, "failed to enrich top holders with burned for token %v", externalAddress)
 	}
+	extraItemsEnriched += 1
 	positions, err := buildTopHolderPositions(externalAddress, result, rows, t.cfg.BondingCurve.SmartContractAddress, t.cfg.BondingCurve.BurnAddress, extraItemsEnriched)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build top holder positions")

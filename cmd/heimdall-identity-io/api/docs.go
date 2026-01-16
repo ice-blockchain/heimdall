@@ -559,7 +559,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created - returns the address (a tag) of the 31175 event",
                         "schema": {
-                            "$ref": "#/definitions/github_com_ice-blockchain_heimdall_server.Response-accounts_CommunityTokenAdaptorResponse"
+                            "$ref": "#/definitions/server.Response-accounts_CommunityTokenAdaptorResponse"
                         }
                     },
                     "400": {
@@ -1021,7 +1021,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_ice-blockchain_heimdall_server.Response-any"
+                            "$ref": "#/definitions/server.Response-any"
                         }
                     },
                     "400": {
@@ -2065,7 +2065,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_ice-blockchain_heimdall_server.Response-main_CommunityPostPreviewResponse"
+                            "$ref": "#/definitions/server.Response-main_CommunityPostPreviewResponse"
                         }
                     },
                     "400": {
@@ -3116,85 +3116,6 @@ const docTemplate = `{
             "type": "object",
             "additionalProperties": {}
         },
-        "github_com_ice-blockchain_heimdall_server.Response-accounts_CommunityTokenAdaptorResponse": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "integer"
-                },
-                "contentType": {
-                    "type": "string"
-                },
-                "data": {
-                    "$ref": "#/definitions/accounts.CommunityTokenAdaptorResponse"
-                },
-                "headers": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "raw": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer",
-                        "format": "int32"
-                    }
-                }
-            }
-        },
-        "github_com_ice-blockchain_heimdall_server.Response-any": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "integer"
-                },
-                "contentType": {
-                    "type": "string"
-                },
-                "data": {},
-                "headers": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "raw": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer",
-                        "format": "int32"
-                    }
-                }
-            }
-        },
-        "github_com_ice-blockchain_heimdall_server.Response-main_CommunityPostPreviewResponse": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "integer"
-                },
-                "contentType": {
-                    "type": "string"
-                },
-                "data": {
-                    "$ref": "#/definitions/main.CommunityPostPreviewResponse"
-                },
-                "headers": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "raw": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer",
-                        "format": "int32"
-                    }
-                }
-            }
-        },
         "main.Coin": {
             "type": "object",
             "properties": {
@@ -4078,6 +3999,85 @@ const docTemplate = `{
                 "error": {
                     "type": "string",
                     "example": "something is missing"
+                }
+            }
+        },
+        "server.Response-accounts_CommunityTokenAdaptorResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "contentType": {
+                    "type": "string"
+                },
+                "data": {
+                    "$ref": "#/definitions/accounts.CommunityTokenAdaptorResponse"
+                },
+                "headers": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "raw": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            }
+        },
+        "server.Response-any": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "contentType": {
+                    "type": "string"
+                },
+                "data": {},
+                "headers": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "raw": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            }
+        },
+        "server.Response-main_CommunityPostPreviewResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "contentType": {
+                    "type": "string"
+                },
+                "data": {
+                    "$ref": "#/definitions/main.CommunityPostPreviewResponse"
+                },
+                "headers": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "raw": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
                 }
             }
         },
