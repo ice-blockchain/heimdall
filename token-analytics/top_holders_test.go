@@ -89,12 +89,12 @@ func Test_buildTopHolderPositions(t *testing.T) {
 		require.Equal(t, "1000500000000000000", result[0].Position.Amount) // 1.0005 tokens * 1e18
 		require.Equal(t, 1.50075, result[0].Position.AmountUSD)            // 1.0005 tokens * 1.5 USD
 		require.Equal(t, 1.0005, result[0].Position.SupplyShare)           // 1.0005 / 100 * 100
-		require.Equal(t, "0:pubkey1:", result[0].Position.Holder.Addresses.IonConnect)
+		require.Equal(t, "pubkey1", result[0].Position.Holder.Addresses.IonConnect)
 		require.True(t, *result[0].Position.Holder.Verified)
 
 		require.Equal(t, "creator_user", strVal(result[0].Creator.Username))
 		require.Equal(t, "Creator Name", strVal(result[0].Creator.Display))
-		require.Equal(t, "0:creator_ext:", result[0].Creator.Addresses.IonConnect)
+		require.Equal(t, "creator_ext", result[0].Creator.Addresses.IonConnect)
 		require.True(t, *result[0].Creator.Verified)
 
 		require.Equal(t, uint64(2), result[1].Position.Rank)

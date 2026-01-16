@@ -208,7 +208,7 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 		require.True(t, tokens[0].Creator.Verified != nil && *tokens[0].Creator.Verified)
 		require.NotEmpty(t, tokens[0].Creator.Avatar)
 		require.NotNil(t, tokens[0].Creator.Addresses)
-		require.Equal(t, "0:vs_creator1:", tokens[0].Creator.Addresses.IonConnect)
+		require.Equal(t, "vs_creator1", tokens[0].Creator.Addresses.IonConnect)
 
 		require.InDelta(t, 500.0, tokens[0].MarketData.MarketCap, 1.0, "Market cap from Redis top set")
 		require.InDelta(t, 1000.0, tokens[0].MarketData.Volume, 1.0, "Volume from trending set")

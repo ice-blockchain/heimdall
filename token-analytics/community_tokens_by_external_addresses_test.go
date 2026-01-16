@@ -40,6 +40,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		helperInsertTestUser(t, ctx, db, "requestor_basic", "charlie_basic", "Charlie Basic", "", false, PlatformGroupIonConnect)
 
 		token1Ext := "0:creator_basic:"
+		creatorBasic := "creator_basic"
 		helperInsertTestToken(t, ctx, db,
 			"0xBASIC1111111111111111111111111111111111",
 			token1Ext,
@@ -75,7 +76,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		require.Equal(t, "https://avatar1.png", strVal(token.Creator.Avatar))
 		require.True(t, token.Creator.Verified != nil && *token.Creator.Verified)
 		require.NotNil(t, token.Creator.Addresses, "Creator addresses should not be nil")
-		require.Equal(t, token1Ext, token.Creator.Addresses.IonConnect)
+		require.Equal(t, creatorBasic, token.Creator.Addresses.IonConnect)
 		require.Empty(t, token.Creator.Addresses.Twitter)
 
 		require.Equal(t, "BASIC1", token.MarketData.Ticker)
@@ -141,6 +142,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		helperInsertTestUser(t, ctx, db, "requestor_pos", "charlie_pos", "Charlie Pos", "", false, PlatformGroupIonConnect)
 
 		tokenExt := "0:creator_pos:"
+		creatorPos := "creator_pos"
 		helperInsertTestToken(t, ctx, db,
 			"0xPOS11111111111111111111111111111111111",
 			tokenExt,
@@ -200,7 +202,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		require.Equal(t, "alice_pos", strVal(token.Creator.Username))
 		require.Equal(t, "Alice Pos", strVal(token.Creator.Display))
 		require.True(t, token.Creator.Verified != nil && *token.Creator.Verified)
-		require.Equal(t, tokenExt, token.Creator.Addresses.IonConnect)
+		require.Equal(t, creatorPos, token.Creator.Addresses.IonConnect)
 
 		require.Equal(t, "POS1", token.MarketData.Ticker)
 		require.InDelta(t, 100.0, token.MarketData.MarketCap, 0.01)
@@ -919,7 +921,7 @@ func TestGetCommunityTokensWithTopPlatformHolders_WithAndWithoutKeyword(t *testi
 		require.Equal(t, "Holder TPH One", strVal(holder1.Holder.Display))
 		require.True(t, holder1.Holder.Verified == nil || !*holder1.Holder.Verified)
 		require.NotEmpty(t, holder1.Holder.Avatar)
-		require.Equal(t, "0:holder_tph1:", holder1.Holder.Addresses.IonConnect)
+		require.Equal(t, "holder_tph1", holder1.Holder.Addresses.IonConnect)
 		require.Equal(t, uint64(1), holder1.Rank)
 		require.Equal(t, "5000000000000000000000", holder1.Amount)
 		require.InDelta(t, 0.5, holder1.AmountUSD, 0.01, "5000 * 0.0001 = 0.5")
@@ -930,7 +932,7 @@ func TestGetCommunityTokensWithTopPlatformHolders_WithAndWithoutKeyword(t *testi
 		require.Equal(t, "Holder TPH Two", strVal(holder2.Holder.Display))
 		require.True(t, holder2.Holder.Verified != nil && *holder2.Holder.Verified)
 		require.NotEmpty(t, holder2.Holder.Avatar)
-		require.Equal(t, "0:holder_tph2:", holder2.Holder.Addresses.IonConnect)
+		require.Equal(t, "holder_tph2", holder2.Holder.Addresses.IonConnect)
 		require.Equal(t, uint64(2), holder2.Rank)
 		require.Equal(t, "3000000000000000000000", holder2.Amount)
 		require.InDelta(t, 0.3, holder2.AmountUSD, 0.01, "3000 * 0.0001 = 0.3")
@@ -951,7 +953,7 @@ func TestGetCommunityTokensWithTopPlatformHolders_WithAndWithoutKeyword(t *testi
 		require.Equal(t, "Holder TPH One", strVal(holder1.Holder.Display))
 		require.True(t, holder1.Holder.Verified == nil || !*holder1.Holder.Verified)
 		require.NotEmpty(t, holder1.Holder.Avatar)
-		require.Equal(t, "0:holder_tph1:", holder1.Holder.Addresses.IonConnect)
+		require.Equal(t, "holder_tph1", holder1.Holder.Addresses.IonConnect)
 		require.Equal(t, uint64(1), holder1.Rank)
 		require.Equal(t, "5000000000000000000000", holder1.Amount)
 		require.InDelta(t, 0.5, holder1.AmountUSD, 0.01)
@@ -962,7 +964,7 @@ func TestGetCommunityTokensWithTopPlatformHolders_WithAndWithoutKeyword(t *testi
 		require.Equal(t, "Holder TPH Two", strVal(holder2.Holder.Display))
 		require.True(t, holder2.Holder.Verified != nil && *holder2.Holder.Verified)
 		require.NotEmpty(t, holder2.Holder.Avatar)
-		require.Equal(t, "0:holder_tph2:", holder2.Holder.Addresses.IonConnect)
+		require.Equal(t, "holder_tph2", holder2.Holder.Addresses.IonConnect)
 		require.Equal(t, uint64(2), holder2.Rank)
 		require.Equal(t, "3000000000000000000000", holder2.Amount)
 		require.InDelta(t, 0.3, holder2.AmountUSD, 0.01)
@@ -1035,7 +1037,7 @@ func TestGetCommunityTokensByExternalAddresses_WithTopPlatformHolders(t *testing
 		require.Equal(t, "Holder One", strVal(holder1.Holder.Display))
 		require.True(t, holder1.Holder.Verified == nil || !*holder1.Holder.Verified)
 		require.NotEmpty(t, holder1.Holder.Avatar)
-		require.Equal(t, "0:holder1_top:", holder1.Holder.Addresses.IonConnect)
+		require.Equal(t, "holder1_top", holder1.Holder.Addresses.IonConnect)
 		require.Equal(t, uint64(1), holder1.Rank)
 		require.Equal(t, "5000000000000000000000", holder1.Amount)
 		require.InDelta(t, 0.5, holder1.AmountUSD, 0.01, "5000 * 0.0001 = 0.5")
@@ -1046,7 +1048,7 @@ func TestGetCommunityTokensByExternalAddresses_WithTopPlatformHolders(t *testing
 		require.Equal(t, "Holder Two", strVal(holder2.Holder.Display))
 		require.True(t, holder2.Holder.Verified == nil || !*holder2.Holder.Verified)
 		require.NotEmpty(t, holder2.Holder.Avatar)
-		require.Equal(t, "0:holder2_top:", holder2.Holder.Addresses.IonConnect)
+		require.Equal(t, "holder2_top", holder2.Holder.Addresses.IonConnect)
 		require.Equal(t, uint64(2), holder2.Rank)
 		require.Equal(t, "3000000000000000000000", holder2.Amount)
 		require.InDelta(t, 0.3, holder2.AmountUSD, 0.01, "3000 * 0.0001 = 0.3")
@@ -1152,7 +1154,7 @@ func TestGetCommunityTokensByPlatform(t *testing.T) {
 		require.Equal(t, ionUsername, strVal(token.Creator.Username))
 		require.Equal(t, ionDisplay, strVal(token.Creator.Display))
 		require.True(t, token.Creator.Verified != nil && *token.Creator.Verified)
-		require.Equal(t, tokenExt, token.Creator.Addresses.IonConnect)
+		require.Equal(t, ionMasterPubkey, token.Creator.Addresses.IonConnect)
 		require.Empty(t, token.Creator.Addresses.Twitter)
 
 		require.Empty(t, token.Creator.Addresses.Blockchain, "IonConnect creator should NOT have blockchain address")
