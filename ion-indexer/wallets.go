@@ -69,10 +69,12 @@ func (i *indexer) listTransactions(ctx context.Context, walletId, walletAddress 
 					fullTx, err := i.TxByHash(ctx, history["txHash"].(string), network, walletId, walletAddress)
 					if err != nil {
 						log.Error(errors.Wrapf(err, "failed to fetch tx by hash %v from ion indexer", tx.Hash))
+						return
 					}
 					incomingMessageHash, err := base64.StdEncoding.DecodeString(fullTx.InMsg.Hash)
 					if err != nil {
 						log.Error(errors.Wrapf(err, "malformed tx from indexer, failed to decode in msg hash %v", tx.Hash))
+						return
 					}
 					updatedExternalHashes <- txHashWithExtHash{
 						txHash:         history["txHash"].(string),
