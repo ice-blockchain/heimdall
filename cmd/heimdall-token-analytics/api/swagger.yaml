@@ -71,6 +71,11 @@ definitions:
       contentId:
         example: external address of the content
         type: string
+      contentImages:
+        description: Base64-encoded images from the post.
+        items:
+          type: string
+        type: array
       contentVideoFrames:
         description: Base64-encoded video frames.
         items:

@@ -138,6 +138,7 @@ type (
 		Creator            CreationDetailsCreator `json:"creator"`
 		ContentID          string                 `json:"contentId" example:"external address of the content"`
 		ContentVideoFrames []string               `json:"contentVideoFrames,omitempty"` // Base64-encoded video frames.
+		ContentImages      []string               `json:"contentImages,omitempty"`      // Base64-encoded images from the post.
 	}
 	CreationDetailsCreator struct {
 		Name     string `json:"name" example:"John Doe"`

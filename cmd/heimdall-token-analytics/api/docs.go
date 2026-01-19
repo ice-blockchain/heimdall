@@ -1847,6 +1847,13 @@ const docTemplate = `{
                     "type": "string",
                     "example": "external address of the content"
                 },
+                "contentImages": {
+                    "description": "Base64-encoded images from the post.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "contentVideoFrames": {
                     "description": "Base64-encoded video frames.",
                     "type": "array",
