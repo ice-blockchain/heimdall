@@ -123,9 +123,6 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 		ingestedDataDB:  db,
 		processedDataDB: targetDB,
 	})
-	if err := balanceQueue.Start(ctx); err != nil {
-		log.Panic(errors.Wrap(err, "failed to start balance update queue"))
-	}
 
 	t := &tokenAnalytics{
 		bondingCurveContractAddress: cfg.BondingCurve.SmartContractAddress,
@@ -155,6 +152,9 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 				errors.Wrapf(questDB.Close(shutdownCtx), "failed to close questdb"),
 			)
 		},
+	}
+	if err := balanceQueue.Start(ctx); err != nil {
+		log.Panic(errors.Wrap(err, "failed to start balance update queue"))
 	}
 	t.ionPriceUSD = new(atomic.Pointer[float64])
 	t.bnbPriceUSD = new(atomic.Pointer[float64])

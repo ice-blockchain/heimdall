@@ -32,28 +32,33 @@ func (c *DB) Ping(ctx context.Context) error {
 	return c.db.Ping(ctx, storage.PingWithoutWriteCheck())
 }
 
-func mustConnectWithConfig(ctx context.Context, cfg *config) *DB {
-	if !strings.Contains(cfg.QuestDB.WriteURL, "username=") {
-		cfg.QuestDB.WriteURL += fmt.Sprintf(";username=%v", cfg.QuestDB.User)
+func MustConnectWithConfig(ctx context.Context, connCfg *ConnectionConfig) *DB {
+	writeURL := connCfg.WriteURL
+	if !strings.Contains(writeURL, "username=") {
+		writeURL += fmt.Sprintf(";username=%v", connCfg.User)
 	}
-	if !strings.Contains(cfg.QuestDB.WriteURL, "password=") {
-		cfg.QuestDB.WriteURL += fmt.Sprintf(";password=%v", cfg.QuestDB.Password)
+	if !strings.Contains(writeURL, "password=") {
+		writeURL += fmt.Sprintf(";password=%v", connCfg.Password)
 	}
 
-	questdbConn, err := questdb.PoolFromConf(cfg.QuestDB.WriteURL)
+	questdbConn, err := questdb.PoolFromConf(writeURL)
 	if err != nil {
 		log.Panic(errors.Wrapf(err, "failed to connect questdb (influx)"))
 	}
 
-	if cfg.QuestDB.PostgresConn != nil {
+	if connCfg.PostgresConn != nil {
 		// Skip settings verification for QuestDB Postgres connector as it does not support them all.
-		cfg.QuestDB.PostgresConn.SkipSettingsVerification = true
+		connCfg.PostgresConn.SkipSettingsVerification = true
 	}
-	pgxConn := storage.MustConnectWithCfg(ctx, cfg.QuestDB.PostgresConn, storage.NewStringDDL(DDL))
+	pgxConn := storage.MustConnectWithCfg(ctx, connCfg.PostgresConn, storage.NewStringDDL(ddl))
 	return &DB{
 		db:     pgxConn,
 		writer: questdbConn,
 	}
+}
+
+func mustConnectWithConfig(ctx context.Context, cfg *config) *DB {
+	return MustConnectWithConfig(ctx, &cfg.QuestDB)
 }
 
 func MustConnect(ctx context.Context, applicationYamlKey string) *DB {

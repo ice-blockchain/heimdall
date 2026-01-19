@@ -350,7 +350,10 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 		}
 
 		newBalanceWei := new(big.Float).Mul(big.NewFloat(newScore), big.NewFloat(1e18))
-		newBalanceBigInt, _ := newBalanceWei.Int(nil)
+		newBalanceBigInt, accuracy := newBalanceWei.Int(nil)
+		if accuracy != big.Exact {
+			log.Warn(fmt.Sprintf("Dummy data: Float to Int conversion lost precision (accuracy=%v) for newScore=%.2f, user=%s", accuracy, newScore, userBlockchainAddress))
+		}
 		if newBalanceBigInt.Sign() < 0 {
 			log.Debug(fmt.Sprintf("Dummy data: NEGATIVE DETECTED! Setting to 0. Was: %s, newScore=%.2f, user=%s", newBalanceBigInt.String(), newScore, userBlockchainAddress))
 
@@ -364,7 +367,7 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 	}
 
 	if err := t.balanceUpdateQueue.Push(ctx, jobArgs); err != nil {
-		log.Error(errors.Wrapf(err, "failed to enqueue balance update job for tx %v", tx.TransactionHash))
+		return errors.Wrapf(err, "failed to enqueue balance update job for tx %v", tx.TransactionHash)
 	}
 
 	totalSupplyBig := new(big.Int)

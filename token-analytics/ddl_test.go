@@ -16,7 +16,6 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/puzpuzpuz/xsync/v4"
-	questdbclient "github.com/questdb/go-questdb-client/v4"
 	"github.com/rcrowley/go-metrics"
 	"github.com/stretchr/testify/require"
 
@@ -117,23 +116,16 @@ func mustConnectQuestDBForTest(ctx context.Context) *questdb.DB {
 		panic("QuestDB container not initialized")
 	}
 
-	questDBConn, err := questdbclient.PoolFromConf(testQuestDBContainer.AddressHTTP)
-	if err != nil {
-		panic(fmt.Sprintf("failed to connect to QuestDB HTTP: %v", err))
-	}
-
-	pgxConn := storage.MustConnectWithCfg(ctx,
-		&storage.Cfg{
+	return questdb.MustConnectWithConfig(ctx, &questdb.ConnectionConfig{
+		WriteURL: testQuestDBContainer.AddressHTTP,
+		PostgresConn: &storage.Cfg{
 			PrimaryURL:               testQuestDBContainer.AddressPG,
 			ReplicaURLs:              []string{testQuestDBContainer.AddressPG},
 			RunDDL:                   true,
 			IgnoreGlobal:             true,
 			SkipSettingsVerification: true,
 		},
-		storage.NewStringDDL(questdb.DDL),
-	)
-
-	return questdb.NewDB(pgxConn, questDBConn)
+	})
 }
 
 func helperCreateDB(t *testing.T) (*storage.DB, func()) {
