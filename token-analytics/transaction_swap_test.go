@@ -623,7 +623,7 @@ func TestOnSwap(t *testing.T) {
 			BlockNumber:     100,
 			FromAddress:     contentUserAddr,
 			BlockTimestamp:  now,
-			Input:           buildMockSwapInputWithFatAddress(doubleFatAddress),
+			Input:           buildMockSwapInput(contentExternalAddr),
 		}
 
 		err = ta.onSwap(ctx, tx, swapEvent)
@@ -742,7 +742,7 @@ func TestOnSwap(t *testing.T) {
 			BlockNumber:     200,
 			FromAddress:     userAddr,
 			BlockTimestamp:  now,
-			Input:           buildMockSwapInputWithFatAddress(fatAddress),
+			Input:           buildMockSwapInput(profileExternalAddr),
 		}
 
 		err = ta.onSwap(ctx, tx1, buyEvent1)
@@ -921,7 +921,7 @@ func TestOnSwap(t *testing.T) {
 			BlockNumber:     300,
 			FromAddress:     userAddr,
 			BlockTimestamp:  now,
-			Input:           buildMockSwapInputWithFatAddress(doubleFatAddress),
+			Input:           buildMockSwapInput(contentExternalAddr),
 		}
 
 		err = ta.onSwap(ctx, tx1, buyEvent1)
