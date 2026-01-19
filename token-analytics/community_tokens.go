@@ -301,11 +301,6 @@ func (t *tokenAnalytics) determineBaseTokenFromExternalAddress(ctx context.Conte
 	if kind == strconv.Itoa(nostr.KindProfileMetadata) {
 		return t.cfg.IONTokenAddress, nil
 	}
-	if kind == strconv.Itoa(nostr.KindProfileMetadata) {
-		if len(parts) == 2 || (len(parts) == 3 && parts[2] == "") {
-			return t.cfg.IONTokenAddress, nil
-		}
-	}
 	creatorPubkey := parts[1]
 	if creatorPubkey == "" {
 		return "", fmt.Errorf("empty creator pubkey in external address: %s", externalAddress)

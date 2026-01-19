@@ -242,7 +242,6 @@ func TestOnSwap(t *testing.T) {
 		err = ta.onPairRegistered(ctx, tx1, pairRegisteredEvent)
 		require.NoError(t, err)
 
-		// Set base_token and pair_id
 		_, err = storage.Exec(ctx, db, `
 		UPDATE tokens SET base_token = $1, pair_id = $2 WHERE contract_address = $3
 	`, baseToken, pairRegisteredEvent.PairId.Hex(), contractAddress)
@@ -446,7 +445,6 @@ func TestOnSwap(t *testing.T) {
 		err = ta.onSwap(ctx, tx, event)
 		require.NoError(t, err)
 
-		// Manually insert swap
 		helperInsertTokenSwap(t, ctx, db,
 			strings.ToLower(contractAddress),
 			ionConnectAddr,
@@ -511,7 +509,6 @@ func TestOnSwap(t *testing.T) {
 		totalSupply.SetString("1000000000000000000000", 10)
 
 		event := &bondingcurve.LogTokenSwapped{
-			// Address:      common.HexToAddress(contractAddress),
 			Swapper:      common.HexToAddress(userAddr),
 			Pair:         common.HexToHash("0x1111111111111111111111111111111111111111111111111111111111111111"),
 			Direction:    false,
@@ -638,7 +635,6 @@ func TestOnSwap(t *testing.T) {
 			return err == nil && score > 0
 		}, 2*time.Second, 50*time.Millisecond, "River queue should update Redis balance for double fat address")
 
-		// Manually insert swap
 		helperInsertTokenSwap(t, ctx, db,
 			strings.ToLower(contentContractAddr),
 			contentExternalAddr,
@@ -650,7 +646,6 @@ func TestOnSwap(t *testing.T) {
 			0.5, // 1 creator token * $0.5
 		)
 
-		// Manually insert user token position
 		helperInsertUserTokenPosition(t, ctx, db,
 			buyerPubkey,
 			strings.ToLower(contentContractAddr),
@@ -661,7 +656,6 @@ func TestOnSwap(t *testing.T) {
 			0.5,                   // total invested $0.5
 		)
 
-		// Verify swap was recorded
 		type swapResult struct {
 			ContractAddress string  `db:"contract_address"`
 			ExternalAddress string  `db:"external_address"`
@@ -686,14 +680,12 @@ func TestOnSwap(t *testing.T) {
 		require.Equal(t, "1000000000000000000", swap.OutputAmount)
 		require.Equal(t, 0.5, swap.PriceUSD)
 
-		// Verify user position was created
 		position := helperGetUserPosition(t, ctx, db, contentUserAddr, contentContractAddr)
 		require.Equal(t, strings.ToLower(contentContractAddr), position.ContractAddress)
 		require.Equal(t, contentExternalAddr, position.ExternalAddress)
 		require.Greater(t, position.Amount, "0") // Balance updated by River queue
 		require.Equal(t, 0.5, position.AvgBuyPrice)
 
-		// Verify Redis was updated
 		redisKey := keyUserPositionOfToken(contentExternalAddr)
 		userIonConnect := "0:" + buyerPubkey + ":"
 		score, err := testRedis.ZScore(ctx, redisKey, userIonConnect).Result()
@@ -704,7 +696,6 @@ func TestOnSwap(t *testing.T) {
 	t.Run("full_flow_single_fat_address_profile_token", func(t *testing.T) {
 		ctx := t.Context()
 
-		// Setup profile token
 		contractAddress := "0xeeee000000000000000000000000000000000001"
 		masterPubkey := "profile_flow_test"
 		profileExternalAddr := "0:" + masterPubkey + ":"
@@ -760,12 +751,10 @@ func TestOnSwap(t *testing.T) {
 		// Wait for River queue to process all jobs
 		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
 
-		// Verify first buy in Redis
 		score, err := testRedis.ZScore(ctx, keyUserPositionOfToken(profileExternalAddr), profileExternalAddr).Result()
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, score, 0.0, "First buy should update Redis balance")
 
-		// Verify QuestDB has the trade
 		trade1 := helperGetTradeFromQuestDB(t, ctx, ta.questDB, tx1.TransactionHash)
 		require.Equal(t, strings.ToLower(contractAddress), strings.ToLower(trade1.ContractAddress), "Contract address should match")
 		require.Equal(t, profileExternalAddr, trade1.ExternalAddress, "External address should match")
@@ -806,7 +795,6 @@ func TestOnSwap(t *testing.T) {
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, initialBalance, 0.0, "Balance should be non-negative")
 
-		// Verify QuestDB has the second trade
 		trade2 := helperGetTradeFromQuestDB(t, ctx, ta.questDB, tx2.TransactionHash)
 		require.Equal(t, strings.ToLower(contractAddress), strings.ToLower(trade2.ContractAddress), "Contract address should match")
 		require.Equal(t, profileExternalAddr, trade2.ExternalAddress, "External address should match")
@@ -847,7 +835,6 @@ func TestOnSwap(t *testing.T) {
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, finalBalance, 0.0, "Balance should not be negative")
 
-		// Verify QuestDB has the sell trade
 		trade3 := helperGetTradeFromQuestDB(t, ctx, ta.questDB, tx3.TransactionHash)
 		require.Equal(t, strings.ToLower(contractAddress), strings.ToLower(trade3.ContractAddress), "Contract address should match")
 		require.Equal(t, profileExternalAddr, trade3.ExternalAddress, "External address should match")
@@ -861,7 +848,6 @@ func TestOnSwap(t *testing.T) {
 	t.Run("full_flow_double_fat_address_content_token", func(t *testing.T) {
 		ctx := t.Context()
 
-		// Setup creator token
 		creatorContractAddr := "0x1111000000000000000000000000000000000002"
 		creatorPubkey := "creator_flow_test"
 		creatorExternalAddr := "0:" + creatorPubkey + ":"
@@ -885,7 +871,6 @@ func TestOnSwap(t *testing.T) {
 			creatorContractAddr)
 		require.NoError(t, err)
 
-		// Setup content token
 		contentContractAddr := "0x3333000000000000000000000000000000000002"
 		contentExternalAddr := "30175:" + creatorPubkey + ":article456"
 		userAddr := "0x4444000000000000000000000000000000000002"
@@ -945,12 +930,10 @@ func TestOnSwap(t *testing.T) {
 		// Wait for River queue to process all jobs
 		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
 
-		// Verify first buy in Redis
 		score, err := testRedis.ZScore(ctx, keyUserPositionOfToken(contentExternalAddr), "0:"+buyerPubkey+":").Result()
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, score, 0.0, "First double fat buy should update Redis balance")
 
-		// Verify QuestDB
 		trade1 := helperGetTradeFromQuestDB(t, ctx, ta.questDB, tx1.TransactionHash)
 		require.Equal(t, strings.ToLower(contentContractAddr), strings.ToLower(trade1.ContractAddress), "Contract address should match")
 		require.Equal(t, contentExternalAddr, trade1.ExternalAddress, "External address should match")
@@ -991,7 +974,6 @@ func TestOnSwap(t *testing.T) {
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, initialBalance, 0.0, "Balance should be non-negative")
 
-		// Verify QuestDB
 		trade2 := helperGetTradeFromQuestDB(t, ctx, ta.questDB, tx2.TransactionHash)
 		require.Equal(t, strings.ToLower(contentContractAddr), strings.ToLower(trade2.ContractAddress), "Contract address should match")
 		require.Equal(t, contentExternalAddr, trade2.ExternalAddress, "External address should match")
@@ -1032,7 +1014,6 @@ func TestOnSwap(t *testing.T) {
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, finalBalance, 0.0, "Balance should not be negative")
 
-		// Verify QuestDB
 		trade3 := helperGetTradeFromQuestDB(t, ctx, ta.questDB, tx3.TransactionHash)
 		require.Equal(t, strings.ToLower(contentContractAddr), strings.ToLower(trade3.ContractAddress), "Contract address should match")
 		require.Equal(t, contentExternalAddr, trade3.ExternalAddress, "External address should match")
@@ -1045,20 +1026,12 @@ func TestOnSwap(t *testing.T) {
 }
 
 func buildMockSwapInput(ionConnectAddress string) string {
-	// Method selector for swap function: first 4 bytes of keccak256("swap(bytes,bytes,uint256,uint256)")
-	methodSelector := "83362e17"
+	// Method selector for handleOps function: first 4 bytes of keccak256("handleOps(bytes,uint256,uint256)")
+	handleOpsSelector := "74fa4121"
+	// Method selector for swap function embedded in callData
+	swapSelector := "83362e17"
 
-	// ABI encode: swap(bytes fromToken, bytes toToken, uint256 amountIn, uint256 minReturn)
-	// Structure:
-	// [0:32]   - offset to fromToken
-	// [32:64]  - offset to toToken
-	// [64:96]  - amountIn
-	// [96:128] - minReturn
-	// [128:160] - fromToken length
-	// [160:...] - fromToken data (empty for base token)
-	// [...:...] - toToken length
-	// [...:...] - toToken data (Fat Address V2 format)
-
+	// Build Fat Address V2 for toToken
 	toTokenBytes := buildFatAddressV2Single("Test Token", "TEST", ionConnectAddress, 'd', common.Address{}, common.Address{})
 	toTokenLen := len(toTokenBytes)
 
@@ -1069,20 +1042,42 @@ func buildMockSwapInput(ionConnectAddress string) string {
 		toTokenPadded = append(toTokenBytes, padding...)
 	}
 
-	// Calculate offsets (in bytes from start of input data, after method selector)
-	fromTokenOffset := 128 // 0x80 - points to fromToken length field
-	// fromToken: length (32 bytes) + data (0 bytes) = 32 bytes total
-	toTokenOffset := fromTokenOffset + 32 // 0xA0 - points to toToken length field
+	// Build swap callData: swap(bytes fromToken, bytes toToken, uint256 amountIn, uint256 minReturn)
+	fromTokenOffset := 128                // 0x80
+	toTokenOffset := fromTokenOffset + 32 // 0xA0
 
-	// Build the encoded data
-	result := "0x" + methodSelector
-	result += fmt.Sprintf("%064x", fromTokenOffset)                              // [0:32] offset to fromToken
-	result += fmt.Sprintf("%064x", toTokenOffset)                                // [32:64] offset to toToken
-	result += "0000000000000000000000000000000000000000000000000de0b6b3a7640000" // [64:96] amountIn (1 ION)
-	result += "0000000000000000000000000000000000000000000000000de0b6b3a7640000" // [96:128] minReturn (1 ION)
-	result += fmt.Sprintf("%064x", 0)                                            // [128:160] fromToken length (0 for base token)
-	result += fmt.Sprintf("%064x", toTokenLen)                                   // [160:192] toToken length
-	result += fmt.Sprintf("%x", toTokenPadded)                                   // [192:...] toToken data (padded)
+	swapCallData := swapSelector
+	swapCallData += fmt.Sprintf("%064x", fromTokenOffset)                              // offset to fromToken
+	swapCallData += fmt.Sprintf("%064x", toTokenOffset)                                // offset to toToken
+	swapCallData += "0000000000000000000000000000000000000000000000000de0b6b3a7640000" // amountIn (1 ION)
+	swapCallData += "0000000000000000000000000000000000000000000000000de0b6b3a7640000" // minReturn (1 ION)
+	swapCallData += fmt.Sprintf("%064x", 0)                                            // fromToken length (0 for base token)
+	swapCallData += fmt.Sprintf("%064x", toTokenLen)                                   // toToken length
+	swapCallData += fmt.Sprintf("%x", toTokenPadded)                                   // toToken data (padded)
+
+	// Pad swapCallData to 32-byte boundary for embedding in UserOp
+	swapCallDataBytes := len(swapCallData) / 2 // hex string -> bytes
+	if remainder := swapCallDataBytes % 32; remainder != 0 {
+		padding := make([]byte, 32-remainder)
+		swapCallData += fmt.Sprintf("%x", padding)
+	}
+
+	// Build handleOps structure:
+	// handleOps(bytes userOps, uint256 r, uint256 vs)
+	// userOps contains: sender (20 bytes) + nonce (32 bytes) + callDataLength (32 bytes) + callData (variable)
+
+	result := "0x" + handleOpsSelector
+	result += fmt.Sprintf("%064x", 96)                                           // offset to userOps (0x60)
+	result += "1b071d768b34be2e06c87954537b12eeadab4991131acd5a35e41feff3ae8ddc" // r (bundle signature)
+	result += "8a53cdc35a5ffd52c313a3dde16005c2ea88b46dd9d3228363a5ca438a0c0376" // vs (compact signature)
+
+	// UserOps data
+	userOpsLen := 20 + 32 + 32 + len(swapCallData)/2                             // sender + nonce + callDataLen + callData
+	result += fmt.Sprintf("%064x", userOpsLen)                                   // userOps length
+	result += "8b5a70a21af8bd7bdb38c0fac5cf3a81079d2595"                         // sender (20 bytes)
+	result += "0000000000000000000000000000000000000000000000000000000000000000" // nonce (32 bytes)
+	result += fmt.Sprintf("%064x", len(swapCallData)/2)                          // callData length
+	result += swapCallData                                                       // callData (swap encoded)
 
 	return result
 }
