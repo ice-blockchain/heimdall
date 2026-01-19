@@ -153,6 +153,10 @@ func (b *bondingCurve) GetTokenBalance(ctx context.Context, tokenAddress common.
 }
 
 func (b *bondingCurve) getTokenBalance(ctx context.Context, tokenAddress common.Address, walletAddress common.Address) (*big.Int, error) {
+	if err := b.rateLimiter.Wait(ctx); err != nil {
+		return nil, errors.Wrap(err, "rate limiter wait failed")
+	}
+
 	client := b.rpcClients[atomic.AddUint64(&b.clientLBIndex, 1)%uint64(len(b.rpcClients))]
 
 	// Method signature: balanceOf(address) -> 0x70a08231

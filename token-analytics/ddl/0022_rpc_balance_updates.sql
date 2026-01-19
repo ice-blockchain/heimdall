@@ -2,8 +2,10 @@
 
 DROP FUNCTION IF EXISTS update_market_cap_and_position(TIMESTAMP, TEXT, TEXT, TEXT, BOOLEAN, NUMERIC, NUMERIC, NUMERIC, NUMERIC, NUMERIC);
 DROP FUNCTION IF EXISTS update_market_cap_and_position(TIMESTAMP, TEXT, TEXT, TEXT, BOOLEAN, NUMERIC, NUMERIC, NUMERIC, NUMERIC, NUMERIC, TEXT);
+DROP FUNCTION IF EXISTS update_market_cap_and_position(TIMESTAMP, TEXT, TEXT, TEXT, BOOLEAN, NUMERIC, NUMERIC, NUMERIC, NUMERIC, NUMERIC, TEXT, NUMERIC);
 DROP FUNCTION IF EXISTS update_market_cap_and_position(TIMESTAMP, TEXT, TEXT, TEXT, BOOLEAN, NUMERIC, NUMERIC, usd_amount, usd_amount, NUMERIC);
 DROP FUNCTION IF EXISTS update_market_cap_and_position(TIMESTAMP, TEXT, TEXT, TEXT, BOOLEAN, NUMERIC, NUMERIC, usd_amount, usd_amount, NUMERIC, TEXT);
+DROP FUNCTION IF EXISTS update_market_cap_and_position(TIMESTAMP, TEXT, TEXT, TEXT, BOOLEAN, NUMERIC, NUMERIC, usd_amount, usd_amount, NUMERIC, TEXT, NUMERIC);
 
 CREATE OR REPLACE FUNCTION update_market_cap_and_position(
     p_block_timestamp TIMESTAMP,
@@ -15,9 +17,7 @@ CREATE OR REPLACE FUNCTION update_market_cap_and_position(
     p_output_amount NUMERIC,
     p_price_usd usd_amount,
     p_ion_price_usd usd_amount,
-    p_total_supply NUMERIC,
-    p_base_token_address TEXT,
-    p_fee_amount NUMERIC
+    p_total_supply NUMERIC
 ) RETURNS VOID AS $$
 DECLARE
     v_user_external_address TEXT;
@@ -76,6 +76,7 @@ BEGIN
     v_cost_usd := (p_input_amount / 1e18) * p_ion_price_usd;
 
     IF p_direction = false THEN -- buy
+        -- NOTE: amount is set to 0 here and will be updated asynchronously via RPC call by BalanceUpdateJob.
         INSERT INTO user_token_positions (
             user_blockchain_address, contract_address, external_address, user_external_address,
             amount, avg_buy_price_usd, total_invested_usd, total_realized_usd, updated_at
