@@ -8,8 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
 func TestGetCommunityTokensByLatest_WithAndWithoutKeyword(t *testing.T) {
