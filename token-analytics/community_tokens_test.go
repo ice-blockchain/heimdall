@@ -3,6 +3,8 @@
 package tokenanalytics
 
 import (
+	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -115,5 +117,117 @@ func TestCalculatePnL(t *testing.T) {
 		pnl, pnlPercentage := calculatePnL(200.0, 100.0, 0.0)
 		require.InDelta(t, 100.0, pnl, 0.01, "PnL should be $100")
 		require.InDelta(t, 100.0, pnlPercentage, 0.01, "PnL% should be 100%")
+	})
+}
+
+func TestDetermineBaseTokenFromExternalAddress(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	db, release := helperCreateDB(t)
+	defer release()
+
+	taImpl := helperNewForTest(t, db).(*tokenAnalytics)
+
+	t.Run("xcom_numeric_id_returns_ion", func(t *testing.T) {
+		baseToken, err := taImpl.determineBaseTokenFromExternalAddress(ctx, "1234567890")
+
+		require.NoError(t, err)
+		require.Equal(t, taImpl.cfg.IONTokenAddress, baseToken)
+	})
+
+	t.Run("online_plus_creator_token_returns_ion", func(t *testing.T) {
+		baseToken, err := taImpl.determineBaseTokenFromExternalAddress(ctx, "0:testcreatorpubkey123:")
+
+		require.NoError(t, err)
+		require.Equal(t, taImpl.cfg.IONTokenAddress, baseToken)
+	})
+
+	t.Run("online_plus_content_token_creator_exists", func(t *testing.T) {
+		creatorPubkey := "creator_test1_abc123"
+		creatorExternalAddr := BuildProfileExternalAddress(creatorPubkey)
+		creatorContractAddr := "0x5555555555555555555555555555555555555551"
+
+		helperInsertTestUser(t, ctx, db, creatorPubkey, "creator1", "Creator 1", "", true, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db, creatorContractAddr, creatorExternalAddr, "CREA1", "profile", creatorPubkey, "1000000000000000000000", 0, 0, 0, PlatformGroupXCom)
+
+		contentExternalAddr := "30175:" + creatorPubkey + ":post123"
+		baseToken, err := taImpl.determineBaseTokenFromExternalAddress(ctx, contentExternalAddr)
+
+		require.NoError(t, err)
+		require.Equal(t, creatorContractAddr, baseToken)
+	})
+
+	t.Run("online_plus_content_token_creator_not_exists", func(t *testing.T) {
+		contentExternalAddr := "30175:nonexistent_creator_xyz:post456"
+		baseToken, err := taImpl.determineBaseTokenFromExternalAddress(ctx, contentExternalAddr)
+
+		require.NoError(t, err)
+		require.Equal(t, taImpl.cfg.IONTokenAddress, baseToken, "Should fallback to ION when creator token not found")
+	})
+
+	t.Run("online_plus_article_token", func(t *testing.T) {
+		creatorPubkey := "creator_test2_def456"
+		creatorExternalAddr := BuildProfileExternalAddress(creatorPubkey)
+		creatorContractAddr := "0x6666666666666666666666666666666666666662"
+
+		helperInsertTestUser(t, ctx, db, creatorPubkey, "creator2", "Creator 2", "", true, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db, creatorContractAddr, creatorExternalAddr, "CREA2", "profile", creatorPubkey, "1000000000000000000000", 0, 0, 0, PlatformGroupXCom)
+
+		articleExternalAddr := "30023:" + creatorPubkey + ":article789"
+		baseToken, err := taImpl.determineBaseTokenFromExternalAddress(ctx, articleExternalAddr)
+
+		require.NoError(t, err)
+		require.Equal(t, creatorContractAddr, baseToken)
+	})
+
+	t.Run("invalid_format_single_colon", func(t *testing.T) {
+		_, err := taImpl.determineBaseTokenFromExternalAddress(ctx, ":")
+
+		require.Error(t, err)
+	})
+
+	t.Run("content_token_with_empty_creator_pubkey", func(t *testing.T) {
+		contentExternalAddr := "30175::post999"
+		_, err := taImpl.determineBaseTokenFromExternalAddress(ctx, contentExternalAddr)
+
+		require.Error(t, err)
+	})
+
+	t.Run("creator_token_with_trailing_identifier", func(t *testing.T) {
+		baseToken, err := taImpl.determineBaseTokenFromExternalAddress(ctx, "0:somepubkey:creator")
+
+		require.NoError(t, err)
+		require.Equal(t, taImpl.cfg.IONTokenAddress, baseToken)
+	})
+
+	t.Run("mixed_case_handling", func(t *testing.T) {
+		creatorPubkey := "MixedCasePubkey123Test4"
+		creatorExternalAddr := BuildProfileExternalAddress(creatorPubkey)
+		creatorContractAddr := "0x8888888888888888888888888888888888888884"
+
+		helperInsertTestUser(t, ctx, db, creatorPubkey, "creator4", "Creator 4", "", true, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db, creatorContractAddr, creatorExternalAddr, "CREA4", "profile", creatorPubkey, "1000000000000000000000", 0, 0, 0, PlatformGroupXCom)
+
+		contentExternalAddr := "30175:" + creatorPubkey + ":content"
+		baseToken, err := taImpl.determineBaseTokenFromExternalAddress(ctx, contentExternalAddr)
+
+		require.NoError(t, err)
+		require.Equal(t, creatorContractAddr, baseToken)
+	})
+
+	t.Run("multiple_colons_in_content_id", func(t *testing.T) {
+		creatorPubkey := fmt.Sprintf("creator_multicolon_test5_%d", 12345)
+		creatorExternalAddr := BuildProfileExternalAddress(creatorPubkey)
+		creatorContractAddr := "0x9999999999999999999999999999999999999995"
+
+		helperInsertTestUser(t, ctx, db, creatorPubkey, "creator5", "Creator 5", "", true, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db, creatorContractAddr, creatorExternalAddr, "CREA5", "profile", creatorPubkey, "1000000000000000000000", 0, 0, 0, PlatformGroupXCom)
+
+		contentExternalAddr := "30175:" + creatorPubkey + ":content:with:many:colons"
+		baseToken, err := taImpl.determineBaseTokenFromExternalAddress(ctx, contentExternalAddr)
+
+		require.NoError(t, err)
+		require.Equal(t, creatorContractAddr, baseToken)
 	})
 }

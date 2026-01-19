@@ -49,7 +49,7 @@ func mustConnectWithConfig(ctx context.Context, cfg *config) *DB {
 		// Skip settings verification for QuestDB Postgres connector as it does not support them all.
 		cfg.QuestDB.PostgresConn.SkipSettingsVerification = true
 	}
-	pgxConn := storage.MustConnectWithCfg(ctx, cfg.QuestDB.PostgresConn, storage.NewStringDDL(ddl))
+	pgxConn := storage.MustConnectWithCfg(ctx, cfg.QuestDB.PostgresConn, storage.NewStringDDL(DDL))
 	return &DB{
 		db:     pgxConn,
 		writer: questdbConn,
@@ -61,6 +61,13 @@ func MustConnect(ctx context.Context, applicationYamlKey string) *DB {
 
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	return mustConnectWithConfig(ctx, &cfg)
+}
+
+func NewDB(pgxConn *storage.DB, writer *questdb.LineSenderPool) *DB {
+	return &DB{
+		db:     pgxConn,
+		writer: writer,
+	}
 }
 
 func Write[T StructMarshaller](ctx context.Context, client *DB, items ...T) (err error) {
