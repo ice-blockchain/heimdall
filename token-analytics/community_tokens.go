@@ -8,10 +8,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/nbd-wtf/go-nostr"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/ice-blockchain/heimdall/coins"
@@ -144,21 +146,100 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 		FROM tokens t WHERE t.external_address = $1`, externalAddress)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
-			result = &tokenInfo{
-				BaseToken: t.cfg.IONTokenAddress,
+			var baseToken string
+			if strings.HasPrefix(externalAddress, "0x02") {
+				decodedBytes, hexErr := hex.DecodeString(strings.TrimPrefix(externalAddress, "0x"))
+				if hexErr != nil {
+					return nil, nil, 0, 0, 0, fmt.Errorf("invalid Fat Address V2 format: %w", hexErr)
+				}
+
+				// If this is a Double Fat Address (recordsCount == 2)
+				if len(decodedBytes) >= 2 && decodedBytes[1] == 2 {
+					allTokens, _, _, extractErr := extractAllTokensFromFatAddress(decodedBytes)
+					if extractErr != nil {
+						return nil, nil, 0, 0, 0, fmt.Errorf("failed to parse Double Fat Address V2: %w", extractErr)
+					}
+					if len(allTokens) != 2 {
+						return nil, nil, 0, 0, 0, fmt.Errorf("expected 2 tokens in Double Fat Address V2, got %d", len(allTokens))
+					}
+
+					creatorExternalAddress := allTokens[0]
+					contractOrFatAddress = decodedBytes
+
+					creatorToken, creatorErr := storage.Get[tokenInfo](ctx, t.ingestedDataDB, `
+						SELECT contract_address, base_token 
+						FROM tokens 
+						WHERE external_address = $1`, creatorExternalAddress)
+
+					if creatorErr != nil && !storage.IsErr(creatorErr, storage.ErrNotFound) {
+						return nil, nil, 0, 0, 0, fmt.Errorf("failed to query creator token %s: %w", creatorExternalAddress, creatorErr)
+					}
+
+					if creatorErr == nil && creatorToken.ContractAddress != "" {
+						baseToken = creatorToken.ContractAddress
+					} else {
+						baseToken, err = t.determineBaseTokenFromExternalAddress(ctx, creatorExternalAddress)
+						if err != nil {
+							return nil, nil, 0, 0, 0, fmt.Errorf("failed to determine base token for creator %s: %w", creatorExternalAddress, err)
+						}
+					}
+
+					result = &tokenInfo{
+						BaseToken:       baseToken,
+						ContractAddress: "",
+					}
+					err = nil
+				} else {
+					// Single Fat Address
+					allTokens, _, _, extractErr := extractAllTokensFromFatAddress(decodedBytes)
+					if extractErr != nil {
+						return nil, nil, 0, 0, 0, fmt.Errorf("failed to parse Fat Address V2: %w", extractErr)
+					}
+					if len(allTokens) == 0 {
+						return nil, nil, 0, 0, 0, fmt.Errorf("no tokens found in Fat Address V2")
+					}
+
+					actualTokenAddress := allTokens[0]
+					contractOrFatAddress = decodedBytes
+
+					// - X.com tokens (numeric ID) → ION
+					// - ONLINE+ profile tokens (0:pubkey:) → ION
+					// - ONLINE+ content tokens (0:pubkey:contentId) → creator's profile token
+					baseToken, baseTokenErr := t.determineBaseTokenFromExternalAddress(ctx, actualTokenAddress)
+					if baseTokenErr != nil {
+						return nil, nil, 0, 0, 0, fmt.Errorf("failed to determine base token for %s (from Fat Address %s): %w", actualTokenAddress, externalAddress, baseTokenErr)
+					}
+
+					result = &tokenInfo{
+						BaseToken:       baseToken,
+						ContractAddress: "",
+					}
+					err = nil
+				}
+			} else {
+				_, hexErr := hex.DecodeString(strings.TrimPrefix(externalAddress, "0x"))
+				if hexErr != nil {
+					return nil, nil, 0, *ionPrice, bnbPriceInUSD, nil
+				}
 			}
-			contractOrFatAddress, err = hex.DecodeString(strings.TrimPrefix(externalAddress, "0x"))
-			if err != nil {
-				return nil, nil, 0, *ionPrice, bnbPriceInUSD, nil
-			}
-			err = nil
 		}
 		if err != nil {
 			return nil, nil, 0, 0, 0, fmt.Errorf("failed to find token by external address %v: %w", externalAddress, err)
 		}
 	}
+	if result.BaseToken == "" {
+		var baseTokenErr error
+		result.BaseToken, baseTokenErr = t.determineBaseTokenFromExternalAddress(ctx, externalAddress)
+		if baseTokenErr != nil {
+			return nil, nil, 0, 0, 0, fmt.Errorf("failed to determine base token for %s: %w", externalAddress, baseTokenErr)
+		}
+		log.Debug(fmt.Sprintf("Token %s found in DB but base_token is empty, determined: %s", externalAddress, result.BaseToken))
+	}
 
 	if len(contractOrFatAddress) == 0 {
+		if result.ContractAddress == "" {
+			return nil, nil, 0, 0, 0, fmt.Errorf("token not found in database and no contract address available for %s", externalAddress)
+		}
 		contractOrFatAddress = common.HexToAddress(result.ContractAddress).Bytes()
 	}
 	amountToConvert := new(big.Int).SetUint64(1e18)
@@ -172,7 +253,17 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 		amountBNB, _ = amountInBNB.Int(nil)
 		return amountToConvert, amountBNB, amountUsd, *ionPrice, bnbPriceInUSD, nil
 	}
-	resAmount, err := t.bondingCurve.Pricing(ctx, common.HexToAddress(result.BaseToken), contractOrFatAddress, amountToConvert, tradeType == TradeTypeSell)
+
+	var fromToken, toToken []byte
+	if tradeType == TradeTypeBuy {
+		fromToken = common.HexToAddress(result.BaseToken).Bytes()
+		toToken = contractOrFatAddress
+	} else {
+		fromToken = contractOrFatAddress
+		toToken = common.HexToAddress(result.BaseToken).Bytes()
+	}
+
+	resAmount, err := t.bondingCurve.Pricing(ctx, common.BytesToAddress(fromToken), toToken, amountToConvert, tradeType == TradeTypeSell)
 	if err != nil {
 		return nil, nil, 0, 0, 0, fmt.Errorf("failed to get pricing for token %v (%v): %w", externalAddress, result.ContractAddress, err)
 	}
@@ -181,14 +272,61 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 	if err != nil {
 		return nil, nil, 0, 0, 0, fmt.Errorf("failed to get usd price for token %v (%v base %v): %w", externalAddress, result.ContractAddress, result.BaseToken, err)
 	}
+
+	var amountForBNB *big.Int
 	if result.BaseToken != t.cfg.IONTokenAddress {
 		creatorRatio := ionPriceInUSD / creatorPrice
-		resAmount, _ = new(big.Float).Mul(new(big.Float).SetInt(resAmount), big.NewFloat(creatorRatio)).Int(nil)
+		amountForBNB, _ = new(big.Float).Mul(new(big.Float).SetInt(resAmount), big.NewFloat(creatorRatio)).Int(nil)
+	} else {
+		amountForBNB = resAmount
 	}
-	amountInBNB := new(big.Float).Mul(big.NewFloat(toBNBRatio), new(big.Float).SetInt(resAmount))
+
+	amountInBNB := new(big.Float).Mul(big.NewFloat(toBNBRatio), new(big.Float).SetInt(amountForBNB))
 	amountBNB, _ = amountInBNB.Int(nil)
 
 	return resAmount, amountBNB, amountUsd, *ionPrice, bnbPriceInUSD, nil
+}
+
+func (t *tokenAnalytics) determineBaseTokenFromExternalAddress(ctx context.Context, externalAddress string) (string, error) {
+	if !strings.Contains(externalAddress, ":") {
+		return t.cfg.IONTokenAddress, nil
+	}
+	parts := strings.Split(externalAddress, ":")
+	if len(parts) < 2 {
+		log.Warn(fmt.Sprintf("Invalid ONLINE_PLUS external address format: %s, defaulting to ION", externalAddress))
+
+		return t.cfg.IONTokenAddress, nil
+	}
+	kind := parts[0]
+	if kind == strconv.Itoa(nostr.KindProfileMetadata) {
+		return t.cfg.IONTokenAddress, nil
+	}
+	if kind == strconv.Itoa(nostr.KindProfileMetadata) {
+		if len(parts) == 2 || (len(parts) == 3 && parts[2] == "") {
+			return t.cfg.IONTokenAddress, nil
+		}
+	}
+	creatorPubkey := parts[1]
+	if creatorPubkey == "" {
+		return "", fmt.Errorf("empty creator pubkey in external address: %s", externalAddress)
+	}
+	type creatorTokenInfo struct {
+		ContractAddress string `db:"contract_address"`
+	}
+	creatorExternalAddress := BuildProfileExternalAddress(creatorPubkey)
+	creatorToken, err := storage.Get[creatorTokenInfo](ctx, t.ingestedDataDB, `
+		SELECT contract_address
+		FROM tokens
+		WHERE external_address = $1
+	`, creatorExternalAddress)
+	if err != nil {
+		if storage.IsErr(err, storage.ErrNotFound) {
+			return t.cfg.IONTokenAddress, nil
+		}
+		return "", fmt.Errorf("failed to get creator token info for %s: %w", creatorExternalAddress, err)
+	}
+
+	return creatorToken.ContractAddress, nil
 }
 
 func (t *tokenAnalytics) fetchTopPlatformHoldersRankingsBatch(ctx context.Context, rows []*tokenRowWithTopPlatformHolders, limit int64) (map[string][]holderMetadata, map[string]*redis.ZSliceCmd, error) {

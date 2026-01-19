@@ -21,6 +21,7 @@ import (
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/quicknode"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	storagev3 "github.com/ice-blockchain/wintr/connectors/storage/v3"
+	"github.com/ice-blockchain/wintr/riverqueue"
 	"github.com/ice-blockchain/wintr/time"
 )
 
@@ -209,6 +210,16 @@ type (
 			TokenFactorySmartContractAddress    string              `yaml:"tokenFactorySmartContractAddress"`
 			BondingCurveProgressUpdateFrequency stdlibtime.Duration `yaml:"bondingCurveProgressUpdateFrequency"`
 		} `yaml:"bondingCurve" mapstructure:"bondingCurve"`
+		BalanceUpdateQueue struct {
+			QueueName       string              `yaml:"queueName"`
+			MaxQueueWorkers int                 `yaml:"maxQueueWorkers"`
+			JobMaxTimeout   stdlibtime.Duration `yaml:"jobMaxTimeout"`
+			DB              struct {
+				Username  string   `yaml:"username,omitempty"`
+				Password  string   `yaml:"password,omitempty"`
+				WriteUrls []string `yaml:"writeUrls"`
+			} `yaml:"db"`
+		} `yaml:"balanceUpdateQueue" mapstructure:"balanceUpdateQueue"`
 		Workers               uint   `yaml:"workers"`
 		BatchSize             uint   `yaml:"batchSize"`
 		IdentityServiceURL    string `yaml:"identityServiceUrl"`
@@ -226,6 +237,7 @@ type (
 		cfg                   *config
 		wg                    *sync.WaitGroup
 		bondingCurve          bondingcurve.BondingCurve
+		balanceUpdateQueue    riverqueue.Client
 		generator             *dummyDataGenerator
 		ionPriceUSD           *atomic.Pointer[float64]
 		bnbPriceUSD           *atomic.Pointer[float64]

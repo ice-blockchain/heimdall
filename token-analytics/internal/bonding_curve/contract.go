@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/jellydator/ttlcache/v3"
 	"golang.org/x/sync/singleflight"
+	"golang.org/x/time/rate"
 )
 
 type (
@@ -164,6 +165,7 @@ type (
 	BondingCurve         interface {
 		Pricing(ctx context.Context, baseToken common.Address, targetToken []byte, amount *big.Int, sale bool) (*big.Int, error)
 		Progress(ctx context.Context, pairId common.Hash) (*BondingCurveProgress, error)
+		GetTokenBalance(ctx context.Context, tokenAddress common.Address, walletAddress common.Address) (*big.Int, error)
 	}
 )
 
@@ -209,6 +211,7 @@ type (
 		priceCache           *ttlcache.Cache[string, *big.Int]
 		progressSingleflight *singleflight.Group
 		progressCache        *ttlcache.Cache[string, *BondingCurveProgress]
+		rateLimiter          *rate.Limiter
 	}
 	config struct {
 		BondingCurve struct {
