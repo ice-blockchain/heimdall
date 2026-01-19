@@ -48,4 +48,4 @@ type (
 )
 
 //go:embed DDL.sql
-var ddl string
+var DDL string

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	bondingcurvefixture "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve/fixture"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 
