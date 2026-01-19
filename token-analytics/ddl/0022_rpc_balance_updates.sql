@@ -1,5 +1,7 @@
 -- SPDX-License-Identifier: ice License 1.0
 
+DROP FUNCTION IF EXISTS update_market_cap_and_position(TIMESTAMP, TEXT, TEXT, TEXT, BOOLEAN, NUMERIC, NUMERIC, NUMERIC, NUMERIC, NUMERIC);
+
 CREATE OR REPLACE FUNCTION update_market_cap_and_position(
     p_block_timestamp TIMESTAMP,
     p_user_blockchain_address TEXT,
