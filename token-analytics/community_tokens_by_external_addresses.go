@@ -99,8 +99,9 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 	if err := t.updateBondingProgressForRows(ctx, rows); err != nil {
 		return nil, errors.Wrap(err, "failed to update bonding progress for rows")
 	}
+	requestorExternalAddress := BuildProfileExternalAddress(requestorMasterPubkey)
 
-	return t.buildCommunityTokensFromRows(ctx, rows, requestorMasterPubkey)
+	return t.buildCommunityTokensFromRows(ctx, rows, requestorExternalAddress)
 }
 
 func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddresses []string, requestorMasterPubkey string, keyword string, limit, offset uint64) ([]*CommunityToken, error) {
@@ -271,7 +272,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 	return tokens, nil
 }
 
-func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows []*tokenRow, requestorMasterPubkey string) ([]*CommunityToken, error) {
+func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows []*tokenRow, positionHolderExternalAddress string) ([]*CommunityToken, error) {
 	tokens := make([]*CommunityToken, 0, len(rows))
 	for _, row := range rows {
 		var bondingCurveProgress *BondingCurveProgress
@@ -298,9 +299,8 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 			BondingCurveProgress: bondingCurveProgress,
 		}
 
-		if row.PositionAmount != "" && row.PositionAmount != "0" {
-			externalAddress := BuildProfileExternalAddress(requestorMasterPubkey)
-			position, err := t.getUserTokenPositionRanking(ctx, externalAddress, row.ExternalAddress, row.PositionAmount, row.PositionAmountUSD, row.PositionTotalInvestedUSD, row.PositionTotalRealizedUSD)
+		if row.PositionAmount != "" && row.PositionAmount != "0" && positionHolderExternalAddress != "" {
+			position, err := t.getUserTokenPositionRanking(ctx, positionHolderExternalAddress, row.ExternalAddress, row.PositionAmount, row.PositionAmountUSD, row.PositionTotalInvestedUSD, row.PositionTotalRealizedUSD)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get user position ranking for token %v", row.ExternalAddress)
 			}
