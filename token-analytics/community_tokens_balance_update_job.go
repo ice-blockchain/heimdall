@@ -32,14 +32,14 @@ func (BalanceUpdateJobArgs) Kind() string {
 	return "balance_update"
 }
 
-type BalanceUpdateWorker struct {
+type balanceUpdateWorker struct {
 	bondingCurve    bondingcurve.BondingCurve
 	ingestedDataDB  *storage.DB
 	processedDataDB storagev3.DB
 	riverqueue.WorkerDefaults[BalanceUpdateJobArgs]
 }
 
-func (w *BalanceUpdateWorker) Work(ctx context.Context, job *riverqueue.Job[BalanceUpdateJobArgs]) error {
+func (w *balanceUpdateWorker) Work(ctx context.Context, job *riverqueue.Job[BalanceUpdateJobArgs]) error {
 	args := job.Args
 
 	log.Debug(fmt.Sprintf("Processing balance update job: user=%s, token=%s, tx=%s, dummy=%v",

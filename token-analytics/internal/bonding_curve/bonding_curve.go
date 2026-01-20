@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/v2"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/jellydator/ttlcache/v3"
 	"github.com/pkg/errors"
@@ -167,9 +168,11 @@ func (b *bondingCurve) getTokenBalance(ctx context.Context, tokenAddress common.
 
 	client := b.rpcClients[atomic.AddUint64(&b.clientLBIndex, 1)%uint64(len(b.rpcClients))]
 
-	// Method signature: balanceOf(address) -> 0x70a08231
+	// Method signature: balanceOf(address)  -> 0x70a08231
+	methodID := crypto.Keccak256([]byte("balanceOf(address)"))[:4]
+
 	data := make([]byte, 4+32)
-	copy(data[0:4], []byte{0x70, 0xa0, 0x82, 0x31}) // balanceOf method ID
+	copy(data[0:4], methodID)
 	copy(data[4:36], common.LeftPadBytes(walletAddress.Bytes(), 32))
 
 	msg := map[string]interface{}{
