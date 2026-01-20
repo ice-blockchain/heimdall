@@ -53,7 +53,7 @@ type (
 		IsUserVerified(ctx context.Context, masterPubKey string) (bool, []*model.Event, error)
 		HealthCheck(ctx context.Context) error
 		PublicKey() string
-		InitializeIdentityKeypairs(ctx context.Context, keyPairConsumer ...KeyPairConsumer) error
+		InitializeIdentityKeypairs(ctx context.Context) error
 		CreateCommunityTokenAdaptor(ctx context.Context, platform, postID string) (*CommunityTokenAdaptorResponse, error)
 		CompleteRegistration(ctx context.Context, credentials *Credentials) (CompletedRegistration, error)
 		InitRegistration(ctx context.Context, identityKeyName string, earlyAccessEmail string) (*RegistrationChallenge, error)
@@ -64,9 +64,6 @@ type (
 		GetDeeplink(ctx context.Context, eventAddress string) (string, error)
 		SocialProfiles
 		Devices
-	}
-	KeyPairConsumer interface {
-		SetKeyPair(kp interface{ PrivKey() string })
 	}
 
 	VerifiedUsersSync interface {

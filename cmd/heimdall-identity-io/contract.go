@@ -17,6 +17,7 @@ import (
 	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
 	tokenanalytics "github.com/ice-blockchain/heimdall/token-analytics"
 	"github.com/ice-blockchain/subzero/model"
+	"github.com/ice-blockchain/subzero/server/http/events"
 	"github.com/ice-blockchain/subzero/validation"
 )
 
@@ -296,8 +297,11 @@ type (
 		UserIDOrMasterKey string `uri:"userIdOrMasterKey" example:"user123" allowUnauthorized:"true" required:"true"`
 		EventAddress      string `uri:"eventAddress" example:"0xD76b5c2A23ef78368d8E34288B5b65D616B746aE" allowUnauthorized:"true" required:"true"`
 	}
-	CommunityPostPreviewResponse = relaymanagement.PostPreview
-	UpdateDeeplinkRequest        struct {
+	CommunityPostPreviewResponse struct {
+		*events.PostPreview
+		OnlinePlusDeeplink string `json:"onlinePlusDeeplink"`
+	}
+	UpdateDeeplinkRequest struct {
 		EventAddress string `uri:"eventAddress" example:"0xD76b5c2A23ef78368d8E34288B5b65D616B746aE" required:"true"`
 		Deeplink     string `json:"deeplink" example:"https://app.online.io/some/path/to/0xD76b5c2A23ef78368d8E34288B5b65D616B746aE" required:"true"`
 	}

@@ -5,8 +5,6 @@ package relaymanagement
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"net/url"
 	"strings"
 	stdlibtime "time"
 
@@ -132,48 +130,6 @@ func (s *relaysSyncer) buildBatchUpdate(now *time.Time, results []nip11Result) (
 }
 
 func (r *relaysSyncer) requestNIP11(ctx context.Context, relayUrl string) (*nip11.RelayInformationDocument, error) {
-	u, err := url.Parse(relayUrl)
-	if err != nil {
-		return nil, errors.Wrapf(err, "invalid url: %v", relayUrl)
-	}
-	switch u.Scheme {
-	case "ws":
-		u.Scheme = "http"
-	case "wss":
-		u.Scheme = "https"
-	default:
-		return nil, errors.Errorf("invalid scheme :%v", u.Scheme)
-	}
-	client := req.C().EnableInsecureSkipVerify()
-	if resp, err := client.R().
-		SetContext(ctx).
-		SetRetryCount(3).
-		SetRetryInterval(func(resp *req.Response, attempt int) stdlibtime.Duration {
-			return 1 * stdlibtime.Second
-		}).
-		SetRetryHook(func(resp *req.Response, err error) {
-			if err != nil {
-				log.Error(errors.Wrapf(err, "failed to call relay %v, retrying...", relayUrl))
-			} else {
-				log.Error(errors.Errorf("failed to call relay %v with status code:%v, retrying...", relayUrl, resp.GetStatusCode()))
-			}
-		}).
-		SetRetryCondition(func(resp *req.Response, err error) bool {
-			return err != nil || resp.GetStatusCode() != http.StatusOK
-		}).
-		SetHeader("Accept", "application/nostr+json").
-		Get(u.String()); err != nil {
-		return nil, errors.Wrapf(err, "failed to call relay %v", relayUrl)
-
-	} else if statusCode := resp.GetStatusCode(); statusCode != http.StatusOK {
-		return nil, errors.Errorf("failed to check relay %v with status code:%v", relayUrl, statusCode)
-	} else if data, err2 := resp.ToBytes(); err2 != nil {
-		return nil, errors.Wrapf(err2, "failed to read body of relay %v response", relayUrl)
-	} else {
-		var nip11 nip11.RelayInformationDocument
-		if err = json.UnmarshalContext(ctx, data, &nip11); err != nil {
-			return nil, errors.Wrapf(err, "failed to unmarshal data: %v", string(data))
-		}
-		return &nip11, nil
-	}
+	nip11FromRelay, err := relayRequest[nip11.RelayInformationDocument](ctx, relayUrl, "/", "application/nostr+json")
+	return nip11FromRelay, errors.Wrapf(err, "failed to request NIP-11 from relay %v", relayUrl)
 }

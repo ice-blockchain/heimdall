@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts"
+	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
 	"github.com/ice-blockchain/heimdall/server"
 )
 
@@ -106,16 +107,22 @@ func (s *service) GetIonConnectPostPreview(
 			return nil, server.Unexpected(errors.Wrapf(err, "failed to get deeplink for event %v", req.Data.EventAddress))
 		}
 	}
-	preview, err := s.ionConnectClient.GetPost(ctx, requestingFromRelay, req.Data.UserIDOrMasterKey, req.Data.EventAddress)
+	preview, err := s.ionConnectClient.GetPost(ctx, requestingFromRelay, req.Data.EventAddress)
 	if err != nil {
-		return nil, server.Unexpected(errors.Wrapf(err, "failed to get ion connect post %v preview", req.Data.EventAddress))
+		switch {
+		case errors.Is(err, relaymanagement.ErrNotFound):
+			return nil, server.NotFound(errors.Wrapf(err, "event %v not found", req.Data.EventAddress), "EVENT_NOT_FOUND")
+		default:
+			return nil, server.Unexpected(errors.Wrapf(err, "failed to get ion connect post %v preview", req.Data.EventAddress))
+		}
+
 	}
-	preview.OnlinePlusDeeplink = deeplink
-	if preview.IsEmpty() {
-		return nil, server.NotFound(errors.Errorf("post %v not found", req.Data.EventAddress), "POST_NOT_FOUND")
+	res := &CommunityPostPreviewResponse{
+		OnlinePlusDeeplink: deeplink,
+		PostPreview:        preview,
 	}
 	return &server.Response[CommunityPostPreviewResponse]{
-		Data: preview,
+		Data: res,
 		Code: 200,
 	}, nil
 }
