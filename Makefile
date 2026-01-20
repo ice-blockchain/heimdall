@@ -269,3 +269,4 @@ local: addLicense updateGoModVersion updateAllDependencies generate build buildM
 dockerfile: binary-specific-service
 abigen:
 	go tool abigen --abi token-analytics/internal/bonding_curve/.abi/bonding_curve.json --pkg bondingcurve --type bondingCurveToken --out token-analytics/internal/bonding_curve/token.go
+	go tool abigen --abi token-analytics/internal/bonding_curve/.abi/ERC20.json --pkg bondingcurve --type ERC20 --out token-analytics/internal/bonding_curve/erc20.go

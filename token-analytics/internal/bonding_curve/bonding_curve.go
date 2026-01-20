@@ -13,9 +13,8 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind/v2"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/jellydator/ttlcache/v3"
 	"github.com/pkg/errors"
@@ -168,28 +167,14 @@ func (b *bondingCurve) getTokenBalance(ctx context.Context, tokenAddress common.
 
 	client := b.rpcClients[atomic.AddUint64(&b.clientLBIndex, 1)%uint64(len(b.rpcClients))]
 
-	// Method signature: balanceOf(address)  -> 0x70a08231
-	methodID := crypto.Keccak256([]byte("balanceOf(address)"))[:4]
-
-	data := make([]byte, 4+32)
-	copy(data[0:4], methodID)
-	copy(data[4:36], common.LeftPadBytes(walletAddress.Bytes(), 32))
-
-	msg := map[string]interface{}{
-		"to":   tokenAddress.Hex(),
-		"data": "0x" + common.Bytes2Hex(data),
-	}
-
-	var result string
-	err := client.Client().CallContext(ctx, &result, "eth_call", msg, "latest")
+	erc20Caller, err := NewERC20Caller(tokenAddress, client)
 	if err != nil {
-		return nil, errors.Wrapf(err, "eth_call failed for balanceOf")
+		return nil, errors.Wrapf(err, "failed to create ERC20 caller for token %v", tokenAddress.Hex())
 	}
-	resultBytes := common.FromHex(result)
-	if len(resultBytes) == 0 {
-		return big.NewInt(0), nil
+	balance, err := erc20Caller.BalanceOf(&bind.CallOpts{Context: ctx}, walletAddress)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to call balanceOf for wallet %v", walletAddress.Hex())
 	}
-	balance := new(big.Int).SetBytes(resultBytes)
 
 	return balance, nil
 }
