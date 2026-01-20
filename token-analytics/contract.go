@@ -210,21 +210,17 @@ type (
 			TokenFactorySmartContractAddress    string              `yaml:"tokenFactorySmartContractAddress"`
 			BondingCurveProgressUpdateFrequency stdlibtime.Duration `yaml:"bondingCurveProgressUpdateFrequency"`
 		} `yaml:"bondingCurve" mapstructure:"bondingCurve"`
-		BalanceUpdateQueue struct {
-			QueueName       string              `yaml:"queueName"`
-			MaxQueueWorkers int                 `yaml:"maxQueueWorkers"`
-			JobMaxTimeout   stdlibtime.Duration `yaml:"jobMaxTimeout"`
-			DB              struct {
-				Username  string   `yaml:"username,omitempty"`
-				Password  string   `yaml:"password,omitempty"`
-				WriteUrls []string `yaml:"writeUrls"`
-			} `yaml:"db"`
-		} `yaml:"balanceUpdateQueue" mapstructure:"balanceUpdateQueue"`
-		Workers               uint   `yaml:"workers"`
-		BatchSize             uint   `yaml:"batchSize"`
-		IdentityServiceURL    string `yaml:"identityServiceUrl"`
-		IdentityServiceAPIKey string `yaml:"identityServiceApiKey"`
-		EnableDummyGenerator  bool   `yaml:"enableDummyGenerator"`
+		RiverQueue struct {
+			QueueName       string              `yaml:"queueName,omitempty"`
+			MaxQueueWorkers int                 `yaml:"maxQueueWorkers,omitempty"`
+			JobMaxTimeout   stdlibtime.Duration `yaml:"jobMaxTimeout,omitempty"`
+		} `yaml:"riverQueue" mapstructure:"riverQueue"`
+		Storage               storage.Cfg `yaml:"wintr/connectors/storage/v2" mapstructure:"wintr/connectors/storage/v2"`
+		Workers               uint        `yaml:"workers"`
+		BatchSize             uint        `yaml:"batchSize"`
+		IdentityServiceURL    string      `yaml:"identityServiceUrl"`
+		IdentityServiceAPIKey string      `yaml:"identityServiceApiKey"`
+		EnableDummyGenerator  bool        `yaml:"enableDummyGenerator"`
 	}
 	dummyUserRepository struct{}
 	tokenAnalytics      struct {

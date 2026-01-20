@@ -104,21 +104,32 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 
 	bc := bondingcurve.New(ctx, applicationYamlKey)
 
-	balanceQueue := riverqueue.MustNewClient(ctx, applicationYamlKey,
-		riverqueue.WithConfig(&riverqueue.Config{
-			QueueName:       cfg.BalanceUpdateQueue.QueueName,
-			MaxQueueWorkers: cfg.BalanceUpdateQueue.MaxQueueWorkers,
-			JobMaxTimeout:   cfg.BalanceUpdateQueue.JobMaxTimeout,
-			Credentials: struct {
-				User     string `yaml:"user"`
-				Password string `yaml:"password"`
-			}{
-				User:     cfg.BalanceUpdateQueue.DB.Username,
-				Password: cfg.BalanceUpdateQueue.DB.Password,
-			},
-			PrimaryURLs: cfg.BalanceUpdateQueue.DB.WriteUrls,
-		}))
-	riverqueue.RegisterWorker(balanceQueue.Register(), &BalanceUpdateWorker{
+	if cfg.RiverQueue.QueueName == "" {
+		cfg.RiverQueue.QueueName = "balance_updates"
+	}
+	if cfg.RiverQueue.MaxQueueWorkers == 0 {
+		cfg.RiverQueue.MaxQueueWorkers = 100
+	}
+	if cfg.RiverQueue.JobMaxTimeout == 0 {
+		cfg.RiverQueue.JobMaxTimeout = 30 * stdlibtime.Second
+	}
+	riverCfg := riverqueue.Config{
+		QueueName:       cfg.RiverQueue.QueueName,
+		MaxQueueWorkers: cfg.RiverQueue.MaxQueueWorkers,
+		JobMaxTimeout:   cfg.RiverQueue.JobMaxTimeout,
+		Credentials: struct {
+			User     string `yaml:"user"`
+			Password string `yaml:"password"`
+		}{
+			User:     cfg.Storage.Credentials.User,
+			Password: cfg.Storage.Credentials.Password,
+		},
+		PrimaryURLs: append([]string{cfg.Storage.PrimaryURL}, cfg.Storage.PrimaryFallbackURLs...),
+	}
+
+	riverClient := riverqueue.MustNewClient(ctx, applicationYamlKey,
+		riverqueue.WithConfig(&riverCfg))
+	riverqueue.RegisterWorker(riverClient.Register(), &balanceUpdateWorker{
 		bondingCurve:    bc,
 		ingestedDataDB:  db,
 		processedDataDB: targetDB,
@@ -135,7 +146,7 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 		quickNode:                   qn,
 		metrics:                     registry,
 		bondingCurve:                bc,
-		balanceUpdateQueue:          balanceQueue,
+		balanceUpdateQueue:          riverClient,
 		ohclvRecentData:             xsync.NewMap[string, *recentCandlestick](),
 		tradingStatsRecentData:      xsync.NewMap[string, *recentTradeStats](),
 		subscriptions:               newSubscriptions(ctx),
@@ -146,15 +157,15 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 			return errors.Join(
-				errors.Wrapf(balanceQueue.Stop(shutdownCtx), "failed to stop balance update queue"),
+				errors.Wrapf(riverClient.Stop(shutdownCtx), "failed to stop river queue"),
 				errors.Wrapf(db.Close(), "failed to close source db"),
 				errors.Wrapf(targetDB.Close(), "failed to close target db"),
 				errors.Wrapf(questDB.Close(shutdownCtx), "failed to close questdb"),
 			)
 		},
 	}
-	if err := balanceQueue.Start(ctx); err != nil {
-		log.Panic(errors.Wrap(err, "failed to start balance update queue"))
+	if err := riverClient.Start(ctx); err != nil {
+		log.Panic(errors.Wrap(err, "failed to start river queue"))
 	}
 	t.ionPriceUSD = new(atomic.Pointer[float64])
 	t.bnbPriceUSD = new(atomic.Pointer[float64])

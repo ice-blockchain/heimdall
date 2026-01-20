@@ -89,7 +89,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0 // indirect
 	github.com/MicahParks/keyfunc v1.9.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20260118001747-ff01f1c4e24d // indirect
+	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20260119175649-084b3e29eee1 // indirect
 	github.com/VictoriaMetrics/fastcache v1.13.2 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.41.1 // indirect
@@ -299,11 +299,11 @@ require (
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/webtransport-go v0.10.0 // indirect
 	github.com/refraction-networking/utls v1.8.2 // indirect
-	github.com/riverqueue/river v0.30.0 // indirect
-	github.com/riverqueue/river/riverdriver v0.30.0 // indirect
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.30.0 // indirect
-	github.com/riverqueue/river/rivershared v0.30.0 // indirect
-	github.com/riverqueue/river/rivertype v0.30.0 // indirect
+	github.com/riverqueue/river v0.30.1 // indirect
+	github.com/riverqueue/river/riverdriver v0.30.1 // indirect
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.30.1 // indirect
+	github.com/riverqueue/river/rivershared v0.30.1 // indirect
+	github.com/riverqueue/river/rivertype v0.30.1 // indirect
 	github.com/rivo/tview v0.42.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect

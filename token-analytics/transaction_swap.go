@@ -19,7 +19,8 @@ import (
 )
 
 const (
-	fatAddressV2Version   = 2  // Fat Address V2 version byte
+	fatAddressV2Version   = 2 // Fat Address V2 version byte
+	fatAddressV2Prefix    = "0x02"
 	fatAddressV2MinLength = 32 // 4 (header) + 8 (token header) + 20 (bonding addr) + strings
 )
 

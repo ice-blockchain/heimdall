@@ -200,7 +200,7 @@ func helperNewForTest(t testing.TB, db *storage.DB, opts ...HelperTestOption) To
 				PrimaryURLs:     []string{options.connString},
 			}))
 
-		riverqueue.RegisterWorker(balanceQueue.Register(), &BalanceUpdateWorker{
+		riverqueue.RegisterWorker(balanceQueue.Register(), &balanceUpdateWorker{
 			bondingCurve:    bc,
 			ingestedDataDB:  db,
 			processedDataDB: &testRedisDB{Client: testRedis},

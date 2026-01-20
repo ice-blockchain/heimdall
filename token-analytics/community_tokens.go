@@ -147,7 +147,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
 			var baseToken string
-			if strings.HasPrefix(externalAddress, "0x02") {
+			if strings.HasPrefix(externalAddress, fatAddressV2Prefix) {
 				decodedBytes, hexErr := hex.DecodeString(strings.TrimPrefix(externalAddress, "0x"))
 				if hexErr != nil {
 					return nil, nil, 0, 0, 0, fmt.Errorf("invalid Fat Address V2 format: %w", hexErr)
