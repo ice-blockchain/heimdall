@@ -28,10 +28,20 @@ type (
 		DataUploadAsync(ctx context.Context, data []byte, contentType, fileName string) error
 
 		// FileUpload uploads a file to the CDN synchronously calling the CDN API directly.
-		FileUpload(ctx context.Context, data io.Reader, contentType, fileName string) error
+		FileUpload(ctx context.Context, data io.Reader, contentType, fileName string) (string, error)
 
 		// HealthCheck checks the health of the CDN service.
 		HealthCheck(ctx context.Context) error
+
+		// observer returns the state observer, if any.
+		observer() StateObserver
+	}
+	StateObserver interface {
+		// OnUploadCompleted is called when a file upload is completed successfully.
+		OnUploadCompleted(ctx context.Context, fileName, downloadURL string)
+
+		// OnUploadError is called when a file upload fails with an error and provides the attempt number.
+		OnUploadError(ctx context.Context, fileName string, err error, attempt int)
 	}
 	Config struct {
 		AccessKey     string        `yaml:"accessKey"`
@@ -40,9 +50,11 @@ type (
 		RootPath      string        `yaml:"rootPath"`
 		JobMaxTimeout time.Duration `yaml:"maxJobTimeout"`
 	}
+	Option func(*client)
 
 	client struct {
 		RqClient            riverqueue.Client
+		Observer            StateObserver
 		Config              *Config
 		HealthCheckPassedAt atomic.Int64
 		HealthCheckMux      sync.RWMutex
@@ -54,6 +66,12 @@ const (
 	maxUploadRetries  = 20
 )
 
+func WithObserver(observer StateObserver) Option {
+	return func(c *client) {
+		c.Observer = observer
+	}
+}
+
 func New(ctx context.Context, config *Config, rqClient riverqueue.Client) Client {
 	client := newClient(ctx, config, rqClient)
 	if err := client.HealthCheck(ctx); err != nil {
@@ -62,10 +80,14 @@ func New(ctx context.Context, config *Config, rqClient riverqueue.Client) Client
 	return client
 }
 
-func newClient(_ context.Context, config *Config, rqClient riverqueue.Client) *client {
+func newClient(_ context.Context, config *Config, rqClient riverqueue.Client, opts ...Option) *client {
 	var cdnClient = &client{
 		Config:   config,
 		RqClient: rqClient,
+	}
+
+	for _, opt := range opts {
+		opt(cdnClient)
 	}
 
 	riverqueue.RegisterWorker(rqClient.Register(), &uploadWorker{
@@ -76,6 +98,10 @@ func newClient(_ context.Context, config *Config, rqClient riverqueue.Client) *c
 	return cdnClient
 }
 
+func (c *client) observer() StateObserver {
+	return c.Observer
+}
+
 func (c *client) cdnUploadURL(filename string) string {
 	if strings.HasPrefix(filename, c.Config.URLUpload) {
 		return filename
@@ -84,37 +110,37 @@ func (c *client) cdnUploadURL(filename string) string {
 	return u
 }
 
-func (c *client) FileUpload(ctx context.Context, data io.Reader, contentType, fileName string) (err error) {
+func (c *client) FileUpload(ctx context.Context, data io.Reader, contentType, fileName string) (target string, err error) {
 	fileData, err := io.ReadAll(data)
 	if err != nil {
-		return fmt.Errorf("failed to read file data for %v: %w", fileName, err)
+		return "", fmt.Errorf("failed to read file data for %v: %w", fileName, err)
 	}
 
-	err = c.doCdnUpload(ctx, contentType, fileName, fileData)
+	target, err = c.doCdnUpload(ctx, contentType, fileName, fileData)
 	if err != nil {
-		return fmt.Errorf("error uploading file %v: %w", fileName, err)
+		return "", fmt.Errorf("error uploading file %v: %w", fileName, err)
 	}
 
-	return nil
+	return target, nil
 }
 
-func (c *client) doCdnUpload(ctx context.Context, contentType, fileName string, fileData []byte) error {
+func (c *client) doCdnUpload(ctx context.Context, contentType, fileName string, fileData []byte) (string, error) {
 	resp, err := c.cdnReq(ctx).
 		SetHeader("Content-Type", contentType).
 		SetBodyBytes(fileData).
 		Put(c.cdnUploadURL(fileName))
 	if err != nil {
-		return fmt.Errorf("upload request failed: %w", err)
+		return "", fmt.Errorf("upload request failed: %w", err)
 	}
 
 	if resp.IsSuccessState() {
-		return nil
+		return c.CdnDownloadURL(fileName), nil
 	}
 
 	body, err := resp.ToString()
 	log.Warn(fmt.Sprintf("failed to upload file %v to cdn, status code: %d, content type: %s, body: %s", fileName, resp.GetStatusCode(), contentType, body))
 
-	return fmt.Errorf("upload failed with status %d", resp.GetStatusCode())
+	return "", fmt.Errorf("upload failed with status %d", resp.GetStatusCode())
 }
 
 func (c *client) cdnReq(ctx context.Context) *req.Request {

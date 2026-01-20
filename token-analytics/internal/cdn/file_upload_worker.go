@@ -25,9 +25,10 @@ type (
 	}
 	uploadWorker struct {
 		riverqueue.WorkerDefaults[uploadWorkerArgs]
-		Client     Client
-		RootPath   string
-		JobTimeout time.Duration
+		Client        Client
+		RootPath      string
+		JobTimeout    time.Duration
+		JobRetryAfter time.Duration
 	}
 	uploadWorkerJob = riverqueue.Job[uploadWorkerArgs]
 )
@@ -45,9 +46,19 @@ func (w *uploadWorker) Timeout(job *uploadWorkerJob) time.Duration {
 	return cmp.Or(w.JobTimeout, defaultJobTimeout)
 }
 
+func (w *uploadWorker) NextRetry(job *uploadWorkerJob) time.Time {
+	if w.JobRetryAfter > 0 {
+		return time.Now().Add(w.JobRetryAfter)
+	}
+	return time.Time{} // Use default backoff strategy.
+}
+
 func (w *uploadWorker) Work(ctx context.Context, job *uploadWorkerJob) (err error) {
 	defer func() {
 		log.Debug(fmt.Sprintf("CDN upload worker finished for file: %s with error: %v, attempt: %d", job.Args.FileName, err, job.Attempt))
+		if o := w.Client.observer(); err != nil && o != nil {
+			o.OnUploadError(ctx, job.Args.FileName, err, job.Attempt)
+		}
 	}()
 
 	log.Debug(fmt.Sprintf("CDN upload worker started for file: %s, attempt: %d", job.Args.FileName, job.Attempt))
@@ -70,9 +81,13 @@ func (w *uploadWorker) Work(ctx context.Context, job *uploadWorkerJob) (err erro
 		return nil // Just skip unknown sources.
 	}
 
-	uploadErr := w.Client.FileUpload(ctx, r, job.Args.ContentType, job.Args.FileName)
+	downloadURL, uploadErr := w.Client.FileUpload(ctx, r, job.Args.ContentType, job.Args.FileName)
 	if uploadErr != nil {
 		return fmt.Errorf("failed to upload file %v to CDN: %w", job.Args.FileName, uploadErr)
+	}
+
+	if o := w.Client.observer(); o != nil {
+		o.OnUploadCompleted(ctx, job.Args.FileName, downloadURL)
 	}
 
 	return nil
