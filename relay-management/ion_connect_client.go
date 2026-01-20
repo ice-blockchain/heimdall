@@ -41,7 +41,7 @@ func relayRequest[T any](ctx context.Context, relayUrl, relativeUrl string, acce
 	case "wss":
 		u.Scheme = "https"
 	default:
-		return nil, errors.Errorf("invalid scheme :%v", u.Scheme)
+		return nil, errors.Errorf("invalid scheme: %v", u.Scheme)
 	}
 	client := req.C().SetBaseURL(u.String()).EnableInsecureSkipVerify()
 	if resp, err := client.R().
