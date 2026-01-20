@@ -118,6 +118,10 @@ func (t *tokenAnalytics) updateBondingProgress(ctx context.Context, externalAddr
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate bonding curve progress for token %v: %w", externalAddress, err)
 	}
+	liquidityUSD, _, err := t.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(progress.Liquidity), baseToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate bonding curve liquidity for token %v: %w", externalAddress, err)
+	}
 	_, err = storage.Exec(ctx, t.ingestedDataDB, `
 		UPDATE tokens AS t
 		SET
@@ -127,8 +131,9 @@ func (t *tokenAnalytics) updateBondingProgress(ctx context.Context, externalAddr
 		    bonding_curve_current_amount_usd = $5,
 		    bonding_curve_goal_amount_usd = $6,
 		    bonding_curve_migrated = $7,
+		    liquidity_usd = $8,
 			updated_at = NOW()
-		WHERE t.external_address = $1`, externalAddress, progress.SoldTokens, progress.TokensRaised, progress.BondingTokensGoal, currentRaisedUSD, goalUSD, progress.Migrated)
+		WHERE t.external_address = $1`, externalAddress, progress.SoldTokens, progress.TokensRaised, progress.BondingTokensGoal, currentRaisedUSD, goalUSD, progress.Migrated, liquidityUSD)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update bonding curve for token %v: %w", externalAddress, err)
 	}
@@ -145,6 +150,10 @@ func (t *tokenAnalytics) toBondingCurveProgressToModel(ctx context.Context, prog
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to handle base token %v", baseToken)
 	}
+	liquidityUSD, _, err := t.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(progress.Liquidity), baseToken)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to handle base token %v", baseToken)
+	}
 	return &BondingCurveProgress{
 		GoalAmount:       progress.BondingTokensGoal.String(),
 		CurrentAmount:    progress.SoldTokens.String(),
@@ -152,5 +161,6 @@ func (t *tokenAnalytics) toBondingCurveProgressToModel(ctx context.Context, prog
 		CurrentAmountUSD: currentRaisedUSD,
 		Migrated:         progress.Migrated,
 		RaisedAmount:     progress.TokensRaised.String(),
+		LiquidityUSD:     liquidityUSD,
 	}, nil
 }

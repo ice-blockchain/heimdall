@@ -5,7 +5,6 @@ package tokenanalytics
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"strconv"
 	"strings"
 
@@ -263,7 +262,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 				Volume:       row.Volume24h,
 				Holders:      uint64(row.HoldersCount),
 				PriceUSD:     row.PriceUSD,
-				LiquidityUSD: float64(rand.Intn(100000)),
+				LiquidityUSD: row.LiquidityUSD,
 			},
 		}
 		tokens = append(tokens, token)
@@ -295,7 +294,7 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 			Holders:              uint64(row.HoldersCount),
 			PlatformHolders:      uint64(row.PlatformHoldersCount),
 			PriceUSD:             row.PriceUSD,
-			LiquidityUSD:         float64(rand.Intn(100000)),
+			LiquidityUSD:         row.LiquidityUSD,
 			BondingCurveProgress: bondingCurveProgress,
 		}
 
@@ -560,7 +559,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 			Holders:            uint64(row.HoldersCount),
 			PlatformHolders:    uint64(row.PlatformHoldersCount),
 			PriceUSD:           row.PriceUSD,
-			LiquidityUSD:       float64(rand.Intn(100000)),
+			LiquidityUSD:       row.LiquidityUSD,
 			TopPlatformHolders: topPlatformHolders,
 		}
 		if row.PositionAmount != "" && row.PositionAmount != "0" {

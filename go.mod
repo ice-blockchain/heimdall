@@ -60,7 +60,6 @@ require (
 	golang.org/x/mod v0.32.0
 	golang.org/x/net v0.49.0
 	golang.org/x/sync v0.19.0
-	golang.org/x/time v0.14.0
 )
 
 require (
@@ -88,7 +87,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0 // indirect
 	github.com/MicahParks/keyfunc v1.9.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20260119175649-084b3e29eee1 // indirect
+	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20260120135015-58f41aaaee16 // indirect
 	github.com/VictoriaMetrics/fastcache v1.13.0 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.41.1 // indirect
@@ -359,6 +358,7 @@ require (
 	golang.org/x/telemetry v0.0.0-20260109210033-bd525da824e2 // indirect
 	golang.org/x/term v0.39.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
+	golang.org/x/time v0.14.0 // indirect
 	golang.org/x/tools v0.41.0 // indirect
 	google.golang.org/api v0.260.0 // indirect
 	google.golang.org/appengine/v2 v2.0.6 // indirect
