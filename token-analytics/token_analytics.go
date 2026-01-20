@@ -105,7 +105,7 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 	bc := bondingcurve.New(ctx, applicationYamlKey)
 
 	if cfg.RiverQueue.QueueName == "" {
-		cfg.RiverQueue.QueueName = "balance_updates"
+		cfg.RiverQueue.QueueName = "heimdall_ta"
 	}
 	if cfg.RiverQueue.MaxQueueWorkers == 0 {
 		cfg.RiverQueue.MaxQueueWorkers = 100

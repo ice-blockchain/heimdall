@@ -19,9 +19,9 @@ import (
 )
 
 const (
-	fatAddressV2Version   = 2 // Fat Address V2 version byte
-	fatAddressV2Prefix    = "0x02"
-	fatAddressV2MinLength = 32 // 4 (header) + 8 (token header) + 20 (bonding addr) + strings
+	fatAddressV2Version   = 2      // Fat Address V2 version byte
+	fatAddressV2Prefix    = "0x02" // Fat Address V2 hex string prefix
+	fatAddressV2MinLength = 32     // 4 (header) + 8 (token header) + 20 (bonding addr) + strings
 )
 
 func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *bondingcurve.LogUniswapSwapped) error {
@@ -287,7 +287,7 @@ func extractAllTokensFromFatAddress(toTokenBytes []byte) ([]string, common.Addre
 
 		// Read name, symbol, and external address
 		if len(toTokenBytes) < offset+nameLen+symbolLen+extAddrLen {
-			return nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for token %d strings at offset %d", i, offset)
+			return nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for token %d (name, symbol, external address) at offset %d", i, offset)
 		}
 		offset += nameLen + symbolLen
 		externalAddress := string(toTokenBytes[offset : offset+extAddrLen])
