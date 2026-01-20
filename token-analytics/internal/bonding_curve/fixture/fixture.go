@@ -176,7 +176,11 @@ func (m *mockBondingCurveForTests) Progress(ctx context.Context, pairId common.H
 	if err != nil {
 		return nil, err
 	}
-	return &info, nil
+
+	return &bondingcurve.BondingCurveProgress{
+		BondingCurveBondingInfo: &info,
+		Liquidity:               big.NewInt(0),
+	}, nil
 }
 
 func (m *mockBondingCurveForTests) GetTokenBalance(ctx context.Context, tokenAddress common.Address, walletAddress common.Address) (*big.Int, error) {
