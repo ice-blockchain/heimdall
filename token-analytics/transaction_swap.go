@@ -5,6 +5,7 @@ package tokenanalytics
 import (
 	"context"
 	"fmt"
+	"math"
 	"math/big"
 	"strings"
 
@@ -18,8 +19,9 @@ import (
 )
 
 const (
-	fatAddressV2Version   = 2  // Fat Address V2 version byte
-	fatAddressV2MinLength = 32 // 4 (header) + 8 (token header) + 20 (bonding addr) + strings
+	fatAddressV2Version   = 2      // Fat Address V2 version byte
+	fatAddressV2Prefix    = "0x02" // Fat Address V2 hex string prefix
+	fatAddressV2MinLength = 32     // 4 (header) + 8 (token header) + 20 (bonding addr) + strings
 )
 
 func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *bondingcurve.LogUniswapSwapped) error {
@@ -45,7 +47,7 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 		FROM tokens t
 		JOIN uniswap_pools p on p.token0 = t.contract_address OR p.token1 = t.contract_address
 		WHERE p.pool_address = $1
-	`, ev.PoolAddress.Hex())
+	`, strings.ToLower(ev.PoolAddress.Hex()))
 	if err != nil {
 		return fmt.Errorf("failed to find token by pool %v: %w", strings.ToLower(ev.PoolAddress.Hex()), err)
 	}
@@ -98,7 +100,7 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 
 	log.Debug(fmt.Sprintf("Uniswap on token %v: direction=%v, price=%v USD (ION price: %v), user=%v, tx:%v",
 		result.ContractAddress, direction, priceUSD, basePriceUSD, userAddress, tx.TransactionHash))
-	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, result.ContractAddress, direction, inputAmount, outputAmount, priceUSD, result.TokenExternalAddress, user.UserExternalAddress, result.TokenType, result.TotalSupply); err != nil {
+	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, result.ContractAddress, direction, inputAmount, outputAmount, priceUSD, result.TokenExternalAddress, user.UserExternalAddress, result.TokenType, result.TotalSupply, userAddress.Hex()); err != nil {
 		return errors.Wrap(err, "failed to calculate token market data and user position")
 	}
 	pairId := common.HexToHash(result.PairId)
@@ -155,10 +157,14 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	hasFatAddress := len(toTokenBytes) > fatAddressV2MinLength && toTokenBytes[0] == fatAddressV2Version
 
 	if hasFatAddress {
-		externalAddress, _, _, err := extractExternalAddressFromToToken(toTokenBytes)
+		allTokens, _, _, err := extractAllTokensFromFatAddress(toTokenBytes)
 		if err != nil {
-			return fmt.Errorf("failed to extract external_address from Fat Address: %w", err)
+			return fmt.Errorf("failed to extract tokens from Fat Address: %w", err)
 		}
+		if len(allTokens) == 0 {
+			return fmt.Errorf("no tokens found in Fat Address")
+		}
+		externalAddress := allTokens[0]
 		if externalAddress == "" {
 			return fmt.Errorf("external_address is empty in Fat Address")
 		}
@@ -170,9 +176,8 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 			return fmt.Errorf("failed to find token by external_address %v: %w", externalAddress, err)
 		}
 		if err == nil && strings.EqualFold(result.PairId, ev.Pair.String()) {
-			// Token found by external_address and pair_id matches → first swap
 			isFirstSwap = true
-			log.Debug(fmt.Sprintf("First swap detected: external_address=%s, contract=%s, pair_id=%s",
+			log.Debug(fmt.Sprintf("First swap (Fat Address matched): external_address=%s, contract=%s, pair_id=%s",
 				externalAddress, result.ContractAddress, ev.Pair.Hex()))
 		} else {
 			result = nil
@@ -185,15 +190,10 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 		if err != nil {
 			return fmt.Errorf("failed to find token by pair_id %v: %w", ev.Pair.Hex(), err)
 		}
-		if hasFatAddress {
-			isFirstSwap = true
-			log.Debug(fmt.Sprintf("First swap for second token in double swap: external_address=%s, contract=%s, pair_id=%s",
-				result.TokenExternalAddress, result.ContractAddress, ev.Pair.Hex()))
-		} else {
-			isFirstSwap = false
-			log.Debug(fmt.Sprintf("Subsequent swap detected: pair_id=%s, contract=%s",
-				ev.Pair.Hex(), result.ContractAddress))
-		}
+
+		isFirstSwap = false
+		log.Debug(fmt.Sprintf("Subsequent/intermediate swap (thin address): token=%s (type=%s), pair_id=%s, user_has_position=%v",
+			result.TokenExternalAddress, result.Type, ev.Pair.Hex(), result.UserExternalAddress != ""))
 	}
 
 	contractAddress := result.ContractAddress
@@ -210,7 +210,7 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	log.Debug(fmt.Sprintf("Swap on token %v: direction=%v, price=%v USD (ION price: %v), user=%v, tx:%v",
 		contractAddress, ev.Direction, priceUSD, basePriceUSD, userAddr, tx.TransactionHash))
 
-	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, contractAddress, ev.Direction, ev.InputAmount, ev.OutputAmount, priceUSD, result.TokenExternalAddress, result.UserExternalAddress, result.Type, result.TotalSupply); err != nil {
+	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, contractAddress, ev.Direction, ev.InputAmount, ev.OutputAmount, priceUSD, result.TokenExternalAddress, result.UserExternalAddress, result.Type, result.TotalSupply, userAddr); err != nil {
 		return errors.Wrap(err, "failed to calculate token market data and user position")
 	}
 	if err = t.registerTrade(ctx, tx, ev.Direction, ev.InputAmount, ev.OutputAmount, result.ContractAddress, ev.Swapper.Hex(), result.TokenExternalAddress, actualBaseToken, ev.Pair.Bytes()); err != nil {
@@ -238,144 +238,145 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	return nil
 }
 
-func extractExternalAddressFromToToken(toTokenBytes []byte) (string, common.Address, common.Address, error) {
+func extractAllTokensFromFatAddress(toTokenBytes []byte) ([]string, common.Address, common.Address, error) {
 	if len(toTokenBytes) < 4 {
-		return "", common.Address{}, common.Address{}, fmt.Errorf("insufficient data for V2 header: got %d bytes", len(toTokenBytes))
+		return nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for V2 header: got %d bytes", len(toTokenBytes))
 	}
 	version := toTokenBytes[0]
 	if version != fatAddressV2Version {
-		return "", common.Address{}, common.Address{}, fmt.Errorf("unsupported fat address version: %d (expected %d)", version, fatAddressV2Version)
+		return nil, common.Address{}, common.Address{}, fmt.Errorf("unsupported fat address version: %d (expected %d)", version, fatAddressV2Version)
 	}
 	recordsCount := int(toTokenBytes[1])
 	presenceMask := uint16(toTokenBytes[2])<<8 | uint16(toTokenBytes[3])
 	offset := 4
 
-	if len(toTokenBytes) < offset+8 {
-		return "", common.Address{}, common.Address{}, fmt.Errorf("insufficient data for token header at offset %d", offset)
-	}
+	externalAddresses := make([]string, 0, recordsCount)
 
-	nameLen := int(toTokenBytes[offset])
-	symbolLen := int(toTokenBytes[offset+1])
-	extAddrLen := int(toTokenBytes[offset+2])
-	// externalType := toTokenBytes[offset+3]
-	tokenMask := uint32(toTokenBytes[offset+4])<<24 | uint32(toTokenBytes[offset+5])<<16 |
-		uint32(toTokenBytes[offset+6])<<8 | uint32(toTokenBytes[offset+7])
-	offset += 8
-	// Skip mandatory bonding address
-	if len(toTokenBytes) < offset+20 {
-		return "", common.Address{}, common.Address{}, fmt.Errorf("insufficient data for bonding address at offset %d", offset)
-	}
-	offset += 20
-
-	// Skip optional bonding prices (64 bytes if bit 0x02 is set)
-	if tokenMask&0x02 != 0 {
-		if len(toTokenBytes) < offset+64 {
-			return "", common.Address{}, common.Address{}, fmt.Errorf("insufficient data for bonding prices at offset %d", offset)
-		}
-		offset += 64
-	}
-	// Skip optional bonding supply (32 bytes if bit 0x04 is set)
-	if tokenMask&0x04 != 0 {
-		if len(toTokenBytes) < offset+32 {
-			return "", common.Address{}, common.Address{}, fmt.Errorf("insufficient data for bonding supply at offset %d", offset)
-		}
-		offset += 32
-	}
-	if len(toTokenBytes) < offset+nameLen+symbolLen {
-		return "", common.Address{}, common.Address{}, fmt.Errorf("insufficient data for name/symbol strings at offset %d", offset)
-	}
-	offset += nameLen + symbolLen
-	if len(toTokenBytes) < offset+extAddrLen {
-		return "", common.Address{}, common.Address{}, fmt.Errorf("insufficient data for externalAddress at offset %d (need %d bytes)", offset, extAddrLen)
-	}
-	externalAddress := string(toTokenBytes[offset : offset+extAddrLen])
-	offset += extAddrLen
-
-	// If double swap (recordsCount == 2), skip second token record entirely
-	if recordsCount == 2 {
+	for i := 0; i < recordsCount; i++ {
 		if len(toTokenBytes) < offset+8 {
-			return "", common.Address{}, common.Address{}, fmt.Errorf("insufficient data for second token header at offset %d", offset)
+			return nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for token %d header at offset %d", i, offset)
 		}
 
-		nameLen2 := int(toTokenBytes[offset])
-		symbolLen2 := int(toTokenBytes[offset+1])
-		extAddrLen2 := int(toTokenBytes[offset+2])
-		tokenMask2 := uint32(toTokenBytes[offset+4])<<24 | uint32(toTokenBytes[offset+5])<<16 |
+		nameLen := int(toTokenBytes[offset])
+		symbolLen := int(toTokenBytes[offset+1])
+		extAddrLen := int(toTokenBytes[offset+2])
+		tokenMask := uint32(toTokenBytes[offset+4])<<24 | uint32(toTokenBytes[offset+5])<<16 |
 			uint32(toTokenBytes[offset+6])<<8 | uint32(toTokenBytes[offset+7])
 		offset += 8
 
-		offset += 20 // bonding address
+		// Skip mandatory bonding address
+		if len(toTokenBytes) < offset+20 {
+			return nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for bonding address at offset %d", offset)
+		}
+		offset += 20
 
-		if tokenMask2&0x02 != 0 {
+		// Skip optional bonding prices (64 bytes if bit 0x02 is set)
+		if tokenMask&0x02 != 0 {
+			if len(toTokenBytes) < offset+64 {
+				return nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for bonding prices at offset %d", offset)
+			}
 			offset += 64
 		}
-		if tokenMask2&0x04 != 0 {
+		// Skip optional bonding supply (32 bytes if bit 0x04 is set)
+		if tokenMask&0x04 != 0 {
+			if len(toTokenBytes) < offset+32 {
+				return nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for bonding supply at offset %d", offset)
+			}
 			offset += 32
 		}
 
-		offset += nameLen2 + symbolLen2 + extAddrLen2
+		// Read name, symbol, and external address
+		if len(toTokenBytes) < offset+nameLen+symbolLen+extAddrLen {
+			return nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for token %d (name, symbol, external address) at offset %d", i, offset)
+		}
+		offset += nameLen + symbolLen
+		externalAddress := string(toTokenBytes[offset : offset+extAddrLen])
+		offset += extAddrLen
+
+		externalAddresses = append(externalAddresses, externalAddress)
 	}
+
+	// Parse optional creator and affiliate addresses
 	var creatorAddr, affiliateAddr common.Address
 	if presenceMask&0x01 != 0 {
 		if len(toTokenBytes) < offset+20 {
-			return "", common.Address{}, common.Address{}, fmt.Errorf("insufficient data for creator address at offset %d", offset)
+			return nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for creator address at offset %d", offset)
 		}
 		creatorAddr = common.BytesToAddress(toTokenBytes[offset : offset+20])
 		offset += 20
 	}
 	if presenceMask&0x02 != 0 {
 		if len(toTokenBytes) < offset+20 {
-			return "", common.Address{}, common.Address{}, fmt.Errorf("insufficient data for affiliate address at offset %d", offset)
+			return nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for affiliate address at offset %d", offset)
 		}
 		affiliateAddr = common.BytesToAddress(toTokenBytes[offset : offset+20])
 	}
 
-	return externalAddress, creatorAddr, affiliateAddr, nil
+	return externalAddresses, creatorAddr, affiliateAddr, nil
 }
 
-func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Context, tx *txEvent, contractAddress string, direction bool, input, output *big.Int, priceUSD float64, tokenExternalAddress, userExternalAddress, tokenType, totalSupply string) error {
-	var tokenAmount *big.Int
-	if !direction { // buy (Direction=false)
-		tokenAmount = output // User receives tokens
-	} else { // sell (Direction=true)
-		tokenAmount = input // User sends tokens
-	}
-
+func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Context, tx *txEvent, contractAddress string, direction bool, input, output *big.Int, priceUSD float64, tokenExternalAddress, userExternalAddress, tokenType, totalSupply, userBlockchainAddress string) error {
 	log.Debug(fmt.Sprintf("Swap processed: contractAddress=%s, tokenExternalAddress=%s, userExternalAddress=%s (will be processed by trigger on tx_logs)",
 		contractAddress, tokenExternalAddress, userExternalAddress))
 
-	userPostitionKey := keyUserPositionOfToken(tokenExternalAddress)
-
-	currentScore, err := t.processedDataDB.ZScore(ctx, userPostitionKey, userExternalAddress).Result()
-	if err != nil && !errors.Is(err, redis.Nil) {
-		return fmt.Errorf("failed to get current user position: %w", err)
+	jobArgs := BalanceUpdateJobArgs{
+		UserBlockchainAddress: userBlockchainAddress,
+		UserExternalAddress:   userExternalAddress,
+		ContractAddress:       contractAddress,
+		TokenExternalAddress:  tokenExternalAddress,
+		TransactionHash:       tx.TransactionHash,
 	}
 
-	amountFloat := weiToFloat64FromBigInt(tokenAmount)
-	var newScore float64
-	if !direction { // buy
-		newScore = currentScore + amountFloat
-	} else { // sell
-		newScore = currentScore - amountFloat
+	if t.cfg.EnableDummyGenerator {
+		var tokenAmount *big.Int
+		if !direction { // buy (Direction=false)
+			tokenAmount = output // User receives tokens
+		} else { // sell (Direction=true)
+			tokenAmount = input // User sends tokens
+		}
+
+		userPositionKey := keyUserPositionOfToken(tokenExternalAddress)
+		currentScore, err := t.processedDataDB.ZScore(ctx, userPositionKey, userExternalAddress).Result()
+		if err != nil && !errors.Is(err, redis.Nil) {
+			log.Error(errors.Wrapf(err, "failed to get current user position for dummy data"))
+			currentScore = 0 // Default to 0 if error
+		}
+
+		amountFloat := weiToFloat64FromBigInt(tokenAmount)
+		var newScore float64
+		if !direction { // buy
+			newScore = currentScore + amountFloat
+		} else { // sell
+			newScore = math.Max(0, currentScore-amountFloat)
+		}
+
+		newBalanceWei := new(big.Float).Mul(big.NewFloat(newScore), big.NewFloat(1e18))
+		newBalanceBigInt, accuracy := newBalanceWei.Int(nil)
+		if accuracy != big.Exact {
+			log.Warn(fmt.Sprintf("Dummy data: Float to Int conversion lost precision (accuracy=%v) for newScore=%.2f, user=%s", accuracy, newScore, userBlockchainAddress))
+		}
+		if newBalanceBigInt.Sign() < 0 {
+			log.Debug(fmt.Sprintf("Dummy data: NEGATIVE DETECTED! Setting to 0. Was: %s, newScore=%.2f, user=%s", newBalanceBigInt.String(), newScore, userBlockchainAddress))
+
+			newBalanceBigInt = big.NewInt(0)
+		}
+		balanceStr := newBalanceBigInt.String()
+		jobArgs.DummyBalance = &balanceStr
+
+		log.Debug(fmt.Sprintf("Dummy data: Calculated balance=%s (current=%.2f, change=%.2f, new=%.2f) for user=%s, token=%s, direction=%v",
+			balanceStr, currentScore, amountFloat, newScore, userBlockchainAddress, tokenExternalAddress, direction))
 	}
+
+	if err := t.balanceUpdateQueue.Push(ctx, jobArgs); err != nil {
+		return errors.Wrapf(err, "failed to enqueue balance update job for tx %v", tx.TransactionHash)
+	}
+
 	totalSupplyBig := new(big.Int)
 	totalSupplyBig.SetString(totalSupply, 10)
 	totalSupplyFloat := weiToFloat64FromBigInt(totalSupplyBig)
 	marketCapUSD := priceUSD * totalSupplyFloat
 
 	if responses, txErr := t.processedDataDB.TxPipelined(ctx, func(pipeliner redis.Pipeliner) error {
-		if newScore <= 0 {
-			if pErr := pipeliner.ZRem(ctx, userPostitionKey, userExternalAddress).Err(); pErr != nil {
-				return pErr
-			}
-		} else {
-			if pErr := pipeliner.ZAdd(ctx, userPostitionKey, redis.Z{
-				Score:  newScore,
-				Member: userExternalAddress,
-			}).Err(); pErr != nil {
-				return pErr
-			}
-		}
 		if pErr := pipeliner.ZAdd(ctx, globalTopSetKey, redis.Z{
 			Score:  marketCapUSD,
 			Member: tokenExternalAddress,

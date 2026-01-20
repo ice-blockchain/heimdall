@@ -18,6 +18,8 @@ import (
 )
 
 func TestParseTX(t *testing.T) {
+	t.Skip("Skipping until TON testnet is stable again")
+
 	t.Parallel()
 	t.Run("ton", func(t *testing.T) {
 		t.Parallel()

@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/jellydator/ttlcache/v3"
 	"golang.org/x/sync/singleflight"
+	"golang.org/x/time/rate"
 )
 
 type (
@@ -160,6 +161,13 @@ type (
 		Tick         *big.Int
 		PoolAddress  common.Address `abi:"-"`
 	}
+	LogTransfer struct {
+		Event
+		TokenAddress common.Address // Contract address that emitted the event
+		From         common.Address // Sender address (indexed)
+		To           common.Address // Receiver address (indexed)
+		Value        *big.Int       // Amount transferred (in wei)
+	}
 	BondingCurveProgress struct {
 		*BondingCurveBondingInfo
 		Liquidity *big.Int
@@ -167,6 +175,7 @@ type (
 	BondingCurve interface {
 		Pricing(ctx context.Context, baseToken common.Address, targetToken []byte, amount *big.Int, sale bool) (*big.Int, error)
 		Progress(ctx context.Context, pairId common.Hash) (*BondingCurveProgress, error)
+		GetTokenBalance(ctx context.Context, tokenAddress common.Address, walletAddress common.Address) (*big.Int, error)
 	}
 )
 
@@ -200,6 +209,10 @@ var (
 	eventLiquidityBurned      = crypto.Keccak256Hash([]byte("Burn(address,int24,int24,uint128,uint256,uint256)"))
 	eventUniswapFeesCollected = crypto.Keccak256Hash([]byte("Collect(address,address,int24,int24,uint128,uint128)"))
 	eventUniswapSwapped       = crypto.Keccak256Hash([]byte("Swap(address,address,int256,int256,uint160,uint128,int24)"))
+	eventTransfer             = crypto.Keccak256Hash([]byte("Transfer(address,address,uint256)"))
+
+	EventSwappedSignature        = eventSwapped.Hex()
+	EventUniswapSwappedSignature = eventUniswapSwapped.Hex()
 )
 
 type (
@@ -212,6 +225,7 @@ type (
 		priceCache           *ttlcache.Cache[string, *big.Int]
 		progressSingleflight *singleflight.Group
 		progressCache        *ttlcache.Cache[string, *BondingCurveProgress]
+		rateLimiter          *rate.Limiter
 	}
 	config struct {
 		BondingCurve struct {

@@ -28,6 +28,7 @@ import (
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	storagev3 "github.com/ice-blockchain/wintr/connectors/storage/v3"
 	"github.com/ice-blockchain/wintr/log"
+	"github.com/ice-blockchain/wintr/riverqueue"
 )
 
 func TokenizedCommunitiesBondingCurveSmartContractABI() string {
@@ -101,6 +102,39 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 	log.Panic(errors.Wrapf(registry.Register("stream_creator_iterations", metrics.NewMeter()),
 		"failed to register stream creator iterations meter"))
 
+	bc := bondingcurve.New(ctx, applicationYamlKey)
+
+	if cfg.RiverQueue.QueueName == "" {
+		cfg.RiverQueue.QueueName = "heimdall_ta"
+	}
+	if cfg.RiverQueue.MaxQueueWorkers == 0 {
+		cfg.RiverQueue.MaxQueueWorkers = 100
+	}
+	if cfg.RiverQueue.JobMaxTimeout == 0 {
+		cfg.RiverQueue.JobMaxTimeout = 30 * stdlibtime.Second
+	}
+	riverCfg := riverqueue.Config{
+		QueueName:       cfg.RiverQueue.QueueName,
+		MaxQueueWorkers: cfg.RiverQueue.MaxQueueWorkers,
+		JobMaxTimeout:   cfg.RiverQueue.JobMaxTimeout,
+		Credentials: struct {
+			User     string `yaml:"user"`
+			Password string `yaml:"password"`
+		}{
+			User:     cfg.Storage.Credentials.User,
+			Password: cfg.Storage.Credentials.Password,
+		},
+		PrimaryURLs: append([]string{cfg.Storage.PrimaryURL}, cfg.Storage.PrimaryFallbackURLs...),
+	}
+
+	riverClient := riverqueue.MustNewClient(ctx, applicationYamlKey,
+		riverqueue.WithConfig(&riverCfg))
+	riverqueue.RegisterWorker(riverClient.Register(), &balanceUpdateWorker{
+		bondingCurve:    bc,
+		ingestedDataDB:  db,
+		processedDataDB: targetDB,
+	})
+
 	t := &tokenAnalytics{
 		bondingCurveContractAddress: cfg.BondingCurve.SmartContractAddress,
 		tokenFactoryContractAddress: cfg.BondingCurve.TokenFactorySmartContractAddress,
@@ -111,7 +145,8 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 		cfg:                         &cfg,
 		quickNode:                   qn,
 		metrics:                     registry,
-		bondingCurve:                bondingcurve.New(ctx, applicationYamlKey),
+		bondingCurve:                bc,
+		balanceUpdateQueue:          riverClient,
 		ohclvRecentData:             xsync.NewMap[string, *recentCandlestick](),
 		tradingStatsRecentData:      xsync.NewMap[string, *recentTradeStats](),
 		subscriptions:               newSubscriptions(ctx),
@@ -122,11 +157,15 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 			return errors.Join(
+				errors.Wrapf(riverClient.Stop(shutdownCtx), "failed to stop river queue"),
 				errors.Wrapf(db.Close(), "failed to close source db"),
 				errors.Wrapf(targetDB.Close(), "failed to close target db"),
 				errors.Wrapf(questDB.Close(shutdownCtx), "failed to close questdb"),
 			)
 		},
+	}
+	if err := riverClient.Start(ctx); err != nil {
+		log.Panic(errors.Wrap(err, "failed to start river queue"))
 	}
 	t.ionPriceUSD = new(atomic.Pointer[float64])
 	t.bnbPriceUSD = new(atomic.Pointer[float64])
@@ -453,6 +492,8 @@ func (t *tokenAnalytics) processLog(ctx context.Context, tx *txEvent, logEvent *
 		return t.onUniswapSwapped(ctx, tx, ev)
 	case *bondingcurve.LogPoolCreated:
 		return t.onUniswapPoolCreated(ctx, tx, ev)
+	case *bondingcurve.LogTransfer:
+		return t.onTransfer(ctx, tx, ev)
 	}
 
 	return nil

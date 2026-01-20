@@ -5,6 +5,7 @@ package tokenanalytics
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"os"
 	"strings"
 	"sync"
@@ -12,18 +13,25 @@ import (
 	"testing"
 	stdtime "time"
 
+	"github.com/cockroachdb/errors"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rcrowley/go-metrics"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ice-blockchain/heimdall/coins"
 	"github.com/ice-blockchain/heimdall/token-analytics/ddl"
+	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
+	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
+	questdbfixture "github.com/ice-blockchain/heimdall/token-analytics/internal/questdb/fixture"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2/fixture"
+	"github.com/ice-blockchain/wintr/riverqueue"
 )
 
 var (
-	testPgContainer *fixture.Container
+	testPgContainer      *fixture.Container
+	testQuestDBContainer *questdbfixture.Container
 )
 
 func TestMain(m *testing.M) {
@@ -33,10 +41,19 @@ func TestMain(m *testing.M) {
 	dragonflyContainer, dragonflyAddr, releaseDragonfly := mustStartDragonflyContainer(ctx)
 	testRedis = mustConnectDragonfly(ctx, dragonflyAddr)
 
+	var err error
+	testQuestDBContainer, err = questdbfixture.New(ctx)
+	if err != nil {
+		panic(fmt.Sprintf("failed to create QuestDB container: %v", err))
+	}
+
 	code := m.Run()
 
 	if testRedis != nil {
 		_ = testRedis.Close()
+	}
+	if testQuestDBContainer != nil {
+		_ = testQuestDBContainer.Terminate(ctx)
 	}
 	releaseDragonfly()
 	_ = dragonflyContainer.Terminate(ctx)
@@ -54,8 +71,99 @@ func (m *mockCoinImport) ImportTokenizedCommunitiesCoin(ctx context.Context, coi
 	return nil, nil
 }
 
-func helperNewForTest(t testing.TB, db *storage.DB) TokenAnalytics {
+type mockBondingCurveForBalanceUpdater struct{}
+
+func (m *mockBondingCurveForBalanceUpdater) Pricing(ctx context.Context, baseToken common.Address, targetToken []byte, amount *big.Int, sale bool) (*big.Int, error) {
+	return big.NewInt(1000000000000000), nil
+}
+
+func (m *mockBondingCurveForBalanceUpdater) Progress(ctx context.Context, pairId common.Hash) (*bondingcurve.BondingCurveProgress, error) {
+	return &bondingcurve.BondingCurveProgress{}, nil
+}
+
+func (m *mockBondingCurveForBalanceUpdater) GetTokenBalance(ctx context.Context, tokenAddress common.Address, walletAddress common.Address) (*big.Int, error) {
+	return big.NewInt(1000000000000000000), nil // 1 token
+}
+
+type helperTestOptions struct {
+	withRealRiverQueue bool
+	connString         string
+	bondingCurve       bondingcurve.BondingCurve
+}
+
+type HelperTestOption func(*helperTestOptions)
+
+func WithRealRiverQueue(connString string) HelperTestOption {
+	return func(o *helperTestOptions) {
+		o.withRealRiverQueue = true
+		o.connString = connString
+	}
+}
+
+func WithBondingCurve(bc bondingcurve.BondingCurve) HelperTestOption {
+	return func(o *helperTestOptions) {
+		o.bondingCurve = bc
+	}
+}
+
+func helperNewForTestWithConnString(t testing.TB, db *storage.DB, connString string) TokenAnalytics {
 	t.Helper()
+	return helperNewForTest(t, db, WithRealRiverQueue(connString))
+}
+
+func mustConnectQuestDBForTest(ctx context.Context) *questdb.DB {
+	if testQuestDBContainer == nil {
+		panic("QuestDB container not initialized")
+	}
+
+	return questdb.MustConnectWithConfig(ctx, &questdb.ConnectionConfig{
+		WriteURL: testQuestDBContainer.AddressHTTP,
+		PostgresConn: &storage.Cfg{
+			PrimaryURL:               testQuestDBContainer.AddressPG,
+			ReplicaURLs:              []string{testQuestDBContainer.AddressPG},
+			RunDDL:                   true,
+			IgnoreGlobal:             true,
+			SkipSettingsVerification: true,
+		},
+	})
+}
+
+func helperCreateDB(t *testing.T) (*storage.DB, func()) {
+	db, _, release := helperCreateDBWithConnString(t)
+	return db, func() {
+		db.Close()
+		release()
+	}
+}
+
+func helperCreateDBWithConnString(t *testing.T) (*storage.DB, string, func()) {
+	t.Helper()
+
+	connString, release := testPgContainer.MustTempDB(t.Context())
+	db := storage.MustConnectWithCfg(t.Context(),
+		&storage.Cfg{
+			PrimaryURL:   connString,
+			ReplicaURLs:  []string{connString},
+			RunDDL:       true,
+			IgnoreGlobal: true,
+		},
+		storage.NewFilesystemDDL(&ddl.Files, schemeMigrationTableName),
+	)
+	require.NotNil(t, db)
+
+	return db, connString, func() {
+		db.Close()
+		release()
+	}
+}
+
+func helperNewForTest(t testing.TB, db *storage.DB, opts ...HelperTestOption) TokenAnalytics {
+	t.Helper()
+
+	options := &helperTestOptions{}
+	for _, opt := range opts {
+		opt(options)
+	}
 
 	ionPrice := 1.15
 	cfg := config{
@@ -72,12 +180,58 @@ func helperNewForTest(t testing.TB, db *storage.DB) TokenAnalytics {
 		Workers:         1,
 		IONTokenAddress: "0x2c73996BaBF1a06c2C057177353293f7cA0907c8",
 	}
+
+	var bc bondingcurve.BondingCurve
+	if options.bondingCurve != nil {
+		bc = options.bondingCurve
+	} else {
+		bc = &mockBondingCurveForBalanceUpdater{}
+	}
+
+	var balanceQueue riverqueue.Client
+	var shutdownFuncs []func() error
+
+	if options.withRealRiverQueue && options.connString != "" {
+		balanceQueue = riverqueue.MustNewClient(t.Context(), "token-analytics-test",
+			riverqueue.WithConfig(&riverqueue.Config{
+				QueueName:       "test_balance_updates_helper",
+				MaxQueueWorkers: 10,
+				JobMaxTimeout:   30 * stdtime.Second,
+				PrimaryURLs:     []string{options.connString},
+			}))
+
+		riverqueue.RegisterWorker(balanceQueue.Register(), &balanceUpdateWorker{
+			bondingCurve:    bc,
+			ingestedDataDB:  db,
+			processedDataDB: &testRedisDB{Client: testRedis},
+		})
+
+		if err := balanceQueue.Start(t.Context()); err != nil {
+			t.Fatalf("failed to start balance queue: %v", err)
+		}
+
+		shutdownFuncs = append(shutdownFuncs, func() error {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*stdtime.Second)
+			defer cancel()
+			return balanceQueue.Stop(shutdownCtx)
+		})
+	} else {
+		balanceQueue = &mockBalanceUpdateQueue{}
+	}
+
+	questDBConn := mustConnectQuestDBForTest(t.Context())
+	shutdownFuncs = append(shutdownFuncs, func() error {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*stdtime.Second)
+		defer cancel()
+		return questDBConn.Close(shutdownCtx)
+	})
+
 	ta := &tokenAnalytics{
 		bondingCurveContractAddress: cfg.BondingCurve.SmartContractAddress,
 		tokenFactoryContractAddress: cfg.BondingCurve.TokenFactorySmartContractAddress,
 		ingestedDataDB:              db,
 		processedDataDB:             &testRedisDB{Client: testRedis},
-		questDB:                     nil,
+		questDB:                     questDBConn,
 		quickNode:                   nil,
 		wg:                          new(sync.WaitGroup),
 		cfg:                         &cfg,
@@ -87,33 +241,51 @@ func helperNewForTest(t testing.TB, db *storage.DB) TokenAnalytics {
 		subscriptions:               newSubscriptions(t.Context()),
 		creatorTokenPricesUSD:       xsync.NewMap[string, float64](),
 		coins:                       &mockCoinImport{},
-		shutdown:                    func() error { return nil },
+		balanceUpdateQueue:          balanceQueue,
+		bondingCurve:                bc,
+		shutdown: func() error {
+			var errs []error
+			for _, fn := range shutdownFuncs {
+				if err := fn(); err != nil {
+					errs = append(errs, err)
+				}
+			}
+			return errors.Join(errs...)
+		},
 	}
 	ta.ionPriceUSD = new(atomic.Pointer[float64])
 	ta.ionPriceUSD.Store(&ionPrice)
+	ta.bnbPriceUSD = new(atomic.Pointer[float64])
+	bnbPrice := 600.0
+	ta.bnbPriceUSD.Store(&bnbPrice)
 
 	return ta
 }
 
-func helperCreateDB(t *testing.T) (*storage.DB, func()) {
-	t.Helper()
+type mockBalanceUpdateQueue struct{}
 
-	connString, release := testPgContainer.MustTempDB(t.Context())
-	db := storage.MustConnectWithCfg(t.Context(),
-		&storage.Cfg{
-			PrimaryURL:   connString,
-			ReplicaURLs:  []string{connString},
-			RunDDL:       true,
-			IgnoreGlobal: true,
-		},
-		storage.NewFilesystemDDL(&ddl.Files, schemeMigrationTableName),
-	)
-	require.NotNil(t, db)
+func (m *mockBalanceUpdateQueue) Register() *riverqueue.Register {
+	return nil
+}
 
-	return db, func() {
-		db.Close()
-		release()
-	}
+func (m *mockBalanceUpdateQueue) Push(ctx context.Context, jobs ...riverqueue.JobArgs) error {
+	return nil
+}
+
+func (m *mockBalanceUpdateQueue) Stop(ctx context.Context) error {
+	return nil
+}
+
+func (m *mockBalanceUpdateQueue) Start(ctx context.Context) error {
+	return nil
+}
+
+func (m *mockBalanceUpdateQueue) HealthCheck(ctx context.Context) error {
+	return nil
+}
+
+func (m *mockBalanceUpdateQueue) Close(ctx context.Context) error {
+	return nil
 }
 
 func TestStorageDDL(t *testing.T) {
@@ -1304,7 +1476,7 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 		`, testUserAddr, testTokenAddr)
 		require.NoError(t, err)
 		require.NotNil(t, pr)
-		require.Equal(t, outputAmount, pr.Amount, "Position amount should be 980 tokens")
+		require.Equal(t, "0", pr.Amount, "Position amount is now updated asynchronously via River queue, trigger sets it to 0")
 		// v_cost_usd := (p_input_amount / 1e18) * p_ion_price_usd
 		// v_cost_usd = (1000000000000000000000 / 1e18) * 0.003 = 1000 * 0.003 = 3 USD
 		require.InDelta(t, 3.0, pr.TotalInvestedUSD, 0.000001, "Total invested = (1000 * 10^18 / 1e18) * 0.003 USD = 3 USD")
@@ -1347,8 +1519,7 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 		`, testUserAddr, testTokenAddr)
 		require.NoError(t, err)
 		require.NotNil(t, pr)
-		// Total amount = 980 + 490 = 1470 tokens
-		require.Equal(t, "1470000000000000000000", pr.Amount, "Position should accumulate: 980 + 490 = 1470")
+		require.Equal(t, "0", pr.Amount, "Position amount is now updated asynchronously via River queue")
 		// Total invested = 3 + 1.5 = 4.5 USD
 		require.InDelta(t, 4.5, pr.TotalInvestedUSD, 0.000001, "Total invested should accumulate: 3 + 1.5 = 4.5 USD")
 	})
@@ -1388,8 +1559,7 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 		`, testUserAddr, testTokenAddr)
 		require.NoError(t, err)
 		require.NotNil(t, pr)
-		// Remaining amount = 1470 - 500 = 970 tokens
-		require.Equal(t, "970000000000000000000", pr.Amount, "Position should decrease: 1470 - 500 = 970")
+		require.Equal(t, "0", pr.Amount, "Position amount is now updated asynchronously via River queue")
 		// Realized = (520 * 10^18 / 1e18) * 0.003 USD = 520 * 0.003 = 1.56 USD
 		require.InDelta(t, 1.56, pr.TotalRealizedUSD, 0.000001, "Realized USD should be (520 * 10^18 / 1e18) * 0.003 = 1.56 USD")
 	})
@@ -1808,4 +1978,31 @@ func TestProcessPairRegistered(t *testing.T) {
 		_, err := storage.Exec(ctx, db, `SELECT process_pair_registered($1::TEXT[], $2::TEXT, NOW()::TIMESTAMP)`, topics, data)
 		require.NoError(t, err)
 	})
+}
+
+func helperWaitForRiverQueueJobs(t *testing.T, ctx context.Context, ta *tokenAnalytics, timeout stdtime.Duration) {
+	t.Helper()
+
+	require.Eventually(t, func() bool {
+		type jobCount struct {
+			Count int `db:"count"`
+		}
+
+		results, err := storage.Select[jobCount](ctx, ta.ingestedDataDB, `
+			SELECT COUNT(*) as count
+			FROM river_job 
+			WHERE state IN ('available', 'running', 'retryable', 'scheduled')
+		`)
+		if err != nil {
+			t.Logf("Failed to query river_job: %v", err)
+			return false
+		}
+
+		if len(results) == 0 {
+			t.Log("No results from river_job query")
+			return false
+		}
+
+		return results[0].Count == 0
+	}, timeout, 100*stdtime.Millisecond, "All River queue jobs should complete")
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/quicknode"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	storagev3 "github.com/ice-blockchain/wintr/connectors/storage/v3"
+	"github.com/ice-blockchain/wintr/riverqueue"
 	"github.com/ice-blockchain/wintr/time"
 )
 
@@ -209,11 +210,17 @@ type (
 			TokenFactorySmartContractAddress    string              `yaml:"tokenFactorySmartContractAddress"`
 			BondingCurveProgressUpdateFrequency stdlibtime.Duration `yaml:"bondingCurveProgressUpdateFrequency"`
 		} `yaml:"bondingCurve" mapstructure:"bondingCurve"`
-		Workers               uint   `yaml:"workers"`
-		BatchSize             uint   `yaml:"batchSize"`
-		IdentityServiceURL    string `yaml:"identityServiceUrl"`
-		IdentityServiceAPIKey string `yaml:"identityServiceApiKey"`
-		EnableDummyGenerator  bool   `yaml:"enableDummyGenerator"`
+		RiverQueue struct {
+			QueueName       string              `yaml:"queueName,omitempty"`
+			MaxQueueWorkers int                 `yaml:"maxQueueWorkers,omitempty"`
+			JobMaxTimeout   stdlibtime.Duration `yaml:"jobMaxTimeout,omitempty"`
+		} `yaml:"riverQueue" mapstructure:"riverQueue"`
+		Storage               storage.Cfg `yaml:"wintr/connectors/storage/v2" mapstructure:"wintr/connectors/storage/v2"`
+		Workers               uint        `yaml:"workers"`
+		BatchSize             uint        `yaml:"batchSize"`
+		IdentityServiceURL    string      `yaml:"identityServiceUrl"`
+		IdentityServiceAPIKey string      `yaml:"identityServiceApiKey"`
+		EnableDummyGenerator  bool        `yaml:"enableDummyGenerator"`
 	}
 	dummyUserRepository struct{}
 	tokenAnalytics      struct {
@@ -226,6 +233,7 @@ type (
 		cfg                   *config
 		wg                    *sync.WaitGroup
 		bondingCurve          bondingcurve.BondingCurve
+		balanceUpdateQueue    riverqueue.Client
 		generator             *dummyDataGenerator
 		ionPriceUSD           *atomic.Pointer[float64]
 		bnbPriceUSD           *atomic.Pointer[float64]

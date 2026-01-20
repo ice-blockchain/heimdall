@@ -5,18 +5,25 @@ package tokenanalytics
 import (
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
+
+	bondingcurvefixture "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve/fixture"
 )
 
 func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
-	db, release := helperCreateDB(t)
+	db, connString, release := helperCreateDBWithConnString(t)
 	defer release()
 
-	ta := helperNewForTest(t, db).(*tokenAnalytics)
+	mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
+	mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+
+	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC)).(*tokenAnalytics)
+	defer ta.Close()
 
 	contractAddress := "0xTEST0000000000000000000000000000000001"
 	tokenExternalAddress := "0:test_token:"
@@ -57,12 +64,16 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		priceUSD := 0.10                                   // $0.10 per token
 		direction := false
 
+		mockBackend.SetBalanceOfResponse(outputAmount)
+
 		err := ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx, contractAddress, direction,
 			inputAmount, outputAmount, priceUSD,
-			tokenExternalAddress, userExternalAddress, tokenType, totalSupply,
+			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
 		)
 		require.NoError(t, err)
+
+		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
 
 		// = 0.10 * (1000 * 1e18 / 1e18) = 0.10 * 1000 = 100.0
 		expectedMarketCap := 100.0
@@ -98,12 +109,16 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		priceUSD := 0.10
 		direction := false
 
+		mockBackend.SetBalanceOfResponse(outputAmount)
+
 		err := ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx, contractAddress, direction,
 			inputAmount, outputAmount, priceUSD,
-			tokenExternalAddress, userExternalAddress, tokenType, totalSupply,
+			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
 		)
 		require.NoError(t, err)
+
+		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
 
 		score1, _ := testRedis.ZScore(ctx, globalTopSetKey, tokenExternalAddress).Result()
 		require.InDelta(t, 100.0, score1, 0.001)
@@ -119,9 +134,11 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		err = ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx2, contractAddress, direction,
 			inputAmount, outputAmount, priceUSD2,
-			tokenExternalAddress, userExternalAddress, tokenType, totalSupply,
+			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
 		)
 		require.NoError(t, err)
+
+		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
 
 		score2, err := testRedis.ZScore(ctx, globalTopSetKey, tokenExternalAddress).Result()
 		require.NoError(t, err)
@@ -143,12 +160,16 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		buyOutput.SetString("20000000000000000000", 10) // 20 tokens
 		priceUSD := 0.10
 
+		mockBackend.SetBalanceOfResponse(buyOutput)
+
 		err := ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx1, contractAddress, false,
 			buyInput, buyOutput, priceUSD,
-			tokenExternalAddress, userExternalAddress, tokenType, totalSupply,
+			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
 		)
 		require.NoError(t, err)
+
+		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
 
 		userScore1, _ := testRedis.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddress), userExternalAddress).Result()
 		require.InDelta(t, 20.0, userScore1, 0.001)
@@ -164,12 +185,21 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		sellOutput.SetString("500000000000000000", 10) // 0.5 ION (user receives)
 
 		newPriceUSD := 0.05
+
+		// After selling 5 tokens, user should have 15 tokens left
+		remainingBalance := new(big.Int)
+		remainingBalance.SetString("15000000000000000000", 10) // 15 tokens
+		mockBackend.SetBalanceOfResponse(remainingBalance)
+
 		err = ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx2, contractAddress, true, // direction = true (sell)
 			sellInput, sellOutput, newPriceUSD,
-			tokenExternalAddress, userExternalAddress, tokenType, totalSupply,
+			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
 		)
 		require.NoError(t, err)
+
+		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
+
 		userScore2, err := testRedis.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddress), userExternalAddress).Result()
 		require.NoError(t, err)
 		require.InDelta(t, 15.0, userScore2, 0.001, "User position should be 15 tokens after selling 5")
@@ -188,12 +218,16 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		buyOutput := new(big.Int)
 		buyOutput.SetString("10000000000000000000", 10)
 
+		mockBackend.SetBalanceOfResponse(buyOutput)
+
 		err := ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx1, contractAddress, false,
 			buyInput, buyOutput, 0.10,
-			tokenExternalAddress, userExternalAddress, tokenType, totalSupply,
+			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
 		)
 		require.NoError(t, err)
+
+		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
 
 		tx2 := &txEvent{TransactionHash: "0xtestsell002"}
 		sellInput := new(big.Int)
@@ -201,12 +235,16 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		sellOutput := new(big.Int)
 		sellOutput.SetString("1000000000000000000", 10)
 
+		mockBackend.SetBalanceOfResponse(big.NewInt(0))
+
 		err = ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx2, contractAddress, true,
 			sellInput, sellOutput, 0.10,
-			tokenExternalAddress, userExternalAddress, tokenType, totalSupply,
+			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
 		)
 		require.NoError(t, err)
+
+		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
 
 		_, err = testRedis.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddress), userExternalAddress).Result()
 		require.Equal(t, redis.Nil, err, "User should be removed from position set when balance is 0")
