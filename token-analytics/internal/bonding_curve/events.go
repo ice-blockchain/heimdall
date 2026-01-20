@@ -80,6 +80,12 @@ func ProcessEvent(functionHex, data string, topics []string, contractAddress, tx
 			return nil, errors.Errorf("PoolCreated event requires at least 4 topics, got %d", len(topics))
 		}
 		return uniswapSwapped(functionHex, data, topics[1], topics[2], contractAddress)
+	case eventTransfer.Hex():
+		if len(topics) < 3 {
+			return nil, errors.Errorf("Transfer event requires at least 3 topics, got %d", len(topics))
+		}
+
+		return transferEvent(functionHex, data, contractAddress, topics[1], topics[2])
 	default:
 		log.Warn(fmt.Sprintf("Unknown event: %v, data: %v", functionHex, data))
 	}
@@ -556,4 +562,31 @@ func uniswapSwapped(signature, data, sender, recipient, pool string) (*LogUniswa
 		logUniswapSwapped.Sender.Hex(), logUniswapSwapped.Recipient.Hex(), logUniswapSwapped.Amount0, logUniswapSwapped.Amount1))
 
 	return &logUniswapSwapped, nil
+}
+
+func transferEvent(signature, data, tokenAddress, fromTopic, toTopic string) (*LogTransfer, error) {
+	if signature != eventTransfer.Hex() {
+		return nil, errors.Errorf("invalid signature for Transfer: expected %s, got %s", eventTransfer.Hex(), signature)
+	}
+	if len(data) == 0 || data == "0x" {
+		return nil, errors.Errorf("empty data for Transfer event")
+	}
+	dataBytes := common.FromHex(data)
+	if len(dataBytes) < 32 {
+		return nil, errors.Errorf("invalid data length for Transfer: expected at least 32 bytes, got %d", len(dataBytes))
+	}
+	value := new(big.Int).SetBytes(dataBytes[:32])
+	from := common.HexToAddress(fromTopic)
+	to := common.HexToAddress(toTopic)
+	token := common.HexToAddress(tokenAddress)
+
+	log.Debug(fmt.Sprintf("Transfer: token=%s from=%s to=%s value=%s",
+		token.Hex(), from.Hex(), to.Hex(), value.String()))
+
+	return &LogTransfer{
+		TokenAddress: token,
+		From:         from,
+		To:           to,
+		Value:        value,
+	}, nil
 }

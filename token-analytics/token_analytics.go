@@ -492,6 +492,8 @@ func (t *tokenAnalytics) processLog(ctx context.Context, tx *txEvent, logEvent *
 		return t.onUniswapSwapped(ctx, tx, ev)
 	case *bondingcurve.LogPoolCreated:
 		return t.onUniswapPoolCreated(ctx, tx, ev)
+	case *bondingcurve.LogTransfer:
+		return t.onTransfer(ctx, tx, ev)
 	}
 
 	return nil

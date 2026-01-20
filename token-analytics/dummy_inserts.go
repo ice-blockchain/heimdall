@@ -748,6 +748,14 @@ func (gen *dummyDataGenerator) startDummySwapsForRealTokens(ctx context.Context)
 					} else {
 						successCount++
 					}
+
+					// 30% chance to also generate P2P transfers for this token
+					if cryptoRandInt(10) < 3 {
+						transferCount := 1 + cryptoRandInt(2) // 1-2 P2P transfers
+						if err := gen.generateP2PTransferBatch(ctx, dummyDataStream, token, transferCount, platformGroup); err != nil {
+							log.Error(errors.Wrapf(err, "failed to generate P2P transfers for real token %s", token.ContractAddress))
+						}
+					}
 				}
 
 				if successCount > 0 {
@@ -983,6 +991,15 @@ func (gen *dummyDataGenerator) startBuysOrSellsProcessor(ctx context.Context, to
 				if err := gen.generateBuyOrSellBatch(insCtx, stream, tokenData, txCount, platformGroup); err != nil {
 					log.Error(errors.Wrapf(err, "failed to insert dummy tx data"))
 				}
+
+				// 30% chance to also generate P2P transfers for this token
+				if cryptoRandInt(10) < 3 {
+					transferCount := 1 + cryptoRandInt(3) // 1-3 P2P transfers
+					if err := gen.generateP2PTransferBatch(insCtx, stream, tokenData, transferCount, platformGroup); err != nil {
+						log.Error(errors.Wrapf(err, "failed to generate P2P transfer tx"))
+					}
+				}
+
 				insCancel()
 			}
 		}
@@ -1794,4 +1811,123 @@ func cryptoRandFloat64() float64 {
 	n, _ := rand.Int(rand.Reader, max)
 
 	return float64(n.Int64()) / float64(max.Int64())
+}
+
+func (gen *dummyDataGenerator) generateP2PTransferBatch(ctx context.Context, stream string, token *tokenRow, totalTx int, platformGroup string) error {
+	isRealToken := !strings.Contains(token.ContractAddress, "deadbeef")
+	if isRealToken {
+		stream = "00000000-0000-0000-0000-000000000000"
+	}
+	userPool, err := gen.getOrCreateTokenUserPool(ctx, token.ContractAddress, platformGroup)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get user pool for token %s", token.ContractAddress)
+	}
+	if len(userPool) < 2 {
+		return errors.Errorf("need at least 2 users for P2P transfers, got %d", len(userPool))
+	}
+
+	blockNum := atomic.AddUint64(&gen.InsertBlockIndex, 1)
+	baseTimestamp := time.Now().In(time.UTC).Add(-30 * time.Second).Unix()
+
+	tmpl, err := template.New("p2p_transfer").Parse(
+		`{
+  "accessList": [],
+  "blockHash": "0x{{.BlockHash}}",
+  "blockNumber": "{{.BlockNumber}}",
+  "blockTimestamp": "{{.BlockTimestamp}}",
+  "chainId": "0x61",
+  "from": "0x{{.FromAddr}}",
+  "gas": "0x5208",
+  "gasPrice": "0x3b9aca00",
+  "hash": "0x{{.TxHash}}",
+  "input": "0xa9059cbb000000000000000000000000{{.ToAddr}}{{.AmountHex}}",
+  "logs": [
+    {
+      "address": "0x{{.TokenContract}}",
+      "data": "0x{{.AmountHex}}",
+      "logIndex": "0x0",
+      "removed": false,
+      "topics": [
+        "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+        "0x000000000000000000000000{{.FromAddr}}",
+        "0x000000000000000000000000{{.ToAddr}}"
+      ]
+    }
+  ],
+  "maxFeePerGas": "0x3b9aca00",
+  "maxPriorityFeePerGas": "0x3b9aca00",
+  "nonce": "0x{{.Nonce}}",
+  "r": "0x1",
+  "s": "0x1",
+  "to": "0x{{.TokenContract}}",
+  "transactionIndex": "0x{{.TxIndex}}",
+  "type": "0x2",
+  "v": "0x0",
+  "value": "0x0",
+  "yParity": "0x0"
+}`)
+	if err != nil {
+		return errors.Wrapf(err, "failed to parse P2P transfer template")
+	}
+
+	txsForBlock := []string{}
+
+	for txIdx := range totalTx {
+		fromIdx := cryptoRandInt(len(userPool))
+		toIdx := cryptoRandInt(len(userPool))
+		for toIdx == fromIdx {
+			toIdx = cryptoRandInt(len(userPool))
+		}
+
+		fromUser := userPool[fromIdx]
+		toUser := userPool[toIdx]
+		txTimestamp := uint64(baseTimestamp + int64(txIdx))
+
+		minTokens := 1.0
+		maxTokens := 1000.0
+		tokensToTransfer := minTokens + cryptoRandFloat64()*(maxTokens-minTokens)
+
+		transferAmountWei := new(big.Float).Mul(big.NewFloat(tokensToTransfer), big.NewFloat(1e18))
+		transferAmount, _ := transferAmountWei.Int(nil)
+		// Pad to 32 bytes hex
+		amountHex := hex.EncodeToString(common.LeftPadBytes(transferAmount.Bytes(), 32))
+		buf := bytes.NewBuffer([]byte{})
+		execErr := tmpl.Execute(buf, map[string]any{
+			"Stream":         stream,
+			"BlockNumber":    blockNum,
+			"BlockTimestamp": txTimestamp,
+			"TxIndex":        fmt.Sprintf("%x", txIdx+1),
+			"BlockHash":      mustRandomHex(32),
+			"TxHash":         mustRandomHex(32),
+			"FromAddr":       strings.TrimPrefix(fromUser.blockchainAddress, "0x"),
+			"ToAddr":         strings.TrimPrefix(toUser.blockchainAddress, "0x"),
+			"TokenContract":  strings.TrimPrefix(token.ContractAddress, "0x"),
+			"AmountHex":      amountHex,
+			"Nonce":          fmt.Sprintf("%x", cryptoRandInt(1000)),
+		})
+
+		if execErr != nil {
+			return errors.Wrapf(execErr, "failed to execute P2P transfer template")
+		}
+
+		txsForBlock = append(txsForBlock, buf.String())
+
+		log.Debug(fmt.Sprintf("Generated P2P transfer tx for token %s: from=%s to=%s amount=%s tokens",
+			token.ContractAddress, fromUser.blockchainAddress, toUser.blockchainAddress, big.NewFloat(tokensToTransfer).String()))
+	}
+
+	fullData := fmt.Sprintf(`{"stream": "%[1]v", "transactions": [`+strings.Join(txsForBlock, ",")+`]}`, stream)
+	sql := `INSERT INTO smart_contract_transactions(from_block_number, to_block_number, network, stream_id, data)
+			VALUES ($1, $1, 'bsc-testnet-dummy', $2, $3::JSONB)
+			ON CONFLICT (from_block_number, to_block_number, network) DO NOTHING`
+
+	_, err = storage.Exec(ctx, gen.Target, sql, blockNum, stream, fullData)
+	if err != nil && !storage.IsErr(err, storage.ErrDuplicate) {
+		return errors.Wrapf(err, "failed to insert P2P transfer tx data")
+	}
+
+	log.Info(fmt.Sprintf("Generated %d P2P transfer transactions for token %s (block %d)",
+		totalTx, token.ContractAddress, blockNum))
+
+	return nil
 }

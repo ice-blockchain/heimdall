@@ -706,3 +706,94 @@ func TestCustomHandleOpsSwapExtraction(t *testing.T) {
 		require.NotNil(t, minReturn, "minReturn must be extracted from transaction")
 	})
 }
+
+func TestTransferEvent(t *testing.T) {
+	t.Run("valid_erc20_transfer", func(t *testing.T) {
+		// Transfer(address indexed from, address indexed to, uint256 value)
+		tokenAddress := "0x8dC5aa6777F9A6128f8775f93be4bA1a503723AE"
+		fromAddr := common.HexToAddress("0xd38D7cDab8802A4Dc5730f9Dfd24464545BB88aC")
+		toAddr := common.HexToAddress("0x70E06D947F05A6324B12BfE31e2c693a4e369c5E")
+		transferAmount := big.NewInt(1000000000000000000) // 1 token (18 decimals)
+
+		// Topics are 32-byte padded addresses
+		fromTopic := "0x" + hex.EncodeToString(common.LeftPadBytes(fromAddr.Bytes(), 32))
+		toTopic := "0x" + hex.EncodeToString(common.LeftPadBytes(toAddr.Bytes(), 32))
+
+		// Encode data (value is non-indexed)
+		data := "0x" + hex.EncodeToString(common.LeftPadBytes(transferAmount.Bytes(), 32))
+		event, err := transferEvent(
+			eventTransfer.Hex(),
+			data,
+			tokenAddress,
+			fromTopic,
+			toTopic,
+		)
+
+		require.NoError(t, err)
+		require.NotNil(t, event)
+		require.Equal(t, strings.ToLower(tokenAddress), strings.ToLower(event.TokenAddress.Hex()))
+		require.Equal(t, strings.ToLower(fromAddr.Hex()), strings.ToLower(event.From.Hex()))
+		require.Equal(t, strings.ToLower(toAddr.Hex()), strings.ToLower(event.To.Hex()))
+		require.Equal(t, transferAmount.String(), event.Value.String())
+	})
+
+	t.Run("invalid_signature", func(t *testing.T) {
+		_, err := transferEvent(
+			"0xinvalid",
+			"0x0000000000000000000000000000000000000000000000000de0b6b3a7640000",
+			"0x8dC5aa6777F9A6128f8775f93be4bA1a503723AE",
+			"0x0000000000000000000000000xd38D7cDab8802A4Dc5730f9Dfd24464545BB88aC",
+			"0x00000000000000000000000070E06D947F05A6324B12BfE31e2c693a4e369c5E",
+		)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid signature")
+	})
+
+	t.Run("empty_data", func(t *testing.T) {
+		_, err := transferEvent(
+			eventTransfer.Hex(),
+			"",
+			"0x8dC5aa6777F9A6128f8775f93be4bA1a503723AE",
+			"0x0000000000000000000000000xd38D7cDab8802A4Dc5730f9Dfd24464545BB88aC",
+			"0x00000000000000000000000070E06D947F05A6324B12BfE31e2c693a4e369c5E",
+		)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "empty data")
+	})
+
+	t.Run("invalid_data_length", func(t *testing.T) {
+		_, err := transferEvent(
+			eventTransfer.Hex(),
+			"0x1234", // Too short
+			"0x8dC5aa6777F9A6128f8775f93be4bA1a503723AE",
+			"0x0000000000000000000000000xd38D7cDab8802A4Dc5730f9Dfd24464545BB88aC",
+			"0x00000000000000000000000070E06D947F05A6324B12BfE31e2c693a4e369c5E",
+		)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid data length")
+	})
+
+	t.Run("large_transfer_amount", func(t *testing.T) {
+		largeAmount := new(big.Int)
+		largeAmount.SetString("1000000000000000000000000", 10) // 1 million tokens
+
+		fromAddr := common.HexToAddress("0xd38D7cDab8802A4Dc5730f9Dfd24464545BB88aC")
+		toAddr := common.HexToAddress("0x70E06D947F05A6324B12BfE31e2c693a4e369c5E")
+		fromTopic := "0x" + hex.EncodeToString(common.LeftPadBytes(fromAddr.Bytes(), 32))
+		toTopic := "0x" + hex.EncodeToString(common.LeftPadBytes(toAddr.Bytes(), 32))
+
+		data := "0x" + hex.EncodeToString(common.LeftPadBytes(largeAmount.Bytes(), 32))
+
+		event, err := transferEvent(
+			eventTransfer.Hex(),
+			data,
+			"0x8dC5aa6777F9A6128f8775f93be4bA1a503723AE",
+			fromTopic,
+			toTopic,
+		)
+
+		require.NoError(t, err)
+		require.NotNil(t, event)
+		require.Equal(t, largeAmount.String(), event.Value.String())
+	})
+}
