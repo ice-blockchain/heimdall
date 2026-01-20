@@ -64,7 +64,7 @@ func (t *tokenAnalytics) onTransfer(ctx context.Context, tx *txEvent, ev *bondin
 func (t *tokenAnalytics) isSwapTransaction(tx *txEvent) bool {
 	for _, logEvent := range tx.Logs {
 		topic0, _ := logEvent.getString("topic0")
-		if topic0 == bondingcurve.EventSwappedSignature {
+		if topic0 == bondingcurve.EventSwappedSignature || topic0 == bondingcurve.EventUniswapSwappedSignature {
 			return true
 		}
 	}

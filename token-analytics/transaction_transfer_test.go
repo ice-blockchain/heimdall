@@ -168,6 +168,74 @@ func TestOnTransfer(t *testing.T) {
 		require.Equal(t, "100000000000000000000", finalPosition.Amount, "Position should remain unchanged")
 	})
 
+	t.Run("skips_transfer_in_uniswap_swap_transaction", func(t *testing.T) {
+		tokenContractAddr := strings.ToLower("0xUNISWAP123456789UNISWAP123456789UNISW12")
+		tokenExternalAddr := "0:uniswap_creator_pubkey:"
+		creatorPubkey := "uniswap_creator_pubkey"
+		userAddr := strings.ToLower("0xUniswapAddr000000000000000000000000000")
+		userExternalAddr := "0:uniswap_user_pubkey:"
+		poolAddr := strings.ToLower("0xPoolAddr000000000000000000000000000000")
+
+		helperInsertTestUser(t, ctx, db, creatorPubkey, "uniswap_user", "Uniswap User", userAddr, false, PlatformGroupIonConnect)
+		helperInsertTestUser(t, ctx, db, "uniswap_user_pubkey", "uniswapper", "Uniswapper", userAddr, false, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db, tokenContractAddr, tokenExternalAddr, "USWAP", TokenTypeProfile, creatorPubkey, "1000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+
+		helperInsertUserPosition(t, ctx, db, userAddr, tokenContractAddr, tokenExternalAddr, userExternalAddr, "100000000000000000000")
+
+		initialPosition := helperGetUserPosition(t, ctx, db, userAddr, tokenContractAddr)
+		require.NotNil(t, initialPosition)
+		require.Equal(t, "100000000000000000000", initialPosition.Amount)
+
+		uniswapSwapTxEvt := &txEvent{
+			TransactionHash: "0xuniswap_swap_tx_with_transfer",
+			Logs: txEventLogs{
+				// Transfer event (from user to pool)
+				{
+					"topic0":  "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", // Transfer
+					"topic1":  "0x000000000000000000000000" + strings.TrimPrefix(userAddr, "0x"),
+					"topic2":  "0x000000000000000000000000" + strings.TrimPrefix(poolAddr, "0x"),
+					"data":    "0x0000000000000000000000000000000000000000000000000de0b6b3a7640000", // 1 token
+					"address": tokenContractAddr,
+				},
+				// Uniswap Swap event (Swap(address,address,int256,int256,uint160,uint128,int24))
+				{
+					"topic0":  bondingcurve.EventUniswapSwappedSignature, // Uniswap Swap event signature
+					"topic1":  "0x000000000000000000000000" + strings.TrimPrefix(userAddr, "0x"),
+					"topic2":  "0x000000000000000000000000" + strings.TrimPrefix(userAddr, "0x"),
+					"data":    "0x0000000000000000000000000000000000000000000000000000000000000000", // amounts, sqrtPriceX96, liquidity, tick
+					"address": poolAddr,
+				},
+			},
+		}
+
+		isSwap := ta.isSwapTransaction(uniswapSwapTxEvt)
+		require.True(t, isSwap, "Transaction with Uniswap Swap event should return true")
+
+		ev := &bondingcurve.LogTransfer{
+			TokenAddress: common.HexToAddress(tokenContractAddr),
+			From:         common.HexToAddress(userAddr),
+			To:           common.HexToAddress(poolAddr),
+			Value:        big.NewInt(1000000000000000000), // 1 token
+		}
+
+		type jobCount struct {
+			Count int64 `db:"count"`
+		}
+		before, err := storage.Get[jobCount](ctx, ta.ingestedDataDB, `SELECT COUNT(*) as count FROM river_job WHERE kind = 'balance_update'`)
+		require.NoError(t, err)
+
+		err = ta.onTransfer(ctx, uniswapSwapTxEvt, ev)
+		require.NoError(t, err)
+
+		after, err := storage.Get[jobCount](ctx, ta.ingestedDataDB, `SELECT COUNT(*) as count FROM river_job WHERE kind = 'balance_update'`)
+		require.NoError(t, err)
+		require.Equal(t, before.Count, after.Count, "No new jobs should be created for transfer in Uniswap swap transaction")
+
+		finalPosition := helperGetUserPosition(t, ctx, db, userAddr, tokenContractAddr)
+		require.NotNil(t, finalPosition)
+		require.Equal(t, "100000000000000000000", finalPosition.Amount, "Position should remain unchanged")
+	})
+
 	t.Run("skips_burn_transfers", func(t *testing.T) {
 		tokenContractAddr := strings.ToLower("0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF")
 		tokenExternalAddr := "0:burn_creator:"
