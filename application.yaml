@@ -445,7 +445,7 @@ token-analytics:
     rpcEndpoints:
       - https://bogus.pro/bogus/
   riverQueue:
-    queueName: balance_updates
+    queueName: heimdall_ta
     maxQueueWorkers: 100
     jobMaxTimeout: 30s
   identityServiceUrl: https://localhost:8001
