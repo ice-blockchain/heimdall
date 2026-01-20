@@ -444,15 +444,10 @@ token-analytics:
     bondingCurveProgressUpdateFrequency: 500ms
     rpcEndpoints:
       - https://bogus.pro/bogus/
-  balanceUpdateQueue:
+  riverQueue:
     queueName: balance_updates
     maxQueueWorkers: 100
     jobMaxTimeout: 30s
-    db:
-      username: root
-      password: pass
-      writeUrls:
-        - postgresql://root:pass@localhost:5445/ingested_data
   identityServiceUrl: https://localhost:8001
   identityServiceApiKey: dev-api-key
   ionTokenAddress: 0x2c73996BaBF1a06c2C057177353293f7cA0907c8
