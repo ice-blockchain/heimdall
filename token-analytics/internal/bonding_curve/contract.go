@@ -161,6 +161,13 @@ type (
 		Tick         *big.Int
 		PoolAddress  common.Address `abi:"-"`
 	}
+	LogTransfer struct {
+		Event
+		TokenAddress common.Address // Contract address that emitted the event
+		From         common.Address // Sender address (indexed)
+		To           common.Address // Receiver address (indexed)
+		Value        *big.Int       // Amount transferred (in wei)
+	}
 	BondingCurveProgress = BondingCurveBondingInfo
 	BondingCurve         interface {
 		Pricing(ctx context.Context, baseToken common.Address, targetToken []byte, amount *big.Int, sale bool) (*big.Int, error)
@@ -199,6 +206,9 @@ var (
 	eventLiquidityBurned      = crypto.Keccak256Hash([]byte("Burn(address,int24,int24,uint128,uint256,uint256)"))
 	eventUniswapFeesCollected = crypto.Keccak256Hash([]byte("Collect(address,address,int24,int24,uint128,uint128)"))
 	eventUniswapSwapped       = crypto.Keccak256Hash([]byte("Swap(address,address,int256,int256,uint160,uint128,int24)"))
+	eventTransfer             = crypto.Keccak256Hash([]byte("Transfer(address,address,uint256)"))
+
+	EventSwappedSignature = eventSwapped.Hex()
 )
 
 type (

@@ -1,0 +1,171 @@
+// SPDX-License-Identifier: ice License 1.0
+
+package tokenanalytics
+
+import (
+	"context"
+	"fmt"
+	"math"
+	"math/big"
+	"strings"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/pkg/errors"
+	"github.com/redis/go-redis/v9"
+	"golang.org/x/sync/errgroup"
+
+	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
+	"github.com/ice-blockchain/wintr/connectors/storage/v2"
+	"github.com/ice-blockchain/wintr/log"
+)
+
+func (t *tokenAnalytics) onTransfer(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTransfer) error {
+	log.Debug(fmt.Sprintf("onTransfer: token=%s from=%s to=%s amount=%s tx=%s",
+		ev.TokenAddress.Hex(), ev.From.Hex(), ev.To.Hex(), ev.Value.String(), tx.TransactionHash))
+
+	if t.isSwapTransaction(tx) {
+		log.Debug(fmt.Sprintf("Skipping Transfer event in swap transaction %s", tx.TransactionHash))
+
+		return nil
+	}
+
+	zeroAddr := common.HexToAddress("0x0000000000000000000000000000000000000000")
+	burnAddr := common.HexToAddress(t.cfg.BondingCurve.BurnAddress)
+	if ev.From == zeroAddr || ev.To == zeroAddr || ev.From == burnAddr || ev.To == burnAddr {
+		log.Debug(fmt.Sprintf("Skipping burn transfer in tx %s (from=%s, to=%s)",
+			tx.TransactionHash, ev.From.Hex(), ev.To.Hex()))
+		return nil
+	}
+	tokenExternalAddress, err := t.getTokenExternalAddress(ctx, ev.TokenAddress.Hex())
+	if err != nil {
+		log.Debug(fmt.Sprintf("Token %s not found in DB, skipping transfer", ev.TokenAddress.Hex()))
+
+		return nil
+	}
+	log.Debug(fmt.Sprintf("Processing P2P transfer: token=%s from=%s to=%s amount=%s tx=%s",
+		ev.TokenAddress.Hex(), ev.From.Hex(), ev.To.Hex(), ev.Value.String(), tx.TransactionHash))
+
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		return t.enqueueBalanceUpdate(gctx, tx, ev.From.Hex(), ev.TokenAddress.Hex(), tokenExternalAddress, ev.Value, false)
+	})
+	g.Go(func() error {
+		return t.enqueueBalanceUpdate(gctx, tx, ev.To.Hex(), ev.TokenAddress.Hex(), tokenExternalAddress, ev.Value, true)
+	})
+	if err := g.Wait(); err != nil {
+		return errors.Wrapf(err, "failed to enqueue balance updates for transfer tx %s", tx.TransactionHash)
+	}
+	log.Debug(fmt.Sprintf("Successfully enqueued balance updates for transfer: token=%s from=%s to=%s tx=%s",
+		ev.TokenAddress.Hex(), ev.From.Hex(), ev.To.Hex(), tx.TransactionHash))
+
+	return nil
+}
+
+func (t *tokenAnalytics) isSwapTransaction(tx *txEvent) bool {
+	for _, logEvent := range tx.Logs {
+		topic0, _ := logEvent.getString("topic0")
+		if topic0 == bondingcurve.EventSwappedSignature {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (t *tokenAnalytics) getTokenExternalAddress(ctx context.Context, contractAddress string) (string, error) {
+	type tokenExternalAddressRow struct {
+		ExternalAddress string `db:"external_address"`
+	}
+	query := `
+		SELECT external_address 
+		FROM tokens 
+		WHERE LOWER(contract_address) = LOWER($1)
+		LIMIT 1
+	`
+	row, err := storage.Get[tokenExternalAddressRow](ctx, t.ingestedDataDB, query, contractAddress)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get token external address for contract %s", contractAddress)
+	}
+
+	return row.ExternalAddress, nil
+}
+
+func (t *tokenAnalytics) getUserExternalAddress(ctx context.Context, blockchainAddress string) (string, error) {
+	type userExternalAddressRow struct {
+		ExternalAddress string `db:"external_address"`
+	}
+	query := `
+		SELECT external_address 
+		FROM users 
+		WHERE LOWER(content_author_id) = LOWER($1)
+		LIMIT 1
+	`
+	row, err := storage.Get[userExternalAddressRow](ctx, t.ingestedDataDB, query, blockchainAddress)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get user external address for blockchain address %s", blockchainAddress)
+	}
+
+	return row.ExternalAddress, nil
+}
+
+func (t *tokenAnalytics) enqueueBalanceUpdate(ctx context.Context, tx *txEvent, userBlockchainAddress, tokenContractAddress, tokenExternalAddress string, transferAmount *big.Int, isAddition bool) error {
+	userExternalAddress, err := t.getUserExternalAddress(ctx, userBlockchainAddress)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get user external address for %s", userBlockchainAddress)
+	}
+	jobArgs := BalanceUpdateJobArgs{
+		UserBlockchainAddress: strings.ToLower(userBlockchainAddress),
+		UserExternalAddress:   userExternalAddress,
+		ContractAddress:       strings.ToLower(tokenContractAddress),
+		TokenExternalAddress:  tokenExternalAddress,
+		TransactionHash:       tx.TransactionHash,
+	}
+	if t.cfg.EnableDummyGenerator {
+		userPositionKey := keyUserPositionOfToken(tokenExternalAddress)
+		currentScore, err := t.processedDataDB.ZScore(ctx, userPositionKey, userExternalAddress).Result()
+		if err != nil && !errors.Is(err, redis.Nil) {
+			log.Error(errors.Wrapf(err, "failed to get current user position for dummy transfer"))
+
+			currentScore = 0
+		}
+
+		amountFloat := weiToFloat64FromBigInt(transferAmount)
+		var newScore float64
+		if isAddition {
+			// Receiver: add amount
+			newScore = currentScore + amountFloat
+		} else {
+			// Sender: subtract amount
+			newScore = math.Max(0, currentScore-amountFloat)
+		}
+
+		newBalanceWei := new(big.Float).Mul(big.NewFloat(newScore), big.NewFloat(1e18))
+		newBalanceBigInt, accuracy := newBalanceWei.Int(nil)
+		if accuracy != big.Exact {
+			log.Warn(fmt.Sprintf("Dummy transfer: Float to Int conversion lost precision (accuracy=%v) for user=%s, token=%s",
+				accuracy, userBlockchainAddress, tokenExternalAddress))
+		}
+		if newBalanceBigInt.Sign() < 0 {
+			log.Debug(fmt.Sprintf("Dummy transfer: NEGATIVE DETECTED! Setting to 0. Was: %s, newScore=%.2f, user=%s",
+				newBalanceBigInt.String(), newScore, userBlockchainAddress))
+			newBalanceBigInt = big.NewInt(0)
+		}
+		balanceStr := newBalanceBigInt.String()
+		jobArgs.DummyBalance = &balanceStr
+
+		operation := "subtract"
+		if isAddition {
+			operation = "add"
+		}
+		log.Debug(fmt.Sprintf("Dummy transfer: Calculated balance=%s (current=%.2f, %s=%.2f, new=%.2f) for user=%s, token=%s",
+			balanceStr, currentScore, operation, amountFloat, newScore, userBlockchainAddress, tokenExternalAddress))
+	}
+	if err := t.balanceUpdateQueue.Push(ctx, jobArgs); err != nil {
+		return errors.Wrapf(err, "failed to enqueue balance update job for tx %v", tx.TransactionHash)
+	}
+
+	log.Debug(fmt.Sprintf("Enqueued balance update: user=%s token=%s tx=%s",
+		userBlockchainAddress, tokenContractAddress, tx.TransactionHash))
+
+	return nil
+}
