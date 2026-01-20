@@ -127,7 +127,7 @@ func convertSwapsToTrades(swaps []*tokenSwap) (trades []*Trade, maxTs time.Time)
 					Addresses: holderAddresses,
 				},
 				Addresses: &Addresses{
-					Blockchain: swaps[i].TransactionHash,
+					Blockchain: swaps[i].UserBlockchainAddress,
 				},
 				CreatedAt:  swaps[i].CreatedAt,
 				Type:       typ,
