@@ -9,6 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/ice-blockchain/subzero/server/http/events"
 	"github.com/ice-blockchain/subzero/server/http/nip11"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
@@ -22,6 +23,9 @@ type (
 		URL  string `json:"url"`
 		Type string `json:"type,omitempty"`
 	}
+	IonConnectClient interface {
+		GetPost(ctx context.Context, relayUrl string, eventAddress string) (*events.PostPreview, error)
+	}
 	UserAssignedRelays []*UserAssignedRelay
 	RelaysSyncer       interface {
 		CheckRelayStatus(ctx context.Context) error
@@ -30,6 +34,7 @@ type (
 
 var (
 	ErrNoRelays = errors.Errorf("no relays")
+	ErrNotFound = errors.Errorf("not found")
 )
 
 var (
@@ -58,5 +63,8 @@ type (
 		url   string
 		nip11 *nip11.RelayInformationDocument
 		err   error
+	}
+
+	ionConnectClient struct {
 	}
 )

@@ -4,14 +4,13 @@ package main
 
 import (
 	"context"
-	"math/rand"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts"
+	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
 	"github.com/ice-blockchain/heimdall/server"
 )
 
@@ -88,102 +87,42 @@ func (s *service) GetIonConnectPostPreview(
 	ctx context.Context,
 	req *server.Request[CommunityPostPreviewRequest, CommunityPostPreviewResponse],
 ) (*server.Response[CommunityPostPreviewResponse], *server.ErrResponse[*server.ErrorResponse]) {
-	profile, err := s.accounts.GetSocialProfile(ctx, req.Data.UserIDOrMasterKey)
-	if err != nil {
+	relays, err := s.accounts.GetIONConnectRelaysForUsers(ctx, []string{req.Data.UserIDOrMasterKey})
+	if err != nil || len(relays) == 0 {
 		return nil, server.NotFound(errors.Wrapf(err, "user %s not found", req.Data.UserIDOrMasterKey), "USER_NOT_FOUND")
 	}
-	avatarURL := ""
-	if profile.Avatar != nil {
-		avatarURL = *profile.Avatar
-	}
-
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	randomComments := rng.Intn(1000)
-	randomReposts := rng.Intn(5000)
-	randomLikes := rng.Intn(50000)
-	randomTime := time.Now().UTC()
-
-	postTypes := []string{"post", "video", "article"}
-	randomType := postTypes[rng.Intn(len(postTypes))]
-
-	videoURLs := []string{
-		"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-		"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-		"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-		"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-		"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
-		"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
-	}
-
-	imageURLs := []string{
-		"https://placehold.co/800x600/FF6633/FFFFFF/png?text=Image+1",
-		"https://placehold.co/800x600/3366FF/FFFFFF/png?text=Image+2",
-		"https://placehold.co/800x600/33CC99/FFFFFF/png?text=Image+3",
-		"https://placehold.co/800x600/FF3366/FFFFFF/png?text=Image+4",
-		"https://placehold.co/800x600/9933FF/FFFFFF/png?text=Image+5",
-	}
-
-	thumbnailURLs := []string{
-		"https://placehold.co/400x300/0066CC/FFFFFF/png?text=Thumbnail+1",
-		"https://placehold.co/400x300/CC6600/FFFFFF/png?text=Thumbnail+2",
-		"https://placehold.co/400x300/00CC66/FFFFFF/png?text=Thumbnail+3",
-		"https://placehold.co/400x300/CC0066/FFFFFF/png?text=Thumbnail+4",
-	}
-
-	var media []PostMedia
-	if randomType == "video" {
-		thumbURL := thumbnailURLs[rng.Intn(len(thumbnailURLs))]
-		randomVideo := videoURLs[rng.Intn(len(videoURLs))]
-		media = append(media, PostMedia{
-			URL:       randomVideo,
-			Thumbnail: &thumbURL,
-			Type:      "video",
-		})
-	} else {
-		numImages := rng.Intn(4)
-		for i := 0; i < numImages; i++ {
-			imageURL := imageURLs[rng.Intn(len(imageURLs))]
-			media = append(media, PostMedia{
-				URL:  imageURL,
-				Type: "image",
-			})
+	var requestingFromRelay string
+	for _, relay := range relays[0].IONConnectRelays {
+		if relay.Type == "write" {
+			requestingFromRelay = relay.URL
+			break
 		}
 	}
-
-	contentVariations := []string{
-		"Check out this amazing view! 🌅 #online+",
-		"Just finished an incredible workout session 💪 #online+",
-		"Beautiful day at the beach #online+ #summer",
-		"New project launch! So excited to share this with everyone #online+",
-		"Coffee and coding ☕️ #online+ #developer",
-	}
-	randomContent := contentVariations[rng.Intn(len(contentVariations))]
-
-	if len(media) > 0 {
-		for _, m := range media {
-			randomContent += " " + m.URL
+	deeplink, err := s.accounts.GetDeeplink(ctx, req.Data.EventAddress)
+	if err != nil {
+		switch {
+		case errors.Is(err, accounts.ErrNotFound):
+			return nil, server.NotFound(errors.Wrapf(err, "deeplink for event %v not found", req.Data.EventAddress), "DEEPLINK_NOT_FOUND")
+		default:
+			return nil, server.Unexpected(errors.Wrapf(err, "failed to get deeplink for event %v", req.Data.EventAddress))
 		}
 	}
+	preview, err := s.ionConnectClient.GetPost(ctx, requestingFromRelay, req.Data.EventAddress)
+	if err != nil {
+		switch {
+		case errors.Is(err, relaymanagement.ErrNotFound):
+			return nil, server.NotFound(errors.Wrapf(err, "event %v not found", req.Data.EventAddress), "EVENT_NOT_FOUND")
+		default:
+			return nil, server.Unexpected(errors.Wrapf(err, "failed to get ion connect post %v preview", req.Data.EventAddress))
+		}
 
-	resp := &CommunityPostPreviewResponse{
-		Author: CommunityPostAuthor{
-			Name:        profile.Username,
-			DisplayName: profile.DisplayName,
-			Avatar:      avatarURL,
-			Verified:    rng.Float32() > 0.5,
-		},
-		Type:               randomType,
-		Media:              media,
-		Comments:           randomComments,
-		Reposts:            randomReposts,
-		Likes:              randomLikes,
-		CreatedAt:          &randomTime,
-		Content:            randomContent,
-		OnlinePlusDeeplink: "online.app://some/path/to/" + req.Data.EventAddress,
 	}
-
+	res := &CommunityPostPreviewResponse{
+		OnlinePlusDeeplink: deeplink,
+		PostPreview:        preview,
+	}
 	return &server.Response[CommunityPostPreviewResponse]{
-		Data: resp,
+		Data: res,
 		Code: 200,
 	}, nil
 }

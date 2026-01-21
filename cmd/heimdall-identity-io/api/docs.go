@@ -3116,6 +3116,44 @@ const docTemplate = `{
             "type": "object",
             "additionalProperties": {}
         },
+        "events.CommunityPostAuthor": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string",
+                    "example": "https://example.com/something.webp"
+                },
+                "displayName": {
+                    "type": "string",
+                    "example": "Mahmut Ali Jahad"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "mahmutalijahad"
+                },
+                "verified": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "events.PostMedia": {
+            "type": "object",
+            "properties": {
+                "thumbnail": {
+                    "type": "string",
+                    "example": "https://example.com/image-preview.jpg"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "video"
+                },
+                "url": {
+                    "type": "string",
+                    "example": "https://example.com/image.jpg"
+                }
+            }
+        },
         "main.Coin": {
             "type": "object",
             "properties": {
@@ -3166,32 +3204,11 @@ const docTemplate = `{
                 }
             }
         },
-        "main.CommunityPostAuthor": {
-            "type": "object",
-            "properties": {
-                "avatar": {
-                    "type": "string",
-                    "example": "https://example.com/something.webp"
-                },
-                "displayName": {
-                    "type": "string",
-                    "example": "Mahmut Ali Jahad"
-                },
-                "name": {
-                    "type": "string",
-                    "example": "mahmutalijahad"
-                },
-                "verified": {
-                    "type": "boolean",
-                    "example": true
-                }
-            }
-        },
         "main.CommunityPostPreviewResponse": {
             "type": "object",
             "properties": {
                 "author": {
-                    "$ref": "#/definitions/main.CommunityPostAuthor"
+                    "$ref": "#/definitions/events.CommunityPostAuthor"
                 },
                 "comments": {
                     "type": "integer",
@@ -3212,12 +3229,11 @@ const docTemplate = `{
                 "media": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/main.PostMedia"
+                        "$ref": "#/definitions/events.PostMedia"
                     }
                 },
                 "onlinePlusDeeplink": {
-                    "type": "string",
-                    "example": "online.app://some/path/to/0xD76b5c2A23ef78368d8E34288B5b65D616B746aE"
+                    "type": "string"
                 },
                 "reposts": {
                     "type": "integer",
@@ -3466,23 +3482,6 @@ const docTemplate = `{
                 },
                 "tier": {
                     "type": "integer"
-                }
-            }
-        },
-        "main.PostMedia": {
-            "type": "object",
-            "properties": {
-                "thumbnail": {
-                    "type": "string",
-                    "example": "https://example.com/image-preview.jpg"
-                },
-                "type": {
-                    "type": "string",
-                    "example": "video"
-                },
-                "url": {
-                    "type": "string",
-                    "example": "https://example.com/image.jpg"
                 }
             }
         },

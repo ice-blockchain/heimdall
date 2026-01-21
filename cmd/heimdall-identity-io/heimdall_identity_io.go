@@ -126,6 +126,7 @@ func (s *service) RegisterRoutes(router *server.Router) {
 
 func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	s.relays = relaymanagement.NewRelays(ctx)
+	s.ionConnectClient = relaymanagement.NewIonConnectClient()
 	var appsRuntimeCfg accounts.AppsRuntimeConfig
 	appcfg.MustLoadFromKey(runtimeConfigApplicationYamlKey, &appsRuntimeCfg)
 	allValidConfigNames["apps-runtime_ion-app"] = func(_ *config, _ *Version) (any, Version) {
@@ -146,7 +147,6 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	if err := s.accounts.InitializeIdentityKeypairs(ctx); err != nil {
 		log.Panic(errors.Wrap(err, "failed to initialize identity keypairs - service cannot start without them"))
 	}
-
 	s.validation = validation.New(ctx, validation.WithIONIdentityPublicKeys(func() []string {
 		return []string{s.accounts.PublicKey()}
 	}))

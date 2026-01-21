@@ -61,9 +61,11 @@ type (
 		GetNSFWAccounts(ctx context.Context, currentVer uint64) ([]string, uint64, error)
 		VerifyEarlyAccess(ctx context.Context, email string) error
 		UpsertDeeplink(ctx context.Context, eventAddress, deeplink string) error
+		GetDeeplink(ctx context.Context, eventAddress string) (string, error)
 		SocialProfiles
 		Devices
 	}
+
 	VerifiedUsersSync interface {
 		io.Closer
 		ProcessNextVerifiedUsersQueue(ctx context.Context) error

@@ -10,6 +10,18 @@ import (
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
+func (a *accounts) GetDeeplink(ctx context.Context, eventAddress string) (string, error) {
+	sql := `SELECT deeplink FROM deeplinks WHERE event_address = $1`
+	deeplink, err := storage.Get[string](ctx, a.db, sql, eventAddress)
+	if deeplink == nil && err == nil {
+		err = ErrNotFound
+	}
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get deeplink for event %s", eventAddress)
+	}
+	return *deeplink, nil
+}
+
 func (a *accounts) UpsertDeeplink(ctx context.Context, eventAddress, deeplink string) error {
 	sql := `INSERT INTO deeplinks (event_address, deeplink) 
 	        VALUES ($1, $2) 

@@ -154,6 +154,33 @@ definitions:
   dfns.Asset:
     additionalProperties: {}
     type: object
+  events.CommunityPostAuthor:
+    properties:
+      avatar:
+        example: https://example.com/something.webp
+        type: string
+      displayName:
+        example: Mahmut Ali Jahad
+        type: string
+      name:
+        example: mahmutalijahad
+        type: string
+      verified:
+        example: true
+        type: boolean
+    type: object
+  events.PostMedia:
+    properties:
+      thumbnail:
+        example: https://example.com/image-preview.jpg
+        type: string
+      type:
+        example: video
+        type: string
+      url:
+        example: https://example.com/image.jpg
+        type: string
+    type: object
   main.Coin:
     properties:
       contractAddress:
@@ -187,25 +214,10 @@ definitions:
       version:
         type: integer
     type: object
-  main.CommunityPostAuthor:
-    properties:
-      avatar:
-        example: https://example.com/something.webp
-        type: string
-      displayName:
-        example: Mahmut Ali Jahad
-        type: string
-      name:
-        example: mahmutalijahad
-        type: string
-      verified:
-        example: true
-        type: boolean
-    type: object
   main.CommunityPostPreviewResponse:
     properties:
       author:
-        $ref: '#/definitions/main.CommunityPostAuthor'
+        $ref: '#/definitions/events.CommunityPostAuthor'
       comments:
         example: 12
         type: integer
@@ -221,10 +233,9 @@ definitions:
         type: integer
       media:
         items:
-          $ref: '#/definitions/main.PostMedia'
+          $ref: '#/definitions/events.PostMedia'
         type: array
       onlinePlusDeeplink:
-        example: online.app://some/path/to/0xD76b5c2A23ef78368d8E34288B5b65D616B746aE
         type: string
       reposts:
         example: 442
@@ -391,18 +402,6 @@ definitions:
         type: boolean
       tier:
         type: integer
-    type: object
-  main.PostMedia:
-    properties:
-      thumbnail:
-        example: https://example.com/image-preview.jpg
-        type: string
-      type:
-        example: video
-        type: string
-      url:
-        example: https://example.com/image.jpg
-        type: string
     type: object
   main.RegistrationChallenge:
     additionalProperties: {}
