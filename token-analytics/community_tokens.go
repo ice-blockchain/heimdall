@@ -430,6 +430,8 @@ func (t *tokenAnalyticsUsers) GetTokenUpdates(ctx context.Context, contractAddre
 		    COALESCE(t.title, '') as title,
 		    COALESCE(t.ticker, '') as ticker,
 		    COALESCE(t.image_url, '') as image_url,
+		    COALESCE(t.type, '') as token_type,
+			t.platform as platform,
 		    t.price_usd
 		FROM tokens t WHERE t.contract_address = ANY($1)`, contractAddresses)
 	if err != nil {
