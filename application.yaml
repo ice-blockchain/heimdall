@@ -450,8 +450,8 @@ token-analytics:
     jobMaxTimeout: 30s
   llm:
     apiKey: dev-llm-api-key
-    ImageQuality: low
-    MaxRetries: 10
+    imageQuality: low
+    maxRetries: 10
   cdn:
     accessKey: dev-cdn-access-key
     urlUpload: https://localhost:9000

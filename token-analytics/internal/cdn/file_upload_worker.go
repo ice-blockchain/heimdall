@@ -7,8 +7,6 @@ import (
 	"cmp"
 	"context"
 	"fmt"
-	"io"
-	"os"
 	"time"
 
 	"github.com/ice-blockchain/wintr/log"
@@ -16,27 +14,19 @@ import (
 )
 
 type (
-	uploadSource     int
 	uploadWorkerArgs struct {
 		ContentType string
 		FileName    string
-		Path        []byte // Can be either file path or data depending on `Source`.
-		Source      uploadSource
+		Data        []byte
 		Metadata    *Metadata
 	}
 	uploadWorker struct {
 		riverqueue.WorkerDefaults[uploadWorkerArgs]
 		Client        Client
-		RootPath      string
 		JobTimeout    time.Duration
 		JobRetryAfter time.Duration
 	}
 	uploadWorkerJob = riverqueue.Job[uploadWorkerArgs]
-)
-
-const (
-	uploadSourceFile uploadSource = iota + 1
-	uploadSourceData
 )
 
 func (uploadWorkerArgs) Kind() string {
@@ -64,25 +54,7 @@ func (w *uploadWorker) Work(ctx context.Context, job *uploadWorkerJob) (err erro
 
 	log.Debug(fmt.Sprintf("CDN upload worker started for file: %s, attempt: %d", job.Args.FileName, job.Attempt))
 
-	var r io.Reader
-	switch job.Args.Source {
-	case uploadSourceData:
-		r = bytes.NewReader(job.Args.Path)
-
-	case uploadSourceFile:
-		f, err := os.OpenInRoot(w.RootPath, string(job.Args.Path))
-		if err != nil {
-			return fmt.Errorf("failed to open file %v: %w", string(job.Args.Path), err)
-		}
-		r = f
-		defer f.Close()
-
-	default:
-		log.Warn(fmt.Sprintf("unknown upload source for file: %s, attempt: %d", job.Args.FileName, job.Attempt))
-		return nil // Just skip unknown sources.
-	}
-
-	downloadURL, uploadErr := w.Client.FileUpload(ctx, r, job.Args.ContentType, job.Args.FileName)
+	downloadURL, uploadErr := w.Client.FileUpload(ctx, bytes.NewReader(job.Args.Data), job.Args.ContentType, job.Args.FileName)
 	if uploadErr != nil {
 		return fmt.Errorf("failed to upload file %v to CDN: %w", job.Args.FileName, uploadErr)
 	}

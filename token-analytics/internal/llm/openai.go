@@ -267,7 +267,7 @@ func (c *openaiClient) GenerateTokenNameAndTicker(ctx context.Context, creator, 
 		return "", "", fmt.Errorf("cannot unmarshal openai response: %w from content: %s", err, resp.Choices[0].Message.Content)
 	}
 
-	return result.Name, strings.ToUpper(result.Ticker), nil
+	return capitalizeFirst(result.Name), strings.ToUpper(result.Ticker), nil
 }
 
 func (c *openaiClient) GenerateTokenImage(ctx context.Context, creator, content, name, ticker string, webpFrames []string) (pngB64image string, err error) {
@@ -322,7 +322,7 @@ func (c *openaiClient) generateTokenImageFromReferences(ctx context.Context, pro
 
 	if len(webpFrames) > maxFramesAllowed {
 		log.Debug(fmt.Sprintf("truncating video frames from %d to %d for OpenAI image edit request", len(webpFrames), maxFramesAllowed))
-		webpFrames = webpFrames[:maxFramesAllowed]
+		webpFrames = selectFrames(webpFrames, maxFramesAllowed)
 	}
 
 	imageReaders := make([]io.Reader, 0, len(webpFrames))

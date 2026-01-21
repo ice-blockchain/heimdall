@@ -29,11 +29,7 @@ var (
 	_ llm.Client = (*mockedLLMClient)(nil)
 )
 
-func (*mockedCDNClient) FileUploadAsync(ctx context.Context, filePath, contentType, fileName string, m *cdn.Metadata) error {
-	return nil
-}
-
-func (client *mockedCDNClient) DataUploadAsync(ctx context.Context, data []byte, contentType, fileName string, m *cdn.Metadata) error {
+func (client *mockedCDNClient) SubmitFileUploadJob(ctx context.Context, data []byte, contentType, fileName string, m *cdn.Metadata) error {
 	client.TB.Logf("mocked async upload data for file: %s", fileName)
 	if client.StateObserver != nil {
 		client.StateObserver.OnUploadCompleted(ctx, fileName, "https://mocked.cdn/"+fileName, m)

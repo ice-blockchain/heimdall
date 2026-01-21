@@ -9,6 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"golang.org/x/image/webp"
 )
@@ -60,4 +62,39 @@ func validateWebpImage(b64image string) error {
 	}
 
 	return nil
+}
+
+func capitalizeFirst(s string) string {
+	if s == "" {
+		return ""
+	}
+
+	r, size := utf8.DecodeRuneInString(s)
+	if r == utf8.RuneError && size <= 1 {
+		return s
+	}
+
+	upper := unicode.ToUpper(r)
+	if r == upper {
+		return s
+	}
+
+	return string(upper) + s[size:]
+}
+
+func selectFrames(webpFrames []string, maxFrames int) []string {
+	if len(webpFrames) <= maxFrames {
+		return webpFrames
+	}
+
+	step := float64(len(webpFrames)) / float64(maxFrames)
+	selected := make([]string, 0, maxFrames)
+	for i := range maxFrames {
+		index := int(float64(i) * step)
+		if index >= len(webpFrames) {
+			index = len(webpFrames) - 1
+		}
+		selected = append(selected, webpFrames[index])
+	}
+	return selected
 }

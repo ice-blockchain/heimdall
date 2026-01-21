@@ -256,7 +256,7 @@ func (t *tokenAnalytics) onSuggestionPictureGenerationSuccess(ctx context.Contex
 	}
 
 	filename := "ts_" + contentID + ".png"
-	err = t.cdnClient.DataUploadAsync(ctx, []byte(pictureB64), "image/png", filename, &cdn.Metadata{
+	err = t.cdnClient.SubmitFileUploadJob(ctx, []byte(pictureB64), "image/png", filename, &cdn.Metadata{
 		Map: map[string]string{
 			"content_id": contentID,
 			"ticker":     ticker,

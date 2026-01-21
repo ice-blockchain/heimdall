@@ -25,10 +25,8 @@ type (
 		Map map[string]string `json:"map"`
 	}
 	Client interface {
-		// FileUploadAsync uploads a file to the CDN asynchronously via a background worker.
-		FileUploadAsync(ctx context.Context, filePath, contentType, fileName string, m *Metadata) error
-		// DataUploadAsync uploads data to the CDN asynchronously via a background worker.
-		DataUploadAsync(ctx context.Context, data []byte, contentType, fileName string, m *Metadata) error
+		// SubmitFileUploadJob uploads data to the CDN asynchronously via a background worker.
+		SubmitFileUploadJob(ctx context.Context, data []byte, contentType, fileName string, m *Metadata) error
 
 		// FileUpload uploads a file to the CDN synchronously calling the CDN API directly.
 		FileUpload(ctx context.Context, data io.Reader, contentType, fileName string) (string, error)
@@ -50,7 +48,6 @@ type (
 		AccessKey     string        `yaml:"accessKey"`
 		URLUpload     string        `yaml:"urlUpload"`
 		URLDownload   string        `yaml:"urlDownload"`
-		RootPath      string        `yaml:"rootPath"`
 		JobMaxTimeout time.Duration `yaml:"maxJobTimeout"`
 	}
 	Option func(*client)
@@ -95,7 +92,6 @@ func newClient(_ context.Context, config *Config, rqClient riverqueue.Client, op
 
 	riverqueue.RegisterWorker(rqClient.Register(), &uploadWorker{
 		Client:     cdnClient,
-		RootPath:   config.RootPath,
 		JobTimeout: config.JobMaxTimeout,
 	})
 	return cdnClient
@@ -198,26 +194,11 @@ func (c *client) HealthCheck(ctx context.Context) error {
 	return nil
 }
 
-func (c *client) FileUploadAsync(ctx context.Context, filePath, contentType, fileName string, m *Metadata) error {
+func (c *client) SubmitFileUploadJob(ctx context.Context, data []byte, contentType, fileName string, m *Metadata) error {
 	err := c.RqClient.Push(ctx, &uploadWorkerArgs{
 		ContentType: contentType,
 		FileName:    fileName,
-		Source:      uploadSourceFile,
-		Metadata:    m,
-		Path:        []byte(filePath),
-	})
-	if err != nil {
-		return fmt.Errorf("failed to enqueue cdn upload job for file %v: %w", fileName, err)
-	}
-	return nil
-}
-
-func (c *client) DataUploadAsync(ctx context.Context, data []byte, contentType, fileName string, m *Metadata) error {
-	err := c.RqClient.Push(ctx, &uploadWorkerArgs{
-		ContentType: contentType,
-		FileName:    fileName,
-		Source:      uploadSourceData,
-		Path:        data,
+		Data:        data,
 		Metadata:    m,
 	})
 	if err != nil {

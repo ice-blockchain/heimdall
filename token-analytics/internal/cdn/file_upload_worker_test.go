@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -21,7 +20,6 @@ import (
 type (
 	mockedClient struct {
 		T             testing.TB
-		RootPath      string
 		Data          chan []byte
 		StateObserver StateObserver
 		FailCount     int32
@@ -51,12 +49,7 @@ func TestMain(m *testing.M) {
 	}
 }
 
-func (m *mockedClient) FileUploadAsync(ctx context.Context, filePath, contentType, fileName string, meta *Metadata) error {
-	m.T.Logf("Mocked async upload file: %s", fileName)
-	return nil
-}
-
-func (m *mockedClient) DataUploadAsync(ctx context.Context, data []byte, contentType, fileName string, meta *Metadata) error {
+func (m *mockedClient) SubmitFileUploadJob(ctx context.Context, data []byte, contentType, fileName string, meta *Metadata) error {
 	m.T.Logf("Mocked async upload data for file: %s", fileName)
 	return nil
 }
@@ -110,7 +103,6 @@ func helperNewClient(t testing.TB) (*mockedClient, *mockedObserver) {
 
 	var m mockedClient
 	m.T = t
-	m.RootPath = t.TempDir()
 	m.Data = make(chan []byte, 1)
 
 	var o = mockedObserver{T: t}
@@ -119,12 +111,11 @@ func helperNewClient(t testing.TB) (*mockedClient, *mockedObserver) {
 	return &m, &o
 }
 
-func helperRegisterUploadWorker(t testing.TB, rqClient riverqueue.Client, cdnClient Client, rootPath string) {
+func helperRegisterUploadWorker(t testing.TB, rqClient riverqueue.Client, cdnClient Client) {
 	t.Helper()
 
 	riverqueue.RegisterWorker(rqClient.Register(), &uploadWorker{
 		Client:        cdnClient,
-		RootPath:      rootPath,
 		JobRetryAfter: time.Second,
 	})
 }
@@ -142,7 +133,7 @@ func TestUploadWorker(t *testing.T) {
 		ID:          testClientID,
 	}))
 	client, observer := helperNewClient(t)
-	helperRegisterUploadWorker(t, rqClient, client, client.RootPath)
+	helperRegisterUploadWorker(t, rqClient, client)
 
 	var (
 		testFile    = "test.png"
@@ -151,7 +142,7 @@ func TestUploadWorker(t *testing.T) {
 
 	require.NoError(t, rqClient.Start(t.Context()))
 
-	t.Run("File by path", func(t *testing.T) {
+	t.Run("Data upload", func(t *testing.T) {
 		observerChan := make(chan string, 1)
 		observer.FnOnCompleted = func(ctx context.Context, fileName, downloadURL string, m *Metadata) {
 			t.Logf("Custom observer: upload completed for file: %s: %s", fileName, downloadURL)
@@ -166,18 +157,10 @@ func TestUploadWorker(t *testing.T) {
 		defer func() {
 			observer.FnOnCompleted = nil
 		}()
-
-		require.NoError(t, os.WriteFile(filepath.Join(client.RootPath, testFile), testContent, 0o644))
 		err := rqClient.Push(t.Context(), &uploadWorkerArgs{
 			ContentType: "image/png",
 			FileName:    testFile,
-			Source:      uploadSourceFile,
-			Path:        []byte(testFile),
-			Metadata: &Metadata{
-				Map: map[string]string{
-					"test": "value",
-				},
-			},
+			Data:        testContent,
 		})
 		require.NoError(t, err)
 
@@ -205,27 +188,6 @@ func TestUploadWorker(t *testing.T) {
 			t.Fatal("failed to receive download URL from observer, context done")
 		}
 	})
-	t.Run("Data upload", func(t *testing.T) {
-		err := rqClient.Push(t.Context(), &uploadWorkerArgs{
-			ContentType: "image/png",
-			FileName:    testFile,
-			Path:        testContent,
-			Source:      uploadSourceData,
-		})
-		require.NoError(t, err)
-
-		select {
-		case data := <-client.Data:
-			t.Logf("Received uploaded data: %s", string(data))
-			require.Equal(t, testContent, data)
-
-		case <-time.After(time.Second * 5):
-			t.Fatal("failed to receive uploaded data, timeout")
-
-		case <-t.Context().Done():
-			t.Fatal("failed to receive uploaded data, context done")
-		}
-	})
 
 	require.NoError(t, rqClient.Close(t.Context()))
 }
@@ -247,7 +209,7 @@ func TestUploadWorkerErrorHandler(t *testing.T) {
 
 	failingClient, observer := helperNewClient(t)
 	failingClient.FailCount = failNumber
-	helperRegisterUploadWorker(t, rqClient, failingClient, failingClient.RootPath)
+	helperRegisterUploadWorker(t, rqClient, failingClient)
 
 	require.NoError(t, rqClient.Start(t.Context()))
 
@@ -282,13 +244,11 @@ func TestUploadWorkerErrorHandler(t *testing.T) {
 
 		const testFile = "error_test.png"
 		testContent := []byte("error test content")
-		require.NoError(t, os.WriteFile(filepath.Join(failingClient.RootPath, testFile), testContent, 0o644))
 
 		err := rqClient.Push(t.Context(), &uploadWorkerArgs{
 			ContentType: "image/png",
 			FileName:    testFile,
-			Source:      uploadSourceFile,
-			Path:        []byte(testFile),
+			Data:        testContent,
 		})
 		require.NoError(t, err)
 
