@@ -270,10 +270,15 @@ func TestBuildTokenAndCreatorAddresses(t *testing.T) {
 		creatorPlatform := PlatformGroupIonConnect
 		var creatorBnbBscAddr *string = nil
 
-		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(
-			tokenContractAddr, tokenExternalAddr, tokenPlatform, tokenIonConnectAddr,
-			creatorExternalAddr, creatorPlatform, creatorBnbBscAddr,
-		)
+		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(TokenAndCreatorAddressesParams{
+			TokenContractAddress:   tokenContractAddr,
+			TokenExternalAddress:   tokenExternalAddr,
+			TokenPlatform:          tokenPlatform,
+			TokenIonConnectAddress: tokenIonConnectAddr,
+			CreatorExternalAddress: creatorExternalAddr,
+			CreatorPlatform:        creatorPlatform,
+			CreatorBnbBscAddress:   creatorBnbBscAddr,
+		})
 
 		require.NoError(t, err)
 		require.NotNil(t, tokenAddresses)
@@ -300,10 +305,15 @@ func TestBuildTokenAndCreatorAddresses(t *testing.T) {
 		creatorPlatform := PlatformGroupIonConnect
 		var creatorBnbBscAddr *string = nil
 
-		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(
-			tokenContractAddr, tokenExternalAddr, tokenPlatform, tokenIonConnectAddr,
-			creatorExternalAddr, creatorPlatform, creatorBnbBscAddr,
-		)
+		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(TokenAndCreatorAddressesParams{
+			TokenContractAddress:   tokenContractAddr,
+			TokenExternalAddress:   tokenExternalAddr,
+			TokenPlatform:          tokenPlatform,
+			TokenIonConnectAddress: tokenIonConnectAddr,
+			CreatorExternalAddress: creatorExternalAddr,
+			CreatorPlatform:        creatorPlatform,
+			CreatorBnbBscAddress:   creatorBnbBscAddr,
+		})
 
 		require.NoError(t, err)
 		require.NotNil(t, tokenAddresses)
@@ -331,10 +341,15 @@ func TestBuildTokenAndCreatorAddresses(t *testing.T) {
 		creatorPlatform := PlatformGroupXCom
 		var creatorBnbBscAddr *string = nil
 
-		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(
-			tokenContractAddr, tokenExternalAddr, tokenPlatform, tokenIonConnectAddr,
-			creatorExternalAddr, creatorPlatform, creatorBnbBscAddr,
-		)
+		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(TokenAndCreatorAddressesParams{
+			TokenContractAddress:   tokenContractAddr,
+			TokenExternalAddress:   tokenExternalAddr,
+			TokenPlatform:          tokenPlatform,
+			TokenIonConnectAddress: tokenIonConnectAddr,
+			CreatorExternalAddress: creatorExternalAddr,
+			CreatorPlatform:        creatorPlatform,
+			CreatorBnbBscAddress:   creatorBnbBscAddr,
+		})
 
 		require.NoError(t, err)
 		require.NotNil(t, tokenAddresses)
@@ -361,10 +376,15 @@ func TestBuildTokenAndCreatorAddresses(t *testing.T) {
 		creatorPlatform := PlatformGroupXCom
 		var creatorBnbBscAddr *string = nil
 
-		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(
-			tokenContractAddr, tokenExternalAddr, tokenPlatform, tokenIonConnectAddr,
-			creatorExternalAddr, creatorPlatform, creatorBnbBscAddr,
-		)
+		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(TokenAndCreatorAddressesParams{
+			TokenContractAddress:   tokenContractAddr,
+			TokenExternalAddress:   tokenExternalAddr,
+			TokenPlatform:          tokenPlatform,
+			TokenIonConnectAddress: tokenIonConnectAddr,
+			CreatorExternalAddress: creatorExternalAddr,
+			CreatorPlatform:        creatorPlatform,
+			CreatorBnbBscAddress:   creatorBnbBscAddr,
+		})
 
 		require.NoError(t, err)
 		require.NotNil(t, tokenAddresses)
@@ -392,10 +412,15 @@ func TestBuildTokenAndCreatorAddresses(t *testing.T) {
 		bnbAddr := "0xdeadbeef"
 		creatorBnbBscAddr := &bnbAddr
 
-		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(
-			tokenContractAddr, tokenExternalAddr, tokenPlatform, tokenIonConnectAddr,
-			creatorExternalAddr, creatorPlatform, creatorBnbBscAddr,
-		)
+		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(TokenAndCreatorAddressesParams{
+			TokenContractAddress:   tokenContractAddr,
+			TokenExternalAddress:   tokenExternalAddr,
+			TokenPlatform:          tokenPlatform,
+			TokenIonConnectAddress: tokenIonConnectAddr,
+			CreatorExternalAddress: creatorExternalAddr,
+			CreatorPlatform:        creatorPlatform,
+			CreatorBnbBscAddress:   creatorBnbBscAddr,
+		})
 
 		require.NoError(t, err)
 		require.NotNil(t, tokenAddresses)
@@ -420,10 +445,15 @@ func TestBuildTokenAndCreatorAddresses(t *testing.T) {
 		creatorPlatform := PlatformGroupIonConnect
 		var creatorBnbBscAddr *string = nil
 
-		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(
-			tokenContractAddr, tokenExternalAddr, tokenPlatform, tokenIonConnectAddr,
-			creatorExternalAddr, creatorPlatform, creatorBnbBscAddr,
-		)
+		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(TokenAndCreatorAddressesParams{
+			TokenContractAddress:   tokenContractAddr,
+			TokenExternalAddress:   tokenExternalAddr,
+			TokenPlatform:          tokenPlatform,
+			TokenIonConnectAddress: tokenIonConnectAddr,
+			CreatorExternalAddress: creatorExternalAddr,
+			CreatorPlatform:        creatorPlatform,
+			CreatorBnbBscAddress:   creatorBnbBscAddr,
+		})
 
 		require.Error(t, err)
 		require.Nil(t, tokenAddresses)
@@ -442,10 +472,15 @@ func TestBuildTokenAndCreatorAddresses(t *testing.T) {
 		creatorPlatform := "unknown_platform"
 		var creatorBnbBscAddr *string = nil
 
-		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(
-			tokenContractAddr, tokenExternalAddr, tokenPlatform, tokenIonConnectAddr,
-			creatorExternalAddr, creatorPlatform, creatorBnbBscAddr,
-		)
+		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(TokenAndCreatorAddressesParams{
+			TokenContractAddress:   tokenContractAddr,
+			TokenExternalAddress:   tokenExternalAddr,
+			TokenPlatform:          tokenPlatform,
+			TokenIonConnectAddress: tokenIonConnectAddr,
+			CreatorExternalAddress: creatorExternalAddr,
+			CreatorPlatform:        creatorPlatform,
+			CreatorBnbBscAddress:   creatorBnbBscAddr,
+		})
 
 		require.Error(t, err)
 		require.Nil(t, tokenAddresses)

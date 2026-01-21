@@ -228,10 +228,15 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 	}
 	tokens := make([]*CommunityToken, 0, len(rows))
 	for _, row := range rows {
-		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(
-			row.ContractAddress, row.ExternalAddress, row.Platform, row.IonConnectAddress,
-			strVal(row.CreatorExternalAddress), strVal(row.CreatorPlatform), row.CreatorBnbBscAddress,
-		)
+		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(TokenAndCreatorAddressesParams{
+			TokenContractAddress:   row.ContractAddress,
+			TokenExternalAddress:   row.ExternalAddress,
+			TokenPlatform:          row.Platform,
+			TokenIonConnectAddress: row.IonConnectAddress,
+			CreatorExternalAddress: strVal(row.CreatorExternalAddress),
+			CreatorPlatform:        strVal(row.CreatorPlatform),
+			CreatorBnbBscAddress:   row.CreatorBnbBscAddress,
+		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to build token and creator addresses: %w", err)
 		}
@@ -567,10 +572,15 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 				marketData.Position = position
 			}
 		}
-		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(
-			row.ContractAddress, row.ExternalAddress, row.Platform, row.IonConnectAddress,
-			strVal(row.CreatorExternalAddress), strVal(row.CreatorPlatform), row.CreatorBnbBscAddress,
-		)
+		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(TokenAndCreatorAddressesParams{
+			TokenContractAddress:   row.ContractAddress,
+			TokenExternalAddress:   row.ExternalAddress,
+			TokenPlatform:          row.Platform,
+			TokenIonConnectAddress: row.IonConnectAddress,
+			CreatorExternalAddress: strVal(row.CreatorExternalAddress),
+			CreatorPlatform:        strVal(row.CreatorPlatform),
+			CreatorBnbBscAddress:   row.CreatorBnbBscAddress,
+		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to build token and creator addresses: %w", err)
 		}

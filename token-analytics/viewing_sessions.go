@@ -218,10 +218,15 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 			marketCap = additionalMetrics[addr]
 		}
 
-		tokenExternalAddresses, creatorExternalAddresses, err := buildTokenAndCreatorAddresses(
-			token.ContractAddress, token.ExternalAddress, token.Platform, token.IonConnectAddress,
-			strVal(token.CreatorExternalAddress), strVal(token.CreatorPlatform), token.CreatorBnbBscAddress,
-		)
+		tokenExternalAddresses, creatorExternalAddresses, err := buildTokenAndCreatorAddresses(TokenAndCreatorAddressesParams{
+			TokenContractAddress:   token.ContractAddress,
+			TokenExternalAddress:   token.ExternalAddress,
+			TokenPlatform:          token.Platform,
+			TokenIonConnectAddress: token.IonConnectAddress,
+			CreatorExternalAddress: strVal(token.CreatorExternalAddress),
+			CreatorPlatform:        strVal(token.CreatorPlatform),
+			CreatorBnbBscAddress:   token.CreatorBnbBscAddress,
+		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to build token and creator addresses: %w", err)
 		}
