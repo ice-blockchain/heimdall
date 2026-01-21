@@ -64,6 +64,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		require.Equal(t, contractAddr, token.Addresses.Blockchain)
 
 		require.Equal(t, "H1TK", token.MarketData.Ticker)
+		require.Nil(t, token.MarketData.BondingCurveProgress, "BondingCurveProgress should be nil when not set")
 		require.NotNil(t, token.MarketData.Position)
 		require.Equal(t, "5000000000000000000000", token.MarketData.Position.Amount)
 	})
@@ -197,6 +198,15 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		contractAddr := "0xFULL1111111111111111111111111111111111"
 
 		helperInsertTestToken(t, ctx, db, contractAddr, tokenExt, "FULL", "profile", "creator_full", "1000000000000000000000000", 150.5, 0.00015, 10, PlatformGroupIonConnect)
+		helperUpdateTokenBondingCurve(t, ctx, db,
+			tokenExt,
+			"75000000000000000000000",  // 75k tokens current
+			"150000000000000000000000", // 150k tokens goal
+			150.0,                      // $150 USD current
+			300.0,                      // $300 USD goal
+			"100000000000000000000",    // 100 tokens raised (wei)
+			false,                      // not migrated
+		)
 		helperInsertUserTokenPosition(t, ctx, db, "holder_full", contractAddr, tokenExt, holderExtAddr, "8000000000000000000000", 0.00015, 1.2)
 		helperCreateSwapForVolume(t, ctx, db, contractAddr, tokenExt, "0x0000000000000000000000000000000000000001", false, "100000000000000000000", "1000000000000000000000", 0.00015)
 		helperRefreshVolumeView(t, ctx, db)
@@ -236,6 +246,12 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		require.Greater(t, token.MarketData.Volume, 0.0)
 		require.InDelta(t, 0.00015, token.MarketData.PriceUSD, 0.000001)
 		require.GreaterOrEqual(t, token.MarketData.Holders, uint64(10), "Should have at least 10 holders")
+
+		require.NotNil(t, token.MarketData.BondingCurveProgress)
+		require.Equal(t, "75000000000000000000000", token.MarketData.BondingCurveProgress.CurrentAmount)
+		require.Equal(t, "150000000000000000000000", token.MarketData.BondingCurveProgress.GoalAmount)
+		require.InDelta(t, 150.0, token.MarketData.BondingCurveProgress.CurrentAmountUSD, 0.01)
+		require.InDelta(t, 300.0, token.MarketData.BondingCurveProgress.GoalAmountUSD, 0.01)
 	})
 
 	t.Run("holder_position_includes_position_data", func(t *testing.T) {

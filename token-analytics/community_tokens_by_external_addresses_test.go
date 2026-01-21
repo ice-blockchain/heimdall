@@ -109,20 +109,15 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			PlatformGroupIonConnect,
 		)
 
-		_, err := storage.Exec(ctx, db, `
-		UPDATE tokens 
-		SET bonding_curve_current_amount = $1,
-		    bonding_curve_goal_amount = $2,
-		    bonding_curve_current_amount_usd = $3,
-		    bonding_curve_goal_amount_usd = $4
-		WHERE external_address = $5`,
+		helperUpdateTokenBondingCurve(t, ctx, db,
+			tokenExt,
 			"50000000000000000000000",  // 50k tokens in wei (CurrentAmount)
 			"100000000000000000000000", // 100k tokens in wei (GoalAmount)
-			100.0,                      // $100 USD raised
+			100.0,                      // $100 USD current
 			200.0,                      // $200 USD goal
-			tokenExt,
+			"50000000000000000000",     // 50 tokens raised in base currency (wei)
+			false,
 		)
-		require.NoError(t, err)
 
 		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "requestor_basic", nil, "", 10, 0)
 		require.NoError(t, err)
@@ -135,6 +130,8 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		require.Equal(t, "100000000000000000000000", token.MarketData.BondingCurveProgress.GoalAmount)
 		require.InDelta(t, 100.0, token.MarketData.BondingCurveProgress.CurrentAmountUSD, 0.01)
 		require.InDelta(t, 200.0, token.MarketData.BondingCurveProgress.GoalAmountUSD, 0.01)
+		require.Equal(t, "50000000000000000000", token.MarketData.BondingCurveProgress.RaisedAmount)
+		require.False(t, token.MarketData.BondingCurveProgress.Migrated)
 	})
 
 	t.Run("fetch tokens with user position", func(t *testing.T) {
@@ -1066,6 +1063,7 @@ func TestGetCommunityTokensByExternalAddresses_WithTopPlatformHolders(t *testing
 
 		require.Equal(t, "profile", token.Type)
 		require.Equal(t, "TOP1", token.MarketData.Ticker)
+		require.Nil(t, token.MarketData.BondingCurveProgress, "BondingCurveProgress should be nil when not set")
 
 		require.Len(t, token.MarketData.TopPlatformHolders, 2, "Expected 2 top platform holders")
 
@@ -1380,6 +1378,30 @@ func helperInsertTestToken(t *testing.T, ctx context.Context, db *storage.DB,
 		avatarURL,
 	)
 	require.NoError(t, err, "failed to insert test token")
+}
+
+func helperUpdateTokenBondingCurve(t *testing.T, ctx context.Context, db *storage.DB,
+	externalAddress, currentAmount, goalAmount string, currentAmountUSD, goalAmountUSD float64, raisedAmount string, migrated bool) {
+	t.Helper()
+
+	_, err := storage.Exec(ctx, db, `
+		UPDATE tokens 
+		SET bonding_curve_current_amount = $1,
+		    bonding_curve_goal_amount = $2,
+		    bonding_curve_current_amount_usd = $3,
+		    bonding_curve_goal_amount_usd = $4,
+		    bonding_curve_raised_amount = $5,
+		    bonding_curve_migrated = $6
+		WHERE external_address = $7`,
+		currentAmount,
+		goalAmount,
+		currentAmountUSD,
+		goalAmountUSD,
+		raisedAmount,
+		migrated,
+		externalAddress,
+	)
+	require.NoError(t, err, "failed to update token bonding curve")
 }
 
 func helperInsertUserTokenPosition(t *testing.T, ctx context.Context, db *storage.DB,

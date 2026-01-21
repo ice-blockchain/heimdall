@@ -199,6 +199,15 @@ func TestGetCommunityTokensByFeatured(t *testing.T) {
 	token3Ext := "0:creator_featured3:"
 
 	helperInsertTestToken(t, ctx, db, "0xFEATURE1111111111111111111111111111111111", token1Ext, "FEA1", "profile", "creator_featured1", "1000000000000000000000000", 100.0, 0.0001, 5, PlatformGroupIonConnect)
+	helperUpdateTokenBondingCurve(t, ctx, db,
+		token1Ext,
+		"80000000000000000000000",  // 80k tokens current
+		"200000000000000000000000", // 200k tokens goal
+		160.0,                      // $160 USD current
+		400.0,                      // $400 USD goal
+		"120000000000000000000",    // 120 tokens raised (wei)
+		false,                      // not migrated
+	)
 	time.Sleep(10 * time.Millisecond)
 	helperInsertTestToken(t, ctx, db, "0xFEATURE2222222222222222222222222222222222", token2Ext, "FEA2", "post", "creator_featured2", "2000000000000000000000000", 200.0, 0.0002, 10, PlatformGroupIonConnect)
 	time.Sleep(10 * time.Millisecond)
@@ -243,7 +252,16 @@ func TestGetCommunityTokensByFeatured(t *testing.T) {
 			require.Nil(t, token.MarketData.Position, "Position should be nil when user has no position")
 			require.Equal(t, uint64(0), token.MarketData.PlatformHolders)
 			require.Nil(t, token.MarketData.TopPlatformHolders)
-			require.Nil(t, token.MarketData.BondingCurveProgress)
+
+			if token.MarketData.Ticker == "FEA1" {
+				require.NotNil(t, token.MarketData.BondingCurveProgress)
+				require.Equal(t, "80000000000000000000000", token.MarketData.BondingCurveProgress.CurrentAmount)
+				require.Equal(t, "200000000000000000000000", token.MarketData.BondingCurveProgress.GoalAmount)
+				require.InDelta(t, 160.0, token.MarketData.BondingCurveProgress.CurrentAmountUSD, 0.01)
+				require.InDelta(t, 400.0, token.MarketData.BondingCurveProgress.GoalAmountUSD, 0.01)
+			} else {
+				require.Nil(t, token.MarketData.BondingCurveProgress)
+			}
 		}
 	})
 
