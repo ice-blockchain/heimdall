@@ -161,6 +161,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/server.Response-main_SuggestCreationDetailsResponse"
                         }
                     },
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/server.Response-main_SuggestCreationDetailsResponse"
+                        }
+                    },
                     "400": {
                         "description": "if request body is invalid",
                         "schema": {
@@ -1877,6 +1883,14 @@ const docTemplate = `{
                     "type": "string",
                     "example": "https://example.com/some_cool_pic.webp"
                 },
+                "status": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/tokenanalytics.TokenDetailsGenerationStatus"
+                        }
+                    ],
+                    "example": "completed"
+                },
                 "ticker": {
                     "type": "string",
                     "example": "SOMETHING_COOL"
@@ -2125,6 +2139,25 @@ const docTemplate = `{
                     "type": "integer"
                 }
             }
+        },
+        "tokenanalytics.TokenDetailsGenerationStatus": {
+            "type": "string",
+            "enum": [
+                "pending",
+                "generating_ticker",
+                "generating_picture",
+                "uploading",
+                "completed",
+                "failed"
+            ],
+            "x-enum-varnames": [
+                "TokenDetailsGenerationStatusPending",
+                "TokenDetailsGenerationStatusGenerating",
+                "TokenDetailsGenerationStatusGeneratingPicture",
+                "TokenDetailsGenerationStatusUploading",
+                "TokenDetailsGenerationStatusCompleted",
+                "TokenDetailsGenerationStatusFailed"
+            ]
         },
         "tokenanalytics.TopHolderPosition": {
             "type": "object",

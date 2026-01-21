@@ -1,3 +1,5 @@
+-- SPDX-License-Identifier: ice License 1.0
+
 CREATE TABLE IF NOT EXISTS user_tokens_suggestions (
     content_id TEXT PRIMARY KEY,
 

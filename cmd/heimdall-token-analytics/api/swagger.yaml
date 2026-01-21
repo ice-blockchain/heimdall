@@ -92,6 +92,10 @@ definitions:
       picture:
         example: https://example.com/some_cool_pic.webp
         type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/tokenanalytics.TokenDetailsGenerationStatus'
+        example: completed
       ticker:
         example: SOMETHING_COOL
         type: string
@@ -257,6 +261,22 @@ definitions:
       rank:
         type: integer
     type: object
+  tokenanalytics.TokenDetailsGenerationStatus:
+    enum:
+    - pending
+    - generating_ticker
+    - generating_picture
+    - uploading
+    - completed
+    - failed
+    type: string
+    x-enum-varnames:
+    - TokenDetailsGenerationStatusPending
+    - TokenDetailsGenerationStatusGenerating
+    - TokenDetailsGenerationStatusGeneratingPicture
+    - TokenDetailsGenerationStatusUploading
+    - TokenDetailsGenerationStatusCompleted
+    - TokenDetailsGenerationStatusFailed
   tokenanalytics.TopHolderPosition:
     properties:
       creator:
@@ -899,6 +919,10 @@ paths:
       responses:
         "200":
           description: OK
+          schema:
+            $ref: '#/definitions/server.Response-main_SuggestCreationDetailsResponse'
+        "202":
+          description: Accepted
           schema:
             $ref: '#/definitions/server.Response-main_SuggestCreationDetailsResponse'
         "400":
