@@ -22,6 +22,7 @@ import (
 	"github.com/ice-blockchain/heimdall/coins"
 	"github.com/ice-blockchain/heimdall/token-analytics/ddl"
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
+	"github.com/ice-blockchain/heimdall/token-analytics/internal/cdn"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/llm"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
 	appconfig "github.com/ice-blockchain/wintr/config"
@@ -116,23 +117,13 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 		QueueName:       cfg.RiverQueue.QueueName,
 		MaxQueueWorkers: cfg.RiverQueue.MaxQueueWorkers,
 		JobMaxTimeout:   cfg.RiverQueue.JobMaxTimeout,
-		Credentials: struct {
-			User     string `yaml:"user"`
-			Password string `yaml:"password"`
-		}{
-			User:     cfg.Storage.Credentials.User,
-			Password: cfg.Storage.Credentials.Password,
-		},
-		PrimaryURLs: append([]string{cfg.Storage.PrimaryURL}, cfg.Storage.PrimaryFallbackURLs...),
+		Credentials:     cfg.Storage.Credentials,
+		PrimaryURLs:     append([]string{cfg.Storage.PrimaryURL}, cfg.Storage.PrimaryFallbackURLs...),
 	}
 
-	riverClient := riverqueue.MustNewClient(ctx, applicationYamlKey,
+	riverClient := riverqueue.MustNewClient(ctx,
+		applicationYamlKey,
 		riverqueue.WithConfig(&riverCfg))
-	riverqueue.RegisterWorker(riverClient.Register(), &balanceUpdateWorker{
-		bondingCurve:    bc,
-		ingestedDataDB:  db,
-		processedDataDB: targetDB,
-	})
 
 	t := &tokenAnalytics{
 		bondingCurveContractAddress: cfg.BondingCurve.SmartContractAddress,
@@ -144,7 +135,7 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 		cfg:                         &cfg,
 		metrics:                     registry,
 		bondingCurve:                bc,
-		balanceUpdateQueue:          riverClient,
+		riverClient:                 riverClient,
 		ohclvRecentData:             xsync.NewMap[string, *recentCandlestick](),
 		tradingStatsRecentData:      xsync.NewMap[string, *recentTradeStats](),
 		subscriptions:               newSubscriptions(ctx),
@@ -163,9 +154,22 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 			)
 		},
 	}
-	if err := riverClient.Start(ctx); err != nil {
-		log.Panic(errors.Wrap(err, "failed to start river queue"))
+
+	t.cdnClient = cdn.New(ctx, &cfg.CDN, riverClient, cdn.WithObserver(t))
+	if reg := riverClient.Register(); reg != nil {
+		riverqueue.RegisterWorker(reg, &balanceUpdateWorker{
+			bondingCurve:    bc,
+			ingestedDataDB:  db,
+			processedDataDB: targetDB,
+		})
+		riverqueue.RegisterWorker(reg, &tokenDetailsGenerationTickerWorker{
+			TA: t,
+		})
+		riverqueue.RegisterWorker(reg, &tokenDetailsGenerationPictureWorker{
+			TA: t,
+		})
 	}
+
 	t.ionPriceUSD = new(atomic.Pointer[float64])
 	t.bnbPriceUSD = new(atomic.Pointer[float64])
 	go metrics.LogScaled(registry, 5*stdlibtime.Minute, 1*stdlibtime.Second, t)
@@ -178,6 +182,10 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 
 	go t.startIONPriceSyncer(ctx)
 	go t.startBNBPriceLoader(ctx)
+
+	if err := riverClient.Start(ctx); err != nil {
+		log.Panic(errors.Wrap(err, "failed to start river queue"))
+	}
 
 	if cfg.EnableDummyGenerator {
 		log.Info("Dummy data generator is ENABLED")
@@ -804,39 +812,6 @@ func initializeWorkersConfig(ctx context.Context, db *storage.DB, workers uint) 
 	}
 
 	return nil
-}
-
-func (t *tokenAnalytics) GenerateTokenSuggestion(ctx context.Context, data *CreationDetailsData) *SuggestedCreationDetails {
-	tickerLength := 3 + randInt(4)
-	ticker := make([]byte, tickerLength)
-	for i := range ticker {
-		if i < tickerLength-1 || randInt(2) == 0 {
-			ticker[i] = byte('A' + randInt(26))
-		} else {
-			ticker[i] = byte('0' + randInt(10))
-		}
-	}
-	var nameBase string
-	if data.Creator.Username != "" {
-		nameBase = data.Creator.Username
-	} else if data.Creator.Name != "" {
-		nameBase = data.Creator.Name
-	} else {
-		nameBase = "Token"
-	}
-
-	suffixes := []string{"Coin", "Token", "Finance", "Protocol", "Network", "Chain", "Verse", "World", "DAO", "Project"}
-	name := nameBase + " " + suffixes[randInt(len(suffixes))]
-
-	avatarStyles := []string{"avataaars", "lorelei", "personas", "bottts", "identicon", "initials"}
-	seed := fmt.Sprintf("%s%d", string(ticker), time.Now().UnixNano())
-	picture := fmt.Sprintf("https://api.dicebear.com/7.x/%s/svg?seed=%s", avatarStyles[randInt(len(avatarStyles))], seed)
-
-	return &SuggestedCreationDetails{
-		Ticker:  string(ticker),
-		Name:    name,
-		Picture: picture,
-	}
 }
 
 func (dummyUserRepository) UpsertUser(context.Context, string, string, string, string, string, string, *bool, []string) error {

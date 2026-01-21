@@ -20,16 +20,16 @@ import (
 
 type (
 	mockedClient struct {
-		T         testing.TB
-		RootPath  string
-		Data      chan []byte
-		Observer  StateObserver
-		FailCount int32
+		T             testing.TB
+		RootPath      string
+		Data          chan []byte
+		StateObserver StateObserver
+		FailCount     int32
 	}
 	mockedObserver struct {
 		T             testing.TB
-		FnOnCompleted func(ctx context.Context, fileName, downloadURL string)
-		FnOnError     func(ctx context.Context, fileName string, err error, attempt int)
+		FnOnCompleted func(ctx context.Context, fileName, downloadURL string, m *Metadata)
+		FnOnError     func(ctx context.Context, fileName string, err error, attempt, maxAttempts int, m *Metadata)
 	}
 )
 
@@ -51,12 +51,12 @@ func TestMain(m *testing.M) {
 	}
 }
 
-func (m *mockedClient) FileUploadAsync(ctx context.Context, filePath, contentType, fileName string) error {
+func (m *mockedClient) FileUploadAsync(ctx context.Context, filePath, contentType, fileName string, meta *Metadata) error {
 	m.T.Logf("Mocked async upload file: %s", fileName)
 	return nil
 }
 
-func (m *mockedClient) DataUploadAsync(ctx context.Context, data []byte, contentType, fileName string) error {
+func (m *mockedClient) DataUploadAsync(ctx context.Context, data []byte, contentType, fileName string, meta *Metadata) error {
 	m.T.Logf("Mocked async upload data for file: %s", fileName)
 	return nil
 }
@@ -87,21 +87,21 @@ func (m *mockedClient) FileUpload(ctx context.Context, r io.Reader, contentType,
 	return "download://" + fileName, nil
 }
 
-func (m *mockedClient) observer() StateObserver {
-	return m.Observer
+func (m *mockedClient) Observer() StateObserver {
+	return m.StateObserver
 }
 
-func (o *mockedObserver) OnUploadCompleted(ctx context.Context, fileName, downloadURL string) {
-	o.T.Logf("Observer: upload completed for file: %s: %s", fileName, downloadURL)
+func (o *mockedObserver) OnUploadCompleted(ctx context.Context, fileName, downloadURL string, m *Metadata) {
+	o.T.Logf("Observer: upload completed for file: %s: %s [%#v]", fileName, downloadURL, m)
 	if o.FnOnCompleted != nil {
-		o.FnOnCompleted(ctx, fileName, downloadURL)
+		o.FnOnCompleted(ctx, fileName, downloadURL, m)
 	}
 }
 
-func (o *mockedObserver) OnUploadError(ctx context.Context, fileName string, err error, attempt int) {
-	o.T.Logf("Observer: upload error for file: %s: %v, attempt: %d", fileName, err, attempt)
+func (o *mockedObserver) OnUploadError(ctx context.Context, fileName string, err error, attempt, maxAttempts int, m *Metadata) {
+	o.T.Logf("Observer: upload error for file: %s: %v, attempt: %d [%#v]", fileName, err, attempt, m)
 	if o.FnOnError != nil {
-		o.FnOnError(ctx, fileName, err, attempt)
+		o.FnOnError(ctx, fileName, err, attempt, maxAttempts, m)
 	}
 }
 
@@ -114,7 +114,7 @@ func helperNewClient(t testing.TB) (*mockedClient, *mockedObserver) {
 	m.Data = make(chan []byte, 1)
 
 	var o = mockedObserver{T: t}
-	m.Observer = &o
+	m.StateObserver = &o
 
 	return &m, &o
 }
@@ -153,7 +153,7 @@ func TestUploadWorker(t *testing.T) {
 
 	t.Run("File by path", func(t *testing.T) {
 		observerChan := make(chan string, 1)
-		observer.FnOnCompleted = func(ctx context.Context, fileName, downloadURL string) {
+		observer.FnOnCompleted = func(ctx context.Context, fileName, downloadURL string, m *Metadata) {
 			t.Logf("Custom observer: upload completed for file: %s: %s", fileName, downloadURL)
 			select {
 			case observerChan <- downloadURL:
@@ -161,6 +161,7 @@ func TestUploadWorker(t *testing.T) {
 			case <-time.After(time.Second * 5):
 				t.Fatal("failed to send to observerChan, timeout")
 			}
+			require.Equal(t, "value", m.Map["test"])
 		}
 		defer func() {
 			observer.FnOnCompleted = nil
@@ -172,6 +173,11 @@ func TestUploadWorker(t *testing.T) {
 			FileName:    testFile,
 			Source:      uploadSourceFile,
 			Path:        []byte(testFile),
+			Metadata: &Metadata{
+				Map: map[string]string{
+					"test": "value",
+				},
+			},
 		})
 		require.NoError(t, err)
 
@@ -249,8 +255,8 @@ func TestUploadWorkerErrorHandler(t *testing.T) {
 		errorChan := make(chan int, failNumber)
 		successChan := make(chan string, 1)
 
-		observer.FnOnError = func(ctx context.Context, fileName string, err error, attempt int) {
-			t.Logf("Custom observer: upload error for file: %s, attempt: %d, error: %v", fileName, attempt, err)
+		observer.FnOnError = func(ctx context.Context, fileName string, err error, attempt, maxAttempts int, _ *Metadata) {
+			t.Logf("Custom observer: upload error for file: %s, attempt: %d/%d, error: %v", fileName, attempt, maxAttempts, err)
 			select {
 			case errorChan <- attempt:
 
@@ -259,7 +265,7 @@ func TestUploadWorkerErrorHandler(t *testing.T) {
 			}
 		}
 
-		observer.FnOnCompleted = func(ctx context.Context, fileName, downloadURL string) {
+		observer.FnOnCompleted = func(ctx context.Context, fileName, downloadURL string, _ *Metadata) {
 			t.Logf("Custom observer: upload completed for file: %s: %s", fileName, downloadURL)
 			select {
 			case successChan <- downloadURL:

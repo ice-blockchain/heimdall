@@ -18,9 +18,7 @@ func TestGetTokenPricing(t *testing.T) {
 	db, connString, dbCleanup := helperCreateDBWithConnString(t)
 	defer dbCleanup()
 
-	taImpl := helperNewForTestWithConnString(t, db, connString)
-	ta, ok := taImpl.(*tokenAnalytics)
-	require.True(t, ok, "Expected *tokenAnalytics")
+	ta := helperNewForTestWithConnString(t, db, connString)
 
 	mockBackend, bondingCurveAddr, bondingCurveCaller := fixture.SetupMockedBondingCurveBackend(t, &fixture.MockBackendConfig{
 		BuyPrice:  big.NewInt(950000000000000000),  // 0.95 tokens

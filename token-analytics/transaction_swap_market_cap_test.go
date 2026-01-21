@@ -22,7 +22,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 	mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
 	mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
-	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC)).(*tokenAnalytics)
+	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC))
 	defer ta.Close()
 
 	contractAddress := "0xTEST0000000000000000000000000000000001"

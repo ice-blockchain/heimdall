@@ -67,3 +67,7 @@ func NoContent() *Response[any] {
 func Created[RESP any](resp *RESP) *Response[RESP] {
 	return &Response[RESP]{Code: http.StatusCreated, Data: resp}
 }
+
+func Accepted[RESP any](resp *RESP) *Response[RESP] {
+	return &Response[RESP]{Code: http.StatusAccepted, Data: resp}
+}

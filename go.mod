@@ -18,6 +18,7 @@ require (
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cockroachdb/errors v1.12.0
 	github.com/dfns/dfns-sdk-go v1.0.2
+	github.com/eliukblau/pixterm v1.3.2
 	github.com/elliotchance/orderedmap/v3 v3.1.0
 	github.com/ethereum/go-ethereum v1.16.8
 	github.com/fingerprintjs/fingerprint-pro-server-api-go-sdk/v7 v7.9.0
@@ -32,6 +33,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
+	github.com/guregu/null/v6 v6.0.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ice-blockchain/go/src v0.0.0-20251117100638-ebce142e0ce4
 	github.com/ice-blockchain/subzero v1.504.0
@@ -41,7 +43,9 @@ require (
 	github.com/jellydator/ttlcache/v3 v3.4.0
 	github.com/lestrrat-go/jwx/v2 v2.1.6
 	github.com/libdns/cloudflare v0.2.2
+	github.com/lucasb-eyer/go-colorful v1.3.0
 	github.com/nbd-wtf/go-nostr v0.52.3
+	github.com/openai/openai-go/v3 v3.16.0
 	github.com/pkg/errors v0.9.1
 	github.com/puzpuzpuz/xsync/v4 v4.4.0
 	github.com/questdb/go-questdb-client/v4 v4.1.0
@@ -58,9 +62,11 @@ require (
 	github.com/zeebo/xxh3 v1.1.0
 	go.uber.org/goleak v1.3.0
 	golang.org/x/exp v0.0.0-20260112195511-716be5621a96
+	golang.org/x/image v0.35.0
 	golang.org/x/mod v0.32.0
 	golang.org/x/net v0.49.0
 	golang.org/x/sync v0.19.0
+	golang.org/x/term v0.39.0
 	golang.org/x/time v0.14.0
 )
 
@@ -153,6 +159,7 @@ require (
 	github.com/dgraph-io/badger/v4 v4.9.0 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.4.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
+	github.com/disintegration/imaging v1.6.2 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/dkorunic/betteralign v0.8.0 // indirect
 	github.com/dnephin/pflag v1.0.7 // indirect
@@ -248,7 +255,6 @@ require (
 	github.com/lestrrat-go/iter v1.0.2 // indirect
 	github.com/lestrrat-go/option v1.0.1 // indirect
 	github.com/libdns/libdns v1.1.1 // indirect
-	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20251013123823-9fd1530e3ec3 // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/mailru/easyjson v0.9.1 // indirect
@@ -365,7 +371,6 @@ require (
 	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260109210033-bd525da824e2 // indirect
-	golang.org/x/term v0.39.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
 	golang.org/x/tools v0.41.0 // indirect
 	google.golang.org/api v0.262.0 // indirect

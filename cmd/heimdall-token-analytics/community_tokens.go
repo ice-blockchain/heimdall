@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"math/big"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -534,6 +535,7 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 //	@Produce		json
 //	@Param			body	body		SuggestCreationDetailsRequest	true	"Content and creator information"
 //	@Success		200		{object}	server.Response[SuggestCreationDetailsResponse]
+//	@Success		202		{object}	server.Response[SuggestCreationDetailsResponse]
 //	@Failure		400		{object}	server.ResponseErrorBody	"if request body is invalid"
 //	@Failure		500		{object}	server.ResponseErrorBody
 //	@Failure		504		{object}	server.ResponseErrorBody	"if request times out"
@@ -541,11 +543,32 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 //	@Security		XCom
 //	@Router			/v1/community-tokens/suggest-creation-details [POST].
 func (s *service) SuggestCreationDetails(ctx context.Context, req *server.Request[SuggestCreationDetailsRequest]) (*server.Response[SuggestCreationDetailsResponse], error) {
-	suggestion := s.tokenAnalytics.GenerateTokenSuggestion(ctx, req.Data)
+	if strings.TrimSpace(req.Data.ContentID) == "" {
+		return nil, server.BadRequest(errors.New("contentID is required"), invalidPropertiesErrorCode)
+	}
+	for _, r := range req.Data.ContentID {
+		if !((r >= 'a' && r <= 'z') ||
+			(r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') ||
+			r == ':') {
+			return nil, server.BadRequest(errors.New("contentID contains invalid characters"), invalidPropertiesErrorCode)
+		}
+	}
 
-	return &server.Response[SuggestCreationDetailsResponse]{
-		Data: suggestion,
-	}, nil
+	suggestion, err := s.tokenAnalytics.GenerateTokenSuggestion(ctx, req.Data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate token suggestion: %w", err)
+	}
+
+	switch suggestion.Status {
+	case ta.TokenDetailsGenerationStatusCompleted:
+		return server.OK(suggestion), nil
+
+	case ta.TokenDetailsGenerationStatusFailed:
+		return nil, server.UnprocessableEntity(errors.New("generation failed"), "GENERATION_FAILED")
+	}
+
+	return server.Accepted(suggestion), nil
 }
 
 // StreamCommunityTokens godoc

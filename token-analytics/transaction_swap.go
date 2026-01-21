@@ -367,7 +367,7 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 			balanceStr, currentScore, amountFloat, newScore, userBlockchainAddress, tokenExternalAddress, direction))
 	}
 
-	if err := t.balanceUpdateQueue.Push(ctx, jobArgs); err != nil {
+	if err := t.riverClient.Push(ctx, jobArgs); err != nil {
 		return errors.Wrapf(err, "failed to enqueue balance update job for tx %v", tx.TransactionHash)
 	}
 

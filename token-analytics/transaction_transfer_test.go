@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: ice License 1.0
 
-//go:build test
-
 package tokenanalytics
 
 import (
@@ -29,7 +27,7 @@ func TestOnTransfer(t *testing.T) {
 	mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
 	mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
-	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC)).(*tokenAnalytics)
+	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC))
 	defer ta.Close()
 
 	t.Run("processes_p2p_transfer_successfully", func(t *testing.T) {

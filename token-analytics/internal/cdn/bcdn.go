@@ -21,11 +21,14 @@ import (
 )
 
 type (
+	Metadata struct {
+		Map map[string]string `json:"map"`
+	}
 	Client interface {
 		// FileUploadAsync uploads a file to the CDN asynchronously via a background worker.
-		FileUploadAsync(ctx context.Context, filePath, contentType, fileName string) error
+		FileUploadAsync(ctx context.Context, filePath, contentType, fileName string, m *Metadata) error
 		// DataUploadAsync uploads data to the CDN asynchronously via a background worker.
-		DataUploadAsync(ctx context.Context, data []byte, contentType, fileName string) error
+		DataUploadAsync(ctx context.Context, data []byte, contentType, fileName string, m *Metadata) error
 
 		// FileUpload uploads a file to the CDN synchronously calling the CDN API directly.
 		FileUpload(ctx context.Context, data io.Reader, contentType, fileName string) (string, error)
@@ -33,15 +36,15 @@ type (
 		// HealthCheck checks the health of the CDN service.
 		HealthCheck(ctx context.Context) error
 
-		// observer returns the state observer, if any.
-		observer() StateObserver
+		// Observer returns the state observer, if any.
+		Observer() StateObserver
 	}
 	StateObserver interface {
 		// OnUploadCompleted is called when a file upload is completed successfully.
-		OnUploadCompleted(ctx context.Context, fileName, downloadURL string)
+		OnUploadCompleted(ctx context.Context, fileName, downloadURL string, m *Metadata)
 
 		// OnUploadError is called when a file upload fails with an error and provides the attempt number.
-		OnUploadError(ctx context.Context, fileName string, err error, attempt int)
+		OnUploadError(ctx context.Context, fileName string, err error, attempt, maxAttempts int, m *Metadata)
 	}
 	Config struct {
 		AccessKey     string        `yaml:"accessKey"`
@@ -54,7 +57,7 @@ type (
 
 	client struct {
 		RqClient            riverqueue.Client
-		Observer            StateObserver
+		StateObserver       StateObserver
 		Config              *Config
 		HealthCheckPassedAt atomic.Int64
 		HealthCheckMux      sync.RWMutex
@@ -68,12 +71,12 @@ const (
 
 func WithObserver(observer StateObserver) Option {
 	return func(c *client) {
-		c.Observer = observer
+		c.StateObserver = observer
 	}
 }
 
-func New(ctx context.Context, config *Config, rqClient riverqueue.Client) Client {
-	client := newClient(ctx, config, rqClient)
+func New(ctx context.Context, config *Config, rqClient riverqueue.Client, opts ...Option) Client {
+	client := newClient(ctx, config, rqClient, opts...)
 	if err := client.HealthCheck(ctx); err != nil {
 		log.Panic(err, "failed to create CDN client")
 	}
@@ -98,8 +101,8 @@ func newClient(_ context.Context, config *Config, rqClient riverqueue.Client, op
 	return cdnClient
 }
 
-func (c *client) observer() StateObserver {
-	return c.Observer
+func (c *client) Observer() StateObserver {
+	return c.StateObserver
 }
 
 func (c *client) cdnUploadURL(filename string) string {
@@ -195,11 +198,12 @@ func (c *client) HealthCheck(ctx context.Context) error {
 	return nil
 }
 
-func (c *client) FileUploadAsync(ctx context.Context, filePath, contentType, fileName string) error {
+func (c *client) FileUploadAsync(ctx context.Context, filePath, contentType, fileName string, m *Metadata) error {
 	err := c.RqClient.Push(ctx, &uploadWorkerArgs{
 		ContentType: contentType,
 		FileName:    fileName,
 		Source:      uploadSourceFile,
+		Metadata:    m,
 		Path:        []byte(filePath),
 	})
 	if err != nil {
@@ -208,12 +212,13 @@ func (c *client) FileUploadAsync(ctx context.Context, filePath, contentType, fil
 	return nil
 }
 
-func (c *client) DataUploadAsync(ctx context.Context, data []byte, contentType, fileName string) error {
+func (c *client) DataUploadAsync(ctx context.Context, data []byte, contentType, fileName string, m *Metadata) error {
 	err := c.RqClient.Push(ctx, &uploadWorkerArgs{
 		ContentType: contentType,
 		FileName:    fileName,
 		Source:      uploadSourceData,
 		Path:        data,
+		Metadata:    m,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to enqueue cdn upload job for file %v: %w", fileName, err)
@@ -228,4 +233,19 @@ func (c *client) CdnDownloadURL(filename string) string {
 	u, _ := url.JoinPath(c.Config.URLDownload, filename)
 
 	return u
+}
+
+func (m *Metadata) Set(key, value string) *Metadata {
+	if m.Map == nil {
+		m.Map = make(map[string]string)
+	}
+	m.Map[key] = value
+	return m
+}
+
+func (m *Metadata) Get(key string) string {
+	if m.Map == nil {
+		return ""
+	}
+	return m.Map[key]
 }

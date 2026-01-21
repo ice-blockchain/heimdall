@@ -22,6 +22,7 @@ type (
 		FileName    string
 		Path        []byte // Can be either file path or data depending on `Source`.
 		Source      uploadSource
+		Metadata    *Metadata
 	}
 	uploadWorker struct {
 		riverqueue.WorkerDefaults[uploadWorkerArgs]
@@ -56,8 +57,8 @@ func (w *uploadWorker) NextRetry(job *uploadWorkerJob) time.Time {
 func (w *uploadWorker) Work(ctx context.Context, job *uploadWorkerJob) (err error) {
 	defer func() {
 		log.Debug(fmt.Sprintf("CDN upload worker finished for file: %s with error: %v, attempt: %d", job.Args.FileName, err, job.Attempt))
-		if o := w.Client.observer(); err != nil && o != nil {
-			o.OnUploadError(ctx, job.Args.FileName, err, job.Attempt)
+		if o := w.Client.Observer(); err != nil && o != nil {
+			o.OnUploadError(ctx, job.Args.FileName, err, job.Attempt, job.MaxAttempts, job.Args.Metadata)
 		}
 	}()
 
@@ -86,8 +87,8 @@ func (w *uploadWorker) Work(ctx context.Context, job *uploadWorkerJob) (err erro
 		return fmt.Errorf("failed to upload file %v to CDN: %w", job.Args.FileName, uploadErr)
 	}
 
-	if o := w.Client.observer(); o != nil {
-		o.OnUploadCompleted(ctx, job.Args.FileName, downloadURL)
+	if o := w.Client.Observer(); o != nil {
+		o.OnUploadCompleted(ctx, job.Args.FileName, downloadURL, job.Args.Metadata)
 	}
 
 	return nil

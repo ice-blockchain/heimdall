@@ -148,9 +148,10 @@ type (
 	}
 
 	SuggestedCreationDetails struct {
-		Ticker  string `json:"ticker" example:"SOMETHING_COOL"`
-		Name    string `json:"name" example:"Something even cooler"`
-		Picture string `json:"picture" example:"https://example.com/some_cool_pic.webp"`
+		Ticker  string                       `json:"ticker" example:"SOMETHING_COOL"`
+		Name    string                       `json:"name" example:"Something even cooler"`
+		Picture string                       `json:"picture" example:"https://example.com/some_cool_pic.webp"`
+		Status  TokenDetailsGenerationStatus `json:"status" example:"completed"`
 	}
 
 	Platform string

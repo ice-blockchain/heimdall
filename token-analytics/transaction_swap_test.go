@@ -41,7 +41,7 @@ func TestOnSwap(t *testing.T) {
 	db, connString, release := helperCreateDBWithConnString(t)
 	defer release()
 
-	ta := helperNewForTestWithConnString(t, db, connString).(*tokenAnalytics)
+	ta := helperNewForTestWithConnString(t, db, connString)
 	ta.ionPriceUSD.Store(&ionPrice)
 
 	t.Run("processes_buy_swap_successfully", func(t *testing.T) {
