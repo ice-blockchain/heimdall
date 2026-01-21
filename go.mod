@@ -34,7 +34,7 @@ require (
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ice-blockchain/go/src v0.0.0-20251117100638-ebce142e0ce4
-	github.com/ice-blockchain/subzero v1.501.1-0.20260120142640-d5af4d5037bb
+	github.com/ice-blockchain/subzero v1.502.0
 	github.com/ice-blockchain/wintr v1.172.0
 	github.com/imroc/req/v3 v3.57.0
 	github.com/jackc/pgx/v5 v5.8.0
