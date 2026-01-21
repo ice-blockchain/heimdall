@@ -180,6 +180,13 @@ func IsContentType(tokenType string) bool {
 }
 
 func buildUserAddressesFromExternalAddressAndPlatform(externalAddress, platform string, bnbBscAddress string, ionConnectAddress ...string) (*Addresses, error) {
+	if platform == "" {
+		if strings.Count(externalAddress, ":") >= 2 {
+			platform = PlatformGroupIonConnect
+		} else {
+			platform = PlatformGroupXCom
+		}
+	}
 	userExternalAddress := externalAddress
 	if platform == PlatformGroupIonConnect {
 		parts := strings.Split(externalAddress, ":")
