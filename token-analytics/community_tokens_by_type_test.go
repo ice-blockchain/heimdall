@@ -44,19 +44,36 @@ func TestGetCommunityTokensByLatest_WithAndWithoutKeyword(t *testing.T) {
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, len(tokens), 3, "Should return at least our 3 test tokens")
 
+		expectedAddresses := map[string]bool{
+			token1Ext: true,
+			token2Ext: true,
+			token3Ext: true,
+		}
+
 		var foundTokens []*CommunityToken
 		for _, token := range tokens {
-			if strings.HasPrefix(token.Addresses.IonConnect, "0:creator_latest") {
+			if expectedAddresses[token.Addresses.IonConnect] {
 				foundTokens = append(foundTokens, token)
 			}
 		}
-		require.GreaterOrEqual(t, len(foundTokens), 3)
+		require.Equal(t, 3, len(foundTokens), "Should find exactly 3 test tokens")
 
 		// Verify order: newest first (token3 -> token2 -> token1,
 		for i := 0; i < len(foundTokens)-1; i++ {
 			require.True(t, foundTokens[i].CreatedAt.Time.After(*foundTokens[i+1].CreatedAt.Time) || foundTokens[i].CreatedAt.Time.Equal(*foundTokens[i+1].CreatedAt.Time), "Tokens should be ordered by created_at DESC")
 		}
+		expectedBlockchain := map[string]string{
+			token1Ext: "0xLATEST1111111111111111111111111111111111",
+			token2Ext: "0xLATEST2222222222222222222222222222222222",
+			token3Ext: "0xLATEST3333333333333333333333333333333333",
+		}
+
 		for _, token := range foundTokens {
+			require.NotNil(t, token.Addresses)
+			require.True(t, strings.HasPrefix(token.Addresses.IonConnect, "0:creator_latest"), "IonConnect should start with 0:creator_latest")
+			require.Empty(t, token.Addresses.Twitter)
+			require.Equal(t, expectedBlockchain[token.Addresses.IonConnect], token.Addresses.Blockchain)
+
 			require.NotEmpty(t, token.MarketData.Ticker, "Ticker should be present without keyword")
 			require.Greater(t, token.MarketData.MarketCap, 0.0, "MarketCap should be > 0")
 			require.Greater(t, token.MarketData.PriceUSD, 0.0, "PriceUSD should be > 0")
@@ -86,7 +103,15 @@ func TestGetCommunityTokensByLatest_WithAndWithoutKeyword(t *testing.T) {
 					require.True(t, token.CreatedAt.Before(time.Now().Add(time.Second)))
 				}
 
+				require.NotNil(t, token.Addresses)
 				require.Equal(t, token1Ext, token.Addresses.IonConnect)
+				require.Empty(t, token.Addresses.Twitter)
+				require.Equal(t, "0xLATEST1111111111111111111111111111111111", token.Addresses.Blockchain)
+
+				require.NotNil(t, token.Creator.Addresses)
+				require.Equal(t, "creator_latest1", token.Creator.Addresses.IonConnect)
+				require.Empty(t, token.Creator.Addresses.Twitter)
+				require.Empty(t, token.Creator.Addresses.Blockchain)
 
 				require.Equal(t, "latest_one", strVal(token.Creator.Username))
 				require.Equal(t, "Latest One", strVal(token.Creator.Display))
@@ -270,7 +295,7 @@ func TestGetCommunityTokensByFeatured(t *testing.T) {
 	})
 
 	t.Run("X.com tokens with IonConnect address should extract pubkey for creator", func(t *testing.T) {
-		creatorExternalAddr := "z987654321"
+		creatorExternalAddr := "987654321"
 		helperInsertTestUser(t, ctx, db, creatorExternalAddr, "xcom_type_creator", "X.com Type Creator", "", true, PlatformGroupXCom)
 
 		tokenExternalAddr := creatorExternalAddr

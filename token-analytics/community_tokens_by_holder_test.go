@@ -57,7 +57,12 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 
 		token := tokens[0]
 		require.Equal(t, "profile", token.Type)
+
+		require.NotNil(t, token.Addresses)
 		require.Equal(t, tokenExt, token.Addresses.IonConnect)
+		require.Empty(t, token.Addresses.Twitter)
+		require.Equal(t, contractAddr, token.Addresses.Blockchain)
+
 		require.Equal(t, "H1TK", token.MarketData.Ticker)
 		require.NotNil(t, token.MarketData.Position)
 		require.Equal(t, "5000000000000000000000", token.MarketData.Position.Amount)
@@ -213,14 +218,18 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 
 		require.NotNil(t, token.Addresses)
 		require.Equal(t, tokenExt, token.Addresses.IonConnect)
+		require.Empty(t, token.Addresses.Twitter)
 		require.Equal(t, contractAddr, token.Addresses.Blockchain)
 
 		require.Equal(t, "creator_full_user", strVal(token.Creator.Username))
 		require.Equal(t, "Creator Full Display", strVal(token.Creator.Display))
 		require.True(t, token.Creator.Verified != nil && *token.Creator.Verified)
 		require.Equal(t, "https://avatar-full.png", strVal(token.Creator.Avatar))
+
 		require.NotNil(t, token.Creator.Addresses)
 		require.Equal(t, creatorPubkey, token.Creator.Addresses.IonConnect)
+		require.Empty(t, token.Creator.Addresses.Twitter)
+		require.Empty(t, token.Creator.Addresses.Blockchain)
 
 		require.Equal(t, "FULL", token.MarketData.Ticker)
 		require.InDelta(t, 150.5, token.MarketData.MarketCap, 0.01)
@@ -278,14 +287,18 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		require.Equal(t, uint64(1), totalHoldings)
 
 		token := tokens[0]
+
+		require.NotNil(t, token.Addresses)
 		require.Equal(t, tokenExt, token.Addresses.IonConnect)
 		require.Empty(t, token.Addresses.Twitter)
+		require.Equal(t, contractAddr, token.Addresses.Blockchain)
+
 		require.Nil(t, token.Launcher, "ION tokens should not have launcher")
 	})
 
 	t.Run("xcom_holder_with_xcom_tokens", func(t *testing.T) {
-		xcomCreator := "z111222333"
-		xcomHolder := "z444555666"
+		xcomCreator := "111222333"
+		xcomHolder := "444555666"
 		helperInsertTestUser(t, ctx, db, "xcom_creator_master", "xcom_creator", "XCom Creator", "0xXCOMCREATOR111111111111111111111111", true, PlatformGroupXCom)
 		helperInsertTestUser(t, ctx, db, "xcom_holder_master", "xcom_holder", "XCom Holder", "0xXCOMHOLDER1111111111111111111111111", false, PlatformGroupXCom)
 
@@ -309,8 +322,12 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		require.Equal(t, uint64(1), totalHoldings)
 
 		token := tokens[0]
-		require.Equal(t, xcomCreator, token.Addresses.Twitter)
+
+		require.NotNil(t, token.Addresses)
 		require.Empty(t, token.Addresses.IonConnect)
+		require.Equal(t, xcomCreator, token.Addresses.Twitter)
+		require.Equal(t, contractAddr, token.Addresses.Blockchain)
+
 		require.NotNil(t, token.Launcher, "XCom tokens should have launcher when swaps exist")
 	})
 
@@ -319,7 +336,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		helperInsertTestUser(t, ctx, db, "mixed_xcom_creator", "mixed_xcom_creator", "Mixed XCom Creator", "0xMIXEDXCOM1111111111111111111111111", true, PlatformGroupXCom)
 		helperInsertTestUser(t, ctx, db, "mixed_holder", "mixed_holder", "Mixed Holder", "", false, PlatformGroupIonConnect)
 
-		xcomCreatorExt := "z789012345"
+		xcomCreatorExt := "789012345"
 		_, err := storage.Exec(ctx, db, `UPDATE users SET external_address = $1 WHERE master_pubkey = $2`, xcomCreatorExt, "mixed_xcom_creator")
 		require.NoError(t, err)
 

@@ -244,3 +244,37 @@ func extractIonConnectFromTokenExternalAddress(tokenExternalAddress, platform st
 
 	return ""
 }
+
+func buildTokenAndCreatorAddresses(
+	tokenContractAddress, tokenExternalAddress, tokenPlatform string,
+	tokenIonConnectAddress *string,
+	creatorExternalAddress, creatorPlatform string,
+	creatorBnbBscAddress *string,
+) (tokenAddresses *Addresses, creatorAddresses *Addresses, err error) {
+	tokenAddresses, err = buildTokenAddressesFromContractAndExternalAddress(
+		tokenContractAddress,
+		tokenExternalAddress,
+		tokenPlatform,
+		strVal(tokenIonConnectAddress),
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to build token addresses from contract_address %s, external_address %s (platform %s): %w",
+			tokenContractAddress, tokenExternalAddress, tokenPlatform, err)
+	}
+	var ionConnectPubkey string
+	if tokenIonConnectAddress != nil && strVal(tokenIonConnectAddress) != "" && tokenPlatform == PlatformGroupXCom {
+		ionConnectPubkey = extractIonConnectFromTokenExternalAddress(strVal(tokenIonConnectAddress), tokenPlatform)
+	}
+	creatorAddresses, err = buildUserAddressesFromExternalAddressAndPlatform(
+		creatorExternalAddress,
+		creatorPlatform,
+		strVal(creatorBnbBscAddress),
+		ionConnectPubkey,
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w",
+			creatorExternalAddress, creatorPlatform, err)
+	}
+
+	return tokenAddresses, creatorAddresses, nil
+}
