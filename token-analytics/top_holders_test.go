@@ -174,6 +174,187 @@ func Test_buildTopHolderPositions(t *testing.T) {
 		require.Equal(t, "user3", strVal(result[1].Position.Holder.Username))
 	})
 
+	t.Run("should build position when holder not in users table yet", func(t *testing.T) {
+		t.Parallel()
+		rankings := []redis.Z{
+			{Score: 1.5, Member: "0:new_holder_pubkey:"},
+		}
+		rows := []*holderWithTokenData{
+			{
+				ContentAuthorID:        strPtr("creator_pubkey"),
+				CreatorUsername:        strPtr("creator_user"),
+				CreatorDisplay:         strPtr("Creator Name"),
+				CreatorVerified:        boolPtr(true),
+				CreatorAvatar:          strPtr("https://avatar.com/creator.jpg"),
+				CreatorExternalAddress: strPtr("0:creator_ext:"),
+				CreatorPlatform:        strPtr("ionconnect"),
+				PriceUSD:               2.0,
+				TotalSupply:            new(big.Int).Mul(big.NewInt(100), big.NewInt(1e18)).String(),
+				HolderExternalAddress:  strPtr("0:new_holder_pubkey:"),
+				HolderPlatform:         strPtr("ionconnect"),
+			},
+		}
+		result, err := buildTopHolderPositions(contractAddr, rankings, rows, "", "", 0)
+		require.NoError(t, err)
+		require.Len(t, result, 1, "Should build position even when holder not in users table")
+
+		require.Equal(t, uint64(1), result[0].Position.Rank)
+		require.Equal(t, "1500000000000000000", result[0].Position.Amount) // 1.5 tokens * 1e18
+		require.Equal(t, 3.0, result[0].Position.AmountUSD)                // 1.5 tokens * 2.0 USD
+		require.Equal(t, 1.5, result[0].Position.SupplyShare)              // 1.5 / 100 * 100
+
+		require.NotNil(t, result[0].Position.Holder)
+		require.NotNil(t, result[0].Position.Holder.Addresses)
+		require.Equal(t, "new_holder_pubkey", result[0].Position.Holder.Addresses.IonConnect)
+
+		require.Nil(t, result[0].Position.Holder.Username)
+		require.Nil(t, result[0].Position.Holder.Display)
+		require.Nil(t, result[0].Position.Holder.Verified)
+		require.Nil(t, result[0].Position.Holder.Avatar)
+	})
+
+	t.Run("should build position when holder not in users table yet - xcom token", func(t *testing.T) {
+		t.Parallel()
+		rankings := []redis.Z{
+			{Score: 2.5, Member: "987654321"},
+		}
+		rows := []*holderWithTokenData{
+			{
+				ContentAuthorID:        strPtr("creator_xcom"),
+				CreatorUsername:        strPtr("creator_xcom_user"),
+				CreatorDisplay:         strPtr("Creator X.com"),
+				CreatorVerified:        boolPtr(true),
+				CreatorAvatar:          strPtr("https://avatar.com/xcom_creator.jpg"),
+				CreatorExternalAddress: strPtr("123456789"),
+				CreatorPlatform:        strPtr("xcom"),
+				PriceUSD:               3.0,
+				TotalSupply:            new(big.Int).Mul(big.NewInt(200), big.NewInt(1e18)).String(),
+				HolderExternalAddress:  strPtr("987654321"),
+				HolderPlatform:         strPtr("xcom"),
+			},
+		}
+		result, err := buildTopHolderPositions(contractAddr, rankings, rows, "", "", 0)
+		require.NoError(t, err)
+		require.Len(t, result, 1, "Should build position even when holder not in users table for X.com token")
+
+		require.Equal(t, uint64(1), result[0].Position.Rank)
+		require.Equal(t, "2500000000000000000", result[0].Position.Amount) // 2.5 tokens * 1e18
+		require.Equal(t, 7.5, result[0].Position.AmountUSD)                // 2.5 tokens * 3.0 USD
+		require.Equal(t, 1.25, result[0].Position.SupplyShare)             // 2.5 / 200 * 100
+
+		require.NotNil(t, result[0].Position.Holder)
+		require.NotNil(t, result[0].Position.Holder.Addresses)
+		require.Equal(t, "987654321", result[0].Position.Holder.Addresses.Twitter)
+		require.Empty(t, result[0].Position.Holder.Addresses.IonConnect)
+
+		require.Nil(t, result[0].Position.Holder.Username)
+		require.Nil(t, result[0].Position.Holder.Display)
+		require.Nil(t, result[0].Position.Holder.Verified)
+		require.Nil(t, result[0].Position.Holder.Avatar)
+	})
+
+	t.Run("should handle mixed ionconnect and xcom holders", func(t *testing.T) {
+		t.Parallel()
+		rankings := []redis.Z{
+			{Score: 10.0, Member: "0:ionholder1:"},
+			{Score: 5.0, Member: "123456789"},
+			{Score: 2.0, Member: "0:ionholder2:"},
+		}
+		rows := []*holderWithTokenData{
+			{
+				ContentAuthorID:        strPtr("creator"),
+				CreatorUsername:        strPtr("creator"),
+				CreatorVerified:        boolPtr(false),
+				CreatorExternalAddress: strPtr("0:creator:"),
+				CreatorPlatform:        strPtr("ionconnect"),
+				PriceUSD:               1.0,
+				TotalSupply:            new(big.Int).Mul(big.NewInt(100), big.NewInt(1e18)).String(),
+				HolderMasterPubkey:     strPtr("pubkey1"),
+				HolderUsername:         strPtr("ion_user1"),
+				HolderDisplay:          strPtr("Ion User 1"),
+				HolderVerified:         boolPtr(true),
+				HolderExternalAddress:  strPtr("0:ionholder1:"),
+				HolderPlatform:         strPtr("ionconnect"),
+			},
+			{
+				ContentAuthorID:        strPtr("creator"),
+				CreatorUsername:        strPtr("creator"),
+				CreatorVerified:        boolPtr(false),
+				CreatorExternalAddress: strPtr("0:creator:"),
+				CreatorPlatform:        strPtr("ionconnect"),
+				PriceUSD:               1.0,
+				TotalSupply:            new(big.Int).Mul(big.NewInt(100), big.NewInt(1e18)).String(),
+				HolderMasterPubkey:     strPtr("pubkey2"),
+				HolderUsername:         strPtr("xcom_user"),
+				HolderDisplay:          strPtr("X User"),
+				HolderVerified:         boolPtr(false),
+				HolderExternalAddress:  strPtr("123456789"),
+				HolderPlatform:         strPtr("xcom"),
+			},
+			{
+				ContentAuthorID:        strPtr("creator"),
+				CreatorUsername:        strPtr("creator"),
+				CreatorVerified:        boolPtr(false),
+				CreatorExternalAddress: strPtr("0:creator:"),
+				CreatorPlatform:        strPtr("ionconnect"),
+				PriceUSD:               1.0,
+				TotalSupply:            new(big.Int).Mul(big.NewInt(100), big.NewInt(1e18)).String(),
+				HolderMasterPubkey:     strPtr("pubkey3"),
+				HolderUsername:         strPtr("ion_user2"),
+				HolderDisplay:          strPtr("Ion User 2"),
+				HolderVerified:         boolPtr(false),
+				HolderExternalAddress:  strPtr("0:ionholder2:"),
+				HolderPlatform:         strPtr("ionconnect"),
+			},
+		}
+
+		result, err := buildTopHolderPositions(contractAddr, rankings, rows, "", "", 0)
+		require.NoError(t, err)
+		require.Len(t, result, 3)
+
+		require.Equal(t, uint64(1), result[0].Position.Rank)
+		require.Equal(t, "ion_user1", strVal(result[0].Position.Holder.Username))
+		require.Equal(t, "ionholder1", result[0].Position.Holder.Addresses.IonConnect)
+		require.Empty(t, result[0].Position.Holder.Addresses.Twitter)
+
+		require.Equal(t, uint64(2), result[1].Position.Rank)
+		require.Equal(t, "xcom_user", strVal(result[1].Position.Holder.Username))
+		require.Equal(t, "123456789", result[1].Position.Holder.Addresses.Twitter)
+		require.Empty(t, result[1].Position.Holder.Addresses.IonConnect)
+
+		require.Equal(t, uint64(3), result[2].Position.Rank)
+		require.Equal(t, "ion_user2", strVal(result[2].Position.Holder.Username))
+		require.Equal(t, "ionholder2", result[2].Position.Holder.Addresses.IonConnect)
+		require.Empty(t, result[2].Position.Holder.Addresses.Twitter)
+	})
+
+	t.Run("should handle zero price correctly", func(t *testing.T) {
+		t.Parallel()
+		rankings := []redis.Z{
+			{Score: 10.0, Member: "0:holder1:"},
+		}
+		rows := []*holderWithTokenData{
+			{
+				ContentAuthorID:        strPtr("creator"),
+				CreatorUsername:        strPtr("creator"),
+				CreatorVerified:        boolPtr(false),
+				CreatorExternalAddress: strPtr("0:creator:"),
+				CreatorPlatform:        strPtr("ionconnect"),
+				TotalSupply:            new(big.Int).Mul(big.NewInt(100), big.NewInt(1e18)).String(),
+				HolderMasterPubkey:     strPtr("pubkey1"),
+				HolderUsername:         strPtr("user1"),
+				HolderVerified:         boolPtr(false),
+				HolderExternalAddress:  strPtr("0:holder1:"),
+				HolderPlatform:         strPtr("ionconnect"),
+			},
+		}
+
+		result, err := buildTopHolderPositions(contractAddr, rankings, rows, "", "", 0)
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		require.Equal(t, 0.0, result[0].Position.AmountUSD)
+	})
+
 	t.Run("should calculate correct supply share percentages", func(t *testing.T) {
 		t.Parallel()
 
