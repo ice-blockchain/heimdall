@@ -134,6 +134,16 @@ type (
 	}
 
 	Platform string
+
+	TokenAndCreatorAddressesParams struct {
+		CreatorBnbBscAddress   *string
+		TokenIonConnectAddress *string
+		TokenContractAddress   string
+		TokenExternalAddress   string
+		TokenPlatform          string
+		CreatorExternalAddress string
+		CreatorPlatform        string
+	}
 )
 
 const (
@@ -243,4 +253,33 @@ func extractIonConnectFromTokenExternalAddress(tokenExternalAddress, platform st
 	}
 
 	return ""
+}
+
+func buildTokenAndCreatorAddresses(params TokenAndCreatorAddressesParams) (tokenAddresses *Addresses, creatorAddresses *Addresses, err error) {
+	tokenAddresses, err = buildTokenAddressesFromContractAndExternalAddress(
+		params.TokenContractAddress,
+		params.TokenExternalAddress,
+		params.TokenPlatform,
+		strVal(params.TokenIonConnectAddress),
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to build token addresses from contract_address %s, external_address %s (platform %s): %w",
+			params.TokenContractAddress, params.TokenExternalAddress, params.TokenPlatform, err)
+	}
+	var ionConnectPubkey string
+	if params.TokenIonConnectAddress != nil && strVal(params.TokenIonConnectAddress) != "" && params.TokenPlatform == PlatformGroupXCom {
+		ionConnectPubkey = extractIonConnectFromTokenExternalAddress(strVal(params.TokenIonConnectAddress), params.TokenPlatform)
+	}
+	creatorAddresses, err = buildUserAddressesFromExternalAddressAndPlatform(
+		params.CreatorExternalAddress,
+		params.CreatorPlatform,
+		strVal(params.CreatorBnbBscAddress),
+		ionConnectPubkey,
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w",
+			params.CreatorExternalAddress, params.CreatorPlatform, err)
+	}
+
+	return tokenAddresses, creatorAddresses, nil
 }

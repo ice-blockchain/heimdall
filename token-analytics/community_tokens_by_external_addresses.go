@@ -146,6 +146,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 				creator.avatar as creator_avatar,
 				creator.external_address as creator_external_address,
 				creator.platform_group as creator_platform,
+				t.content_author_id as creator_bnb_bsc_address,
 				launcher.username as launcher_username,
 				launcher.display_name as launcher_display,
 				launcher.verified as launcher_verified,
@@ -196,6 +197,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 			creator_avatar,
 			creator_external_address,
 			creator_platform,
+			creator_bnb_bsc_address,
 			launcher_username,
 			launcher_display,
 			launcher_verified,
@@ -228,17 +230,17 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 	}
 	tokens := make([]*CommunityToken, 0, len(rows))
 	for _, row := range rows {
-		tokenAddresses, err := buildTokenAddressesFromContractAndExternalAddress(row.ContractAddress, row.ExternalAddress, row.Platform, strVal(row.IonConnectAddress))
+		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(TokenAndCreatorAddressesParams{
+			TokenContractAddress:   row.ContractAddress,
+			TokenExternalAddress:   row.ExternalAddress,
+			TokenPlatform:          row.Platform,
+			TokenIonConnectAddress: row.IonConnectAddress,
+			CreatorExternalAddress: strVal(row.CreatorExternalAddress),
+			CreatorPlatform:        strVal(row.CreatorPlatform),
+			CreatorBnbBscAddress:   row.CreatorBnbBscAddress,
+		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", row.ExternalAddress, row.Platform, err)
-		}
-		var ionConnectPubkey string
-		if row.IonConnectAddress != nil && strVal(row.IonConnectAddress) != "" && row.Platform == PlatformGroupXCom {
-			ionConnectPubkey = extractIonConnectFromTokenExternalAddress(strVal(row.IonConnectAddress), row.Platform)
-		}
-		creatorAddresses, err := buildUserAddressesFromExternalAddressAndPlatform(strVal(row.CreatorExternalAddress), strVal(row.CreatorPlatform), strVal(row.CreatorBnbBscAddress), ionConnectPubkey)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", strVal(row.CreatorExternalAddress), strVal(row.CreatorPlatform), err)
+			return nil, fmt.Errorf("failed to build token and creator addresses: %w", err)
 		}
 
 		token := &CommunityToken{
@@ -572,17 +574,17 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 				marketData.Position = position
 			}
 		}
-		tokenAddresses, err := buildTokenAddressesFromContractAndExternalAddress(row.ContractAddress, row.ExternalAddress, row.Platform, strVal(row.IonConnectAddress))
+		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(TokenAndCreatorAddressesParams{
+			TokenContractAddress:   row.ContractAddress,
+			TokenExternalAddress:   row.ExternalAddress,
+			TokenPlatform:          row.Platform,
+			TokenIonConnectAddress: row.IonConnectAddress,
+			CreatorExternalAddress: strVal(row.CreatorExternalAddress),
+			CreatorPlatform:        strVal(row.CreatorPlatform),
+			CreatorBnbBscAddress:   row.CreatorBnbBscAddress,
+		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to build addresses from external_address %s (platform %s): %w", row.ExternalAddress, row.Platform, err)
-		}
-		var ionConnectPubkey string
-		if row.IonConnectAddress != nil && strVal(row.IonConnectAddress) != "" && row.Platform == PlatformGroupXCom {
-			ionConnectPubkey = extractIonConnectFromTokenExternalAddress(strVal(row.IonConnectAddress), row.Platform)
-		}
-		creatorAddresses, err := buildUserAddressesFromExternalAddressAndPlatform(strVal(row.CreatorExternalAddress), strVal(row.CreatorPlatform), strVal(row.CreatorBnbBscAddress), ionConnectPubkey)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", strVal(row.CreatorExternalAddress), strVal(row.CreatorPlatform), err)
+			return nil, fmt.Errorf("failed to build token and creator addresses: %w", err)
 		}
 		token := &CommunityToken{
 			Type:        row.Type,

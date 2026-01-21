@@ -371,7 +371,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 	})
 
 	t.Run("X.com tokens with IonConnect address should extract pubkey for creator", func(t *testing.T) {
-		creatorExternalAddr := "z123456789"
+		creatorExternalAddr := "123456789"
 		helperInsertTestUser(t, ctx, db, creatorExternalAddr, "xcom_creator_with_ion", "X.com Creator with IonConnect", "", true, PlatformGroupXCom)
 
 		tokenExternalAddr := creatorExternalAddr
@@ -414,8 +414,8 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 	})
 
 	t.Run("Twitter token with launcher field populated", func(t *testing.T) {
-		creatorExtAddr := "z987654321"
-		launcherExtAddr := "z111222333"
+		creatorExtAddr := "987654321"
+		launcherExtAddr := "111222333"
 		helperInsertTestUser(t, ctx, db, "creator_bsc_addr", "twitter_creator", "Twitter Creator", "0x0000000000000000000000000000000000CREATOR", true, PlatformGroupXCom)
 		helperInsertTestUser(t, ctx, db, "launcher_bsc_addr", "twitter_launcher", "Twitter Launcher", "0x0000000000000000000000000000000000LAUNCH", false, PlatformGroupXCom)
 
@@ -479,7 +479,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 	})
 
 	t.Run("Twitter token without swaps - launcher is nil", func(t *testing.T) {
-		creatorExtAddr := "z555666777"
+		creatorExtAddr := "555666777"
 		helperInsertTestUser(t, ctx, db, "creator_no_swap", "twitter_no_swap", "Twitter No Swap", "0x0000000000000000000000000000000000NOSWAP", true, PlatformGroupXCom)
 		_, err := storage.Exec(ctx, db, `UPDATE users SET external_address = $1 WHERE content_author_id = $2`, creatorExtAddr, "0x0000000000000000000000000000000000noswap")
 		require.NoError(t, err)
@@ -544,9 +544,9 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 	})
 
 	t.Run("Twitter token - only first buy is considered for launcher", func(t *testing.T) {
-		creatorExtAddr := "z888999000"
-		firstBuyerExtAddr := "z111111111"
-		secondBuyerExtAddr := "z222222222"
+		creatorExtAddr := "888999000"
+		firstBuyerExtAddr := "111111111"
+		secondBuyerExtAddr := "222222222"
 
 		helperInsertTestUser(t, ctx, db, "first_buyer_master", "first_buyer", "First Buyer", "0x0000000000000000000000000000000000FIRST", false, PlatformGroupXCom)
 		helperInsertTestUser(t, ctx, db, "second_buyer_master", "second_buyer", "Second Buyer", "0x0000000000000000000000000000000000SECND", false, PlatformGroupXCom)
@@ -811,6 +811,22 @@ func TestGetCommunityTokensByExternalAddresses_WithAndWithoutKeyword(t *testing.
 			require.Equal(t, expectedTicker, token.MarketData.Ticker, "Ticker should match for token %s", token.Addresses.IonConnect)
 			require.Greater(t, token.MarketData.MarketCap, 0.0, "MarketCap should be present")
 			require.Greater(t, token.MarketData.Volume, 0.0, "Volume should be present from materialized view")
+
+			require.NotNil(t, token.Addresses)
+			switch token.Addresses.IonConnect {
+			case token1Ext:
+				require.Equal(t, token1Ext, token.Addresses.IonConnect)
+				require.Empty(t, token.Addresses.Twitter)
+				require.Equal(t, "0xKW1111111111111111111111111111111111111", token.Addresses.Blockchain)
+			case token2Ext:
+				require.Equal(t, token2Ext, token.Addresses.IonConnect)
+				require.Empty(t, token.Addresses.Twitter)
+				require.Equal(t, "0xKW2222222222222222222222222222222222222", token.Addresses.Blockchain)
+			case token3Ext:
+				require.Equal(t, token3Ext, token.Addresses.IonConnect)
+				require.Empty(t, token.Addresses.Twitter)
+				require.Equal(t, "0xKW3333333333333333333333333333333333333", token.Addresses.Blockchain)
+			}
 		}
 	})
 
@@ -824,6 +840,11 @@ func TestGetCommunityTokensByExternalAddresses_WithAndWithoutKeyword(t *testing.
 		require.Equal(t, "alice_kw1", token.Title)
 		require.Equal(t, "Alice Keyword One", token.Description)
 		require.Equal(t, "https://avatar1.png", token.ImageURL)
+
+		require.NotNil(t, token.Addresses)
+		require.Equal(t, token1Ext, token.Addresses.IonConnect)
+		require.Empty(t, token.Addresses.Twitter)
+		require.Equal(t, "0xKW1111111111111111111111111111111111111", token.Addresses.Blockchain)
 
 		require.Equal(t, "TK1", token.MarketData.Ticker)
 		require.InDelta(t, 100.0, token.MarketData.MarketCap, 0.01)
@@ -848,6 +869,22 @@ func TestGetCommunityTokensByExternalAddresses_WithAndWithoutKeyword(t *testing.
 		for _, token := range tokens {
 			expectedTicker := tickerMap[token.Addresses.IonConnect]
 			require.Equal(t, expectedTicker, token.MarketData.Ticker, "Ticker should match for token %s", token.Addresses.IonConnect)
+
+			require.NotNil(t, token.Addresses)
+			switch token.Addresses.IonConnect {
+			case token1Ext:
+				require.Equal(t, token1Ext, token.Addresses.IonConnect)
+				require.Empty(t, token.Addresses.Twitter)
+				require.Equal(t, "0xKW1111111111111111111111111111111111111", token.Addresses.Blockchain)
+			case token2Ext:
+				require.Equal(t, token2Ext, token.Addresses.IonConnect)
+				require.Empty(t, token.Addresses.Twitter)
+				require.Equal(t, "0xKW2222222222222222222222222222222222222", token.Addresses.Blockchain)
+			case token3Ext:
+				require.Equal(t, token3Ext, token.Addresses.IonConnect)
+				require.Empty(t, token.Addresses.Twitter)
+				require.Equal(t, "0xKW3333333333333333333333333333333333333", token.Addresses.Blockchain)
+			}
 		}
 	})
 
