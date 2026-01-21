@@ -57,7 +57,7 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 		holder.verified as holder_verified,
 		holder.avatar as holder_avatar,
 		utp.user_external_address as holder_external_address,
-		get_platform_group(utp.user_external_address) as holder_platform
+		holder.platform_group as holder_platform
 	FROM tokens t
 	JOIN user_token_positions utp ON utp.external_address = t.external_address
 		AND utp.user_external_address = ANY($2)
