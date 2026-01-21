@@ -22,7 +22,7 @@ func NewIonConnectClient() IonConnectClient {
 }
 
 func (c *ionConnectClient) GetPost(ctx context.Context, relayUrl, eventAddress string) (*events.PostPreview, error) {
-	preview, err := relayRequest[events.PostPreview](ctx, relayUrl, fmt.Sprintf("/v1/events/%s/preview", eventAddress))
+	preview, err := relayRequest[events.PostPreview](ctx, relayUrl, fmt.Sprintf("/v1/events/%s/previews", eventAddress))
 	return preview, errors.Wrapf(err, "failed to get post preview from relay %v for event %v", relayUrl, eventAddress)
 }
 
