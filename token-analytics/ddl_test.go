@@ -232,7 +232,6 @@ func helperNewForTest(t testing.TB, db *storage.DB, opts ...HelperTestOption) To
 		ingestedDataDB:              db,
 		processedDataDB:             &testRedisDB{Client: testRedis},
 		questDB:                     questDBConn,
-		quickNode:                   nil,
 		wg:                          new(sync.WaitGroup),
 		cfg:                         &cfg,
 		metrics:                     metrics.NewRegistry(),

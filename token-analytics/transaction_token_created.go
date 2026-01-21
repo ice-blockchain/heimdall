@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
-	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 )
 
@@ -27,17 +26,7 @@ func (t *tokenAnalytics) onTokenCreated(ctx context.Context, contractAddress str
 	if err != nil {
 		return fmt.Errorf("failed to parse token type %d, external_address %s: %w", ev.ExternalType, externalAddress, err)
 	}
-
-	hexAddr := ev.Address.String()
-	if strings.Contains(strings.ToLower(hexAddr), "dead") {
-		log.Info(fmt.Sprintf("Ignoring TokenCreated for dead token: %v", hexAddr))
-		return nil
-	}
-
-	if err := t.createStreamForContractAddress(ctx, hexAddr, false); err != nil {
-		return fmt.Errorf("failed to create stream to monitor contract %v: %w", hexAddr, err)
-	}
-	log.Info(fmt.Sprintf("Successfully created stream for bonded token: %v (type=%d, external=%s)", hexAddr, ev.ExternalType, externalAddress))
+	log.Debug(fmt.Sprintf("TokenCreated: external_address=%s, external_type=%d, contract_address=%s", externalAddress, ev.ExternalType, contractAddress))
 
 	return nil
 }
@@ -84,29 +73,6 @@ func parseTokenType(externalType byte, externalAddress string) (tokenType, maste
 
 func (t *tokenAnalytics) onUniswapPoolCreated(ctx context.Context, tx *txEvent, ev *bondingcurve.LogPoolCreated) error {
 	log.Debug(fmt.Sprintf("PoolCreated: baseToken=%s, otherToken=%s, pool=%s tx=%s", ev.Token0.Hex(), ev.Token1.Hex(), ev.PoolAddress.Hex(), tx.TransactionHash))
-	hexAddr := ev.PoolAddress.String()
-	if strings.Contains(strings.ToLower(ev.PoolAddress.String()), "dead") ||
-		strings.Contains(strings.ToLower(ev.Token0.String()), "dead") ||
-		strings.Contains(strings.ToLower(ev.Token1.String()), "dead") {
-		log.Info(fmt.Sprintf("Ignoring PoolCreated for dead token: %v %v %v", ev.PoolAddress.String(), ev.Token0.String(), ev.Token1.String()))
-		return nil
-	}
-	type tokenExists struct {
-		TokenExists bool `db:"token_exists"`
-	}
-	result, err := storage.Get[tokenExists](ctx, t.ingestedDataDB, `
-		SELECT exists (SELECT 1 from tokens WHERE lower(contract_address) = $1 OR lower(contract_address) = $2) as token_exists
-	`, strings.ToLower(ev.Token0.Hex()), strings.ToLower(ev.Token1.Hex()))
-	if err != nil {
-		return fmt.Errorf("failed to find token for pool %v one of(%v, %v): %w", strings.ToLower(ev.PoolAddress.Hex()), ev.Token0.Hex(), ev.Token1.Hex(), err)
-	}
-	if !result.TokenExists {
-		log.Info(fmt.Sprintf("Ignoring PoolCreated for non existing token: pool %v, token %v %v", hexAddr, strings.ToLower(ev.Token0.Hex()), strings.ToLower(ev.Token1.Hex())))
-		return nil // Not our token.
-	}
-	if err = t.createStreamForContractAddress(ctx, hexAddr, true); err != nil {
-		return fmt.Errorf("failed to create stream to monitor uniswap pool %v: %w", hexAddr, err)
-	}
-	log.Info(fmt.Sprintf("Successfully created stream for uniswap pool: %v", hexAddr))
+
 	return nil
 }
