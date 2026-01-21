@@ -180,11 +180,11 @@ func newOpenAI(cfg Config) *openaiClient {
 }
 
 func (c *openaiClient) EncodeVideoFramesWebp(webpFrames []string) (contentParts []openai.ChatCompletionContentPartUnionParam, err error) {
-	const maxFramesAllowed = 30
+	const maxFramesAllowed = 60
 
 	if len(webpFrames) > maxFramesAllowed {
 		log.Debug(fmt.Sprintf("truncating video frames from %d to %d for OpenAI request", len(webpFrames), maxFramesAllowed))
-		webpFrames = webpFrames[:maxFramesAllowed]
+		webpFrames = selectFrames(webpFrames, maxFramesAllowed)
 	}
 
 	for _, frame := range webpFrames {
