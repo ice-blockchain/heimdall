@@ -80,7 +80,7 @@ func (w *balanceUpdateWorker) Work(ctx context.Context, job *riverqueue.Job[Bala
 			updated_at = EXCLUDED.updated_at;
 	`, args.UserBlockchainAddress, args.ContractAddress, args.TokenExternalAddress,
 		args.UserExternalAddress, balance.String())
-	if err != nil {
+	if err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
 		return errors.Wrapf(err, "failed to update user token position in DB for user %s token %s",
 			args.UserBlockchainAddress, args.ContractAddress)
 	}

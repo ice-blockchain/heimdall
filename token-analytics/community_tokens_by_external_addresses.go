@@ -611,11 +611,15 @@ func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, userEx
 	balanceFloat, err := t.processedDataDB.ZScore(ctx, key, userExternalAddress).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
+			log.Debug(fmt.Sprintf("Redis returned Nil for key=%s, member=%s, amountWei=%s", key, userExternalAddress, amountWei))
+
 			return nil, nil
 		}
 		return nil, errors.Wrap(err, "failed to get balance from DragonflyDB")
 	}
 	if balanceFloat == 0 {
+		log.Debug(fmt.Sprintf("Balance for user %s on token %s is 0, returning nil, amountWei=%s", userExternalAddress, tokenExternalAddress, amountWei))
+
 		return nil, nil
 	}
 	rank, err := t.processedDataDB.ZRevRank(ctx, key, userExternalAddress).Result()
