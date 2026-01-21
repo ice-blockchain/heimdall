@@ -254,9 +254,6 @@ func helperNewForTest(t testing.TB, db *storage.DB, opts ...HelperTestOption) *t
 			ingestedDataDB:  db,
 			processedDataDB: &testRedisDB{Client: testRedis},
 		})
-		riverqueue.RegisterWorker(reg, &tokenDetailsGenerationTickerWorker{
-			TA: ta,
-		})
 		riverqueue.RegisterWorker(reg, &tokenDetailsGenerationPictureWorker{
 			TA: ta,
 		})

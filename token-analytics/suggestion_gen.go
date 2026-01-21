@@ -43,15 +43,7 @@ const (
 )
 
 func (t *tokenAnalytics) GenerateTokenSuggestion(ctx context.Context, data *CreationDetailsData) (*SuggestedCreationDetails, error) {
-	const maxFrames = 15
-
 	data.ContentID = strings.ToLower(strings.TrimSpace(data.ContentID))
-	if len(data.ContentImages) > maxFrames {
-		data.ContentImages = data.ContentImages[:maxFrames]
-	}
-	if len(data.ContentVideoFrames) > maxFrames {
-		data.ContentVideoFrames = data.ContentVideoFrames[:maxFrames]
-	}
 
 	record, err := t.FetchSuggestionRecordByContentID(ctx, data.ContentID)
 	if err != nil {
@@ -77,12 +69,16 @@ func (t *tokenAnalytics) GenerateTokenSuggestion(ctx context.Context, data *Crea
 		return &SuggestedCreationDetails{Status: TokenDetailsGenerationStatusPending}, nil
 	}
 
-	err = t.riverClient.Push(ctx, &tokenDetailsGenerationTickerWorkerArgs{Input: data})
+	name, ticker, err := t.generateTokenSuggestionTicker(ctx, data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to enqueue token suggestion generation job for content ID %v: %w", data.ContentID, err)
 	}
 
-	return &SuggestedCreationDetails{Status: TokenDetailsGenerationStatusPending}, nil
+	return &SuggestedCreationDetails{
+		Status: TokenDetailsGenerationStatusGeneratingPicture,
+		Ticker: ticker,
+		Name:   name,
+	}, nil
 }
 
 func (t *tokenAnalytics) TryInsertSuggestionRecord(ctx context.Context, data *CreationDetailsData) (bool, error) {
@@ -99,7 +95,7 @@ func (t *tokenAnalytics) TryInsertSuggestionRecord(ctx context.Context, data *Cr
 	WHERE
 			(user_tokens_suggestions.status = 'failed'
 			AND user_tokens_suggestions.completed_at is not NULL
-			AND user_tokens_suggestions.completed_at < NOW() - INTERVAL '1 hour')
+			AND user_tokens_suggestions.completed_at < NOW() - INTERVAL '3 hours')
 		OR
 			(user_tokens_suggestions.status = 'pending'
 			AND user_tokens_suggestions.completed_at is NULL

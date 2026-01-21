@@ -162,9 +162,6 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 			ingestedDataDB:  db,
 			processedDataDB: targetDB,
 		})
-		riverqueue.RegisterWorker(reg, &tokenDetailsGenerationTickerWorker{
-			TA: t,
-		})
 		riverqueue.RegisterWorker(reg, &tokenDetailsGenerationPictureWorker{
 			TA: t,
 		})

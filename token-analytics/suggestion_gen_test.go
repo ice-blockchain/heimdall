@@ -88,7 +88,9 @@ func TestGenerateTokenSuggestion(t *testing.T) {
 		result, err := ta.GenerateTokenSuggestion(t.Context(), data)
 		require.NoError(t, err)
 		require.NotNil(t, result)
-		require.EqualValues(t, TokenDetailsGenerationStatusPending, result.Status)
+		require.EqualValues(t, TokenDetailsGenerationStatusGeneratingPicture, result.Status)
+		require.Equal(t, "MTN", result.Ticker)
+		require.Equal(t, "Mocked Token Name", result.Name)
 
 		<-cdnClient.Ready
 
