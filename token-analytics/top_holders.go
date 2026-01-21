@@ -37,31 +37,33 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 	}
 
 	query := `
-		SELECT 
-			t.content_author_id as content_author_id,
-			creator.username as creator_username,
-			creator.display_name as creator_display,
-			creator.verified as creator_verified,
-			creator.avatar as creator_avatar,
-			creator.platform_group as creator_platform,
-			t.content_author_id as creator_bnb_bsc_address,
-			creator.external_address as creator_external_address,
-			t.price_usd as price_usd,
-			t.total_supply as total_supply,
-			t.bonding_curve_migrated as bonding_curve_migrated,
-			t.pair_id as pair_id,
-			t.base_token as base_token,
-			holder.master_pubkey as holder_master_pubkey,
-			holder.username as holder_username,
-			holder.display_name as holder_display,
-			holder.verified as holder_verified,
-			holder.avatar as holder_avatar,
-			holder.external_address as holder_external_address,
-			holder.platform_group as holder_platform
-		FROM tokens t
-		LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
-		JOIN users holder ON holder.external_address = ANY($2)
-		WHERE t.external_address = $1
+	SELECT 
+		t.content_author_id as content_author_id,
+		creator.username as creator_username,
+		creator.display_name as creator_display,
+		creator.verified as creator_verified,
+		creator.avatar as creator_avatar,
+		creator.platform_group as creator_platform,
+		t.content_author_id as creator_bnb_bsc_address,
+		creator.external_address as creator_external_address,
+		t.price_usd as price_usd,
+		t.total_supply as total_supply,
+		t.bonding_curve_migrated as bonding_curve_migrated,
+		t.pair_id as pair_id,
+		t.base_token,
+		holder.master_pubkey as holder_master_pubkey,
+		holder.username as holder_username,
+		holder.display_name as holder_display,
+		holder.verified as holder_verified,
+		holder.avatar as holder_avatar,
+		utp.user_external_address as holder_external_address,
+		holder.platform_group as holder_platform
+	FROM tokens t
+	JOIN user_token_positions utp ON utp.external_address = t.external_address
+		AND utp.user_external_address = ANY($2)
+	LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
+	LEFT JOIN users holder ON holder.external_address = utp.user_external_address
+	WHERE t.external_address = $1
 	`
 	rows, err := storage.Select[holderWithTokenData](ctx, t.ingestedDataDB, query, externalAddress, userIonConnects)
 	if err != nil {
