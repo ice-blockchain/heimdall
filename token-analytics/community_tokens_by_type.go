@@ -52,11 +52,15 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 			COALESCE(t.market_cap_usd, 0) as market_cap_usd,
 			COALESCE(t.price_usd, 0) as price_usd,
 			COALESCE(tv.volume_24h / 1e18, 0) as volume_24h,
-			COALESCE(t.holders_count, 0) as holders_count`
+			COALESCE(t.holders_count, 0) as holders_count,
+			COALESCE(t.bonding_curve_current_amount, '0') as bonding_curve_current_amount,
+			COALESCE(t.bonding_curve_goal_amount, '0') as bonding_curve_goal_amount,
+			COALESCE(t.bonding_curve_current_amount_usd, 0) as bonding_curve_current_amount_usd,
+			COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd`
 
 		fromJoinsClause = `FROM %s t
-		LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
-		LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address`
+	LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
+	LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address`
 	)
 
 	if keyword != "" {
@@ -91,6 +95,10 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 					t.market_cap_usd,
 					t.price_usd,
 					t.holders_count,
+					t.bonding_curve_current_amount,
+					t.bonding_curve_goal_amount,
+					t.bonding_curve_current_amount_usd,
+					t.bonding_curve_goal_amount_usd,
 					COALESCE(t.title, '') as title,
 					COALESCE(t.description, '') as description,
 					COALESCE(t.image_url, '') as image_url,
@@ -134,6 +142,10 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 		return nil, errors.Wrap(err, "failed to fetch community tokens by type")
 	}
 
+	if err := t.updateBondingProgressForRows(ctx, rows); err != nil {
+		return nil, errors.Wrap(err, "failed to update bonding progress for rows")
+	}
+
 	tokens := make([]*CommunityToken, 0, len(rows))
 	for _, row := range rows {
 		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(TokenAndCreatorAddressesParams{
@@ -148,6 +160,17 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 		if err != nil {
 			return nil, fmt.Errorf("failed to build token and creator addresses: %w", err)
 		}
+
+		var bondingCurveProgress *BondingCurveProgress
+		if row.BondingCurveCurrentAmount != "" && row.BondingCurveCurrentAmount != "0" && row.BondingCurveGoalAmount != "" && row.BondingCurveGoalAmount != "0" {
+			bondingCurveProgress = &BondingCurveProgress{
+				CurrentAmount:    row.BondingCurveCurrentAmount,
+				GoalAmount:       row.BondingCurveGoalAmount,
+				CurrentAmountUSD: row.BondingCurveCurrentAmountUSD,
+				GoalAmountUSD:    row.BondingCurveGoalAmountUSD,
+			}
+		}
+
 		token := &CommunityToken{
 			Type:        row.Type,
 			Title:       row.Title,
@@ -163,11 +186,12 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 				Addresses: creatorAddresses,
 			},
 			MarketData: MarketData{
-				Ticker:    row.Ticker,
-				MarketCap: row.MarketCapUSD,
-				Volume:    row.Volume24h,
-				Holders:   uint64(row.HoldersCount),
-				PriceUSD:  row.PriceUSD,
+				Ticker:               row.Ticker,
+				MarketCap:            row.MarketCapUSD,
+				Volume:               row.Volume24h,
+				Holders:              uint64(row.HoldersCount),
+				PriceUSD:             row.PriceUSD,
+				BondingCurveProgress: bondingCurveProgress,
 			},
 		}
 		tokens = append(tokens, token)
@@ -201,11 +225,15 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 			COALESCE(t.market_cap_usd, 0) as market_cap_usd,
 			COALESCE(t.price_usd, 0) as price_usd,
 			COALESCE(tv.volume_24h / 1e18, 0) as volume_24h,
-			COALESCE(t.holders_count, 0) as holders_count
-		FROM tokens t
-		INNER JOIN tokens_featured tf ON tf.external_address = t.external_address
-		LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
-		LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
+			COALESCE(t.holders_count, 0) as holders_count,
+			COALESCE(t.bonding_curve_current_amount, '0') as bonding_curve_current_amount,
+			COALESCE(t.bonding_curve_goal_amount, '0') as bonding_curve_goal_amount,
+			COALESCE(t.bonding_curve_current_amount_usd, 0) as bonding_curve_current_amount_usd,
+			COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd
+	FROM tokens t
+	INNER JOIN tokens_featured tf ON tf.external_address = t.external_address
+	LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
+	LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 	`
 
 	args := []interface{}{}
@@ -229,6 +257,10 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 		return nil, errors.Wrap(err, "failed to fetch featured community tokens")
 	}
 
+	if err := t.updateBondingProgressForRows(ctx, rows); err != nil {
+		return nil, errors.Wrap(err, "failed to update bonding progress for rows")
+	}
+
 	tokens := make([]*CommunityToken, 0, len(rows))
 	for _, row := range rows {
 		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(TokenAndCreatorAddressesParams{
@@ -243,6 +275,17 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 		if err != nil {
 			return nil, fmt.Errorf("failed to build token and creator addresses: %w", err)
 		}
+
+		var bondingCurveProgress *BondingCurveProgress
+		if row.BondingCurveCurrentAmount != "" && row.BondingCurveCurrentAmount != "0" && row.BondingCurveGoalAmount != "" && row.BondingCurveGoalAmount != "0" {
+			bondingCurveProgress = &BondingCurveProgress{
+				CurrentAmount:    row.BondingCurveCurrentAmount,
+				GoalAmount:       row.BondingCurveGoalAmount,
+				CurrentAmountUSD: row.BondingCurveCurrentAmountUSD,
+				GoalAmountUSD:    row.BondingCurveGoalAmountUSD,
+			}
+		}
+
 		token := &CommunityToken{
 			Type:        row.Type,
 			Title:       row.Title,
@@ -258,12 +301,13 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 				Addresses: creatorAddresses,
 			},
 			MarketData: MarketData{
-				Ticker:    row.Ticker,
-				MarketCap: row.MarketCapUSD,
-				Supply:    row.TotalSupply,
-				Volume:    row.Volume24h,
-				Holders:   uint64(row.HoldersCount),
-				PriceUSD:  row.PriceUSD,
+				Ticker:               row.Ticker,
+				MarketCap:            row.MarketCapUSD,
+				Supply:               row.TotalSupply,
+				Volume:               row.Volume24h,
+				Holders:              uint64(row.HoldersCount),
+				PriceUSD:             row.PriceUSD,
+				BondingCurveProgress: bondingCurveProgress,
 			},
 		}
 		tokens = append(tokens, token)

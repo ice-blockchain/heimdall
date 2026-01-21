@@ -136,6 +136,10 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 				t.liquidity_usd,
 				t.holders_count,
 				t.total_supply,
+				COALESCE(t.bonding_curve_current_amount, '0') as bonding_curve_current_amount,
+				COALESCE(t.bonding_curve_goal_amount, '0') as bonding_curve_goal_amount,
+				COALESCE(t.bonding_curve_current_amount_usd, 0) as bonding_curve_current_amount_usd,
+				COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd,
 				COALESCE(t.title, '') as title,
 				COALESCE(t.description, '') as description,
 				COALESCE(t.image_url, '') as image_url,
@@ -210,7 +214,11 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 			liquidity_usd,
 			COALESCE(volume_24h / 1e18, 0) as volume_24h,
 			COALESCE(total_supply, '0') as total_supply,
-			COALESCE(holders_count, 0) as holders_count
+			COALESCE(holders_count, 0) as holders_count,
+			bonding_curve_current_amount,
+			bonding_curve_goal_amount,
+			bonding_curve_current_amount_usd,
+			bonding_curve_goal_amount_usd
 		FROM candidates
 		ORDER BY relevance_score DESC, volume_24h DESC, created_at DESC`
 
@@ -243,6 +251,17 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 			return nil, fmt.Errorf("failed to build token and creator addresses: %w", err)
 		}
 
+		var bondingCurveProgress *BondingCurveProgress
+		if row.BondingCurveCurrentAmount != "" && row.BondingCurveCurrentAmount != "0" &&
+			row.BondingCurveGoalAmount != "" && row.BondingCurveGoalAmount != "0" {
+			bondingCurveProgress = &BondingCurveProgress{
+				CurrentAmount:    row.BondingCurveCurrentAmount,
+				GoalAmount:       row.BondingCurveGoalAmount,
+				CurrentAmountUSD: row.BondingCurveCurrentAmountUSD,
+				GoalAmountUSD:    row.BondingCurveGoalAmountUSD,
+			}
+		}
+
 		token := &CommunityToken{
 			Type:        row.Type,
 			Title:       row.Title,
@@ -258,13 +277,14 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 				Addresses: creatorAddresses,
 			},
 			MarketData: MarketData{
-				Ticker:       row.Ticker,
-				MarketCap:    row.MarketCapUSD,
-				Supply:       row.TotalSupply,
-				Volume:       row.Volume24h,
-				Holders:      uint64(row.HoldersCount),
-				PriceUSD:     row.PriceUSD,
-				LiquidityUSD: row.LiquidityUSD,
+				Ticker:               row.Ticker,
+				MarketCap:            row.MarketCapUSD,
+				Supply:               row.TotalSupply,
+				Volume:               row.Volume24h,
+				Holders:              uint64(row.HoldersCount),
+				PriceUSD:             row.PriceUSD,
+				LiquidityUSD:         row.LiquidityUSD,
+				BondingCurveProgress: bondingCurveProgress,
 			},
 		}
 		tokens = append(tokens, token)
@@ -553,16 +573,28 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 		if err != nil {
 			return nil, err
 		}
+
+		var bondingCurveProgress *BondingCurveProgress
+		if row.BondingCurveCurrentAmount != "" && row.BondingCurveCurrentAmount != "0" && row.BondingCurveGoalAmount != "" && row.BondingCurveGoalAmount != "0" {
+			bondingCurveProgress = &BondingCurveProgress{
+				CurrentAmount:    row.BondingCurveCurrentAmount,
+				GoalAmount:       row.BondingCurveGoalAmount,
+				CurrentAmountUSD: row.BondingCurveCurrentAmountUSD,
+				GoalAmountUSD:    row.BondingCurveGoalAmountUSD,
+			}
+		}
+
 		marketData := MarketData{
-			Ticker:             row.Ticker,
-			MarketCap:          row.MarketCapUSD,
-			Supply:             row.TotalSupply,
-			Volume:             row.Volume24h,
-			Holders:            uint64(row.HoldersCount),
-			PlatformHolders:    uint64(row.PlatformHoldersCount),
-			PriceUSD:           row.PriceUSD,
-			LiquidityUSD:       row.LiquidityUSD,
-			TopPlatformHolders: topPlatformHolders,
+			Ticker:               row.Ticker,
+			MarketCap:            row.MarketCapUSD,
+			Supply:               row.TotalSupply,
+			Volume:               row.Volume24h,
+			Holders:              uint64(row.HoldersCount),
+			PlatformHolders:      uint64(row.PlatformHoldersCount),
+			PriceUSD:             row.PriceUSD,
+			LiquidityUSD:         row.LiquidityUSD,
+			TopPlatformHolders:   topPlatformHolders,
+			BondingCurveProgress: bondingCurveProgress,
 		}
 		if row.PositionAmount != "" && row.PositionAmount != "0" {
 			externalAddress := BuildProfileExternalAddress(requestorMasterPubkey)

@@ -165,6 +165,15 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 			10,
 			PlatformGroupIonConnect,
 		)
+		helperUpdateTokenBondingCurve(t, ctx, db,
+			"0:vs_creator1:",
+			"90000000000000000000000",  // 90k tokens current
+			"180000000000000000000000", // 180k tokens goal
+			180.0,                      // $180 USD current
+			360.0,                      // $360 USD goal
+			"150000000000000000000",    // 150 tokens raised (wei)
+			false,                      // not migrated
+		)
 
 		helperInsertTestUser(t, ctx, db, "vs_creator2", "vs_bob", "VS Bob", "", false, PlatformGroupIonConnect)
 		helperInsertTestToken(t, ctx, db,
@@ -218,6 +227,12 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 		require.InDelta(t, 1000.0, tokens[0].MarketData.Volume, 1.0, "Volume from trending set")
 		require.Equal(t, uint64(10), tokens[0].MarketData.Holders)
 		require.InDelta(t, 0.001, tokens[0].MarketData.PriceUSD, 0.0001)
+
+		require.NotNil(t, tokens[0].MarketData.BondingCurveProgress)
+		require.Equal(t, "90000000000000000000000", tokens[0].MarketData.BondingCurveProgress.CurrentAmount)
+		require.Equal(t, "180000000000000000000000", tokens[0].MarketData.BondingCurveProgress.GoalAmount)
+		require.InDelta(t, 180.0, tokens[0].MarketData.BondingCurveProgress.CurrentAmountUSD, 0.01)
+		require.InDelta(t, 360.0, tokens[0].MarketData.BondingCurveProgress.GoalAmountUSD, 0.01)
 
 		require.Equal(t, "profile", tokens[1].Type)
 		require.Equal(t, "vs_bob", tokens[1].Title)
