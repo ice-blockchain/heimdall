@@ -24,14 +24,16 @@ type (
 		ImageCallTimeout  time.Duration `yaml:"imageCallTimeout"  json:"imageCallTimeout"  mapstructure:"imageCallTimeout"`
 	}
 	Client interface {
-		GenerateTokenNameAndTicker(ctx context.Context, creator, content string, webpFrames []string) (name, ticker string, err error)
-		GenerateTokenImage(ctx context.Context, creator, content, name, ticker string, webpFrames []string) (pngB64image string, err error)
+		GenerateTokenNameAndTicker(ctx context.Context, creator, content string, images, frames []string) (name, ticker string, err error)
+		GenerateTokenImage(ctx context.Context, creator, content, name, ticker string, images, frames []string) (pngB64image string, err error)
 	}
 )
 
 const (
 	defaultMaxRetries       = 15
 	defaultVideoFramesCodec = "image/webp"
+
+	MaxImageSideSize = 512
 )
 
 var (
@@ -43,7 +45,7 @@ func New(cfg Config) Client {
 	return newOpenAI(cfg)
 }
 
-func validateWebpImage(b64image string) error {
+func ValidateWebpImage(b64image string) error {
 	data, err := base64.StdEncoding.DecodeString(b64image)
 	if err != nil {
 		return fmt.Errorf("cannot decode base64 image: %w", err)
@@ -54,11 +56,8 @@ func validateWebpImage(b64image string) error {
 		return fmt.Errorf("cannot decode webp image config: %w", err)
 	}
 
-	const maxHeight = 512
-	const maxWidth = 512
-
-	if conf.Height > maxHeight || conf.Width > maxWidth {
-		return fmt.Errorf("%w: image dimensions too large: %dx%d, max is %dx%d", ErrTooLarge, conf.Width, conf.Height, maxWidth, maxHeight)
+	if conf.Height > MaxImageSideSize || conf.Width > MaxImageSideSize {
+		return fmt.Errorf("%w: image dimensions too large: %dx%d, max is %d", ErrTooLarge, conf.Width, conf.Height, MaxImageSideSize)
 	}
 
 	return nil

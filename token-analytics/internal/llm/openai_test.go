@@ -83,7 +83,7 @@ func TestLLMProviderOpenAI(t *testing.T) {
 	require.NotNil(t, client)
 
 	t.Run("Ticker and Name Generation", func(t *testing.T) {
-		name, ticker, err := client.GenerateTokenNameAndTicker(t.Context(), testPostCreator, testPostContent, testVideoFrames)
+		name, ticker, err := client.GenerateTokenNameAndTicker(t.Context(), testPostCreator, testPostContent, testVideoFrames, nil)
 		require.NoError(t, err)
 		require.NotEmpty(t, name)
 		require.NotEmpty(t, ticker)
@@ -95,7 +95,7 @@ func TestLLMProviderOpenAI(t *testing.T) {
 		const testTokenTicker = "HORROR"
 
 		t.Run("With reference image", func(t *testing.T) {
-			b64Image, err := client.GenerateTokenImage(t.Context(), testPostCreator, testPostContent, testTokenName, testTokenTicker, testVideoFrames)
+			b64Image, err := client.GenerateTokenImage(t.Context(), testPostCreator, testPostContent, testTokenName, testTokenTicker, testVideoFrames, nil)
 			require.NoError(t, err)
 			require.NotEmpty(t, b64Image)
 
@@ -115,7 +115,7 @@ func TestLLMProviderOpenAI(t *testing.T) {
 			}
 		})
 		t.Run("Without reference image", func(t *testing.T) {
-			b64Image, err := client.GenerateTokenImage(t.Context(), testPostCreator, testPostContent, testTokenName, testTokenTicker, nil)
+			b64Image, err := client.GenerateTokenImage(t.Context(), testPostCreator, testPostContent, testTokenName, testTokenTicker, nil, nil)
 			require.NoError(t, err)
 			require.NotEmpty(t, b64Image)
 

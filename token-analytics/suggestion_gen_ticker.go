@@ -12,11 +12,11 @@ func (t *tokenAnalytics) generateTokenSuggestionTicker(ctx context.Context, data
 		return "", "", t.markTokenSuggestionRecordAsFailedOrUpdateError(ctx, data.ContentID, err, 1, 1)
 	}
 
-	var frames []string
-	frames = append(frames, data.ContentImages...)
-	frames = append(frames, data.ContentVideoFrames...)
-
-	name, ticker, err = t.llmClient.GenerateTokenNameAndTicker(ctx, data.Creator.Name, data.Content, frames)
+	name, ticker, err = t.llmClient.GenerateTokenNameAndTicker(ctx,
+		data.Creator.Name,
+		data.Content,
+		data.ContentImages,
+		data.ContentVideoFrames)
 	if err != nil {
 		return "", "", t.markTokenSuggestionRecordAsFailedOrUpdateError(ctx, data.ContentID, err, 1, 1)
 	}

@@ -31,11 +31,13 @@ func (w *tokenDetailsGenerationPictureWorker) Work(ctx context.Context, job *tok
 		return w.TA.markTokenSuggestionRecordAsFailedOrUpdateError(ctx, job.Args.Input.ContentID, err, job.Attempt, job.MaxAttempts)
 	}
 
-	var frames []string
-	frames = append(frames, job.Args.Input.ContentImages...)
-	frames = append(frames, job.Args.Input.ContentVideoFrames...)
-
-	base64Image, err := w.TA.llmClient.GenerateTokenImage(ctx, job.Args.Input.Creator.Name, job.Args.Input.Content, job.Args.Ticker, job.Args.Name, frames)
+	base64Image, err := w.TA.llmClient.GenerateTokenImage(ctx,
+		job.Args.Input.Creator.Name,
+		job.Args.Input.Content,
+		job.Args.Ticker,
+		job.Args.Name,
+		job.Args.Input.ContentImages,
+		job.Args.Input.ContentVideoFrames)
 	if err != nil {
 		return w.TA.markTokenSuggestionRecordAsFailedOrUpdateError(ctx, job.Args.Input.ContentID, err, job.Attempt, job.MaxAttempts)
 	}

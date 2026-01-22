@@ -11,6 +11,7 @@ import (
 	"github.com/guregu/null/v6"
 
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/cdn"
+	"github.com/ice-blockchain/heimdall/token-analytics/internal/llm"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 )
@@ -41,6 +42,10 @@ const (
 	TokenDetailsGenerationStatusCompleted         TokenDetailsGenerationStatus = "completed"
 	TokenDetailsGenerationStatusFailed            TokenDetailsGenerationStatus = "failed"
 )
+
+func ValidateWebpImage(b64image string) error {
+	return llm.ValidateWebpImage(b64image)
+}
 
 func (t *tokenAnalytics) GenerateTokenSuggestion(ctx context.Context, data *CreationDetailsData) (*SuggestedCreationDetails, error) {
 	data.ContentID = strings.ToLower(strings.TrimSpace(data.ContentID))

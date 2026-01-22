@@ -543,15 +543,26 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 //	@Security		XCom
 //	@Router			/v1/community-tokens/suggest-creation-details [POST].
 func (s *service) SuggestCreationDetails(ctx context.Context, req *server.Request[SuggestCreationDetailsRequest]) (*server.Response[SuggestCreationDetailsResponse], error) {
+	const maxFrames = 30
+
 	if strings.TrimSpace(req.Data.ContentID) == "" {
 		return nil, server.BadRequest(errors.New("contentID is required"), invalidPropertiesErrorCode)
 	}
-	for _, r := range req.Data.ContentID {
-		if !((r >= 'a' && r <= 'z') ||
-			(r >= 'A' && r <= 'Z') ||
-			(r >= '0' && r <= '9') ||
-			r == ':') {
-			return nil, server.BadRequest(errors.New("contentID contains invalid characters"), invalidPropertiesErrorCode)
+
+	if current := len(req.Data.ContentImages) + len(req.Data.ContentVideoFrames); current > maxFrames {
+		return nil, server.BadRequest(fmt.Errorf("total number of contentImages and contentVideoFrames cannot exceed %d (got %d)", maxFrames, current), invalidPropertiesErrorCode)
+	}
+
+	for _, img := range req.Data.ContentImages {
+		err := ta.ValidateWebpImage(img)
+		if err != nil {
+			return nil, server.BadRequest(fmt.Errorf("invalid contentImages entry: %w", err), invalidPropertiesErrorCode)
+		}
+	}
+	for _, frame := range req.Data.ContentVideoFrames {
+		err := ta.ValidateWebpImage(frame)
+		if err != nil {
+			return nil, server.BadRequest(fmt.Errorf("invalid contentVideoFrames entry: %w", err), invalidPropertiesErrorCode)
 		}
 	}
 

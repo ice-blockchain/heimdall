@@ -54,13 +54,13 @@ func (m *mockedCDNClient) Observer() cdn.StateObserver {
 	return m.StateObserver
 }
 
-func (client *mockedLLMClient) GenerateTokenNameAndTicker(ctx context.Context, creator, content string, webpFrames []string) (name, ticker string, err error) {
-	client.TB.Logf("mocked GenerateTokenNameAndTicker called with creator: %s, content: %s, frames count: %d", creator, content, len(webpFrames))
+func (client *mockedLLMClient) GenerateTokenNameAndTicker(ctx context.Context, creator, content string, images, frames []string) (name, ticker string, err error) {
+	client.TB.Logf("mocked GenerateTokenNameAndTicker called with creator: %s, content: %s, frames count: %d", creator, content, len(images)+len(frames))
 	return "Mocked Token Name", "MTN", nil
 }
 
-func (client *mockedLLMClient) GenerateTokenImage(ctx context.Context, creator, content, name, ticker string, webpFrames []string) (pngB64image string, err error) {
-	client.TB.Logf("mocked GenerateTokenImage called with creator: %s, content: %s, name: %s, ticker: %s, frames count: %d", creator, content, name, ticker, len(webpFrames))
+func (client *mockedLLMClient) GenerateTokenImage(ctx context.Context, creator, content, name, ticker string, images, frames []string) (pngB64image string, err error) {
+	client.TB.Logf("mocked GenerateTokenImage called with creator: %s, content: %s, name: %s, ticker: %s, frames count: %d", creator, content, name, ticker, len(images)+len(frames))
 	return "mocked_base64_image_data", nil
 }
 
