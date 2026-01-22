@@ -173,14 +173,6 @@ CREATE OR REPLACE TRIGGER trigger_move_incoming_logs
     FOR EACH ROW
 EXECUTE FUNCTION trigger_move_incoming_logs();
 
-CREATE TABLE IF NOT EXISTS streams (
-    contract_address TEXT NOT NULL,
-    stream_id TEXT,
-    name TEXT,
-    created_at TIMESTAMP,
-    PRIMARY KEY (contract_address)
-);
-
 CREATE TABLE IF NOT EXISTS tokens (
     created_at                      TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at                      TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -477,72 +469,72 @@ BEGIN
 
     hex_clean := REPLACE(tx_input, '0x', '');
     function_selector := substring(hex_clean from 1 for 8);
-    
+
     IF function_selector != handleops_selector THEN
         RETURN jsonb_build_object('isCustomHandleOps', false);
     END IF;
-    
+
     -- Verify minimum length (selector + 3 params = 8 + 64*3 = 200 hex chars minimum)
     IF length(hex_clean) < 200 THEN
         RETURN jsonb_build_object('isCustomHandleOps', false, 'error', 'input too short');
     END IF;
-    
+
     -- Parse userOps offset (should be 0x60 = 96 bytes)
     userops_offset_hex := substring(hex_clean from 9 for 64);
     userops_offset_int := decode_uint256('0x' || userops_offset_hex, 0)::INT;
-    
+
     -- Parse r and vs (signature components)
     r_hex := '0x' || substring(hex_clean from 73 for 64);
     vs_hex := '0x' || substring(hex_clean from 137 for 64);
-    
+
     -- Calculate userOps start position in hex chars (offset * 2 + 1 for 1-based indexing)
     userops_start_pos := userops_offset_int * 2 + 1;
-    
+
     IF length(hex_clean) < userops_start_pos + 64 THEN
         RETURN jsonb_build_object('isCustomHandleOps', false, 'error', 'userOps offset out of bounds');
     END IF;
-    
+
     -- Read userOps length
     userops_length_hex := substring(hex_clean from userops_start_pos for 64);
     userops_length_int := decode_uint256('0x' || userops_length_hex, 0)::INT;
-    
+
     -- UserOps data starts after length field
     userops_data_start := userops_start_pos + 64;
-    
+
     IF length(hex_clean) < userops_data_start + userops_length_int * 2 THEN
         RETURN jsonb_build_object('isCustomHandleOps', false, 'error', 'userOps data truncated');
     END IF;
-    
+
     -- Parse UserOps structure:
     -- [0:40]   - sender (20 bytes)
     -- [40:104] - nonce (32 bytes)
     -- [104:168] - callDataLength (32 bytes)
     -- [168:...] - callData
-    
+
     IF userops_length_int * 2 < 168 THEN
         RETURN jsonb_build_object('isCustomHandleOps', false, 'error', 'userOps data too short');
     END IF;
-    
+
     -- Extract sender (20 bytes)
     sender_hex := substring(hex_clean from userops_data_start for 40);
     sender_addr := '0x' || LOWER(sender_hex);
-    
+
     -- Extract nonce (32 bytes)
     nonce_hex := '0x' || substring(hex_clean from (userops_data_start + 40) for 64);
-    
+
     -- Extract callData length (32 bytes)
     calldata_length_hex := substring(hex_clean from (userops_data_start + 104) for 64);
     calldata_length_int := decode_uint256('0x' || calldata_length_hex, 0)::INT;
-    
+
     -- Extract callData
     calldata_start := userops_data_start + 168;
     IF length(hex_clean) < calldata_start + calldata_length_int * 2 THEN
         RETURN jsonb_build_object('isCustomHandleOps', false, 'error', 'callData truncated');
     END IF;
-    
+
     calldata_hex := substring(hex_clean from calldata_start for (calldata_length_int * 2));
     calldata_full := '0x' || calldata_hex;
-    
+
     RETURN jsonb_build_object(
         'isCustomHandleOps', true,
         'sender', sender_addr,
@@ -608,7 +600,7 @@ DECLARE
     data_start_pos INT;
 BEGIN
     swap_calldata := extract_swap_calldata_from_custom_handleops(tx_input);
-    
+
     hex_clean := REPLACE(swap_calldata, '0x', '');
     hex_clean := substring(hex_clean from 9); -- Skip first 8 hex chars (4 bytes = function signature)
 
@@ -644,7 +636,7 @@ DECLARE
     to_token_length_bytes INT;
     to_token_hex TEXT;
     data_start_pos INT;
-    
+
     version INT;
     records_count INT;
     presence_mask INT;
@@ -657,7 +649,7 @@ DECLARE
     result TEXT;
 BEGIN
     swap_calldata := extract_swap_calldata_from_custom_handleops(tx_input);
-    
+
     hex_clean := REPLACE(swap_calldata, '0x', '');
     hex_clean := substring(hex_clean from 9); -- Skip first 8 hex chars (4 bytes = function signature)
 
@@ -918,11 +910,11 @@ BEGIN
     v_pair_id := LOWER(p_topics[2]);
     v_base_token := LOWER('0x' || substring(p_topics[3] from 27 for 40));
     v_other_token := LOWER('0x' || substring(p_topics[4] from 27 for 40));
-    
+
     v_price_model := LOWER('0x' || substring(p_data from 27 for 40)); -- priceModel at offset 0
     v_start_price := decode_uint256(p_data, 1); -- startPrice at offset 1
     v_end_price := decode_uint256(p_data, 2); -- endPrice at offset 2
-    
+
     UPDATE tokens
     SET
         base_token = v_base_token,
@@ -933,7 +925,7 @@ BEGIN
         updated_at = p_block_timestamp
     WHERE LOWER(contract_address) = v_other_token;
 
-    RAISE DEBUG 'PairRegistered processed: token=%, baseToken=%, priceModel=%, startPrice=%, endPrice=%', 
+    RAISE DEBUG 'PairRegistered processed: token=%, baseToken=%, priceModel=%, startPrice=%, endPrice=%',
         v_other_token, v_base_token, v_price_model, v_start_price, v_end_price;
 END;
 $$ LANGUAGE plpgsql;
