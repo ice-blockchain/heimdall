@@ -118,7 +118,7 @@ require (
 	github.com/btcsuite/btclog v0.0.0-20241017175713-3428138b75c7 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic v1.14.2 // indirect
-	github.com/bytedance/sonic/loader v0.4.0 // indirect
+	github.com/bytedance/sonic/loader v0.5.0 // indirect
 	github.com/bzick/tokenizer v1.4.10 // indirect
 	github.com/caddyserver/zerossl v0.1.4 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
@@ -258,7 +258,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.19 // indirect
 	github.com/mholt/acmez/v3 v3.1.4 // indirect
 	github.com/microcosm-cc/bluemonday v1.0.27 // indirect
-	github.com/miekg/dns v1.1.70 // indirect
+	github.com/miekg/dns v1.1.72 // indirect
 	github.com/minio/sha256-simd v1.0.1 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
