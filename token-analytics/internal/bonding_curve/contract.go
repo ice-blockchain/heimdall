@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -213,6 +214,20 @@ var (
 
 	EventSwappedSignature        = eventSwapped.Hex()
 	EventUniswapSwappedSignature = eventUniswapSwapped.Hex()
+
+	errNotFound = errors.New("not found")
+)
+
+// Function selectors:
+// handleOps (custom implementation) = 0x74fa4121
+// execute(bytes32 proposalId, bytes actions) = 0xe9ae5c53
+// swap(bytes,bytes,uint256,uint256) = 0x83362e17
+// swap(bytes,bytes,uint256,uint256,(uint256,uint256,uint8,bytes32,bytes32)) = 0x027c101d
+const (
+	handleOpsSelector  = "0x74fa4121" // Custom: handleOps(bytes,uint256,uint256)
+	executeSelector    = "0xe9ae5c53" // Custom: execute(bytes32 proposalId, bytes actions)
+	swap4ParamSelector = "0x83362e17"
+	swap5ParamSelector = "0x027c101d"
 )
 
 type (

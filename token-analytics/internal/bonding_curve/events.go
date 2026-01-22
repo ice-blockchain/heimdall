@@ -268,25 +268,16 @@ func tokenSwapped(signature, data, contractAddress, swapperTopic, pairIdTopic, t
 	functionSelector := txInput[:10]
 	log.Debug(fmt.Sprintf("Processing swap with function selector: %s, txInput length: %d", functionSelector, len(txInput)))
 
-	// Function selectors:
-	// handleOps (custom implementation) = 0x74fa4121
-	// swap(bytes,bytes,uint256,uint256) = 0x83362e17
-	// swap(bytes,bytes,uint256,uint256,(uint256,uint256,uint8,bytes32,bytes32)) = 0x027c101d
-	const (
-		handleOpsSelector  = "0x74fa4121" // Custom: handleOps(bytes,uint256,uint256)
-		swap4ParamSelector = "0x83362e17"
-		swap5ParamSelector = "0x027c101d"
-	)
-
 	// If this is a custom handleOps transaction, extract the inner calldata
-	if functionSelector == handleOpsSelector {
-		// Custom handleOps implementation with simplified structure:
-		// function handleOps(
-		//     bytes memory userOps,  // Single UserOperation: sender(20) + nonce(32) + callDataLength(32) + callData
-		//     uint256 r,             // Signature component 1
-		//     uint256 vs             // Signature component 2 (EIP-2098 compact)
-		// )
-		//
+	switch functionSelector {
+	// Custom handleOps implementation with simplified structure:
+	// function handleOps(
+	//     bytes memory userOps,  // Single UserOperation: sender(20) + nonce(32) + callDataLength(32) + callData
+	//     uint256 r,             // Signature component 1
+	//     uint256 vs             // Signature component 2 (EIP-2098 compact)
+	// )
+	//
+	case handleOpsSelector:
 		originalTxInput := txInput
 
 		handleOpsData, err := parseHandleOps(originalTxInput)
@@ -298,21 +289,17 @@ func tokenSwapped(signature, data, contractAddress, swapperTopic, pairIdTopic, t
 				handleOpsData.Ops[0].Sender.Hex(), handleOpsData.Ops[0].Nonce.String()))
 		}
 
-		// Search for swap selectors within the txInput to extract the actual swap() call
-		swap4Pos := strings.Index(txInput, swap4ParamSelector[2:]) // Remove "0x" prefix
-		swap5Pos := strings.Index(txInput, swap5ParamSelector[2:])
-
-		if swap4Pos > 0 {
-			// Found 4-param swap selector, extract from this position
-			txInput = "0x" + txInput[swap4Pos:]
-			functionSelector = swap4ParamSelector
-			log.Debug(fmt.Sprintf("Extracted 4-param swap from custom handleOps at position %d, new length: %d", swap4Pos, len(txInput)))
-		} else if swap5Pos > 0 {
-			// Found 5-param swap selector
-			txInput = "0x" + txInput[swap5Pos:]
-			functionSelector = swap5ParamSelector
-			log.Debug(fmt.Sprintf("Extracted 5-param swap from custom handleOps at position %d, new length: %d", swap5Pos, len(txInput)))
-		} else {
+		txInput, functionSelector, err = findWrappedSwap(txInput, functionSelector)
+		if err != nil && errors.Is(err, errNotFound) {
+			// No swap selector found in handleOps
+			log.Debug(fmt.Sprintf("Token swapped: swapper=%v, pair=%v, direction=%v (no swap selector found in custom handleOps)",
+				tokenSwappedEvent.Swapper.Hex(), tokenSwappedEvent.Pair.Hex(), tokenSwappedEvent.Direction))
+			return &tokenSwappedEvent, nil
+		}
+	case executeSelector:
+		var err error
+		txInput, functionSelector, err = findWrappedSwap(txInput, functionSelector)
+		if err != nil && errors.Is(err, errNotFound) {
 			// No swap selector found in handleOps
 			log.Debug(fmt.Sprintf("Token swapped: swapper=%v, pair=%v, direction=%v (no swap selector found in custom handleOps)",
 				tokenSwappedEvent.Swapper.Hex(), tokenSwappedEvent.Pair.Hex(), tokenSwappedEvent.Direction))
@@ -365,6 +352,27 @@ func tokenSwapped(signature, data, contractAddress, swapperTopic, pairIdTopic, t
 		tokenSwappedEvent.Direction))
 
 	return &tokenSwappedEvent, nil
+}
+
+func findWrappedSwap(txInput string, functionSelector string) (string, string, error) {
+	// Search for swap selectors within the txInput to extract the actual swap() call
+	swap4Pos := strings.Index(txInput, swap4ParamSelector[2:]) // Remove "0x" prefix
+	swap5Pos := strings.Index(txInput, swap5ParamSelector[2:])
+
+	if swap4Pos > 0 {
+		// Found 4-param swap selector, extract from this position
+		txInput = "0x" + txInput[swap4Pos:]
+		functionSelector = swap4ParamSelector
+		log.Debug(fmt.Sprintf("Extracted 4-param swap from custom handleOps at position %d, new length: %d", swap4Pos, len(txInput)))
+	} else if swap5Pos > 0 {
+		// Found 5-param swap selector
+		txInput = "0x" + txInput[swap5Pos:]
+		functionSelector = swap5ParamSelector
+		log.Debug(fmt.Sprintf("Extracted 5-param swap from custom handleOps at position %d, new length: %d", swap5Pos, len(txInput)))
+	} else {
+		return "", "", errNotFound
+	}
+	return txInput, functionSelector, nil
 }
 
 func recipientsSet(signature, data string) (*LogRecipientsSet, error) {
