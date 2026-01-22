@@ -1,6 +1,6 @@
 {
   "en": {
-    "_version": 6,
+    "_version": 7,
     "reply": {
       "title": "Online+",
       "body": "\uD83D\uDCAC @{{username}} replied to your post"
@@ -148,10 +148,46 @@
     "paymentReceived": {
       "title": "{{displayName}}",
       "body": "\uD83E\uDD11 Sent you {{coinAmount}} {{coinSymbol}}"
+    },
+    "yourCreatorTokenIsLive": {
+      "title": "\uD83D\uDE80 Creator Token Is Live",
+      "body": "Your creator token is now available to buy and trade."
+    },
+    "yourContentTokenIsLive": {
+      "title": "\uD83D\uDCA0 Content Token Is Live",
+      "body": "Your post has its own token now."
+    },
+    "yourFolloweeCreatorTokenIsLive": {
+      "title": "\uD83D\uDD25 New Creator Token",
+      "body": "{{displayName}} just launched a token you can buy and trade"
+    },
+    "yourFolloweeContentTokenIsLive": {
+      "title": "\u2728 New Content Token",
+      "body": "{{displayName}} launched a token for their post."
+    },
+    "someoneBoughtYourToken": {
+      "title": "\uD83D\uDCB8 New Buy",
+      "body": "Someone bought ${{amountUSD}} of your token"
+    },
+    "someoneBoughtSomeRelevantToken": {
+      "title": "\uD83D\uDCC8 Buying Activity",
+      "body": "@{{username}} bought ${{amountUSD}} of {{originalAuthorDisplayName}}’s token."
+    },
+    "yourCreatorTokenPriceIncreased": {
+      "title": "\uD83D\uDE80 Token Is Going Up",
+      "body": "Your token value increased {{priceIncreasePercentage}}%."
+    },
+    "moreBuyersJoined": {
+      "title": "\uD83D\uDD25 More Buying Activity",
+      "body": "More people are buying your token."
+    },
+    "trendingToken": {
+      "title": "\u2B50 ${{ticker}} Token Is Trending",
+      "body": "More users are trading this token."
     }
   },
   "es": {
-    "_version": 6,
+    "_version": 7,
     "reply": {
       "title": "Online+",
       "body": "[ES] \uD83D\uDCAC @{{username}} replied to your post"
@@ -299,10 +335,46 @@
     "paymentReceived": {
       "title": "{{displayName}}",
       "body": "[ES] \uD83E\uDD11 Sent you {{coinAmount}} {{coinSymbol}}"
+    },
+    "yourCreatorTokenIsLive": {
+      "title": "[ES] \uD83D\uDE80 Creator Token Is Live",
+      "body": "[ES] Your creator token is now available to buy and trade."
+    },
+    "yourContentTokenIsLive": {
+      "title": "[ES] \uD83D\uDCA0 Content Token Is Live",
+      "body": "[ES] Your post has its own token now."
+    },
+    "yourFolloweeCreatorTokenIsLive": {
+      "title": "[ES] \uD83D\uDD25 New Creator Token",
+      "body": "[ES] {{displayName}} just launched a token you can buy and trade"
+    },
+    "yourFolloweeContentTokenIsLive": {
+      "title": "[ES] \u2728 New Content Token",
+      "body": "[ES] {{displayName}} launched a token for their post."
+    },
+    "someoneBoughtYourToken": {
+      "title": "[ES] \uD83D\uDCB8 New Buy",
+      "body": "[ES] Someone bought ${{amountUSD}} of your token"
+    },
+    "someoneBoughtSomeRelevantToken": {
+      "title": "[ES] \uD83D\uDCC8 Buying Activity",
+      "body": "[ES] @{{username}} bought ${{amountUSD}} of {{originalAuthorDisplayName}}’s token."
+    },
+    "yourCreatorTokenPriceIncreased": {
+      "title": "[ES] \uD83D\uDE80 Token Is Going Up",
+      "body": "[ES] Your token value increased {{priceIncreasePercentage}}%."
+    },
+    "moreBuyersJoined": {
+      "title": "[ES] \uD83D\uDD25 More Buying Activity",
+      "body": "[ES] More people are buying your token."
+    },
+    "trendingToken": {
+      "title": "[ES] \u2B50 ${{ticker}} Token Is Trending",
+      "body": "[ES] More users are trading this token."
     }
   },
   "fr": {
-    "_version": 6,
+    "_version": 7,
     "reply": {
       "title": "Online+",
       "body": "[FR] \uD83D\uDCAC @{{username}} replied to your post"
@@ -450,6 +522,42 @@
     "paymentReceived": {
       "title": "{{displayName}}",
       "body": "[FR] \uD83E\uDD11 Sent you {{coinAmount}} {{coinSymbol}}"
+    },
+    "yourCreatorTokenIsLive": {
+      "title": "[FR] \uD83D\uDE80 Creator Token Is Live",
+      "body": "[FR] Your creator token is now available to buy and trade."
+    },
+    "yourContentTokenIsLive": {
+      "title": "[FR] \uD83D\uDCA0 Content Token Is Live",
+      "body": "[FR] Your post has its own token now."
+    },
+    "yourFolloweeCreatorTokenIsLive": {
+      "title": "[FR] \uD83D\uDD25 New Creator Token",
+      "body": "[FR] {{displayName}} just launched a token you can buy and trade"
+    },
+    "yourFolloweeContentTokenIsLive": {
+      "title": "[FR] \u2728 New Content Token",
+      "body": "[FR] {{displayName}} launched a token for their post."
+    },
+    "someoneBoughtYourToken": {
+      "title": "[FR] \uD83D\uDCB8 New Buy",
+      "body": "[FR] Someone bought ${{amountUSD}} of your token"
+    },
+    "someoneBoughtSomeRelevantToken": {
+      "title": "[FR] \uD83D\uDCC8 Buying Activity",
+      "body": "[FR] @{{username}} bought ${{amountUSD}} of {{originalAuthorDisplayName}}’s token."
+    },
+    "yourCreatorTokenPriceIncreased": {
+      "title": "[FR] \uD83D\uDE80 Token Is Going Up",
+      "body": "[FR] Your token value increased {{priceIncreasePercentage}}%."
+    },
+    "moreBuyersJoined": {
+      "title": "[FR] \uD83D\uDD25 More Buying Activity",
+      "body": "[FR] More people are buying your token."
+    },
+    "trendingToken": {
+      "title": "[FR] \u2B50 ${{ticker}} Token Is Trending",
+      "body": "[FR] More users are trading this token."
     }
   }
 }
