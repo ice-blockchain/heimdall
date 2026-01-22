@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -88,6 +89,11 @@ func newClient(_ context.Context, config *Config, rqClient riverqueue.Client, op
 
 	for _, opt := range opts {
 		opt(cdnClient)
+	}
+
+	if envKey := os.Getenv("CDN_API_KEY"); cdnClient.Config.AccessKey == "" && envKey != "" {
+		log.Info("Using CDN access key from environment variable CDN_API_KEY")
+		cdnClient.Config.AccessKey = envKey
 	}
 
 	riverqueue.RegisterWorker(rqClient.Register(), &uploadWorker{

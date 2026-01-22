@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 	"text/template"
@@ -162,6 +163,11 @@ func newOpenAI(cfg Config) *openaiClient {
 
 	if cfg.ImageCallTimeout <= 0 {
 		cfg.ImageCallTimeout = 2 * time.Minute
+	}
+
+	if envKey := os.Getenv("OPENAI_API_KEY"); cfg.APIKey == "" && envKey != "" {
+		log.Info("Using OpenAI API key from environment variable OPENAI_API_KEY")
+		cfg.APIKey = envKey
 	}
 
 	if cfg.APIKey == "" {
