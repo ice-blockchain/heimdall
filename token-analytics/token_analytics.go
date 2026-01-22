@@ -23,7 +23,6 @@ import (
 	"github.com/ice-blockchain/heimdall/token-analytics/ddl"
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
-	"github.com/ice-blockchain/heimdall/token-analytics/internal/quicknode"
 	appconfig "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	storagev3 "github.com/ice-blockchain/wintr/connectors/storage/v3"
@@ -79,7 +78,6 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 		log.Panic(fmt.Errorf("failed to initialize workers config: %w", err))
 	}
 
-	qn := quicknode.NewClient(ctx, applicationYamlKey)
 	questDB := questdb.MustConnect(ctx, applicationYamlKey)
 	registry := metrics.NewRegistry()
 	for workerIdx := range cfg.Workers {
@@ -143,7 +141,6 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 		questDB:                     questDB,
 		wg:                          new(sync.WaitGroup),
 		cfg:                         &cfg,
-		quickNode:                   qn,
 		metrics:                     registry,
 		bondingCurve:                bc,
 		balanceUpdateQueue:          riverClient,
@@ -228,7 +225,6 @@ func (t *tokenAnalytics) HealthCheck(ctx context.Context) error {
 		"ingested_datatabase": func(ctx context.Context) error { return t.ingestedDataDB.Ping(ctx) },
 		"processed_database":  func(ctx context.Context) error { return t.processedDataDB.Ping(ctx).Err() },
 		"questdb_database":    t.questDB.Ping,
-		"quicknode_api":       t.quickNode.HealthCheck,
 	}
 
 	for name, checker := range checkers {
@@ -499,42 +495,6 @@ func (t *tokenAnalytics) processLog(ctx context.Context, tx *txEvent, logEvent *
 	return nil
 }
 
-func (t *tokenAnalytics) createStreamForContractAddress(ctx context.Context, contractAddress string, isUniswapPool bool) error {
-	_, err := storage.Exec(ctx, t.ingestedDataDB, `INSERT INTO streams(contract_address) VALUES ($1);`, contractAddress)
-	if err != nil {
-		if storage.IsErr(err, storage.ErrReadOnly) {
-			return nil
-		}
-		if storage.IsErr(err, storage.ErrDuplicate) {
-			log.Info("Stream already exists for bonded token: %v", contractAddress)
-			return nil
-		}
-		return fmt.Errorf("failed to check stream duplicate: %w", err)
-	}
-	streamName := contractAddress
-	if isUniswapPool {
-		streamName = "pool_" + streamName
-	}
-	stream, err := t.quickNode.CreateStream(ctx, streamName, contractAddress)
-	if err != nil {
-		_, rollbackErr := storage.Exec(ctx, t.ingestedDataDB, `DELETE FROM streams WHERE contract_address = $1;`, contractAddress)
-		return errors.Join(err, rollbackErr)
-	}
-
-	_, err = storage.Exec(ctx, t.ingestedDataDB, `
-	  UPDATE streams SET
-	      stream_id = $2,
-	      created_at = $3,
-	      name = $4
-	  WHERE contract_address = $1;`, contractAddress, stream.ID, stream.CreatedAt, stream.Name)
-	if err != nil {
-		return fmt.Errorf("failed to insert stream for %v: %w", contractAddress, err)
-	}
-
-	log.Info("Stream created for bonded token: %v (ID: %v)", contractAddress, stream.ID)
-	return nil
-}
-
 func (t *tokenAnalytics) Printf(format string, args ...interface{}) {
 	stdlog.Printf(format, args...)
 }
@@ -637,12 +597,8 @@ func (t *tokenAnalytics) getSavePoint(ctx context.Context, workerIdx uint) (*Sav
 	}
 
 	if len(results) == 0 || results[0] == nil || (results[0].BlockNumber == 0 && results[0].TransactionIndex == 0) {
-		startBlock, _ := t.quickNode.CurrentBlockRange()
-		if startBlock > 0 {
-			startBlock--
-		}
 		return &SavePoint{
-			BlockNumber:      startBlock,
+			BlockNumber:      0,
 			TransactionIndex: 0,
 		}, nil
 	}

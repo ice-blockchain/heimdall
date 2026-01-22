@@ -18,7 +18,6 @@ import (
 	"github.com/ice-blockchain/heimdall/coins"
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
-	"github.com/ice-blockchain/heimdall/token-analytics/internal/quicknode"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	storagev3 "github.com/ice-blockchain/wintr/connectors/storage/v3"
 	"github.com/ice-blockchain/wintr/riverqueue"
@@ -225,7 +224,6 @@ type (
 	dummyUserRepository struct{}
 	tokenAnalytics      struct {
 		processedDataDB       storagev3.DB
-		quickNode             quicknode.Client
 		metrics               metrics.Registry
 		ingestedDataDB        *storage.DB
 		questDB               *questdb.DB
