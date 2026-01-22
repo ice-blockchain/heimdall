@@ -53,7 +53,7 @@ require (
 	github.com/swaggo/gin-swagger v1.6.1
 	github.com/swaggo/swag v1.16.6
 	github.com/testcontainers/testcontainers-go v0.40.0
-	github.com/twilio/twilio-go v1.29.1
+	github.com/twilio/twilio-go v1.30.0
 	github.com/xssnick/tonutils-go v1.15.5
 	github.com/zeebo/xxh3 v1.0.2
 	go.uber.org/goleak v1.3.0
