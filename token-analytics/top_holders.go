@@ -18,7 +18,7 @@ import (
 
 func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress string, limit int64) ([]*TopHolderPosition, error) {
 	key := keyUserPositionOfToken(externalAddress)
-	result, err := t.processedDataDB.ZRevRangeWithScores(ctx, key, 0, limit-1).Result()
+	result, err := t.processedDataDB.ZRevRangeWithScores(ctx, key, 0, limit).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return []*TopHolderPosition{}, nil
@@ -29,10 +29,27 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 	if len(result) == 0 {
 		return []*TopHolderPosition{}, nil
 	}
+	keyBlockchainAddresses := keyUserPositionOfTokenByUserBlockchainAddress(externalAddress)
+	resultBlockChainAddresses, err := t.processedDataDB.ZRevRangeWithScores(ctx, keyBlockchainAddresses, 0, limit-1).Result()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			resultBlockChainAddresses = make([]redis.Z, 0)
+			err = nil
+		}
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to fetch top holders from DragonflyDB")
+		}
+	}
 	userIonConnects := make([]string, 0, len(result))
 	for _, z := range result {
 		if userIonConnect, ok := z.Member.(string); ok {
 			userIonConnects = append(userIonConnects, userIonConnect)
+		}
+	}
+	userBlockchainAddresses := make([]string, 0, len(resultBlockChainAddresses))
+	for _, z := range resultBlockChainAddresses {
+		if userBlockchainAddress, ok := z.Member.(string); ok {
+			userBlockchainAddresses = append(userBlockchainAddresses, userBlockchainAddress)
 		}
 	}
 
@@ -57,15 +74,16 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 		holder.verified as holder_verified,
 		holder.avatar as holder_avatar,
 		utp.user_external_address as holder_external_address,
-		holder.platform_group as holder_platform
+		holder.platform_group as holder_platform,
+		utp.user_blockchain_address as holder_bnb_bsc_address
 	FROM tokens t
 	JOIN user_token_positions utp ON utp.external_address = t.external_address
-		AND utp.user_external_address = ANY($2)
+		AND (utp.user_external_address = ANY($2) OR utp.user_blockchain_address = ANY($3))
 	LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
-	LEFT JOIN users holder ON holder.external_address = utp.user_external_address
+	LEFT JOIN users holder ON holder.external_address = utp.user_external_address OR holder.content_author_id = utp.user_blockchain_address
 	WHERE t.external_address = $1
 	`
-	rows, err := storage.Select[holderWithTokenData](ctx, t.ingestedDataDB, query, externalAddress, userIonConnects)
+	rows, err := storage.Select[holderWithTokenData](ctx, t.ingestedDataDB, query, externalAddress, userIonConnects, userBlockchainAddresses)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch holders data")
 	}
@@ -88,16 +106,16 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 	}
 	extraItemsEnriched := 0
 	if !tokenMigrated {
-		if rows, result, err = t.enrichTopHoldersWithBongingCurve(ctx, pairId, externalAddress, rows, creator, limit, result); err != nil {
+		if rows, result, resultBlockChainAddresses, err = t.enrichTopHoldersWithBongingCurve(ctx, pairId, externalAddress, rows, creator, limit, result, resultBlockChainAddresses); err != nil {
 			return nil, errors.Wrapf(err, "failed to enrich top holders with bonging curve for token %v", externalAddress)
 		}
 		extraItemsEnriched += 1
 	}
-	if rows, result, err = t.enrichTopHoldersWithBurned(ctx, externalAddress, rows, creator, limit, result); err != nil {
+	if rows, result, resultBlockChainAddresses, err = t.enrichTopHoldersWithBurned(ctx, externalAddress, rows, creator, limit, result, resultBlockChainAddresses); err != nil {
 		return nil, errors.Wrapf(err, "failed to enrich top holders with burned for token %v", externalAddress)
 	}
 	extraItemsEnriched += 1
-	positions, err := buildTopHolderPositions(externalAddress, result, rows, t.cfg.BondingCurve.SmartContractAddress, t.cfg.BondingCurve.BurnAddress, extraItemsEnriched)
+	positions, err := buildTopHolderPositions(externalAddress, result, resultBlockChainAddresses, rows, t.cfg.BondingCurve.SmartContractAddress, t.cfg.BondingCurve.BurnAddress, extraItemsEnriched)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build top holder positions")
 	}
@@ -105,7 +123,7 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 	return positions, nil
 }
 
-func (t *tokenAnalytics) enrichTopHoldersWithBurned(ctx context.Context, externalAddress string, rows []*holderWithTokenData, creator *User, limit int64, result []redis.Z) ([]*holderWithTokenData, []redis.Z, error) {
+func (t *tokenAnalytics) enrichTopHoldersWithBurned(ctx context.Context, externalAddress string, rows []*holderWithTokenData, creator *User, limit int64, result, resultByBlockchain []redis.Z) ([]*holderWithTokenData, []redis.Z, []redis.Z, error) {
 	burnedAmount, err := storage.Get[float64](ctx, t.ingestedDataDB, `SELECT 
     	amount/1e18 FROM fees_transferred
     	WHERE token_external_address = $1 AND recipient_bsc_address = $2`, externalAddress, t.cfg.BondingCurve.BurnAddress)
@@ -116,20 +134,25 @@ func (t *tokenAnalytics) enrichTopHoldersWithBurned(ctx context.Context, externa
 			burnedAmount = &zero
 		}
 		if err != nil {
-			return nil, nil, errors.Wrapf(err, "failed to fetch burned amount for token %v", externalAddress)
+			return nil, nil, nil, errors.Wrapf(err, "failed to fetch burned amount for token %v", externalAddress)
 		}
 	}
 	burnedUSD, _, err := t.calculatePriceInUSD(ctx, *burnedAmount, rows[0].BaseToken)
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "failed to calculate price in USD for burned amount, token %v, baseToken %v", externalAddress, rows[0].BaseToken)
+		return nil, nil, nil, errors.Wrapf(err, "failed to calculate price in USD for burned amount, token %v, baseToken %v", externalAddress, rows[0].BaseToken)
 	}
 	if len(result) >= 2 {
 		result = slices.Insert(result, 1, redis.Z{Member: t.cfg.BondingCurve.BurnAddress, Score: *burnedAmount})
+		resultByBlockchain = slices.Insert(resultByBlockchain, 1, redis.Z{Member: t.cfg.BondingCurve.BurnAddress, Score: *burnedAmount})
 	} else {
 		result = append(result, redis.Z{Member: t.cfg.BondingCurve.BurnAddress, Score: *burnedAmount})
+		resultByBlockchain = append(resultByBlockchain, redis.Z{Member: t.cfg.BondingCurve.BurnAddress, Score: *burnedAmount})
 	}
-	if int64(len(result)) >= limit-1 {
+	if int64(len(result)) > limit {
 		result = result[:len(result)-1]
+	}
+	if int64(len(resultByBlockchain)) > limit {
+		resultByBlockchain = resultByBlockchain[:len(resultByBlockchain)-1]
 	}
 	burnedPlatform := PlatformGroupIonConnect
 	burnedAvatar := burnedTopHolderAvatar
@@ -156,31 +179,34 @@ func (t *tokenAnalytics) enrichTopHoldersWithBurned(ctx context.Context, externa
 		HolderVerified:         &burnedVerified,
 		PairId:                 rows[0].PairId,
 		BaseToken:              rows[0].BaseToken,
+		HolderBnbBscAddress:    &t.cfg.BondingCurve.BurnAddress,
 	}
 	if len(rows) >= 2 {
 		rows = slices.Insert(rows, 1, burnedRow)
 	} else {
 		rows = append(rows, burnedRow)
 	}
-	if int64(len(rows)) >= limit-1 {
-		rows = rows[:len(rows)-1]
-	}
-	return rows, result, nil
+
+	return rows, result, resultByBlockchain, nil
 }
 
-func (t *tokenAnalytics) enrichTopHoldersWithBongingCurve(ctx context.Context, pairId string, externalAddress string, rows []*holderWithTokenData, creator *User, limit int64, result []redis.Z) ([]*holderWithTokenData, []redis.Z, error) {
+func (t *tokenAnalytics) enrichTopHoldersWithBongingCurve(ctx context.Context, pairId string, externalAddress string, rows []*holderWithTokenData, creator *User, limit int64, result, resultByBlockchain []redis.Z) ([]*holderWithTokenData, []redis.Z, []redis.Z, error) {
 	progress, err := t.bondingCurve.Progress(ctx, common.HexToHash(pairId))
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "failed to get curve progress for token %v (pair %v)", externalAddress, pairId)
+		return nil, nil, nil, errors.Wrapf(err, "failed to get curve progress for token %v (pair %v)", externalAddress, pairId)
 	}
 	curveScore := weiToFloat64FromBigInt(new(big.Int).Sub(progress.BondingTokensGoal, progress.SoldTokens))
 	result = slices.Insert(result, 0, redis.Z{Member: t.cfg.BondingCurve.SmartContractAddress, Score: curveScore})
-	if int64(len(result)) >= limit-1 {
+	resultByBlockchain = slices.Insert(resultByBlockchain, 0, redis.Z{Member: t.cfg.BondingCurve.SmartContractAddress, Score: curveScore})
+	if int64(len(result)) > limit {
 		result = result[:len(result)-1]
+	}
+	if int64(len(resultByBlockchain)) > limit {
+		resultByBlockchain = resultByBlockchain[:len(resultByBlockchain)-1]
 	}
 	curveUSD, _, err := t.calculatePriceInUSD(ctx, curveScore, rows[0].BaseToken)
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "failed to calculate price in USD for bonding curve, token %v, baseToken %v", externalAddress, rows[0].BaseToken)
+		return nil, nil, nil, errors.Wrapf(err, "failed to calculate price in USD for bonding curve, token %v, baseToken %v", externalAddress, rows[0].BaseToken)
 	}
 	curvePlatform := PlatformGroupIonConnect
 	curveAvatar := bondingCurveTopHolderAvatar
@@ -207,19 +233,27 @@ func (t *tokenAnalytics) enrichTopHoldersWithBongingCurve(ctx context.Context, p
 		HolderVerified:         &curveVerified,
 		PairId:                 rows[0].PairId,
 		BaseToken:              rows[0].BaseToken,
+		HolderBnbBscAddress:    &t.cfg.BondingCurve.SmartContractAddress,
 	})
-	if int64(len(rows)) >= limit-1 {
-		rows = rows[:len(rows)-1]
-	}
-	return rows, result, nil
+
+	return rows, result, resultByBlockchain, nil
 }
 
-func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []*holderWithTokenData, bondingCurveContractAddress, burnAddress string, extraItemsEnriched int) ([]*TopHolderPosition, error) {
+func buildTopHolderPositions(externalAddress string, rankings, rankingsByBlockchainAddress []redis.Z, rows []*holderWithTokenData, bondingCurveContractAddress, burnAddress string, extraItemsEnriched int) ([]*TopHolderPosition, error) {
 	holderDataMap := make(map[string]*holderWithTokenData)
+	matching := make(map[string]string)
 	for i := range rows {
 		if rows[i].HolderExternalAddress != nil {
 			holderDataMap[*rows[i].HolderExternalAddress] = rows[i]
+			if rows[i].HolderBnbBscAddress != nil {
+				holderDataMap[*rows[i].HolderBnbBscAddress] = rows[i]
+				matching[*rows[i].HolderExternalAddress] = *rows[i].HolderBnbBscAddress
+			}
 		}
+	}
+	byBlockchainAddress := make(map[string]float64)
+	for _, z := range rankingsByBlockchainAddress {
+		byBlockchainAddress[z.Member.(string)] = z.Score
 	}
 	holders := make([]*TopHolderPosition, 0, len(rankings))
 	for rank, z := range rankings {
@@ -229,9 +263,93 @@ func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []
 
 			continue
 		}
+		blockchainAddress, ok := matching[userExternalAddress]
+		if ok {
+			delete(byBlockchainAddress, blockchainAddress)
+		}
 		holderData, exists := holderDataMap[userExternalAddress]
 		if !exists {
-			log.Warn(fmt.Sprintf("User data not found for user external_address: %v", userExternalAddress))
+			if len(rows) == 0 {
+				continue
+			}
+			holderData = &holderWithTokenData{
+				ContentAuthorID:        rows[0].ContentAuthorID,
+				CreatorUsername:        rows[0].CreatorUsername,
+				CreatorDisplay:         rows[0].CreatorDisplay,
+				CreatorAvatar:          rows[0].CreatorAvatar,
+				CreatorExternalAddress: rows[0].CreatorExternalAddress,
+				CreatorPlatform:        rows[0].CreatorPlatform,
+				CreatorBnbBscAddress:   rows[0].CreatorBnbBscAddress,
+				TotalSupply:            rows[0].TotalSupply,
+				BondingCurveMigrated:   rows[0].BondingCurveMigrated,
+				PairId:                 rows[0].PairId,
+				BaseToken:              rows[0].BaseToken,
+				PriceUSD:               rows[0].PriceUSD,
+				CreatorVerified:        rows[0].CreatorVerified,
+
+				HolderBnbBscAddress: &blockchainAddress,
+			}
+		}
+
+		totalSupplyFloat, err := parseTotalSupply(holderData.TotalSupply, externalAddress)
+		if err != nil {
+			log.Warn(fmt.Sprintf("Failed to parse total supply for token %v: %v", externalAddress, err))
+			totalSupplyFloat = 0
+		}
+		amountTokens := z.Score
+		amountWei := tokensToWeiBigInt(amountTokens)
+		amountUSD := amountTokens * holderData.PriceUSD
+		supplyShare := calculateSupplyShare(amountTokens, totalSupplyFloat)
+
+		creatorAddresses, err := buildUserAddressesFromExternalAddressAndPlatform(strVal(holderData.CreatorExternalAddress), strVal(holderData.CreatorPlatform), strVal(holderData.CreatorBnbBscAddress))
+		if err != nil {
+			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", strVal(holderData.CreatorExternalAddress), strVal(holderData.CreatorPlatform), err)
+		}
+		holderAddresses, err := buildUserAddressesFromExternalAddressAndPlatform(userExternalAddress, strVal(holderData.HolderPlatform), strVal(holderData.HolderBnbBscAddress))
+		if err != nil {
+			return nil, fmt.Errorf("failed to build holder addresses from external_address %s (platform %s): %w", userExternalAddress, strVal(holderData.HolderPlatform), err)
+		}
+		userRank := rank + 1 - extraItemsEnriched
+		if userRank <= 0 {
+			userRank = 1
+		}
+		r := uint64(userRank)
+		if userExternalAddress == bondingCurveContractAddress || userExternalAddress == burnAddress {
+			r = 0
+		}
+		holder := &TopHolderPosition{
+			Creator: User{
+				Username:  holderData.CreatorUsername,
+				Display:   holderData.CreatorDisplay,
+				Verified:  holderData.CreatorVerified,
+				Avatar:    holderData.CreatorAvatar,
+				Addresses: creatorAddresses,
+			},
+			Position: HolderPosition{
+				Holder: User{
+					MasterPubkey: holderData.HolderMasterPubkey,
+					Username:     holderData.HolderUsername,
+					Display:      holderData.HolderDisplay,
+					Verified:     holderData.HolderVerified,
+					Avatar:       holderData.HolderAvatar,
+					Addresses:    holderAddresses,
+				},
+				Rank:        r,
+				Amount:      amountWei.String(),
+				AmountUSD:   amountUSD,
+				SupplyShare: supplyShare,
+			},
+		}
+
+		holders = append(holders, holder)
+	}
+	for rank, z := range rankingsByBlockchainAddress {
+		userBlockChainAddress := z.Member.(string)
+		if _, ok := byBlockchainAddress[z.Member.(string)]; !ok {
+			continue
+		}
+		holderData, exists := holderDataMap[userBlockChainAddress]
+		if !exists {
 			continue
 		}
 
@@ -249,18 +367,15 @@ func buildTopHolderPositions(externalAddress string, rankings []redis.Z, rows []
 		if err != nil {
 			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", strVal(holderData.CreatorExternalAddress), strVal(holderData.CreatorPlatform), err)
 		}
-		holderAddresses, err := buildUserAddressesFromExternalAddressAndPlatform(userExternalAddress, strVal(holderData.HolderPlatform), "")
+		holderAddresses, err := buildUserAddressesFromExternalAddressAndPlatform("", strVal(holderData.HolderPlatform), strVal(holderData.HolderBnbBscAddress))
 		if err != nil {
-			return nil, fmt.Errorf("failed to build holder addresses from external_address %s (platform %s): %w", userExternalAddress, strVal(holderData.HolderPlatform), err)
+			return nil, fmt.Errorf("failed to build holder addresses from blockchain address %s (platform %s): %w", userBlockChainAddress, strVal(holderData.HolderPlatform), err)
 		}
 		userRank := rank + 1 - extraItemsEnriched
 		if userRank <= 0 {
 			userRank = 1
 		}
 		r := uint64(userRank)
-		if userExternalAddress == bondingCurveContractAddress || userExternalAddress == burnAddress {
-			r = 0
-		}
 		holder := &TopHolderPosition{
 			Creator: User{
 				Username:  holderData.CreatorUsername,

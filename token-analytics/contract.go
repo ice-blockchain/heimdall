@@ -416,6 +416,7 @@ type (
 		HolderDisplay          *string `db:"holder_display"`
 		HolderAvatar           *string `db:"holder_avatar"`
 		HolderExternalAddress  *string `db:"holder_external_address"`
+		HolderBnbBscAddress    *string `db:"holder_bnb_bsc_address"`
 		HolderPlatform         *string `db:"holder_platform"`
 		PriceUSD               float64 `db:"price_usd"`
 		CreatorVerified        *bool   `db:"creator_verified"`

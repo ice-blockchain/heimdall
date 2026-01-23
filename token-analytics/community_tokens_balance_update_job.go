@@ -86,20 +86,42 @@ func (w *balanceUpdateWorker) Work(ctx context.Context, job *riverqueue.Job[Bala
 	}
 
 	userPositionKey := keyUserPositionOfToken(args.TokenExternalAddress)
+	userPositionKeyByBlockchainAddress := keyUserPositionOfTokenByUserBlockchainAddress(args.TokenExternalAddress)
 	balanceFloat := weiToFloat64FromBigInt(balance)
-
-	if balanceFloat <= 0 {
-		if err := w.processedDataDB.ZRem(ctx, userPositionKey, args.UserExternalAddress).Err(); err != nil {
-			return errors.Wrapf(err, "failed to remove user position from Redis for user %s token %s",
-				args.UserExternalAddress, args.TokenExternalAddress)
+	if responses, txErr := w.processedDataDB.TxPipelined(ctx, func(pipeliner redis.Pipeliner) error {
+		if balanceFloat <= 0 {
+			if perr := pipeliner.ZRem(ctx, userPositionKey, args.UserExternalAddress).Err(); perr != nil {
+				return errors.Wrapf(perr, "failed to remove user position from Redis for user %s token %s",
+					args.UserExternalAddress, args.TokenExternalAddress)
+			}
+			if perr := pipeliner.ZRem(ctx, userPositionKeyByBlockchainAddress, args.UserBlockchainAddress).Err(); perr != nil {
+				return errors.Wrapf(perr, "failed to remove user position from Redis for user %s token %s",
+					args.UserBlockchainAddress, args.TokenExternalAddress)
+			}
+		} else {
+			if perr := pipeliner.ZAdd(ctx, userPositionKey, redis.Z{
+				Score:  balanceFloat,
+				Member: args.UserExternalAddress,
+			}).Err(); perr != nil {
+				return errors.Wrapf(perr, "failed to add user position to Redis for user %s token %s",
+					args.UserExternalAddress, args.TokenExternalAddress)
+			}
+			if perr := pipeliner.ZAdd(ctx, userPositionKeyByBlockchainAddress, redis.Z{
+				Score:  balanceFloat,
+				Member: args.UserBlockchainAddress,
+			}).Err(); perr != nil {
+				return errors.Wrapf(perr, "failed to add user position to Redis for user %s token %s",
+					args.UserBlockchainAddress, args.TokenExternalAddress)
+			}
 		}
+		return nil
+	}); txErr != nil {
+		return errors.Wrapf(txErr, "failed to update user positions for user %v(%v): %w", args.UserExternalAddress, args.UserBlockchainAddress)
 	} else {
-		if err := w.processedDataDB.ZAdd(ctx, userPositionKey, redis.Z{
-			Score:  balanceFloat,
-			Member: args.UserExternalAddress,
-		}).Err(); err != nil {
-			return errors.Wrapf(err, "failed to add user position to Redis for user %s token %s",
-				args.UserExternalAddress, args.TokenExternalAddress)
+		for _, response := range responses {
+			if rerr := response.Err(); rerr != nil {
+				return errors.Wrapf(rerr, "failed to `%v` while updating user positions for user %v(%v): %w", response.FullName(), args.UserExternalAddress, args.UserBlockchainAddress, rerr)
+			}
 		}
 	}
 
