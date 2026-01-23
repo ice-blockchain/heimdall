@@ -450,6 +450,9 @@ func (t *tokenAnalytics) calculatePriceInUSD(ctx context.Context, priceInBaseTok
 func keyUserPositionOfToken(ionConnectAddress string) string {
 	return fmt.Sprintf("position:%s", ionConnectAddress)
 }
+func keyUserPositionOfTokenByUserBlockchainAddress(tokenExternalAddress string) string {
+	return fmt.Sprintf("position_by_user_blockchain_address:%s", tokenExternalAddress)
+}
 
 func getTopSetKeyByType(tokenType string) string {
 	switch tokenType {

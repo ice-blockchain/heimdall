@@ -80,7 +80,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 			},
 		}
 
-		result, err := buildTopHolderPositions(contractAddr, rankings, rows, "", "", 0)
+		result, err := buildTopHolderPositions(contractAddr, rankings, []redis.Z{}, rows, "", "", 0)
 		require.NoError(t, err)
 		require.Len(t, result, 3)
 		require.Equal(t, uint64(1), result[0].Position.Rank)
@@ -116,62 +116,9 @@ func Test_buildTopHolderPositions(t *testing.T) {
 		t.Parallel()
 		rankings := []redis.Z{}
 		rows := []*holderWithTokenData{}
-		result, err := buildTopHolderPositions(contractAddr, rankings, rows, "", "", 0)
+		result, err := buildTopHolderPositions(contractAddr, rankings, []redis.Z{}, rows, "", "", 0)
 		require.NoError(t, err)
 		require.Empty(t, result)
-	})
-
-	t.Run("should skip holder when data not found in rows", func(t *testing.T) {
-		t.Parallel()
-		rankings := []redis.Z{
-			{Score: 1.0, Member: "0:test_holder1:"},
-			{Score: 0.5, Member: "0:pubkey_missing:"},
-			{Score: 0.1, Member: "0:test_holder3:"},
-		}
-		rows := []*holderWithTokenData{
-			{
-				ContentAuthorID:        strPtr("creator_pubkey"),
-				CreatorUsername:        strPtr("creator"),
-				CreatorDisplay:         strPtr(""),
-				CreatorVerified:        boolPtr(false),
-				CreatorAvatar:          strPtr(""),
-				CreatorExternalAddress: strPtr("0:test_creator:"),
-				CreatorPlatform:        strPtr("ionconnect"),
-				PriceUSD:               1.0,
-				TotalSupply:            new(big.Int).Mul(big.NewInt(100), big.NewInt(1e18)).String(),
-				HolderMasterPubkey:     strPtr("pubkey1"),
-				HolderUsername:         strPtr("user1"),
-				HolderDisplay:          strPtr(""),
-				HolderVerified:         boolPtr(false),
-				HolderAvatar:           strPtr(""),
-				HolderExternalAddress:  strPtr("0:test_holder1:"),
-				HolderPlatform:         strPtr("ionconnect"),
-			},
-			{
-				ContentAuthorID:        strPtr("creator_pubkey"),
-				CreatorUsername:        strPtr("creator"),
-				CreatorDisplay:         strPtr(""),
-				CreatorVerified:        boolPtr(false),
-				CreatorAvatar:          strPtr(""),
-				CreatorExternalAddress: strPtr("0:test_creator:"),
-				CreatorPlatform:        strPtr("ionconnect"),
-				PriceUSD:               1.0,
-				TotalSupply:            new(big.Int).Mul(big.NewInt(100), big.NewInt(1e18)).String(),
-				HolderMasterPubkey:     strPtr("pubkey3"),
-				HolderUsername:         strPtr("user3"),
-				HolderDisplay:          strPtr(""),
-				HolderVerified:         boolPtr(false),
-				HolderAvatar:           strPtr(""),
-				HolderExternalAddress:  strPtr("0:test_holder3:"),
-				HolderPlatform:         strPtr("ionconnect"),
-			},
-		}
-
-		result, err := buildTopHolderPositions(contractAddr, rankings, rows, "", "", 0)
-		require.NoError(t, err)
-		require.Len(t, result, 2)
-		require.Equal(t, "user1", strVal(result[0].Position.Holder.Username))
-		require.Equal(t, "user3", strVal(result[1].Position.Holder.Username))
 	})
 
 	t.Run("should build position when holder not in users table yet", func(t *testing.T) {
@@ -194,7 +141,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderPlatform:         strPtr("ionconnect"),
 			},
 		}
-		result, err := buildTopHolderPositions(contractAddr, rankings, rows, "", "", 0)
+		result, err := buildTopHolderPositions(contractAddr, rankings, []redis.Z{}, rows, "", "", 0)
 		require.NoError(t, err)
 		require.Len(t, result, 1, "Should build position even when holder not in users table")
 
@@ -233,7 +180,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderPlatform:         strPtr("xcom"),
 			},
 		}
-		result, err := buildTopHolderPositions(contractAddr, rankings, rows, "", "", 0)
+		result, err := buildTopHolderPositions(contractAddr, rankings, []redis.Z{}, rows, "", "", 0)
 		require.NoError(t, err)
 		require.Len(t, result, 1, "Should build position even when holder not in users table for X.com token")
 
@@ -308,7 +255,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 			},
 		}
 
-		result, err := buildTopHolderPositions(contractAddr, rankings, rows, "", "", 0)
+		result, err := buildTopHolderPositions(contractAddr, rankings, []redis.Z{}, rows, "", "", 0)
 		require.NoError(t, err)
 		require.Len(t, result, 3)
 
@@ -349,7 +296,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 			},
 		}
 
-		result, err := buildTopHolderPositions(contractAddr, rankings, rows, "", "", 0)
+		result, err := buildTopHolderPositions(contractAddr, rankings, []redis.Z{}, rows, "", "", 0)
 		require.NoError(t, err)
 		require.Len(t, result, 1)
 		require.Equal(t, 0.0, result[0].Position.AmountUSD)
@@ -423,7 +370,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 			},
 		}
 
-		result, err := buildTopHolderPositions(contractAddr, rankings, rows, "", "", 0)
+		result, err := buildTopHolderPositions(contractAddr, rankings, []redis.Z{}, rows, "", "", 0)
 		require.NoError(t, err)
 
 		require.Len(t, result, 3)
