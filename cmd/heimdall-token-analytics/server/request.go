@@ -215,7 +215,6 @@ func WebsocketHandler[REQ, RESP any](fn WebsocketHandlerFunc[REQ, RESP]) gin.Han
 
 		pinger := time.NewTicker(defaultPingInterval)
 		defer pinger.Stop()
-		var lastEvent time.Time
 
 		source, err := emitter(ctx, req.WS)
 		for ctx.Err() == nil {
@@ -227,10 +226,8 @@ func WebsocketHandler[REQ, RESP any](fn WebsocketHandlerFunc[REQ, RESP]) gin.Han
 				return
 
 			case <-pinger.C:
-				if lastEvent.IsZero() || time.Since(lastEvent) >= defaultPingInterval {
-					if err := req.WS.Ping(); err != nil {
-						slog.DebugContext(ctx, "websocket ping error", "error", err)
-					}
+				if err := req.WS.Ping(); err != nil {
+					slog.DebugContext(ctx, "websocket ping error", "error", err)
 				}
 
 			case event, ok := <-source:
@@ -255,7 +252,7 @@ func WebsocketHandler[REQ, RESP any](fn WebsocketHandlerFunc[REQ, RESP]) gin.Han
 					ctx.Error(fmt.Errorf("websocket write message error: %w", writeErr))
 					return
 				}
-				lastEvent = time.Now()
+				pinger.Reset(defaultPingInterval)
 			}
 		}
 	}
