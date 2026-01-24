@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/gin-contrib/sse"
@@ -488,4 +489,49 @@ func TestRequestSameHandlerStreamWebsocket(t *testing.T) {
 
 	testServer.Close()
 	wg.Wait()
+}
+
+func TestRequestStreamPing(t *testing.T) {
+	t.Parallel()
+
+	type RequestTestStruct struct {
+		Dummy string `form:"dummy" required:"false"`
+	}
+
+	type EventPayload struct {
+		Value int `json:"value"`
+	}
+
+	synctest.Test(t, func(t *testing.T) {
+		const pingCount = 2
+		r := helperNewRouter(t)
+
+		r.GET("/stream-no-events", StreamMiddleware(), StreamHandler(func(ctx context.Context, r *Request[RequestTestStruct]) (StreamEventEmitter[EventPayload], error) {
+			require.NotNil(t, r.Data)
+
+			return func(ctx context.Context) (<-chan StreamEvent[EventPayload], error) {
+				events := make(chan StreamEvent[EventPayload])
+				return events, nil
+			}, nil
+		}))
+
+		rr := newTestResponseRecorder()
+		ctx, cancel := context.WithTimeout(t.Context(), (defaultPingInterval*pingCount)+10*time.Second)
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "/stream-no-events", http.NoBody)
+		require.NoError(t, err)
+
+		r.ServeHTTP(rr, req)
+		cancel()
+		require.Equal(t, http.StatusOK, rr.Code)
+
+		events, err := sse.Decode(rr.Body)
+		require.NoError(t, err)
+		require.Len(t, events, pingCount)
+
+		for _, event := range events {
+			require.Equal(t, "ping", event.Event)
+			require.Equal(t, "ping", event.Data)
+		}
+	})
 }
