@@ -317,13 +317,13 @@ func StreamHandler[REQ, RESP any](fn StreamHandlerFunc[REQ, RESP]) gin.HandlerFu
 					return false
 				}
 
-				pingTimer.Reset(defaultPingInterval)
-
 				ctx.Render(-1, sse.Event{
 					Event: event.Type,
 					Id:    event.ID,
 					Data:  event.Data,
 				})
+
+				pingTimer.Reset(defaultPingInterval)
 			}
 			return true
 		})
