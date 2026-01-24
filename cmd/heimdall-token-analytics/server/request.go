@@ -74,6 +74,10 @@ const (
 	bindingFormMultipart
 )
 
+const (
+	defaultPingInterval = 30 * time.Second
+)
+
 var (
 	_               error = &ResponseError{}
 	errAuthRequired       = errors.New("authentication required")
@@ -173,7 +177,6 @@ func Stream2WebsocketHandler[REQ, RESP any](fn StreamHandlerFunc[REQ, RESP]) Web
 }
 
 func WebsocketHandler[REQ, RESP any](fn WebsocketHandlerFunc[REQ, RESP]) gin.HandlerFunc {
-	const pingInterval = 30 * time.Second
 	return func(ctx *gin.Context) {
 		var req Request[REQ]
 
@@ -210,7 +213,7 @@ func WebsocketHandler[REQ, RESP any](fn WebsocketHandlerFunc[REQ, RESP]) gin.Han
 		// We use only async reader, without writer here, as we control writing below.
 		go req.WS.Reader(ctx)
 
-		pinger := time.NewTicker(pingInterval)
+		pinger := time.NewTicker(defaultPingInterval)
 		defer pinger.Stop()
 		var lastEvent time.Time
 
@@ -224,7 +227,7 @@ func WebsocketHandler[REQ, RESP any](fn WebsocketHandlerFunc[REQ, RESP]) gin.Han
 				return
 
 			case <-pinger.C:
-				if lastEvent.IsZero() || time.Since(lastEvent) >= pingInterval {
+				if lastEvent.IsZero() || time.Since(lastEvent) >= defaultPingInterval {
 					if err := req.WS.Ping(); err != nil {
 						slog.DebugContext(ctx, "websocket ping error", "error", err)
 					}
@@ -288,6 +291,9 @@ func StreamHandler[REQ, RESP any](fn StreamHandlerFunc[REQ, RESP]) gin.HandlerFu
 			return
 		}
 
+		pingTimer := time.NewTicker(defaultPingInterval)
+		defer pingTimer.Stop()
+
 		ctx.Stream(func(io.Writer) (keepOpen bool) {
 			select {
 			case <-ctx.Request.Context().Done():
@@ -295,6 +301,10 @@ func StreamHandler[REQ, RESP any](fn StreamHandlerFunc[REQ, RESP]) gin.HandlerFu
 
 			case <-ctx.Done():
 				return false
+
+			case <-pingTimer.C:
+				ctx.SSEvent("ping", "ping")
+				return true
 
 			case event, ok := <-source:
 				if !ok {
@@ -306,6 +316,8 @@ func StreamHandler[REQ, RESP any](fn StreamHandlerFunc[REQ, RESP]) gin.HandlerFu
 					ctx.SSEvent(cmp.Or(event.Type, "error"), event.Err.Error())
 					return false
 				}
+
+				pingTimer.Reset(defaultPingInterval)
 
 				ctx.Render(-1, sse.Event{
 					Event: event.Type,
