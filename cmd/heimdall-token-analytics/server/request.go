@@ -75,7 +75,7 @@ const (
 )
 
 const (
-	defaultPingInterval = 30 * time.Second
+	defaultPingInterval = 25 * time.Second
 )
 
 var (
