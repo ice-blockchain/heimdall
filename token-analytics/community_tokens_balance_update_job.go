@@ -24,6 +24,8 @@ type BalanceUpdateJobArgs struct {
 	ContractAddress       string `json:"contract_address"`
 	TokenExternalAddress  string `json:"token_external_address"`
 	TransactionHash       string `json:"transaction_hash"`
+	PairID                string `json:"pair_id"`
+	BaseToken             string `json:"base_token"`
 
 	DummyBalance *string `json:"dummy_balance,omitempty"`
 }
@@ -127,6 +129,85 @@ func (w *balanceUpdateWorker) Work(ctx context.Context, job *riverqueue.Job[Bala
 
 	log.Debug(fmt.Sprintf("Balance updated: user=%s, token=%s, balance=%s",
 		args.UserBlockchainAddress, args.TokenExternalAddress, balance.String()))
+
+	if err := w.updateBondingCurveProgress(ctx, args.TokenExternalAddress, args.PairID, args.BaseToken, args.DummyBalance != nil); err != nil {
+		return errors.Wrapf(err, "failed to update bonding curve for token %s", args.TokenExternalAddress)
+	}
+
+	return nil
+}
+
+func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, externalAddress, pairID, baseToken string, isDummy bool) error {
+	var progress *bondingcurve.BondingCurveProgress
+	var err error
+
+	if isDummy {
+		soldTokens := new(big.Int).SetUint64(uint64(50 + randInt(150))) // 50-200 tokens
+		soldTokens.Mul(soldTokens, big.NewInt(1e18))
+		tokensRaised := new(big.Int).SetUint64(uint64(5 + randInt(15))) // 5-20 base tokens
+		tokensRaised.Mul(tokensRaised, big.NewInt(1e18))
+		bondingTokensGoal := new(big.Int).SetUint64(uint64(200 + randInt(300))) // 200-500 tokens
+		bondingTokensGoal.Mul(bondingTokensGoal, big.NewInt(1e18))
+
+		progress = &bondingcurve.BondingCurveProgress{
+			BondingCurveBondingInfo: &bondingcurve.BondingCurveBondingInfo{
+				SoldTokens:        soldTokens,
+				TokensRaised:      tokensRaised,
+				BondingTokensGoal: bondingTokensGoal,
+				Migrated:          false,
+			},
+			Liquidity: big.NewInt(0),
+		}
+	} else {
+		progress, err = w.bondingCurve.Progress(ctx, common.HexToHash(pairID))
+		if err != nil {
+			return fmt.Errorf("failed to get curve progress for token %v (pair %v): %w", externalAddress, pairID, err)
+		}
+	}
+	type baseTokenPrice struct {
+		PriceUSD float64 `db:"price_usd"`
+	}
+	basePriceData, err := storage.Get[baseTokenPrice](ctx, w.ingestedDataDB,
+		`SELECT price_usd FROM base_token_prices WHERE LOWER(token_address) = LOWER($1)`, baseToken)
+	if err != nil {
+		return fmt.Errorf("failed to get base token price for %v: %w", baseToken, err)
+	}
+	if basePriceData == nil {
+		return fmt.Errorf("base token price not found for %v", baseToken)
+	}
+
+	basePriceUSD := basePriceData.PriceUSD
+	currentRaisedUSD := weiToFloat64FromBigInt(progress.SoldTokens) * basePriceUSD
+	goalUSD := weiToFloat64FromBigInt(progress.BondingTokensGoal) * basePriceUSD
+	liquidityUSD := weiToFloat64FromBigInt(progress.Liquidity) * basePriceUSD
+
+	_, err = storage.Exec(ctx, w.ingestedDataDB, `
+		UPDATE tokens AS t
+		SET
+		    bonding_curve_current_amount = $2,
+		    bonding_curve_raised_amount = $3,
+		    bonding_curve_goal_amount = $4,
+		    bonding_curve_current_amount_usd = $5,
+		    bonding_curve_goal_amount_usd = $6,
+		    bonding_curve_migrated = $7,
+		    liquidity_usd = $8,
+			updated_at = NOW()
+		WHERE t.external_address = $1`,
+		externalAddress,
+		progress.SoldTokens.String(),
+		progress.TokensRaised.String(),
+		progress.BondingTokensGoal.String(),
+		currentRaisedUSD,
+		goalUSD,
+		progress.Migrated,
+		liquidityUSD)
+
+	if err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
+		return fmt.Errorf("failed to update bonding curve for token %v: %w", externalAddress, err)
+	}
+
+	log.Debug(fmt.Sprintf("Updated bonding curve for token %s: progress=%.1f%%, liquidity=$%.2f, current=%s, goal=%s",
+		externalAddress, (currentRaisedUSD/goalUSD)*100, liquidityUSD, progress.SoldTokens.String(), progress.BondingTokensGoal.String()))
 
 	return nil
 }

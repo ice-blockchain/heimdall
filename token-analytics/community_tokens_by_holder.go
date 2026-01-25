@@ -101,9 +101,6 @@ func (t *tokenAnalytics) GetCommunityTokensByHolder(ctx context.Context, holderE
 			totalCount = countResult.Count
 		}
 	}
-	if err := t.updateBondingProgressForRows(ctx, rows); err != nil {
-		return nil, 0, errors.Wrap(err, "failed to update bonding progress for rows")
-	}
 	tokens, err := t.buildCommunityTokensFromRows(ctx, rows, holderExternalAddress)
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed to build community tokens from rows")

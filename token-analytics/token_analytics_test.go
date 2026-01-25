@@ -78,7 +78,22 @@ func (m *mockBondingCurveForBalanceUpdater) Pricing(ctx context.Context, baseTok
 }
 
 func (m *mockBondingCurveForBalanceUpdater) Progress(ctx context.Context, pairId common.Hash) (*bondingcurve.BondingCurveProgress, error) {
-	return &bondingcurve.BondingCurveProgress{}, nil
+	soldTokens := new(big.Int)
+	soldTokens.SetString("100000000000000000000", 10) // 100 tokens
+	tokensRaised := new(big.Int)
+	tokensRaised.SetString("10000000000000000000", 10) // 10 base tokens
+	bondingTokensGoal := new(big.Int)
+	bondingTokensGoal.SetString("200000000000000000000", 10) // 200 tokens
+
+	return &bondingcurve.BondingCurveProgress{
+		BondingCurveBondingInfo: &bondingcurve.BondingCurveBondingInfo{
+			SoldTokens:        soldTokens,
+			TokensRaised:      tokensRaised,
+			BondingTokensGoal: bondingTokensGoal,
+			Migrated:          false,
+		},
+		Liquidity: big.NewInt(0),
+	}, nil
 }
 
 func (m *mockBondingCurveForBalanceUpdater) GetTokenBalance(ctx context.Context, tokenAddress common.Address, walletAddress common.Address) (*big.Int, error) {

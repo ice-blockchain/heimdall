@@ -95,9 +95,6 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch community tokens")
 	}
-	if err := t.updateBondingProgressForRows(ctx, rows); err != nil {
-		return nil, errors.Wrap(err, "failed to update bonding progress for rows")
-	}
 	requestorExternalAddress := BuildProfileExternalAddress(requestorMasterPubkey)
 
 	return t.buildCommunityTokensFromRows(ctx, rows, requestorExternalAddress)
@@ -673,22 +670,4 @@ func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, userEx
 		PnL:           pnl,
 		PnLPercentage: pnlPercentage,
 	}, nil
-}
-
-func (t *tokenAnalytics) updateBondingProgressForRows(ctx context.Context, rows []*tokenRow) error {
-	for _, row := range rows {
-		if (row.BondingCurveGoalAmount == "" || row.BondingCurveGoalAmount == "0") && row.PairId != "" && row.BaseToken != "" {
-			progress, err := t.updateBondingProgress(ctx, row.ExternalAddress, row.PairId, row.BaseToken)
-			if err != nil {
-				return errors.Wrapf(err, "failed to update bonding progress for token %v", row.ExternalAddress)
-			}
-			row.BondingCurveCurrentAmount = progress.CurrentAmount
-			row.BondingCurveGoalAmount = progress.GoalAmount
-			row.BondingCurveCurrentAmountUSD = progress.CurrentAmountUSD
-			row.BondingCurveGoalAmountUSD = progress.GoalAmountUSD
-			row.BondingCurveRaisedAmount = progress.RaisedAmount
-			row.BondingCurveMigrated = progress.Migrated
-		}
-	}
-	return nil
 }

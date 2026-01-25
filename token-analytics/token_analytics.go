@@ -179,6 +179,7 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 
 	go t.startIONPriceSyncer(ctx)
 	go t.startBNBPriceLoader(ctx)
+	go t.startPriceNotifier(ctx)
 
 	if err := riverClient.Start(ctx); err != nil {
 		log.Panic(errors.Wrap(err, "failed to start river queue"))

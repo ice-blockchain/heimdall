@@ -45,6 +45,8 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		PlatformGroupIonConnect,
 	)
 
+	helperInsertBaseTokenPrice(t, ctx, db, "0x2c73996babf1a06c2c057177353293f7ca0907c8", "ION", 0.01)
+
 	t.Run("calculates_market_cap_correctly_for_buy", func(t *testing.T) {
 		_ = testRedis.Del(ctx, keyUserPositionOfToken(tokenExternalAddress))
 		_ = testRedis.Del(ctx, globalTopSetKey)
@@ -71,6 +73,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			inputAmount, outputAmount, priceUSD,
 			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
 			nil, nil,
+			"0x0000000000000000000000000000000000000000000000000000000000000001", "0x2c73996babf1a06c2c057177353293f7ca0907c8",
 		)
 		require.NoError(t, err)
 
@@ -117,6 +120,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			inputAmount, outputAmount, priceUSD,
 			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
 			nil, nil,
+			"0x0000000000000000000000000000000000000000000000000000000000000001", "0x2c73996babf1a06c2c057177353293f7ca0907c8",
 		)
 		require.NoError(t, err)
 
@@ -138,6 +142,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			inputAmount, outputAmount, priceUSD2,
 			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
 			nil, nil,
+			"0x0000000000000000000000000000000000000000000000000000000000000001", "0x2c73996babf1a06c2c057177353293f7ca0907c8",
 		)
 		require.NoError(t, err)
 
@@ -170,6 +175,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			buyInput, buyOutput, priceUSD,
 			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
 			nil, nil,
+			"0x0000000000000000000000000000000000000000000000000000000000000001", "0x2c73996babf1a06c2c057177353293f7ca0907c8",
 		)
 		require.NoError(t, err)
 
@@ -200,6 +206,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			sellInput, sellOutput, newPriceUSD,
 			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
 			nil, nil,
+			"0x0000000000000000000000000000000000000000000000000000000000000001", "0x2c73996babf1a06c2c057177353293f7ca0907c8",
 		)
 		require.NoError(t, err)
 
@@ -230,6 +237,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			buyInput, buyOutput, 0.10,
 			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
 			nil, nil,
+			"0x0000000000000000000000000000000000000000000000000000000000000001", "0x2c73996babf1a06c2c057177353293f7ca0907c8",
 		)
 		require.NoError(t, err)
 
@@ -248,6 +256,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			sellInput, sellOutput, 0.10,
 			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
 			nil, nil,
+			"0x0000000000000000000000000000000000000000000000000000000000000001", "0x2c73996babf1a06c2c057177353293f7ca0907c8",
 		)
 		require.NoError(t, err)
 
