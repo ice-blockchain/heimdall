@@ -61,7 +61,11 @@ func (t *tokenAnalytics) listenPriceUpdates(ctx context.Context) error {
 
 		case notification, ok := <-ch:
 			if !ok {
-				return errors.New("listener pg channel closed")
+				if err := listener.Err(); err != nil {
+					return errors.Wrapf(err, "listener pg channel closed due to error")
+				}
+
+				return errors.New("listener pg channel closed normally")
 			}
 			if notification.PID == myPID {
 				log.Debug(fmt.Sprintf("Ignoring self-notification from backend PID %d for token update", myPID))

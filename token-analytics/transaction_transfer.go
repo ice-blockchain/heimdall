@@ -82,8 +82,8 @@ func (t *tokenAnalytics) getTokenInfo(ctx context.Context, contractAddress strin
 	query := `
 		SELECT
 			external_address,
-			pair_id,
-			base_token
+			COALESCE(pair_id, '') AS pair_id,
+			COALESCE(base_token, '') AS base_token
 		FROM tokens 
 		WHERE LOWER(contract_address) = LOWER($1)
 		LIMIT 1
