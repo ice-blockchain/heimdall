@@ -133,20 +133,30 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	return nil
 }
 
-func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount *big.Int) (amountOut, amountBNB *big.Int, amountUsd float64, ionPriceInUSD float64, bnbPriceInUSD float64, err error) {
+func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount *big.Int) (pricing *Pricing, err error) {
 	type tokenInfo struct {
 		BaseToken       string `db:"base_token"`
 		ContractAddress string `db:"contract_address"`
+		PriceModel      string `db:"price_model"`
+		TotalSupply     string `db:"total_supply"`
+		Type            string `db:"type"`
+		StartPrice      string `db:"start_price"`
+		EndPrice        string `db:"end_price"`
 	}
 	ionPrice := t.ionPriceUSD.Load()
-	ionPriceInUSD = *ionPrice
+	ionPriceInUSD := *ionPrice
 	bnbPrice := t.bnbPriceUSD.Load()
-	bnbPriceInUSD = *bnbPrice
+	bnbPriceInUSD := *bnbPrice
 	contractOrFatAddress := []byte{}
 	result, err := storage.Get[tokenInfo](ctx, t.ingestedDataDB, `
 		SELECT 
 		    t.base_token,
-		    t.contract_address
+		    t."type",
+		    t.contract_address,
+			t.price_model,
+			t.total_supply,
+			t.start_price,
+			t.end_price
 		FROM tokens t WHERE t.external_address = $1`, externalAddress)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
@@ -154,17 +164,17 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 			if strings.HasPrefix(externalAddress, fatAddressV2Prefix) {
 				decodedBytes, hexErr := hex.DecodeString(strings.TrimPrefix(externalAddress, "0x"))
 				if hexErr != nil {
-					return nil, nil, 0, 0, 0, fmt.Errorf("invalid Fat Address V2 format: %w", hexErr)
+					return nil, fmt.Errorf("invalid Fat Address V2 format: %w", hexErr)
 				}
 
 				// If this is a Double Fat Address (recordsCount == 2)
 				if len(decodedBytes) >= 2 && decodedBytes[1] == 2 {
-					allTokens, _, _, extractErr := extractAllTokensFromFatAddress(decodedBytes)
+					allTokens, allTypes, _, _, extractErr := extractAllTokensFromFatAddress(decodedBytes)
 					if extractErr != nil {
-						return nil, nil, 0, 0, 0, fmt.Errorf("failed to parse Double Fat Address V2: %w", extractErr)
+						return nil, fmt.Errorf("failed to parse Double Fat Address V2: %w", extractErr)
 					}
 					if len(allTokens) != 2 {
-						return nil, nil, 0, 0, 0, fmt.Errorf("expected 2 tokens in Double Fat Address V2, got %d", len(allTokens))
+						return nil, fmt.Errorf("expected 2 tokens in Double Fat Address V2, got %d", len(allTokens))
 					}
 
 					creatorExternalAddress := allTokens[0]
@@ -176,7 +186,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 						WHERE external_address = $1`, creatorExternalAddress)
 
 					if creatorErr != nil && !storage.IsErr(creatorErr, storage.ErrNotFound) {
-						return nil, nil, 0, 0, 0, fmt.Errorf("failed to query creator token %s: %w", creatorExternalAddress, creatorErr)
+						return nil, fmt.Errorf("failed to query creator token %s: %w", creatorExternalAddress, creatorErr)
 					}
 
 					if creatorErr == nil && creatorToken.ContractAddress != "" {
@@ -184,23 +194,31 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 					} else {
 						baseToken, err = t.determineBaseTokenFromExternalAddress(ctx, creatorExternalAddress)
 						if err != nil {
-							return nil, nil, 0, 0, 0, fmt.Errorf("failed to determine base token for creator %s: %w", creatorExternalAddress, err)
+							return nil, fmt.Errorf("failed to determine base token for creator %s: %w", creatorExternalAddress, err)
 						}
 					}
-
+					tokenStartParams, ok := t.cfg.BondingCurve.StartTokenParams[allTypes[1]]
+					if !ok {
+						return nil, fmt.Errorf("token type %s not found in bonding curve config", allTypes[1])
+					}
 					result = &tokenInfo{
 						BaseToken:       baseToken,
 						ContractAddress: "",
+						PriceModel:      tokenStartParams.BondingCurveAlgAddress,
+						TotalSupply:     tokenStartParams.EmissionVolume,
+						Type:            allTypes[1],
+						StartPrice:      tokenStartParams.InitialPrice,
+						EndPrice:        tokenStartParams.FinalPrice,
 					}
 					err = nil
 				} else {
 					// Single Fat Address
-					allTokens, _, _, extractErr := extractAllTokensFromFatAddress(decodedBytes)
+					allTokens, allTypes, _, _, extractErr := extractAllTokensFromFatAddress(decodedBytes)
 					if extractErr != nil {
-						return nil, nil, 0, 0, 0, fmt.Errorf("failed to parse Fat Address V2: %w", extractErr)
+						return nil, fmt.Errorf("failed to parse Fat Address V2: %w", extractErr)
 					}
 					if len(allTokens) == 0 {
-						return nil, nil, 0, 0, 0, fmt.Errorf("no tokens found in Fat Address V2")
+						return nil, fmt.Errorf("no tokens found in Fat Address V2")
 					}
 
 					actualTokenAddress := allTokens[0]
@@ -211,38 +229,50 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 					// - ONLINE+ content tokens (0:pubkey:contentId) → creator's profile token
 					baseToken, baseTokenErr := t.determineBaseTokenFromExternalAddress(ctx, actualTokenAddress)
 					if baseTokenErr != nil {
-						return nil, nil, 0, 0, 0, fmt.Errorf("failed to determine base token for %s (from Fat Address %s): %w", actualTokenAddress, externalAddress, baseTokenErr)
+						return nil, fmt.Errorf("failed to determine base token for %s (from Fat Address %s): %w", actualTokenAddress, externalAddress, baseTokenErr)
 					}
-
+					tokenStartParams, ok := t.cfg.BondingCurve.StartTokenParams[allTypes[0]]
+					if !ok {
+						return nil, fmt.Errorf("token type %s not found in bonding curve config", allTypes[0])
+					}
 					result = &tokenInfo{
 						BaseToken:       baseToken,
 						ContractAddress: "",
+						PriceModel:      tokenStartParams.BondingCurveAlgAddress,
+						TotalSupply:     tokenStartParams.EmissionVolume,
+						Type:            allTypes[0],
+						StartPrice:      tokenStartParams.InitialPrice,
+						EndPrice:        tokenStartParams.FinalPrice,
 					}
 					err = nil
 				}
 			} else {
+				// xcom ext calls it with a invalid payload to get ion / bnb prices
 				_, hexErr := hex.DecodeString(strings.TrimPrefix(externalAddress, "0x"))
 				if hexErr != nil {
-					return nil, nil, 0, *ionPrice, bnbPriceInUSD, nil
+					return &Pricing{
+						IonPriceInUSD: *ionPrice,
+						BNBPriceInUSD: bnbPriceInUSD,
+					}, nil
 				}
 			}
 		}
 		if err != nil {
-			return nil, nil, 0, 0, 0, fmt.Errorf("failed to find token by external address %v: %w", externalAddress, err)
+			return nil, fmt.Errorf("failed to find token by external address %v: %w", externalAddress, err)
 		}
 	}
 	if result.BaseToken == "" {
 		var baseTokenErr error
 		result.BaseToken, baseTokenErr = t.determineBaseTokenFromExternalAddress(ctx, externalAddress)
 		if baseTokenErr != nil {
-			return nil, nil, 0, 0, 0, fmt.Errorf("failed to determine base token for %s: %w", externalAddress, baseTokenErr)
+			return nil, fmt.Errorf("failed to determine base token for %s: %w", externalAddress, baseTokenErr)
 		}
 		log.Debug(fmt.Sprintf("Token %s found in DB but base_token is empty, determined: %s", externalAddress, result.BaseToken))
 	}
 
 	if len(contractOrFatAddress) == 0 {
 		if result.ContractAddress == "" {
-			return nil, nil, 0, 0, 0, fmt.Errorf("token not found in database and no contract address available for %s", externalAddress)
+			return nil, fmt.Errorf("token not found in database and no contract address available for %s", externalAddress)
 		}
 		contractOrFatAddress = common.HexToAddress(result.ContractAddress).Bytes()
 	}
@@ -250,12 +280,40 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 	if amount != nil {
 		amountToConvert = amount
 	}
+	startPrice, _ := new(big.Int).SetString(result.StartPrice, 10)
+	startPriceUSD, _, err := t.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(startPrice), result.BaseToken)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to handle base token for start price usd calculation %v", result.BaseToken)
+	}
+	endPrice, _ := new(big.Int).SetString(result.EndPrice, 10)
+	endPriceUSD, _, err := t.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(endPrice), result.BaseToken)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to handle base token for end price usd calculation %v", result.BaseToken)
+	}
+	tokenStartParams, ok := t.cfg.BondingCurve.StartTokenParams[result.Type]
+	if !ok {
+		return nil, fmt.Errorf("token type %s not found in bonding curve config", result.Type)
+	}
 	toBNBRatio := ionPriceInUSD / bnbPriceInUSD
 	if strings.Contains(strings.ToLower(common.HexToAddress(result.ContractAddress).String()), "dead") {
-		amountUsd = toUSD(amountToConvert, *ionPrice)
+		amountUsd := toUSD(amountToConvert, *ionPrice)
 		amountInBNB := new(big.Float).Mul(big.NewFloat(toBNBRatio), new(big.Float).SetInt(amountToConvert))
-		amountBNB, _ = amountInBNB.Int(nil)
-		return amountToConvert, amountBNB, amountUsd, *ionPrice, bnbPriceInUSD, nil
+		amountBNB, _ := amountInBNB.Int(nil)
+		return &Pricing{
+			AmountInBase:           amountToConvert,
+			AmountInBNB:            amountBNB,
+			BondingCurveAlgAddress: result.PriceModel,
+			FeeSponsorAddress:      tokenStartParams.FeeSponsorAddress,
+			FeeSponsorId:           tokenStartParams.FeeSponsorId,
+			AmountInUSD:            amountUsd,
+			IonPriceInUSD:          ionPriceInUSD,
+			BNBPriceInUSD:          bnbPriceInUSD,
+			InitialPrice:           result.StartPrice,
+			InitialPriceUSD:        startPriceUSD,
+			FinalPrice:             result.EndPrice,
+			FinalPriceUSD:          endPriceUSD,
+			EmissionVolume:         result.TotalSupply,
+		}, nil
 	}
 
 	var fromToken, toToken []byte
@@ -269,12 +327,12 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 
 	resAmount, err := t.bondingCurve.Pricing(ctx, common.BytesToAddress(fromToken), toToken, amountToConvert, tradeType == TradeTypeSell)
 	if err != nil {
-		return nil, nil, 0, 0, 0, fmt.Errorf("failed to get pricing for token %v (%v): %w", externalAddress, result.ContractAddress, err)
+		return nil, fmt.Errorf("failed to get pricing for token %v (%v): %w", externalAddress, result.ContractAddress, err)
 	}
 	var creatorPrice float64
-	amountUsd, creatorPrice, err = t.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(resAmount), result.BaseToken)
+	amountUsd, creatorPrice, err := t.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(resAmount), result.BaseToken)
 	if err != nil {
-		return nil, nil, 0, 0, 0, fmt.Errorf("failed to get usd price for token %v (%v base %v): %w", externalAddress, result.ContractAddress, result.BaseToken, err)
+		return nil, fmt.Errorf("failed to get usd price for token %v (%v base %v): %w", externalAddress, result.ContractAddress, result.BaseToken, err)
 	}
 
 	var amountForBNB *big.Int
@@ -286,9 +344,22 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 	}
 
 	amountInBNB := new(big.Float).Mul(big.NewFloat(toBNBRatio), new(big.Float).SetInt(amountForBNB))
-	amountBNB, _ = amountInBNB.Int(nil)
-
-	return resAmount, amountBNB, amountUsd, *ionPrice, bnbPriceInUSD, nil
+	amountBNB, _ := amountInBNB.Int(nil)
+	return &Pricing{
+		AmountInBase:           resAmount,
+		AmountInBNB:            amountBNB,
+		BondingCurveAlgAddress: result.PriceModel,
+		FeeSponsorAddress:      tokenStartParams.FeeSponsorAddress,
+		FeeSponsorId:           tokenStartParams.FeeSponsorId,
+		AmountInUSD:            amountUsd,
+		IonPriceInUSD:          *ionPrice,
+		BNBPriceInUSD:          bnbPriceInUSD,
+		InitialPrice:           result.StartPrice,
+		InitialPriceUSD:        startPriceUSD,
+		FinalPrice:             result.EndPrice,
+		FinalPriceUSD:          endPriceUSD,
+		EmissionVolume:         result.TotalSupply,
+	}, nil
 }
 
 func (t *tokenAnalytics) determineBaseTokenFromExternalAddress(ctx context.Context, externalAddress string) (string, error) {
@@ -474,6 +545,10 @@ func weiToFloat64FromBigInt(weiAmount *big.Int) float64 {
 	result, _ := amountBigFloat.Float64()
 
 	return result
+}
+func weiToFloat64FromBigString(weiAmount string) float64 {
+	b, _ := new(big.Int).SetString(weiAmount, 10)
+	return weiToFloat64FromBigInt(b)
 }
 
 func toUSD(amount *big.Int, basePrice float64) float64 {

@@ -82,9 +82,23 @@ type (
 		GenerateTokenSuggestion(ctx context.Context, data *CreationDetailsData) (*SuggestedCreationDetails, error)
 		GetBondingCurveProgress(ctx context.Context, externalAddress string) (*BondingCurveProgress, error)
 		SubscribeBondingCurveProgress(context.Context, string, func(*BondingCurveProgress, error)) error
-		GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount *big.Int) (amountInBase *big.Int, amountInBNB *big.Int, tokenPriceInUSD float64, ionPriceInUSD float64, bnbPriceInUSD float64, err error)
+		GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount *big.Int) (pricing *Pricing, err error)
 	}
-
+	Pricing struct {
+		AmountInBase           *big.Int
+		AmountInBNB            *big.Int
+		BondingCurveAlgAddress string // Pricing model
+		FeeSponsorAddress      string
+		FeeSponsorId           string
+		AmountInUSD            float64
+		IonPriceInUSD          float64
+		BNBPriceInUSD          float64
+		InitialPrice           string
+		InitialPriceUSD        float64
+		FinalPrice             string
+		FinalPriceUSD          float64
+		EmissionVolume         string
+	}
 	SavePoint struct {
 		TransactionIndex uint64 `db:"transaction_index"`
 		BlockNumber      uint64 `db:"block_number"`
@@ -136,7 +150,8 @@ var (
 		Interval("4h"):  WindowSize(48 * stdlibtime.Hour),
 		Interval("24h"): WindowSize(30 * 24 * stdlibtime.Hour),
 	}
-	_ UserRepository = dummyUserRepository{}
+	allTokenTypes                = []string{TokenTypeProfile, TokenTypePost, TokenTypeArticle, TokenTypeVideo}
+	_             UserRepository = dummyUserRepository{}
 )
 
 const (
@@ -207,10 +222,11 @@ type (
 		LLM             llm.Config `yaml:"llm" mapstructure:"llm"`
 		CDN             cdn.Config `yaml:"cdn" mapstructure:"cdn"`
 		BondingCurve    struct {
-			SmartContractAddress                string              `yaml:"smartContractAddress"`
-			BurnAddress                         string              `yaml:"burnAddress"`
-			TokenFactorySmartContractAddress    string              `yaml:"tokenFactorySmartContractAddress"`
-			BondingCurveProgressUpdateFrequency stdlibtime.Duration `yaml:"bondingCurveProgressUpdateFrequency"`
+			SmartContractAddress                string                      `yaml:"smartContractAddress"`
+			BurnAddress                         string                      `yaml:"burnAddress"`
+			TokenFactorySmartContractAddress    string                      `yaml:"tokenFactorySmartContractAddress"`
+			BondingCurveProgressUpdateFrequency stdlibtime.Duration         `yaml:"bondingCurveProgressUpdateFrequency"`
+			StartTokenParams                    map[string]startTokenParams `yaml:"startTokenParams" mapstructure:"startTokenParams"`
 		} `yaml:"bondingCurve" mapstructure:"bondingCurve"`
 		RiverQueue struct {
 			QueueName       string              `yaml:"queueName,omitempty"`
@@ -224,6 +240,15 @@ type (
 		IdentityServiceAPIKey string      `yaml:"identityServiceApiKey"`
 		EnableDummyGenerator  bool        `yaml:"enableDummyGenerator"`
 	}
+	startTokenParams struct {
+		InitialPrice           string `yaml:"initialPrice"`
+		FinalPrice             string `yaml:"finalPrice"`
+		EmissionVolume         string `yaml:"emissionVolume"`
+		BondingCurveAlgAddress string `yaml:"bondingCurveAlgAddress"`
+		FeeSponsorAddress      string `yaml:"feeSponsorAddress"`
+		FeeSponsorId           string `yaml:"feeSponsorId"`
+	}
+
 	dummyUserRepository struct{}
 	tokenAnalytics      struct {
 		processedDataDB       storagev3.DB
@@ -314,6 +339,7 @@ type (
 		CreatorBnbBscAddress         *string    `db:"creator_bnb_bsc_address"`
 		IonConnectAddress            *string    `db:"ion_connect_address"`
 		BaseToken                    string     `db:"base_token"`
+		PriceModel                   string     `db:"price_model"`
 		PairId                       string     `db:"pair_id"`
 		MarketCapUSD                 float64    `db:"market_cap_usd"`
 		PriceUSD                     float64    `db:"price_usd"`

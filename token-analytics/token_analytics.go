@@ -73,6 +73,14 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 	if cfg.BondingCurve.BurnAddress == "" {
 		cfg.BondingCurve.BurnAddress = "0x0000000000000000000000000000000000696f6e"
 	}
+	if len(cfg.BondingCurve.StartTokenParams) == 0 {
+		log.Panic(fmt.Errorf("no start token params"))
+	}
+	for _, typ := range allTokenTypes {
+		if _, ok := cfg.BondingCurve.StartTokenParams[typ]; !ok {
+			log.Panic(fmt.Errorf("no start token params for token type %v", typ))
+		}
+	}
 
 	db := storage.MustConnect(ctx, applicationYamlKey, storage.NewFilesystemDDL(&ddl.Files, schemeMigrationTableName))
 	targetDB := storagev3.MustConnect(ctx, applicationYamlKey)
