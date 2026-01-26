@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
 func TestPriceNotifier(t *testing.T) {
