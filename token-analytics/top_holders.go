@@ -246,9 +246,11 @@ func buildTopHolderPositions(externalAddress string, rankings, rankingsByBlockch
 		if rows[i].HolderExternalAddress != nil {
 			holderDataMap[*rows[i].HolderExternalAddress] = rows[i]
 			if rows[i].HolderBnbBscAddress != nil {
-				holderDataMap[*rows[i].HolderBnbBscAddress] = rows[i]
 				matching[*rows[i].HolderExternalAddress] = *rows[i].HolderBnbBscAddress
 			}
+		}
+		if rows[i].HolderBnbBscAddress != nil {
+			holderDataMap[*rows[i].HolderBnbBscAddress] = rows[i]
 		}
 	}
 	byBlockchainAddress := make(map[string]float64)
@@ -269,7 +271,7 @@ func buildTopHolderPositions(externalAddress string, rankings, rankingsByBlockch
 		}
 		holderData, exists := holderDataMap[userExternalAddress]
 		if !exists {
-			if len(rows) == 0 {
+			if len(rows) == 0 || blockchainAddress == "" {
 				continue
 			}
 			holderData = &holderWithTokenData{
