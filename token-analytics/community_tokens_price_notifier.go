@@ -38,7 +38,7 @@ func (t *tokenAnalytics) startPriceNotifier(ctx context.Context) {
 		}
 	}()
 
-	log.Info(fmt.Sprintf("Price notifier started, listening for %s notifications", tokenPriceUpdatesChannel))
+	log.Info(fmt.Sprintf("Price notifier starting, subscribing to %s notifications", tokenPriceUpdatesChannel))
 }
 
 func (t *tokenAnalytics) listenPriceUpdates(ctx context.Context) error {

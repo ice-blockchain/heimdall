@@ -130,8 +130,11 @@ func (w *balanceUpdateWorker) Work(ctx context.Context, job *riverqueue.Job[Bala
 	log.Debug(fmt.Sprintf("Balance updated: user=%s, token=%s, balance=%s",
 		args.UserBlockchainAddress, args.TokenExternalAddress, balance.String()))
 
-	if err := w.updateBondingCurveProgress(ctx, args.TokenExternalAddress, args.PairID, args.BaseToken, args.DummyBalance != nil); err != nil {
-		return errors.Wrapf(err, "failed to update bonding curve for token %s", args.TokenExternalAddress)
+	if args.PairID == "" || args.BaseToken == "" {
+		log.Debug(fmt.Sprintf("Skipping bonding curve update for token=%s: missing pairID (%q) or baseToken (%q)",
+			args.TokenExternalAddress, args.PairID, args.BaseToken))
+	} else if err := w.updateBondingCurveProgress(ctx, args.TokenExternalAddress, args.PairID, args.BaseToken, args.DummyBalance != nil); err != nil {
+		log.Error(errors.Wrapf(err, "failed to update bonding curve for token %s (balance update succeeded)", args.TokenExternalAddress))
 	}
 
 	return nil
@@ -177,7 +180,7 @@ func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, ex
 	}
 
 	basePriceUSD := basePriceData.PriceUSD
-	currentRaisedUSD := weiToFloat64FromBigInt(progress.SoldTokens) * basePriceUSD
+	currentRaisedUSD := weiToFloat64FromBigInt(progress.TokensRaised) * basePriceUSD
 	goalUSD := weiToFloat64FromBigInt(progress.BondingTokensGoal) * basePriceUSD
 	liquidityUSD := weiToFloat64FromBigInt(progress.Liquidity) * basePriceUSD
 
@@ -205,9 +208,13 @@ func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, ex
 	if err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
 		return fmt.Errorf("failed to update bonding curve for token %v: %w", externalAddress, err)
 	}
+	progressPercent := 0.0
+	if goalUSD > 0 {
+		progressPercent = (currentRaisedUSD / goalUSD) * 100
+	}
 
 	log.Debug(fmt.Sprintf("Updated bonding curve for token %s: progress=%.1f%%, liquidity=$%.2f, current=%s, goal=%s",
-		externalAddress, (currentRaisedUSD/goalUSD)*100, liquidityUSD, progress.SoldTokens.String(), progress.BondingTokensGoal.String()))
+		externalAddress, progressPercent, liquidityUSD, progress.SoldTokens.String(), progress.BondingTokensGoal.String()))
 
 	return nil
 }

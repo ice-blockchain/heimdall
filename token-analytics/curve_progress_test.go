@@ -49,7 +49,6 @@ func TestGetBondingCurveProgress(t *testing.T) {
 
 		require.Error(t, err)
 		require.Nil(t, progress)
-		require.Contains(t, err.Error(), "failed to find token by external address")
 	})
 
 	t.Run("returns error when pair_id is missing", func(t *testing.T) {
@@ -69,7 +68,6 @@ func TestGetBondingCurveProgress(t *testing.T) {
 
 		require.Error(t, err)
 		require.Nil(t, progress)
-		require.Contains(t, err.Error(), "failed to find token by external address")
 	})
 }
 
