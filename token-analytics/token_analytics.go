@@ -301,12 +301,7 @@ func (t *tokenAnalyticsUsers) UpdateUserProfileAndToken(ctx context.Context, mas
 	profileExternalAddr := BuildProfileExternalAddress(masterPubkey)
 
 	_, err := storage.Exec(ctx, t.ingestedDataDB, `
-		WITH old_values AS (
-			SELECT username, display_name, avatar 
-			FROM users 
-			WHERE master_pubkey = $1
-		),
-		user_update AS (
+		WITH user_update AS (
 			UPDATE users
 			SET 
 				username = $2,
@@ -325,7 +320,6 @@ func (t *tokenAnalyticsUsers) UpdateUserProfileAndToken(ctx context.Context, mas
 			lookup = LOWER(TRIM(
 				COALESCE(contract_address, '') || ' ' ||
 				COALESCE($2, '') || ' ' ||
-				COALESCE($2, '') || ' ' ||
 				COALESCE($3, '')
 			)),
 			updated_at = NOW()
@@ -334,7 +328,9 @@ func (t *tokenAnalyticsUsers) UpdateUserProfileAndToken(ctx context.Context, mas
 			AND tokens.type = 'profile'
 	`, masterPubkey, username, displayName, avatar, profileExternalAddr)
 
-	log.Error(fmt.Errorf("failed to update user profile and token: %w", err))
+	if err != nil {
+		log.Error(fmt.Errorf("failed to update user profile and token: %w", err))
+	}
 
 	// TODO: return an error here later.
 	return nil

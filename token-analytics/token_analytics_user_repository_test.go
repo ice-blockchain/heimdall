@@ -11,7 +11,7 @@ import (
 )
 
 func TestUpdateUserProfileAndToken(t *testing.T) {
-	t.Skip("Skipping this test for now due to we not return error when updating user profile and token")
+	t.Skip("Skipping this test for now due to us not returning an error when updating user profile and token")
 	t.Parallel()
 
 	t.Run("updates user and profile token when username changes", func(t *testing.T) {
