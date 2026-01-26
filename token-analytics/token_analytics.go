@@ -297,6 +297,45 @@ func (t *tokenAnalyticsUsers) SetVerified(ctx context.Context, masterPubkey stri
 	return nil
 }
 
+func (t *tokenAnalyticsUsers) UpdateUserProfileAndToken(ctx context.Context, masterPubkey, username, displayName, avatar string) error {
+	profileExternalAddr := BuildProfileExternalAddress(masterPubkey)
+
+	_, err := storage.Exec(ctx, t.ingestedDataDB, `
+		WITH user_update AS (
+			UPDATE users
+			SET 
+				username = $2,
+				display_name = $3,
+				avatar = CASE WHEN $4 != '' THEN $4 ELSE avatar END,
+				lookup = LOWER(TRIM($2 || ' ' || COALESCE($3, ''))),
+				updated_at = NOW()
+			WHERE master_pubkey = $1
+			RETURNING 1
+		)
+		UPDATE tokens
+		SET 
+			ticker = $2,
+			title = $3,
+			image_url = CASE WHEN $4 != '' THEN $4 ELSE image_url END,
+			lookup = LOWER(TRIM(
+				COALESCE(contract_address, '') || ' ' ||
+				COALESCE($2, '') || ' ' ||
+				COALESCE($3, '')
+			)),
+			updated_at = NOW()
+		FROM user_update
+		WHERE tokens.external_address = $5 
+			AND tokens.type = 'profile'
+	`, masterPubkey, username, displayName, avatar, profileExternalAddr)
+
+	if err != nil {
+		log.Error(fmt.Errorf("failed to update user profile and token: %w", err))
+	}
+
+	// TODO: return an error here later.
+	return nil
+}
+
 func (t *tokenAnalyticsUsers) GetUser(ctx context.Context, masterPubkey string) (*UserRecord, error) {
 	user, err := storage.Get[UserRecord](ctx, t.ingestedDataDB,
 		`SELECT id, master_pubkey, content_author_id, external_address, username, 
@@ -821,8 +860,13 @@ func (dummyUserRepository) Close() error {
 func (dummyUserRepository) UpdateBNBPrice(ctx context.Context, price float64) error {
 	return nil
 }
+
 func (dummyUserRepository) GetTokenUpdates(ctx context.Context, contractAddress []string) (map[string]coins.TokenAnalyticsToken, error) {
 	return nil, nil
+}
+
+func (dummyUserRepository) UpdateUserProfileAndToken(ctx context.Context, masterPubkey, username, displayName, avatar string) error {
+	return nil
 }
 
 func randInt(n int) int {
