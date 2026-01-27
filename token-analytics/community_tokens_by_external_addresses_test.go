@@ -932,7 +932,7 @@ func TestGetCommunityTokensWithTopPlatformHolders_WithAndWithoutKeyword(t *testi
 	includeTop := uint32(2)
 
 	t.Run("without keyword - returns full data with ticker", func(t *testing.T) {
-		tokens, err := ta.(*tokenAnalytics).getCommunityTokensWithTopPlatformHolders(ctx, []string{token1Ext, token2Ext}, "requestor_tph", &includeTop, "", 0, 0)
+		tokens, err := ta.getCommunityTokensWithTopPlatformHolders(ctx, []string{token1Ext, token2Ext}, "requestor_tph", &includeTop, "", 0, 0)
 		require.NoError(t, err)
 		require.Len(t, tokens, 2, "Should return 2 tokens")
 
@@ -974,7 +974,7 @@ func TestGetCommunityTokensWithTopPlatformHolders_WithAndWithoutKeyword(t *testi
 	})
 
 	t.Run("with keyword - uses CTE candidates and KNN search", func(t *testing.T) {
-		tokens, err := ta.(*tokenAnalytics).getCommunityTokensWithTopPlatformHolders(ctx, []string{token1Ext, token2Ext}, "requestor_tph", &includeTop, "creator_tph1", 10, 0)
+		tokens, err := ta.getCommunityTokensWithTopPlatformHolders(ctx, []string{token1Ext, token2Ext}, "requestor_tph", &includeTop, "creator_tph1", 10, 0)
 		require.NoError(t, err)
 		require.Len(t, tokens, 1, "Should find only matching token")
 
@@ -1006,11 +1006,11 @@ func TestGetCommunityTokensWithTopPlatformHolders_WithAndWithoutKeyword(t *testi
 	})
 
 	t.Run("with keyword - pagination works", func(t *testing.T) {
-		tokens1, err := ta.(*tokenAnalytics).getCommunityTokensWithTopPlatformHolders(ctx, []string{token1Ext, token2Ext}, "requestor_tph", &includeTop, "tph", 1, 0)
+		tokens1, err := ta.getCommunityTokensWithTopPlatformHolders(ctx, []string{token1Ext, token2Ext}, "requestor_tph", &includeTop, "tph", 1, 0)
 		require.NoError(t, err)
 		require.LessOrEqual(t, len(tokens1), 1)
 
-		tokens2, err := ta.(*tokenAnalytics).getCommunityTokensWithTopPlatformHolders(ctx, []string{token1Ext, token2Ext}, "requestor_tph", &includeTop, "tph", 1, 1)
+		tokens2, err := ta.getCommunityTokensWithTopPlatformHolders(ctx, []string{token1Ext, token2Ext}, "requestor_tph", &includeTop, "tph", 1, 1)
 		require.NoError(t, err)
 		require.LessOrEqual(t, len(tokens2), 1)
 	})

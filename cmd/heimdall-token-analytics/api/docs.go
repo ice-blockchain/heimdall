@@ -158,7 +158,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/server.Response-tokenanalytics_SuggestCreationDetailsResponse"
+                            "$ref": "#/definitions/server.Response-main_SuggestCreationDetailsResponse"
+                        }
+                    },
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/server.Response-main_SuggestCreationDetailsResponse"
                         }
                     },
                     "400": {
@@ -1836,27 +1842,6 @@ const docTemplate = `{
                 }
             }
         },
-        "main.SuggestCreationDetailsCreator": {
-            "type": "object",
-            "properties": {
-                "bio": {
-                    "type": "string",
-                    "example": "Something"
-                },
-                "name": {
-                    "type": "string",
-                    "example": "John Doe"
-                },
-                "username": {
-                    "type": "string",
-                    "example": "jdoe"
-                },
-                "website": {
-                    "type": "string",
-                    "example": "https://some.website.example.com"
-                }
-            }
-        },
         "main.SuggestCreationDetailsRequest": {
             "type": "object",
             "properties": {
@@ -1864,12 +1849,55 @@ const docTemplate = `{
                     "type": "string",
                     "example": "some post text"
                 },
+                "contentId": {
+                    "type": "string",
+                    "example": "external address of the content"
+                },
+                "contentImages": {
+                    "description": "Base64-encoded images from the post.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "contentVideoFrames": {
+                    "description": "Base64-encoded video frames.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "creator": {
-                    "$ref": "#/definitions/main.SuggestCreationDetailsCreator"
+                    "$ref": "#/definitions/tokenanalytics.CreationDetailsCreator"
                 }
             }
         },
-        "server.Response-tokenanalytics_SuggestCreationDetailsResponse": {
+        "main.SuggestCreationDetailsResponse": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "example": "Something even cooler"
+                },
+                "picture": {
+                    "type": "string",
+                    "example": "https://example.com/some_cool_pic.webp"
+                },
+                "status": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/tokenanalytics.TokenDetailsGenerationStatus"
+                        }
+                    ],
+                    "example": "completed"
+                },
+                "ticker": {
+                    "type": "string",
+                    "example": "SOMETHING_COOL"
+                }
+            }
+        },
+        "server.Response-main_SuggestCreationDetailsResponse": {
             "type": "object",
             "properties": {
                 "code": {
@@ -1879,7 +1907,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "data": {
-                    "$ref": "#/definitions/tokenanalytics.SuggestCreationDetailsResponse"
+                    "$ref": "#/definitions/main.SuggestCreationDetailsResponse"
                 },
                 "headers": {
                     "type": "object",
@@ -1978,6 +2006,27 @@ const docTemplate = `{
                 },
                 "type": {
                     "type": "string"
+                }
+            }
+        },
+        "tokenanalytics.CreationDetailsCreator": {
+            "type": "object",
+            "properties": {
+                "bio": {
+                    "type": "string",
+                    "example": "Something"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "jdoe"
+                },
+                "website": {
+                    "type": "string",
+                    "example": "https://some.website.example.com"
                 }
             }
         },
@@ -2091,22 +2140,24 @@ const docTemplate = `{
                 }
             }
         },
-        "tokenanalytics.SuggestCreationDetailsResponse": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "example": "Something even cooler"
-                },
-                "picture": {
-                    "type": "string",
-                    "example": "https://example.com/some_cool_pic.webp"
-                },
-                "ticker": {
-                    "type": "string",
-                    "example": "SOMETHING_COOL"
-                }
-            }
+        "tokenanalytics.TokenDetailsGenerationStatus": {
+            "type": "string",
+            "enum": [
+                "pending",
+                "generating_ticker",
+                "generating_picture",
+                "uploading",
+                "completed",
+                "failed"
+            ],
+            "x-enum-varnames": [
+                "TokenDetailsGenerationStatusPending",
+                "TokenDetailsGenerationStatusGenerating",
+                "TokenDetailsGenerationStatusGeneratingPicture",
+                "TokenDetailsGenerationStatusUploading",
+                "TokenDetailsGenerationStatusCompleted",
+                "TokenDetailsGenerationStatusFailed"
+            ]
         },
         "tokenanalytics.TopHolderPosition": {
             "type": "object",

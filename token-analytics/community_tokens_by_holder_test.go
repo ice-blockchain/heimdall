@@ -97,7 +97,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 			})
 		}
 
-		result, totalHoldings, err := ta.(*tokenAnalytics).GetCommunityTokensByHolder(ctx, holderExtAddr, "holder_multi", 10, 0)
+		result, totalHoldings, err := ta.GetCommunityTokensByHolder(ctx, holderExtAddr, "holder_multi", 10, 0)
 		require.NoError(t, err)
 		require.Len(t, result, 5)
 		require.Equal(t, uint64(5), totalHoldings)
@@ -131,7 +131,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		}
 
 		// Page 1: limit=3, offset=0
-		page1, totalHoldings1, err := ta.(*tokenAnalytics).GetCommunityTokensByHolder(ctx, holderExtAddr, "holder_page", 3, 0)
+		page1, totalHoldings1, err := ta.GetCommunityTokensByHolder(ctx, holderExtAddr, "holder_page", 3, 0)
 		require.NoError(t, err)
 		require.Len(t, page1, 3)
 		require.Equal(t, uint64(7), totalHoldings1, "Total holdings should be 7")
@@ -140,7 +140,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		require.Equal(t, "PAGE3", page1[2].MarketData.Ticker)
 
 		// Page 2: limit=3, offset=3
-		page2, totalHoldings2, err := ta.(*tokenAnalytics).GetCommunityTokensByHolder(ctx, holderExtAddr, "holder_page", 3, 3)
+		page2, totalHoldings2, err := ta.GetCommunityTokensByHolder(ctx, holderExtAddr, "holder_page", 3, 3)
 		require.NoError(t, err)
 		require.Len(t, page2, 3)
 		require.Equal(t, uint64(7), totalHoldings2, "Total holdings should still be 7")
@@ -149,7 +149,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		require.Equal(t, "PAGE6", page2[2].MarketData.Ticker)
 
 		// Page 3: limit=3, offset=6 (only 1 remaining)
-		page3, totalHoldings3, err := ta.(*tokenAnalytics).GetCommunityTokensByHolder(ctx, holderExtAddr, "holder_page", 3, 6)
+		page3, totalHoldings3, err := ta.GetCommunityTokensByHolder(ctx, holderExtAddr, "holder_page", 3, 6)
 		require.NoError(t, err)
 		require.Len(t, page3, 1)
 		require.Equal(t, uint64(7), totalHoldings3)
@@ -175,9 +175,9 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 			})
 		}
 
-		page1, _, err := ta.(*tokenAnalytics).GetCommunityTokensByHolder(ctx, holderExtAddr, "holder_overlap", 2, 0)
+		page1, _, err := ta.GetCommunityTokensByHolder(ctx, holderExtAddr, "holder_overlap", 2, 0)
 		require.NoError(t, err)
-		page2, _, err := ta.(*tokenAnalytics).GetCommunityTokensByHolder(ctx, holderExtAddr, "holder_overlap", 2, 2)
+		page2, _, err := ta.GetCommunityTokensByHolder(ctx, holderExtAddr, "holder_overlap", 2, 2)
 		require.NoError(t, err)
 
 		// Verify no overlap

@@ -106,8 +106,9 @@ func WithBondingCurve(bc bondingcurve.BondingCurve) HelperTestOption {
 	}
 }
 
-func helperNewForTestWithConnString(t testing.TB, db *storage.DB, connString string) TokenAnalytics {
+func helperNewForTestWithConnString(t testing.TB, db *storage.DB, connString string) *tokenAnalytics {
 	t.Helper()
+
 	return helperNewForTest(t, db, WithRealRiverQueue(connString))
 }
 
@@ -157,7 +158,7 @@ func helperCreateDBWithConnString(t *testing.T) (*storage.DB, string, func()) {
 	}
 }
 
-func helperNewForTest(t testing.TB, db *storage.DB, opts ...HelperTestOption) TokenAnalytics {
+func helperNewForTest(t testing.TB, db *storage.DB, opts ...HelperTestOption) *tokenAnalytics {
 	t.Helper()
 
 	options := &helperTestOptions{}
@@ -188,35 +189,24 @@ func helperNewForTest(t testing.TB, db *storage.DB, opts ...HelperTestOption) To
 		bc = &mockBondingCurveForBalanceUpdater{}
 	}
 
-	var balanceQueue riverqueue.Client
+	var riverClient riverqueue.Client
 	var shutdownFuncs []func() error
 
 	if options.withRealRiverQueue && options.connString != "" {
-		balanceQueue = riverqueue.MustNewClient(t.Context(), "token-analytics-test",
+		riverClient = riverqueue.MustNewClient(t.Context(), "token-analytics-test",
 			riverqueue.WithConfig(&riverqueue.Config{
 				QueueName:       "test_balance_updates_helper",
 				MaxQueueWorkers: 10,
 				JobMaxTimeout:   30 * stdtime.Second,
 				PrimaryURLs:     []string{options.connString},
 			}))
-
-		riverqueue.RegisterWorker(balanceQueue.Register(), &balanceUpdateWorker{
-			bondingCurve:    bc,
-			ingestedDataDB:  db,
-			processedDataDB: &testRedisDB{Client: testRedis},
-		})
-
-		if err := balanceQueue.Start(t.Context()); err != nil {
-			t.Fatalf("failed to start balance queue: %v", err)
-		}
-
 		shutdownFuncs = append(shutdownFuncs, func() error {
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*stdtime.Second)
 			defer cancel()
-			return balanceQueue.Stop(shutdownCtx)
+			return riverClient.Stop(shutdownCtx)
 		})
 	} else {
-		balanceQueue = &mockBalanceUpdateQueue{}
+		riverClient = &mockRiverClient{}
 	}
 
 	questDBConn := mustConnectQuestDBForTest(t.Context())
@@ -240,7 +230,7 @@ func helperNewForTest(t testing.TB, db *storage.DB, opts ...HelperTestOption) To
 		subscriptions:               newSubscriptions(t.Context()),
 		creatorTokenPricesUSD:       xsync.NewMap[string, float64](),
 		coins:                       &mockCoinImport{},
-		balanceUpdateQueue:          balanceQueue,
+		riverClient:                 riverClient,
 		bondingCurve:                bc,
 		shutdown: func() error {
 			var errs []error
@@ -258,32 +248,47 @@ func helperNewForTest(t testing.TB, db *storage.DB, opts ...HelperTestOption) To
 	bnbPrice := 600.0
 	ta.bnbPriceUSD.Store(&bnbPrice)
 
+	if reg := riverClient.Register(); reg != nil {
+		riverqueue.RegisterWorker(reg, &balanceUpdateWorker{
+			bondingCurve:    bc,
+			ingestedDataDB:  db,
+			processedDataDB: &testRedisDB{Client: testRedis},
+		})
+		riverqueue.RegisterWorker(reg, &tokenDetailsGenerationPictureWorker{
+			TA: ta,
+		})
+	}
+
+	if err := riverClient.Start(t.Context()); err != nil {
+		t.Fatalf("failed to start balance queue: %v", err)
+	}
+
 	return ta
 }
 
-type mockBalanceUpdateQueue struct{}
+type mockRiverClient struct{}
 
-func (m *mockBalanceUpdateQueue) Register() *riverqueue.Register {
+func (m *mockRiverClient) Register() *riverqueue.Register {
 	return nil
 }
 
-func (m *mockBalanceUpdateQueue) Push(ctx context.Context, jobs ...riverqueue.JobArgs) error {
+func (m *mockRiverClient) Push(ctx context.Context, jobs ...riverqueue.JobArgs) error {
 	return nil
 }
 
-func (m *mockBalanceUpdateQueue) Stop(ctx context.Context) error {
+func (m *mockRiverClient) Stop(ctx context.Context) error {
 	return nil
 }
 
-func (m *mockBalanceUpdateQueue) Start(ctx context.Context) error {
+func (m *mockRiverClient) Start(ctx context.Context) error {
 	return nil
 }
 
-func (m *mockBalanceUpdateQueue) HealthCheck(ctx context.Context) error {
+func (m *mockRiverClient) HealthCheck(ctx context.Context) error {
 	return nil
 }
 
-func (m *mockBalanceUpdateQueue) Close(ctx context.Context) error {
+func (m *mockRiverClient) Close(ctx context.Context) error {
 	return nil
 }
 

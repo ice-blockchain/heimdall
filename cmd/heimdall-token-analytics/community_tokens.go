@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"math/big"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -81,16 +82,10 @@ type (
 		PostAuthorVerified        bool   `json:"postAuthorVerified,omitempty" example:"true"`
 		TokenImageUrl             string `json:"tokenImageUrl,omitempty" example:"https://example.com/token.png"`
 	}
-	SuggestCreationDetailsRequest struct {
-		Content string                        `json:"content" example:"some post text"`
-		Creator SuggestCreationDetailsCreator `json:"creator"`
-	}
-	SuggestCreationDetailsCreator struct {
-		Name     string `json:"name" example:"John Doe"`
-		Username string `json:"username" example:"jdoe"`
-		Bio      string `json:"bio" example:"Something"`
-		Website  string `json:"website" example:"https://some.website.example.com"`
-	}
+
+	SuggestCreationDetailsRequest  = ta.CreationDetailsData
+	SuggestCreationDetailsResponse = ta.SuggestedCreationDetails
+
 	GetOHLCVRequest struct {
 		PaginationRequest
 		OHLCVRequest
@@ -539,20 +534,52 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		SuggestCreationDetailsRequest	true	"Content and creator information"
-//	@Success		200		{object}	server.Response[ta.SuggestCreationDetailsResponse]
+//	@Success		200		{object}	server.Response[SuggestCreationDetailsResponse]
+//	@Success		202		{object}	server.Response[SuggestCreationDetailsResponse]
 //	@Failure		400		{object}	server.ResponseErrorBody	"if request body is invalid"
 //	@Failure		500		{object}	server.ResponseErrorBody
 //	@Failure		504		{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
 //	@Security		XCom
 //	@Router			/v1/community-tokens/suggest-creation-details [POST].
-func (s *service) SuggestCreationDetails(ctx context.Context, req *server.Request[SuggestCreationDetailsRequest]) (*server.Response[ta.SuggestCreationDetailsResponse], error) {
-	suggestion := s.tokenAnalytics.GenerateTokenSuggestion(req.Data.Content, req.Data.Creator.Name, req.Data.Creator.Username, req.Data.Creator.Bio, req.Data.Creator.Website)
+func (s *service) SuggestCreationDetails(ctx context.Context, req *server.Request[SuggestCreationDetailsRequest]) (*server.Response[SuggestCreationDetailsResponse], error) {
+	const maxFrames = 30
 
-	return &server.Response[ta.SuggestCreationDetailsResponse]{
-		Data: suggestion,
-		Code: 200,
-	}, nil
+	if strings.TrimSpace(req.Data.ContentID) == "" {
+		return nil, server.BadRequest(errors.New("contentID is required"), invalidPropertiesErrorCode)
+	}
+
+	if current := len(req.Data.ContentImages) + len(req.Data.ContentVideoFrames); current > maxFrames {
+		return nil, server.BadRequest(fmt.Errorf("total number of contentImages and contentVideoFrames cannot exceed %d (got %d)", maxFrames, current), invalidPropertiesErrorCode)
+	}
+
+	for _, img := range req.Data.ContentImages {
+		err := ta.ValidateWebpImage(img)
+		if err != nil {
+			return nil, server.BadRequest(fmt.Errorf("invalid contentImages entry: %w", err), invalidPropertiesErrorCode)
+		}
+	}
+	for _, frame := range req.Data.ContentVideoFrames {
+		err := ta.ValidateWebpImage(frame)
+		if err != nil {
+			return nil, server.BadRequest(fmt.Errorf("invalid contentVideoFrames entry: %w", err), invalidPropertiesErrorCode)
+		}
+	}
+
+	suggestion, err := s.tokenAnalytics.GenerateTokenSuggestion(ctx, req.Data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate token suggestion: %w", err)
+	}
+
+	switch suggestion.Status {
+	case ta.TokenDetailsGenerationStatusCompleted:
+		return server.OK(suggestion), nil
+
+	case ta.TokenDetailsGenerationStatusFailed:
+		return nil, server.UnprocessableEntity(errors.New("generation failed"), "GENERATION_FAILED")
+	}
+
+	return server.Accepted(suggestion), nil
 }
 
 // StreamCommunityTokens godoc

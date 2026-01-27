@@ -448,6 +448,15 @@ token-analytics:
     queueName: heimdall_ta
     maxQueueWorkers: 100
     jobMaxTimeout: 30s
+  llm:
+    apiKey: dev-llm-api-key
+    imageQuality: low
+    maxRetries: 10
+  cdn:
+    accessKey: dev-cdn-access-key
+    urlUpload: https://localhost:9000
+    urlDownload: https://localhost:9000
+    maxJobTimeout: 2m
   identityServiceUrl: https://localhost:8001
   identityServiceApiKey: dev-api-key
   ionTokenAddress: 0x2c73996BaBF1a06c2C057177353293f7cA0907c8

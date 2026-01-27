@@ -127,7 +127,7 @@ func TestDetermineBaseTokenFromExternalAddress(t *testing.T) {
 	db, release := helperCreateDB(t)
 	defer release()
 
-	taImpl := helperNewForTest(t, db).(*tokenAnalytics)
+	taImpl := helperNewForTest(t, db)
 
 	t.Run("xcom_numeric_id_returns_ion", func(t *testing.T) {
 		baseToken, err := taImpl.determineBaseTokenFromExternalAddress(ctx, "1234567890")

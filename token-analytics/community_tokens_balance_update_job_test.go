@@ -36,7 +36,7 @@ func TestBalanceUpdateJob_WithDummyBalance(t *testing.T) {
 	helperInsertTestToken(t, ctx, db, contractAddr, tokenExternalAddr, "TEST", "profile", userExternalAddr, "1000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
 
 	dummyBalance := "3500000000000000000" // 3.5 tokens
-	err := ta.(*tokenAnalytics).balanceUpdateQueue.Push(ctx, BalanceUpdateJobArgs{
+	err := ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
 		UserBlockchainAddress: userBlockchainAddr,
 		UserExternalAddress:   userExternalAddr,
 		ContractAddress:       contractAddr,
@@ -46,7 +46,7 @@ func TestBalanceUpdateJob_WithDummyBalance(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	helperWaitForRiverQueueJobs(t, ctx, ta.(*tokenAnalytics), 10*time.Second)
+	helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
 
 	type position struct {
 		Amount string `db:"amount"`
@@ -59,7 +59,7 @@ func TestBalanceUpdateJob_WithDummyBalance(t *testing.T) {
 	require.Equal(t, dummyBalance, pos.Amount, "Should use dummy balance, not RPC")
 
 	userPositionKey := keyUserPositionOfToken(tokenExternalAddr)
-	score, err := ta.(*tokenAnalytics).processedDataDB.ZScore(ctx, userPositionKey, userExternalAddr).Result()
+	score, err := ta.processedDataDB.ZScore(ctx, userPositionKey, userExternalAddr).Result()
 	require.NoError(t, err)
 	require.InDelta(t, 3.5, score, 0.0001, "Redis should have dummy balance")
 }
@@ -87,7 +87,7 @@ func TestBalanceUpdateJob_WithRPC(t *testing.T) {
 	helperInsertTestToken(t, ctx, db, tokenContractAddr, tokenExternalAddr, "TEST1", "profile", userExternalAddr, "1000000000000000000000000000", 0, 0, 0, "ionconnect")
 	helperInsertUserPosition(t, ctx, db, userBlockchainAddr, tokenContractAddr, tokenExternalAddr, userExternalAddr, "0")
 
-	err := ta.(*tokenAnalytics).balanceUpdateQueue.Push(ctx, BalanceUpdateJobArgs{
+	err := ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
 		UserBlockchainAddress: userBlockchainAddr,
 		UserExternalAddress:   userExternalAddr,
 		ContractAddress:       tokenContractAddr,
@@ -96,7 +96,7 @@ func TestBalanceUpdateJob_WithRPC(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	helperWaitForRiverQueueJobs(t, ctx, ta.(*tokenAnalytics), 10*time.Second)
+	helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
 
 	type position struct {
 		Amount string `db:"amount"`
@@ -109,7 +109,7 @@ func TestBalanceUpdateJob_WithRPC(t *testing.T) {
 	require.Equal(t, "5000000000000000000", pos.Amount, "Balance should be updated to 5 tokens")
 
 	t.Logf("Checking Redis for key=%s, member=%s", keyUserPositionOfToken(tokenExternalAddr), userExternalAddr)
-	score, err := ta.(*tokenAnalytics).processedDataDB.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddr), userExternalAddr).Result()
+	score, err := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddr), userExternalAddr).Result()
 	require.NoError(t, err, "Redis entry should exist for user position")
 	require.InDelta(t, 5.0, score, 0.01, "Redis score should be 5.0")
 }
@@ -138,13 +138,13 @@ func TestBalanceUpdateJob_ZeroBalance(t *testing.T) {
 
 	helperInsertUserPosition(t, ctx, db, userBlockchainAddr, tokenContractAddr, tokenExternalAddr, userExternalAddr, "1000000000000000000")
 
-	err := ta.(*tokenAnalytics).processedDataDB.ZAdd(ctx, keyUserPositionOfToken(tokenExternalAddr), redis.Z{
+	err := ta.processedDataDB.ZAdd(ctx, keyUserPositionOfToken(tokenExternalAddr), redis.Z{
 		Score:  1.0,
 		Member: userExternalAddr,
 	}).Err()
 	require.NoError(t, err)
 
-	err = ta.(*tokenAnalytics).balanceUpdateQueue.Push(ctx, BalanceUpdateJobArgs{
+	err = ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
 		UserBlockchainAddress: userBlockchainAddr,
 		UserExternalAddress:   userExternalAddr,
 		ContractAddress:       tokenContractAddr,
@@ -153,7 +153,7 @@ func TestBalanceUpdateJob_ZeroBalance(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	helperWaitForRiverQueueJobs(t, ctx, ta.(*tokenAnalytics), 10*time.Second)
+	helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
 
 	type position struct {
 		Amount string `db:"amount"`
@@ -165,7 +165,7 @@ func TestBalanceUpdateJob_ZeroBalance(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "0", pos.Amount, "Balance should be updated to 0")
 
-	_, err = ta.(*tokenAnalytics).processedDataDB.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddr), userExternalAddr).Result()
+	_, err = ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddr), userExternalAddr).Result()
 	require.Error(t, err, "Entry should be removed from Redis when balance is 0")
 }
 

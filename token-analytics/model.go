@@ -133,6 +133,27 @@ type (
 		Position HolderPosition `json:"position,omitempty"`
 	}
 
+	CreationDetailsData struct {
+		Content            string                 `json:"content" example:"some post text"`
+		Creator            CreationDetailsCreator `json:"creator"`
+		ContentID          string                 `json:"contentId" example:"external address of the content"`
+		ContentVideoFrames []string               `json:"contentVideoFrames,omitempty"` // Base64-encoded video frames.
+		ContentImages      []string               `json:"contentImages,omitempty"`      // Base64-encoded images from the post.
+	}
+	CreationDetailsCreator struct {
+		Name     string `json:"name" example:"John Doe"`
+		Username string `json:"username" example:"jdoe"`
+		Bio      string `json:"bio" example:"Something"`
+		Website  string `json:"website" example:"https://some.website.example.com"`
+	}
+
+	SuggestedCreationDetails struct {
+		Ticker  string                       `json:"ticker" example:"SOMETHING_COOL"`
+		Name    string                       `json:"name" example:"Something even cooler"`
+		Picture string                       `json:"picture" example:"https://example.com/some_cool_pic.webp"`
+		Status  TokenDetailsGenerationStatus `json:"status" example:"completed"`
+	}
+
 	Platform string
 
 	TokenAndCreatorAddressesParams struct {

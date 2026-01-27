@@ -63,37 +63,51 @@ definitions:
         example: 1800
         type: integer
     type: object
-  main.SuggestCreationDetailsCreator:
-    properties:
-      bio:
-        example: Something
-        type: string
-      name:
-        example: John Doe
-        type: string
-      username:
-        example: jdoe
-        type: string
-      website:
-        example: https://some.website.example.com
-        type: string
-    type: object
   main.SuggestCreationDetailsRequest:
     properties:
       content:
         example: some post text
         type: string
+      contentId:
+        example: external address of the content
+        type: string
+      contentImages:
+        description: Base64-encoded images from the post.
+        items:
+          type: string
+        type: array
+      contentVideoFrames:
+        description: Base64-encoded video frames.
+        items:
+          type: string
+        type: array
       creator:
-        $ref: '#/definitions/main.SuggestCreationDetailsCreator'
+        $ref: '#/definitions/tokenanalytics.CreationDetailsCreator'
     type: object
-  server.Response-tokenanalytics_SuggestCreationDetailsResponse:
+  main.SuggestCreationDetailsResponse:
+    properties:
+      name:
+        example: Something even cooler
+        type: string
+      picture:
+        example: https://example.com/some_cool_pic.webp
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/tokenanalytics.TokenDetailsGenerationStatus'
+        example: completed
+      ticker:
+        example: SOMETHING_COOL
+        type: string
+    type: object
+  server.Response-main_SuggestCreationDetailsResponse:
     properties:
       code:
         type: integer
       contentType:
         type: string
       data:
-        $ref: '#/definitions/tokenanalytics.SuggestCreationDetailsResponse'
+        $ref: '#/definitions/main.SuggestCreationDetailsResponse'
       headers:
         additionalProperties:
           type: string
@@ -158,6 +172,21 @@ definitions:
       title:
         type: string
       type:
+        type: string
+    type: object
+  tokenanalytics.CreationDetailsCreator:
+    properties:
+      bio:
+        example: Something
+        type: string
+      name:
+        example: John Doe
+        type: string
+      username:
+        example: jdoe
+        type: string
+      website:
+        example: https://some.website.example.com
         type: string
     type: object
   tokenanalytics.HolderPosition:
@@ -232,18 +261,22 @@ definitions:
       rank:
         type: integer
     type: object
-  tokenanalytics.SuggestCreationDetailsResponse:
-    properties:
-      name:
-        example: Something even cooler
-        type: string
-      picture:
-        example: https://example.com/some_cool_pic.webp
-        type: string
-      ticker:
-        example: SOMETHING_COOL
-        type: string
-    type: object
+  tokenanalytics.TokenDetailsGenerationStatus:
+    enum:
+    - pending
+    - generating_ticker
+    - generating_picture
+    - uploading
+    - completed
+    - failed
+    type: string
+    x-enum-varnames:
+    - TokenDetailsGenerationStatusPending
+    - TokenDetailsGenerationStatusGenerating
+    - TokenDetailsGenerationStatusGeneratingPicture
+    - TokenDetailsGenerationStatusUploading
+    - TokenDetailsGenerationStatusCompleted
+    - TokenDetailsGenerationStatusFailed
   tokenanalytics.TopHolderPosition:
     properties:
       creator:
@@ -887,7 +920,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/server.Response-tokenanalytics_SuggestCreationDetailsResponse'
+            $ref: '#/definitions/server.Response-main_SuggestCreationDetailsResponse'
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/server.Response-main_SuggestCreationDetailsResponse'
         "400":
           description: if request body is invalid
           schema:

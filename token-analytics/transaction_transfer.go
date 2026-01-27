@@ -160,7 +160,7 @@ func (t *tokenAnalytics) enqueueBalanceUpdate(ctx context.Context, tx *txEvent, 
 		log.Debug(fmt.Sprintf("Dummy transfer: Calculated balance=%s (current=%.2f, %s=%.2f, new=%.2f) for user=%s, token=%s",
 			balanceStr, currentScore, operation, amountFloat, newScore, userBlockchainAddress, tokenExternalAddress))
 	}
-	if err := t.balanceUpdateQueue.Push(ctx, jobArgs); err != nil {
+	if err := t.riverClient.Push(ctx, jobArgs); err != nil {
 		return errors.Wrapf(err, "failed to enqueue balance update job for tx %v", tx.TransactionHash)
 	}
 

@@ -40,7 +40,7 @@ func TestGetCommunityTokensByLatest_WithAndWithoutKeyword(t *testing.T) {
 	helperRefreshVolumeView(t, ctx, db)
 
 	t.Run("without keyword - returns tokens ordered by created_at DESC", func(t *testing.T) {
-		tokens, err := ta.(*tokenAnalytics).getCommunityTokensByLatest(ctx, "", 10, 0, nil)
+		tokens, err := ta.getCommunityTokensByLatest(ctx, "", 10, 0, nil)
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, len(tokens), 3, "Should return at least our 3 test tokens")
 
@@ -87,7 +87,7 @@ func TestGetCommunityTokensByLatest_WithAndWithoutKeyword(t *testing.T) {
 	})
 
 	t.Run("with keyword - uses CTE candidates and KNN search", func(t *testing.T) {
-		tokens, err := ta.(*tokenAnalytics).getCommunityTokensByLatest(ctx, "latest_one", 10, 0, nil)
+		tokens, err := ta.getCommunityTokensByLatest(ctx, "latest_one", 10, 0, nil)
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, len(tokens), 1, "Should find matching token")
 
@@ -131,7 +131,7 @@ func TestGetCommunityTokensByLatest_WithAndWithoutKeyword(t *testing.T) {
 	})
 
 	t.Run("with keyword - results ordered by relevance then created_at", func(t *testing.T) {
-		tokens, err := ta.(*tokenAnalytics).getCommunityTokensByLatest(ctx, "latest", 10, 0, nil)
+		tokens, err := ta.getCommunityTokensByLatest(ctx, "latest", 10, 0, nil)
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, len(tokens), 3, "Should find all matching tokens")
 
@@ -142,7 +142,7 @@ func TestGetCommunityTokensByLatest_WithAndWithoutKeyword(t *testing.T) {
 
 	t.Run("with tokenType filter and no keyword", func(t *testing.T) {
 		tokenType := "profile"
-		tokens, err := ta.(*tokenAnalytics).getCommunityTokensByLatest(ctx, "", 10, 0, &tokenType)
+		tokens, err := ta.getCommunityTokensByLatest(ctx, "", 10, 0, &tokenType)
 		require.NoError(t, err)
 
 		found := false
@@ -158,7 +158,7 @@ func TestGetCommunityTokensByLatest_WithAndWithoutKeyword(t *testing.T) {
 
 	t.Run("with tokenType filter and keyword", func(t *testing.T) {
 		tokenType := "post"
-		tokens, err := ta.(*tokenAnalytics).getCommunityTokensByLatest(ctx, "latest", 10, 0, &tokenType)
+		tokens, err := ta.getCommunityTokensByLatest(ctx, "latest", 10, 0, &tokenType)
 		require.NoError(t, err)
 
 		for _, token := range tokens {
@@ -169,11 +169,11 @@ func TestGetCommunityTokensByLatest_WithAndWithoutKeyword(t *testing.T) {
 	})
 
 	t.Run("with keyword - pagination works", func(t *testing.T) {
-		tokens1, err := ta.(*tokenAnalytics).getCommunityTokensByLatest(ctx, "latest", 2, 0, nil)
+		tokens1, err := ta.getCommunityTokensByLatest(ctx, "latest", 2, 0, nil)
 		require.NoError(t, err)
 		require.LessOrEqual(t, len(tokens1), 2)
 
-		tokens2, err := ta.(*tokenAnalytics).getCommunityTokensByLatest(ctx, "latest", 2, 2, nil)
+		tokens2, err := ta.getCommunityTokensByLatest(ctx, "latest", 2, 2, nil)
 		require.NoError(t, err)
 		require.LessOrEqual(t, len(tokens2), 2)
 
@@ -225,7 +225,7 @@ func TestGetCommunityTokensByFeatured(t *testing.T) {
 	helperInsertFeaturedToken(t, ctx, db, token3Ext)
 
 	t.Run("returns featured tokens ordered by tokens_featured.created_at DESC", func(t *testing.T) {
-		tokens, err := ta.(*tokenAnalytics).getCommunityTokensByFeatured(ctx, 10, 0, nil)
+		tokens, err := ta.getCommunityTokensByFeatured(ctx, 10, 0, nil)
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, len(tokens), 3, "Should return at least our 3 featured tokens")
 
@@ -267,7 +267,7 @@ func TestGetCommunityTokensByFeatured(t *testing.T) {
 
 	t.Run("with tokenType filter - returns only matching type", func(t *testing.T) {
 		tokenType := "profile"
-		tokens, err := ta.(*tokenAnalytics).getCommunityTokensByFeatured(ctx, 10, 0, &tokenType)
+		tokens, err := ta.getCommunityTokensByFeatured(ctx, 10, 0, &tokenType)
 		require.NoError(t, err)
 
 		found := false
@@ -285,11 +285,11 @@ func TestGetCommunityTokensByFeatured(t *testing.T) {
 	})
 
 	t.Run("pagination works correctly", func(t *testing.T) {
-		tokens1, err := ta.(*tokenAnalytics).getCommunityTokensByFeatured(ctx, 2, 0, nil)
+		tokens1, err := ta.getCommunityTokensByFeatured(ctx, 2, 0, nil)
 		require.NoError(t, err)
 		require.LessOrEqual(t, len(tokens1), 2)
 
-		tokens2, err := ta.(*tokenAnalytics).getCommunityTokensByFeatured(ctx, 2, 2, nil)
+		tokens2, err := ta.getCommunityTokensByFeatured(ctx, 2, 2, nil)
 		require.NoError(t, err)
 
 		if len(tokens1) > 0 && len(tokens2) > 0 {
@@ -304,7 +304,7 @@ func TestGetCommunityTokensByFeatured(t *testing.T) {
 
 	t.Run("returns empty for non-existent tokenType", func(t *testing.T) {
 		tokenType := "nonexistent"
-		tokens, err := ta.(*tokenAnalytics).getCommunityTokensByFeatured(ctx, 10, 0, &tokenType)
+		tokens, err := ta.getCommunityTokensByFeatured(ctx, 10, 0, &tokenType)
 		require.NoError(t, err)
 
 		for _, token := range tokens {
@@ -339,7 +339,7 @@ func TestGetCommunityTokensByFeatured(t *testing.T) {
 		require.NoError(t, err)
 
 		helperInsertFeaturedToken(t, ctx, db, tokenExternalAddr)
-		tokens, err := ta.(*tokenAnalytics).getCommunityTokensByFeatured(ctx, 50, 0, nil)
+		tokens, err := ta.getCommunityTokensByFeatured(ctx, 50, 0, nil)
 		require.NoError(t, err)
 
 		var foundToken *CommunityToken
@@ -391,7 +391,7 @@ func TestGetCommunityTokensByLatest_CreatorNotRegistered(t *testing.T) {
 	)
 
 	t.Run("token with unregistered creator should not fail", func(t *testing.T) {
-		tokens, err := ta.(*tokenAnalytics).getCommunityTokensByLatest(ctx, "", 50, 0, nil)
+		tokens, err := ta.getCommunityTokensByLatest(ctx, "", 50, 0, nil)
 		require.NoError(t, err, "Should not fail when creator is not registered")
 
 		var foundToken *CommunityToken
@@ -422,7 +422,7 @@ func TestGetCommunityTokensByLatest_CreatorNotRegistered(t *testing.T) {
 	t.Run("featured tokens with unregistered creator should not fail", func(t *testing.T) {
 		helperInsertFeaturedToken(t, ctx, db, tokenExternalAddr)
 
-		tokens, err := ta.(*tokenAnalytics).getCommunityTokensByFeatured(ctx, 50, 0, nil)
+		tokens, err := ta.getCommunityTokensByFeatured(ctx, 50, 0, nil)
 		require.NoError(t, err, "Featured should not fail when creator is not registered")
 
 		var foundToken *CommunityToken
