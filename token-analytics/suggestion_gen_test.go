@@ -4,8 +4,10 @@ package tokenanalytics
 
 import (
 	"context"
+	"encoding/base64"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -61,7 +63,7 @@ func (client *mockedLLMClient) GenerateTokenNameAndTicker(ctx context.Context, c
 
 func (client *mockedLLMClient) GenerateTokenImage(ctx context.Context, creator, content, name, ticker string, images, frames []string) (pngB64image string, err error) {
 	client.TB.Logf("mocked GenerateTokenImage called with creator: %s, content: %s, name: %s, ticker: %s, frames count: %d", creator, content, name, ticker, len(images)+len(frames))
-	return "mocked_base64_image_data", nil
+	return base64.StdEncoding.EncodeToString([]byte("mocked_png_image_data")), nil
 }
 
 func TestGenerateTokenSuggestion(t *testing.T) {
@@ -92,7 +94,11 @@ func TestGenerateTokenSuggestion(t *testing.T) {
 		require.Equal(t, "MTN", result.Ticker)
 		require.Equal(t, "Mocked Token Name", result.Name)
 
-		<-cdnClient.Ready
+		select {
+		case <-cdnClient.Ready:
+		case <-time.After(time.Minute):
+			t.Fatal("timeout waiting for CDN upload to complete")
+		}
 
 		result, err = ta.GenerateTokenSuggestion(t.Context(), data)
 		require.NoError(t, err)
