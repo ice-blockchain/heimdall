@@ -27,13 +27,15 @@ const (
 func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *bondingcurve.LogUniswapSwapped) error {
 	log.Debug(fmt.Sprintf("Uniswap swapped: pool=%s tx=%s", ev.PoolAddress.Hex(), tx.TransactionHash))
 	type tokenInfo struct {
-		ContractAddress      string `db:"contract_address"`
-		BaseToken            string `db:"base_token"`
-		TokenExternalAddress string `db:"token_external_address"`
-		TokenType            string `db:"token_type"`
-		PoolToken0           string `db:"pool_token0"`
-		PairId               string `db:"pair_id"`
-		TotalSupply          string `db:"total_supply"`
+		ContractAddress            string  `db:"contract_address"`
+		BaseToken                  string  `db:"base_token"`
+		TokenExternalAddress       string  `db:"token_external_address"`
+		TokenType                  string  `db:"token_type"`
+		PoolToken0                 string  `db:"pool_token0"`
+		PairId                     string  `db:"pair_id"`
+		TotalSupply                string  `db:"total_supply"`
+		BaseProfileContractAddress *string `db:"base_profile_contract_address"`
+		BaseProfileExternalAddress *string `db:"base_profile_external_address"`
 	}
 	result, err := storage.Get[tokenInfo](ctx, t.ingestedDataDB, `
 		SELECT 
@@ -43,9 +45,12 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 			COALESCE(t.type, '') as token_type,
 			p.token0 AS pool_token0,
 			t.pair_id,
-			COALESCE(t.total_supply, '0') as total_supply
+			COALESCE(t.total_supply, '0') as total_supply,
+			base_token.contract_address as base_profile_contract_address,
+            base_token.external_address as base_profile_external_address
 		FROM tokens t
 		JOIN uniswap_pools p on p.token0 = t.contract_address OR p.token1 = t.contract_address
+		LEFT JOIN tokens base_token ON base_token.contract_address = t.base_token and base_token."type" = 'profile'
 		WHERE p.pool_address = $1
 	`, strings.ToLower(ev.PoolAddress.Hex()))
 	if err != nil {
@@ -100,7 +105,7 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 
 	log.Debug(fmt.Sprintf("Uniswap on token %v: direction=%v, price=%v USD (ION price: %v), user=%v, tx:%v",
 		result.ContractAddress, direction, priceUSD, basePriceUSD, userAddress, tx.TransactionHash))
-	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, result.ContractAddress, direction, inputAmount, outputAmount, priceUSD, result.TokenExternalAddress, user.UserExternalAddress, result.TokenType, result.TotalSupply, userAddress.Hex()); err != nil {
+	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, result.ContractAddress, direction, inputAmount, outputAmount, priceUSD, result.TokenExternalAddress, user.UserExternalAddress, result.TokenType, result.TotalSupply, userAddress.Hex(), result.BaseProfileContractAddress, result.BaseProfileExternalAddress); err != nil {
 		return errors.Wrap(err, "failed to calculate token market data and user position")
 	}
 	pairId := common.HexToHash(result.PairId)
@@ -146,9 +151,12 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 			COALESCE(t.image_url, '') as image_url,
 			COALESCE(t.price_usd, 0) as price_usd,
 			COALESCE(t.total_supply, '0') as total_supply,
-			t.platform as platform
+			t.platform as platform,
+		    base_token.contract_address as base_profile_contract_address,
+            base_token.external_address as base_profile_external_address
 		FROM tokens t
-		LEFT JOIN users u ON LOWER(u.content_author_id) = LOWER($2)`
+		LEFT JOIN users u ON LOWER(u.content_author_id) = LOWER($2)
+		LEFT JOIN tokens base_token ON base_token.contract_address = t.base_token and base_token."type" = 'profile'`
 
 	var result *tokenAndUserInfo
 	var err error
@@ -210,7 +218,7 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	log.Debug(fmt.Sprintf("Swap on token %v: direction=%v, price=%v USD (ION price: %v), user=%v, tx:%v",
 		contractAddress, ev.Direction, priceUSD, basePriceUSD, userAddr, tx.TransactionHash))
 
-	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, contractAddress, ev.Direction, ev.InputAmount, ev.OutputAmount, priceUSD, result.TokenExternalAddress, result.UserExternalAddress, result.Type, result.TotalSupply, userAddr); err != nil {
+	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, contractAddress, ev.Direction, ev.InputAmount, ev.OutputAmount, priceUSD, result.TokenExternalAddress, result.UserExternalAddress, result.Type, result.TotalSupply, userAddr, result.BaseProfileContractAddress, result.BaseProfileExternalAddress); err != nil {
 		return errors.Wrap(err, "failed to calculate token market data and user position")
 	}
 	if err = t.registerTrade(ctx, tx, ev.Direction, ev.InputAmount, ev.OutputAmount, result.ContractAddress, ev.Swapper.Hex(), result.TokenExternalAddress, actualBaseToken, ev.Pair.Bytes()); err != nil {
@@ -315,7 +323,8 @@ func extractAllTokensFromFatAddress(toTokenBytes []byte) ([]string, common.Addre
 	return externalAddresses, creatorAddr, affiliateAddr, nil
 }
 
-func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Context, tx *txEvent, contractAddress string, direction bool, input, output *big.Int, priceUSD float64, tokenExternalAddress, userExternalAddress, tokenType, totalSupply, userBlockchainAddress string) error {
+func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Context, tx *txEvent, contractAddress string, direction bool, input, output *big.Int,
+	priceUSD float64, tokenExternalAddress, userExternalAddress, tokenType, totalSupply, userBlockchainAddress string, baseProfileContractAddress, baseProfileExternalAddress *string) error {
 	log.Debug(fmt.Sprintf("Swap processed: contractAddress=%s, tokenExternalAddress=%s, userExternalAddress=%s (will be processed by trigger on tx_logs)",
 		contractAddress, tokenExternalAddress, userExternalAddress))
 
@@ -369,6 +378,21 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 
 	if err := t.riverClient.Push(ctx, jobArgs); err != nil {
 		return errors.Wrapf(err, "failed to enqueue balance update job for tx %v", tx.TransactionHash)
+	}
+	// base is creator token - user spent some on contentToken, we need to upd position
+	if baseProfileContractAddress != nil && baseProfileExternalAddress != nil {
+		log.Debug(fmt.Sprintf("Updating user position for base creatorToken: contractAddress=%s, tokenExternalAddress=%s, user=%s tx=%s",
+			*baseProfileContractAddress, *baseProfileExternalAddress, userBlockchainAddress, tx.TransactionHash))
+		baseJobArgs := BalanceUpdateJobArgs{
+			UserBlockchainAddress: userBlockchainAddress,
+			UserExternalAddress:   userExternalAddress,
+			ContractAddress:       *baseProfileContractAddress,
+			TokenExternalAddress:  *baseProfileExternalAddress,
+			TransactionHash:       tx.TransactionHash,
+		}
+		if err := t.riverClient.Push(ctx, baseJobArgs); err != nil {
+			return errors.Wrapf(err, "failed to enqueue balance update job for tx %v (base token %v)", tx.TransactionHash, *baseProfileContractAddress)
+		}
 	}
 
 	totalSupplyBig := new(big.Int)

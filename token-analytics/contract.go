@@ -454,18 +454,20 @@ type (
 	}
 
 	tokenAndUserInfo struct {
-		ContractAddress      string  `db:"contract_address"`
-		BaseToken            string  `db:"base_token"`
-		TokenExternalAddress string  `db:"token_external_address"`
-		PairId               string  `db:"pair_id"`
-		UserExternalAddress  string  `db:"user_external_address"`
-		Type                 string  `db:"token_type"`
-		Platform             string  `db:"platform"`
-		Ticker               string  `db:"ticker"`
-		Title                string  `db:"title"`
-		ImageURL             string  `db:"image_url"`
-		TotalSupply          string  `db:"total_supply"`
-		PriceUsd             float64 `db:"price_usd"`
+		ContractAddress            string  `db:"contract_address"`
+		BaseToken                  string  `db:"base_token"`
+		TokenExternalAddress       string  `db:"token_external_address"`
+		PairId                     string  `db:"pair_id"`
+		UserExternalAddress        string  `db:"user_external_address"`
+		Type                       string  `db:"token_type"`
+		Platform                   string  `db:"platform"`
+		Ticker                     string  `db:"ticker"`
+		Title                      string  `db:"title"`
+		ImageURL                   string  `db:"image_url"`
+		TotalSupply                string  `db:"total_supply"`
+		PriceUsd                   float64 `db:"price_usd"`
+		BaseProfileContractAddress *string `db:"base_profile_contract_address"`
+		BaseProfileExternalAddress *string `db:"base_profile_external_address"`
 	}
 	fee struct {
 		Amount float64 `db:"amount"`

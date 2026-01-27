@@ -70,6 +70,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			ctx, tx, contractAddress, direction,
 			inputAmount, outputAmount, priceUSD,
 			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
+			nil, nil,
 		)
 		require.NoError(t, err)
 
@@ -115,6 +116,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			ctx, tx, contractAddress, direction,
 			inputAmount, outputAmount, priceUSD,
 			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
+			nil, nil,
 		)
 		require.NoError(t, err)
 
@@ -135,6 +137,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			ctx, tx2, contractAddress, direction,
 			inputAmount, outputAmount, priceUSD2,
 			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
+			nil, nil,
 		)
 		require.NoError(t, err)
 
@@ -166,6 +169,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			ctx, tx1, contractAddress, false,
 			buyInput, buyOutput, priceUSD,
 			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
+			nil, nil,
 		)
 		require.NoError(t, err)
 
@@ -195,6 +199,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			ctx, tx2, contractAddress, true, // direction = true (sell)
 			sellInput, sellOutput, newPriceUSD,
 			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
+			nil, nil,
 		)
 		require.NoError(t, err)
 
@@ -224,6 +229,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			ctx, tx1, contractAddress, false,
 			buyInput, buyOutput, 0.10,
 			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
+			nil, nil,
 		)
 		require.NoError(t, err)
 
@@ -241,6 +247,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			ctx, tx2, contractAddress, true,
 			sellInput, sellOutput, 0.10,
 			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
+			nil, nil,
 		)
 		require.NoError(t, err)
 
