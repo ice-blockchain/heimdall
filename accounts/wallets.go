@@ -366,7 +366,7 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 	groupedBySymbol := make(map[string][]*CoinMapping)
 	for _, i := range coinsInWalletView {
 		symbol := strings.ToLower(i.Coin.Symbol)
-		if symbol == "" {
+		if symbol == "" || (i.Coin.TokenizedCommunityExternalAddress != nil && i.Coin.ContractAddress != "") {
 			symbol = i.Coin.ContractAddress
 		}
 		if i.WalletID != nil {
