@@ -16,7 +16,7 @@ import (
 func VerifyFileOnCdn(tb testing.TB, ctx context.Context, cdnClient Client, fileName string) {
 	tb.Helper()
 
-	url := cdnClient.(*client).CdnDownloadURL(fileName)
+	url := cdnClient.(*client).TargetURL(fileName)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	require.NoError(tb, err)
 
@@ -33,7 +33,7 @@ func VerifyFileOnCdn(tb testing.TB, ctx context.Context, cdnClient Client, fileN
 func VerifyFileDeletedOnCdn(tb testing.TB, ctx context.Context, cdnClient Client, fileName string) {
 	tb.Helper()
 
-	url := cdnClient.(*client).CdnDownloadURL(fileName)
+	url := cdnClient.(*client).TargetURL(fileName)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	require.NoError(tb, err)
 

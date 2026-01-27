@@ -58,6 +58,10 @@ func (*mockedClient) HealthCheck(context.Context) error {
 	return nil
 }
 
+func (*mockedClient) TargetURL(fileName string) string {
+	return "download://" + fileName
+}
+
 func (m *mockedClient) FileUpload(ctx context.Context, r io.Reader, contentType, fileName string) (string, error) {
 	m.T.Logf("Mocked upload file: %s", fileName)
 	data, err := io.ReadAll(r)
@@ -77,7 +81,7 @@ func (m *mockedClient) FileUpload(ctx context.Context, r io.Reader, contentType,
 		m.T.Fatal("failed to send data, context done")
 	}
 
-	return "download://" + fileName, nil
+	return m.TargetURL(fileName), nil
 }
 
 func (m *mockedClient) Observer() StateObserver {

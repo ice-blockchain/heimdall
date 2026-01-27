@@ -35,6 +35,9 @@ type (
 		// HealthCheck checks the health of the CDN service.
 		HealthCheck(ctx context.Context) error
 
+		// TargetURL returns the download URL for a given file name.
+		TargetURL(fileName string) string
+
 		// Observer returns the state observer, if any.
 		Observer() StateObserver
 	}
@@ -139,7 +142,7 @@ func (c *client) doCdnUpload(ctx context.Context, contentType, fileName string, 
 	}
 
 	if resp.IsSuccessState() {
-		return c.CdnDownloadURL(fileName), nil
+		return c.TargetURL(fileName), nil
 	}
 
 	body, err := resp.ToString()
@@ -213,7 +216,7 @@ func (c *client) SubmitFileUploadJob(ctx context.Context, data []byte, contentTy
 	return nil
 }
 
-func (c *client) CdnDownloadURL(filename string) string {
+func (c *client) TargetURL(filename string) string {
 	if strings.HasPrefix(filename, c.Config.URLDownload) {
 		return filename
 	}

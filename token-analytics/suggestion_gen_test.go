@@ -31,6 +31,10 @@ var (
 	_ llm.Client = (*mockedLLMClient)(nil)
 )
 
+func (client *mockedCDNClient) TargetURL(fileName string) string {
+	return "https://mocked.cdn/" + fileName
+}
+
 func (client *mockedCDNClient) SubmitFileUploadJob(ctx context.Context, data []byte, contentType, fileName string, m *cdn.Metadata) error {
 	client.TB.Logf("mocked async upload data for file: %s", fileName)
 	if client.StateObserver != nil {
@@ -44,8 +48,8 @@ func (client *mockedCDNClient) SubmitFileUploadJob(ctx context.Context, data []b
 	return nil
 }
 
-func (*mockedCDNClient) FileUpload(ctx context.Context, data io.Reader, contentType, fileName string) (string, error) {
-	return "https://mocked.cdn/" + fileName, nil
+func (m *mockedCDNClient) FileUpload(ctx context.Context, data io.Reader, contentType, fileName string) (string, error) {
+	return m.TargetURL(fileName), nil
 }
 
 func (*mockedCDNClient) HealthCheck(ctx context.Context) error {
@@ -93,6 +97,7 @@ func TestGenerateTokenSuggestion(t *testing.T) {
 		require.EqualValues(t, TokenDetailsGenerationStatusGeneratingPicture, result.Status)
 		require.Equal(t, "MTN", result.Ticker)
 		require.Equal(t, "Mocked Token Name", result.Name)
+		require.NotEmpty(t, result.Picture)
 
 		select {
 		case <-cdnClient.Ready:
@@ -100,12 +105,13 @@ func TestGenerateTokenSuggestion(t *testing.T) {
 			t.Fatal("timeout waiting for CDN upload to complete")
 		}
 
-		result, err = ta.GenerateTokenSuggestion(t.Context(), data)
+		result2, err := ta.GenerateTokenSuggestion(t.Context(), data)
 		require.NoError(t, err)
-		require.NotNil(t, result)
-		require.EqualValues(t, TokenDetailsGenerationStatusCompleted, result.Status)
-		require.Equal(t, "MTN", result.Ticker)
-		require.Equal(t, "Mocked Token Name", result.Name)
-		require.NotEmpty(t, result.Picture)
+		require.NotNil(t, result2)
+		require.EqualValues(t, TokenDetailsGenerationStatusCompleted, result2.Status)
+		require.Equal(t, "MTN", result2.Ticker)
+		require.Equal(t, "Mocked Token Name", result2.Name)
+		require.NotEmpty(t, result2.Picture)
+		require.Equal(t, result.Picture, result2.Picture)
 	})
 }
