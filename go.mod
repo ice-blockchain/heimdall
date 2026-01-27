@@ -299,11 +299,11 @@ require (
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/webtransport-go v0.10.0 // indirect
 	github.com/refraction-networking/utls v1.8.2 // indirect
-	github.com/riverqueue/river v0.30.1 // indirect
-	github.com/riverqueue/river/riverdriver v0.30.1 // indirect
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.30.1 // indirect
-	github.com/riverqueue/river/rivershared v0.30.1 // indirect
-	github.com/riverqueue/river/rivertype v0.30.1 // indirect
+	github.com/riverqueue/river v0.30.2 // indirect
+	github.com/riverqueue/river/riverdriver v0.30.2 // indirect
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.30.2 // indirect
+	github.com/riverqueue/river/rivershared v0.30.2 // indirect
+	github.com/riverqueue/river/rivertype v0.30.2 // indirect
 	github.com/rivo/tview v0.42.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect

@@ -118,6 +118,25 @@ func newMockedWalletClient() interface {
 			},
 			"nfts": []dfns.NFT{},
 		},
+		"wa-tokenized-community": map[string]any{
+			"id":      "wa-tokenized-community",
+			"network": "BscTestnet",
+			"address": "addr-tokenized-community",
+			"name":    "tokenized community wallet",
+			"signingKey": map[string]any{
+				"publicKey": "pubkey",
+			},
+			"assets": []dfns.Asset{
+				map[string]any{
+					"balance":  "1113871018693693333332",
+					"contract": "0xbb88c364c759b2b42423b71f043212085d4cdeb0",
+					"decimals": 18,
+					"kind":     "Erc20",
+					"symbol":   "non-updated-symbol",
+				},
+			},
+			"nfts": []dfns.NFT{},
+		},
 	}
 	return &mockWalletClient{mockedWallets: wallets}
 }
@@ -319,6 +338,13 @@ func TestFetchWalletInfoForCoinsAggregation(t *testing.T) {
 		"verified": true,
 		"balance":  "1000000",
 	})
+	assetTokenizedCommunityCoin := dfns.Asset(map[string]any{
+		"balance":  "1113871018693693333332",
+		"contract": "0xbb88c364c759b2b42423b71f043212085d4cdeb0",
+		"decimals": 18,
+		"kind":     "Erc20",
+		"symbol":   "non-updated-symbol",
+	})
 
 	aggregatedCoinsUSDC, ok := aggregatedCoins["usdc"]
 	require.True(t, ok)
@@ -409,6 +435,39 @@ func TestFetchWalletInfoForCoinsAggregation(t *testing.T) {
 	require.Len(t, ionIndexer.balanceTriggered, 1)
 	_, balanceWasTriggeredForWallet3 := ionIndexer.balanceTriggered["addr3"]
 	require.True(t, balanceWasTriggeredForWallet3)
+	walletTokenizedCommunity := "wa-tokenized-community"
+	t.Run("coins is from tokenized comminity and user changed his username (symbol)", func(t *testing.T) {
+		tokenizedCommunityExtAddress := "0:5d3e73af73f046cc75a9b6c5d82e63325ce79b6f080b39ec617e6c6183eb247b:"
+		tokenizedCommunityCoins, _, _, err := a.fetchWalletInfoForCoins(ctx, "userID", []*CoinMapping{
+			{
+				Coin: &coins.Coin{
+					ID:                                "tokenized-coin",
+					Symbol:                            "updated-name",
+					Network:                           "BscTestnet",
+					ContractAddress:                   "0xbb88c364c759b2b42423b71f043212085d4cdeb0",
+					Native:                            false,
+					Name:                              "Tokenized Community Coin with non-matching symbol",
+					TokenizedCommunityExternalAddress: &tokenizedCommunityExtAddress,
+				},
+				WalletID: &walletTokenizedCommunity,
+				CoinID:   "tokenized-coin",
+			},
+		}, nil)
+		require.NoError(t, err)
+		require.NotEmpty(t, tokenizedCommunityCoins)
+		require.Len(t, tokenizedCommunityCoins, 1)
+		require.Contains(t, maps.Keys(tokenizedCommunityCoins), "non-updated-symbol")
+		require.EqualValues(t, "1113871018693693333332", tokenizedCommunityCoins["non-updated-symbol"].TotalBalance.String())
+		require.Len(t, tokenizedCommunityCoins["non-updated-symbol"].Wallets, 1)
+		require.Equal(t, []*CoinInWallet{
+			{
+				Asset:    &assetTokenizedCommunityCoin,
+				WalletID: "wa-tokenized-community",
+				Network:  "BscTestnet",
+				CoinID:   "tokenized-coin",
+			},
+		}, tokenizedCommunityCoins["non-updated-symbol"].Wallets)
+	})
 }
 
 func (m *mockWalletClient) GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint64) (*dfns.WalletHistory, error) {
