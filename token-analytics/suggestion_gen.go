@@ -281,7 +281,7 @@ func (t *tokenAnalytics) onSuggestionPictureGenerationSuccess(ctx context.Contex
 		return fmt.Errorf("failed to decode base64 picture for content ID %v: %w", contentID, err)
 	}
 
-	err = t.cdnClient.SubmitFileUploadJob(ctx, pictureData, "image/png", t.tokenSuggestionFilename(contentID), &cdn.Metadata{
+	err = t.cdnClient.SubmitFileUploadJob(ctx, pictureData, "image/webp", t.tokenSuggestionFilename(contentID), &cdn.Metadata{
 		Map: map[string]string{
 			"content_id": contentID,
 			"ticker":     ticker,
@@ -297,5 +297,5 @@ func (t *tokenAnalytics) onSuggestionPictureGenerationSuccess(ctx context.Contex
 }
 
 func (*tokenAnalytics) tokenSuggestionFilename(contentID string) string {
-	return "ts_" + contentID + ".png"
+	return "ts_" + contentID + ".webp"
 }

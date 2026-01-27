@@ -65,9 +65,9 @@ func (client *mockedLLMClient) GenerateTokenNameAndTicker(ctx context.Context, c
 	return "Mocked Token Name", "MTN", nil
 }
 
-func (client *mockedLLMClient) GenerateTokenImage(ctx context.Context, creator, content, name, ticker string, images, frames []string) (pngB64image string, err error) {
+func (client *mockedLLMClient) GenerateTokenImage(ctx context.Context, creator, content, name, ticker string, images, frames []string) (webpB64image string, err error) {
 	client.TB.Logf("mocked GenerateTokenImage called with creator: %s, content: %s, name: %s, ticker: %s, frames count: %d", creator, content, name, ticker, len(images)+len(frames))
-	return base64.StdEncoding.EncodeToString([]byte("mocked_png_image_data")), nil
+	return base64.StdEncoding.EncodeToString([]byte("mocked_webp_image_data")), nil
 }
 
 func TestGenerateTokenSuggestion(t *testing.T) {

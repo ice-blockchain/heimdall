@@ -140,7 +140,7 @@ func TestUploadWorker(t *testing.T) {
 	helperRegisterUploadWorker(t, rqClient, client)
 
 	var (
-		testFile    = "test.png"
+		testFile    = "test.webp"
 		testContent = []byte("test content")
 	)
 
@@ -162,7 +162,7 @@ func TestUploadWorker(t *testing.T) {
 			observer.FnOnCompleted = nil
 		}()
 		err := rqClient.Push(t.Context(), &uploadWorkerArgs{
-			ContentType: "image/png",
+			ContentType: "image/webp",
 			FileName:    testFile,
 			Data:        testContent,
 		})
@@ -246,11 +246,11 @@ func TestUploadWorkerErrorHandler(t *testing.T) {
 			observer.FnOnCompleted = nil
 		}()
 
-		const testFile = "error_test.png"
+		const testFile = "error_test.webp"
 		testContent := []byte("error test content")
 
 		err := rqClient.Push(t.Context(), &uploadWorkerArgs{
-			ContentType: "image/png",
+			ContentType: "image/webp",
 			FileName:    testFile,
 			Data:        testContent,
 		})

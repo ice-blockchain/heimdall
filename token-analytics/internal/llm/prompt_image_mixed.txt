@@ -42,7 +42,7 @@ If media adds no value, ignore it completely.
 IMAGE RULES (STRICT)
 
 Format
-	•	PNG
+	•	WEBP
 	•	Perfectly square
 	•	1:1 ratio
 
@@ -112,5 +112,5 @@ OUTPUT REQUIREMENTS
 	•	No additional text or explanations
 
 OUTPUT FORMAT:
-	•	Return ONLY the generated PNG image as raw base64-encoded string.
+	•	Return ONLY the generated WEBP image as raw base64-encoded string.
 	•	Do NOT include explanations or any extra text or code blocks.
