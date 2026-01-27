@@ -25,7 +25,7 @@ type (
 	}
 	Client interface {
 		GenerateTokenNameAndTicker(ctx context.Context, creator, content string, images, frames []string) (name, ticker string, err error)
-		GenerateTokenImage(ctx context.Context, creator, content, name, ticker string, images, frames []string) (pngB64image string, err error)
+		GenerateTokenImage(ctx context.Context, creator, content, name, ticker string, images, frames []string) (webpB64image string, err error)
 	}
 )
 

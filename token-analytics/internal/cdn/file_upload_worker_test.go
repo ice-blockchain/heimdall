@@ -58,6 +58,10 @@ func (*mockedClient) HealthCheck(context.Context) error {
 	return nil
 }
 
+func (*mockedClient) TargetURL(fileName string) string {
+	return "download://" + fileName
+}
+
 func (m *mockedClient) FileUpload(ctx context.Context, r io.Reader, contentType, fileName string) (string, error) {
 	m.T.Logf("Mocked upload file: %s", fileName)
 	data, err := io.ReadAll(r)
@@ -77,7 +81,7 @@ func (m *mockedClient) FileUpload(ctx context.Context, r io.Reader, contentType,
 		m.T.Fatal("failed to send data, context done")
 	}
 
-	return "download://" + fileName, nil
+	return m.TargetURL(fileName), nil
 }
 
 func (m *mockedClient) Observer() StateObserver {
@@ -136,7 +140,7 @@ func TestUploadWorker(t *testing.T) {
 	helperRegisterUploadWorker(t, rqClient, client)
 
 	var (
-		testFile    = "test.png"
+		testFile    = "test.webp"
 		testContent = []byte("test content")
 	)
 
@@ -158,7 +162,7 @@ func TestUploadWorker(t *testing.T) {
 			observer.FnOnCompleted = nil
 		}()
 		err := rqClient.Push(t.Context(), &uploadWorkerArgs{
-			ContentType: "image/png",
+			ContentType: "image/webp",
 			FileName:    testFile,
 			Data:        testContent,
 		})
@@ -242,11 +246,11 @@ func TestUploadWorkerErrorHandler(t *testing.T) {
 			observer.FnOnCompleted = nil
 		}()
 
-		const testFile = "error_test.png"
+		const testFile = "error_test.webp"
 		testContent := []byte("error test content")
 
 		err := rqClient.Push(t.Context(), &uploadWorkerArgs{
-			ContentType: "image/png",
+			ContentType: "image/webp",
 			FileName:    testFile,
 			Data:        testContent,
 		})

@@ -42,7 +42,7 @@ If uncertain, prioritize emotion over action.
 IMAGE RULES (STRICT)
 
 Format
-	•	PNG
+	•	WEBP
 	•	Perfectly square
 	•	1:1 ratio
 
@@ -111,5 +111,5 @@ OUTPUT REQUIREMENTS
 	•	No explanations or text output
 
 OUTPUT FORMAT:
-	•	Return ONLY the generated PNG image as raw base64-encoded string.
+	•	Return ONLY the generated WEBP image as raw base64-encoded string.
 	•	Do NOT include explanations or any extra text or code blocks.

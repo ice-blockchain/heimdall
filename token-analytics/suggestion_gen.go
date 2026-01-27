@@ -72,7 +72,18 @@ func (t *tokenAnalytics) GenerateTokenSuggestion(ctx context.Context, data *Crea
 	if err != nil {
 		return nil, err
 	} else if !shouldEnqueue {
-		return &SuggestedCreationDetails{Status: TokenDetailsGenerationStatusPending}, nil
+		if record == nil {
+			return &SuggestedCreationDetails{
+				Status:  TokenDetailsGenerationStatusPending,
+				Picture: t.cdnClient.TargetURL(t.tokenSuggestionFilename(data.ContentID)),
+			}, nil
+		}
+		return &SuggestedCreationDetails{
+			Ticker:  record.Ticker.String,
+			Name:    record.Name.String,
+			Picture: record.PictureURL.String,
+			Status:  TokenDetailsGenerationStatus(record.Status),
+		}, nil
 	}
 
 	name, ticker, err := t.generateTokenSuggestionTicker(ctx, data)
@@ -81,19 +92,21 @@ func (t *tokenAnalytics) GenerateTokenSuggestion(ctx context.Context, data *Crea
 	}
 
 	return &SuggestedCreationDetails{
-		Status: TokenDetailsGenerationStatusGeneratingPicture,
-		Ticker: ticker,
-		Name:   name,
+		Status:  TokenDetailsGenerationStatusGeneratingPicture,
+		Ticker:  ticker,
+		Name:    name,
+		Picture: t.cdnClient.TargetURL(t.tokenSuggestionFilename(data.ContentID)),
 	}, nil
 }
 
 func (t *tokenAnalytics) TryInsertSuggestionRecord(ctx context.Context, data *CreationDetailsData) (bool, error) {
 	const stmt = `
-	insert into user_tokens_suggestions(content_id, status)
-	values ($1, $2)
+	insert into user_tokens_suggestions(content_id, status, picture_url)
+	values ($1, $2, $3)
 	ON CONFLICT (content_id) DO UPDATE
 	SET
 		status            = EXCLUDED.status,
+		picture_url       = EXCLUDED.picture_url,
 		updated_at        = NOW(),
 		completed_at      = NULL,
 		last_attempted_at = NULL,
@@ -110,7 +123,13 @@ func (t *tokenAnalytics) TryInsertSuggestionRecord(ctx context.Context, data *Cr
 	RETURNING content_id
 	`
 
-	val, err := storage.ExecOne[string](ctx, t.ingestedDataDB, stmt, data.ContentID, TokenDetailsGenerationStatusPending)
+	val, err := storage.ExecOne[string](ctx,
+		t.ingestedDataDB,
+		stmt,
+		data.ContentID,
+		TokenDetailsGenerationStatusPending,
+		t.cdnClient.TargetURL(t.tokenSuggestionFilename(data.ContentID)),
+	)
 	if err != nil {
 		return false, fmt.Errorf("failed to insert token suggestion record %v: %w", data.ContentID, err)
 	}
@@ -262,8 +281,7 @@ func (t *tokenAnalytics) onSuggestionPictureGenerationSuccess(ctx context.Contex
 		return fmt.Errorf("failed to decode base64 picture for content ID %v: %w", contentID, err)
 	}
 
-	filename := "ts_" + contentID + ".png"
-	err = t.cdnClient.SubmitFileUploadJob(ctx, pictureData, "image/png", filename, &cdn.Metadata{
+	err = t.cdnClient.SubmitFileUploadJob(ctx, pictureData, "image/webp", t.tokenSuggestionFilename(contentID), &cdn.Metadata{
 		Map: map[string]string{
 			"content_id": contentID,
 			"ticker":     ticker,
@@ -276,4 +294,8 @@ func (t *tokenAnalytics) onSuggestionPictureGenerationSuccess(ctx context.Contex
 	}
 
 	return nil
+}
+
+func (*tokenAnalytics) tokenSuggestionFilename(contentID string) string {
+	return "ts_" + contentID + ".webp"
 }

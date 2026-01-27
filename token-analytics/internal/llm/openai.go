@@ -177,7 +177,7 @@ func (c *openaiClient) GenerateTokenNameAndTicker(ctx context.Context, creator, 
 	return capitalizeFirst(result.Name), strings.ToUpper(result.Ticker), nil
 }
 
-func (c *openaiClient) GenerateTokenImage(ctx context.Context, creator, content, name, ticker string, images, video []string) (pngB64image string, err error) {
+func (c *openaiClient) GenerateTokenImage(ctx context.Context, creator, content, name, ticker string, images, video []string) (webpB64image string, err error) {
 	if err = c.ValidateTextInput(creator, content); err != nil {
 		return "", err
 	}
@@ -189,7 +189,7 @@ func (c *openaiClient) GenerateTokenImage(ctx context.Context, creator, content,
 	return c.generateTokenImageWithGenerate(ctx, creator, content, name, ticker)
 }
 
-func (c *openaiClient) generateTokenImageWithGenerate(ctx context.Context, creator, content, name, ticker string) (pngB64image string, err error) {
+func (c *openaiClient) generateTokenImageWithGenerate(ctx context.Context, creator, content, name, ticker string) (webpB64image string, err error) {
 	prompt, err := executeImageTemplate(creator, content, name, ticker, false, false)
 	if err != nil {
 		return "", fmt.Errorf("cannot build openai image prompt: %w", err)
@@ -200,7 +200,7 @@ func (c *openaiClient) generateTokenImageWithGenerate(ctx context.Context, creat
 			Model:        openai.ImageModelGPTImage1_5,
 			Prompt:       prompt,
 			N:            openai.Int(1),
-			OutputFormat: openai.ImageGenerateParamsOutputFormatPNG,
+			OutputFormat: openai.ImageGenerateParamsOutputFormatWebP,
 			Quality:      openai.ImageGenerateParamsQuality(c.Cfg.ImageQuality),
 			Size:         openai.ImageGenerateParamsSizeAuto,
 		},
@@ -217,7 +217,7 @@ func (c *openaiClient) generateTokenImageWithGenerate(ctx context.Context, creat
 	return resp.Data[0].B64JSON, nil
 }
 
-func (c *openaiClient) generateTokenImageFromReferences(ctx context.Context, creator, content, name, ticker string, images, video []string) (pngB64image string, err error) {
+func (c *openaiClient) generateTokenImageFromReferences(ctx context.Context, creator, content, name, ticker string, images, video []string) (webpB64image string, err error) {
 	const maxFramesAllowed = 16 // Images.Edit supports up to 16 images.
 
 	prompt, err := executeImageTemplate(creator, content, name, ticker, len(images) > 0, len(video) > 0)
@@ -258,7 +258,7 @@ func (c *openaiClient) generateTokenImageFromReferences(ctx context.Context, cre
 			Prompt:       prompt,
 			Image:        openai.ImageEditParamsImageUnion{OfFileArray: imageReaders},
 			N:            openai.Int(1),
-			OutputFormat: openai.ImageEditParamsOutputFormatPNG,
+			OutputFormat: openai.ImageEditParamsOutputFormatWebP,
 			Quality:      openai.ImageEditParamsQuality(c.Cfg.ImageQuality),
 			Size:         openai.ImageEditParamsSizeAuto,
 		},

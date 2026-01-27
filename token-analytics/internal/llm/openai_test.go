@@ -26,7 +26,7 @@ func getTerminalSize() (width, height int, err error) {
 	return 80, 24, nil // VT100 terminal size
 }
 
-func helperRenderImage(t testing.TB, pngImage []byte) {
+func helperRenderImage(t testing.TB, webpImage []byte) {
 	t.Helper()
 
 	tx, ty, err := getTerminalSize()
@@ -45,7 +45,7 @@ func helperRenderImage(t testing.TB, pngImage []byte) {
 	}
 
 	sfy, sfx := 2, 1
-	pix, err := ansimage.NewScaledFromReader(bytes.NewReader(pngImage), sfy*ty, sfx*tx, mc, sm, dm)
+	pix, err := ansimage.NewScaledFromReader(bytes.NewReader(webpImage), sfy*ty, sfx*tx, mc, sm, dm)
 	if err != nil {
 		t.Logf("cannot create ansimage from reader: %v", err)
 		return
@@ -106,7 +106,7 @@ func TestLLMProviderOpenAI(t *testing.T) {
 			t.Logf("Generated Image Size: %d bytes", len(data))
 
 			// Ignore possible errors writing the file in tests.
-			const writePath = "/tmp/test_openai_generated_token_image.png"
+			const writePath = "/tmp/test_openai_generated_token_image.webp"
 			os.WriteFile(writePath, data, 0o644) //nolint:errcheck
 			t.Logf("Generated image written to: %s", writePath)
 
@@ -126,7 +126,7 @@ func TestLLMProviderOpenAI(t *testing.T) {
 			t.Logf("Generated Image Size: %d bytes", len(data))
 
 			// Ignore possible errors writing the file in tests.
-			const writePath = "/tmp/test_openai_generated_token_image_2.png"
+			const writePath = "/tmp/test_openai_generated_token_image_2.webp"
 			os.WriteFile(writePath, data, 0o644) //nolint:errcheck
 			t.Logf("Generated image written to: %s", writePath)
 
