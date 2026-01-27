@@ -4,6 +4,7 @@ package tokenanalytics
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"time"
@@ -256,8 +257,13 @@ func (t *tokenAnalytics) onSuggestionPictureGenerationSuccess(ctx context.Contex
 		return err
 	}
 
+	pictureData, err := base64.StdEncoding.DecodeString(pictureB64)
+	if err != nil {
+		return fmt.Errorf("failed to decode base64 picture for content ID %v: %w", contentID, err)
+	}
+
 	filename := "ts_" + contentID + ".png"
-	err = t.cdnClient.SubmitFileUploadJob(ctx, []byte(pictureB64), "image/png", filename, &cdn.Metadata{
+	err = t.cdnClient.SubmitFileUploadJob(ctx, pictureData, "image/png", filename, &cdn.Metadata{
 		Map: map[string]string{
 			"content_id": contentID,
 			"ticker":     ticker,
