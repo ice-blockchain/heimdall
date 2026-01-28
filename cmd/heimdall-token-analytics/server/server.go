@@ -3,12 +3,14 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
 	"log/slog"
 	"net"
+	"net/http"
 	"slices"
 	"strconv"
 	"strings"
@@ -44,9 +46,14 @@ func New(conf *Config) Server {
 
 func loggerMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		var buf bytes.Buffer
+
 		start := time.Now()
 		path := c.Request.URL.Path
 		raw := c.Request.URL.RawQuery
+
+		body, bodyErr := io.ReadAll(io.TeeReader(c.Request.Body, &buf))
+		c.Request.Body = io.NopCloser(&buf)
 
 		c.Next()
 
@@ -68,7 +75,23 @@ func loggerMiddleware() gin.HandlerFunc {
 			"client_ip", c.ClientIP(),
 			"method", c.Request.Method,
 			"path", path,
-			"body_size", c.Writer.Size(),
+			"response_body_size", c.Writer.Size(),
+		}
+
+		if c.Request.Method != http.MethodConnect {
+			const maxBodyLogSize = 4 << 20
+			switch {
+			case bodyErr == nil && len(body) > 0:
+				logArgs = append(logArgs, "request_body_size", len(body))
+				if len(body) > maxBodyLogSize {
+					logArgs = append(logArgs, "request_body_truncated", true)
+					body = body[:maxBodyLogSize]
+				}
+				logArgs = append(logArgs, "request_body", string(body))
+
+			case bodyErr != nil:
+				logArgs = append(logArgs, "request_body_error", bodyErr.Error())
+			}
 		}
 
 		if token := authGetToken(c); token != nil {

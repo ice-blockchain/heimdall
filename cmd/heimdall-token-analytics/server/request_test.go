@@ -535,3 +535,23 @@ func TestRequestStreamPing(t *testing.T) {
 		}
 	})
 }
+
+func TestServerPOST(t *testing.T) {
+	t.Parallel()
+
+	type RequestTestStruct struct {
+		Foo string `json:"foo" binding:"required"`
+	}
+	r := helperNewRouter(t)
+	r.POST("/post", RootHandler(func(ctx context.Context, r *Request[RequestTestStruct]) (*Response[string], error) {
+		require.NotNil(t, r.Data)
+		return OK(&r.Data.Foo), nil
+	}))
+
+	t.Run("POST valid body", func(t *testing.T) {
+		body := `{"foo":"bar"}`
+		resp := helperDoRequest[string](t, r, http.MethodPost, "/post", strings.NewReader(body))
+		require.Equal(t, http.StatusOK, resp.Code)
+		require.Equal(t, "bar", *resp.Data)
+	})
+}
