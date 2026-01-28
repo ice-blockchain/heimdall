@@ -51,9 +51,14 @@ func loggerMiddleware() gin.HandlerFunc {
 		start := time.Now()
 		path := c.Request.URL.Path
 		raw := c.Request.URL.RawQuery
+		doBodyLog := !(c.Request.Method == http.MethodConnect || (c.Request.Method == http.MethodGet && strings.EqualFold(c.Request.Header.Get("Upgrade"), "websocket")))
 
-		body, bodyErr := io.ReadAll(io.TeeReader(c.Request.Body, &buf))
-		c.Request.Body = io.NopCloser(&buf)
+		var body []byte
+		var bodyErr error
+		if doBodyLog {
+			body, bodyErr = io.ReadAll(io.TeeReader(c.Request.Body, &buf))
+			c.Request.Body = io.NopCloser(&buf)
+		}
 
 		c.Next()
 
@@ -78,7 +83,7 @@ func loggerMiddleware() gin.HandlerFunc {
 			"response_body_size", c.Writer.Size(),
 		}
 
-		if c.Request.Method != http.MethodConnect {
+		if doBodyLog {
 			const maxBodyLogSize = 4 << 20
 			switch {
 			case bodyErr == nil && len(body) > 0:
