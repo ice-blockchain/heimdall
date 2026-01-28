@@ -142,10 +142,6 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 		return nil, errors.Wrap(err, "failed to fetch community tokens by type")
 	}
 
-	if err := t.updateBondingProgressForRows(ctx, rows); err != nil {
-		return nil, errors.Wrap(err, "failed to update bonding progress for rows")
-	}
-
 	tokens := make([]*CommunityToken, 0, len(rows))
 	for _, row := range rows {
 		tokenAddresses, creatorAddresses, err := buildTokenAndCreatorAddresses(TokenAndCreatorAddressesParams{
@@ -255,10 +251,6 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 	rows, err := storage.Select[tokenRow](ctx, t.ingestedDataDB, query, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch featured community tokens")
-	}
-
-	if err := t.updateBondingProgressForRows(ctx, rows); err != nil {
-		return nil, errors.Wrap(err, "failed to update bonding progress for rows")
 	}
 
 	tokens := make([]*CommunityToken, 0, len(rows))

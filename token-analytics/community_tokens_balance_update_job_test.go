@@ -35,6 +35,11 @@ func TestBalanceUpdateJob_WithDummyBalance(t *testing.T) {
 	helperInsertTestUser(t, ctx, db, userExternalAddr, "test_user", "Test User", userBlockchainAddr, false, PlatformGroupIonConnect)
 	helperInsertTestToken(t, ctx, db, contractAddr, tokenExternalAddr, "TEST", "profile", userExternalAddr, "1000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
 
+	pairID := "0x0000000000000000000000000000000000000000000000000000000000000001"
+	baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+	helperInsertBaseTokenPrice(t, ctx, db, baseToken, "ION", 0.5)
+	helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddr, pairID, baseToken)
+
 	dummyBalance := "3500000000000000000" // 3.5 tokens
 	err := ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
 		UserBlockchainAddress: userBlockchainAddr,
@@ -42,6 +47,9 @@ func TestBalanceUpdateJob_WithDummyBalance(t *testing.T) {
 		ContractAddress:       contractAddr,
 		TokenExternalAddress:  tokenExternalAddr,
 		TransactionHash:       "0xdummy123",
+		PairID:                pairID,
+		BaseToken:             baseToken,
+		TokenType:             "profile",
 		DummyBalance:          &dummyBalance,
 	})
 	require.NoError(t, err)
@@ -87,12 +95,18 @@ func TestBalanceUpdateJob_WithRPC(t *testing.T) {
 	helperInsertTestToken(t, ctx, db, tokenContractAddr, tokenExternalAddr, "TEST1", "profile", userExternalAddr, "1000000000000000000000000000", 0, 0, 0, "ionconnect")
 	helperInsertUserPosition(t, ctx, db, userBlockchainAddr, tokenContractAddr, tokenExternalAddr, userExternalAddr, "0")
 
+	helperInsertBaseTokenPrice(t, ctx, db, "0x2c73996babf1a06c2c057177353293f7ca0907c8", "ION", 0.01)
+	helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddr, "0x0000000000000000000000000000000000000000000000000000000000000001", "0x2c73996babf1a06c2c057177353293f7ca0907c8")
+
 	err := ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
 		UserBlockchainAddress: userBlockchainAddr,
 		UserExternalAddress:   userExternalAddr,
 		ContractAddress:       tokenContractAddr,
 		TokenExternalAddress:  tokenExternalAddr,
 		TransactionHash:       txHash,
+		PairID:                "0x0000000000000000000000000000000000000000000000000000000000000001",
+		BaseToken:             "0x2c73996babf1a06c2c057177353293f7ca0907c8",
+		TokenType:             "profile",
 	})
 	require.NoError(t, err)
 
@@ -144,12 +158,18 @@ func TestBalanceUpdateJob_ZeroBalance(t *testing.T) {
 	}).Err()
 	require.NoError(t, err)
 
+	helperInsertBaseTokenPrice(t, ctx, db, "0x2c73996babf1a06c2c057177353293f7ca0907c8", "ION", 0.01)
+	helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddr, "0x0000000000000000000000000000000000000000000000000000000000000002", "0x2c73996babf1a06c2c057177353293f7ca0907c8")
+
 	err = ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
 		UserBlockchainAddress: userBlockchainAddr,
 		UserExternalAddress:   userExternalAddr,
 		ContractAddress:       tokenContractAddr,
 		TokenExternalAddress:  tokenExternalAddr,
 		TransactionHash:       txHash,
+		PairID:                "0x0000000000000000000000000000000000000000000000000000000000000002",
+		BaseToken:             "0x2c73996babf1a06c2c057177353293f7ca0907c8",
+		TokenType:             "profile",
 	})
 	require.NoError(t, err)
 
@@ -178,5 +198,14 @@ func helperInsertUserPosition(t testing.TB, ctx context.Context, db *storage.DB,
 		)
 		VALUES ($1, $2, $3, $4, $5, 0, 0, 0, NOW())
 	`, userBlockchainAddr, contractAddr, tokenExternalAddr, userExternalAddr, amount)
+	require.NoError(t, err)
+}
+
+func helperUpdateTokenPairAndBaseToken(t testing.TB, ctx context.Context, db *storage.DB, tokenExternalAddr, pairID, baseToken string) {
+	t.Helper()
+	_, err := storage.Exec(ctx, db, `
+		UPDATE tokens SET pair_id = $1, base_token = $2 WHERE external_address = $3
+	`, pairID, baseToken, tokenExternalAddr)
+
 	require.NoError(t, err)
 }

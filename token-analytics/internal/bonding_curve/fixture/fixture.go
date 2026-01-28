@@ -206,7 +206,10 @@ func (m *mockBondingCurveWithRealBalance) Pricing(ctx context.Context, baseToken
 }
 
 func (m *mockBondingCurveWithRealBalance) Progress(ctx context.Context, pairId common.Hash) (*bondingcurve.BondingCurveProgress, error) {
-	return &bondingcurve.BondingCurveProgress{}, nil
+	return &bondingcurve.BondingCurveProgress{
+		BondingCurveBondingInfo: &m.mock.bondingProgressResponse,
+		Liquidity:               big.NewInt(0),
+	}, nil
 }
 
 func (m *mockBondingCurveWithRealBalance) GetTokenBalance(ctx context.Context, tokenAddress common.Address, walletAddress common.Address) (*big.Int, error) {

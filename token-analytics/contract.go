@@ -151,6 +151,9 @@ const (
 	globalTrendingSetKey             = "token_analytics:global:trending"
 	globalBondingCurveProgressSetKey = "token_analytics:global:bonding_curve_progress"
 
+	tokenBondingCurveUpdatesChannel = "token_bonding_curve_updates"
+	userBalanceUpdatesChannel       = "user_balance_updates"
+
 	globalTopProfileSetKey = "token_analytics:global:top:profile"
 	globalTopPostSetKey    = "token_analytics:global:top:post"
 	globalTopVideoSetKey   = "token_analytics:global:top:video"

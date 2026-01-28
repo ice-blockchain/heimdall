@@ -38,6 +38,10 @@ func TestOnTransfer(t *testing.T) {
 		helperInsertTestUser(t, ctx, db, creatorPubkey, "test_user", "Test User", "0xSomeAddress", false, PlatformGroupIonConnect)
 		helperInsertTestToken(t, ctx, db, tokenContractAddr, tokenExternalAddr, "TTOKEN", TokenTypeProfile, creatorPubkey, "1000000000000000000000", 0, 0.1, 0, PlatformGroupIonConnect)
 
+		baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+		helperInsertBaseTokenPrice(t, ctx, db, baseToken, "ION", 0.5)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddr, "0x0000000000000000000000000000000000000000000000000000000000000001", baseToken)
+
 		senderAddr := strings.ToLower("0xd38D7cDab8802A4Dc5730f9Dfd24464545BB88aC")
 		senderExternalAddr := "0:sender_pubkey:"
 		receiverAddr := strings.ToLower("0x70E06D947F05A6324B12BfE31e2c693a4e369c5E")

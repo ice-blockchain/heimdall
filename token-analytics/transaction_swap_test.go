@@ -131,14 +131,6 @@ func TestOnSwap(t *testing.T) {
 			Input:           buildMockSwapInput(ionConnectAddr), // Add mock tx.Input
 		}
 
-		err = ta.onSwap(ctx, tx2, swapEvent)
-		require.NoError(t, err)
-
-		require.Eventually(t, func() bool {
-			score, err := testRedis.ZScore(ctx, keyUserPositionOfToken(ionConnectAddr), "0:"+masterPubkey+":").Result()
-			return err == nil && score > 0
-		}, 2*time.Second, 50*time.Millisecond, "River queue should update Redis balance")
-
 		helperInsertTokenSwap(t, ctx, db,
 			strings.ToLower(contractAddress),
 			ionConnectAddr,
@@ -149,6 +141,14 @@ func TestOnSwap(t *testing.T) {
 			"1000000000000000000",
 			0.1,
 		)
+
+		err = ta.onSwap(ctx, tx2, swapEvent)
+		require.NoError(t, err)
+
+		require.Eventually(t, func() bool {
+			score, err := testRedis.ZScore(ctx, keyUserPositionOfToken(ionConnectAddr), "0:"+masterPubkey+":").Result()
+			return err == nil && score > 0
+		}, 2*time.Second, 50*time.Millisecond, "River queue should update Redis balance")
 
 		helperInsertUserTokenPosition(t, ctx, db,
 			masterPubkey,
@@ -273,14 +273,6 @@ func TestOnSwap(t *testing.T) {
 			Input:           buildMockSwapInput(ionConnectAddr),
 		}
 
-		err = ta.onSwap(ctx, tx2, buyEvent)
-		require.NoError(t, err)
-
-		require.Eventually(t, func() bool {
-			score, err := testRedis.ZScore(ctx, keyUserPositionOfToken(ionConnectAddr), "0:"+masterPubkey+":").Result()
-			return err == nil && score > 0
-		}, 2*time.Second, 50*time.Millisecond, "River queue should update Redis balance after buy")
-
 		helperInsertTokenSwap(t, ctx, db,
 			strings.ToLower(contractAddress),
 			ionConnectAddr,
@@ -291,6 +283,14 @@ func TestOnSwap(t *testing.T) {
 			"2000000000000000000",
 			0.1,
 		)
+
+		err = ta.onSwap(ctx, tx2, buyEvent)
+		require.NoError(t, err)
+
+		require.Eventually(t, func() bool {
+			score, err := testRedis.ZScore(ctx, keyUserPositionOfToken(ionConnectAddr), "0:"+masterPubkey+":").Result()
+			return err == nil && score > 0
+		}, 2*time.Second, 50*time.Millisecond, "River queue should update Redis balance after buy")
 
 		helperInsertUserTokenPosition(t, ctx, db,
 			masterPubkey,
@@ -326,14 +326,6 @@ func TestOnSwap(t *testing.T) {
 			Input:           buildMockSwapInput(ionConnectAddr),
 		}
 
-		err = ta.onSwap(ctx, tx3, sellEvent)
-		require.NoError(t, err)
-
-		require.Eventually(t, func() bool {
-			score, err := testRedis.ZScore(ctx, keyUserPositionOfToken(ionConnectAddr), "0:"+masterPubkey+":").Result()
-			return err == nil && score >= 0 // Balance updated (may be 0 or positive)
-		}, 2*time.Second, 50*time.Millisecond, "River queue should update Redis balance after sell")
-
 		helperInsertTokenSwap(t, ctx, db,
 			strings.ToLower(contractAddress),
 			ionConnectAddr,
@@ -344,6 +336,14 @@ func TestOnSwap(t *testing.T) {
 			"1000000000000000000",
 			0.1,
 		)
+
+		err = ta.onSwap(ctx, tx3, sellEvent)
+		require.NoError(t, err)
+
+		require.Eventually(t, func() bool {
+			score, err := testRedis.ZScore(ctx, keyUserPositionOfToken(ionConnectAddr), "0:"+masterPubkey+":").Result()
+			return err == nil && score >= 0
+		}, 2*time.Second, 50*time.Millisecond, "River queue should update Redis balance after sell")
 
 		_, err = storage.Exec(ctx, db, `
 		UPDATE user_token_positions 
@@ -442,9 +442,6 @@ func TestOnSwap(t *testing.T) {
 			Input:           buildMockSwapInput(ionConnectAddr),
 		}
 
-		err = ta.onSwap(ctx, tx, event)
-		require.NoError(t, err)
-
 		helperInsertTokenSwap(t, ctx, db,
 			strings.ToLower(contractAddress),
 			ionConnectAddr,
@@ -455,6 +452,9 @@ func TestOnSwap(t *testing.T) {
 			"5000000000000000000",
 			0.1,
 		)
+
+		err = ta.onSwap(ctx, tx, event)
+		require.NoError(t, err)
 
 		_, err = storage.Exec(ctx, db, `
 		UPDATE tokens SET price_usd = $1 WHERE contract_address = $2
@@ -626,15 +626,6 @@ func TestOnSwap(t *testing.T) {
 			Input:           buildMockSwapInput(contentExternalAddr),
 		}
 
-		err = ta.onSwap(ctx, tx, swapEvent)
-		require.NoError(t, err)
-
-		// Wait for River queue to process
-		require.Eventually(t, func() bool {
-			score, err := testRedis.ZScore(ctx, keyUserPositionOfToken(contentExternalAddr), "0:"+buyerPubkey+":").Result()
-			return err == nil && score > 0
-		}, 2*time.Second, 50*time.Millisecond, "River queue should update Redis balance for double fat address")
-
 		helperInsertTokenSwap(t, ctx, db,
 			strings.ToLower(contentContractAddr),
 			contentExternalAddr,
@@ -645,6 +636,14 @@ func TestOnSwap(t *testing.T) {
 			"1000000000000000000",
 			0.5, // 1 creator token * $0.5
 		)
+
+		err = ta.onSwap(ctx, tx, swapEvent)
+		require.NoError(t, err)
+
+		require.Eventually(t, func() bool {
+			score, err := testRedis.ZScore(ctx, keyUserPositionOfToken(contentExternalAddr), "0:"+buyerPubkey+":").Result()
+			return err == nil && score > 0
+		}, 2*time.Second, 50*time.Millisecond, "River queue should update Redis balance for double fat address")
 
 		helperInsertUserTokenPosition(t, ctx, db,
 			buyerPubkey,
@@ -745,6 +744,16 @@ func TestOnSwap(t *testing.T) {
 			Input:           buildMockSwapInput(profileExternalAddr),
 		}
 
+		helperInsertTokenSwap(t, ctx, db,
+			strings.ToLower(contractAddress),
+			profileExternalAddr,
+			strings.ToLower(userAddr),
+			tx1.TransactionHash,
+			false, // buy
+			"1000000000000000000",
+			"1000000000000000000",
+			0.1)
+
 		err = ta.onSwap(ctx, tx1, buyEvent1)
 		require.NoError(t, err)
 
@@ -783,6 +792,16 @@ func TestOnSwap(t *testing.T) {
 			BlockTimestamp:  now,
 			Input:           buildMockSwapInput(profileExternalAddr),
 		}
+
+		helperInsertTokenSwap(t, ctx, db,
+			strings.ToLower(contractAddress),
+			profileExternalAddr,
+			strings.ToLower(userAddr),
+			tx2.TransactionHash,
+			false, // buy
+			"2000000000000000000",
+			"2000000000000000000",
+			0.1)
 
 		err = ta.onSwap(ctx, tx2, buyEvent2)
 		require.NoError(t, err)
@@ -823,6 +842,16 @@ func TestOnSwap(t *testing.T) {
 			BlockTimestamp:  now,
 			Input:           buildMockSwapInput(profileExternalAddr),
 		}
+
+		helperInsertTokenSwap(t, ctx, db,
+			strings.ToLower(contractAddress),
+			profileExternalAddr,
+			strings.ToLower(userAddr),
+			tx3.TransactionHash,
+			true, // sell
+			"1000000000000000000",
+			"1000000000000000000",
+			0.1)
 
 		err = ta.onSwap(ctx, tx3, sellEvent)
 		require.NoError(t, err)
@@ -924,6 +953,16 @@ func TestOnSwap(t *testing.T) {
 			Input:           buildMockSwapInput(contentExternalAddr),
 		}
 
+		helperInsertTokenSwap(t, ctx, db,
+			strings.ToLower(contentContractAddr),
+			contentExternalAddr,
+			strings.ToLower(userAddr),
+			tx1.TransactionHash,
+			false, // buy
+			"1000000000000000000",
+			"1000000000000000000",
+			0.3)
+
 		err = ta.onSwap(ctx, tx1, buyEvent1)
 		require.NoError(t, err)
 
@@ -962,6 +1001,16 @@ func TestOnSwap(t *testing.T) {
 			BlockTimestamp:  now,
 			Input:           buildMockSwapInput(contentExternalAddr),
 		}
+
+		helperInsertTokenSwap(t, ctx, db,
+			strings.ToLower(contentContractAddr),
+			contentExternalAddr,
+			strings.ToLower(userAddr),
+			tx2.TransactionHash,
+			false, // buy
+			"2000000000000000000",
+			"2000000000000000000",
+			0.3)
 
 		err = ta.onSwap(ctx, tx2, buyEvent2)
 		require.NoError(t, err)
@@ -1002,6 +1051,16 @@ func TestOnSwap(t *testing.T) {
 			BlockTimestamp:  now,
 			Input:           buildMockSwapInput(contentExternalAddr),
 		}
+
+		helperInsertTokenSwap(t, ctx, db,
+			strings.ToLower(contentContractAddr),
+			contentExternalAddr,
+			strings.ToLower(userAddr),
+			tx3.TransactionHash,
+			true, // sell
+			"1000000000000000000",
+			"1000000000000000000",
+			0.3)
 
 		err = ta.onSwap(ctx, tx3, sellEvent)
 		require.NoError(t, err)

@@ -19,6 +19,13 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
+type tokenInfo struct {
+	ExternalAddress string `db:"external_address"`
+	PairID          string `db:"pair_id"`
+	BaseToken       string `db:"base_token"`
+	Type            string `db:"type"`
+}
+
 func (t *tokenAnalytics) onTransfer(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTransfer) error {
 	log.Debug(fmt.Sprintf("onTransfer: token=%s from=%s to=%s amount=%s tx=%s",
 		ev.TokenAddress.Hex(), ev.From.Hex(), ev.To.Hex(), ev.Value.String(), tx.TransactionHash))
@@ -36,7 +43,7 @@ func (t *tokenAnalytics) onTransfer(ctx context.Context, tx *txEvent, ev *bondin
 			tx.TransactionHash, ev.From.Hex(), ev.To.Hex()))
 		return nil
 	}
-	tokenExternalAddress, err := t.getTokenExternalAddress(ctx, ev.TokenAddress.Hex())
+	tokenData, err := t.getTokenInfo(ctx, ev.TokenAddress.Hex())
 	if err != nil {
 		log.Debug(fmt.Sprintf("Token %s not found in DB, skipping transfer", ev.TokenAddress.Hex()))
 
@@ -47,10 +54,10 @@ func (t *tokenAnalytics) onTransfer(ctx context.Context, tx *txEvent, ev *bondin
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
-		return t.enqueueBalanceUpdate(gctx, tx, ev.From.Hex(), ev.TokenAddress.Hex(), tokenExternalAddress, ev.Value, false)
+		return t.enqueueBalanceUpdate(gctx, tx, ev.From.Hex(), ev.TokenAddress.Hex(), tokenData, ev.Value, false)
 	})
 	g.Go(func() error {
-		return t.enqueueBalanceUpdate(gctx, tx, ev.To.Hex(), ev.TokenAddress.Hex(), tokenExternalAddress, ev.Value, true)
+		return t.enqueueBalanceUpdate(gctx, tx, ev.To.Hex(), ev.TokenAddress.Hex(), tokenData, ev.Value, true)
 	})
 	if err := g.Wait(); err != nil {
 		return errors.Wrapf(err, "failed to enqueue balance updates for transfer tx %s", tx.TransactionHash)
@@ -72,22 +79,23 @@ func (t *tokenAnalytics) isSwapTransaction(tx *txEvent) bool {
 	return false
 }
 
-func (t *tokenAnalytics) getTokenExternalAddress(ctx context.Context, contractAddress string) (string, error) {
-	type tokenExternalAddressRow struct {
-		ExternalAddress string `db:"external_address"`
-	}
+func (t *tokenAnalytics) getTokenInfo(ctx context.Context, contractAddress string) (*tokenInfo, error) {
 	query := `
-		SELECT external_address 
+		SELECT
+			external_address,
+			COALESCE(pair_id, '') AS pair_id,
+			COALESCE(base_token, '') AS base_token,
+			COALESCE(type, '') AS type
 		FROM tokens 
 		WHERE LOWER(contract_address) = LOWER($1)
 		LIMIT 1
 	`
-	row, err := storage.Get[tokenExternalAddressRow](ctx, t.ingestedDataDB, query, contractAddress)
+	row, err := storage.Get[tokenInfo](ctx, t.ingestedDataDB, query, contractAddress)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to get token external address for contract %s", contractAddress)
+		return nil, errors.Wrapf(err, "failed to get token info for contract %s", contractAddress)
 	}
 
-	return row.ExternalAddress, nil
+	return row, nil
 }
 
 func (t *tokenAnalytics) getUserExternalAddress(ctx context.Context, blockchainAddress string) (string, error) {
@@ -108,20 +116,24 @@ func (t *tokenAnalytics) getUserExternalAddress(ctx context.Context, blockchainA
 	return row.ExternalAddress, nil
 }
 
-func (t *tokenAnalytics) enqueueBalanceUpdate(ctx context.Context, tx *txEvent, userBlockchainAddress, tokenContractAddress, tokenExternalAddress string, transferAmount *big.Int, isAddition bool) error {
+func (t *tokenAnalytics) enqueueBalanceUpdate(ctx context.Context, tx *txEvent, userBlockchainAddress, tokenContractAddress string, tokenData *tokenInfo, transferAmount *big.Int, isAddition bool) error {
 	userExternalAddress, err := t.getUserExternalAddress(ctx, userBlockchainAddress)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get user external address for %s", userBlockchainAddress)
 	}
+
 	jobArgs := BalanceUpdateJobArgs{
 		UserBlockchainAddress: strings.ToLower(userBlockchainAddress),
 		UserExternalAddress:   userExternalAddress,
 		ContractAddress:       strings.ToLower(tokenContractAddress),
-		TokenExternalAddress:  tokenExternalAddress,
+		TokenExternalAddress:  tokenData.ExternalAddress,
 		TransactionHash:       tx.TransactionHash,
+		PairID:                tokenData.PairID,
+		BaseToken:             tokenData.BaseToken,
+		TokenType:             tokenData.Type,
 	}
 	if t.cfg.EnableDummyGenerator {
-		userPositionKey := keyUserPositionOfToken(tokenExternalAddress)
+		userPositionKey := keyUserPositionOfToken(tokenData.ExternalAddress)
 		currentScore, err := t.processedDataDB.ZScore(ctx, userPositionKey, userExternalAddress).Result()
 		if err != nil && !errors.Is(err, redis.Nil) {
 			log.Error(errors.Wrapf(err, "failed to get current user position for dummy transfer"))
@@ -143,7 +155,7 @@ func (t *tokenAnalytics) enqueueBalanceUpdate(ctx context.Context, tx *txEvent, 
 		newBalanceBigInt, accuracy := newBalanceWei.Int(nil)
 		if accuracy != big.Exact {
 			log.Warn(fmt.Sprintf("Dummy transfer: Float to Int conversion lost precision (accuracy=%v) for user=%s, token=%s",
-				accuracy, userBlockchainAddress, tokenExternalAddress))
+				accuracy, userBlockchainAddress, tokenData.ExternalAddress))
 		}
 		if newBalanceBigInt.Sign() < 0 {
 			log.Debug(fmt.Sprintf("Dummy transfer: NEGATIVE DETECTED! Setting to 0. Was: %s, newScore=%.2f, user=%s",
@@ -158,7 +170,7 @@ func (t *tokenAnalytics) enqueueBalanceUpdate(ctx context.Context, tx *txEvent, 
 			operation = "add"
 		}
 		log.Debug(fmt.Sprintf("Dummy transfer: Calculated balance=%s (current=%.2f, %s=%.2f, new=%.2f) for user=%s, token=%s",
-			balanceStr, currentScore, operation, amountFloat, newScore, userBlockchainAddress, tokenExternalAddress))
+			balanceStr, currentScore, operation, amountFloat, newScore, userBlockchainAddress, tokenData.ExternalAddress))
 	}
 	if err := t.riverClient.Push(ctx, jobArgs); err != nil {
 		return errors.Wrapf(err, "failed to enqueue balance update job for tx %v", tx.TransactionHash)

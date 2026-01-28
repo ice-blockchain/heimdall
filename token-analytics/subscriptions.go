@@ -4,6 +4,7 @@ package tokenanalytics
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -31,6 +32,7 @@ type (
 		subscriptions *atomic.Int64
 		notifyClients chan T
 		lastClosed    chan struct{}
+		closeOnce     sync.Once
 	}
 	bondingCurveProgressUpdate struct {
 		externalAddress string
@@ -71,7 +73,10 @@ func routeToSubscribers[T any, N interface {
 		<-ctx.Done()
 		close(notifyChan)
 		subs.Range(func(key string, value *subscription[T]) bool {
-			close(value.notifyClients)
+			value.closeOnce.Do(func() {
+				close(value.notifyClients)
+				close(value.lastClosed)
+			})
 			return true
 		})
 	}()
@@ -103,8 +108,10 @@ func subscribe[T any](ctx context.Context, externalAddress string, subs *xsync.M
 		if ok {
 			if last := sub.subscriptions.Add(-1) <= 0; last {
 				subs.Delete(externalAddress)
-				close(sub.notifyClients)
-				close(sub.lastClosed)
+				sub.closeOnce.Do(func() {
+					close(sub.notifyClients)
+					close(sub.lastClosed)
+				})
 			}
 		}
 	}()
