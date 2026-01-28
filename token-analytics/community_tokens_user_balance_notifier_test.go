@@ -208,4 +208,84 @@ func TestUserBalanceNotifier(t *testing.T) {
 		err := ta.handleUserBalanceUpdate(ctx, payload)
 		require.Error(t, err)
 	})
+
+	t.Run("handles NULL user_external_address gracefully", func(t *testing.T) {
+		ctx := t.Context()
+		db, release := helperCreateDB(t)
+		defer release()
+
+		ta := helperNewForTest(t, db)
+
+		tokenExternalAddr := "0:null_user_token:"
+		contractAddr := "0x3333444455556666777788889999000011112222"
+		userBlockchainAddr := "0x0000000000000000000000000000000000000010"
+
+		helperInsertTestToken(t, ctx, db,
+			contractAddr, tokenExternalAddr, "NULLTEST", "profile", "some_creator",
+			"1000000000000000000000000", 0.001, 1000, 10, PlatformGroupIonConnect)
+
+		payload := fmt.Sprintf(`{
+			"user_blockchain_address": "%s",
+			"user_external_address": null,
+			"contract_address": "%s",
+			"external_address": "%s",
+			"amount": "5000000000000000000",
+			"updated_at": 1234567890
+		}`, userBlockchainAddr, contractAddr, tokenExternalAddr)
+
+		err := ta.handleUserBalanceUpdate(ctx, payload)
+		require.NoError(t, err, "Should handle NULL user_external_address without error")
+
+		userPositionKeyByBlockchain := keyUserPositionOfTokenByUserBlockchainAddress(tokenExternalAddr)
+		scoreByBlockchain, err := ta.processedDataDB.ZScore(ctx, userPositionKeyByBlockchain, userBlockchainAddr).Result()
+		require.NoError(t, err)
+		require.InDelta(t, 5.0, scoreByBlockchain, 0.001, "Should update blockchain address position")
+
+		userPositionKey := keyUserPositionOfToken(tokenExternalAddr)
+		members, err := ta.processedDataDB.ZRange(ctx, userPositionKey, 0, -1).Result()
+		require.NoError(t, err)
+		for _, member := range members {
+			require.NotEmpty(t, member, "Should not add empty member to external address ZSET")
+		}
+	})
+
+	t.Run("handles empty user_external_address gracefully", func(t *testing.T) {
+		ctx := t.Context()
+		db, release := helperCreateDB(t)
+		defer release()
+
+		ta := helperNewForTest(t, db)
+
+		tokenExternalAddr := "0:empty_user_token:"
+		contractAddr := "0x4444555566667777888899990000111122223333"
+		userBlockchainAddr := "0x0000000000000000000000000000000000000011"
+
+		helperInsertTestToken(t, ctx, db,
+			contractAddr, tokenExternalAddr, "EMPTYTEST", "profile", "some_creator",
+			"1000000000000000000000000", 0.001, 1000, 10, PlatformGroupIonConnect)
+
+		payload := fmt.Sprintf(`{
+			"user_blockchain_address": "%s",
+			"user_external_address": "",
+			"contract_address": "%s",
+			"external_address": "%s",
+			"amount": "8000000000000000000",
+			"updated_at": 1234567890
+		}`, userBlockchainAddr, contractAddr, tokenExternalAddr)
+
+		err := ta.handleUserBalanceUpdate(ctx, payload)
+		require.NoError(t, err, "Should handle empty user_external_address without error")
+
+		userPositionKeyByBlockchain := keyUserPositionOfTokenByUserBlockchainAddress(tokenExternalAddr)
+		scoreByBlockchain, err := ta.processedDataDB.ZScore(ctx, userPositionKeyByBlockchain, userBlockchainAddr).Result()
+		require.NoError(t, err)
+		require.InDelta(t, 8.0, scoreByBlockchain, 0.001, "Should update blockchain address position")
+
+		userPositionKey := keyUserPositionOfToken(tokenExternalAddr)
+		members, err := ta.processedDataDB.ZRange(ctx, userPositionKey, 0, -1).Result()
+		require.NoError(t, err)
+		for _, member := range members {
+			require.NotEmpty(t, member, "Should not add empty member to external address ZSET")
+		}
+	})
 }

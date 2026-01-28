@@ -16,12 +16,12 @@ import (
 
 type (
 	userBalanceUpdate struct {
-		UserBlockchainAddress string `json:"user_blockchain_address"`
-		UserExternalAddress   string `json:"user_external_address"`
-		ContractAddress       string `json:"contract_address"`
-		ExternalAddress       string `json:"external_address"`
-		Amount                string `json:"amount"`
-		UpdatedAt             int64  `json:"updated_at"`
+		UserBlockchainAddress string  `json:"user_blockchain_address"`
+		UserExternalAddress   *string `json:"user_external_address"`
+		ContractAddress       string  `json:"contract_address"`
+		ExternalAddress       string  `json:"external_address"`
+		Amount                string  `json:"amount"`
+		UpdatedAt             int64   `json:"updated_at"`
 	}
 )
 
@@ -83,8 +83,13 @@ func (t *tokenAnalytics) handleUserBalanceUpdate(ctx context.Context, payload st
 		return errors.Wrapf(err, "failed to unmarshal user balance update payload: %s", payload)
 	}
 
-	log.Debug(fmt.Sprintf("Received user balance update notification: user=%s, token=%s, amount=%s",
-		update.UserExternalAddress, update.ExternalAddress, update.Amount))
+	userExternalAddr := ""
+	if update.UserExternalAddress != nil {
+		userExternalAddr = *update.UserExternalAddress
+	}
+
+	log.Debug(fmt.Sprintf("Received user balance update notification: user=%s (external=%s), token=%s, amount=%s",
+		update.UserBlockchainAddress, userExternalAddr, update.ExternalAddress, update.Amount))
 
 	balanceBig := new(big.Int)
 	if _, ok := balanceBig.SetString(update.Amount, 10); !ok {
@@ -96,23 +101,27 @@ func (t *tokenAnalytics) handleUserBalanceUpdate(ctx context.Context, payload st
 	userPositionKeyByBlockchainAddress := keyUserPositionOfTokenByUserBlockchainAddress(update.ExternalAddress)
 
 	if balanceFloat <= 0 {
-		if err := t.processedDataDB.ZRem(ctx, userPositionKey, update.UserExternalAddress).Err(); err != nil {
-			return errors.Wrapf(err, "failed to remove user position from Redis for user %s token %s",
-				update.UserExternalAddress, update.ExternalAddress)
+		if userExternalAddr != "" {
+			if err := t.processedDataDB.ZRem(ctx, userPositionKey, userExternalAddr).Err(); err != nil {
+				return errors.Wrapf(err, "failed to remove user position from Redis for user %s token %s",
+					userExternalAddr, update.ExternalAddress)
+			}
 		}
 		if err := t.processedDataDB.ZRem(ctx, userPositionKeyByBlockchainAddress, update.UserBlockchainAddress).Err(); err != nil {
 			return errors.Wrapf(err, "failed to remove user position from Redis for user %s token %s",
 				update.UserBlockchainAddress, update.ExternalAddress)
 		}
-		log.Debug(fmt.Sprintf("Removed user position from Redis: user=%s, token=%s",
-			update.UserExternalAddress, update.ExternalAddress))
+		log.Debug(fmt.Sprintf("Removed user position from Redis: user=%s (external=%s), token=%s",
+			update.UserBlockchainAddress, userExternalAddr, update.ExternalAddress))
 	} else {
-		if err := t.processedDataDB.ZAdd(ctx, userPositionKey, redis.Z{
-			Score:  balanceFloat,
-			Member: update.UserExternalAddress,
-		}).Err(); err != nil {
-			return errors.Wrapf(err, "failed to add user position to Redis for user %s token %s",
-				update.UserExternalAddress, update.ExternalAddress)
+		if userExternalAddr != "" {
+			if err := t.processedDataDB.ZAdd(ctx, userPositionKey, redis.Z{
+				Score:  balanceFloat,
+				Member: userExternalAddr,
+			}).Err(); err != nil {
+				return errors.Wrapf(err, "failed to add user position to Redis for user %s token %s",
+					userExternalAddr, update.ExternalAddress)
+			}
 		}
 		if err := t.processedDataDB.ZAdd(ctx, userPositionKeyByBlockchainAddress, redis.Z{
 			Score:  balanceFloat,
@@ -121,8 +130,8 @@ func (t *tokenAnalytics) handleUserBalanceUpdate(ctx context.Context, payload st
 			return errors.Wrapf(err, "failed to add user position to Redis for user %s token %s",
 				update.UserBlockchainAddress, update.ExternalAddress)
 		}
-		log.Debug(fmt.Sprintf("Updated user position in Redis: user=%s, token=%s, balance=%.2f",
-			update.UserExternalAddress, update.ExternalAddress, balanceFloat))
+		log.Debug(fmt.Sprintf("Updated user position in Redis: user=%s (external=%s), token=%s, balance=%.2f",
+			update.UserBlockchainAddress, userExternalAddr, update.ExternalAddress, balanceFloat))
 	}
 
 	return nil

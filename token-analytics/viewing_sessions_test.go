@@ -275,6 +275,8 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 	})
 
 	t.Run("respects pagination", func(t *testing.T) {
+		_ = testRedis.Del(ctx, globalTopSetKey, globalTrendingSetKey).Err()
+
 		for i := 0; i < 5; i++ {
 			creator := helperTestUniqueID(t, "vs_page_creator", i)
 			helperInsertTestUser(t, ctx, db, creator, helperTestUniqueID(t, "vs_page", i), helperTestUniqueID(t, "VS Page", i), "", false, PlatformGroupIonConnect)

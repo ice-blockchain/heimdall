@@ -32,6 +32,7 @@ import (
 var (
 	testPgContainer      *fixture.Container
 	testQuestDBContainer *questdbfixture.Container
+	questDBInitOnce      sync.Once
 )
 
 func TestMain(m *testing.M) {
@@ -132,12 +133,26 @@ func mustConnectQuestDBForTest(ctx context.Context) *questdb.DB {
 		panic("QuestDB container not initialized")
 	}
 
+	questDBInitOnce.Do(func() {
+		conn := questdb.MustConnectWithConfig(ctx, &questdb.ConnectionConfig{
+			WriteURL: testQuestDBContainer.AddressHTTP,
+			PostgresConn: &storage.Cfg{
+				PrimaryURL:               testQuestDBContainer.AddressPG,
+				ReplicaURLs:              []string{testQuestDBContainer.AddressPG},
+				RunDDL:                   true,
+				IgnoreGlobal:             true,
+				SkipSettingsVerification: true,
+			},
+		})
+		_ = conn.Close(ctx)
+	})
+
 	return questdb.MustConnectWithConfig(ctx, &questdb.ConnectionConfig{
 		WriteURL: testQuestDBContainer.AddressHTTP,
 		PostgresConn: &storage.Cfg{
 			PrimaryURL:               testQuestDBContainer.AddressPG,
 			ReplicaURLs:              []string{testQuestDBContainer.AddressPG},
-			RunDDL:                   true,
+			RunDDL:                   false,
 			IgnoreGlobal:             true,
 			SkipSettingsVerification: true,
 		},

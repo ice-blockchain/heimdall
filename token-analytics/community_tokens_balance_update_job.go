@@ -90,21 +90,25 @@ func (w *balanceUpdateWorker) Work(ctx context.Context, job *riverqueue.Job[Bala
 	balanceFloat := weiToFloat64FromBigInt(balance)
 	if responses, txErr := w.ta.processedDataDB.TxPipelined(ctx, func(pipeliner redis.Pipeliner) error {
 		if balanceFloat <= 0 {
-			if perr := pipeliner.ZRem(ctx, userPositionKey, args.UserExternalAddress).Err(); perr != nil {
-				return errors.Wrapf(perr, "failed to remove user position from Redis for user %s token %s",
-					args.UserExternalAddress, args.TokenExternalAddress)
+			if args.UserExternalAddress != "" {
+				if perr := pipeliner.ZRem(ctx, userPositionKey, args.UserExternalAddress).Err(); perr != nil {
+					return errors.Wrapf(perr, "failed to remove user position from Redis for user %s token %s",
+						args.UserExternalAddress, args.TokenExternalAddress)
+				}
 			}
 			if perr := pipeliner.ZRem(ctx, userPositionKeyByBlockchainAddress, args.UserBlockchainAddress).Err(); perr != nil {
 				return errors.Wrapf(perr, "failed to remove user position from Redis for user %s token %s",
 					args.UserBlockchainAddress, args.TokenExternalAddress)
 			}
 		} else {
-			if perr := pipeliner.ZAdd(ctx, userPositionKey, redis.Z{
-				Score:  balanceFloat,
-				Member: args.UserExternalAddress,
-			}).Err(); perr != nil {
-				return errors.Wrapf(perr, "failed to add user position to Redis for user %s token %s",
-					args.UserExternalAddress, args.TokenExternalAddress)
+			if args.UserExternalAddress != "" {
+				if perr := pipeliner.ZAdd(ctx, userPositionKey, redis.Z{
+					Score:  balanceFloat,
+					Member: args.UserExternalAddress,
+				}).Err(); perr != nil {
+					return errors.Wrapf(perr, "failed to add user position to Redis for user %s token %s",
+						args.UserExternalAddress, args.TokenExternalAddress)
+				}
 			}
 			if perr := pipeliner.ZAdd(ctx, userPositionKeyByBlockchainAddress, redis.Z{
 				Score:  balanceFloat,
