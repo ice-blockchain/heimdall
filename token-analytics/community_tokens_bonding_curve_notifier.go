@@ -7,50 +7,44 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"math/rand"
+	stdlibtime "time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/ice-blockchain/wintr/log"
-	"github.com/ice-blockchain/wintr/time"
 )
 
 type (
 	bondingCurveUpdate struct {
-		ExternalAddress              string     `json:"external_address"`
-		Type                         string     `json:"type"`
-		BondingCurveMigrated         bool       `json:"bonding_curve_migrated"`
-		BondingCurveCurrentAmount    string     `json:"bonding_curve_current_amount"`
-		BondingCurveGoalAmount       string     `json:"bonding_curve_goal_amount"`
-		BondingCurveRaisedAmount     string     `json:"bonding_curve_raised_amount"`
-		BondingCurveCurrentAmountUSD float64    `json:"bonding_curve_current_amount_usd"`
-		BondingCurveGoalAmountUSD    float64    `json:"bonding_curve_goal_amount_usd"`
-		LiquidityUSD                 float64    `json:"liquidity_usd"`
-		UpdatedAt                    *time.Time `json:"updated_at"`
+		ExternalAddress              string  `json:"external_address"`
+		Type                         string  `json:"type"`
+		BondingCurveMigrated         bool    `json:"bonding_curve_migrated"`
+		BondingCurveCurrentAmount    string  `json:"bonding_curve_current_amount"`
+		BondingCurveGoalAmount       string  `json:"bonding_curve_goal_amount"`
+		BondingCurveRaisedAmount     string  `json:"bonding_curve_raised_amount"`
+		BondingCurveCurrentAmountUSD float64 `json:"bonding_curve_current_amount_usd"`
+		BondingCurveGoalAmountUSD    float64 `json:"bonding_curve_goal_amount_usd"`
+		LiquidityUSD                 float64 `json:"liquidity_usd"`
+		UpdatedAt                    int64   `json:"updated_at"`
 	}
 )
 
 func (t *tokenAnalytics) startBondingCurveNotifier(ctx context.Context) {
+	log.Info(fmt.Sprintf("Bonding curve notifier starting, subscribing to %s notifications", tokenBondingCurveUpdatesChannel))
+
 	go func() {
-		for {
-			select {
-			case <-ctx.Done():
+		if err := t.listenBondingCurveUpdates(ctx); err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				log.Info("Bonding curve notifier stopped due to context cancellation")
 				return
-			default:
 			}
+			log.Error(errors.Wrap(err, "bonding curve notifier initial start failed, starting retry loop"))
 
-			if err := t.listenBondingCurveUpdates(ctx); err != nil {
-				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-					log.Info("Bonding curve notifier stopped due to context cancellation")
-					return
-				}
-				log.Error(errors.Wrap(err, "bonding curve notifier error, restarting immediately"))
-			}
+			retryWithBackoff(ctx, "Bonding curve notifier", t.listenBondingCurveUpdates)
 		}
 	}()
-
-	log.Info(fmt.Sprintf("Bonding curve notifier starting, subscribing to %s notifications", tokenBondingCurveUpdatesChannel))
 }
 
 func (t *tokenAnalytics) listenBondingCurveUpdates(ctx context.Context) error {
@@ -164,4 +158,57 @@ func (t *tokenAnalytics) handleBondingCurveUpdate(ctx context.Context, payload s
 	t.subscriptions.NotifyBondingCurveProgress(update.ExternalAddress, bondingProgress)
 
 	return nil
+}
+
+func retryWithBackoff(ctx context.Context, name string, fn func(context.Context) error) {
+	const (
+		initialBackoff = 1 * stdlibtime.Second
+		maxBackoff     = 60 * stdlibtime.Second
+		backoffFactor  = 2.0
+		jitterFraction = 0.2
+	)
+
+	backoff := initialBackoff
+	consecutiveErrors := 0
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info(name + " stopped due to context cancellation")
+
+			return
+		default:
+		}
+
+		err := fn(ctx)
+		if err == nil {
+			log.Info(name + " stopped normally")
+
+			return
+		}
+
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			log.Info(name + " stopped due to context cancellation")
+
+			return
+		}
+
+		consecutiveErrors++
+		if consecutiveErrors <= 3 || consecutiveErrors%10 == 0 {
+			log.Error(errors.Wrapf(err, "%s error (consecutive: %d), retrying after %v", name, consecutiveErrors, backoff))
+		}
+		jitter := stdlibtime.Duration(float64(backoff) * jitterFraction * (rand.Float64()*2 - 1))
+		sleep := backoff + jitter
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-stdlibtime.After(sleep):
+		}
+
+		backoff = stdlibtime.Duration(float64(backoff) * backoffFactor)
+		if backoff > maxBackoff {
+			backoff = maxBackoff
+		}
+	}
 }

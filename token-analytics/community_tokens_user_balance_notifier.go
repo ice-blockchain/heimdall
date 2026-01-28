@@ -12,43 +12,33 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/ice-blockchain/wintr/log"
-	"github.com/ice-blockchain/wintr/time"
 )
 
 type (
 	userBalanceUpdate struct {
-		UserBlockchainAddress string     `json:"user_blockchain_address"`
-		UserExternalAddress   string     `json:"user_external_address"`
-		ContractAddress       string     `json:"contract_address"`
-		ExternalAddress       string     `json:"external_address"`
-		Amount                string     `json:"amount"`
-		UpdatedAt             *time.Time `json:"updated_at"`
+		UserBlockchainAddress string `json:"user_blockchain_address"`
+		UserExternalAddress   string `json:"user_external_address"`
+		ContractAddress       string `json:"contract_address"`
+		ExternalAddress       string `json:"external_address"`
+		Amount                string `json:"amount"`
+		UpdatedAt             int64  `json:"updated_at"`
 	}
 )
 
 func (t *tokenAnalytics) startUserBalanceNotifier(ctx context.Context) {
+	log.Info(fmt.Sprintf("User balance notifier starting, subscribing to %s notifications", userBalanceUpdatesChannel))
+
 	go func() {
-		for {
-			select {
-			case <-ctx.Done():
+		if err := t.listenUserBalanceUpdates(ctx); err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				log.Info("User balance notifier stopped due to context cancellation")
-
 				return
-			default:
 			}
+			log.Error(errors.Wrap(err, "user balance notifier initial start failed, starting retry loop"))
 
-			if err := t.listenUserBalanceUpdates(ctx); err != nil {
-				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-					log.Info("User balance notifier stopped due to context cancellation")
-
-					return
-				}
-				log.Error(errors.Wrap(err, "user balance notifier error, restarting immediately"))
-			}
+			retryWithBackoff(ctx, "User balance notifier", t.listenUserBalanceUpdates)
 		}
 	}()
-
-	log.Info(fmt.Sprintf("User balance notifier starting, subscribing to %s notifications", userBalanceUpdatesChannel))
 }
 
 func (t *tokenAnalytics) listenUserBalanceUpdates(ctx context.Context) error {

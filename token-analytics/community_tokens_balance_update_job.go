@@ -13,7 +13,6 @@ import (
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
-	storagev3 "github.com/ice-blockchain/wintr/connectors/storage/v3"
 	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/riverqueue"
 )
@@ -26,6 +25,7 @@ type BalanceUpdateJobArgs struct {
 	TransactionHash       string `json:"transaction_hash"`
 	PairID                string `json:"pair_id"`
 	BaseToken             string `json:"base_token"`
+	TokenType             string `json:"token_type"`
 
 	DummyBalance *string `json:"dummy_balance,omitempty"`
 }
@@ -35,10 +35,7 @@ func (BalanceUpdateJobArgs) Kind() string {
 }
 
 type balanceUpdateWorker struct {
-	bondingCurve    bondingcurve.BondingCurve
-	ingestedDataDB  *storage.DB
-	processedDataDB storagev3.DB
-	ta              *tokenAnalytics
+	ta *tokenAnalytics
 	riverqueue.WorkerDefaults[BalanceUpdateJobArgs]
 }
 
@@ -62,14 +59,14 @@ func (w *balanceUpdateWorker) Work(ctx context.Context, job *riverqueue.Job[Bala
 		tokenAddr := common.HexToAddress(args.ContractAddress)
 		userAddr := common.HexToAddress(args.UserBlockchainAddress)
 
-		balance, err = w.bondingCurve.GetTokenBalance(ctx, tokenAddr, userAddr)
+		balance, err = w.ta.bondingCurve.GetTokenBalance(ctx, tokenAddr, userAddr)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get token balance for user %s token %s",
 				args.UserBlockchainAddress, args.ContractAddress)
 		}
 	}
 
-	_, err = storage.Exec(ctx, w.ingestedDataDB, `
+	_, err = storage.Exec(ctx, w.ta.ingestedDataDB, `
 		INSERT INTO user_token_positions (
 			user_blockchain_address, contract_address, external_address, user_external_address,
 			amount, avg_buy_price_usd, total_invested_usd, total_realized_usd, updated_at
@@ -91,7 +88,7 @@ func (w *balanceUpdateWorker) Work(ctx context.Context, job *riverqueue.Job[Bala
 	userPositionKey := keyUserPositionOfToken(args.TokenExternalAddress)
 	userPositionKeyByBlockchainAddress := keyUserPositionOfTokenByUserBlockchainAddress(args.TokenExternalAddress)
 	balanceFloat := weiToFloat64FromBigInt(balance)
-	if responses, txErr := w.processedDataDB.TxPipelined(ctx, func(pipeliner redis.Pipeliner) error {
+	if responses, txErr := w.ta.processedDataDB.TxPipelined(ctx, func(pipeliner redis.Pipeliner) error {
 		if balanceFloat <= 0 {
 			if perr := pipeliner.ZRem(ctx, userPositionKey, args.UserExternalAddress).Err(); perr != nil {
 				return errors.Wrapf(perr, "failed to remove user position from Redis for user %s token %s",
@@ -134,14 +131,14 @@ func (w *balanceUpdateWorker) Work(ctx context.Context, job *riverqueue.Job[Bala
 	if args.PairID == "" || args.BaseToken == "" {
 		log.Debug(fmt.Sprintf("Skipping bonding curve update for token=%s: missing pairID (%q) or baseToken (%q)",
 			args.TokenExternalAddress, args.PairID, args.BaseToken))
-	} else if err := w.updateBondingCurveProgress(ctx, args.TokenExternalAddress, args.PairID, args.BaseToken, args.DummyBalance != nil); err != nil {
+	} else if err := w.updateBondingCurveProgress(ctx, args.TokenExternalAddress, args.PairID, args.BaseToken, args.TokenType, args.DummyBalance != nil); err != nil {
 		log.Error(errors.Wrapf(err, "failed to update bonding curve for token %s (balance update succeeded)", args.TokenExternalAddress))
 	}
 
 	return nil
 }
 
-func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, externalAddress, pairID, baseToken string, isDummy bool) error {
+func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, externalAddress, pairID, baseToken, tokenType string, isDummy bool) error {
 	var progress *bondingcurve.BondingCurveProgress
 	var err error
 
@@ -163,7 +160,7 @@ func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, ex
 			Liquidity: big.NewInt(0),
 		}
 	} else {
-		progress, err = w.bondingCurve.Progress(ctx, common.HexToHash(pairID))
+		progress, err = w.ta.bondingCurve.Progress(ctx, common.HexToHash(pairID))
 		if err != nil {
 			return fmt.Errorf("failed to get curve progress for token %v (pair %v): %w", externalAddress, pairID, err)
 		}
@@ -177,10 +174,7 @@ func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, ex
 		return fmt.Errorf("failed to calculate liquidity USD for token %v: %w", externalAddress, err)
 	}
 
-	type tokenTypeResult struct {
-		Type string `db:"type"`
-	}
-	tokenData, err := storage.Get[tokenTypeResult](ctx, w.ingestedDataDB, `
+	_, err = storage.Exec(ctx, w.ta.ingestedDataDB, `
 		UPDATE tokens AS t
 		SET
 		    bonding_curve_current_amount = $2,
@@ -191,8 +185,7 @@ func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, ex
 		    bonding_curve_migrated = $7,
 		    liquidity_usd = $8,
 			updated_at = NOW()
-		WHERE t.external_address = $1
-		RETURNING type`,
+		WHERE t.external_address = $1`,
 		externalAddress,
 		progress.SoldTokens.String(),
 		progress.TokensRaised.String(),
@@ -206,16 +199,11 @@ func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, ex
 		return fmt.Errorf("failed to update bonding curve for token %v: %w", externalAddress, err)
 	}
 
-	tokenType := ""
-	if tokenData != nil {
-		tokenType = tokenData.Type
-	}
-
 	if !progress.Migrated {
 		currentAmountWei := new(big.Float).SetInt(progress.SoldTokens)
 		currentAmountScore, _ := currentAmountWei.Float64()
 
-		if err := w.processedDataDB.ZAdd(ctx, globalBondingCurveProgressSetKey, redis.Z{
+		if err := w.ta.processedDataDB.ZAdd(ctx, globalBondingCurveProgressSetKey, redis.Z{
 			Score:  currentAmountScore,
 			Member: externalAddress,
 		}).Err(); err != nil {
@@ -224,7 +212,7 @@ func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, ex
 
 		if tokenType != "" {
 			if typeSpecificKey := getBondingCurveProgressSetKeyByType(tokenType); typeSpecificKey != "" {
-				if err := w.processedDataDB.ZAdd(ctx, typeSpecificKey, redis.Z{
+				if err := w.ta.processedDataDB.ZAdd(ctx, typeSpecificKey, redis.Z{
 					Score:  currentAmountScore,
 					Member: externalAddress,
 				}).Err(); err != nil {
@@ -232,7 +220,7 @@ func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, ex
 				}
 			}
 			if tokenType == TokenTypePost || tokenType == TokenTypeVideo || tokenType == TokenTypeArticle {
-				if err := w.processedDataDB.ZAdd(ctx, globalBondingCurveProgressAnyPostSetKey, redis.Z{
+				if err := w.ta.processedDataDB.ZAdd(ctx, globalBondingCurveProgressAnyPostSetKey, redis.Z{
 					Score:  currentAmountScore,
 					Member: externalAddress,
 				}).Err(); err != nil {
@@ -241,17 +229,17 @@ func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, ex
 			}
 		}
 	} else {
-		if err := w.processedDataDB.ZRem(ctx, globalBondingCurveProgressSetKey, externalAddress).Err(); err != nil {
+		if err := w.ta.processedDataDB.ZRem(ctx, globalBondingCurveProgressSetKey, externalAddress).Err(); err != nil {
 			return errors.Wrapf(err, "failed to remove token from bonding curve progress in Redis for token %s", externalAddress)
 		}
 		if tokenType != "" {
 			if typeSpecificKey := getBondingCurveProgressSetKeyByType(tokenType); typeSpecificKey != "" {
-				if err := w.processedDataDB.ZRem(ctx, typeSpecificKey, externalAddress).Err(); err != nil {
+				if err := w.ta.processedDataDB.ZRem(ctx, typeSpecificKey, externalAddress).Err(); err != nil {
 					return errors.Wrapf(err, "failed to remove token from type-specific bonding curve progress in Redis for token %s type %s", externalAddress, tokenType)
 				}
 			}
 			if tokenType == TokenTypePost || tokenType == TokenTypeVideo || tokenType == TokenTypeArticle {
-				if err := w.processedDataDB.ZRem(ctx, globalBondingCurveProgressAnyPostSetKey, externalAddress).Err(); err != nil {
+				if err := w.ta.processedDataDB.ZRem(ctx, globalBondingCurveProgressAnyPostSetKey, externalAddress).Err(); err != nil {
 					return errors.Wrapf(err, "failed to remove token from anyPost bonding curve progress in Redis for token %s", externalAddress)
 				}
 			}

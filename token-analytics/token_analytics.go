@@ -158,10 +158,7 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 	t.cdnClient = cdn.New(ctx, &cfg.CDN, riverClient, cdn.WithObserver(t))
 	if reg := riverClient.Register(); reg != nil {
 		riverqueue.RegisterWorker(reg, &balanceUpdateWorker{
-			bondingCurve:    bc,
-			ingestedDataDB:  db,
-			processedDataDB: targetDB,
-			ta:              t,
+			ta: t,
 		})
 		riverqueue.RegisterWorker(reg, &tokenDetailsGenerationPictureWorker{
 			TA: t,

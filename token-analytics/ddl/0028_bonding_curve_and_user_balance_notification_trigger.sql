@@ -14,7 +14,7 @@ BEGIN
         'bonding_curve_current_amount_usd', COALESCE(NEW.bonding_curve_current_amount_usd, 0),
         'bonding_curve_goal_amount_usd', COALESCE(NEW.bonding_curve_goal_amount_usd, 0),
         'liquidity_usd', COALESCE(NEW.liquidity_usd, 0),
-        'updated_at', to_char(NEW.updated_at, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+        'updated_at', EXTRACT(EPOCH FROM NEW.updated_at)::bigint
     );
     
     PERFORM pg_notify('token_bonding_curve_updates', payload::text);
@@ -52,7 +52,7 @@ BEGIN
         'contract_address', NEW.contract_address,
         'external_address', NEW.external_address,
         'amount', NEW.amount::text,
-        'updated_at', to_char(NEW.updated_at, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+        'updated_at', EXTRACT(EPOCH FROM NEW.updated_at)::bigint
     );
     
     PERFORM pg_notify('user_balance_updates', payload::text);

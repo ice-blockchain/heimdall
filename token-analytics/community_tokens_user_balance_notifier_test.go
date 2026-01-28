@@ -46,7 +46,7 @@ func TestUserBalanceNotifier(t *testing.T) {
 			"contract_address": "%s",
 			"external_address": "%s",
 			"amount": "10000000000000000000",
-			"updated_at": "2009-02-13T23:31:30.000000Z"
+			"updated_at": 1234567890
 		}`, userBlockchainAddr, userExternalAddr, contractAddr, tokenExternalAddr)
 
 		err = ta.handleUserBalanceUpdate(ctx, payload)
@@ -102,7 +102,7 @@ func TestUserBalanceNotifier(t *testing.T) {
 			"contract_address": "%s",
 			"external_address": "%s",
 			"amount": "0",
-			"updated_at": "2009-02-13T23:31:30.000000Z"
+			"updated_at": 1234567890
 		}`, userBlockchainAddr, userExternalAddr, contractAddr, tokenExternalAddr)
 
 		err = ta.handleUserBalanceUpdate(ctx, payload)
@@ -142,7 +142,7 @@ func TestUserBalanceNotifier(t *testing.T) {
 			"contract_address": "%s",
 			"external_address": "%s",
 			"amount": "25000000000000000000",
-			"updated_at": "2009-02-13T23:31:30.000000Z"
+			"updated_at": 1234567890
 		}`, user1BlockchainAddr, user1ExternalAddr, contractAddr, tokenExternalAddr)
 
 		err := ta.handleUserBalanceUpdate(ctx, payload1)
@@ -154,7 +154,7 @@ func TestUserBalanceNotifier(t *testing.T) {
 			"contract_address": "%s",
 			"external_address": "%s",
 			"amount": "15000000000000000000",
-			"updated_at": "2009-02-13T23:31:30.000000Z"
+			"updated_at": 1234567891
 		}`, user2BlockchainAddr, user2ExternalAddr, contractAddr, tokenExternalAddr)
 
 		err = ta.handleUserBalanceUpdate(ctx, payload2)
@@ -202,7 +202,7 @@ func TestUserBalanceNotifier(t *testing.T) {
 			"contract_address": "0x1234567890123456789012345678901234567890",
 			"external_address": "0:test_token:",
 			"amount": "invalid_number",
-			"updated_at": "2009-02-13T23:31:30.000000Z"
+			"updated_at": 1234567890
 		}`
 
 		err := ta.handleUserBalanceUpdate(ctx, payload)

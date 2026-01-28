@@ -49,6 +49,7 @@ func TestBalanceUpdateJob_WithDummyBalance(t *testing.T) {
 		TransactionHash:       "0xdummy123",
 		PairID:                pairID,
 		BaseToken:             baseToken,
+		TokenType:             "profile",
 		DummyBalance:          &dummyBalance,
 	})
 	require.NoError(t, err)
@@ -105,6 +106,7 @@ func TestBalanceUpdateJob_WithRPC(t *testing.T) {
 		TransactionHash:       txHash,
 		PairID:                "0x0000000000000000000000000000000000000000000000000000000000000001",
 		BaseToken:             "0x2c73996babf1a06c2c057177353293f7ca0907c8",
+		TokenType:             "profile",
 	})
 	require.NoError(t, err)
 
@@ -167,6 +169,7 @@ func TestBalanceUpdateJob_ZeroBalance(t *testing.T) {
 		TransactionHash:       txHash,
 		PairID:                "0x0000000000000000000000000000000000000000000000000000000000000002",
 		BaseToken:             "0x2c73996babf1a06c2c057177353293f7ca0907c8",
+		TokenType:             "profile",
 	})
 	require.NoError(t, err)
 

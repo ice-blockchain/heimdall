@@ -337,6 +337,7 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 		TransactionHash:       tx.TransactionHash,
 		PairID:                pairID,
 		BaseToken:             baseToken,
+		TokenType:             tokenType,
 	}
 
 	if t.cfg.EnableDummyGenerator {
@@ -392,6 +393,7 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 			ContractAddress:       *baseProfileContractAddress,
 			TokenExternalAddress:  *baseProfileExternalAddress,
 			TransactionHash:       tx.TransactionHash,
+			TokenType:             TokenTypeProfile,
 		}
 		if err := t.riverClient.Push(ctx, baseJobArgs); err != nil {
 			return errors.Wrapf(err, "failed to enqueue balance update job for tx %v (base token %v)", tx.TransactionHash, *baseProfileContractAddress)

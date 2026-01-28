@@ -23,6 +23,7 @@ type tokenInfo struct {
 	ExternalAddress string `db:"external_address"`
 	PairID          string `db:"pair_id"`
 	BaseToken       string `db:"base_token"`
+	Type            string `db:"type"`
 }
 
 func (t *tokenAnalytics) onTransfer(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTransfer) error {
@@ -83,7 +84,8 @@ func (t *tokenAnalytics) getTokenInfo(ctx context.Context, contractAddress strin
 		SELECT
 			external_address,
 			COALESCE(pair_id, '') AS pair_id,
-			COALESCE(base_token, '') AS base_token
+			COALESCE(base_token, '') AS base_token,
+			COALESCE(type, '') AS type
 		FROM tokens 
 		WHERE LOWER(contract_address) = LOWER($1)
 		LIMIT 1
@@ -128,6 +130,7 @@ func (t *tokenAnalytics) enqueueBalanceUpdate(ctx context.Context, tx *txEvent, 
 		TransactionHash:       tx.TransactionHash,
 		PairID:                tokenData.PairID,
 		BaseToken:             tokenData.BaseToken,
+		TokenType:             tokenData.Type,
 	}
 	if t.cfg.EnableDummyGenerator {
 		userPositionKey := keyUserPositionOfToken(tokenData.ExternalAddress)

@@ -265,10 +265,7 @@ func helperNewForTest(t testing.TB, db *storage.DB, opts ...HelperTestOption) *t
 
 	if reg := riverClient.Register(); reg != nil {
 		riverqueue.RegisterWorker(reg, &balanceUpdateWorker{
-			bondingCurve:    bc,
-			ingestedDataDB:  db,
-			processedDataDB: &testRedisDB{Client: testRedis},
-			ta:              ta,
+			ta: ta,
 		})
 		riverqueue.RegisterWorker(reg, &tokenDetailsGenerationPictureWorker{
 			TA: ta,

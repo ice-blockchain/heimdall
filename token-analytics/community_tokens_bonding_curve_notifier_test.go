@@ -63,7 +63,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"bonding_curve_raised_amount": "10000000000000000000",
 			"bonding_curve_current_amount_usd": %f,
 			"bonding_curve_goal_amount_usd": 2.0,
-			"updated_at": "2009-02-13T23:31:30.000000Z"
+			"updated_at": 1234567890
 		}`, tokenExternalAddr, contractAddr, newPriceUSD, newCurrentAmount, newCurrentAmountUSD)
 
 		err = ta.handleBondingCurveUpdate(ctx, payload)
@@ -128,7 +128,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"bonding_curve_raised_amount": "0",
 			"bonding_curve_current_amount_usd": 0,
 			"bonding_curve_goal_amount_usd": 0,
-			"updated_at": "2009-02-13T23:31:30.000000Z"
+			"updated_at": 1234567890
 		}`, tokenExternalAddr, contractAddr)
 
 		err = ta.handleBondingCurveUpdate(ctx, payload)
@@ -170,7 +170,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"bonding_curve_raised_amount": "0",
 			"bonding_curve_current_amount_usd": 0,
 			"bonding_curve_goal_amount_usd": 0,
-			"updated_at": "2009-02-13T23:31:30.000000Z"
+			"updated_at": 1234567890
 		}`, tokenExternalAddr, contractAddr, newPrice)
 
 		err := ta.handleBondingCurveUpdate(ctx, payload)
@@ -204,7 +204,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"bonding_curve_raised_amount": "10000000000000000000",
 			"bonding_curve_current_amount_usd": 1.5,
 			"bonding_curve_goal_amount_usd": 3.0,
-			"updated_at": "2009-02-13T23:31:30.000000Z"
+			"updated_at": 1234567890
 		}`
 
 		err = ta.handleBondingCurveUpdate(ctx, payload)
@@ -241,7 +241,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"bonding_curve_current_amount_usd": 1.5,
 			"bonding_curve_goal_amount_usd": 3.0,
 			"liquidity_usd": 0.5,
-			"updated_at": "2009-02-13T23:31:30.000000Z"
+			"updated_at": 1234567890
 		}`
 
 		err := ta.handleBondingCurveUpdate(ctx, payload)
@@ -272,7 +272,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"bonding_curve_current_amount_usd": 1.0,
 			"bonding_curve_goal_amount_usd": 2.0,
 			"liquidity_usd": 0.5,
-			"updated_at": "2009-02-13T23:31:30.000000Z"
+			"updated_at": 1234567890
 		}`, tokenExternalAddr)
 
 		err := ta.handleBondingCurveUpdate(ctx, payload)
@@ -315,7 +315,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"bonding_curve_current_amount_usd": 1.0,
 			"bonding_curve_goal_amount_usd": 2.0,
 			"liquidity_usd": 0.5,
-			"updated_at": "2009-02-13T23:31:30.000000Z"
+			"updated_at": 1234567890
 		}`, tokenExternalAddr)
 
 		err := ta.handleBondingCurveUpdate(ctx, payload)
@@ -354,7 +354,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"bonding_curve_current_amount_usd": 1.0,
 			"bonding_curve_goal_amount_usd": 2.0,
 			"liquidity_usd": 0.5,
-			"updated_at": "2009-02-13T23:31:30.000000Z"
+			"updated_at": 1234567890
 		}`, tokenExternalAddr)
 
 		err := ta.handleBondingCurveUpdate(ctx, payload)
@@ -393,7 +393,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"bonding_curve_current_amount_usd": 1.0,
 			"bonding_curve_goal_amount_usd": 2.0,
 			"liquidity_usd": 0.5,
-			"updated_at": "2009-02-13T23:31:30.000000Z"
+			"updated_at": 1234567890
 		}`, tokenExternalAddr)
 
 		err := ta.handleBondingCurveUpdate(ctx, payload)
@@ -449,7 +449,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"bonding_curve_current_amount_usd": 0,
 			"bonding_curve_goal_amount_usd": 0,
 			"liquidity_usd": 100.0,
-			"updated_at": "2009-02-13T23:31:30.000000Z"
+			"updated_at": 1234567890
 		}`, tokenExternalAddr)
 
 		err = ta.handleBondingCurveUpdate(ctx, payload)

@@ -53,14 +53,18 @@ func (t *tokenAnalytics) SubscribeBondingCurveProgress(ctx context.Context, exte
 	addToStream(currentProgress, nil)
 	updates, _, _ := t.subscriptions.SubscribeOnBondingCurveProgress(ctx, externalAddress)
 	go func() {
-		for ctx.Err() == nil {
-			newCurveProgress, ok := <-updates
-			if !ok {
+		defer log.Debug(fmt.Sprintf("bonding curve progress subscriber stopped for %v", externalAddress))
+		for {
+			select {
+			case <-ctx.Done():
 				return
+			case newCurveProgress, ok := <-updates:
+				if !ok {
+					return
+				}
+				addToStream(newCurveProgress, nil)
 			}
-			addToStream(newCurveProgress, nil)
 		}
-		log.Debug(fmt.Sprintf("bonding curve progress subscriber stopped for %v", externalAddress))
 	}()
 
 	return nil
