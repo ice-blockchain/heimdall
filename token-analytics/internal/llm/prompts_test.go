@@ -28,6 +28,10 @@ func TestExecuteNameTemplate(t *testing.T) {
 			result, err := executeNameTemplate(tt.creator, tt.content, tt.hasImages, tt.hasVideo)
 			require.NoError(t, err)
 			require.NotEmpty(t, result)
+			require.Contains(t, result, tt.creator)
+			if tt.hasImages || tt.hasVideo {
+				require.Contains(t, result, tt.content)
+			}
 		})
 	}
 }
@@ -54,6 +58,11 @@ func TestExecuteImageTemplate(t *testing.T) {
 			result, err := executeImageTemplate(tt.creator, tt.content, tt.name, tt.ticker, tt.hasImages, tt.hasVideo)
 			require.NoError(t, err)
 			require.NotEmpty(t, result)
+			require.Contains(t, result, tt.ticker)
+			require.Contains(t, result, tt.name)
+			if tt.hasImages || tt.hasVideo {
+				require.Contains(t, result, tt.content)
+			}
 		})
 	}
 }

@@ -45,17 +45,14 @@ var (
 )
 
 func executeNameTemplate(creator, content string, hasImages, hasVideo bool) (string, error) {
-	var tpl *template.Template
+	var tpl = templateNameMixed
 
-	switch {
-	case hasImages && hasVideo:
-		tpl = templateNameMixed
-	case hasImages:
-		tpl = templateNamePic
-	case hasVideo:
-		tpl = templateNameVideo
-	default:
-		tpl = templateNameMixed
+	if content == "" {
+		if hasImages {
+			tpl = templateNamePic
+		} else if hasVideo {
+			tpl = templateNameVideo
+		}
 	}
 
 	var sb strings.Builder
@@ -76,17 +73,14 @@ func executeNameTemplate(creator, content string, hasImages, hasVideo bool) (str
 }
 
 func executeImageTemplate(creator, content, name, ticker string, hasImages, hasVideo bool) (string, error) {
-	var tpl *template.Template
+	var tpl = templateImageMixed
 
-	switch {
-	case hasImages && hasVideo:
-		tpl = templateImageMixed
-	case hasImages:
-		tpl = templateImagePic
-	case hasVideo:
-		tpl = templateImageVideo
-	default:
-		tpl = templateImageMixed
+	if content == "" {
+		if hasImages {
+			tpl = templateImagePic
+		} else if hasVideo {
+			tpl = templateImageVideo
+		}
 	}
 
 	var sb strings.Builder
