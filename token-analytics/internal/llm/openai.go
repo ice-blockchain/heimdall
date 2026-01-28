@@ -28,6 +28,7 @@ type (
 )
 
 const (
+	openaiDefaultModelName     = openai.ChatModelGPT5_2
 	openaiMaxCreatorNameLength = 256
 	openaiMaxPostContentLength = 5000
 )
@@ -62,6 +63,11 @@ func newOpenAI(cfg Config) *openaiClient {
 
 	if cfg.ImageCallTimeout <= 0 {
 		cfg.ImageCallTimeout = 2 * time.Minute
+	}
+
+	if cfg.ModelName == "" {
+		log.Info("Using default OpenAI model name: " + openaiDefaultModelName)
+		cfg.ModelName = openaiDefaultModelName
 	}
 
 	if envKey := os.Getenv("OPENAI_API_KEY"); cfg.APIKey == "" && envKey != "" {
@@ -151,7 +157,7 @@ func (c *openaiClient) GenerateTokenNameAndTicker(ctx context.Context, creator, 
 
 	resp, err := c.Client.Chat.Completions.New(ctx,
 		openai.ChatCompletionNewParams{
-			Model: openai.ChatModelGPT5Nano,
+			Model: c.Cfg.ModelName,
 			Messages: []openai.ChatCompletionMessageParamUnion{
 				openai.UserMessage(contentParts),
 			},

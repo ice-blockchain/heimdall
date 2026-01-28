@@ -17,6 +17,7 @@ import (
 
 type (
 	Config struct {
+		ModelName         string        `yaml:"modelName"    json:"modelName"    mapstructure:"modelName"`
 		APIKey            string        `yaml:"apiKey"       json:"apiKey"       mapstructure:"apiKey"`
 		ImageQuality      string        `yaml:"imageQuality" json:"imageQuality" mapstructure:"imageQuality"`
 		MaxRetries        int           `yaml:"maxRetries"   json:"maxRetries"   mapstructure:"maxRetries"`

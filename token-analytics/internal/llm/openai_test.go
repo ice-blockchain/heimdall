@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/eliukblau/pixterm/pkg/ansimage"
 	"github.com/lucasb-eyer/go-colorful"
@@ -83,27 +84,30 @@ func TestLLMProviderOpenAI(t *testing.T) {
 	require.NotNil(t, client)
 
 	t.Run("Ticker and Name Generation", func(t *testing.T) {
+		start := time.Now()
 		name, ticker, err := client.GenerateTokenNameAndTicker(t.Context(), testPostCreator, testPostContent, testVideoFrames, nil)
 		require.NoError(t, err)
 		require.NotEmpty(t, name)
 		require.NotEmpty(t, ticker)
 
-		t.Logf("Generated Name: %s, Ticker: %s", name, ticker)
+		t.Logf("Generated Name: %s, Ticker: %s in %s", name, ticker, time.Since(start))
 	})
 	t.Run("Image Generation", func(t *testing.T) {
 		const testTokenName = "Doom AI"
 		const testTokenTicker = "HORROR"
 
 		t.Run("With reference image", func(t *testing.T) {
+			start := time.Now()
 			b64Image, err := client.GenerateTokenImage(t.Context(), testPostCreator, testPostContent, testTokenName, testTokenTicker, testVideoFrames, nil)
 			require.NoError(t, err)
 			require.NotEmpty(t, b64Image)
+			spent := time.Since(start)
 
 			data, err := base64.StdEncoding.DecodeString(b64Image)
 			require.NoError(t, err)
 			require.NotZero(t, len(data))
 
-			t.Logf("Generated Image Size: %d bytes", len(data))
+			t.Logf("Generated Image Size: %d bytes in %s", len(data), spent)
 
 			// Ignore possible errors writing the file in tests.
 			const writePath = "/tmp/test_openai_generated_token_image.webp"
@@ -115,15 +119,17 @@ func TestLLMProviderOpenAI(t *testing.T) {
 			}
 		})
 		t.Run("Without reference image", func(t *testing.T) {
+			now := time.Now()
 			b64Image, err := client.GenerateTokenImage(t.Context(), testPostCreator, testPostContent, testTokenName, testTokenTicker, nil, nil)
 			require.NoError(t, err)
 			require.NotEmpty(t, b64Image)
+			spent := time.Since(now)
 
 			data, err := base64.StdEncoding.DecodeString(b64Image)
 			require.NoError(t, err)
 			require.NotZero(t, len(data))
 
-			t.Logf("Generated Image Size: %d bytes", len(data))
+			t.Logf("Generated Image Size: %d bytes in %s", len(data), spent)
 
 			// Ignore possible errors writing the file in tests.
 			const writePath = "/tmp/test_openai_generated_token_image_2.webp"
