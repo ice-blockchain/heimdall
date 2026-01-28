@@ -71,9 +71,11 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		err := ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx, contractAddress, direction,
 			inputAmount, outputAmount, priceUSD,
-			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
-			nil, nil,
-			"0x0000000000000000000000000000000000000000000000000000000000000001", "0x2c73996babf1a06c2c057177353293f7ca0907c8",
+			tokenExternalAddress, userExternalAddress, tokenType, totalSupply,
+			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
+			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
+			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
+			nil, nil, // baseProfileContractAddress, baseProfileExternalAddress
 		)
 		require.NoError(t, err)
 
@@ -118,9 +120,11 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		err := ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx, contractAddress, direction,
 			inputAmount, outputAmount, priceUSD,
-			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
-			nil, nil,
-			"0x0000000000000000000000000000000000000000000000000000000000000001", "0x2c73996babf1a06c2c057177353293f7ca0907c8",
+			tokenExternalAddress, userExternalAddress, tokenType, totalSupply,
+			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
+			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
+			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
+			nil, nil, // baseProfileContractAddress, baseProfileExternalAddress
 		)
 		require.NoError(t, err)
 
@@ -140,9 +144,11 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		err = ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx2, contractAddress, direction,
 			inputAmount, outputAmount, priceUSD2,
-			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
-			nil, nil,
-			"0x0000000000000000000000000000000000000000000000000000000000000001", "0x2c73996babf1a06c2c057177353293f7ca0907c8",
+			tokenExternalAddress, userExternalAddress, tokenType, totalSupply,
+			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
+			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
+			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
+			nil, nil, // baseProfileContractAddress, baseProfileExternalAddress
 		)
 		require.NoError(t, err)
 
@@ -173,9 +179,11 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		err := ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx1, contractAddress, false,
 			buyInput, buyOutput, priceUSD,
-			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
-			nil, nil,
-			"0x0000000000000000000000000000000000000000000000000000000000000001", "0x2c73996babf1a06c2c057177353293f7ca0907c8",
+			tokenExternalAddress, userExternalAddress, tokenType, totalSupply,
+			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
+			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
+			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
+			nil, nil, // baseProfileContractAddress, baseProfileExternalAddress
 		)
 		require.NoError(t, err)
 
@@ -204,9 +212,11 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		err = ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx2, contractAddress, true, // direction = true (sell)
 			sellInput, sellOutput, newPriceUSD,
-			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
-			nil, nil,
-			"0x0000000000000000000000000000000000000000000000000000000000000001", "0x2c73996babf1a06c2c057177353293f7ca0907c8",
+			tokenExternalAddress, userExternalAddress, tokenType, totalSupply,
+			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
+			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
+			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
+			nil, nil, // baseProfileContractAddress, baseProfileExternalAddress
 		)
 		require.NoError(t, err)
 
@@ -235,9 +245,11 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		err := ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx1, contractAddress, false,
 			buyInput, buyOutput, 0.10,
-			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
-			nil, nil,
-			"0x0000000000000000000000000000000000000000000000000000000000000001", "0x2c73996babf1a06c2c057177353293f7ca0907c8",
+			tokenExternalAddress, userExternalAddress, tokenType, totalSupply,
+			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
+			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
+			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
+			nil, nil, // baseProfileContractAddress, baseProfileExternalAddress
 		)
 		require.NoError(t, err)
 
@@ -254,9 +266,11 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		err = ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx2, contractAddress, true,
 			sellInput, sellOutput, 0.10,
-			tokenExternalAddress, userExternalAddress, tokenType, totalSupply, "0x0000000000000000000000000000000000000000",
-			nil, nil,
-			"0x0000000000000000000000000000000000000000000000000000000000000001", "0x2c73996babf1a06c2c057177353293f7ca0907c8",
+			tokenExternalAddress, userExternalAddress, tokenType, totalSupply,
+			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
+			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
+			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
+			nil, nil, // baseProfileContractAddress, baseProfileExternalAddress
 		)
 		require.NoError(t, err)
 

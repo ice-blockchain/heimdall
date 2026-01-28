@@ -20,7 +20,7 @@ func TestPriceNotifier(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db).(*tokenAnalytics)
+		ta := helperNewForTest(t, db)
 
 		tokenExternalAddr := "0:price_notifier_test:"
 		contractAddr := "0x1111222233334444555566667777888899990000"
@@ -84,7 +84,7 @@ func TestPriceNotifier(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db).(*tokenAnalytics)
+		ta := helperNewForTest(t, db)
 
 		tokenExternalAddr := "0:migration_test:"
 		contractAddr := "0x2222333344445555666677778888999900001111"
@@ -149,7 +149,7 @@ func TestPriceNotifier(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db).(*tokenAnalytics)
+		ta := helperNewForTest(t, db)
 
 		tokenExternalAddr := "0:new_token_auto_add:"
 		contractAddr := "0x3333444455556666777788889999000011112222"
@@ -192,7 +192,7 @@ func TestPriceNotifier(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db).(*tokenAnalytics)
+		ta := helperNewForTest(t, db)
 
 		tokenExternalAddr := "0:unit_test:"
 
@@ -231,7 +231,7 @@ func TestPriceNotifier(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db).(*tokenAnalytics)
+		ta := helperNewForTest(t, db)
 
 		payload := `{"invalid json`
 
@@ -244,7 +244,7 @@ func TestPriceNotifier(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db).(*tokenAnalytics)
+		ta := helperNewForTest(t, db)
 
 		payload := `{
 			"external_address": "0:test:",
