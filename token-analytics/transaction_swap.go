@@ -516,6 +516,23 @@ func getTrendingSetKeyByType(tokenType string) string {
 	}
 }
 
+func getBondingCurveProgressSetKeyByType(tokenType string) string {
+	switch tokenType {
+	case TokenTypeProfile:
+		return globalBondingCurveProgressProfileSetKey
+	case TokenTypePost:
+		return globalBondingCurveProgressPostSetKey
+	case TokenTypeVideo:
+		return globalBondingCurveProgressVideoSetKey
+	case TokenTypeArticle:
+		return globalBondingCurveProgressArticleSetKey
+	case TokenTypeAnyPost:
+		return globalBondingCurveProgressAnyPostSetKey
+	default:
+		return ""
+	}
+}
+
 func (t *tokenAndUserInfo) Address() string {
 	return t.ContractAddress
 }

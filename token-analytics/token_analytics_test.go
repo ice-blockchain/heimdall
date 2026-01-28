@@ -268,6 +268,7 @@ func helperNewForTest(t testing.TB, db *storage.DB, opts ...HelperTestOption) *t
 			bondingCurve:    bc,
 			ingestedDataDB:  db,
 			processedDataDB: &testRedisDB{Client: testRedis},
+			ta:              ta,
 		})
 		riverqueue.RegisterWorker(reg, &tokenDetailsGenerationPictureWorker{
 			TA: ta,

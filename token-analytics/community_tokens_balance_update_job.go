@@ -38,6 +38,7 @@ type balanceUpdateWorker struct {
 	bondingCurve    bondingcurve.BondingCurve
 	ingestedDataDB  *storage.DB
 	processedDataDB storagev3.DB
+	ta              *tokenAnalytics
 	riverqueue.WorkerDefaults[BalanceUpdateJobArgs]
 }
 
@@ -167,24 +168,19 @@ func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, ex
 			return fmt.Errorf("failed to get curve progress for token %v (pair %v): %w", externalAddress, pairID, err)
 		}
 	}
-	type baseTokenPrice struct {
-		PriceUSD float64 `db:"price_usd"`
-	}
-	basePriceData, err := storage.Get[baseTokenPrice](ctx, w.ingestedDataDB,
-		`SELECT price_usd FROM base_token_prices WHERE LOWER(token_address) = LOWER($1)`, baseToken)
+	goalUSD, currentRaisedUSD, err := w.ta.progressToUSD(ctx, progress, baseToken)
 	if err != nil {
-		return fmt.Errorf("failed to get base token price for %v: %w", baseToken, err)
+		return fmt.Errorf("failed to calculate progress USD for token %v: %w", externalAddress, err)
 	}
-	if basePriceData == nil {
-		return fmt.Errorf("base token price not found for %v", baseToken)
+	liquidityUSD, _, err := w.ta.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(progress.Liquidity), baseToken)
+	if err != nil {
+		return fmt.Errorf("failed to calculate liquidity USD for token %v: %w", externalAddress, err)
 	}
 
-	basePriceUSD := basePriceData.PriceUSD
-	currentRaisedUSD := weiToFloat64FromBigInt(progress.TokensRaised) * basePriceUSD
-	goalUSD := weiToFloat64FromBigInt(progress.BondingTokensGoal) * basePriceUSD
-	liquidityUSD := weiToFloat64FromBigInt(progress.Liquidity) * basePriceUSD
-
-	_, err = storage.Exec(ctx, w.ingestedDataDB, `
+	type tokenTypeResult struct {
+		Type string `db:"type"`
+	}
+	tokenData, err := storage.Get[tokenTypeResult](ctx, w.ingestedDataDB, `
 		UPDATE tokens AS t
 		SET
 		    bonding_curve_current_amount = $2,
@@ -195,7 +191,8 @@ func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, ex
 		    bonding_curve_migrated = $7,
 		    liquidity_usd = $8,
 			updated_at = NOW()
-		WHERE t.external_address = $1`,
+		WHERE t.external_address = $1
+		RETURNING type`,
 		externalAddress,
 		progress.SoldTokens.String(),
 		progress.TokensRaised.String(),
@@ -208,6 +205,59 @@ func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, ex
 	if err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
 		return fmt.Errorf("failed to update bonding curve for token %v: %w", externalAddress, err)
 	}
+
+	tokenType := ""
+	if tokenData != nil {
+		tokenType = tokenData.Type
+	}
+
+	if !progress.Migrated {
+		currentAmountWei := new(big.Float).SetInt(progress.SoldTokens)
+		currentAmountScore, _ := currentAmountWei.Float64()
+
+		if err := w.processedDataDB.ZAdd(ctx, globalBondingCurveProgressSetKey, redis.Z{
+			Score:  currentAmountScore,
+			Member: externalAddress,
+		}).Err(); err != nil {
+			return errors.Wrapf(err, "failed to update bonding curve progress in Redis for token %s", externalAddress)
+		}
+
+		if tokenType != "" {
+			if typeSpecificKey := getBondingCurveProgressSetKeyByType(tokenType); typeSpecificKey != "" {
+				if err := w.processedDataDB.ZAdd(ctx, typeSpecificKey, redis.Z{
+					Score:  currentAmountScore,
+					Member: externalAddress,
+				}).Err(); err != nil {
+					return errors.Wrapf(err, "failed to update type-specific bonding curve progress in Redis for token %s type %s", externalAddress, tokenType)
+				}
+			}
+			if tokenType == TokenTypePost || tokenType == TokenTypeVideo || tokenType == TokenTypeArticle {
+				if err := w.processedDataDB.ZAdd(ctx, globalBondingCurveProgressAnyPostSetKey, redis.Z{
+					Score:  currentAmountScore,
+					Member: externalAddress,
+				}).Err(); err != nil {
+					return errors.Wrapf(err, "failed to update anyPost bonding curve progress in Redis for token %s", externalAddress)
+				}
+			}
+		}
+	} else {
+		if err := w.processedDataDB.ZRem(ctx, globalBondingCurveProgressSetKey, externalAddress).Err(); err != nil {
+			return errors.Wrapf(err, "failed to remove token from bonding curve progress in Redis for token %s", externalAddress)
+		}
+		if tokenType != "" {
+			if typeSpecificKey := getBondingCurveProgressSetKeyByType(tokenType); typeSpecificKey != "" {
+				if err := w.processedDataDB.ZRem(ctx, typeSpecificKey, externalAddress).Err(); err != nil {
+					return errors.Wrapf(err, "failed to remove token from type-specific bonding curve progress in Redis for token %s type %s", externalAddress, tokenType)
+				}
+			}
+			if tokenType == TokenTypePost || tokenType == TokenTypeVideo || tokenType == TokenTypeArticle {
+				if err := w.processedDataDB.ZRem(ctx, globalBondingCurveProgressAnyPostSetKey, externalAddress).Err(); err != nil {
+					return errors.Wrapf(err, "failed to remove token from anyPost bonding curve progress in Redis for token %s", externalAddress)
+				}
+			}
+		}
+	}
+
 	progressPercent := 0.0
 	if goalUSD > 0 {
 		progressPercent = (currentRaisedUSD / goalUSD) * 100

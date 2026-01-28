@@ -161,6 +161,7 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 			bondingCurve:    bc,
 			ingestedDataDB:  db,
 			processedDataDB: targetDB,
+			ta:              t,
 		})
 		riverqueue.RegisterWorker(reg, &tokenDetailsGenerationPictureWorker{
 			TA: t,
@@ -179,7 +180,8 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 
 	go t.startIONPriceSyncer(ctx)
 	go t.startBNBPriceLoader(ctx)
-	t.startPriceNotifier(ctx)
+	t.startBondingCurveNotifier(ctx)
+	t.startUserBalanceNotifier(ctx)
 
 	if err := riverClient.Start(ctx); err != nil {
 		log.Panic(errors.Wrap(err, "failed to start river queue"))
