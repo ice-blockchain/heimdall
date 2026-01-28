@@ -62,9 +62,15 @@ END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS user_balance_update_trigger ON user_token_positions;
+DROP TRIGGER IF EXISTS user_balance_insert_trigger ON user_token_positions;
 
-CREATE TRIGGER user_balance_update_trigger
-    AFTER INSERT OR UPDATE OF amount ON user_token_positions
+CREATE TRIGGER user_balance_insert_trigger
+    AFTER INSERT ON user_token_positions
     FOR EACH ROW
     EXECUTE FUNCTION notify_user_balance_update();
 
+CREATE TRIGGER user_balance_update_trigger
+    AFTER UPDATE OF amount ON user_token_positions
+    FOR EACH ROW
+    WHEN (OLD.amount IS DISTINCT FROM NEW.amount)
+    EXECUTE FUNCTION notify_user_balance_update();
