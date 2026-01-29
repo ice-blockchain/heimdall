@@ -830,8 +830,15 @@ func (a *accounts) GetWalletAssets(ctx context.Context, walletID string) (*Asset
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get wallet %v", walletID)
 		}
-		walletNetwork = (*wallet)["network"].(string)
-		walletAddress = (*wallet)["address"].(string)
+		var ok bool
+		walletNetwork, ok = (*wallet)["network"].(string)
+		if !ok {
+			return nil, errors.Errorf("wallet %v missing network field", walletID)
+		}
+		walletAddress, ok = (*wallet)["address"].(string)
+		if !ok {
+			return nil, errors.Errorf("wallet %v missing address field", walletID)
+		}
 	}
 	if strings.EqualFold(walletNetwork, dfns.DefaultWalletNetworkTestNet) || strings.EqualFold(walletNetwork, dfns.DefaultWalletNetworkMainNet) {
 		assets, err := a.indexer.GetBalance(ctx, walletAddress)
