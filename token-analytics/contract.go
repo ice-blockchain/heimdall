@@ -198,6 +198,7 @@ const (
 var (
 	ErrSessionNotFound = errors.New("session not found")
 	ErrDuplicate       = errors.New("duplicate entry")
+	ErrTokenNotFound   = errors.New("token not found")
 )
 
 type (
