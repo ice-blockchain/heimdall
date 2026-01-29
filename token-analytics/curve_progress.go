@@ -15,11 +15,11 @@ import (
 )
 
 func (t *tokenAnalytics) GetBondingCurveProgress(ctx context.Context, externalAddress string) (*BondingCurveProgress, error) {
-	p, _, _, _, _, _, err := t.getBondingCurveProgress(ctx, externalAddress)
+	p, _, _, err := t.getBondingCurveProgress(ctx, externalAddress)
 	return p, err
 }
 
-func (t *tokenAnalytics) getBondingCurveProgress(ctx context.Context, externalAddress string) (*BondingCurveProgress, string, string, string, string, string, error) {
+func (t *tokenAnalytics) getBondingCurveProgress(ctx context.Context, externalAddress string) (*BondingCurveProgress, string, string, error) {
 	type pairAndBaseToken struct {
 		PairId      string `db:"pair_id"`
 		BaseToken   string `db:"base_token"`
@@ -36,25 +36,25 @@ func (t *tokenAnalytics) getBondingCurveProgress(ctx context.Context, externalAd
 		    t."type"
 		FROM tokens t WHERE t.external_address = $1`, externalAddress)
 	if err != nil {
-		return nil, "", "", "", "", "", fmt.Errorf("failed to find token by external address %v: %w", externalAddress, err)
+		return nil, "", "", fmt.Errorf("failed to find token by external address %v: %w", externalAddress, err)
 	}
 	if pairId == nil {
-		return nil, "", "", "", "", "", fmt.Errorf("token %v not found", externalAddress)
+		return nil, "", "", fmt.Errorf("token %v not found", externalAddress)
 	}
 	progress, err := t.bondingCurve.Progress(ctx, common.HexToHash(pairId.PairId))
 	if err != nil {
-		return nil, "", "", "", "", "", fmt.Errorf("failed to get curve progress for token %v (pair %v): %w", externalAddress, pairId, err)
+		return nil, "", "", fmt.Errorf("failed to get curve progress for token %v (pair %v): %w", externalAddress, pairId, err)
 	}
 	m, err := t.toBondingCurveProgressToModel(ctx, progress, pairId.BaseToken, pairId.Type, pairId.PriceModel, pairId.TotalSupply)
 	if err != nil {
-		return nil, "", "", "", "", "", fmt.Errorf("failed to convert bonding curve progress for token %v (base %v): %w", externalAddress, pairId.BaseToken, err)
+		return nil, "", "", fmt.Errorf("failed to convert bonding curve progress for token %v (base %v): %w", externalAddress, pairId.BaseToken, err)
 	}
 
-	return m, pairId.PairId, pairId.BaseToken, pairId.Type, pairId.PriceModel, pairId.TotalSupply, nil
+	return m, pairId.PairId, pairId.BaseToken, nil
 }
 
 func (t *tokenAnalytics) SubscribeBondingCurveProgress(ctx context.Context, externalAddress string, addToStream func(*BondingCurveProgress, error)) error {
-	currentProgress, pairId, baseToken, tokenType, priceModel, totalSupply, err := t.getBondingCurveProgress(ctx, externalAddress)
+	currentProgress, _, _, err := t.getBondingCurveProgress(ctx, externalAddress)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get initial bonding curve progress for token %v", externalAddress)
 	}
@@ -91,7 +91,7 @@ func (t *tokenAnalytics) progressToUSD(ctx context.Context, progress *bondingcur
 	return goalUSD, currentRaisedUSD, nil
 }
 
-func (t *tokenAnalytics) toBondingCurveProgressToModel(ctx context.Context, progress *bondingcurve.BondingCurveProgress, baseToken string) (*BondingCurveProgress, error) {
+func (t *tokenAnalytics) toBondingCurveProgressToModel(ctx context.Context, progress *bondingcurve.BondingCurveProgress, baseToken, tokenType, priceModel, totalSupply string) (*BondingCurveProgress, error) {
 	goalUSD, currentRaisedUSD, err := t.progressToUSD(ctx, progress, baseToken)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to handle base token for goal/raised calculation %v", baseToken)

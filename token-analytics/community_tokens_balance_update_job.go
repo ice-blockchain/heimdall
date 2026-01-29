@@ -153,12 +153,15 @@ func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, ex
 		tokensRaised.Mul(tokensRaised, big.NewInt(1e18))
 		bondingTokensGoal := new(big.Int).SetUint64(uint64(200 + randInt(300))) // 200-500 tokens
 		bondingTokensGoal.Mul(bondingTokensGoal, big.NewInt(1e18))
-
+		startPrice := new(big.Int).SetUint64(uint64(1000000000000000000))
+		endPrice := new(big.Int).SetUint64(uint64(1000000000000000000))
 		progress = &bondingcurve.BondingCurveProgress{
 			BondingCurveBondingInfo: &bondingcurve.BondingCurveBondingInfo{
 				SoldTokens:        soldTokens,
 				TokensRaised:      tokensRaised,
 				BondingTokensGoal: bondingTokensGoal,
+				StartPrice:        startPrice,
+				EndPrice:          endPrice,
 				Migrated:          false,
 			},
 			Liquidity: big.NewInt(0),
@@ -188,6 +191,8 @@ func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, ex
 		    bonding_curve_goal_amount_usd = $6,
 		    bonding_curve_migrated = $7,
 		    liquidity_usd = $8,
+		    start_price = $9,
+		    end_price = $10,
 			updated_at = NOW()
 		WHERE t.external_address = $1`,
 		externalAddress,
@@ -197,7 +202,9 @@ func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, ex
 		currentRaisedUSD,
 		goalUSD,
 		progress.Migrated,
-		liquidityUSD)
+		liquidityUSD,
+		progress.StartPrice.String(),
+		progress.EndPrice.String())
 
 	if err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
 		return fmt.Errorf("failed to update bonding curve for token %v: %w", externalAddress, err)

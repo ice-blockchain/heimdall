@@ -28,22 +28,21 @@ func TestGetTokenPricing(t *testing.T) {
 
 	ta.bondingCurve = fixture.CreateMockedBondingCurveInstance(bondingCurveCaller, bondingCurveAddr)
 	ta.cfg.BondingCurve.StartTokenParams = map[string]startTokenParams{}
-	totalSupply := 1_000_000_000 * 1e18
 	ta.cfg.BondingCurve.StartTokenParams["post"] = startTokenParams{
-		InitialPrice:           big.NewInt(10000),
-		FinalPrice:             big.NewInt(100_000),
-		EmissionVolume:         big.NewInt(int64(totalSupply)),
+		InitialPrice:           "10000",
+		FinalPrice:             "100000",
+		EmissionVolume:         "1000000000000000000000",
 		BondingCurveAlgAddress: "0x000000000000000000000000000000000000dead",
 		FeeSponsorAddress:      "0x000000000000000000000000000000000000dead",
-		FeeSponsorId:           "bogus",
+		FeeSponsorId:           "post",
 	}
 	ta.cfg.BondingCurve.StartTokenParams["profile"] = startTokenParams{
-		InitialPrice:           big.NewInt(10000),
-		FinalPrice:             big.NewInt(100_000),
-		EmissionVolume:         big.NewInt(int64(totalSupply)),
+		InitialPrice:           "1000000",
+		FinalPrice:             "100000000",
+		EmissionVolume:         "1000000000000000000000",
 		BondingCurveAlgAddress: "0x000000000000000000000000000000000000dead",
 		FeeSponsorAddress:      "0x000000000000000000000000000000000000dead",
-		FeeSponsorId:           "bogus",
+		FeeSponsorId:           "profile",
 	}
 	ionPrice := 0.1
 	bnbPrice := 600.0
@@ -73,6 +72,12 @@ func TestGetTokenPricing(t *testing.T) {
 		require.Greater(t, tokensBNB.Int64(), int64(0), "Should have BNB value")
 		require.Equal(t, ionPrice, ionPriceReturned)
 		require.Equal(t, bnbPrice, bnbPriceReturned)
+		require.Equal(t, "100000", p.FinalPrice)
+		require.Equal(t, "10000", p.InitialPrice)
+		require.Equal(t, "1000000000000000000000", p.EmissionVolume)
+		require.Equal(t, "0x000000000000000000000000000000000000dead", p.BondingCurveAlgAddress)
+		require.Equal(t, "0x000000000000000000000000000000000000dead", p.FeeSponsorAddress)
+		require.Equal(t, "post", p.FeeSponsorId)
 
 		// Insert token for 1+ swap test
 		helperInsertTestUser(t, ctx, db, xcomPostID, "xcom_user", "X User", "", true, PlatformGroupXCom)
@@ -94,6 +99,12 @@ func TestGetTokenPricing(t *testing.T) {
 		require.Greater(t, tokensBNB.Int64(), int64(0))
 		require.Equal(t, ionPrice, ionPriceReturned)
 		require.Equal(t, bnbPrice, bnbPriceReturned)
+		require.Equal(t, "100000", p.FinalPrice)
+		require.Equal(t, "10000", p.InitialPrice)
+		require.Equal(t, "1000000000000000000000", p.EmissionVolume)
+		require.Equal(t, "0x000000000000000000000000000000000000dead", p.BondingCurveAlgAddress)
+		require.Equal(t, "0x000000000000000000000000000000000000dead", p.FeeSponsorAddress)
+		require.Equal(t, "post", p.FeeSponsorId)
 	})
 
 	t.Run("sell_xcom_post_token_1plus_swap", func(t *testing.T) {
@@ -108,6 +119,12 @@ func TestGetTokenPricing(t *testing.T) {
 		require.Greater(t, tokensBNB.Int64(), int64(0))
 		require.Equal(t, ionPrice, ionPriceReturned)
 		require.Equal(t, bnbPrice, bnbPriceReturned)
+		require.Equal(t, "100000", p.FinalPrice)
+		require.Equal(t, "10000", p.InitialPrice)
+		require.Equal(t, "1000000000000000000000", p.EmissionVolume)
+		require.Equal(t, "0x000000000000000000000000000000000000dead", p.BondingCurveAlgAddress)
+		require.Equal(t, "0x000000000000000000000000000000000000dead", p.FeeSponsorAddress)
+		require.Equal(t, "post", p.FeeSponsorId)
 	})
 
 	// ========== ONLINE_PLUS Tests ==========
@@ -132,7 +149,12 @@ func TestGetTokenPricing(t *testing.T) {
 		require.Greater(t, tokensBNB.Int64(), int64(0))
 		require.Equal(t, ionPrice, ionPriceReturned)
 		require.Equal(t, bnbPrice, bnbPriceReturned)
-
+		require.Equal(t, "100000000", p.FinalPrice)
+		require.Equal(t, "1000000", p.InitialPrice)
+		require.Equal(t, "1000000000000000000000", p.EmissionVolume)
+		require.Equal(t, "0x000000000000000000000000000000000000dead", p.BondingCurveAlgAddress)
+		require.Equal(t, "0x000000000000000000000000000000000000dead", p.FeeSponsorAddress)
+		require.Equal(t, "profile", p.FeeSponsorId)
 		// Insert token for 1+ swap test
 		helperInsertTestUser(t, ctx, db, creatorExternalAddr, creatorPubkey, "Creator User", "", true, PlatformGroupIonConnect)
 		helperInsertTestToken(t, ctx, db, creatorContractAddr, creatorExternalAddr, "CREA", "profile", creatorExternalAddr, "1000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
@@ -153,6 +175,12 @@ func TestGetTokenPricing(t *testing.T) {
 		require.Greater(t, tokensBNB.Int64(), int64(0))
 		require.Equal(t, ionPrice, ionPriceReturned)
 		require.Equal(t, bnbPrice, bnbPriceReturned)
+		require.Equal(t, "100000000", p.FinalPrice)
+		require.Equal(t, "1000000", p.InitialPrice)
+		require.Equal(t, "1000000000000000000000", p.EmissionVolume)
+		require.Equal(t, "0x000000000000000000000000000000000000dead", p.BondingCurveAlgAddress)
+		require.Equal(t, "0x000000000000000000000000000000000000dead", p.FeeSponsorAddress)
+		require.Equal(t, "profile", p.FeeSponsorId)
 	})
 
 	t.Run("sell_online_plus_profile_token_1plus_swap", func(t *testing.T) {
@@ -200,7 +228,12 @@ func TestGetTokenPricing(t *testing.T) {
 		require.Greater(t, tokensBNB.Int64(), int64(0))
 		require.Equal(t, ionPrice, ionPriceReturned)
 		require.Equal(t, bnbPrice, bnbPriceReturned)
-
+		require.Equal(t, "100000", p.FinalPrice)
+		require.Equal(t, "10000", p.InitialPrice)
+		require.Equal(t, "1000000000000000000000", p.EmissionVolume)
+		require.Equal(t, "0x000000000000000000000000000000000000dead", p.BondingCurveAlgAddress)
+		require.Equal(t, "0x000000000000000000000000000000000000dead", p.FeeSponsorAddress)
+		require.Equal(t, "post", p.FeeSponsorId)
 		// Insert content token for 1+ swap test
 		contentContractAddr := "0x6666666666666666666666666666666666666666"
 		helperInsertTestToken(t, ctx, db, contentContractAddr, contentExternalAddr, "CONT", "post", creatorExternalAddr, "1000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
@@ -221,6 +254,12 @@ func TestGetTokenPricing(t *testing.T) {
 		require.Greater(t, tokensBNB.Int64(), int64(0))
 		require.Equal(t, ionPrice, ionPriceReturned)
 		require.Equal(t, bnbPrice, bnbPriceReturned)
+		require.Equal(t, "100000", p.FinalPrice)
+		require.Equal(t, "10000", p.InitialPrice)
+		require.Equal(t, "1000000000000000000000", p.EmissionVolume)
+		require.Equal(t, "0x000000000000000000000000000000000000dead", p.BondingCurveAlgAddress)
+		require.Equal(t, "0x000000000000000000000000000000000000dead", p.FeeSponsorAddress)
+		require.Equal(t, "post", p.FeeSponsorId)
 	})
 
 	t.Run("sell_online_plus_content_token_1plus_swap", func(t *testing.T) {

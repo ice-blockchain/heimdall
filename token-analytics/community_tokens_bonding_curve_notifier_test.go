@@ -63,6 +63,11 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"bonding_curve_raised_amount": "10000000000000000000",
 			"bonding_curve_current_amount_usd": %f,
 			"bonding_curve_goal_amount_usd": 2.0,
+			"start_price":"10000",
+			"end_price":"20000",
+            "total_supply": "200000000000000000000",
+            "price_model": "0x000000000000000000000000000000000000dead",
+            "base_token": "0x2c73996BaBF1a06c2C057177353293f7cA0907c8",
 			"updated_at": 1234567890
 		}`, tokenExternalAddr, contractAddr, newPriceUSD, newCurrentAmount, newCurrentAmountUSD)
 
@@ -120,6 +125,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"external_address": "%s",
 			"contract_address": "%s",
 			"price_usd": 0.005,
+			"type":"profile",
 			"total_supply": "1000000000000000000000000",
 			"liquidity_usd": 100.0,
 			"bonding_curve_migrated": true,
@@ -128,6 +134,11 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"bonding_curve_raised_amount": "0",
 			"bonding_curve_current_amount_usd": 0,
 			"bonding_curve_goal_amount_usd": 0,
+			"start_price":"10000",
+			"end_price":"20000",
+            "total_supply": "200000000000000000000",
+            "price_model": "0x000000000000000000000000000000000000dead",
+            "base_token": "0x2c73996BaBF1a06c2C057177353293f7cA0907c8",
 			"updated_at": 1234567890
 		}`, tokenExternalAddr, contractAddr)
 
@@ -161,6 +172,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 		payload := fmt.Sprintf(`{
 			"external_address": "%s",
 			"contract_address": "%s",
+			"type":"profile",
 			"price_usd": %f,
 			"total_supply": "1000000000000000000000000",
 			"liquidity_usd": 0,
@@ -170,6 +182,11 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"bonding_curve_raised_amount": "0",
 			"bonding_curve_current_amount_usd": 0,
 			"bonding_curve_goal_amount_usd": 0,
+			"start_price":"10000",
+			"end_price":"20000",
+            "total_supply": "200000000000000000000",
+            "price_model": "0x000000000000000000000000000000000000dead",
+            "base_token": "0x2c73996BaBF1a06c2C057177353293f7cA0907c8",
 			"updated_at": 1234567890
 		}`, tokenExternalAddr, contractAddr, newPrice)
 
@@ -196,6 +213,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"external_address": "0:unit_test:",
 			"contract_address": "0x1234567890123456789012345678901234567890",
 			"price_usd": 0.005,
+			"type":"profile",
 			"total_supply": "1000000000000000000000000",
 			"liquidity_usd": 2.5,
 			"bonding_curve_migrated": false,
@@ -204,6 +222,11 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"bonding_curve_raised_amount": "10000000000000000000",
 			"bonding_curve_current_amount_usd": 1.5,
 			"bonding_curve_goal_amount_usd": 3.0,
+			"start_price":"10000",
+			"end_price":"20000",
+            "total_supply": "200000000000000000000",
+            "price_model": "0x000000000000000000000000000000000000dead",
+            "base_token": "0x2c73996BaBF1a06c2C057177353293f7cA0907c8",
 			"updated_at": 1234567890
 		}`
 
@@ -241,6 +264,11 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"bonding_curve_current_amount_usd": 1.5,
 			"bonding_curve_goal_amount_usd": 3.0,
 			"liquidity_usd": 0.5,
+			"start_price":"10000",
+			"end_price":"20000",
+            "total_supply": "200000000000000000000",
+            "price_model": "0x000000000000000000000000000000000000dead",
+            "base_token": "0x2c73996BaBF1a06c2C057177353293f7cA0907c8",
 			"updated_at": 1234567890
 		}`
 
@@ -272,6 +300,11 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"bonding_curve_current_amount_usd": 1.0,
 			"bonding_curve_goal_amount_usd": 2.0,
 			"liquidity_usd": 0.5,
+			"start_price":"10000",
+			"end_price":"20000",
+            "total_supply": "200000000000000000000",
+            "price_model": "0x000000000000000000000000000000000000dead",
+            "base_token": "0x2c73996BaBF1a06c2C057177353293f7cA0907c8",
 			"updated_at": 1234567890
 		}`, tokenExternalAddr)
 
@@ -315,6 +348,11 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"bonding_curve_current_amount_usd": 1.0,
 			"bonding_curve_goal_amount_usd": 2.0,
 			"liquidity_usd": 0.5,
+			"start_price":"10000",
+			"end_price":"20000",
+            "total_supply": "200000000000000000000",
+            "price_model": "0x000000000000000000000000000000000000dead",
+            "base_token": "0x2c73996BaBF1a06c2C057177353293f7cA0907c8",
 			"updated_at": 1234567890
 		}`, tokenExternalAddr)
 
@@ -354,6 +392,11 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"bonding_curve_current_amount_usd": 1.0,
 			"bonding_curve_goal_amount_usd": 2.0,
 			"liquidity_usd": 0.5,
+			"start_price":"10000",
+			"end_price":"20000",
+            "total_supply": "200000000000000000000",
+            "price_model": "0x000000000000000000000000000000000000dead",
+            "base_token": "0x2c73996BaBF1a06c2C057177353293f7cA0907c8",
 			"updated_at": 1234567890
 		}`, tokenExternalAddr)
 
@@ -393,6 +436,11 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"bonding_curve_current_amount_usd": 1.0,
 			"bonding_curve_goal_amount_usd": 2.0,
 			"liquidity_usd": 0.5,
+			"start_price":"10000",
+			"end_price":"20000",
+            "total_supply": "200000000000000000000",
+            "price_model": "0x000000000000000000000000000000000000dead",
+            "base_token": "0x2c73996BaBF1a06c2C057177353293f7cA0907c8",
 			"updated_at": 1234567890
 		}`, tokenExternalAddr)
 
@@ -449,6 +497,11 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"bonding_curve_current_amount_usd": 0,
 			"bonding_curve_goal_amount_usd": 0,
 			"liquidity_usd": 100.0,
+			"start_price":"10000",
+			"end_price":"20000",
+            "total_supply": "200000000000000000000",
+            "price_model": "0x000000000000000000000000000000000000dead",
+            "base_token": "0x2c73996BaBF1a06c2C057177353293f7cA0907c8",
 			"updated_at": 1234567890
 		}`, tokenExternalAddr)
 

@@ -85,11 +85,16 @@ func (m *mockBondingCurveForBalanceUpdater) Progress(ctx context.Context, pairId
 	tokensRaised.SetString("10000000000000000000", 10) // 10 base tokens
 	bondingTokensGoal := new(big.Int)
 	bondingTokensGoal.SetString("200000000000000000000", 10) // 200 tokens
-
+	startPrice := new(big.Int)
+	startPrice.SetString("10000", 10)
+	endPrice := new(big.Int)
+	endPrice.SetString("100000", 10)
 	return &bondingcurve.BondingCurveProgress{
 		BondingCurveBondingInfo: &bondingcurve.BondingCurveBondingInfo{
 			SoldTokens:        soldTokens,
 			TokensRaised:      tokensRaised,
+			StartPrice:        startPrice,
+			EndPrice:          endPrice,
 			BondingTokensGoal: bondingTokensGoal,
 			Migrated:          false,
 		},
@@ -203,17 +208,28 @@ func helperNewForTest(t testing.TB, db *storage.DB, opts ...HelperTestOption) *t
 			BurnAddress                         string                      `yaml:"burnAddress"`
 			TokenFactorySmartContractAddress    string                      `yaml:"tokenFactorySmartContractAddress"`
 			BondingCurveProgressUpdateFrequency stdtime.Duration            `yaml:"bondingCurveProgressUpdateFrequency"`
-			StartTokensParams                   map[string]startTokenParams `yaml:"startTokensParams" mapstructure:"startTokensParams"`
+			StartTokenParams                    map[string]startTokenParams `yaml:"startTokenParams" mapstructure:"startTokenParams"`
 		}{
 			SmartContractAddress:             "0x1E602c717B6b1343303E77E9DBfe45B37cf01144",
 			TokenFactorySmartContractAddress: "0x2F713d828C5e2c11bC21778b37cF12Da3ec01255",
 			BurnAddress:                      "0x0000000000000000000000000000000000696f6e",
-			StartTokensParams:                map[string]startTokenParams{},
+			StartTokenParams:                 map[string]startTokenParams{},
 		},
 		Workers:         1,
 		IONTokenAddress: "0x2c73996BaBF1a06c2C057177353293f7cA0907c8",
 	}
-
+	defaultTokenParams := startTokenParams{
+		InitialPrice:           "10000",
+		FinalPrice:             "100000",
+		EmissionVolume:         "1000000000000000000000000000",
+		BondingCurveAlgAddress: "0x000000000000000000000000000000000000dead",
+		FeeSponsorAddress:      "0x000000000000000000000000000000000000dead",
+		FeeSponsorId:           "bogus",
+	}
+	cfg.BondingCurve.StartTokenParams[TokenTypePost] = defaultTokenParams
+	cfg.BondingCurve.StartTokenParams[TokenTypeProfile] = defaultTokenParams
+	cfg.BondingCurve.StartTokenParams[TokenTypeArticle] = defaultTokenParams
+	cfg.BondingCurve.StartTokenParams[TokenTypeVideo] = defaultTokenParams
 	var bc bondingcurve.BondingCurve
 	if options.bondingCurve != nil {
 		bc = options.bondingCurve
