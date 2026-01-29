@@ -49,8 +49,10 @@ func New(applicationYamlKey string, validateLinkedId func(context.Context, strin
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	if err := cl.HealthCheck(ctx); err != nil {
-		log.Panic(errors.Wrapf(err, "initial health check of device identification failed"))
+	if !deviceIdentificationDisabled {
+		if err := cl.HealthCheck(ctx); err != nil {
+			log.Panic(errors.Wrapf(err, "initial health check of device identification failed"))
+		}
 	}
 	return cl
 }
