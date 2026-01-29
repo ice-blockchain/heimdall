@@ -27,8 +27,8 @@ func TestGetTokenPricing(t *testing.T) {
 	defer mockBackend.Close()
 
 	ta.bondingCurve = fixture.CreateMockedBondingCurveInstance(bondingCurveCaller, bondingCurveAddr)
-	ta.cfg.BondingCurve.StartTokenParams = map[string]startTokenParams{}
-	ta.cfg.BondingCurve.StartTokenParams["post"] = startTokenParams{
+	ta.cfg.BondingCurve.CreateTokenDefaults = map[string]createTokenDefaults{}
+	ta.cfg.BondingCurve.CreateTokenDefaults["post"] = createTokenDefaults{
 		InitialPrice:           "10000",
 		FinalPrice:             "100000",
 		EmissionVolume:         "1000000000000000000000",
@@ -36,7 +36,7 @@ func TestGetTokenPricing(t *testing.T) {
 		FeeSponsorAddress:      "0x000000000000000000000000000000000000dead",
 		FeeSponsorId:           "post",
 	}
-	ta.cfg.BondingCurve.StartTokenParams["profile"] = startTokenParams{
+	ta.cfg.BondingCurve.CreateTokenDefaults["profile"] = createTokenDefaults{
 		InitialPrice:           "1000000",
 		FinalPrice:             "100000000",
 		EmissionVolume:         "1000000000000000000000",

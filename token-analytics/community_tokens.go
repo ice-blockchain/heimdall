@@ -135,13 +135,14 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 
 func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount *big.Int) (pricing *Pricing, err error) {
 	type tokenInfo struct {
-		BaseToken       string `db:"base_token"`
-		ContractAddress string `db:"contract_address"`
-		PriceModel      string `db:"price_model"`
-		TotalSupply     string `db:"total_supply"`
-		Type            string `db:"type"`
-		StartPrice      string `db:"start_price"`
-		EndPrice        string `db:"end_price"`
+		BaseToken         string  `db:"base_token"`
+		ContractAddress   string  `db:"contract_address"`
+		PriceModel        string  `db:"price_model"`
+		TotalSupply       string  `db:"total_supply"`
+		Type              string  `db:"type"`
+		StartPrice        string  `db:"start_price"`
+		EndPrice          string  `db:"end_price"`
+		FeeSponsorAddress *string `db:"fee_sponsor_address"`
 	}
 	ionPrice := t.ionPriceUSD.Load()
 	ionPriceInUSD := *ionPrice
@@ -197,18 +198,19 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 							return nil, fmt.Errorf("failed to determine base token for creator %s: %w", creatorExternalAddress, err)
 						}
 					}
-					tokenStartParams, ok := t.cfg.BondingCurve.StartTokenParams[allTypes[1]]
+					tokenStartParams, ok := t.cfg.BondingCurve.CreateTokenDefaults[allTypes[1]]
 					if !ok {
 						return nil, fmt.Errorf("token type %s not found in bonding curve config", allTypes[1])
 					}
 					result = &tokenInfo{
-						BaseToken:       baseToken,
-						ContractAddress: "",
-						PriceModel:      tokenStartParams.BondingCurveAlgAddress,
-						TotalSupply:     tokenStartParams.EmissionVolume,
-						Type:            allTypes[1],
-						StartPrice:      tokenStartParams.InitialPrice,
-						EndPrice:        tokenStartParams.FinalPrice,
+						BaseToken:         baseToken,
+						ContractAddress:   "",
+						PriceModel:        tokenStartParams.BondingCurveAlgAddress,
+						TotalSupply:       tokenStartParams.EmissionVolume,
+						Type:              allTypes[1],
+						StartPrice:        tokenStartParams.InitialPrice,
+						EndPrice:          tokenStartParams.FinalPrice,
+						FeeSponsorAddress: &tokenStartParams.FeeSponsorAddress,
 					}
 					err = nil
 				} else {
@@ -231,18 +233,19 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 					if baseTokenErr != nil {
 						return nil, fmt.Errorf("failed to determine base token for %s (from Fat Address %s): %w", actualTokenAddress, externalAddress, baseTokenErr)
 					}
-					tokenStartParams, ok := t.cfg.BondingCurve.StartTokenParams[allTypes[0]]
+					tokenStartParams, ok := t.cfg.BondingCurve.CreateTokenDefaults[allTypes[0]]
 					if !ok {
 						return nil, fmt.Errorf("token type %s not found in bonding curve config", allTypes[0])
 					}
 					result = &tokenInfo{
-						BaseToken:       baseToken,
-						ContractAddress: "",
-						PriceModel:      tokenStartParams.BondingCurveAlgAddress,
-						TotalSupply:     tokenStartParams.EmissionVolume,
-						Type:            allTypes[0],
-						StartPrice:      tokenStartParams.InitialPrice,
-						EndPrice:        tokenStartParams.FinalPrice,
+						BaseToken:         baseToken,
+						ContractAddress:   "",
+						PriceModel:        tokenStartParams.BondingCurveAlgAddress,
+						TotalSupply:       tokenStartParams.EmissionVolume,
+						Type:              allTypes[0],
+						StartPrice:        tokenStartParams.InitialPrice,
+						EndPrice:          tokenStartParams.FinalPrice,
+						FeeSponsorAddress: &tokenStartParams.FeeSponsorAddress,
 					}
 					err = nil
 				}
@@ -280,20 +283,33 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 	if amount != nil {
 		amountToConvert = amount
 	}
-	startPrice, _ := new(big.Int).SetString(result.StartPrice, 10)
+	startPrice, ok := new(big.Int).SetString(result.StartPrice, 10)
+	if !ok {
+		return nil, fmt.Errorf("failed to parse start price %v for token %v", result.EndPrice, externalAddress)
+	}
 	startPriceUSD, _, err := t.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(startPrice), result.BaseToken)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to handle base token for start price usd calculation %v", result.BaseToken)
 	}
-	endPrice, _ := new(big.Int).SetString(result.EndPrice, 10)
+	endPrice, ok := new(big.Int).SetString(result.EndPrice, 10)
+	if !ok {
+		return nil, fmt.Errorf("failed to parse end price %v for token %v", result.EndPrice, externalAddress)
+	}
 	endPriceUSD, _, err := t.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(endPrice), result.BaseToken)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to handle base token for end price usd calculation %v", result.BaseToken)
 	}
-	tokenStartParams, ok := t.cfg.BondingCurve.StartTokenParams[result.Type]
-	if !ok {
-		return nil, fmt.Errorf("token type %s not found in bonding curve config", result.Type)
+	feeSponsorAddress := ""
+	tokenStartParams, ok := t.cfg.BondingCurve.CreateTokenDefaults[result.Type]
+	if result.FeeSponsorAddress != nil {
+		feeSponsorAddress = *result.FeeSponsorAddress
+	} else {
+		if !ok {
+			return nil, fmt.Errorf("token type %s not found in bonding curve config", result.Type)
+		}
+		feeSponsorAddress = tokenStartParams.FeeSponsorAddress
 	}
+
 	toBNBRatio := ionPriceInUSD / bnbPriceInUSD
 	if strings.Contains(strings.ToLower(common.HexToAddress(result.ContractAddress).String()), "dead") {
 		amountUsd := toUSD(amountToConvert, *ionPrice)
@@ -303,7 +319,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 			AmountInBase:           amountToConvert,
 			AmountInBNB:            amountBNB,
 			BondingCurveAlgAddress: result.PriceModel,
-			FeeSponsorAddress:      tokenStartParams.FeeSponsorAddress,
+			FeeSponsorAddress:      feeSponsorAddress,
 			FeeSponsorId:           tokenStartParams.FeeSponsorId,
 			AmountInUSD:            amountUsd,
 			IonPriceInUSD:          ionPriceInUSD,
@@ -349,7 +365,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 		AmountInBase:           resAmount,
 		AmountInBNB:            amountBNB,
 		BondingCurveAlgAddress: result.PriceModel,
-		FeeSponsorAddress:      tokenStartParams.FeeSponsorAddress,
+		FeeSponsorAddress:      feeSponsorAddress,
 		FeeSponsorId:           tokenStartParams.FeeSponsorId,
 		AmountInUSD:            amountUsd,
 		IonPriceInUSD:          *ionPrice,

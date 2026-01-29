@@ -1276,7 +1276,7 @@ func TestExtractAllTokensFromFatAddress(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Len(t, tokens, 2, "Should have 2 tokens")
-		require.Len(t, types, 2, "Should have 2 tokens")
+		require.Len(t, types, 2, "Should have 2 types")
 		require.Equal(t, "0:creator_pubkey:", tokens[0], "First token should be creator")
 		require.Equal(t, TokenTypeProfile, types[0], "First token should be profile")
 		require.Equal(t, TokenTypePost, types[1], "Second token should be post")

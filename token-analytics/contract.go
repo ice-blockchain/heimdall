@@ -222,11 +222,11 @@ type (
 		LLM             llm.Config `yaml:"llm" mapstructure:"llm"`
 		CDN             cdn.Config `yaml:"cdn" mapstructure:"cdn"`
 		BondingCurve    struct {
-			SmartContractAddress                string                      `yaml:"smartContractAddress"`
-			BurnAddress                         string                      `yaml:"burnAddress"`
-			TokenFactorySmartContractAddress    string                      `yaml:"tokenFactorySmartContractAddress"`
-			BondingCurveProgressUpdateFrequency stdlibtime.Duration         `yaml:"bondingCurveProgressUpdateFrequency"`
-			StartTokenParams                    map[string]startTokenParams `yaml:"startTokenParams" mapstructure:"startTokenParams"`
+			SmartContractAddress                string                         `yaml:"smartContractAddress"`
+			BurnAddress                         string                         `yaml:"burnAddress"`
+			TokenFactorySmartContractAddress    string                         `yaml:"tokenFactorySmartContractAddress"`
+			BondingCurveProgressUpdateFrequency stdlibtime.Duration            `yaml:"bondingCurveProgressUpdateFrequency"`
+			CreateTokenDefaults                 map[string]createTokenDefaults `yaml:"createTokenDefaults" mapstructure:"createTokenDefaults"`
 		} `yaml:"bondingCurve" mapstructure:"bondingCurve"`
 		RiverQueue struct {
 			QueueName       string              `yaml:"queueName,omitempty"`
@@ -240,7 +240,7 @@ type (
 		IdentityServiceAPIKey string      `yaml:"identityServiceApiKey"`
 		EnableDummyGenerator  bool        `yaml:"enableDummyGenerator"`
 	}
-	startTokenParams struct {
+	createTokenDefaults struct {
 		InitialPrice           string `yaml:"initialPrice"`
 		FinalPrice             string `yaml:"finalPrice"`
 		EmissionVolume         string `yaml:"emissionVolume"`

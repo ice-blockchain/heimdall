@@ -451,7 +451,7 @@ token-analytics:
     bondingCurveProgressUpdateFrequency: 500ms
     rpcEndpoints:
       - https://bogus.pro/bogus/
-    startTokenParams:
+    createTokenDefaults:
       profile: #creator
         initialPrice: 583400000000000
         finalPrice: 9749900000000000
