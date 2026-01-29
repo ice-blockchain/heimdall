@@ -274,7 +274,18 @@ func (c *dfnsClient) mustSetupWebhookOrLoadSecret(ctx context.Context, db *stora
 		break
 	}
 	if cfg.DFNS.WebhookURL != "" {
-		if len(c.mustListWebhooks(ctx)) == 0 {
+		registeredHooks := c.mustListWebhooks(ctx)
+		_, webhookSecretErr := c.loadWebhookSecret(whCtx, db)
+
+		if len(registeredHooks) > 0 && webhookSecretErr != nil {
+			log.Warn("webhook is registered but secret is missing, treating to delete old webhooks and re-create")
+			for _, hook := range registeredHooks {
+				c.mustDeleteWebhook(ctx, hook.Id)
+			}
+			registeredHooks = []webhook{}
+		}
+
+		if len(registeredHooks) == 0 {
 			c.webhookSecret = c.mustRegisterAllEventsWebhook(ctx)
 			log.Panic(c.storeWebhookSecret(whCtx, db, c.webhookSecret))
 		} else {
@@ -372,6 +383,14 @@ func (c *dfnsClient) mustListWebhooks(ctx context.Context) []webhook {
 		}
 	}
 	return filteredItems
+}
+
+func (c *dfnsClient) mustDeleteWebhook(ctx context.Context, id string) {
+	_, _, err := c.doClientCall(ctx, c.serviceAccountClient(), "DELETE", "/webhooks/"+id, http.Header{}, nil)
+	if err != nil {
+		log.Panic(errors.Wrapf(err, "failed to delete webhook %v", id))
+	}
+	log.Info(fmt.Sprintf("dfns deleted webhook: %v", id))
 }
 
 func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req *http.Request) (status int, responseBody io.Reader) {
