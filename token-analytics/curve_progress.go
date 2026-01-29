@@ -26,7 +26,7 @@ func (t *tokenAnalytics) getBondingCurveProgress(ctx context.Context, externalAd
 		TotalSupply       string  `db:"total_supply"`
 		PriceModel        string  `db:"price_model"`
 		Type              string  `db:"type"`
-		FeeSponsorAddress *string `db:"fee_sponsor_address"`
+		FeeSponsorAddress *string `db:"fee_sponsor"`
 	}
 	pairId, err := storage.Get[pairAndBaseToken](ctx, t.ingestedDataDB, `
 		SELECT 
@@ -35,7 +35,7 @@ func (t *tokenAnalytics) getBondingCurveProgress(ctx context.Context, externalAd
 		    t.total_supply,
 		    t.price_model,
 		    t."type",
-		    t.fee_sponsor_address
+		    t.fee_sponsor
 		FROM tokens t WHERE t.external_address = $1`, externalAddress)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("failed to find token by external address %v: %w", externalAddress, err)

@@ -135,14 +135,14 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 
 func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount *big.Int) (pricing *Pricing, err error) {
 	type tokenInfo struct {
-		BaseToken         string  `db:"base_token"`
-		ContractAddress   string  `db:"contract_address"`
-		PriceModel        string  `db:"price_model"`
-		TotalSupply       string  `db:"total_supply"`
-		Type              string  `db:"type"`
-		StartPrice        string  `db:"start_price"`
-		EndPrice          string  `db:"end_price"`
-		FeeSponsorAddress *string `db:"fee_sponsor_address"`
+		BaseToken       string  `db:"base_token"`
+		ContractAddress string  `db:"contract_address"`
+		PriceModel      string  `db:"price_model"`
+		TotalSupply     string  `db:"total_supply"`
+		Type            string  `db:"type"`
+		StartPrice      string  `db:"start_price"`
+		EndPrice        string  `db:"end_price"`
+		FeeSponsor      *string `db:"fee_sponsor"`
 	}
 	ionPrice := t.ionPriceUSD.Load()
 	ionPriceInUSD := *ionPrice
@@ -203,14 +203,14 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 						return nil, fmt.Errorf("token type %s not found in bonding curve config", allTypes[1])
 					}
 					result = &tokenInfo{
-						BaseToken:         baseToken,
-						ContractAddress:   "",
-						PriceModel:        tokenStartParams.BondingCurveAlgAddress,
-						TotalSupply:       tokenStartParams.EmissionVolume,
-						Type:              allTypes[1],
-						StartPrice:        tokenStartParams.InitialPrice,
-						EndPrice:          tokenStartParams.FinalPrice,
-						FeeSponsorAddress: &tokenStartParams.FeeSponsorAddress,
+						BaseToken:       baseToken,
+						ContractAddress: "",
+						PriceModel:      tokenStartParams.BondingCurveAlgAddress,
+						TotalSupply:     tokenStartParams.EmissionVolume,
+						Type:            allTypes[1],
+						StartPrice:      tokenStartParams.InitialPrice,
+						EndPrice:        tokenStartParams.FinalPrice,
+						FeeSponsor:      &tokenStartParams.FeeSponsorAddress,
 					}
 					err = nil
 				} else {
@@ -238,14 +238,14 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 						return nil, fmt.Errorf("token type %s not found in bonding curve config", allTypes[0])
 					}
 					result = &tokenInfo{
-						BaseToken:         baseToken,
-						ContractAddress:   "",
-						PriceModel:        tokenStartParams.BondingCurveAlgAddress,
-						TotalSupply:       tokenStartParams.EmissionVolume,
-						Type:              allTypes[0],
-						StartPrice:        tokenStartParams.InitialPrice,
-						EndPrice:          tokenStartParams.FinalPrice,
-						FeeSponsorAddress: &tokenStartParams.FeeSponsorAddress,
+						BaseToken:       baseToken,
+						ContractAddress: "",
+						PriceModel:      tokenStartParams.BondingCurveAlgAddress,
+						TotalSupply:     tokenStartParams.EmissionVolume,
+						Type:            allTypes[0],
+						StartPrice:      tokenStartParams.InitialPrice,
+						EndPrice:        tokenStartParams.FinalPrice,
+						FeeSponsor:      &tokenStartParams.FeeSponsorAddress,
 					}
 					err = nil
 				}
@@ -301,8 +301,8 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 	}
 	feeSponsorAddress := ""
 	tokenStartParams, ok := t.cfg.BondingCurve.CreateTokenDefaults[result.Type]
-	if result.FeeSponsorAddress != nil {
-		feeSponsorAddress = *result.FeeSponsorAddress
+	if result.FeeSponsor != nil {
+		feeSponsorAddress = *result.FeeSponsor
 	} else {
 		if !ok {
 			return nil, fmt.Errorf("token type %s not found in bonding curve config", result.Type)

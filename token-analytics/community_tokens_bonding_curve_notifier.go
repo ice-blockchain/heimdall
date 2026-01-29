@@ -32,7 +32,7 @@ type (
 		TotalSupply                  string  `json:"total_supply"`
 		PriceModel                   string  `json:"price_model"`
 		BaseToken                    string  `json:"base_token"`
-		FeeSponsorAddress            *string `json:"fee_sponsor_address"`
+		FeeSponsor                   *string `json:"fee_sponsor"`
 		UpdatedAt                    int64   `json:"updated_at"`
 	}
 )
@@ -154,8 +154,8 @@ func (t *tokenAnalytics) handleBondingCurveUpdate(ctx context.Context, payload s
 		return errors.Errorf("failed to find bonding curve start token params for type %s after bonding curve update %v", update.Type, update.ExternalAddress)
 	}
 	feeSponsor := ""
-	if update.FeeSponsorAddress != nil {
-		feeSponsor = *update.FeeSponsorAddress
+	if update.FeeSponsor != nil {
+		feeSponsor = *update.FeeSponsor
 	} else {
 		feeSponsor = startTokenParam.FeeSponsorAddress
 	}

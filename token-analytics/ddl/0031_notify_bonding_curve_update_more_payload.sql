@@ -19,7 +19,7 @@ BEGIN
             'total_supply', COALESCE(NEW.total_supply::text, '0'),
             'price_model', COALESCE(NEW.price_model, ''),
             'base_token', COALESCE(NEW.base_token, ''),
-            'fee_sponsor_address', NEW.fee_sponsor_address,
+            'fee_sponsor', NEW.fee_sponsor,
             'updated_at', EXTRACT(EPOCH FROM NEW.updated_at)::bigint
         );
 
@@ -49,10 +49,10 @@ CREATE TRIGGER token_bonding_curve_update_trigger
         )
 EXECUTE FUNCTION notify_bonding_curve_update();
 
-ALTER TABLE tokens ADD COLUMN IF NOT EXISTS fee_sponsor_address TEXT;
+ALTER TABLE tokens ADD COLUMN IF NOT EXISTS fee_sponsor TEXT;
 
-UPDATE tokens SET fee_sponsor_address = '0x24c7ef0f468840620e13174e44f0cf10abba3425'
-WHERE platform = 'ionconnect' AND fee_sponsor_address IS NULL;
+UPDATE tokens SET fee_sponsor = '0x24c7ef0f468840620e13174e44f0cf10abba3425'
+WHERE platform = 'ionconnect' AND fee_sponsor IS NULL;
 
 DROP FUNCTION IF EXISTS process_bonded_token_created(
     p_topics TEXT[],
@@ -154,7 +154,7 @@ BEGIN
             v_total_supply    AS total_supply,
             v_creator_address AS content_author_id,
             v_token_type      AS type,
-            p_fee_sponsor_address AS fee_sponsor_address,
+            p_fee_sponsor_address AS fee_sponsor,
             p_log_index       AS log_index
     ) AS s
     ON (t.contract_address = s.contract_address OR t.external_address = s.external_address)
@@ -170,17 +170,17 @@ BEGIN
                    content_author_id = COALESCE(s.content_author_id, t.content_author_id),
                    type = COALESCE(s.type, t.type),
                    log_index = COALESCE(s.log_index, t.log_index),
-                   fee_sponsor_address = s.fee_sponsor_address
+                   fee_sponsor = s.fee_sponsor
     WHEN MATCHED AND t.external_address = s.external_address THEN
         DO NOTHING
     WHEN NOT MATCHED THEN
         INSERT (
             created_at, updated_at, contract_address, external_address, platform, affiliate_bsc_address,
-            ticker, title, total_supply, content_author_id, type, log_index, fee_sponsor_address
+            ticker, title, total_supply, content_author_id, type, log_index, fee_sponsor
         )
         VALUES (
                    s.created_at, s.updated_at, s.contract_address, s.external_address, s.platform, s.affiliate_bsc_address,
-                   s.ticker, s.title, s.total_supply, s.content_author_id, s.type, s.log_index, s.fee_sponsor_address
+                   s.ticker, s.title, s.total_supply, s.content_author_id, s.type, s.log_index, s.fee_sponsor
                );
 
     RAISE NOTICE '[EVENT_PROCESSOR] BondedTokenCreated: Successfully processed token=% | external=%', v_token_address, v_external_address;
