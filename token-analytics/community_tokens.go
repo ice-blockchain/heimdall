@@ -115,7 +115,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 		WHERE external_address = $10;
 	`
 
-	_, err = storage.Exec(ctx, t.ingestedDataDB, query,
+	rows, err := storage.Exec(ctx, t.ingestedDataDB, query,
 		postAuthorExternalAddress, userContentId, postAuthorExternalAddress, postAuthorUsername,
 		postAuthorDisplayName, postAuthorAvatar, postAuthorVerified, ionConnectAddress, tokenImageUrl, tokenExternalAddress,
 	)
@@ -124,6 +124,10 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 			return errors.Wrapf(ErrDuplicate, "failed to update token external data for: %v", postAuthorExternalAddress)
 		}
 		return fmt.Errorf("failed to update token external data: %w", err)
+	}
+
+	if rows == 0 {
+		return fmt.Errorf("%w: no token found with external address: %s", ErrTokenNotFound, tokenExternalAddress)
 	}
 
 	return nil

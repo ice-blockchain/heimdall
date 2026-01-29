@@ -515,15 +515,14 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 		); err != nil {
 			if errors.Is(err, ta.ErrDuplicate) {
 				return nil, server.Conflict(err, "DATA_CONFLICT")
+			} else if errors.Is(err, ta.ErrTokenNotFound) {
+				return nil, server.BadRequest(err, "TOKEN_NOT_FOUND")
 			}
 			return nil, fmt.Errorf("failed to update token external data: %w", err)
 		}
 	}
 
-	return &server.Response[any]{
-		Data: nil,
-		Code: 200,
-	}, nil
+	return server.OK[any](), nil
 }
 
 // SuggestCreationDetails godoc

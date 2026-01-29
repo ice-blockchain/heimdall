@@ -224,14 +224,14 @@ func (t *tokenAnalytics) updateTokenSuggestionRecord(ctx context.Context, conten
 
 func (t *tokenAnalytics) markTokenSuggestionRecordAsFailedOrUpdateError(ctx context.Context, contentID string, lastErr error, attempt, maxAttempts int) error {
 	updates := map[string]any{
-		"last_error": lastErr.Error(),
+		"last_error":        lastErr.Error(),
+		"attempt_count":     attempt,
+		"last_attempted_at": time.Now(),
 	}
 
 	if attempt >= maxAttempts {
 		updates["status"] = TokenDetailsGenerationStatusFailed
 		updates["completed_at"] = time.Now()
-	} else {
-		updates["last_attempted_at"] = time.Now()
 	}
 
 	return t.updateTokenSuggestionRecord(ctx, contentID, updates)
