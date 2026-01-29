@@ -275,7 +275,7 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 		return
 	}
 	for _, c := range coinsData {
-		if strings.EqualFold(c.ID, BNBSymbolGroup) || (strings.EqualFold(c.Network, "bsc") || strings.EqualFold(c.Network, "bsctestnet") && c.Native) {
+		if strings.EqualFold(c.ID, BNBSymbolGroup) || ((strings.EqualFold(c.Network, "bsc") || strings.EqualFold(c.Network, "bsctestnet")) && c.Native) {
 			if err = s.tokenAnalytics.UpdateBNBPrice(ctx, c.PriceUSD); err != nil {
 				log.Error(errors.Wrapf(err, "failed to write updated data from coin market cap for tokens prices %#v", tokensPriceData))
 				return
