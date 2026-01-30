@@ -47,34 +47,34 @@ async function main(payload) {
                     logIndex: log.logIndex,
                     removed: log.removed
                 });
-                // BondingTokenCreated
-                if (log.topics[0].toLowerCase() === '0xf20c12ede00469181597169f5cbe631d40edec9a2a45c2e46eba231a831126dd') {
-                    newContractAddress = log.topics[1].toLowerCase();
-                    if (newContractAddress.length > 42) { // trim leading zeroes
-                        newContractAddress = "0x"+newContractAddress.slice(26);
-                    }
-                    await qnLib.qnAddListItem(contractAddressesList, newContractAddress)
-                }
-                // UniswapV3PoolCreated
-                if (log.topics[0].toLowerCase() === '0x783cca1c0412dd0d695e784568c96da2e9c22ff989357a2e8b1d9b2b4e6b7118') {
-                    token0Address = log.topics[1].toLowerCase();
-                    token1Address = log.topics[2].toLowerCase();
-                    if (token0Address.length > 42) { // trim leading zeroes
-                        token0Address = "0x"+token0Address.slice(26);
-                    }
-                    if (token1Address.length > 42) { // trim leading zeroes
-                        token1Address = "0x"+token1Address.slice(26);
-                    }
-                    token0IsBondingToken = await qnLib.qnContainsListItem(contractAddressesList, token0Address);
-                    token1IsBondingToken = await qnLib.qnContainsListItem(contractAddressesList, token1Address);
-                    if (token0IsBondingToken || token1IsBondingToken) {
-                        poolAddress = "0x"+log.data.slice(64+26).toLowerCase();
-                        await qnLib.qnAddListItem(contractAddressesList, poolAddress)
-                    }
-                }
                 containsContractAddress = await qnLib.qnContainsListItem(contractAddressesList, log.address)
                 if (containsContractAddress) {
                     hasRelevant = true;
+                    // BondingTokenCreated
+                    if (log.topics[0].toLowerCase() === '0xf20c12ede00469181597169f5cbe631d40edec9a2a45c2e46eba231a831126dd') {
+                        newContractAddress = log.topics[1].toLowerCase();
+                        if (newContractAddress.length > 42) { // trim leading zeroes
+                            newContractAddress = "0x"+newContractAddress.slice(26);
+                        }
+                        await qnLib.qnAddListItem(contractAddressesList, newContractAddress)
+                    }
+                    // UniswapV3PoolCreated
+                    if (log.topics[0].toLowerCase() === '0x783cca1c0412dd0d695e784568c96da2e9c22ff989357a2e8b1d9b2b4e6b7118') {
+                        token0Address = log.topics[1].toLowerCase();
+                        token1Address = log.topics[2].toLowerCase();
+                        if (token0Address.length > 42) { // trim leading zeroes
+                            token0Address = "0x"+token0Address.slice(26);
+                        }
+                        if (token1Address.length > 42) { // trim leading zeroes
+                            token1Address = "0x"+token1Address.slice(26);
+                        }
+                        token0IsBondingToken = await qnLib.qnContainsListItem(contractAddressesList, token0Address);
+                        token1IsBondingToken = await qnLib.qnContainsListItem(contractAddressesList, token1Address);
+                        if (token0IsBondingToken || token1IsBondingToken) {
+                            poolAddress = "0x"+log.data.slice(64+26).toLowerCase();
+                            await qnLib.qnAddListItem(contractAddressesList, poolAddress)
+                        }
+                    }
                 }
             }
             if (hasRelevant) {
