@@ -79,11 +79,11 @@ func (c *coinsRepository) HealthCheck(ctx context.Context) error {
 func (c *coinsRepository) needToSyncAllCoins(ctx context.Context) bool {
 	ex, err := storage.Select[struct {
 		Exist int
-	}](ctx, c.db, "SELECT 1 as exist FROM coins LIMIT 7;")
+	}](ctx, c.db, "SELECT 1 as exist FROM coins LIMIT 100;")
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 		log.Panic(errors.Wrapf(err, "failed to check any coin existence"))
 	}
-	if len(ex) <= 6 || storage.IsErr(err, storage.ErrNotFound) {
+	if len(ex) <= 99 || storage.IsErr(err, storage.ErrNotFound) {
 		return true
 	}
 	return false
