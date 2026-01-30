@@ -251,19 +251,17 @@ func (s *service) GetConfig(
 		}
 		return nil, server.Unexpected(err)
 	}
-	if vers > Version(0) && req.Data.Version == nil {
+	if vers != nil && req.Data.Version == nil {
 		return nil, server.UnprocessableEntity(errors.Errorf("version required for %v", req.Data.ConfigName), invalidPropertiesErrorCode)
 	}
-
-	if vers > Version(0) && req.Data.Version != nil && vers <= *req.Data.Version {
+	if vers != nil && *vers > Version(0) && req.Data.Version != nil && *vers <= *req.Data.Version {
 		return server.NoContent(), nil
 	}
-
-	if vers > Version(0) {
-		return &server.Response[any]{Code: http.StatusOK, Data: &resp, Headers: map[string]string{"X-Version": fmt.Sprint(vers)}}, nil
+	if vers == nil {
+		return server.OK(&resp), nil
 	}
 
-	return server.OK[any](&resp), nil
+	return &server.Response[any]{Code: http.StatusOK, Data: &resp, Headers: map[string]string{"X-Version": fmt.Sprint(*vers)}}, nil
 }
 
 // GetContentCreators godoc
