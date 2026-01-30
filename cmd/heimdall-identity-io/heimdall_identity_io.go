@@ -62,8 +62,9 @@ func mountContentCategoriesConfig() {
 			cfgKey := fmt.Sprintf("content-topics_%v_%v", strings.ReplaceAll(contentType.Name(), ".json", ""), language)
 			version, err := strconv.Atoi(fmt.Sprint(content["_version"]))
 			log.Panic(err)
-			allValidConfigNames[cfgKey] = func(_ *config, _ *Version) (any, Version) {
-				return content, Version(version)
+			allValidConfigNames[cfgKey] = func(_ *config, _ *Version) (any, *Version) {
+				v := Version(version)
+				return content, &v
 			}
 		}
 	}
@@ -78,8 +79,9 @@ func mountTranslationsConfig() {
 				cfgKey := fmt.Sprintf("%v_%v_translations_%v", appName.Name(), strings.ReplaceAll(usecase.Name(), ".json", ""), language)
 				version, err := strconv.Atoi(fmt.Sprint(content["_version"]))
 				log.Panic(err)
-				allValidConfigNames[cfgKey] = func(_ *config, _ *Version) (any, Version) {
-					return content, Version(version)
+				allValidConfigNames[cfgKey] = func(_ *config, _ *Version) (any, *Version) {
+					v := Version(version)
+					return content, &v
 				}
 			}
 		}
@@ -129,8 +131,9 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	s.ionConnectClient = relaymanagement.NewIonConnectClient()
 	var appsRuntimeCfg accounts.AppsRuntimeConfig
 	appcfg.MustLoadFromKey(runtimeConfigApplicationYamlKey, &appsRuntimeCfg)
-	allValidConfigNames["apps-runtime_ion-app"] = func(_ *config, _ *Version) (any, Version) {
-		return appsRuntimeCfg.IONApp, Version(appsRuntimeCfg.IONApp.Version)
+	allValidConfigNames["apps-runtime_ion-app"] = func(_ *config, _ *Version) (any, *Version) {
+		v := Version(appsRuntimeCfg.IONApp.Version)
+		return appsRuntimeCfg.IONApp, &v
 	}
 	ta := tokenanalytics.NewUserRepository(ctx)
 	s.tokenAnalytics = ta
@@ -155,38 +158,42 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	s.following = following.New(ctx)
 	s.deviceIdentificationProxy = accounts.NewDeviceIdentificationProxy(ctx, s.cfg.Version)
 	publicKey := s.accounts.PublicKey()
-	allValidConfigNames[configNameServicePubkeys] = func(_ *config, _ *Version) (any, Version) { return []string{publicKey}, Version(1) }
-	allValidConfigNames["global_accounts"] = func(_ *config, ver *Version) (any, Version) {
+	allValidConfigNames[configNameServicePubkeys] = func(_ *config, _ *Version) (any, *Version) {
+		v1 := Version(1)
+		return []string{publicKey}, &v1
+	}
+	allValidConfigNames["global_accounts"] = func(_ *config, ver *Version) (any, *Version) {
 		reqCtx, reqCancel := context.WithTimeout(ctx, 25*time.Second)
 		defer reqCancel()
 		var currentVer uint64
 		if ver != nil {
 			currentVer = uint64(*ver)
 		} else {
-			return errors.Wrapf(errVersionRequired, "version required for global_accounts"), Version(0)
+			return errors.Wrapf(errVersionRequired, "version required for global_accounts"), nil
 		}
 		accs, newVer, err := s.accounts.GetGlobalAccounts(reqCtx, currentVer)
+		v := Version(0)
 		if err != nil {
-			return err, Version(0)
+			return err, &v
 		}
-
-		return accs, Version(newVer)
+		v = Version(newVer)
+		return accs, &v
 	}
-	allValidConfigNames["nsfw_accounts"] = func(_ *config, ver *Version) (any, Version) {
+	allValidConfigNames["nsfw_accounts"] = func(_ *config, ver *Version) (any, *Version) {
 		reqCtx, reqCancel := context.WithTimeout(ctx, 25*time.Second)
 		defer reqCancel()
 		var currentVer uint64
 		if ver != nil {
 			currentVer = uint64(*ver)
 		} else {
-			return errors.Wrapf(errVersionRequired, "version required for nsfw_accounts"), Version(0)
+			return errors.Wrapf(errVersionRequired, "version required for nsfw_accounts"), nil
 		}
 		accs, newVer, err := s.accounts.GetNSFWAccounts(reqCtx, currentVer)
 		if err != nil {
-			return err, Version(0)
+			return err, nil
 		}
-
-		return accs, Version(newVer)
+		v := Version(newVer)
+		return accs, &v
 	}
 }
 

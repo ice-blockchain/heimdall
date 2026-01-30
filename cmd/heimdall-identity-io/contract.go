@@ -395,41 +395,42 @@ var (
 	contentTopics embed.FS
 	//go:embed translations/*/*.json
 	translations        embed.FS
-	allValidConfigNames = map[string]func(cfg *config, _ *Version) (any, Version){
-		configNameRequiredAndroidAppVersion: func(cfg *config, _ *Version) (any, Version) { return cfg.RequiredAppVersions.Android, Version(0) },
-		configNameRequiredIOSAppVersion:     func(cfg *config, _ *Version) (any, Version) { return cfg.RequiredAppVersions.IOS, Version(0) },
-		configNameRequiredMacOSAppVersion:   func(cfg *config, _ *Version) (any, Version) { return cfg.RequiredAppVersions.MacOS, Version(0) },
-		configNameRequiredWindowsAppVersion: func(cfg *config, _ *Version) (any, Version) { return cfg.RequiredAppVersions.Windows, Version(0) },
-		configNameRequiredLinuxAppVersion:   func(cfg *config, _ *Version) (any, Version) { return cfg.RequiredAppVersions.Linux, Version(0) },
-		configNameBlacklistedCountriesForPhone2FA: func(cfg *config, ver *Version) (any, Version) {
+	allValidConfigNames = map[string]func(cfg *config, _ *Version) (any, *Version){
+		configNameRequiredAndroidAppVersion: func(cfg *config, _ *Version) (any, *Version) { return cfg.RequiredAppVersions.Android, nil },
+		configNameRequiredIOSAppVersion:     func(cfg *config, _ *Version) (any, *Version) { return cfg.RequiredAppVersions.IOS, nil },
+		configNameRequiredMacOSAppVersion:   func(cfg *config, _ *Version) (any, *Version) { return cfg.RequiredAppVersions.MacOS, nil },
+		configNameRequiredWindowsAppVersion: func(cfg *config, _ *Version) (any, *Version) { return cfg.RequiredAppVersions.Windows, nil },
+		configNameRequiredLinuxAppVersion:   func(cfg *config, _ *Version) (any, *Version) { return cfg.RequiredAppVersions.Linux, nil },
+		configNameBlacklistedCountriesForPhone2FA: func(cfg *config, ver *Version) (any, *Version) {
 			if ver == nil {
-				return errors.Wrapf(errVersionRequired, "version required for %s", configNameBlacklistedCountriesForPhone2FA), Version(0)
+				return errors.Wrapf(errVersionRequired, "version required for %s", configNameBlacklistedCountriesForPhone2FA), nil
 			}
-			return blacklistedCountriesPhone2FA, Version(1)
+			var v1 Version
+			return blacklistedCountriesPhone2FA, &v1
 		},
-		configNameTokenizedCommunitiesBondingCurveSmartContractABI: func(cfg *config, ver *Version) (any, Version) {
+		configNameTokenizedCommunitiesBondingCurveSmartContractABI: func(cfg *config, ver *Version) (any, *Version) {
 			if ver == nil {
-				return errors.Wrapf(errVersionRequired, "version required for %s", configNameTokenizedCommunitiesBondingCurveSmartContractABI), Version(0)
+				return errors.Wrapf(errVersionRequired, "version required for %s", configNameTokenizedCommunitiesBondingCurveSmartContractABI), nil
 			}
 			var rawJSONBody any
 			if err := json.Unmarshal([]byte(tokenanalytics.TokenizedCommunitiesBondingCurveSmartContractABI()), &rawJSONBody); err != nil {
-				return errors.Wrapf(err, "failed to parse `%v` cfg as JSON", configNameTokenizedCommunitiesBondingCurveSmartContractABI), Version(0)
+				return errors.Wrapf(err, "failed to parse `%v` cfg as JSON", configNameTokenizedCommunitiesBondingCurveSmartContractABI), nil
 			}
 
-			return rawJSONBody, cfg.TokenizedCommunities.ABIVersion
+			return rawJSONBody, &cfg.TokenizedCommunities.ABIVersion
 		},
-		configNameTokenizedCommunitiesBondingCurveSmartContractAddress: func(cfg *config, ver *Version) (any, Version) {
+		configNameTokenizedCommunitiesBondingCurveSmartContractAddress: func(cfg *config, ver *Version) (any, *Version) {
 			if ver == nil {
-				return errors.Wrapf(errVersionRequired, "version required for %s", configNameTokenizedCommunitiesBondingCurveSmartContractAddress), Version(0)
+				return errors.Wrapf(errVersionRequired, "version required for %s", configNameTokenizedCommunitiesBondingCurveSmartContractAddress), nil
 			}
-			return cfg.TokenizedCommunities.BondingCurveSmartContractAddress, cfg.TokenizedCommunities.AddressVersion
+			return cfg.TokenizedCommunities.BondingCurveSmartContractAddress, &cfg.TokenizedCommunities.AddressVersion
 		},
-		configNameSupportedSwapTokens: func(cfg *config, ver *Version) (any, Version) {
+		configNameSupportedSwapTokens: func(cfg *config, ver *Version) (any, *Version) {
 			if ver == nil {
-				return errors.Wrapf(errVersionRequired, "version required for %s", configNameSupportedSwapTokens), Version(0)
+				return errors.Wrapf(errVersionRequired, "version required for %s", configNameSupportedSwapTokens), nil
 			}
 
-			return cfg.SupportedSwapTokens.Tokens, cfg.SupportedSwapTokens.Version
+			return cfg.SupportedSwapTokens.Tokens, &cfg.SupportedSwapTokens.Version
 		},
 	}
 	errVersionRequired           = errors.New("version required")
