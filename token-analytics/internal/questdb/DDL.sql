@@ -214,3 +214,7 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS ohlcv_24h REFRESH EVERY 4h AS (
     FROM ohlcv_4h
     SAMPLE BY 24h ALIGN TO CALENDAR
 ), INDEX(external_address) PARTITION BY HOUR TTL 60 DAYS;
+
+
+ALTER TABLE trades DEDUP DISABLE;
+ALTER TABLE trades DEDUP ENABLE UPSERT KEYS(timestamp, transaction_hash, trader_address, contract_address);
