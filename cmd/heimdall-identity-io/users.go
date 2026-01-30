@@ -259,11 +259,7 @@ func (s *service) GetConfig(
 		return server.NoContent(), nil
 	}
 
-	if vers > Version(0) {
-		return &server.Response[any]{Code: http.StatusOK, Data: &resp, Headers: map[string]string{"X-Version": fmt.Sprint(vers)}}, nil
-	}
-
-	return server.OK[any](&resp), nil
+	return &server.Response[any]{Code: http.StatusOK, Data: &resp, Headers: map[string]string{"X-Version": fmt.Sprint(vers)}}, nil
 }
 
 // GetContentCreators godoc
