@@ -22,6 +22,13 @@ cmd/heimdall-identity-io:
     tokens:
       - network: ion
         address: 0x2c73996BaBF1a06c2C057177353293f7cA0907c8
+  multiswap:
+    version: 1
+    pancakeSwapWbnbAddress: 0xae13d989dac2f0debff460ac112a837c89baa7cd
+    pancakeSwapIonTokenAddress: 0x2c73996babf1a06c2c057177353293f7ca0907c8
+    pancakeSwapSwapRouterAddress: 0x1b81D678ffb9C0263b24A97847620C99d213eB14
+    pancakeSwapQuoterV2Address: 0xbC203d7f83677c7ed3F7acEc959963E7F4ECC5C2
+    pancakeSwapFeeTier: 500
   assetLinks: '[]'
   appleAppSiteAssociation: '{
   "applinks": {

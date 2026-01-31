@@ -135,6 +135,12 @@ func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 		v := Version(appsRuntimeCfg.IONApp.Version)
 		return appsRuntimeCfg.IONApp, &v
 	}
+	allValidConfigNames["multiswap"] = func(cfg *config, ver *Version) (any, *Version) {
+		if ver == nil {
+			return errors.Wrapf(errVersionRequired, "version required for multiswap"), nil
+		}
+		return cfg.MultiSwap, &cfg.MultiSwap.Version
+	}
 	ta := tokenanalytics.NewUserRepository(ctx)
 	s.tokenAnalytics = ta
 	s.coins = coins.New(ctx, ta)

@@ -381,6 +381,14 @@ type (
 			Tokens  []SwapToken `yaml:"tokens" mapstructure:"tokens"`
 			Version Version     `yaml:"version" mapstructure:"version"`
 		} `yaml:"supportedSwapTokens" mapstructure:"supportedSwapTokens"`
+		MultiSwap struct {
+			PancakeSwapWbnbAddress       string  `yaml:"pancakeSwapWbnbAddress" mapstructure:"pancakeSwapWbnbAddress" json:"pancakeSwapWbnbAddress"`
+			PancakeSwapIonTokenAddress   string  `yaml:"pancakeSwapIonTokenAddress" mapstructure:"pancakeSwapIonTokenAddress" json:"pancakeSwapIonTokenAddress"`
+			PancakeSwapSwapRouterAddress string  `yaml:"pancakeSwapSwapRouterAddress" mapstructure:"pancakeSwapSwapRouterAddress" json:"pancakeSwapSwapRouterAddress"`
+			PancakeSwapQuoterV2Address   string  `yaml:"pancakeSwapQuoterV2Address" mapstructure:"pancakeSwapQuoterV2Address" json:"pancakeSwapQuoterV2Address"`
+			PancakeSwapFeeTier           int     `yaml:"pancakeSwapFeeTier" mapstructure:"pancakeSwapFeeTier" json:"pancakeSwapFeeTier"`
+			Version                      Version `yaml:"version" mapstructure:"version" json:"-"`
+		} `yaml:"multiswap" mapstructure:"multiswap"`
 	}
 	SwapToken struct {
 		Network string `json:"network" yaml:"network"`
