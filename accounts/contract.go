@@ -371,5 +371,11 @@ type (
 		AllowNewRegistrations                      bool    `yaml:"allowNewRegistrations" mapstructure:"allowNewRegistrations" json:"allowNewRegistrations"`
 		EnableEarlyAccessRegistrations             bool    `yaml:"enableEarlyAccessRegistrations" mapstructure:"enableEarlyAccessRegistrations" json:"enableEarlyAccessRegistrations"`
 		MaxEarlyAccessRegistrationsAllowedPerEmail int     `yaml:"maxEarlyAccessRegistrationsAllowedPerEmail" mapstructure:"maxEarlyAccessRegistrationsAllowedPerEmail" json:"maxEarlyAccessRegistrationsAllowedPerEmail"`
+		PancakeSwapWbnbAddress                     string  `yaml:"pancakeSwapWbnbAddress" mapstructure:"pancakeSwapWbnbAddress" json:"pancakeSwapWbnbAddress"`
+		PancakeSwapIonTokenAddress                 string  `yaml:"pancakeSwapIonTokenAddress" mapstructure:"pancakeSwapIonTokenAddress" json:"pancakeSwapIonTokenAddress"`
+		PancakeSwapSwapRouterAddress               string  `yaml:"pancakeSwapSwapRouterAddress" mapstructure:"pancakeSwapSwapRouterAddress" json:"pancakeSwapSwapRouterAddress"`
+		PancakeSwapQuoterV2Address                 string  `yaml:"pancakeSwapQuoterV2Address" mapstructure:"pancakeSwapQuoterV2Address" json:"pancakeSwapQuoterV2Address"`
+		PancakeSwapFeeTier                         int     `yaml:"pancakeSwapFeeTier" mapstructure:"pancakeSwapFeeTier" json:"pancakeSwapFeeTier"`
+		FeeSponsorId                               string  `yaml:"feeSponsorId" mapstructure:"feeSponsorId" json:"feeSponsorId"`
 	}
 )
