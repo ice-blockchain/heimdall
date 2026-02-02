@@ -130,7 +130,11 @@ func (t *tokenAnalytics) TryInsertSuggestionRecord(ctx context.Context, data *Cr
 		TokenDetailsGenerationStatusPending,
 		t.cdnClient.TargetURL(t.tokenSuggestionFilename(data.ContentID)),
 	)
+
 	if err != nil {
+		if storage.IsErr(err, storage.ErrNotFound) { // The job is still being processed.
+			return false, nil
+		}
 		return false, fmt.Errorf("failed to insert token suggestion record %v: %w", data.ContentID, err)
 	}
 
@@ -177,6 +181,7 @@ func (t *tokenAnalytics) OnUploadCompleted(ctx context.Context, fileName, downlo
 	err := t.updateTokenSuggestionRecordStatusAndFields(ctx, contentID, TokenDetailsGenerationStatusCompleted, map[string]any{
 		"picture_url":  downloadURL,
 		"last_error":   null.String{},
+		"picture_b64":  null.String{}, // Clear the base64 image to save space.
 		"completed_at": time.Now(),
 	})
 	if err != nil {

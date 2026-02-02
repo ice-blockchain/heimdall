@@ -5,7 +5,9 @@ package tokenanalytics
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"io"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -22,7 +24,8 @@ type (
 		Ready         chan string
 	}
 	mockedLLMClient struct {
-		TB testing.TB
+		TB                 testing.TB
+		PictureGenErrorNum int32
 	}
 )
 
@@ -67,6 +70,9 @@ func (client *mockedLLMClient) GenerateTokenNameAndTicker(ctx context.Context, c
 
 func (client *mockedLLMClient) GenerateTokenImage(ctx context.Context, creator, content, name, ticker string, images, frames []string) (webpB64image string, err error) {
 	client.TB.Logf("mocked GenerateTokenImage called with creator: %s, content: %s, name: %s, ticker: %s, frames count: %d", creator, content, name, ticker, len(images)+len(frames))
+	if val := atomic.AddInt32(&client.PictureGenErrorNum, -1); val >= 0 {
+		return "", fmt.Errorf("mocked GenerateTokenImage error, remaining errors: %d", val)
+	}
 	return base64.StdEncoding.EncodeToString([]byte("mocked_webp_image_data")), nil
 }
 
@@ -113,5 +119,40 @@ func TestGenerateTokenSuggestion(t *testing.T) {
 		require.Equal(t, "Mocked Token Name", result2.Name)
 		require.NotEmpty(t, result2.Picture)
 		require.Equal(t, result.Picture, result2.Picture)
+	})
+	t.Run("LLM Picture Generation Failure", func(t *testing.T) {
+		llmClient.PictureGenErrorNum = 2
+
+		input := &CreationDetailsData{
+			ContentID: "TEST_CONTENT_PIC_FAIL",
+			Content:   "Test token with picture generation failure",
+			Creator:   CreationDetailsCreator{Name: "Jane Smith"},
+		}
+
+		result, err := ta.GenerateTokenSuggestion(t.Context(), input)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.EqualValues(t, TokenDetailsGenerationStatusGeneratingPicture, result.Status)
+
+		select {
+		case <-time.After(5 * time.Second): // First attempt should fail quickly, api should return the record as is.
+			result, err := ta.GenerateTokenSuggestion(t.Context(), input)
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			require.EqualValues(t, TokenDetailsGenerationStatusGeneratingPicture, result.Status)
+		case <-cdnClient.Ready:
+			t.Fatal("CDN upload should not complete after first LLM failure")
+		}
+
+		select {
+		case <-cdnClient.Ready:
+		case <-time.After(time.Minute): // Third attempt should succeed after ~15seconds.
+			t.Fatal("timeout waiting for CDN upload to complete")
+		}
+
+		data, err := ta.GenerateTokenSuggestion(t.Context(), input)
+		require.NoError(t, err)
+		require.NotNil(t, data)
+		require.EqualValues(t, TokenDetailsGenerationStatusCompleted, data.Status)
 	})
 }
