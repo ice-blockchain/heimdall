@@ -11,6 +11,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/elliotchance/orderedmap/v3"
+	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
 	"github.com/ice-blockchain/wintr/time"
@@ -195,8 +196,24 @@ func (t *tokenAnalytics) SubscribeOHLVC(ctx context.Context, now stdlibtime.Time
 	if loaded {
 		o := candleStick.OHLCV()
 		if o.Empty() {
-			t.ohclvRecentData.Delete(interval.String() + "_" + externalAddress)
-		} else {
+			recentCandle, err := t.GetOHLVCHistory(ctx, now.Add(interval.Duration()), externalAddress, interval, 1, 0)
+			if len(recentCandle) == 0 || err != nil {
+				if len(recentCandle) == 0 || storage.IsErr(err, storage.ErrNotFound) {
+					recentCandle = append(recentCandle, &OHLCV{})
+					err = nil
+				}
+				if err != nil {
+					return errors.Wrapf(err, "failed to get initial ohlvc data for %v (%v", externalAddress, interval.String())
+				}
+			}
+			o = recentCandle[0]
+			if !o.Empty() {
+				candleStick = newRecentCandlestick()
+				candleStick.o.Store(o)
+				t.ohclvRecentData.Store(interval.String()+"_"+externalAddress, candleStick)
+			}
+		}
+		if !o.Empty() {
 			addToStream(o, nil)
 		}
 		candleStick.SetInterval(ctx, interval)
@@ -208,7 +225,23 @@ func (t *tokenAnalytics) SubscribeOHLVC(ctx context.Context, now stdlibtime.Time
 				}
 			}
 		}()
+	} else {
+		recentCandle, err := t.GetOHLVCHistory(ctx, now.Add(interval.Duration()), externalAddress, interval, 1, 0)
+		if len(recentCandle) == 0 || err != nil {
+			if len(recentCandle) == 0 || storage.IsErr(err, storage.ErrNotFound) {
+				recentCandle = append(recentCandle, &OHLCV{})
+				err = nil
+			}
+			if err != nil {
+				return errors.Wrapf(err, "failed to get initial ohlvc data for %v (%v", externalAddress, interval.String())
+			}
+		}
+		o := recentCandle[0]
+		if !o.Empty() {
+			addToStream(o, nil)
+		}
 	}
+
 	return nil
 }
 
