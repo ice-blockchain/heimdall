@@ -4,7 +4,10 @@ package tokenanalytics
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
+	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/riverqueue"
 )
 
@@ -28,7 +31,7 @@ func (tokenDetailsGenerationPictureWorkerArgs) Kind() string {
 func (w *tokenDetailsGenerationPictureWorker) Work(ctx context.Context, job *tokenDetailsGenerationPictureJob) (err error) {
 	err = w.TA.updateTokenSuggestionRecordStatusAndFields(ctx, job.Args.Input.ContentID, TokenDetailsGenerationStatusGeneratingPicture, map[string]any{})
 	if err != nil {
-		return w.TA.markTokenSuggestionRecordAsFailedOrUpdateError(ctx, job.Args.Input.ContentID, err, job.Attempt, job.MaxAttempts)
+		return errors.Join(err, w.TA.markTokenSuggestionRecordAsFailedOrUpdateError(ctx, job.Args.Input.ContentID, err, job.Attempt, job.MaxAttempts))
 	}
 
 	base64Image, err := w.TA.llmClient.GenerateTokenImage(ctx,
@@ -39,12 +42,13 @@ func (w *tokenDetailsGenerationPictureWorker) Work(ctx context.Context, job *tok
 		job.Args.Input.ContentImages,
 		job.Args.Input.ContentVideoFrames)
 	if err != nil {
-		return w.TA.markTokenSuggestionRecordAsFailedOrUpdateError(ctx, job.Args.Input.ContentID, err, job.Attempt, job.MaxAttempts)
+		log.Error(err, fmt.Sprintf("failed to generate token image for content ID %v: %v", job.Args.Input.ContentID, err))
+		return errors.Join(err, w.TA.markTokenSuggestionRecordAsFailedOrUpdateError(ctx, job.Args.Input.ContentID, err, job.Attempt, job.MaxAttempts))
 	}
 
 	err = w.TA.onSuggestionPictureGenerationSuccess(ctx, job.Args.Input.ContentID, base64Image, job.Args.Ticker, job.Args.Name)
 	if err != nil {
-		return w.TA.markTokenSuggestionRecordAsFailedOrUpdateError(ctx, job.Args.Input.ContentID, err, job.Attempt, job.MaxAttempts)
+		return errors.Join(err, w.TA.markTokenSuggestionRecordAsFailedOrUpdateError(ctx, job.Args.Input.ContentID, err, job.Attempt, job.MaxAttempts))
 	}
 
 	return nil
