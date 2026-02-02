@@ -1,6 +1,6 @@
 {
   "en": {
-    "_version": 7,
+    "_version": 8,
     "reply": {
       "title": "Online+",
       "body": "\uD83D\uDCAC @{{username}} replied to your post"
@@ -184,10 +184,22 @@
     "trendingToken": {
       "title": "\u2B50 ${{ticker}} Token Is Trending",
       "body": "More users are trading this token."
+    },
+    "newPostSubscription": {
+      "title": "\u2728 New post added",
+      "body": "@{{username}} just shared a post."
+    },
+    "newStorySubscription": {
+      "title": "\uD83D\uDCF8 Quick update",
+      "body": "@{{username}} added a new story."
+    },
+    "newArticleSubscription": {
+      "title": "\uD83D\uDCD8 New article is out",
+      "body": "@{{username}} just published a new article."
     }
   },
   "es": {
-    "_version": 7,
+    "_version": 8,
     "reply": {
       "title": "Online+",
       "body": "[ES] \uD83D\uDCAC @{{username}} replied to your post"
@@ -371,10 +383,22 @@
     "trendingToken": {
       "title": "[ES] \u2B50 ${{ticker}} Token Is Trending",
       "body": "[ES] More users are trading this token."
+    },
+    "newPostSubscription": {
+      "title": "[ES] \u2728 New post added",
+      "body": "[ES] @{{username}} just shared a post."
+    },
+    "newStorySubscription": {
+      "title": "[ES] \uD83D\uDCF8 Quick update",
+      "body": "[ES] @{{username}} added a new story."
+    },
+    "newArticleSubscription": {
+      "title": "[ES] \uD83D\uDCD8 New article is out",
+      "body": "[ES] @{{username}} just published a new article."
     }
   },
   "fr": {
-    "_version": 7,
+    "_version": 8,
     "reply": {
       "title": "Online+",
       "body": "[FR] \uD83D\uDCAC @{{username}} replied to your post"
@@ -558,6 +582,18 @@
     "trendingToken": {
       "title": "[FR] \u2B50 ${{ticker}} Token Is Trending",
       "body": "[FR] More users are trading this token."
+    },
+    "newPostSubscription": {
+      "title": "[FR] \u2728 New post added",
+      "body": "[FR] @{{username}} just shared a post."
+    },
+    "newStorySubscription": {
+      "title": "[FR] \uD83D\uDCF8 Quick update",
+      "body": "[FR] @{{username}} added a new story."
+    },
+    "newArticleSubscription": {
+      "title": "[FR] \uD83D\uDCD8 New article is out",
+      "body": "[FR] @{{username}} just published a new article."
     }
   }
 }
