@@ -42,7 +42,7 @@ func (w *tokenDetailsGenerationPictureWorker) Work(ctx context.Context, job *tok
 		job.Args.Input.ContentImages,
 		job.Args.Input.ContentVideoFrames)
 	if err != nil {
-		log.Error(err, fmt.Sprintf("failed to generate token image for content ID %v: %v", job.Args.Input.ContentID, err))
+		log.Error(err, fmt.Sprintf("failed to generate token image for content ID %v", job.Args.Input.ContentID))
 		return errors.Join(err, w.TA.markTokenSuggestionRecordAsFailedOrUpdateError(ctx, job.Args.Input.ContentID, err, job.Attempt, job.MaxAttempts))
 	}
 
