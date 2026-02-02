@@ -52,6 +52,7 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 			COALESCE(t.price_usd, 0) as price_usd,
 			t.liquidity_usd,
 			COALESCE(t.base_token, '') as base_token,
+			COALESCE(t.price_model, '') as price_model,
 			COALESCE(t.pair_id, '') as pair_id,
 			COALESCE(tv.volume_24h / 1e18, 0) as volume_24h,
 			COALESCE(t.holders_count, 0) as holders_count,

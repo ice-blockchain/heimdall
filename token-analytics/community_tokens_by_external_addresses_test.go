@@ -1301,8 +1301,7 @@ func helperInsertTestUser(t *testing.T, ctx context.Context, db *storage.DB, mas
 			lookup = EXCLUDED.lookup,
 			verified = EXCLUDED.verified,
 			platform_group = EXCLUDED.platform_group,
-			updated_at = NOW()
-	`
+			updated_at = NOW()`
 	_, err := storage.Exec(ctx, db, query,
 		masterPubkey,
 		masterPubkey,
@@ -1338,15 +1337,21 @@ func helperInsertTestToken(t *testing.T, ctx context.Context, db *storage.DB,
 		avatarURL = users[0].Avatar
 	}
 	lookup := strings.ToLower(strings.TrimSpace(username + " " + displayName + " " + ticker))
-
+	start := "10000"
+	end := "100000"
+	if tokenType == TokenTypeProfile {
+		start = "1000000"
+		end = "100000000"
+	}
+	priceModel := "0x000000000000000000000000000000000000dead"
 	query := `
 		INSERT INTO tokens (
 			created_at, updated_at, contract_address, external_address, platform,
 			ticker, total_supply, content_author_id, type, 
 			market_cap_usd, price_usd, holders_count, lookup,
-			title, description, image_url
+			title, description, image_url, price_model, start_price, end_price
 		)
-		VALUES (NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		VALUES (NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		ON CONFLICT (contract_address) DO UPDATE SET
 			external_address = EXCLUDED.external_address,
 			platform = EXCLUDED.platform,
@@ -1376,6 +1381,9 @@ func helperInsertTestToken(t *testing.T, ctx context.Context, db *storage.DB,
 		username,
 		displayName,
 		avatarURL,
+		priceModel,
+		start,
+		end,
 	)
 	require.NoError(t, err, "failed to insert test token")
 }

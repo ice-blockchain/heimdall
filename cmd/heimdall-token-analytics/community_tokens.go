@@ -108,11 +108,19 @@ type (
 		Amount          *big.Int `form:"amount" swaggerignore:"true" example:"100000000"`
 	}
 	PriceResponse struct {
-		Amount      string  `json:"amount"`
-		AmountBNB   string  `json:"amountBNB"`
-		AmountUSD   float64 `json:"amountUSD"`
-		IONPriceUSD float64 `json:"usdPriceION"`
-		BNBPriceUSD float64 `json:"usdPriceBNB"`
+		BondingCurveAlgAddress string  `json:"bondingCurveAlgAddress"` // Pricing model
+		FeeSponsorAddress      string  `json:"feeSponsorAddress"`
+		FeeSponsorId           string  `json:"feeSponsorId"`
+		Amount                 string  `json:"amount"`
+		AmountBNB              string  `json:"amountBNB"`
+		AmountUSD              float64 `json:"amountUSD"`
+		IONPriceUSD            float64 `json:"usdPriceION"`
+		BNBPriceUSD            float64 `json:"usdPriceBNB"`
+		InitialPrice           string  `json:"initialPrice"`
+		InitialPriceUSD        float64 `json:"initialPriceUSD"`
+		FinalPrice             string  `json:"finalPrice"`
+		FinalPriceUSD          float64 `json:"finalPriceUSD"`
+		EmissionVolume         string  `json:"emissionVolume"`
 	}
 )
 
@@ -402,17 +410,25 @@ func (s *service) GetCommunityTokenPricing(ctx context.Context, req *server.Requ
 	if tradeType != ta.TradeTypeBuy && tradeType != ta.TradeTypeSell {
 		return nil, server.BadRequest(errors.Errorf("invalid type %v", tradeType), invalidPropertiesErrorCode)
 	}
-	amount, amountBnb, amountUsd, ionPrice, bnbPrice, err := s.tokenAnalytics.GetTokenPricing(ctx, req.Data.ExternalAddress, tradeType, req.Data.Amount)
+	pricing, err := s.tokenAnalytics.GetTokenPricing(ctx, req.Data.ExternalAddress, tradeType, req.Data.Amount)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pricing for token %v: %w", req.Data.ExternalAddress, err)
 	}
 
 	return server.OK(&PriceResponse{
-		Amount:      amount.String(),
-		AmountBNB:   amountBnb.String(),
-		AmountUSD:   amountUsd,
-		BNBPriceUSD: bnbPrice,
-		IONPriceUSD: ionPrice,
+		BondingCurveAlgAddress: pricing.BondingCurveAlgAddress,
+		FeeSponsorAddress:      pricing.FeeSponsorAddress,
+		FeeSponsorId:           pricing.FeeSponsorId,
+		Amount:                 pricing.AmountInBase.String(),
+		AmountBNB:              pricing.AmountInBNB.String(),
+		AmountUSD:              pricing.AmountInUSD,
+		IONPriceUSD:            pricing.IonPriceInUSD,
+		BNBPriceUSD:            pricing.BNBPriceInUSD,
+		InitialPrice:           pricing.InitialPrice,
+		InitialPriceUSD:        pricing.InitialPriceUSD,
+		FinalPrice:             pricing.FinalPrice,
+		FinalPriceUSD:          pricing.FinalPriceUSD,
+		EmissionVolume:         pricing.EmissionVolume,
 	}), nil
 }
 

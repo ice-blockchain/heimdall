@@ -451,6 +451,35 @@ token-analytics:
     bondingCurveProgressUpdateFrequency: 500ms
     rpcEndpoints:
       - https://bogus.pro/bogus/
+    createTokenDefaults:
+      profile: #creator
+        initialPrice: 583400000000000
+        finalPrice: 9749900000000000
+        bondingCurveAlgAddress: "0x000000000000000000000000000000000000dead"
+        emissionVolume: 1000000000000000000000000000
+        feeSponsorAddress: "0x24c7ef0f468840620e13174e44f0cf10abba3425"
+        feeSponsorId: "fs-01jea-99pmi-e7f8j0ofu8q15k9f"
+      post: #content
+        initialPrice: 16600000000000
+        finalPrice: 10135800000000000
+        bondingCurveAlgAddress: "0x000000000000000000000000000000000000dead"
+        emissionVolume: 1000000000000000000000000000
+        feeSponsorAddress: "0x24c7ef0f468840620e13174e44f0cf10abba3425"
+        feeSponsorId: "fs-01jea-99pmi-e7f8j0ofu8q15k9f"
+      video: #content
+        initialPrice: 16600000000000
+        finalPrice: 10135800000000000
+        bondingCurveAlgAddress: "0x000000000000000000000000000000000000dead"
+        emissionVolume: 1000000000000000000000000000
+        feeSponsorAddress: "0x24c7ef0f468840620e13174e44f0cf10abba3425"
+        feeSponsorId: "fs-01jea-99pmi-e7f8j0ofu8q15k9f"
+      article: #content
+        initialPrice: 16600000000000
+        finalPrice: 10135800000000000
+        bondingCurveAlgAddress: "0x000000000000000000000000000000000000dead"
+        emissionVolume: 1000000000000000000000000000
+        feeSponsorAddress: "0x24c7ef0f468840620e13174e44f0cf10abba3425"
+        feeSponsorId: "fs-01jea-99pmi-e7f8j0ofu8q15k9f"
   riverQueue:
     queueName: heimdall_ta
     maxQueueWorkers: 100

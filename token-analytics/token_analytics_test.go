@@ -85,11 +85,16 @@ func (m *mockBondingCurveForBalanceUpdater) Progress(ctx context.Context, pairId
 	tokensRaised.SetString("10000000000000000000", 10) // 10 base tokens
 	bondingTokensGoal := new(big.Int)
 	bondingTokensGoal.SetString("200000000000000000000", 10) // 200 tokens
-
+	startPrice := new(big.Int)
+	startPrice.SetString("10000", 10)
+	endPrice := new(big.Int)
+	endPrice.SetString("100000", 10)
 	return &bondingcurve.BondingCurveProgress{
 		BondingCurveBondingInfo: &bondingcurve.BondingCurveBondingInfo{
 			SoldTokens:        soldTokens,
 			TokensRaised:      tokensRaised,
+			StartPrice:        startPrice,
+			EndPrice:          endPrice,
 			BondingTokensGoal: bondingTokensGoal,
 			Migrated:          false,
 		},
@@ -199,19 +204,32 @@ func helperNewForTest(t testing.TB, db *storage.DB, opts ...HelperTestOption) *t
 	ionPrice := 1.15
 	cfg := config{
 		BondingCurve: struct {
-			SmartContractAddress                string           `yaml:"smartContractAddress"`
-			BurnAddress                         string           `yaml:"burnAddress"`
-			TokenFactorySmartContractAddress    string           `yaml:"tokenFactorySmartContractAddress"`
-			BondingCurveProgressUpdateFrequency stdtime.Duration `yaml:"bondingCurveProgressUpdateFrequency"`
+			SmartContractAddress                string                         `yaml:"smartContractAddress"`
+			BurnAddress                         string                         `yaml:"burnAddress"`
+			TokenFactorySmartContractAddress    string                         `yaml:"tokenFactorySmartContractAddress"`
+			BondingCurveProgressUpdateFrequency stdtime.Duration               `yaml:"bondingCurveProgressUpdateFrequency"`
+			CreateTokenDefaults                 map[string]createTokenDefaults `yaml:"createTokenDefaults" mapstructure:"createTokenDefaults"`
 		}{
 			SmartContractAddress:             "0x1E602c717B6b1343303E77E9DBfe45B37cf01144",
 			TokenFactorySmartContractAddress: "0x2F713d828C5e2c11bC21778b37cF12Da3ec01255",
 			BurnAddress:                      "0x0000000000000000000000000000000000696f6e",
+			CreateTokenDefaults:              map[string]createTokenDefaults{},
 		},
 		Workers:         1,
 		IONTokenAddress: "0x2c73996BaBF1a06c2C057177353293f7cA0907c8",
 	}
-
+	defaultTokenParams := createTokenDefaults{
+		InitialPrice:           "10000",
+		FinalPrice:             "100000",
+		EmissionVolume:         "1000000000000000000000000000",
+		BondingCurveAlgAddress: "0x000000000000000000000000000000000000dead",
+		FeeSponsorAddress:      "0x000000000000000000000000000000000000dead",
+		FeeSponsorId:           "bogus",
+	}
+	cfg.BondingCurve.CreateTokenDefaults[TokenTypePost] = defaultTokenParams
+	cfg.BondingCurve.CreateTokenDefaults[TokenTypeProfile] = defaultTokenParams
+	cfg.BondingCurve.CreateTokenDefaults[TokenTypeArticle] = defaultTokenParams
+	cfg.BondingCurve.CreateTokenDefaults[TokenTypeVideo] = defaultTokenParams
 	var bc bondingcurve.BondingCurve
 	if options.bondingCurve != nil {
 		bc = options.bondingCurve
@@ -1163,7 +1181,7 @@ func TestProcessBondedTokenCreated(t *testing.T) {
 				JOIN pg_namespace n ON p.pronamespace = n.oid
 				WHERE n.nspname = 'public'
 				AND p.proname = 'process_bonded_token_created'
-				AND pg_get_function_arguments(p.oid) = 'p_topics text[], p_data text, p_block_timestamp timestamp without time zone, p_log_index bigint'
+				AND pg_get_function_arguments(p.oid) = 'p_topics text[], p_data text, p_tx_input text, p_fee_sponsor_address text, p_block_timestamp timestamp without time zone, p_log_index bigint'
 			)
 		`)
 		require.NoError(t, err)

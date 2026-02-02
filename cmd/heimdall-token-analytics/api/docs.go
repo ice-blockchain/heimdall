@@ -1820,6 +1820,31 @@ const docTemplate = `{
                 "amountUSD": {
                     "type": "number"
                 },
+                "bondingCurveAlgAddress": {
+                    "description": "Pricing model",
+                    "type": "string"
+                },
+                "emissionVolume": {
+                    "type": "string"
+                },
+                "feeSponsorAddress": {
+                    "type": "string"
+                },
+                "feeSponsorId": {
+                    "type": "string"
+                },
+                "finalPrice": {
+                    "type": "string"
+                },
+                "finalPriceUSD": {
+                    "type": "number"
+                },
+                "initialPrice": {
+                    "type": "string"
+                },
+                "initialPriceUSD": {
+                    "type": "number"
+                },
                 "usdPriceBNB": {
                     "type": "number"
                 },
@@ -1954,16 +1979,41 @@ const docTemplate = `{
         "tokenanalytics.BondingCurveProgress": {
             "type": "object",
             "properties": {
+                "bondingCurveAlgAddress": {
+                    "description": "Pricing model",
+                    "type": "string"
+                },
                 "currentAmount": {
                     "type": "string"
                 },
                 "currentAmountUSD": {
                     "type": "number"
                 },
+                "emissionVolume": {
+                    "type": "string"
+                },
+                "feeSponsorAddress": {
+                    "type": "string"
+                },
+                "feeSponsorId": {
+                    "type": "string"
+                },
+                "finalPrice": {
+                    "type": "string"
+                },
+                "finalPriceUSD": {
+                    "type": "number"
+                },
                 "goalAmount": {
                     "type": "string"
                 },
                 "goalAmountUSD": {
+                    "type": "number"
+                },
+                "initialPrice": {
+                    "type": "string"
+                },
+                "initialPriceUSD": {
                     "type": "number"
                 },
                 "liquidityUSD": {

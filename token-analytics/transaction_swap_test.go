@@ -1254,11 +1254,13 @@ func TestExtractAllTokensFromFatAddress(t *testing.T) {
 			common.Address{}, common.Address{},
 		)
 
-		tokens, creator, affiliate, err := extractAllTokensFromFatAddress(fatAddress)
+		tokens, types, creator, affiliate, err := extractAllTokensFromFatAddress(fatAddress)
 
 		require.NoError(t, err)
 		require.Len(t, tokens, 1, "Should have 1 token")
+		require.Len(t, types, 1, "Should have 1 type")
 		require.Equal(t, "test_external_addr", tokens[0])
+		require.Equal(t, TokenTypeProfile, types[0])
 		require.Equal(t, common.Address{}, creator)
 		require.Equal(t, common.Address{}, affiliate)
 	})
@@ -1270,11 +1272,14 @@ func TestExtractAllTokensFromFatAddress(t *testing.T) {
 			common.Address{}, common.Address{},
 		)
 
-		tokens, creator, affiliate, err := extractAllTokensFromFatAddress(fatAddress)
+		tokens, types, creator, affiliate, err := extractAllTokensFromFatAddress(fatAddress)
 
 		require.NoError(t, err)
 		require.Len(t, tokens, 2, "Should have 2 tokens")
+		require.Len(t, types, 2, "Should have 2 types")
 		require.Equal(t, "0:creator_pubkey:", tokens[0], "First token should be creator")
+		require.Equal(t, TokenTypeProfile, types[0], "First token should be profile")
+		require.Equal(t, TokenTypePost, types[1], "Second token should be post")
 		require.Equal(t, "30175:creator_pubkey:post123", tokens[1], "Second token should be content")
 		require.Equal(t, common.Address{}, creator)
 		require.Equal(t, common.Address{}, affiliate)
@@ -1289,19 +1294,21 @@ func TestExtractAllTokensFromFatAddress(t *testing.T) {
 			creatorAddr, affiliateAddr,
 		)
 
-		tokens, creator, affiliate, err := extractAllTokensFromFatAddress(fatAddress)
+		tokens, types, creator, affiliate, err := extractAllTokensFromFatAddress(fatAddress)
 
 		require.NoError(t, err)
 		require.Len(t, tokens, 1)
 		require.Equal(t, "test_addr", tokens[0])
 		require.Equal(t, creatorAddr, creator)
 		require.Equal(t, affiliateAddr, affiliate)
+		require.Len(t, types, 1)
+		require.Equal(t, TokenTypeProfile, types[0])
 	})
 
 	t.Run("invalid_version", func(t *testing.T) {
 		invalidFatAddress := []byte{0x99, 0x01, 0x00, 0x00} // Invalid version
 
-		_, _, _, err := extractAllTokensFromFatAddress(invalidFatAddress)
+		_, _, _, _, err := extractAllTokensFromFatAddress(invalidFatAddress)
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unsupported fat address version")
@@ -1310,7 +1317,7 @@ func TestExtractAllTokensFromFatAddress(t *testing.T) {
 	t.Run("insufficient_data", func(t *testing.T) {
 		insufficientData := []byte{0x02, 0x01} // Only 2 bytes
 
-		_, _, _, err := extractAllTokensFromFatAddress(insufficientData)
+		_, _, _, _, err := extractAllTokensFromFatAddress(insufficientData)
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "insufficient data")
@@ -1323,13 +1330,15 @@ func TestExtractAllTokensFromFatAddress_RecommendedUsage(t *testing.T) {
 			"Test Token", "TEST", "test_external", 0x61,
 			common.Address{}, common.Address{},
 		)
-		tokens, creator, affiliate, err := extractAllTokensFromFatAddress(fatAddress)
+		tokens, types, creator, affiliate, err := extractAllTokensFromFatAddress(fatAddress)
 
 		require.NoError(t, err)
 		require.Len(t, tokens, 1, "Single swap has 1 token")
 		require.Equal(t, "test_external", tokens[0])
 		require.Equal(t, common.Address{}, creator)
 		require.Equal(t, common.Address{}, affiliate)
+		require.Len(t, types, 1)
+		require.Equal(t, TokenTypeProfile, types[0])
 	})
 
 	t.Run("double_swap_example", func(t *testing.T) {
@@ -1338,11 +1347,14 @@ func TestExtractAllTokensFromFatAddress_RecommendedUsage(t *testing.T) {
 			"Content Token", "CONT", "30175:creator:post", 0x62,
 			common.Address{}, common.Address{},
 		)
-		tokens, _, _, err := extractAllTokensFromFatAddress(fatAddress)
+		tokens, types, _, _, err := extractAllTokensFromFatAddress(fatAddress)
 
 		require.NoError(t, err)
 		require.Len(t, tokens, 2, "Double swap has 2 tokens")
 		require.Equal(t, "0:creator:", tokens[0], "First token is creator")
 		require.Equal(t, "30175:creator:post", tokens[1], "Second token is content")
+		require.Len(t, types, 2)
+		require.Equal(t, TokenTypeProfile, types[0])
+		require.Equal(t, TokenTypePost, types[1])
 	})
 }

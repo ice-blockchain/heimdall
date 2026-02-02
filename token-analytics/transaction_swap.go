@@ -165,7 +165,7 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	hasFatAddress := len(toTokenBytes) > fatAddressV2MinLength && toTokenBytes[0] == fatAddressV2Version
 
 	if hasFatAddress {
-		allTokens, _, _, err := extractAllTokensFromFatAddress(toTokenBytes)
+		allTokens, _, _, _, err := extractAllTokensFromFatAddress(toTokenBytes)
 		if err != nil {
 			return fmt.Errorf("failed to extract tokens from Fat Address: %w", err)
 		}
@@ -247,81 +247,88 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	return nil
 }
 
-func extractAllTokensFromFatAddress(toTokenBytes []byte) ([]string, common.Address, common.Address, error) {
+func extractAllTokensFromFatAddress(toTokenBytes []byte) ([]string, []string, common.Address, common.Address, error) {
 	if len(toTokenBytes) < 4 {
-		return nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for V2 header: got %d bytes", len(toTokenBytes))
+		return nil, nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for V2 header: got %d bytes", len(toTokenBytes))
 	}
 	version := toTokenBytes[0]
 	if version != fatAddressV2Version {
-		return nil, common.Address{}, common.Address{}, fmt.Errorf("unsupported fat address version: %d (expected %d)", version, fatAddressV2Version)
+		return nil, nil, common.Address{}, common.Address{}, fmt.Errorf("unsupported fat address version: %d (expected %d)", version, fatAddressV2Version)
 	}
 	recordsCount := int(toTokenBytes[1])
 	presenceMask := uint16(toTokenBytes[2])<<8 | uint16(toTokenBytes[3])
 	offset := 4
 
 	externalAddresses := make([]string, 0, recordsCount)
-
+	tokenTypes := make([]string, 0, recordsCount)
 	for i := 0; i < recordsCount; i++ {
 		if len(toTokenBytes) < offset+8 {
-			return nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for token %d header at offset %d", i, offset)
+			return nil, nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for token %d header at offset %d", i, offset)
 		}
 
 		nameLen := int(toTokenBytes[offset])
 		symbolLen := int(toTokenBytes[offset+1])
 		extAddrLen := int(toTokenBytes[offset+2])
+		tokenTypeByte := toTokenBytes[offset+3]
 		tokenMask := uint32(toTokenBytes[offset+4])<<24 | uint32(toTokenBytes[offset+5])<<16 |
 			uint32(toTokenBytes[offset+6])<<8 | uint32(toTokenBytes[offset+7])
 		offset += 8
 
 		// Skip mandatory bonding address
 		if len(toTokenBytes) < offset+20 {
-			return nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for bonding address at offset %d", offset)
+			return nil, nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for bonding address at offset %d", offset)
 		}
 		offset += 20
 
 		// Skip optional bonding prices (64 bytes if bit 0x02 is set)
 		if tokenMask&0x02 != 0 {
 			if len(toTokenBytes) < offset+64 {
-				return nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for bonding prices at offset %d", offset)
+				return nil, nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for bonding prices at offset %d", offset)
 			}
 			offset += 64
 		}
 		// Skip optional bonding supply (32 bytes if bit 0x04 is set)
 		if tokenMask&0x04 != 0 {
 			if len(toTokenBytes) < offset+32 {
-				return nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for bonding supply at offset %d", offset)
+				return nil, nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for bonding supply at offset %d", offset)
 			}
 			offset += 32
 		}
 
 		// Read name, symbol, and external address
 		if len(toTokenBytes) < offset+nameLen+symbolLen+extAddrLen {
-			return nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for token %d (name, symbol, external address) at offset %d", i, offset)
+			return nil, nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for token %d (name, symbol, external address) at offset %d", i, offset)
 		}
 		offset += nameLen + symbolLen
 		externalAddress := string(toTokenBytes[offset : offset+extAddrLen])
 		offset += extAddrLen
 
 		externalAddresses = append(externalAddresses, externalAddress)
+
+		tokenType, _, err := parseTokenType(tokenTypeByte, externalAddress)
+		if err != nil {
+			return nil, nil, common.Address{}, common.Address{}, fmt.Errorf("failed to parse token type for token %d (%v): %w", i, externalAddress, err)
+		}
+		tokenTypes = append(tokenTypes, tokenType)
 	}
 
 	// Parse optional creator and affiliate addresses
 	var creatorAddr, affiliateAddr common.Address
 	if presenceMask&0x01 != 0 {
 		if len(toTokenBytes) < offset+20 {
-			return nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for creator address at offset %d", offset)
+			return nil, nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for creator address at offset %d", offset)
 		}
 		creatorAddr = common.BytesToAddress(toTokenBytes[offset : offset+20])
 		offset += 20
 	}
 	if presenceMask&0x02 != 0 {
 		if len(toTokenBytes) < offset+20 {
-			return nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for affiliate address at offset %d", offset)
+			return nil, nil, common.Address{}, common.Address{}, fmt.Errorf("insufficient data for affiliate address at offset %d", offset)
 		}
 		affiliateAddr = common.BytesToAddress(toTokenBytes[offset : offset+20])
 	}
 
-	return externalAddresses, creatorAddr, affiliateAddr, nil
+	return externalAddresses, tokenTypes, creatorAddr, affiliateAddr, nil
 }
 
 func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Context, tx *txEvent, contractAddress string, direction bool, input, output *big.Int,

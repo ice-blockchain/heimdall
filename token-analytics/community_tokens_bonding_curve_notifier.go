@@ -27,6 +27,12 @@ type (
 		BondingCurveCurrentAmountUSD float64 `json:"bonding_curve_current_amount_usd"`
 		BondingCurveGoalAmountUSD    float64 `json:"bonding_curve_goal_amount_usd"`
 		LiquidityUSD                 float64 `json:"liquidity_usd"`
+		StartPrice                   string  `json:"start_price"`
+		EndPrice                     string  `json:"end_price"`
+		TotalSupply                  string  `json:"total_supply"`
+		PriceModel                   string  `json:"price_model"`
+		BaseToken                    string  `json:"base_token"`
+		FeeSponsor                   *string `json:"fee_sponsor"`
 		UpdatedAt                    int64   `json:"updated_at"`
 	}
 )
@@ -143,17 +149,50 @@ func (t *tokenAnalytics) handleBondingCurveUpdate(ctx context.Context, payload s
 			}
 		}
 	}
+	startTokenParam, ok := t.cfg.BondingCurve.CreateTokenDefaults[update.Type]
+	if !ok {
+		return errors.Errorf("failed to find bonding curve start token params for type %s after bonding curve update %v", update.Type, update.ExternalAddress)
+	}
+	feeSponsor := ""
+	if update.FeeSponsor != nil {
+		feeSponsor = *update.FeeSponsor
+	} else {
+		feeSponsor = startTokenParam.FeeSponsorAddress
+	}
 
 	log.Debug(fmt.Sprintf("Updated Redis bonding curve for token %s from notifier", update.ExternalAddress))
-
+	startPrice, ok := new(big.Int).SetString(update.StartPrice, 10)
+	if !ok {
+		return errors.Errorf("malformed startPrice %v", update.StartPrice)
+	}
+	startPriceUSD, _, err := t.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(startPrice), update.BaseToken)
+	if err != nil {
+		return errors.Wrapf(err, "failed to handle base token for start price usd calculation %v", update.BaseToken)
+	}
+	endPrice, ok := new(big.Int).SetString(update.EndPrice, 10)
+	if !ok {
+		return errors.Errorf("malformed endPrice %v", update.EndPrice)
+	}
+	endPriceUSD, _, err := t.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(endPrice), update.BaseToken)
+	if err != nil {
+		return errors.Wrapf(err, "failed to handle base token for end price usd calculation %v", update.BaseToken)
+	}
 	bondingProgress := &BondingCurveProgress{
-		CurrentAmount:    update.BondingCurveCurrentAmount,
-		GoalAmount:       update.BondingCurveGoalAmount,
-		CurrentAmountUSD: update.BondingCurveCurrentAmountUSD,
-		GoalAmountUSD:    update.BondingCurveGoalAmountUSD,
-		RaisedAmount:     update.BondingCurveRaisedAmount,
-		Migrated:         update.BondingCurveMigrated,
-		LiquidityUSD:     update.LiquidityUSD,
+		BondingCurveAlgAddress: update.PriceModel,
+		FeeSponsorAddress:      feeSponsor,
+		FeeSponsorId:           startTokenParam.FeeSponsorId,
+		CurrentAmount:          update.BondingCurveCurrentAmount,
+		GoalAmount:             update.BondingCurveGoalAmount,
+		RaisedAmount:           update.BondingCurveRaisedAmount,
+		CurrentAmountUSD:       update.BondingCurveCurrentAmountUSD,
+		GoalAmountUSD:          update.BondingCurveGoalAmountUSD,
+		Migrated:               update.BondingCurveMigrated,
+		LiquidityUSD:           update.LiquidityUSD,
+		InitialPrice:           update.StartPrice,
+		InitialPriceUSD:        startPriceUSD,
+		FinalPrice:             update.EndPrice,
+		FinalPriceUSD:          endPriceUSD,
+		EmissionVolume:         update.TotalSupply,
 	}
 	t.subscriptions.NotifyBondingCurveProgress(update.ExternalAddress, bondingProgress)
 
