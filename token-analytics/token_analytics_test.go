@@ -209,6 +209,7 @@ func helperNewForTest(t testing.TB, db *storage.DB, opts ...HelperTestOption) *t
 			TokenFactorySmartContractAddress    string                         `yaml:"tokenFactorySmartContractAddress"`
 			BondingCurveProgressUpdateFrequency stdtime.Duration               `yaml:"bondingCurveProgressUpdateFrequency"`
 			CreateTokenDefaults                 map[string]createTokenDefaults `yaml:"createTokenDefaults" mapstructure:"createTokenDefaults"`
+			TransactionValidationFeeSlippage    float64                        `yaml:"transactionValidationFeeSlippage"`
 		}{
 			SmartContractAddress:             "0x1E602c717B6b1343303E77E9DBfe45B37cf01144",
 			TokenFactorySmartContractAddress: "0x2F713d828C5e2c11bC21778b37cF12Da3ec01255",

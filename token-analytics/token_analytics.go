@@ -19,6 +19,7 @@ import (
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rcrowley/go-metrics"
 
+	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/coins"
 	"github.com/ice-blockchain/heimdall/token-analytics/ddl"
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
@@ -55,6 +56,7 @@ func NewUserRepository(ctx context.Context) interface {
 	return &tokenAnalyticsUsers{
 		ingestedDataDB: db,
 		cfg:            &cfg,
+		bscFees:        new(atomic.Pointer[accounts.Fee]),
 		shutdown: func() error {
 			return errors.Join(
 				db.Close(),
@@ -867,7 +869,10 @@ func (dummyUserRepository) GetTokenUpdates(ctx context.Context, contractAddress 
 func (dummyUserRepository) UpdateUserProfileAndToken(ctx context.Context, masterPubkey, username, displayName, avatar string) (coins.TokenAnalyticsToken, error) {
 	return nil, nil
 }
-
+func (dummyUserRepository) ValidateTransaction(txPayload accounts.TransactionPayload) error {
+	return nil
+}
+func (dummyUserRepository) UpdateBscFees(fees *accounts.Fee) {}
 func randInt(n int) int {
 	return rand.Intn(n)
 }
@@ -890,4 +895,8 @@ func (t *tokenAnalytics) runPeriodicRepopulationWorker(ctx context.Context) {
 			}
 		}
 	}
+}
+
+func (t *tokenAnalyticsUsers) UpdateBscFees(fees *accounts.Fee) {
+	t.bscFees.Store(fees)
 }

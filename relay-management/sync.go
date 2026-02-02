@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: ice License 1.0
 
+//go:build !test
+
 package relaymanagement
 
 import (
@@ -18,6 +20,14 @@ import (
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/time"
+)
+
+type (
+	nip11Result struct {
+		url   string
+		nip11 *nip11.RelayInformationDocument
+		err   error
+	}
 )
 
 func init() {

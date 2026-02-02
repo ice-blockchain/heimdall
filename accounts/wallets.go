@@ -883,3 +883,7 @@ func (a *accounts) GetWalletAssets(ctx context.Context, walletID string) (*Asset
 	}
 	return a.delegatedRPClient.ListAssets(ctx, walletID)
 }
+
+func (a *accounts) BroadcastTransactionFromWallet(ctx context.Context, walletId string, transactionData *TransactionPayload) (*TransactionResponse, error) {
+	return a.delegatedRPClient.BroadcastTransactionFromWallet(ctx, walletId, transactionData)
+}

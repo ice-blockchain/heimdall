@@ -217,7 +217,7 @@ var (
 	EventSwappedSignature        = eventSwapped.Hex()
 	EventUniswapSwappedSignature = eventUniswapSwapped.Hex()
 
-	errNotFound = errors.New("not found")
+	ErrNotFound = errors.New("not found")
 )
 
 // Function selectors:

@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"iter"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -13,7 +14,6 @@ import (
 	"github.com/ice-blockchain/heimdall/following"
 	nftcontent "github.com/ice-blockchain/heimdall/nft-content"
 	"github.com/ice-blockchain/heimdall/server"
-	"github.com/ice-blockchain/subzero/database/query"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/subzero/validation"
 )
@@ -218,7 +218,7 @@ func (s *service) validateNFTContentEvents(ctx context.Context, events model.Eve
 	if eventProfileMetadata == nil {
 		return errors.Errorf("one profile metadata event is required")
 	}
-	queryFunc := func(ctx context.Context, filters ...model.Filter) query.EventIterator {
+	queryFunc := func(ctx context.Context, filters ...model.Filter) iter.Seq2[*model.Event, error] {
 		return func(yield func(*model.Event, error) bool) {
 			for _, filter := range filters {
 				if model.FiltersMatch(model.Filters{filter}, eventProfileMetadata, eventProfileMetadata.GetMasterPublicKey(), eventProfileMetadata.PubKey) {

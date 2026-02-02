@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/ice-blockchain/heimdall/accounts"
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
@@ -678,4 +679,94 @@ func marketCap(priceInUSD float64, totalSupply, burned *big.Int) *big.Float {
 	totalTokens := big.NewFloat(0).Sub(big.NewFloat(0).SetInt(totalSupply), big.NewFloat(0).SetInt(burned))
 	marketCapUSD := big.NewFloat(0).Mul(priceInUsdF, big.NewFloat(0).Quo(totalTokens, big.NewFloat(1e18)))
 	return marketCapUSD
+}
+
+func (t *tokenAnalyticsUsers) ValidateTransaction(txPayload accounts.TransactionPayload) error {
+	if len(txPayload.UserOperations) == 0 {
+		return nil // not a tc tx
+	}
+	hasBondingCurveTx := false
+	for _, action := range txPayload.UserOperations {
+		if !strings.EqualFold(t.cfg.BondingCurve.SmartContractAddress, action.To) {
+			continue
+		}
+		hasBondingCurveTx = true
+		functionSelector := action.Data[:10]
+		swapParams, err := bondingcurve.DecodeSwapFunctionParams(functionSelector, action.Data)
+		if err != nil {
+			if errors.Is(err, bondingcurve.ErrNotFound) {
+				return nil // Not swap.
+			}
+			return errors.Wrapf(err, "failed to parse swap function parameters")
+		}
+		toTokenParam, ok := swapParams["toToken"]
+		if !ok {
+			return fmt.Errorf("toToken param not found in swap event")
+		}
+		toTokenBytes, ok := toTokenParam.([]byte)
+		if !ok {
+			return fmt.Errorf("toToken is not []byte")
+		}
+		hasFatAddress := len(toTokenBytes) > fatAddressV2MinLength && toTokenBytes[0] == fatAddressV2Version
+		if !hasFatAddress { // call for existing token, blockchain already have info
+			continue
+		}
+		allTokens, _, _, err := extractAllTokensFromFatAddress(toTokenBytes)
+		if len(allTokens) == 0 {
+			return fmt.Errorf("no tokens found in Fat Address")
+		}
+		for _, token := range allTokens {
+			expectedParams := t.cfg.BondingCurve.CreateTokenDefaults[token.Type]
+			if !strings.EqualFold(token.PricingModel, expectedParams.BondingCurveAlgAddress) {
+				return errors.Wrapf(ErrValidationFailed, "wrong pricing model for token %s: expected %s, got %s", token.ExternalAddress, expectedParams.BondingCurveAlgAddress, token.PricingModel)
+			}
+			if token.TotalSupply != nil {
+				if token.TotalSupply.String() != expectedParams.EmissionVolume {
+					return errors.Wrapf(ErrValidationFailed, "total supply mismatch: expected %s, got %s", expectedParams.EmissionVolume, token.TotalSupply)
+				}
+			}
+			if token.StartPrice != nil {
+				if token.StartPrice.String() != expectedParams.InitialPrice {
+					return errors.Wrapf(ErrValidationFailed, "start price mismatch: expected %s, got %s", expectedParams.InitialPrice, token.StartPrice)
+				}
+			}
+			if token.EndPrice != nil {
+				if token.EndPrice.String() != expectedParams.FinalPrice {
+					return errors.Wrapf(ErrValidationFailed, "end price mismatch: expected %s, got %s", expectedParams.FinalPrice, token.EndPrice)
+				}
+			}
+		}
+	}
+	if hasBondingCurveTx && txPayload.FeeSponsorId != "" {
+		if err := t.validateTxGas(txPayload); err != nil {
+			return errors.Wrapf(err, "failed to validate fees")
+		}
+	}
+	return nil
+}
+
+func (t *tokenAnalyticsUsers) validateTxGas(txPayload accounts.TransactionPayload) error {
+	if txPayload.MaxFeePerGas == nil && txPayload.MaxPriorityFeePerGas == nil {
+		return nil
+	}
+	actualFees := t.bscFees.Load()
+	slippage := t.cfg.BondingCurve.TransactionValidationFeeSlippage
+	expectedMaxFeePerGas, _ := new(big.Int).SetString(actualFees.MaxFeePerGas, 10)
+	allowance := new(big.Float).Mul(new(big.Float).SetInt(expectedMaxFeePerGas), big.NewFloat(slippage))
+	if txPayload.MaxFeePerGas != nil {
+		actualMaxFeePerGas, _ := new(big.Int).SetString(*txPayload.MaxFeePerGas, 10)
+		if diff := new(big.Float).Sub(new(big.Float).SetInt(actualMaxFeePerGas), new(big.Float).SetInt(expectedMaxFeePerGas)); diff.Sign() > 0 && diff.Cmp(allowance) > 0 {
+			return errors.Wrapf(ErrValidationFailed, "max fee per gas too high: expected %s, got %s", allowance.String(), actualMaxFeePerGas.String())
+		}
+	}
+	expectedMaxPriorityFeePerGas, _ := new(big.Int).SetString(actualFees.MaxPriorityFeePerGas, 10)
+	allowance = new(big.Float).Mul(new(big.Float).SetInt(expectedMaxPriorityFeePerGas), big.NewFloat(slippage))
+	if txPayload.MaxPriorityFeePerGas != nil {
+		actualMaxPriorityFeePerGas, _ := new(big.Int).SetString(*txPayload.MaxPriorityFeePerGas, 10)
+		if diff := new(big.Float).Sub(new(big.Float).SetInt(actualMaxPriorityFeePerGas), new(big.Float).SetInt(actualMaxPriorityFeePerGas)); diff.Sign() > 0 && diff.Cmp(allowance) > 0 {
+			return errors.Wrapf(ErrValidationFailed, "max priority fee per gas too high: expected %s, got %s", allowance.String(), actualMaxPriorityFeePerGas.String())
+		}
+	}
+
+	return nil
 }

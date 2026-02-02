@@ -90,12 +90,14 @@ type (
 		CreateWalletForWalletView(ctx context.Context, userID, network, walletViewID string) (*Wallet, error)
 		FetchMainWallet(ctx context.Context, masterKey string) (Wallet, error)
 		SetProviderForUnsupportedNFTs(nft indexer.Indexer)
+		BroadcastTransactionFromWallet(ctx context.Context, walletId string, transactionData *TransactionPayload) (*TransactionResponse, error)
 	}
 	Coins interface {
 		GetCoinsOfSymbolGroup(ctx context.Context, symbolGroups []string) ([]*coins.Coin, error)
 		GetNativeCoinForNetwork(ctx context.Context, network string) (*coins.Coin, error)
 		GetFees(network string) *coins.Fee
 		ImportNFTs(ctx context.Context, network string, nft []coins.WalletNFT) ([]*NFT, error)
+		GetAllNetworks() []*coins.Network
 		ImportTokenizedCommunitiesCoin(ctx context.Context, coin coins.TokenAnalyticsToken) (*coins.Coin, error)
 	}
 	Relays interface {
@@ -105,6 +107,7 @@ type (
 		UpsertUser(ctx context.Context, id, masterPubkey, blockchainAddress, username, displayName, avatar string, verified *bool, ionConnectRelays []string) error
 		SetVerified(ctx context.Context, masterPubkey string) error
 		UpdateUserProfileAndToken(ctx context.Context, masterPubkey, username, displayName, avatar string) (coins.TokenAnalyticsToken, error)
+		UpdateBscFees(fees *Fee)
 	}
 	TwoFAOptionEnum     string
 	TwoFAOptionWithAddr struct {
@@ -190,6 +193,9 @@ type (
 	CompletedRegistration = dfns.CompletedRegistration
 	UserAssignedRelay     = relaymanagement.UserAssignedRelay
 	Assets                = dfns.Assets
+	TransactionPayload    = dfns.TransactionPayload
+	TransactionResponse   = dfns.TransactionResponse
+	Fee                   = dfns.Fee
 )
 
 const (

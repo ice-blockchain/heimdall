@@ -1,6 +1,24 @@
 # SPDX-License-Identifier: ice License 1.0
 
 definitions:
+  github_com_ice-blockchain_heimdall_cmd_heimdall-token-analytics_server.Response-main_SuggestCreationDetailsResponse:
+    properties:
+      code:
+        type: integer
+      contentType:
+        type: string
+      data:
+        $ref: '#/definitions/main.SuggestCreationDetailsResponse'
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      raw:
+        items:
+          format: int32
+          type: integer
+        type: array
+    type: object
   main.ExternalDataRequest:
     properties:
       postAuthorAvatar:
@@ -127,24 +145,6 @@ definitions:
       ticker:
         example: SOMETHING_COOL
         type: string
-    type: object
-  server.Response-main_SuggestCreationDetailsResponse:
-    properties:
-      code:
-        type: integer
-      contentType:
-        type: string
-      data:
-        $ref: '#/definitions/main.SuggestCreationDetailsResponse'
-      headers:
-        additionalProperties:
-          type: string
-        type: object
-      raw:
-        items:
-          format: int32
-          type: integer
-        type: array
     type: object
   server.ResponseErrorBody:
     properties:
@@ -1074,11 +1074,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/server.Response-main_SuggestCreationDetailsResponse'
+            $ref: '#/definitions/github_com_ice-blockchain_heimdall_cmd_heimdall-token-analytics_server.Response-main_SuggestCreationDetailsResponse'
         "202":
           description: Accepted
           schema:
-            $ref: '#/definitions/server.Response-main_SuggestCreationDetailsResponse'
+            $ref: '#/definitions/github_com_ice-blockchain_heimdall_cmd_heimdall-token-analytics_server.Response-main_SuggestCreationDetailsResponse'
         "400":
           description: if request body is invalid
           schema:

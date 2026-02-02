@@ -221,13 +221,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/server.Response-main_SuggestCreationDetailsResponse"
+                            "$ref": "#/definitions/github_com_ice-blockchain_heimdall_cmd_heimdall-token-analytics_server.Response-main_SuggestCreationDetailsResponse"
                         }
                     },
                     "202": {
                         "description": "Accepted",
                         "schema": {
-                            "$ref": "#/definitions/server.Response-main_SuggestCreationDetailsResponse"
+                            "$ref": "#/definitions/github_com_ice-blockchain_heimdall_cmd_heimdall-token-analytics_server.Response-main_SuggestCreationDetailsResponse"
                         }
                     },
                     "400": {
@@ -1880,6 +1880,33 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "github_com_ice-blockchain_heimdall_cmd_heimdall-token-analytics_server.Response-main_SuggestCreationDetailsResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "contentType": {
+                    "type": "string"
+                },
+                "data": {
+                    "$ref": "#/definitions/main.SuggestCreationDetailsResponse"
+                },
+                "headers": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "raw": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            }
+        },
         "main.ExternalDataRequest": {
             "type": "object",
             "properties": {
@@ -2061,33 +2088,6 @@ const docTemplate = `{
                 "ticker": {
                     "type": "string",
                     "example": "SOMETHING_COOL"
-                }
-            }
-        },
-        "server.Response-main_SuggestCreationDetailsResponse": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "integer"
-                },
-                "contentType": {
-                    "type": "string"
-                },
-                "data": {
-                    "$ref": "#/definitions/main.SuggestCreationDetailsResponse"
-                },
-                "headers": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "raw": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer",
-                        "format": "int32"
-                    }
                 }
             }
         },

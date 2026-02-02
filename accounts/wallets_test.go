@@ -12,6 +12,7 @@ import (
 	"testing"
 	stdlibtime "time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
 
@@ -243,6 +244,15 @@ func (m *mockWalletClient) GetNativeCoinForNetwork(ctx context.Context, network 
 	return nil, nil
 }
 func (m *mockWalletClient) GetFees(network string) *coins.Fee {
+	return nil
+}
+func (m *mockWalletClient) GetNetworkFees(context.Context, string) (*dfns.FeeWithPriority, error) {
+	return nil, errors.New("not implemented")
+}
+func (m *mockWalletClient) BroadcastTransactionFromWallet(ctx context.Context, walletId string, transactionData *TransactionPayload) (*TransactionResponse, error) {
+	return nil, errors.New("not implemented")
+}
+func (m *mockWalletClient) GetAllNetworks() []*coins.Network {
 	return nil
 }
 func (m *mockWalletClient) ImportNFTs(ctx context.Context, network string, nft []coins.WalletNFT) ([]*coins.NFT, error) {

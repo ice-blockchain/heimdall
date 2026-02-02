@@ -82,7 +82,8 @@ func (s *service) setupDelegatedRPProxyRoutes(router *server.Router) {
 		POST("/auth/registration/enduser", server.RootHandler(s.CompleteRegistration)).
 		POST("/auth/registration/delegated", server.RootHandler(s.InitRegistration)).
 		GET("/v1/early-access-users", server.RootHandler(s.EarlyAccessAvailable)).
-		POST("/wallets", server.RootHandler(s.CreateWallet))
+		POST("/wallets", server.RootHandler(s.CreateWallet)).
+		POST("/wallets/:walletId/transactions", server.RootHandler(s.BroadcastTransactionFromWallet))
 }
 
 func (s *service) proxyToDelegatedRP(allowUnauthorized bool) func(*gin.Context) {
@@ -455,6 +456,42 @@ func (s *service) GetWalletAssets(
 		return nil, buildDelegatedErrorResponse(http.StatusInternalServerError, err, "")
 	}
 	return server.OK[WalletAssets](assets), nil
+}
+
+// BroadcastTransactionFromWallet godoc
+//
+//	@Schemes
+//	@Description	Broadcasts transaction from the wallet
+//	@Tags			Wallets
+//	@Produce		json
+//	@Param			X-Client-ID		header		string	true	"App ID"									default(ap-)
+//	@Param			Authorization	header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
+//	@Param			walletId		path		string	true	"ID of the wallet"
+//	@Success		200				{object}	WalletAssets
+//	@Failure		500				{object}	server.ErrorResponse
+//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
+//	@Router			/wallets/{walletId}/transactions [POST].
+func (s *service) BroadcastTransactionFromWallet(
+	ctx context.Context,
+	req *server.Request[TransactionPayload, TransactionResponse],
+) (successResp *server.Response[TransactionResponse], errorResp *server.ErrResponse[InternalError]) {
+	ctx = withAuth(ctx, req.Data.Authorization)
+	ctx = withUserAction(ctx, req.Data.UserAction)
+	err := s.tokenAnalytics.ValidateTransaction(req.Data.TransactionPayload)
+	if err != nil {
+		return nil, buildDelegatedErrorResponse(http.StatusBadRequest, err, err.Error())
+	}
+	txRes, err := s.accounts.BroadcastTransactionFromWallet(ctx, req.Data.WalletID, &req.Data.TransactionPayload)
+	if err != nil {
+		if delegatedErr := accounts.ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
+			var delegatedParsedErr *accounts.DelegatedRelyingPartyErr
+			if errors.As(delegatedErr, &delegatedParsedErr) {
+				return nil, buildDelegatedErrorResponse(delegatedParsedErr.HTTPStatus, err, delegatedParsedErr.Message)
+			}
+		}
+		return nil, buildDelegatedErrorResponse(http.StatusInternalServerError, err, "")
+	}
+	return server.OK[TransactionResponse](txRes), nil
 }
 
 func withAppID(ctx context.Context, appID string) context.Context {

@@ -15,6 +15,7 @@ import (
 	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rcrowley/go-metrics"
 
+	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/coins"
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/cdn"
@@ -47,6 +48,8 @@ type (
 		UpdateUserProfileAndToken(ctx context.Context, masterPubkey, username, displayName, avatar string) (coins.TokenAnalyticsToken, error)
 		SetVerified(ctx context.Context, masterPubkey string) error
 		GetUser(ctx context.Context, masterPubkey string) (*UserRecord, error)
+		ValidateTransaction(txPayload accounts.TransactionPayload) error
+		UpdateBscFees(fees *accounts.Fee)
 	}
 	CoinImport interface {
 		ImportTokenizedCommunitiesCoin(ctx context.Context, coin coins.TokenAnalyticsToken) (*coins.Coin, error)
@@ -222,9 +225,10 @@ const (
 )
 
 var (
-	ErrSessionNotFound = errors.New("session not found")
-	ErrDuplicate       = errors.New("duplicate entry")
-	ErrTokenNotFound   = errors.New("token not found")
+	ErrSessionNotFound  = errors.New("session not found")
+	ErrDuplicate        = errors.New("duplicate entry")
+	ErrTokenNotFound    = errors.New("token not found")
+	ErrValidationFailed = errors.New("validation failed")
 )
 
 type (
@@ -238,6 +242,7 @@ type (
 			TokenFactorySmartContractAddress    string                         `yaml:"tokenFactorySmartContractAddress"`
 			BondingCurveProgressUpdateFrequency stdlibtime.Duration            `yaml:"bondingCurveProgressUpdateFrequency"`
 			CreateTokenDefaults                 map[string]createTokenDefaults `yaml:"createTokenDefaults" mapstructure:"createTokenDefaults"`
+			TransactionValidationFeeSlippage    float64                        `yaml:"transactionValidationFeeSlippage"`
 		} `yaml:"bondingCurve" mapstructure:"bondingCurve"`
 		RiverQueue struct {
 			QueueName       string              `yaml:"queueName,omitempty"`
@@ -293,6 +298,7 @@ type (
 		ingestedDataDB *storage.DB
 		shutdown       func() error
 		cfg            *config
+		bscFees        *atomic.Pointer[accounts.Fee]
 	}
 	txEvent struct {
 		BlockTimestamp   *time.Time  `db:"block_timestamp"`

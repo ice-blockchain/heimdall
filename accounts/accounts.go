@@ -80,6 +80,10 @@ func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *App
 		defaultCoins[dc.SymbolGroup] = append(defaultCoins[dc.SymbolGroup], dc)
 	}
 	acc.deviceIdentificationClient = deviceidentification.New(applicationYamlKey, acc.masterKeyExists)
+	if err := acc.updateBscFees(ctx); err != nil {
+		log.Panic(errors.Wrap(err, "failed to update bsc fees"))
+	}
+	go acc.startBscFeeSyncer(ctx)
 
 	return &acc
 }

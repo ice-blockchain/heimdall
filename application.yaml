@@ -450,6 +450,7 @@ token-analytics:
     tokenFactorySmartContractAddress: 0x26dae540C37aD4190156D45eC1ddB32243Fa33d0
     burnAddress: 0x0000000000000000000000000000000000696f6e
     bondingCurveProgressUpdateFrequency: 500ms
+    transactionValidationFeeSlippage: 0.05
     rpcEndpoints:
       - https://bogus.pro/bogus/
     createTokenDefaults:
