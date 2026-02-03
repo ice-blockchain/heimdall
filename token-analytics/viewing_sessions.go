@@ -189,6 +189,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 		FROM tokens t
 		LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
 		WHERE t.external_address = ANY($1)
+		  AND t.ticker IS NOT NULL
 	`
 	tokensPtr, err := storage.Select[tokenRow](ctx, t.ingestedDataDB, query, externalAddresses)
 	if err != nil {

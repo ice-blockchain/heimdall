@@ -62,7 +62,12 @@ func (t *tokenAnalytics) GetCommunityTokensByHolder(ctx context.Context, holderE
 			launcher.external_address as launcher_external_address,
 			launcher.platform_group as launcher_platform,
 			first_swap.user_blockchain_address as launcher_blockchain_address,
-			COALESCE(holder_user.token_holdings_count, 0) as token_holdings_count
+			CASE 
+				WHEN holder_user.platform_group = 'xcom'::platform_type THEN
+					COALESCE((SELECT SUM(token_holdings_count) FROM users WHERE external_address = $1), 0)
+				ELSE
+					COALESCE(holder_user.token_holdings_count, 0)
+			END as token_holdings_count
 		FROM user_token_positions utp
 		INNER JOIN tokens t ON t.external_address = utp.external_address
 		LEFT JOIN users holder_user ON holder_user.external_address = $1
@@ -81,6 +86,7 @@ func (t *tokenAnalytics) GetCommunityTokensByHolder(ctx context.Context, holderE
 		LEFT JOIN users launcher ON LOWER(launcher.content_author_id) = LOWER(first_swap.user_blockchain_address)
 		WHERE utp.user_external_address = $1
 		  AND utp.amount > '0'
+		  AND t.ticker IS NOT NULL
 		ORDER BY utp.amount DESC
 		LIMIT $2 OFFSET $3
 	`
@@ -93,7 +99,16 @@ func (t *tokenAnalytics) GetCommunityTokensByHolder(ctx context.Context, holderE
 	if len(rows) > 0 {
 		totalCount = rows[0].TokenHoldingsCount
 	} else {
-		countQuery := `SELECT COALESCE(token_holdings_count, 0) as count FROM users WHERE external_address = $1`
+		countQuery := `
+			SELECT COALESCE(
+				CASE 
+					WHEN MAX(platform_group) = 'xcom'::platform_type THEN SUM(token_holdings_count)
+					ELSE (SELECT token_holdings_count FROM users WHERE external_address = $1 LIMIT 1)
+				END, 0
+			) as count 
+			FROM users 
+			WHERE external_address = $1
+		`
 		countResult, countErr := storage.Get[struct{ Count uint64 }](ctx, t.ingestedDataDB, countQuery, holderExternalAddress)
 		if countErr != nil && !storage.IsErr(countErr, storage.ErrNotFound) {
 			return nil, 0, errors.Wrap(countErr, "failed to fetch token holdings count for holder")

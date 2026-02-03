@@ -82,6 +82,7 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 	LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
 	LEFT JOIN users holder ON holder.external_address = utp.user_external_address OR holder.content_author_id = utp.user_blockchain_address
 	WHERE t.external_address = $1
+	  AND t.ticker IS NOT NULL
 	`
 	rows, err := storage.Select[holderWithTokenData](ctx, t.ingestedDataDB, query, externalAddress, userIonConnects, userBlockchainAddresses)
 	if err != nil {

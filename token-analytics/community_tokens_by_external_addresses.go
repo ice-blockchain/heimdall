@@ -90,6 +90,7 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 		) first_swap ON t.platform = 'xcom'
 		LEFT JOIN users launcher ON LOWER(launcher.content_author_id) = LOWER(first_swap.user_blockchain_address)
 		WHERE t.external_address = ANY($1)
+		  AND t.ticker IS NOT NULL
 		ORDER BY t.created_at DESC
 	`
 	rows, err := storage.Select[tokenRow](ctx, t.ingestedDataDB, query, externalAddresses, requestorMasterPubkey)
@@ -108,11 +109,11 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 	argIndex := 1
 
 	if len(externalAddresses) > 0 {
-		whereClause = `WHERE t.external_address = ANY($` + strconv.Itoa(argIndex) + `) AND t.lookup LIKE '%%' || $` + strconv.Itoa(argIndex+1) + ` || '%%'`
+		whereClause = `WHERE t.external_address = ANY($` + strconv.Itoa(argIndex) + `) AND t.lookup LIKE '%%' || $` + strconv.Itoa(argIndex+1) + ` || '%%' AND t.ticker IS NOT NULL`
 		args = append(args, externalAddresses, kw)
 		argIndex += 2
 	} else {
-		whereClause = `WHERE t.lookup LIKE '%%' || $` + strconv.Itoa(argIndex) + ` || '%%'`
+		whereClause = `WHERE t.lookup LIKE '%%' || $` + strconv.Itoa(argIndex) + ` || '%%' AND t.ticker IS NOT NULL`
 		args = append(args, kw)
 		argIndex++
 	}
@@ -524,6 +525,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 				FROM tokens t
 				WHERE t.external_address = ANY($1)
 				  AND t.lookup LIKE '%' || $4 || '%'
+				  AND t.ticker IS NOT NULL
 				ORDER BY t.lookup <-> $4
 				LIMIT 250
 			)
@@ -537,6 +539,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 			` + selectClause + `
 			` + fmt.Sprintf(fromJoinsClause, "tokens") + `
 			WHERE t.external_address = ANY($1)
+			  AND t.ticker IS NOT NULL
 			ORDER BY t.created_at DESC`
 	}
 

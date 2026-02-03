@@ -65,7 +65,7 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 
 	if keyword != "" {
 		kw := strings.ToLower(keyword)
-		whereClause := "WHERE 1=1"
+		whereClause := "WHERE t.ticker IS NOT NULL"
 		if tokenType != nil && *tokenType != "" {
 			if *tokenType == TokenTypeAnyPost {
 				whereClause += ` AND t.type IN ('post', 'video', 'article')`
@@ -126,7 +126,7 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 	} else {
 		query = selectClause + `
 		` + fmt.Sprintf(fromJoinsClause, "tokens") + `
-		WHERE 1=1`
+		WHERE t.ticker IS NOT NULL`
 
 		if tokenType != nil && *tokenType != "" {
 			query += fmt.Sprintf(` AND t.type = $%d`, argIndex)
@@ -230,6 +230,7 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 	INNER JOIN tokens_featured tf ON tf.external_address = t.external_address
 	LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
 	LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
+	WHERE t.ticker IS NOT NULL
 	`
 
 	args := []interface{}{}
@@ -237,9 +238,9 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 
 	if tokenType != nil && *tokenType != "" {
 		if *tokenType == TokenTypeAnyPost {
-			query += ` WHERE t.type IN ('post', 'video', 'article')`
+			query += ` AND t.type IN ('post', 'video', 'article')`
 		} else {
-			query += fmt.Sprintf(` WHERE t.type = $%d`, argIndex)
+			query += fmt.Sprintf(` AND t.type = $%d`, argIndex)
 			args = append(args, *tokenType)
 			argIndex++
 		}

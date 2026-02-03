@@ -8,7 +8,85 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
+
+func TestUpdateLoggedInUserProfile_TwoStepUpdate(t *testing.T) {
+	ctx := t.Context()
+
+	t.Run("two step update: first profile info, then BSC address", func(t *testing.T) {
+		db, release := helperCreateDB(t)
+		defer release()
+
+		ta := helperNewForTest(t, db)
+
+		xcomUserID := "1234567890123"
+		externalAddress := "1234567890123"
+		bscWallet := "0xbsc_wallet_address"
+
+		err := ta.UpdateLoggedInUserProfile(
+			ctx,
+			xcomUserID,
+			externalAddress,
+			"john_doe",
+			"John Doe",
+			"https://avatar.com/john.png",
+			true,
+			"", // empty content_author_id
+		)
+		require.NoError(t, err)
+
+		type userResult struct {
+			ID              string  `db:"id"`
+			MasterPubkey    string  `db:"master_pubkey"`
+			Username        string  `db:"username"`
+			ExternalAddress *string `db:"external_address"`
+			ContentAuthorID *string `db:"content_author_id"`
+		}
+		result1, err := storage.Get[userResult](ctx, db,
+			"SELECT id, master_pubkey, username, external_address, content_author_id FROM users WHERE external_address = $1",
+			externalAddress)
+		require.NoError(t, err)
+
+		require.Equal(t, "john_doe", result1.Username)
+		require.Equal(t, xcomUserID, result1.MasterPubkey)
+		require.NotNil(t, result1.ExternalAddress, "external_address should be set")
+		require.Equal(t, externalAddress, *result1.ExternalAddress)
+		require.Nil(t, result1.ContentAuthorID, "content_author_id should be NULL (empty)")
+
+		err = ta.UpdateLoggedInUserProfile(
+			ctx,
+			externalAddress,
+			externalAddress,
+			"",
+			"",
+			"",
+			true,
+			bscWallet, // content_author_id = BSC wallet
+		)
+		require.NoError(t, err)
+
+		result2, err := storage.Get[userResult](ctx, db,
+			"SELECT id, master_pubkey, username, external_address, content_author_id FROM users WHERE external_address = $1",
+			externalAddress)
+		require.NoError(t, err)
+
+		require.Equal(t, xcomUserID, result2.MasterPubkey, "master_pubkey should remain X.com user ID (not changed)")
+		require.Equal(t, "john_doe", result2.Username, "username should be preserved")
+		require.NotNil(t, result2.ExternalAddress, "external_address should be preserved")
+		require.Equal(t, externalAddress, *result2.ExternalAddress, "external_address should be preserved")
+		require.NotNil(t, result2.ContentAuthorID, "content_author_id should be set")
+		require.Equal(t, bscWallet, *result2.ContentAuthorID, "content_author_id should be updated to BSC wallet")
+
+		type countResult struct {
+			Count int `db:"count"`
+		}
+		countRes, err := storage.Get[countResult](ctx, db, "SELECT COUNT(*) as count FROM users WHERE external_address = $1", externalAddress)
+		require.NoError(t, err)
+		require.Equal(t, 1, countRes.Count, "should have exactly 1 user")
+	})
+}
 
 func TestCalculatePnL(t *testing.T) {
 	t.Parallel()
