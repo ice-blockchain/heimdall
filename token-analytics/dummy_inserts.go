@@ -1776,7 +1776,7 @@ func (gen *dummyDataGenerator) createUserForPlatform(ctx context.Context, master
 		) VALUES (
 			NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
 		)
-		ON CONFLICT (content_author_id) DO NOTHING
+		ON CONFLICT (id) DO NOTHING
 	`, id, masterPubkey, "0x"+blockchainAddress, externalAddress, username, displayName, avatarURL, lookup, ionConnectRelays, verified, platformGroup)
 	if err != nil && !storage.IsErr(err, storage.ErrDuplicate) {
 		return "", "", fmt.Errorf("failed to insert user %v: %w", masterPubkey, err)

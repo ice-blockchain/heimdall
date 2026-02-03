@@ -272,11 +272,11 @@ func (t *tokenAnalyticsUsers) UpsertUser(ctx context.Context, id, masterPubkey, 
 		) VALUES (
 			NOW(), NOW(), $1, $2, $10, $9, $3, $4, $5, $6, $7, $8, 'ionconnect'::platform_type
 		)
-		ON CONFLICT (content_author_id) 
+		ON CONFLICT (id) 
 		DO UPDATE SET
 			updated_at = NOW(),
-			id = EXCLUDED.id,
 			master_pubkey = EXCLUDED.master_pubkey,
+			content_author_id = EXCLUDED.content_author_id,
 			external_address = EXCLUDED.external_address,
 			username = COALESCE(NULLIF(EXCLUDED.username, ''), users.username),
 			display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name),
@@ -293,6 +293,7 @@ func (t *tokenAnalyticsUsers) UpsertUser(ctx context.Context, id, masterPubkey, 
 
 	log.Error(fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err))
 	// TODO: return an error here later.
+
 	return nil
 
 }

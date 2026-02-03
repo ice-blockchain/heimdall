@@ -1292,8 +1292,9 @@ func helperInsertTestUser(t *testing.T, ctx context.Context, db *storage.DB, mas
 	query := `
 		INSERT INTO users (created_at, updated_at, id, master_pubkey, content_author_id, external_address, username, display_name, avatar, lookup, verified, platform_group)
 		VALUES (NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		ON CONFLICT (content_author_id) DO UPDATE SET
+		ON CONFLICT (id) DO UPDATE SET
 			master_pubkey = EXCLUDED.master_pubkey,
+			content_author_id = EXCLUDED.content_author_id,
 			external_address = EXCLUDED.external_address,
 			username = EXCLUDED.username,
 			display_name = EXCLUDED.display_name,

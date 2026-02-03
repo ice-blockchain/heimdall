@@ -13,6 +13,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/google/uuid"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/redis/go-redis/v9"
 
@@ -24,33 +25,43 @@ import (
 func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
 	masterPubkey, userExternalAddress, userUsername, userDisplayName, userAvatar string, userVerified bool,
 	userContentId string) error {
-
-	userQuery := `
-		INSERT INTO users (
-			created_at, updated_at, id, master_pubkey, content_author_id, 
-			external_address, username, display_name, avatar, verified, lookup, platform_group
+	uuid, _ := uuid.NewV7()
+	id := uuid.String()
+	mergeQuery := `
+		MERGE INTO users AS target
+		USING (
+			SELECT 
+				$1::TEXT AS id,
+				$2::TEXT AS master_pubkey,
+				NULLIF($3, '')::TEXT AS content_author_id,
+				$4::TEXT AS external_address,
+				$5::TEXT AS username,
+				$6::TEXT AS display_name,
+				$7::TEXT AS avatar,
+				$8::BOOLEAN AS verified
+		) AS source
+		ON (
+			target.content_author_id IS NULL
+			AND target.external_address = source.external_address
 		)
-		VALUES (
-			NOW(), NOW(), $1, $1, $2, $3, $4, $5, $6, $7, LOWER($4 || ' ' || COALESCE($5, '')), 'xcom'::platform_type
-		)
-		ON CONFLICT (content_author_id) 
-		DO UPDATE SET
-			master_pubkey = EXCLUDED.master_pubkey,
-			external_address = COALESCE(NULLIF(EXCLUDED.external_address, ''), users.external_address),
-			username = COALESCE(NULLIF(EXCLUDED.username, ''), users.username),
-			display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name),
-			avatar = COALESCE(NULLIF(EXCLUDED.avatar, ''), users.avatar),
-			verified = EXCLUDED.verified,
-			lookup = CASE
-				WHEN EXCLUDED.username != '' OR EXCLUDED.display_name != '' THEN
-					LOWER(TRIM(COALESCE(NULLIF(EXCLUDED.username, ''), users.username) || ' ' || COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name)))
-				ELSE users.lookup
-			END,
-			platform_group = EXCLUDED.platform_group,
-			updated_at = NOW()
+		WHEN MATCHED THEN
+			UPDATE SET
+				content_author_id = source.content_author_id,
+				updated_at = NOW()
+		WHEN NOT MATCHED THEN
+			INSERT (
+				created_at, updated_at, id, master_pubkey, content_author_id,
+				external_address, username, display_name, avatar, verified, lookup, platform_group
+			)
+			VALUES (
+				NOW(), NOW(), source.id, source.master_pubkey, source.content_author_id,
+				source.external_address, source.username, source.display_name, source.avatar, source.verified,
+				LOWER(source.username || ' ' || COALESCE(source.display_name, '')), 'xcom'::platform_type
+			)
 	`
 
-	_, err := storage.Exec(ctx, t.ingestedDataDB, userQuery,
+	_, err := storage.Exec(ctx, t.ingestedDataDB, mergeQuery,
+		id,
 		masterPubkey,
 		userContentId,
 		userExternalAddress,
@@ -63,6 +74,7 @@ func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
 		if storage.IsErr(err, storage.ErrDuplicate) {
 			return errors.Wrapf(ErrDuplicate, "failed to update logged-in user profile for master pubkey: %v", userExternalAddress)
 		}
+
 		return fmt.Errorf("failed to update logged-in user profile: %w", err)
 	}
 
@@ -79,6 +91,11 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	}
 	log.Debug(fmt.Sprintf("Created community token adaptor for %s: %s", tokenExternalAddress, ionConnectAddress))
 
+	userId := postAuthorExternalAddress
+	if userId == "" {
+		userId = userContentId
+	}
+
 	query := `
 		WITH post_author_update AS (
 			INSERT INTO users (
@@ -86,11 +103,12 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 				external_address, username, display_name, avatar, verified, lookup, platform_group
 			)
 			VALUES (
-				NOW(), NOW(), $1, $1, $2, $3, $4, $5, $6, $7, LOWER($4 || ' ' || COALESCE($5, '')), 'xcom'::platform_type
+				NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8, LOWER($5 || ' ' || COALESCE($6, '')), 'xcom'::platform_type
 			)
-			ON CONFLICT (content_author_id) 
+			ON CONFLICT (id) 
 			DO UPDATE SET
-				master_pubkey = EXCLUDED.master_pubkey,
+				master_pubkey = CASE WHEN EXCLUDED.master_pubkey != '' THEN EXCLUDED.master_pubkey ELSE users.master_pubkey END,
+				content_author_id = EXCLUDED.content_author_id,
 				external_address = COALESCE(NULLIF(EXCLUDED.external_address, ''), users.external_address),
 				username = COALESCE(NULLIF(EXCLUDED.username, ''), users.username),
 				display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name),
@@ -103,31 +121,41 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 				END,
 				platform_group = EXCLUDED.platform_group,
 				updated_at = NOW()
-			RETURNING 1
+			RETURNING content_author_id
 		)
-		UPDATE tokens
-		SET 
-			content_author_id = $2,
-			image_url = CASE WHEN $9 != '' THEN $9 ELSE image_url END,
-			ion_connect_address = $8,
-			updated_at = NOW()
-		FROM post_author_update
-		WHERE external_address = $10;
+		INSERT INTO tokens (
+			created_at, updated_at, contract_address, external_address, content_author_id,
+			image_url, ion_connect_address, platform, type, lookup
+		)
+		SELECT 
+			NOW(), NOW(), 
+			$11,
+			$11,
+			pau.content_author_id,
+			NULLIF($10, ''),
+			$9,
+			'xcom'::platform_type,
+			'post',
+			LOWER(TRIM(COALESCE($11, '') || ' ' || COALESCE($5, '') || ' ' || COALESCE($6, '')))
+		FROM post_author_update pau
+		ON CONFLICT (external_address) 
+		DO UPDATE SET
+			content_author_id = COALESCE(EXCLUDED.content_author_id, tokens.content_author_id),
+			image_url = CASE WHEN EXCLUDED.image_url IS NOT NULL THEN EXCLUDED.image_url ELSE tokens.image_url END,
+			ion_connect_address = COALESCE(EXCLUDED.ion_connect_address, tokens.ion_connect_address),
+			updated_at = NOW();
 	`
 
-	rows, err := storage.Exec(ctx, t.ingestedDataDB, query,
-		postAuthorExternalAddress, userContentId, postAuthorExternalAddress, postAuthorUsername,
-		postAuthorDisplayName, postAuthorAvatar, postAuthorVerified, ionConnectAddress, tokenImageUrl, tokenExternalAddress,
+	_, err = storage.Exec(ctx, t.ingestedDataDB, query,
+		userId, postAuthorExternalAddress, postAuthorExternalAddress, postAuthorExternalAddress,
+		postAuthorUsername, postAuthorDisplayName, postAuthorAvatar, postAuthorVerified,
+		ionConnectAddress, tokenImageUrl, tokenExternalAddress,
 	)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrDuplicate) {
 			return errors.Wrapf(ErrDuplicate, "failed to update token external data for: %v", postAuthorExternalAddress)
 		}
 		return fmt.Errorf("failed to update token external data: %w", err)
-	}
-
-	if rows == 0 {
-		return fmt.Errorf("%w: no token found with external address: %s", ErrTokenNotFound, tokenExternalAddress)
 	}
 
 	return nil
