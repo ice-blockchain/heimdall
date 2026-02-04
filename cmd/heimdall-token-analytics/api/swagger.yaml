@@ -51,6 +51,8 @@ definitions:
       bondingCurveAlgAddress:
         description: Pricing model
         type: string
+      creatorTokenParams:
+        $ref: '#/definitions/tokenanalytics.StartTokenParams'
       emissionVolume:
         type: string
       feeSponsorAddress:
@@ -294,6 +296,22 @@ definitions:
         type: number
       rank:
         type: integer
+    type: object
+  tokenanalytics.StartTokenParams:
+    properties:
+      bondingCurveAlgAddress:
+        description: Pricing model
+        type: string
+      emissionVolume:
+        type: string
+      finalPrice:
+        type: string
+      finalPriceUSD:
+        type: number
+      initialPrice:
+        type: string
+      initialPriceUSD:
+        type: number
     type: object
   tokenanalytics.TokenDetailsGenerationStatus:
     enum:

@@ -54,21 +54,16 @@ type (
 	}
 
 	BondingCurveProgress struct {
-		BondingCurveAlgAddress string  `json:"bondingCurveAlgAddress"` // Pricing model
-		FeeSponsorAddress      string  `json:"feeSponsorAddress"`
-		FeeSponsorId           string  `json:"feeSponsorId"`
-		CurrentAmount          string  `json:"currentAmount"`
-		GoalAmount             string  `json:"goalAmount"`
-		RaisedAmount           string  `json:"raisedAmount"`
-		CurrentAmountUSD       float64 `json:"currentAmountUSD"`
-		GoalAmountUSD          float64 `json:"goalAmountUSD"`
-		Migrated               bool    `json:"migrated"`
-		LiquidityUSD           float64 `json:"liquidityUSD"`
-		InitialPrice           string  `json:"initialPrice"`
-		InitialPriceUSD        float64 `json:"initialPriceUSD"`
-		FinalPrice             string  `json:"finalPrice"`
-		FinalPriceUSD          float64 `json:"finalPriceUSD"`
-		EmissionVolume         string  `json:"emissionVolume"`
+		FeeSponsorAddress string  `json:"feeSponsorAddress"`
+		FeeSponsorId      string  `json:"feeSponsorId"`
+		CurrentAmount     string  `json:"currentAmount"`
+		GoalAmount        string  `json:"goalAmount"`
+		RaisedAmount      string  `json:"raisedAmount"`
+		CurrentAmountUSD  float64 `json:"currentAmountUSD"`
+		GoalAmountUSD     float64 `json:"goalAmountUSD"`
+		Migrated          bool    `json:"migrated"`
+		LiquidityUSD      float64 `json:"liquidityUSD"`
+		*StartTokenParams
 	}
 
 	Position struct {

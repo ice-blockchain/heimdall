@@ -121,20 +121,22 @@ func (t *tokenAnalytics) toBondingCurveProgressToModel(ctx context.Context, prog
 		feeSponsorAddress = tokenStartParams.FeeSponsorAddress
 	}
 	return &BondingCurveProgress{
-		BondingCurveAlgAddress: priceModel,
-		FeeSponsorAddress:      feeSponsorAddress,
-		FeeSponsorId:           tokenStartParams.FeeSponsorId,
-		CurrentAmount:          progress.SoldTokens.String(),
-		GoalAmount:             progress.BondingTokensGoal.String(),
-		RaisedAmount:           progress.TokensRaised.String(),
-		CurrentAmountUSD:       currentRaisedUSD,
-		GoalAmountUSD:          goalUSD,
-		Migrated:               progress.Migrated,
-		LiquidityUSD:           liquidityUSD,
-		InitialPrice:           progress.StartPrice.String(),
-		InitialPriceUSD:        startPriceUSD,
-		FinalPrice:             progress.EndPrice.String(),
-		FinalPriceUSD:          endPriceUSD,
-		EmissionVolume:         totalSupply,
+		FeeSponsorAddress: feeSponsorAddress,
+		FeeSponsorId:      tokenStartParams.FeeSponsorId,
+		CurrentAmount:     progress.SoldTokens.String(),
+		GoalAmount:        progress.BondingTokensGoal.String(),
+		RaisedAmount:      progress.TokensRaised.String(),
+		CurrentAmountUSD:  currentRaisedUSD,
+		GoalAmountUSD:     goalUSD,
+		Migrated:          progress.Migrated,
+		LiquidityUSD:      liquidityUSD,
+		StartTokenParams: &StartTokenParams{
+			BondingCurveAlgAddress: priceModel,
+			InitialPrice:           progress.StartPrice.String(),
+			InitialPriceUSD:        startPriceUSD,
+			FinalPrice:             progress.EndPrice.String(),
+			FinalPriceUSD:          endPriceUSD,
+			EmissionVolume:         totalSupply,
+		},
 	}, nil
 }
