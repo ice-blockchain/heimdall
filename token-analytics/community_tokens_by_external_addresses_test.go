@@ -1353,7 +1353,7 @@ func helperInsertTestToken(t *testing.T, ctx context.Context, db *storage.DB,
 			title, description, image_url, price_model, start_price, end_price
 		)
 		VALUES (NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-		ON CONFLICT (contract_address) DO UPDATE SET
+		ON CONFLICT (external_address) DO UPDATE SET
 			external_address = EXCLUDED.external_address,
 			platform = EXCLUDED.platform,
 			ticker = EXCLUDED.ticker,

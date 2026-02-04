@@ -108,7 +108,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 			ON CONFLICT (id) 
 			DO UPDATE SET
 				master_pubkey = CASE WHEN EXCLUDED.master_pubkey != '' THEN EXCLUDED.master_pubkey ELSE users.master_pubkey END,
-				content_author_id = EXCLUDED.content_author_id,
+				content_author_id = COALESCE(NULLIF(EXCLUDED.content_author_id, ''), users.content_author_id),
 				external_address = COALESCE(NULLIF(EXCLUDED.external_address, ''), users.external_address),
 				username = COALESCE(NULLIF(EXCLUDED.username, ''), users.username),
 				display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name),
@@ -129,7 +129,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 		)
 		SELECT 
 			NOW(), NOW(), 
-			$11,
+			NULL,  -- contract_address = NULL for pending tokens
 			$11,
 			pau.content_author_id,
 			NULLIF($10, ''),
@@ -147,7 +147,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	`
 
 	_, err = storage.Exec(ctx, t.ingestedDataDB, query,
-		userId, postAuthorExternalAddress, postAuthorExternalAddress, postAuthorExternalAddress,
+		userId, postAuthorExternalAddress, userContentId, postAuthorExternalAddress,
 		postAuthorUsername, postAuthorDisplayName, postAuthorAvatar, postAuthorVerified,
 		ionConnectAddress, tokenImageUrl, tokenExternalAddress,
 	)
