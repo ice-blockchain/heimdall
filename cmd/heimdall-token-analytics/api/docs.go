@@ -1824,6 +1824,9 @@ const docTemplate = `{
                     "description": "Pricing model",
                     "type": "string"
                 },
+                "creatorTokenParams": {
+                    "$ref": "#/definitions/tokenanalytics.StartTokenParams"
+                },
                 "emissionVolume": {
                     "type": "string"
                 },
@@ -2187,6 +2190,30 @@ const docTemplate = `{
                 },
                 "rank": {
                     "type": "integer"
+                }
+            }
+        },
+        "tokenanalytics.StartTokenParams": {
+            "type": "object",
+            "properties": {
+                "bondingCurveAlgAddress": {
+                    "description": "Pricing model",
+                    "type": "string"
+                },
+                "emissionVolume": {
+                    "type": "string"
+                },
+                "finalPrice": {
+                    "type": "string"
+                },
+                "finalPriceUSD": {
+                    "type": "number"
+                },
+                "initialPrice": {
+                    "type": "string"
+                },
+                "initialPriceUSD": {
+                    "type": "number"
                 }
             }
         },

@@ -108,19 +108,15 @@ type (
 		Amount          *big.Int `form:"amount" swaggerignore:"true" example:"100000000"`
 	}
 	PriceResponse struct {
-		BondingCurveAlgAddress string  `json:"bondingCurveAlgAddress"` // Pricing model
-		FeeSponsorAddress      string  `json:"feeSponsorAddress"`
-		FeeSponsorId           string  `json:"feeSponsorId"`
-		Amount                 string  `json:"amount"`
-		AmountBNB              string  `json:"amountBNB"`
-		AmountUSD              float64 `json:"amountUSD"`
-		IONPriceUSD            float64 `json:"usdPriceION"`
-		BNBPriceUSD            float64 `json:"usdPriceBNB"`
-		InitialPrice           string  `json:"initialPrice"`
-		InitialPriceUSD        float64 `json:"initialPriceUSD"`
-		FinalPrice             string  `json:"finalPrice"`
-		FinalPriceUSD          float64 `json:"finalPriceUSD"`
-		EmissionVolume         string  `json:"emissionVolume"`
+		FeeSponsorAddress string  `json:"feeSponsorAddress"`
+		FeeSponsorId      string  `json:"feeSponsorId"`
+		Amount            string  `json:"amount"`
+		AmountBNB         string  `json:"amountBNB"`
+		AmountUSD         float64 `json:"amountUSD"`
+		IONPriceUSD       float64 `json:"usdPriceION"`
+		BNBPriceUSD       float64 `json:"usdPriceBNB"`
+		*ta.StartTokenParams
+		CreatorTokenParams *ta.StartTokenParams `json:"creatorTokenParams,omitempty"`
 	}
 )
 
@@ -414,22 +410,22 @@ func (s *service) GetCommunityTokenPricing(ctx context.Context, req *server.Requ
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pricing for token %v: %w", req.Data.ExternalAddress, err)
 	}
-
-	return server.OK(&PriceResponse{
-		BondingCurveAlgAddress: pricing.BondingCurveAlgAddress,
-		FeeSponsorAddress:      pricing.FeeSponsorAddress,
-		FeeSponsorId:           pricing.FeeSponsorId,
-		Amount:                 pricing.AmountInBase.String(),
-		AmountBNB:              pricing.AmountInBNB.String(),
-		AmountUSD:              pricing.AmountInUSD,
-		IONPriceUSD:            pricing.IonPriceInUSD,
-		BNBPriceUSD:            pricing.BNBPriceInUSD,
-		InitialPrice:           pricing.InitialPrice,
-		InitialPriceUSD:        pricing.InitialPriceUSD,
-		FinalPrice:             pricing.FinalPrice,
-		FinalPriceUSD:          pricing.FinalPriceUSD,
-		EmissionVolume:         pricing.EmissionVolume,
-	}), nil
+	r := &PriceResponse{
+		FeeSponsorAddress:  pricing.FeeSponsorAddress,
+		FeeSponsorId:       pricing.FeeSponsorId,
+		Amount:             pricing.AmountInBase.String(),
+		AmountBNB:          pricing.AmountInBNB.String(),
+		AmountUSD:          pricing.AmountInUSD,
+		IONPriceUSD:        pricing.IonPriceInUSD,
+		BNBPriceUSD:        pricing.BNBPriceInUSD,
+		CreatorTokenParams: pricing.CreatorTokenParams,
+		StartTokenParams:   pricing.ContentTokenParams,
+	}
+	if r.StartTokenParams == nil {
+		r.StartTokenParams = pricing.CreatorTokenParams
+		r.CreatorTokenParams = nil
+	}
+	return server.OK(r), nil
 }
 
 // GetCommunityTokensOHLCV godoc

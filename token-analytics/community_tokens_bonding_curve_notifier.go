@@ -178,21 +178,23 @@ func (t *tokenAnalytics) handleBondingCurveUpdate(ctx context.Context, payload s
 		return errors.Wrapf(err, "failed to handle base token for end price usd calculation %v", update.BaseToken)
 	}
 	bondingProgress := &BondingCurveProgress{
-		BondingCurveAlgAddress: update.PriceModel,
-		FeeSponsorAddress:      feeSponsor,
-		FeeSponsorId:           startTokenParam.FeeSponsorId,
-		CurrentAmount:          update.BondingCurveCurrentAmount,
-		GoalAmount:             update.BondingCurveGoalAmount,
-		RaisedAmount:           update.BondingCurveRaisedAmount,
-		CurrentAmountUSD:       update.BondingCurveCurrentAmountUSD,
-		GoalAmountUSD:          update.BondingCurveGoalAmountUSD,
-		Migrated:               update.BondingCurveMigrated,
-		LiquidityUSD:           update.LiquidityUSD,
-		InitialPrice:           update.StartPrice,
-		InitialPriceUSD:        startPriceUSD,
-		FinalPrice:             update.EndPrice,
-		FinalPriceUSD:          endPriceUSD,
-		EmissionVolume:         update.TotalSupply,
+		FeeSponsorAddress: feeSponsor,
+		FeeSponsorId:      startTokenParam.FeeSponsorId,
+		CurrentAmount:     update.BondingCurveCurrentAmount,
+		GoalAmount:        update.BondingCurveGoalAmount,
+		RaisedAmount:      update.BondingCurveRaisedAmount,
+		CurrentAmountUSD:  update.BondingCurveCurrentAmountUSD,
+		GoalAmountUSD:     update.BondingCurveGoalAmountUSD,
+		Migrated:          update.BondingCurveMigrated,
+		LiquidityUSD:      update.LiquidityUSD,
+		StartTokenParams: &StartTokenParams{
+			BondingCurveAlgAddress: update.PriceModel,
+			InitialPrice:           update.StartPrice,
+			InitialPriceUSD:        startPriceUSD,
+			FinalPrice:             update.EndPrice,
+			FinalPriceUSD:          endPriceUSD,
+			EmissionVolume:         update.TotalSupply,
+		},
 	}
 	t.subscriptions.NotifyBondingCurveProgress(update.ExternalAddress, bondingProgress)
 

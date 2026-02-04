@@ -85,20 +85,26 @@ type (
 		GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount *big.Int) (pricing *Pricing, err error)
 	}
 	Pricing struct {
-		AmountInBase           *big.Int
-		AmountInBNB            *big.Int
-		BondingCurveAlgAddress string // Pricing model
-		FeeSponsorAddress      string
-		FeeSponsorId           string
-		AmountInUSD            float64
-		IonPriceInUSD          float64
-		BNBPriceInUSD          float64
-		InitialPrice           string
-		InitialPriceUSD        float64
-		FinalPrice             string
-		FinalPriceUSD          float64
-		EmissionVolume         string
+		AmountInBase       *big.Int
+		AmountInBNB        *big.Int
+		FeeSponsorAddress  string
+		FeeSponsorId       string
+		AmountInUSD        float64
+		IonPriceInUSD      float64
+		BNBPriceInUSD      float64
+		ContentTokenParams *StartTokenParams
+		CreatorTokenParams *StartTokenParams
 	}
+
+	StartTokenParams struct {
+		BondingCurveAlgAddress string  `json:"bondingCurveAlgAddress"` // Pricing model
+		InitialPrice           string  `json:"initialPrice"`
+		InitialPriceUSD        float64 `json:"initialPriceUSD"`
+		FinalPrice             string  `json:"finalPrice"`
+		FinalPriceUSD          float64 `json:"finalPriceUSD"`
+		EmissionVolume         string  `json:"emissionVolume"`
+	}
+
 	SavePoint struct {
 		TransactionIndex uint64 `db:"transaction_index"`
 		BlockNumber      uint64 `db:"block_number"`
@@ -501,5 +507,15 @@ type (
 	}
 	fee struct {
 		Amount float64 `db:"amount"`
+	}
+	fatAddressToken struct {
+		Name            string
+		Symbol          string
+		ExternalAddress string
+		Type            string
+		PricingModel    string
+		TotalSupply     *big.Int
+		StartPrice      *big.Int
+		EndPrice        *big.Int
 	}
 )

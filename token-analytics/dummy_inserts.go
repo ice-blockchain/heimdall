@@ -1323,15 +1323,14 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 	return nil
 }
 
-func buildFatAddressV2Single(name, symbol, externalAddress string, externalType byte, creatorAddr, affiliateAddr common.Address) []byte {
-	nameBytes := []byte(name)
-	symbolBytes := []byte(symbol)
-	extAddrBytes := []byte(externalAddress)
+// buildFatAddressV2 — общий энкодер для 1-2 записей.
+// Флаги — inline (0x01/0x02/0x04), порядок и размеры как в спецификации v2.
+func buildFatAddressV2(tokens []*fatAddressToken, creatorAddr, affiliateAddr common.Address) ([]byte, error) {
+	if len(tokens) == 0 {
+		return nil, errors.New("FatAddress v2 of zero length")
+	}
 
-	// Global Header (4 bytes)
-	globalHeader := make([]byte, 4)
-	globalHeader[0] = 2 // version
-	globalHeader[1] = 1 // recordsCount
+	// --- Global Header (4 bytes): [version][recordsCount][presenceMask uint16 BE]
 	presenceMask := uint16(0)
 	if creatorAddr != (common.Address{}) {
 		presenceMask |= 0x01
@@ -1339,31 +1338,79 @@ func buildFatAddressV2Single(name, symbol, externalAddress string, externalType 
 	if affiliateAddr != (common.Address{}) {
 		presenceMask |= 0x02
 	}
-	globalHeader[2] = byte(presenceMask >> 8)
-	globalHeader[3] = byte(presenceMask)
 
-	// Token Header (8 bytes)
-	tokenHeader := make([]byte, 8)
-	tokenHeader[0] = byte(len(nameBytes))
-	tokenHeader[1] = byte(len(symbolBytes))
-	tokenHeader[2] = byte(len(extAddrBytes))
-	tokenHeader[3] = externalType
-	tokenMask := uint32(0) // no bonding params
-	tokenHeader[4] = byte(tokenMask >> 24)
-	tokenHeader[5] = byte(tokenMask >> 16)
-	tokenHeader[6] = byte(tokenMask >> 8)
-	tokenHeader[7] = byte(tokenMask)
+	result := make([]byte, 0, 256)
+	result = append(result,
+		2, // version
+		byte(len(tokens)),
+		byte(presenceMask>>8),
+		byte(presenceMask),
+	)
 
-	// Bonding Address (20 bytes, mandatory even if zeroed)
-	bondingAddr := make([]byte, 20)
+	// --- Per-token records ---
+	for _, t := range tokens {
+		nameBytes := []byte(t.Name)
+		symbolBytes := []byte(t.Symbol)
+		extAddrBytes := []byte(t.ExternalAddress)
 
-	result := append(globalHeader, tokenHeader...)
-	result = append(result, bondingAddr...)
-	result = append(result, nameBytes...)
-	result = append(result, symbolBytes...)
-	result = append(result, extAddrBytes...)
+		if len(nameBytes) > 255 || len(symbolBytes) > 255 || len(extAddrBytes) > 255 {
+			return nil, errors.New("name/symbol/externalAddress length must fit in uint8")
+		}
 
-	// Global addresses
+		tokenMask := uint32(0)
+
+		if t.StartPrice != nil && t.EndPrice != nil {
+			tokenMask |= 0x02
+		}
+		if t.TotalSupply != nil {
+			tokenMask |= 0x04
+		}
+
+		// Token Header (8 bytes): [nameLen][symLen][extAddrLen][extType][tokenMask uint32 BE]
+		result = append(result,
+			byte(len(nameBytes)),
+			byte(len(symbolBytes)),
+			byte(len(extAddrBytes)),
+			byte(t.Type[0]),
+			byte(tokenMask>>24),
+			byte(tokenMask>>16),
+			byte(tokenMask>>8),
+			byte(tokenMask),
+		)
+
+		// Bonding Address (20 bytes, mandatory even if zeroed)
+		result = append(result, common.HexToAddress(t.PricingModel).Bytes()...)
+
+		// Optional prices: 2 * uint256 (64 bytes)
+		if tokenMask&0x02 != 0 {
+			begin32, err := uint256ToBytes32(t.StartPrice)
+			if err != nil {
+				return nil, err
+			}
+			end32, err := uint256ToBytes32(t.EndPrice)
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, begin32...)
+			result = append(result, end32...)
+		}
+
+		// Optional supply: 1 * uint256 (32 bytes)
+		if tokenMask&0x04 != 0 {
+			supply32, err := uint256ToBytes32(t.TotalSupply)
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, supply32...)
+		}
+
+		// Variable strings
+		result = append(result, nameBytes...)
+		result = append(result, symbolBytes...)
+		result = append(result, extAddrBytes...)
+	}
+
+	// --- Global addresses (at the end) ---
 	if presenceMask&0x01 != 0 {
 		result = append(result, creatorAddr.Bytes()...)
 	}
@@ -1371,7 +1418,38 @@ func buildFatAddressV2Single(name, symbol, externalAddress string, externalType 
 		result = append(result, affiliateAddr.Bytes()...)
 	}
 
-	return result
+	return result, nil
+}
+
+func uint256ToBytes32(v *big.Int) ([]byte, error) {
+	if v == nil {
+		return nil, errors.New("uint256 value is nil")
+	}
+	if v.Sign() < 0 {
+		return nil, errors.New("uint256 must be non-negative")
+	}
+	if v.BitLen() > 256 {
+		return nil, errors.New("uint256 overflows 256 bits")
+	}
+	out := make([]byte, 32)
+	be := v.Bytes()
+	copy(out[32-len(be):], be)
+	return out, nil
+}
+
+func buildFatAddressV2Single(name, symbol, externalAddress string, externalType byte, creatorAddr, affiliateAddr common.Address) []byte {
+	b, err := buildFatAddressV2([]*fatAddressToken{
+		{
+			Name:            name,
+			Symbol:          symbol,
+			ExternalAddress: externalAddress,
+			Type:            string([]byte{externalType}),
+		},
+	}, creatorAddr, affiliateAddr)
+	if err != nil {
+		panic(err)
+	}
+	return b
 }
 
 func buildFatAddressV2Double(
@@ -1379,77 +1457,24 @@ func buildFatAddressV2Double(
 	name2, symbol2, externalAddress2 string, externalType2 byte,
 	creatorAddr, affiliateAddr common.Address,
 ) []byte {
-	nameBytes1 := []byte(name1)
-	symbolBytes1 := []byte(symbol1)
-	extAddrBytes1 := []byte(externalAddress1)
-
-	nameBytes2 := []byte(name2)
-	symbolBytes2 := []byte(symbol2)
-	extAddrBytes2 := []byte(externalAddress2)
-
-	// Global Header (4 bytes)
-	globalHeader := make([]byte, 4)
-	globalHeader[0] = 2 // version
-	globalHeader[1] = 2 // recordsCount = 2 for double swap
-	presenceMask := uint16(0)
-	if creatorAddr != (common.Address{}) {
-		presenceMask |= 0x01
+	b, err := buildFatAddressV2([]*fatAddressToken{
+		{
+			Name:            name1,
+			Symbol:          symbol1,
+			ExternalAddress: externalAddress1,
+			Type:            string([]byte{externalType1}),
+		},
+		{
+			Name:            name2,
+			Symbol:          symbol2,
+			ExternalAddress: externalAddress2,
+			Type:            string([]byte{externalType2}),
+		},
+	}, creatorAddr, affiliateAddr)
+	if err != nil {
+		panic(err)
 	}
-	if affiliateAddr != (common.Address{}) {
-		presenceMask |= 0x02
-	}
-	globalHeader[2] = byte(presenceMask >> 8)
-	globalHeader[3] = byte(presenceMask)
-
-	// First Token Header (8 bytes)
-	tokenHeader1 := make([]byte, 8)
-	tokenHeader1[0] = byte(len(nameBytes1))
-	tokenHeader1[1] = byte(len(symbolBytes1))
-	tokenHeader1[2] = byte(len(extAddrBytes1))
-	tokenHeader1[3] = externalType1
-	tokenMask1 := uint32(0) // no bonding params
-	tokenHeader1[4] = byte(tokenMask1 >> 24)
-	tokenHeader1[5] = byte(tokenMask1 >> 16)
-	tokenHeader1[6] = byte(tokenMask1 >> 8)
-	tokenHeader1[7] = byte(tokenMask1)
-
-	bondingAddr1 := make([]byte, 20)
-
-	// Second Token Header (8 bytes)
-	tokenHeader2 := make([]byte, 8)
-	tokenHeader2[0] = byte(len(nameBytes2))
-	tokenHeader2[1] = byte(len(symbolBytes2))
-	tokenHeader2[2] = byte(len(extAddrBytes2))
-	tokenHeader2[3] = externalType2
-	tokenMask2 := uint32(0)
-	tokenHeader2[4] = byte(tokenMask2 >> 24)
-	tokenHeader2[5] = byte(tokenMask2 >> 16)
-	tokenHeader2[6] = byte(tokenMask2 >> 8)
-	tokenHeader2[7] = byte(tokenMask2)
-
-	bondingAddr2 := make([]byte, 20)
-
-	result := append(globalHeader, tokenHeader1...)
-	result = append(result, bondingAddr1...)
-	result = append(result, nameBytes1...)
-	result = append(result, symbolBytes1...)
-	result = append(result, extAddrBytes1...)
-
-	result = append(result, tokenHeader2...)
-	result = append(result, bondingAddr2...)
-	result = append(result, nameBytes2...)
-	result = append(result, symbolBytes2...)
-	result = append(result, extAddrBytes2...)
-
-	// Global addresses (at the end, after BOTH token records)
-	if presenceMask&0x01 != 0 {
-		result = append(result, creatorAddr.Bytes()...)
-	}
-	if presenceMask&0x02 != 0 {
-		result = append(result, affiliateAddr.Bytes()...)
-	}
-
-	return result
+	return b
 }
 
 func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string, seedData *tokenRow, platformGroup string, externalType uint8) error {
