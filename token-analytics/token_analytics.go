@@ -313,10 +313,10 @@ func (t *tokenAnalyticsUsers) SetVerified(ctx context.Context, masterPubkey stri
 	return nil
 }
 
-func (t *tokenAnalyticsUsers) UpdateUserProfileAndToken(ctx context.Context, masterPubkey, username, displayName, avatar string) error {
+func (t *tokenAnalyticsUsers) UpdateUserProfileAndToken(ctx context.Context, masterPubkey, username, displayName, avatar string) (coins.TokenAnalyticsToken, error) {
 	profileExternalAddr := BuildProfileExternalAddress(masterPubkey)
 
-	_, err := storage.Exec(ctx, t.ingestedDataDB, `
+	res, err := storage.ExecOne[tokenAndUserInfo](ctx, t.ingestedDataDB, `
 		WITH user_update AS (
 			UPDATE users
 			SET 
@@ -341,15 +341,19 @@ func (t *tokenAnalyticsUsers) UpdateUserProfileAndToken(ctx context.Context, mas
 			updated_at = NOW()
 		FROM user_update
 		WHERE tokens.external_address = $5 
-			AND tokens.type = 'profile'
+			AND tokens.type = 'profile
+		RETURNING 
+			tokens.external_address, tokens.contract_address, tokens.image_url, tokens.title, tokens.platform, tokens.ticker, tokens."type", tokens.price_usd'
 	`, masterPubkey, username, displayName, avatar, profileExternalAddr)
 
 	if err != nil {
 		log.Error(fmt.Errorf("failed to update user profile and token: %w", err))
 	}
-
+	if res == nil {
+		err = errors.Wrapf(storage.ErrNotFound, "token %v was not updated", profileExternalAddr)
+	}
 	// TODO: return an error here later.
-	return nil
+	return res, nil
 }
 
 func (t *tokenAnalyticsUsers) GetUser(ctx context.Context, masterPubkey string) (*UserRecord, error) {
@@ -848,8 +852,8 @@ func (dummyUserRepository) GetTokenUpdates(ctx context.Context, contractAddress 
 	return nil, nil
 }
 
-func (dummyUserRepository) UpdateUserProfileAndToken(ctx context.Context, masterPubkey, username, displayName, avatar string) error {
-	return nil
+func (dummyUserRepository) UpdateUserProfileAndToken(ctx context.Context, masterPubkey, username, displayName, avatar string) (coins.TokenAnalyticsToken, error) {
+	return nil, nil
 }
 
 func randInt(n int) int {

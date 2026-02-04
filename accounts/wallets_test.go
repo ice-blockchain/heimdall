@@ -220,6 +220,10 @@ func (m *mockWalletClient) ListNFTs(ctx context.Context, walletID string) (*dfns
 	}, nil
 }
 
+func (m *mockWalletClient) ImportTokenizedCommunitiesCoin(ctx context.Context, coin coins.TokenAnalyticsToken) (*coins.Coin, error) {
+	return nil, nil
+}
+
 func (m *mockWalletClient) SecurePaymentConfirmation(ctx context.Context, userID, network string, wallet dfns.Wallet, body map[string]string) (tmplData any, err error) {
 	panic("TODO")
 }
