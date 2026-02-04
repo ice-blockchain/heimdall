@@ -4,10 +4,10 @@ package accounts
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/cockroachdb/errors"
 	"github.com/nbd-wtf/go-nostr"
 
 	"github.com/ice-blockchain/subzero/model"
@@ -225,7 +225,37 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 		return nil, fmt.Errorf("%w: failed to generate username proof events", proofErr)
 	}
 	var result error
+	rollbackSocialProfileUpdate := func(syncErr error) {
+		result = errors.Join(result, fmt.Errorf("%w: failed to sync user profile and token to token-analytics", syncErr))
+		oldUsername := ""
+		if profile.OldUsername != nil {
+			oldUsername = *profile.OldUsername
+		}
+		oldDisplayName := ""
+		if profile.OldDisplayName != nil {
+			oldDisplayName = *profile.OldDisplayName
+		}
+		lookup := strings.ToLower(strings.TrimSpace(oldUsername + " " + oldDisplayName))
 
+		if profile.OldCreatedAt != nil {
+			rollbackQuery := `UPDATE social_profiles 
+						SET created_at = $1, updated_at = $2, username = $3, display_name = $4, 
+							referral_master_pubkey = $5, bio = $6, avatar = $7, referral_count = $8,
+							lookup = $9
+						WHERE master_pubkey = $10`
+			if _, rbErr := storage.Exec(ctx, a.db, rollbackQuery,
+				profile.OldCreatedAt, profile.OldUpdatedAt, profile.OldUsername, profile.OldDisplayName,
+				profile.OldReferralMasterKey, profile.Bio, profile.OldAvatar,
+				profile.OldReferralCount, lookup, profile.MasterPubkey); rbErr != nil {
+				result = errors.Join(result, fmt.Errorf("%w: failed to rollback social profile", rbErr))
+			}
+		} else {
+			rollbackQuery := `DELETE FROM social_profiles WHERE master_pubkey = $1`
+			if _, rbErr := storage.Exec(ctx, a.db, rollbackQuery, profile.MasterPubkey); rbErr != nil {
+				result = errors.Join(result, fmt.Errorf("%w: failed to rollback social profile", rbErr))
+			}
+		}
+	}
 	isFirstRegistration := profile.OldCreatedAt == nil
 	if !isFirstRegistration {
 		usernameChanged := profile.OldUsername != nil && *profile.OldUsername != profile.Username
@@ -242,40 +272,18 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 			if profile.Avatar != nil {
 				avatarStr = *profile.Avatar
 			}
-			if syncErr := a.tokenAnalyticsRepo.UpdateUserProfileAndToken(
+			if tcToken, syncErr := a.tokenAnalyticsRepo.UpdateUserProfileAndToken(
 				ctx,
 				profile.MasterPubkey,
 				profile.Username,
 				profile.DisplayName,
 				avatarStr,
 			); syncErr != nil {
-				result = errors.Join(result, fmt.Errorf("%w: failed to sync user profile and token to token-analytics", syncErr))
-				oldUsername := ""
-				if profile.OldUsername != nil {
-					oldUsername = *profile.OldUsername
-				}
-				oldDisplayName := ""
-				if profile.OldDisplayName != nil {
-					oldDisplayName = *profile.OldDisplayName
-				}
-				lookup := strings.ToLower(strings.TrimSpace(oldUsername + " " + oldDisplayName))
-
-				if profile.OldCreatedAt != nil {
-					rollbackQuery := `UPDATE social_profiles 
-						SET created_at = $1, updated_at = $2, username = $3, display_name = $4, 
-							referral_master_pubkey = $5, bio = $6, avatar = $7, referral_count = $8,
-							lookup = $9
-						WHERE master_pubkey = $10`
-					if _, rbErr := storage.Exec(ctx, a.db, rollbackQuery,
-						profile.OldCreatedAt, profile.OldUpdatedAt, profile.OldUsername, profile.OldDisplayName,
-						profile.OldReferralMasterKey, profile.Bio, profile.OldAvatar,
-						profile.OldReferralCount, lookup, profile.MasterPubkey); rbErr != nil {
-						result = errors.Join(result, fmt.Errorf("%w: failed to rollback social profile", rbErr))
-					}
-				} else {
-					rollbackQuery := `DELETE FROM social_profiles WHERE master_pubkey = $1`
-					if _, rbErr := storage.Exec(ctx, a.db, rollbackQuery, profile.MasterPubkey); rbErr != nil {
-						result = errors.Join(result, fmt.Errorf("%w: failed to rollback social profile", rbErr))
+				rollbackSocialProfileUpdate(errors.Wrap(syncErr, "failed to sync user profile and token to token-analytics"))
+			} else {
+				if tcToken != nil {
+					if _, cErr := a.coinsRepo.ImportTokenizedCommunitiesCoin(ctx, tcToken); cErr != nil {
+						rollbackSocialProfileUpdate(errors.Wrap(cErr, "failed to update tokenized communities coin"))
 					}
 				}
 			}
@@ -295,6 +303,8 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 		ReferralCount:     profile.ReferralCount,
 	}, nil
 }
+
+func (a *accounts) rollbackSocialProfileUpdate(ctx context.Context) {}
 
 func (a *accounts) GetSocialProfile(ctx context.Context, userIDOrMasterKey string) (*SocialProfile, error) {
 	dbUsr, err := a.getUserByID(ctx, userIDOrMasterKey)

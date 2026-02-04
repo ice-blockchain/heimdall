@@ -96,6 +96,7 @@ type (
 		GetNativeCoinForNetwork(ctx context.Context, network string) (*coins.Coin, error)
 		GetFees(network string) *coins.Fee
 		ImportNFTs(ctx context.Context, network string, nft []coins.WalletNFT) ([]*NFT, error)
+		ImportTokenizedCommunitiesCoin(ctx context.Context, coin coins.TokenAnalyticsToken) (*coins.Coin, error)
 	}
 	Relays interface {
 		IONConnectRelaysForUser(ctx context.Context, userId string) ([]*UserAssignedRelay, error)
@@ -103,7 +104,7 @@ type (
 	TokenAnalyticsUserRepository interface {
 		UpsertUser(ctx context.Context, id, masterPubkey, blockchainAddress, username, displayName, avatar string, verified *bool, ionConnectRelays []string) error
 		SetVerified(ctx context.Context, masterPubkey string) error
-		UpdateUserProfileAndToken(ctx context.Context, masterPubkey, username, displayName, avatar string) error
+		UpdateUserProfileAndToken(ctx context.Context, masterPubkey, username, displayName, avatar string) (coins.TokenAnalyticsToken, error)
 	}
 	TwoFAOptionEnum     string
 	TwoFAOptionWithAddr struct {
