@@ -31,14 +31,15 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 	tokenType := TokenTypeProfile
 
 	helperInsertTestUser(t, ctx, db, "test_creator", "creator", "Creator", "", true, PlatformGroupIonConnect)
-	totalSupply := "1000000000000000000000" // 1000 tokens * 1e18
+	totalSupply, _ := big.NewInt(0).SetString("1000000000000000000000", 10) // 1000 tokens * 1e18
+	burned, _ := big.NewInt(0).SetString("10000000000000000000", 10)        // 10 token * 1e18
 	helperInsertTestToken(t, ctx, db,
 		contractAddress,
 		tokenExternalAddress,
 		"TEST",
 		tokenType,
 		"test_creator",
-		totalSupply,
+		totalSupply.String(),
 		0,
 		0,
 		0,
@@ -70,8 +71,8 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		err := ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx, contractAddress, direction,
-			inputAmount, outputAmount, priceUSD,
-			tokenExternalAddress, userExternalAddress, tokenType, totalSupply,
+			inputAmount, outputAmount, totalSupply, burned, priceUSD,
+			tokenExternalAddress, userExternalAddress, tokenType,
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
@@ -81,8 +82,8 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
 
-		// = 0.10 * (1000 * 1e18 / 1e18) = 0.10 * 1000 = 100.0
-		expectedMarketCap := 100.0
+		// = 0.10 * ((1000 - 10) * 1e18 / 1e18) = 0.10 * 1000 = 100.0
+		expectedMarketCap := 99.0
 
 		score, err := testRedis.ZScore(ctx, globalTopSetKey, tokenExternalAddress).Result()
 		require.NoError(t, err)
@@ -119,8 +120,8 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		err := ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx, contractAddress, direction,
-			inputAmount, outputAmount, priceUSD,
-			tokenExternalAddress, userExternalAddress, tokenType, totalSupply,
+			inputAmount, outputAmount, totalSupply, burned, priceUSD,
+			tokenExternalAddress, userExternalAddress, tokenType,
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
@@ -131,7 +132,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
 
 		score1, _ := testRedis.ZScore(ctx, globalTopSetKey, tokenExternalAddress).Result()
-		require.InDelta(t, 100.0, score1, 0.001)
+		require.InDelta(t, 99.0, score1, 0.001)
 
 		// Second swap: price $0.20
 		tx2 := &txEvent{
@@ -143,8 +144,8 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		err = ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx2, contractAddress, direction,
-			inputAmount, outputAmount, priceUSD2,
-			tokenExternalAddress, userExternalAddress, tokenType, totalSupply,
+			inputAmount, outputAmount, totalSupply, burned, priceUSD2,
+			tokenExternalAddress, userExternalAddress, tokenType,
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
@@ -156,7 +157,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		score2, err := testRedis.ZScore(ctx, globalTopSetKey, tokenExternalAddress).Result()
 		require.NoError(t, err)
-		require.InDelta(t, 200.0, score2, 0.001, "Market cap should double when price doubles")
+		require.InDelta(t, 198.0, score2, 0.001, "Market cap should double when price doubles")
 	})
 
 	t.Run("handles_sell_correctly", func(t *testing.T) {
@@ -178,8 +179,8 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		err := ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx1, contractAddress, false,
-			buyInput, buyOutput, priceUSD,
-			tokenExternalAddress, userExternalAddress, tokenType, totalSupply,
+			buyInput, buyOutput, totalSupply, burned, priceUSD,
+			tokenExternalAddress, userExternalAddress, tokenType,
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
@@ -211,8 +212,8 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		err = ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx2, contractAddress, true, // direction = true (sell)
-			sellInput, sellOutput, newPriceUSD,
-			tokenExternalAddress, userExternalAddress, tokenType, totalSupply,
+			sellInput, sellOutput, totalSupply, burned, newPriceUSD,
+			tokenExternalAddress, userExternalAddress, tokenType,
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
@@ -228,7 +229,8 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		marketCapScore, err := testRedis.ZScore(ctx, globalTopSetKey, tokenExternalAddress).Result()
 		require.NoError(t, err)
-		require.InDelta(t, 50.0, marketCapScore, 0.001, "Market cap should decrease after sell due to lower price")
+		// 0.5 * (1000 - 10) * 1e18 / 1e18
+		require.InDelta(t, 49.5, marketCapScore, 0.001, "Market cap should decrease after sell due to lower price")
 	})
 
 	t.Run("removes_user_position_when_sold_all", func(t *testing.T) {
@@ -244,8 +246,8 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		err := ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx1, contractAddress, false,
-			buyInput, buyOutput, 0.10,
-			tokenExternalAddress, userExternalAddress, tokenType, totalSupply,
+			buyInput, buyOutput, totalSupply, burned, 0.10,
+			tokenExternalAddress, userExternalAddress, tokenType,
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
@@ -265,8 +267,8 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		err = ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx2, contractAddress, true,
-			sellInput, sellOutput, 0.10,
-			tokenExternalAddress, userExternalAddress, tokenType, totalSupply,
+			sellInput, sellOutput, totalSupply, burned, 0.10,
+			tokenExternalAddress, userExternalAddress, tokenType,
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
