@@ -2175,6 +2175,9 @@ const docTemplate = `{
                 "low": {
                     "type": "number"
                 },
+                "market_cap": {
+                    "type": "number"
+                },
                 "open": {
                     "type": "number"
                 },
