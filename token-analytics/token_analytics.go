@@ -372,6 +372,10 @@ func (t *tokenAnalyticsUsers) GetUser(ctx context.Context, masterPubkey string) 
 }
 
 func (t *tokenAnalytics) MustStart(ctx context.Context) {
+	if err := t.RepopulateRedisFromPostgres(ctx); err != nil {
+		log.Panic(errors.Wrap(err, "failed to repopulate Redis on startup"))
+	}
+
 	for workerIdx := range t.cfg.Workers {
 		t.wg.Go(func() {
 			t.runEventsProcessor(ctx, workerIdx)
@@ -380,6 +384,7 @@ func (t *tokenAnalytics) MustStart(ctx context.Context) {
 
 	go t.runMaterializedViewRefreshWorker(ctx)
 	go t.runVolumeWorker(ctx)
+	go t.runPeriodicRepopulationWorker(ctx)
 }
 
 func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint) {
@@ -858,4 +863,24 @@ func (dummyUserRepository) UpdateUserProfileAndToken(ctx context.Context, master
 
 func randInt(n int) int {
 	return rand.Intn(n)
+}
+
+func (t *tokenAnalytics) runPeriodicRepopulationWorker(ctx context.Context) {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+
+	log.Info("Periodic repopulation worker started, will check for missed updates every 5 minutes")
+
+	for ctx.Err() == nil {
+		select {
+		case <-ctx.Done():
+			log.Info("Periodic repopulation worker stopped")
+			return
+		case <-ticker.C:
+			log.Debug("Periodic repopulation: starting scheduled check for missed updates")
+			if err := t.RepopulateRedisFromPostgres(ctx); err != nil {
+				log.Error(fmt.Errorf("periodic repopulation failed (will retry in 5 minutes): %w", err))
+			}
+		}
+	}
 }
