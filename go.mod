@@ -45,7 +45,7 @@ require (
 	github.com/libdns/cloudflare v0.2.2
 	github.com/lucasb-eyer/go-colorful v1.3.0
 	github.com/nbd-wtf/go-nostr v0.52.3
-	github.com/openai/openai-go/v3 v3.17.0
+	github.com/openai/openai-go/v3 v3.18.0
 	github.com/pkg/errors v0.9.1
 	github.com/puzpuzpuz/xsync/v4 v4.4.0
 	github.com/questdb/go-questdb-client/v4 v4.1.0
