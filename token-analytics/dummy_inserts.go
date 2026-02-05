@@ -1323,8 +1323,6 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 	return nil
 }
 
-// buildFatAddressV2 — общий энкодер для 1-2 записей.
-// Флаги — inline (0x01/0x02/0x04), порядок и размеры как в спецификации v2.
 func buildFatAddressV2(tokens []*fatAddressToken, creatorAddr, affiliateAddr common.Address) ([]byte, error) {
 	if len(tokens) == 0 {
 		return nil, errors.New("FatAddress v2 of zero length")

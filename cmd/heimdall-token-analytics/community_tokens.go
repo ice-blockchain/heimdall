@@ -106,6 +106,8 @@ type (
 		ExternalAddress string   `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
 		Type            string   `form:"type" swaggerignore:"true" example:"buy"`
 		Amount          *big.Int `form:"amount" swaggerignore:"true" example:"100000000"`
+		AmountBNB       *big.Int `form:"amountBNB" swaggerignore:"true" example:"100000000"`
+		AmountUSD       float64  `form:"amountUSD" swaggerignore:"true" example:"1.99"`
 	}
 	PriceResponse struct {
 		FeeSponsorAddress string  `json:"feeSponsorAddress"`
@@ -392,7 +394,9 @@ func (s *service) GetCommunityTokenBondingCurveProgress(ctx context.Context, req
 //	@Produce		json
 //	@Param			externalAddressOrViewType	path		string	true	"External address of the token"	example("0:9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f:")
 //	@Param			type						query		string	true	"Buy or sell"					example("buy")
-//	@Param			amount						query		int		false	"Amount of tokens to exchange (by default = 1, 1e18)"
+//	@Param			amount						query		int		false	"Amount of tokens to exchange (in wei)"
+//	@Param			amountBNB					query		int		false	"Amount of BNB to exchange (in wei)"
+//	@Param			amountUSD					query		float64	false	"Amount of USD to exchange (ex: 1.99)"
 //	@Success		200							{object}	PriceResponse
 //	@Failure		400							{object}	server.ResponseErrorBody	"if request parameters are invalid"
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
@@ -406,7 +410,19 @@ func (s *service) GetCommunityTokenPricing(ctx context.Context, req *server.Requ
 	if tradeType != ta.TradeTypeBuy && tradeType != ta.TradeTypeSell {
 		return nil, server.BadRequest(errors.Errorf("invalid type %v", tradeType), invalidPropertiesErrorCode)
 	}
-	pricing, err := s.tokenAnalytics.GetTokenPricing(ctx, req.Data.ExternalAddress, tradeType, req.Data.Amount)
+	if req.Data.Amount == nil && req.Data.AmountBNB == nil && req.Data.AmountUSD == 0 {
+		return nil, server.BadRequest(errors.Errorf("one of amount/amountBNB/amountUSD required"), invalidPropertiesErrorCode)
+	}
+	if req.Data.Amount != nil && (req.Data.AmountBNB != nil || req.Data.AmountUSD != 0) {
+		return nil, server.BadRequest(errors.Errorf("amount/amountBNB/amountUSD are mutually exclusive"), invalidPropertiesErrorCode)
+	}
+	if req.Data.AmountBNB != nil && (req.Data.Amount != nil || req.Data.AmountUSD != 0) {
+		return nil, server.BadRequest(errors.Errorf("amount/amountBNB/amountUSD are mutually exclusive"), invalidPropertiesErrorCode)
+	}
+	if req.Data.AmountUSD != 0 && (req.Data.Amount != nil || req.Data.AmountBNB != nil) {
+		return nil, server.BadRequest(errors.Errorf("amount/amountBNB/amountUSD are mutually exclusive"), invalidPropertiesErrorCode)
+	}
+	pricing, err := s.tokenAnalytics.GetTokenPricing(ctx, req.Data.ExternalAddress, tradeType, req.Data.Amount, req.Data.AmountBNB, req.Data.AmountUSD)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pricing for token %v: %w", req.Data.ExternalAddress, err)
 	}

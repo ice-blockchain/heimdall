@@ -672,8 +672,21 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Amount of tokens to exchange (by default = 1, 1e18)",
+                        "description": "Amount of tokens to exchange (in wei)",
                         "name": "amount",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Amount of BNB to exchange (in wei)",
+                        "name": "amountBNB",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "format": "float64",
+                        "description": "Amount of USD to exchange (ex: 1.99)",
+                        "name": "amountUSD",
                         "in": "query"
                     }
                 ],

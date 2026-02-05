@@ -25,8 +25,8 @@ func TestGetTokenPricing(t *testing.T) {
 		SellPrice: big.NewInt(1050000000000000000), // 1.05 tokens
 	})
 	defer mockBackend.Close()
-
-	ta.bondingCurve = fixture.CreateMockedBondingCurveInstance(bondingCurveCaller, bondingCurveAddr)
+	regularCurve := fixture.CreateMockedBondingCurveInstance(bondingCurveCaller, bondingCurveAddr)
+	ta.bondingCurve = regularCurve
 	ta.cfg.BondingCurve.CreateTokenDefaults = map[string]createTokenDefaults{}
 	ta.cfg.BondingCurve.CreateTokenDefaults["post"] = createTokenDefaults{
 		InitialPrice:           "10000",
@@ -64,7 +64,7 @@ func TestGetTokenPricing(t *testing.T) {
 		fatAddressHex := "0x" + common.Bytes2Hex(fatAddressBytes)
 
 		amount := big.NewInt(1000000000000000000) // 1 ION
-		p, err := ta.GetTokenPricing(ctx, fatAddressHex, TradeTypeBuy, amount)
+		p, err := ta.GetTokenPricing(ctx, fatAddressHex, TradeTypeBuy, amount, nil, 0)
 		require.NoError(t, err)
 		tokensOut, tokensBNB, tokenPriceUSD, ionPriceReturned, bnbPriceReturned := p.AmountInBase, p.AmountInBNB, p.AmountInUSD, p.IonPriceInUSD, p.BNBPriceInUSD
 		require.Equal(t, big.NewInt(950000000000000000).String(), tokensOut.String(), "Should return 0.95 tokens")
@@ -91,7 +91,7 @@ func TestGetTokenPricing(t *testing.T) {
 		xcomPostID := "999888777666"
 
 		amount := big.NewInt(1000000000000000000) // 1 ION
-		p, err := ta.GetTokenPricing(ctx, xcomPostID, TradeTypeBuy, amount)
+		p, err := ta.GetTokenPricing(ctx, xcomPostID, TradeTypeBuy, amount, nil, 0)
 		require.NoError(t, err)
 		tokensOut, tokensBNB, tokenPriceUSD, ionPriceReturned, bnbPriceReturned := p.AmountInBase, p.AmountInBNB, p.AmountInUSD, p.IonPriceInUSD, p.BNBPriceInUSD
 		require.Equal(t, big.NewInt(950000000000000000).String(), tokensOut.String())
@@ -111,7 +111,7 @@ func TestGetTokenPricing(t *testing.T) {
 		xcomPostID := "999888777666"
 
 		amount := big.NewInt(1000000000000000000) // 1 post token
-		p, err := ta.GetTokenPricing(ctx, xcomPostID, TradeTypeSell, amount)
+		p, err := ta.GetTokenPricing(ctx, xcomPostID, TradeTypeSell, amount, nil, 0)
 		tokensOut, tokensBNB, tokenPriceUSD, ionPriceReturned, bnbPriceReturned := p.AmountInBase, p.AmountInBNB, p.AmountInUSD, p.IonPriceInUSD, p.BNBPriceInUSD
 		require.NoError(t, err)
 		require.Equal(t, big.NewInt(1050000000000000000).String(), tokensOut.String(), "Should return 1.05 ION")
@@ -126,7 +126,42 @@ func TestGetTokenPricing(t *testing.T) {
 		require.Equal(t, "0x000000000000000000000000000000000000dead", p.FeeSponsorAddress)
 		require.Equal(t, "post", p.FeeSponsorId)
 	})
+	sixThousand, _ := big.NewInt(0).SetString("6000000000000000000000", 10)
+	backend6000, bondingCurveAddr, bondingCurveCaller := fixture.SetupMockedBondingCurveBackend(t, &fixture.MockBackendConfig{
+		BuyPrice:  big.NewInt(950000000000000000), // 0.95 tokens
+		SellPrice: sixThousand,                    // 6000 tokens
+	})
+	defer backend6000.Close()
+	bc6000 := fixture.CreateMockedBondingCurveInstance(bondingCurveCaller, bondingCurveAddr)
+	ta.bondingCurve = bc6000
 
+	t.Run("sell_xcom_post_token_1plus_swap_for_bnb", func(t *testing.T) {
+		xcomPostID := "999888777666"
+
+		amount := big.NewInt(1000000000000000000) // 1 BNB token
+		p, err := ta.GetTokenPricing(ctx, xcomPostID, TradeTypeSell, nil, amount, 0)
+		tokensOut, tokensBNB, tokenPriceUSD, ionPriceReturned, bnbPriceReturned := p.AmountInBase, p.AmountInBNB, p.AmountInUSD, p.IonPriceInUSD, p.BNBPriceInUSD
+		require.NoError(t, err)
+		require.Equal(t, "6000000000000000000000", tokensOut.String(), "Should return 6000 ION")
+		require.InDelta(t, 600, tokenPriceUSD, 0.0001, "Should be $600 for 1 bnb")
+		require.InDelta(t, tokensBNB.Int64(), amount.Int64(), 500)
+		require.Equal(t, ionPrice, ionPriceReturned)
+		require.Equal(t, bnbPrice, bnbPriceReturned)
+	})
+	t.Run("sell_xcom_post_token_1plus_swap_for_usd", func(t *testing.T) {
+		xcomPostID := "999888777666"
+
+		usdAmount := float64(600.00)
+		p, err := ta.GetTokenPricing(ctx, xcomPostID, TradeTypeSell, nil, nil, usdAmount)
+		tokensOut, tokensBNB, tokenPriceUSD, ionPriceReturned, bnbPriceReturned := p.AmountInBase, p.AmountInBNB, p.AmountInUSD, p.IonPriceInUSD, p.BNBPriceInUSD
+		require.NoError(t, err)
+		require.Equal(t, "6000000000000000000000", tokensOut.String(), "Should return 1.05 ION(mocked, not actually calculated)")
+		require.InDelta(t, big.NewInt(1000000000000000000).Int64(), tokensBNB.Int64(), 500, "Should return 1 BNB")
+		require.InDelta(t, usdAmount, tokenPriceUSD, 0.0001, "Should be $600")
+		require.Equal(t, ionPrice, ionPriceReturned)
+		require.Equal(t, bnbPrice, bnbPriceReturned)
+	})
+	ta.bondingCurve = regularCurve
 	// ========== ONLINE_PLUS Tests ==========
 	t.Run("buy_online_plus_profile_token_first_swap_with_fat_address", func(t *testing.T) {
 		// Creator token
@@ -141,7 +176,7 @@ func TestGetTokenPricing(t *testing.T) {
 		fatAddressHex := "0x" + common.Bytes2Hex(fatAddressBytes)
 
 		amount := big.NewInt(1000000000000000000) // 1 ION
-		p, err := ta.GetTokenPricing(ctx, fatAddressHex, TradeTypeBuy, amount)
+		p, err := ta.GetTokenPricing(ctx, fatAddressHex, TradeTypeBuy, amount, nil, 0)
 		require.NoError(t, err)
 		tokensOut, tokensBNB, tokenPriceUSD, ionPriceReturned, bnbPriceReturned := p.AmountInBase, p.AmountInBNB, p.AmountInUSD, p.IonPriceInUSD, p.BNBPriceInUSD
 		require.Equal(t, big.NewInt(950000000000000000).String(), tokensOut.String())
@@ -167,7 +202,7 @@ func TestGetTokenPricing(t *testing.T) {
 		creatorExternalAddr := BuildProfileExternalAddress("creator_online_plus_1")
 
 		amount := big.NewInt(1000000000000000000)
-		p, err := ta.GetTokenPricing(ctx, creatorExternalAddr, TradeTypeBuy, amount)
+		p, err := ta.GetTokenPricing(ctx, creatorExternalAddr, TradeTypeBuy, amount, nil, 0)
 		tokensOut, tokensBNB, tokenPriceUSD, ionPriceReturned, bnbPriceReturned := p.AmountInBase, p.AmountInBNB, p.AmountInUSD, p.IonPriceInUSD, p.BNBPriceInUSD
 		require.NoError(t, err)
 		require.Equal(t, big.NewInt(950000000000000000).String(), tokensOut.String())
@@ -187,7 +222,7 @@ func TestGetTokenPricing(t *testing.T) {
 		creatorExternalAddr := BuildProfileExternalAddress("creator_online_plus_1")
 
 		amount := big.NewInt(1000000000000000000)
-		p, err := ta.GetTokenPricing(ctx, creatorExternalAddr, TradeTypeSell, amount)
+		p, err := ta.GetTokenPricing(ctx, creatorExternalAddr, TradeTypeSell, amount, nil, 0)
 		tokensOut, tokensBNB, tokenPriceUSD, ionPriceReturned, bnbPriceReturned := p.AmountInBase, p.AmountInBNB, p.AmountInUSD, p.IonPriceInUSD, p.BNBPriceInUSD
 		require.NoError(t, err)
 		require.Equal(t, big.NewInt(1050000000000000000).String(), tokensOut.String())
@@ -219,7 +254,7 @@ func TestGetTokenPricing(t *testing.T) {
 		fatAddressHex := "0x" + common.Bytes2Hex(fatAddressBytes)
 
 		amount := big.NewInt(1000000000000000000) // 1 creator token
-		p, err := ta.GetTokenPricing(ctx, fatAddressHex, TradeTypeBuy, amount)
+		p, err := ta.GetTokenPricing(ctx, fatAddressHex, TradeTypeBuy, amount, nil, 0)
 		tokensOut, tokensBNB, tokenPriceUSD, ionPriceReturned, bnbPriceReturned := p.AmountInBase, p.AmountInBNB, p.AmountInUSD, p.IonPriceInUSD, p.BNBPriceInUSD
 		require.NoError(t, err)
 		// For content token, base is creator token, so we get 0.95 content tokens for 1 creator token
@@ -252,7 +287,7 @@ func TestGetTokenPricing(t *testing.T) {
 		contentExternalAddr := "30175:" + creatorPubkey + ":post123"
 
 		amount := big.NewInt(1000000000000000000) // 1 creator token
-		p, err := ta.GetTokenPricing(ctx, contentExternalAddr, TradeTypeBuy, amount)
+		p, err := ta.GetTokenPricing(ctx, contentExternalAddr, TradeTypeBuy, amount, nil, 0)
 		tokensOut, tokensBNB, tokenPriceUSD, ionPriceReturned, bnbPriceReturned := p.AmountInBase, p.AmountInBNB, p.AmountInUSD, p.IonPriceInUSD, p.BNBPriceInUSD
 		require.NoError(t, err)
 		require.Equal(t, big.NewInt(950000000000000000).String(), tokensOut.String(), "Should get 0.95 content tokens")
@@ -273,7 +308,7 @@ func TestGetTokenPricing(t *testing.T) {
 		contentExternalAddr := "30175:" + creatorPubkey + ":post123"
 
 		amount := big.NewInt(1000000000000000000) // 1 content token
-		p, err := ta.GetTokenPricing(ctx, contentExternalAddr, TradeTypeSell, amount)
+		p, err := ta.GetTokenPricing(ctx, contentExternalAddr, TradeTypeSell, amount, nil, 0)
 		tokensOut, tokensBNB, tokenPriceUSD, ionPriceReturned, bnbPriceReturned := p.AmountInBase, p.AmountInBNB, p.AmountInUSD, p.IonPriceInUSD, p.BNBPriceInUSD
 		require.NoError(t, err)
 		require.Equal(t, big.NewInt(1050000000000000000).String(), tokensOut.String(), "Should get 1.05 creator tokens")
@@ -287,7 +322,7 @@ func TestGetTokenPricing(t *testing.T) {
 	t.Run("error_invalid_fat_address_v2_format", func(t *testing.T) {
 		invalidFatAddr := "0x0201000107"
 		amount := big.NewInt(1000000000000000000)
-		_, err := ta.GetTokenPricing(ctx, invalidFatAddr, TradeTypeBuy, amount)
+		_, err := ta.GetTokenPricing(ctx, invalidFatAddr, TradeTypeBuy, amount, nil, 0)
 		require.Error(t, err)
 	})
 
@@ -296,7 +331,7 @@ func TestGetTokenPricing(t *testing.T) {
 
 		for _, addr := range invalidAddresses {
 			amount := big.NewInt(1000000000000000000)
-			p, err := ta.GetTokenPricing(ctx, addr, TradeTypeBuy, amount)
+			p, err := ta.GetTokenPricing(ctx, addr, TradeTypeBuy, amount, nil, 0)
 			tokensOut, tokensBNB, tokenPriceUSD, ionPriceReturned, bnbPriceReturned := p.AmountInBase, p.AmountInBNB, p.AmountInUSD, p.IonPriceInUSD, p.BNBPriceInUSD
 			require.NoError(t, err, "Should not return error for invalid hex: %s", addr)
 			require.Nil(t, tokensOut, "tokensOut should be nil for invalid hex: %s", addr)
