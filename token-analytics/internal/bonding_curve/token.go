@@ -74,7 +74,7 @@ type IUniswapV3MigratorHelperMigrationInfo struct {
 
 // BondingCurveTokenMetaData contains all meta data concerning the BondingCurveToken contract.
 var BondingCurveTokenMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"Allowance\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"DoubleCreate\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"EmptyRecipients\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InsufficientBaseLiquidity\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InsufficientFeeBalance\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidBps\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint8\",\"name\":\"invalidType\",\"type\":\"uint8\"}],\"name\":\"InvalidExternalType\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidFatAddressFormat\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidPool\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint8\",\"name\":\"invalidVersion\",\"type\":\"uint8\"}],\"name\":\"InvalidProtocolVersion\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidQuoter\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint8\",\"name\":\"invalidCount\",\"type\":\"uint8\"}],\"name\":\"InvalidRecordsCount\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"LiquidityLensNotSet\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"MigratorNotSet\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenA\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"tokenB\",\"type\":\"address\"}],\"name\":\"NoFeeTokenFound\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"NotCreator\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"PairDoesNotExist\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"minReturn\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"tokenOut\",\"type\":\"uint256\"}],\"name\":\"SlippageTooHigh\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"TokenNotMapped\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"UniswapQuoteFailed\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"UniswapRouterNotSet\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"ZeroAddress\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"name\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"symbol\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"externalType\",\"type\":\"uint8\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"externalAddress\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"totalSupply\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"creatorAddress\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"affiliateAddress\",\"type\":\"address\"}],\"name\":\"BondingTokenCreated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"payer\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"fee\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"toCreator\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"toAffiliate\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"toBurn\",\"type\":\"uint256\"}],\"name\":\"FeeAccrued\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"FeeTransfer\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"baseToken\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"otherToken\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"priceModel\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"startPrice\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"endPrice\",\"type\":\"uint256\"}],\"name\":\"PairRegistered\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"creator\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"affiliate\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"burn\",\"type\":\"address\"}],\"name\":\"RecipientsSet\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"minReturn\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"actualOut\",\"type\":\"uint256\"}],\"name\":\"SlippageChecked\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"swapper\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"bool\",\"name\":\"direction\",\"type\":\"bool\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"feeToken\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"inputAmount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"outputAmount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"fee\",\"type\":\"uint256\"}],\"name\":\"Swapped\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"}],\"name\":\"bondingProgress\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"soldTokens\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"tokensRaised\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"startPrice\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"endPrice\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"bondingTokensGoal\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"currentPrice\",\"type\":\"uint256\"},{\"internalType\":\"bool\",\"name\":\"migrated\",\"type\":\"bool\"}],\"internalType\":\"structBondingCurve.BondingInfo\",\"name\":\"info\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"}],\"name\":\"claimLockedLiquidity\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"config\",\"outputs\":[{\"internalType\":\"uint16\",\"name\":\"preMigrationFeeBps\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"postMigrationFeeBps\",\"type\":\"uint16\"},{\"internalType\":\"uint64\",\"name\":\"startTime\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"rampDuration\",\"type\":\"uint64\"},{\"internalType\":\"uint16\",\"name\":\"startCreatorBps\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"startAffiliateBps\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"startBurnBps\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"endCreatorBps\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"endAffiliateBps\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"endBurnBps\",\"type\":\"uint16\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"_name\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_symbol\",\"type\":\"string\"},{\"internalType\":\"uint8\",\"name\":\"_externalType\",\"type\":\"uint8\"},{\"internalType\":\"string\",\"name\":\"_externalAddress\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"_priceModel\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_startPrice\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_endPrice\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_totalSupply\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"_creatorAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_affiliateAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_burnAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_baseTokenAddress\",\"type\":\"address\"}],\"name\":\"createBondingToken\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"name\":\"externalAddressToToken\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"feePercentages\",\"outputs\":[{\"internalType\":\"uint16\",\"name\":\"cBps\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"aBps\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"bBps\",\"type\":\"uint16\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"}],\"name\":\"fees\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"creatorAccrued\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"affiliateAccrued\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"burnAccrued\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"}],\"name\":\"getAccrued\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"creatorAccrued\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"affiliateAccrued\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"burnAccrued\",\"type\":\"uint256\"}],\"internalType\":\"structFeePolicy.FeeBuckets\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"}],\"name\":\"getLiquidity\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"}],\"name\":\"getRecipients\",\"outputs\":[{\"components\":[{\"internalType\":\"address\",\"name\":\"creator\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"affiliate\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"burn\",\"type\":\"address\"}],\"internalType\":\"structFeePolicy.Recipients\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint16\",\"name\":\"preMigrationFeeBps_\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"postMigrationFeeBps_\",\"type\":\"uint16\"},{\"internalType\":\"uint64\",\"name\":\"startTime_\",\"type\":\"uint64\"},{\"internalType\":\"address\",\"name\":\"uniswapV3Router_\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"uniswapV3Quoter_\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"uniswapV3MigratorHelper_\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"liquidityLens_\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"priceModel_\",\"type\":\"address\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"}],\"name\":\"migrationOf\",\"outputs\":[{\"components\":[{\"internalType\":\"bool\",\"name\":\"migrated\",\"type\":\"bool\"},{\"internalType\":\"address\",\"name\":\"pool\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"lpToken\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"tokenId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lockedLiquidityAmount\",\"type\":\"uint256\"}],\"internalType\":\"structIUniswapV3MigratorHelper.MigrationInfo\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"a\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"b\",\"type\":\"address\"}],\"name\":\"pairIdOf\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"pairs\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"baseTokenAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"otherTokenAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"creator\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"priceModel\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"startPrice\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"endPrice\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"fromToken\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"toToken\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"amountInBase\",\"type\":\"uint256\"}],\"name\":\"quoteBuyOut\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"amountOutOther\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"fromToken\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"toToken\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"amountInOther\",\"type\":\"uint256\"}],\"name\":\"quoteSellOut\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"amountOutBase\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"fromToken\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"toToken\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"amountIn\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"minReturn\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"deadline\",\"type\":\"uint256\"},{\"internalType\":\"uint8\",\"name\":\"v\",\"type\":\"uint8\"},{\"internalType\":\"bytes32\",\"name\":\"r\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"s\",\"type\":\"bytes32\"}],\"internalType\":\"structBondingCurve.PermitData\",\"name\":\"permit\",\"type\":\"tuple\"}],\"name\":\"swap\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"fromToken\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"toToken\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"amountIn\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"minReturn\",\"type\":\"uint256\"}],\"name\":\"swap\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"DoubleCreate\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InsufficientBaseLiquidity\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InsufficientFeeBalance\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidBps\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint8\",\"name\":\"invalidType\",\"type\":\"uint8\"}],\"name\":\"InvalidExternalType\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidFatAddressFormat\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidPool\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint8\",\"name\":\"invalidVersion\",\"type\":\"uint8\"}],\"name\":\"InvalidProtocolVersion\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidQuoter\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint8\",\"name\":\"invalidCount\",\"type\":\"uint8\"}],\"name\":\"InvalidRecordsCount\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"LiquidityLensNotSet\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"MigratorNotSet\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"NotCreator\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"PairDoesNotExist\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"minReturn\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"tokenOut\",\"type\":\"uint256\"}],\"name\":\"SlippageTooHigh\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"TokenNotMapped\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"UniswapQuoteFailed\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"UniswapRouterNotSet\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"UniswapTraderNotSet\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"ZeroAddress\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"payer\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"fee\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"toCreator\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"toAffiliate\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"toBurn\",\"type\":\"uint256\"}],\"name\":\"FeeAccrued\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"FeeTransfer\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"baseToken\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"otherToken\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"bool\",\"name\":\"feeIsOtherToken\",\"type\":\"bool\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"priceModel\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"startPrice\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"endPrice\",\"type\":\"uint256\"}],\"name\":\"PairRegistered\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"creator\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"affiliate\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"burn\",\"type\":\"address\"}],\"name\":\"RecipientsSet\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"minReturn\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"actualOut\",\"type\":\"uint256\"}],\"name\":\"SlippageChecked\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"swapper\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"bool\",\"name\":\"direction\",\"type\":\"bool\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"inputAmount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"outputAmount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"fee\",\"type\":\"uint256\"}],\"name\":\"Swapped\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"}],\"name\":\"bondingProgress\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"soldTokens\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"tokensRaised\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"startPrice\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"endPrice\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"bondingTokensGoal\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"currentPrice\",\"type\":\"uint256\"},{\"internalType\":\"bool\",\"name\":\"migrated\",\"type\":\"bool\"}],\"internalType\":\"structBondingCurve.BondingInfo\",\"name\":\"info\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"to\",\"type\":\"address\"}],\"name\":\"claimLockedLiquidity\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"compositeParamsToTokenAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"config\",\"outputs\":[{\"internalType\":\"uint16\",\"name\":\"preMigrationFeeBps\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"postMigrationFeeBps\",\"type\":\"uint16\"},{\"internalType\":\"uint64\",\"name\":\"startTime\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"rampDuration\",\"type\":\"uint64\"},{\"internalType\":\"uint16\",\"name\":\"startCreatorBps\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"startAffiliateBps\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"startBurnBps\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"endCreatorBps\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"endAffiliateBps\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"endBurnBps\",\"type\":\"uint16\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_baseTokenAddress\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"_name\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_symbol\",\"type\":\"string\"},{\"internalType\":\"uint8\",\"name\":\"_externalType\",\"type\":\"uint8\"},{\"internalType\":\"string\",\"name\":\"_externalAddress\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"_priceModel\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_startPrice\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_endPrice\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_totalSupply\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"_creatorAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_affiliateAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_burnAddress\",\"type\":\"address\"}],\"name\":\"createBondingToken\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"newTokenAddress\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"feePercentages\",\"outputs\":[{\"internalType\":\"uint16\",\"name\":\"cBps\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"aBps\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"bBps\",\"type\":\"uint16\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"}],\"name\":\"fees\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"creatorAccrued\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"affiliateAccrued\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"burnAccrued\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"}],\"name\":\"getAccrued\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"creatorAccrued\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"affiliateAccrued\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"burnAccrued\",\"type\":\"uint256\"}],\"internalType\":\"structFeePolicy.FeeBuckets\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"}],\"name\":\"getLiquidity\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"}],\"name\":\"getRecipients\",\"outputs\":[{\"components\":[{\"internalType\":\"address\",\"name\":\"creator\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"affiliate\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"burn\",\"type\":\"address\"}],\"internalType\":\"structFeePolicy.Recipients\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint16\",\"name\":\"preMigrationFeeBps_\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"postMigrationFeeBps_\",\"type\":\"uint16\"},{\"internalType\":\"uint64\",\"name\":\"startTime_\",\"type\":\"uint64\"},{\"internalType\":\"address\",\"name\":\"uniswapV3Router_\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"uniswapV3Quoter_\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"uniswapV3MigratorHelper_\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"bondingTokenFactory_\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"defaultPriceModel_\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"uniswapTrader_\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"uncxLockAdapter_\",\"type\":\"address\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"pairId\",\"type\":\"bytes32\"}],\"name\":\"migrationOf\",\"outputs\":[{\"components\":[{\"internalType\":\"bool\",\"name\":\"migrated\",\"type\":\"bool\"},{\"internalType\":\"address\",\"name\":\"pool\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"lpToken\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"tokenId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lockedLiquidityAmount\",\"type\":\"uint256\"}],\"internalType\":\"structIUniswapV3MigratorHelper.MigrationInfo\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"a\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"b\",\"type\":\"address\"}],\"name\":\"pairIdOf\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"pairs\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"baseTokenAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"otherTokenAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"creator\",\"type\":\"address\"},{\"internalType\":\"bool\",\"name\":\"feeIsOtherToken\",\"type\":\"bool\"},{\"internalType\":\"address\",\"name\":\"priceModel\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"uniswapPool\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"startPrice\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"endPrice\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"fromToken\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"toToken\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"amountInBase\",\"type\":\"uint256\"}],\"name\":\"quoteBuyOut\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"amountOutOther\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"fromToken\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"toToken\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"amountInOther\",\"type\":\"uint256\"}],\"name\":\"quoteSellOut\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"amountOutBase\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"fromToken\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"toToken\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"amountIn\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"minReturn\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"deadline\",\"type\":\"uint256\"},{\"internalType\":\"uint8\",\"name\":\"v\",\"type\":\"uint8\"},{\"internalType\":\"bytes32\",\"name\":\"r\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"s\",\"type\":\"bytes32\"}],\"internalType\":\"structBondingCurve.PermitData\",\"name\":\"permit\",\"type\":\"tuple\"}],\"name\":\"swap\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"fromToken\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"toToken\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"amountIn\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"minReturn\",\"type\":\"uint256\"}],\"name\":\"swap\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
 
 // BondingCurveTokenABI is the input ABI used to generate the binding from.
@@ -254,6 +254,37 @@ func (_BondingCurveToken *BondingCurveTokenCallerSession) BondingProgress(pairId
 	return _BondingCurveToken.Contract.BondingProgress(&_BondingCurveToken.CallOpts, pairId)
 }
 
+// CompositeParamsToTokenAddress is a free data retrieval call binding the contract method 0x24ecbfc8.
+//
+// Solidity: function compositeParamsToTokenAddress(bytes32 ) view returns(address)
+func (_BondingCurveToken *BondingCurveTokenCaller) CompositeParamsToTokenAddress(opts *bind.CallOpts, arg0 [32]byte) (common.Address, error) {
+	var out []interface{}
+	err := _BondingCurveToken.contract.Call(opts, &out, "compositeParamsToTokenAddress", arg0)
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// CompositeParamsToTokenAddress is a free data retrieval call binding the contract method 0x24ecbfc8.
+//
+// Solidity: function compositeParamsToTokenAddress(bytes32 ) view returns(address)
+func (_BondingCurveToken *BondingCurveTokenSession) CompositeParamsToTokenAddress(arg0 [32]byte) (common.Address, error) {
+	return _BondingCurveToken.Contract.CompositeParamsToTokenAddress(&_BondingCurveToken.CallOpts, arg0)
+}
+
+// CompositeParamsToTokenAddress is a free data retrieval call binding the contract method 0x24ecbfc8.
+//
+// Solidity: function compositeParamsToTokenAddress(bytes32 ) view returns(address)
+func (_BondingCurveToken *BondingCurveTokenCallerSession) CompositeParamsToTokenAddress(arg0 [32]byte) (common.Address, error) {
+	return _BondingCurveToken.Contract.CompositeParamsToTokenAddress(&_BondingCurveToken.CallOpts, arg0)
+}
+
 // Config is a free data retrieval call binding the contract method 0x79502c55.
 //
 // Solidity: function config() view returns(uint16 preMigrationFeeBps, uint16 postMigrationFeeBps, uint64 startTime, uint64 rampDuration, uint16 startCreatorBps, uint16 startAffiliateBps, uint16 startBurnBps, uint16 endCreatorBps, uint16 endAffiliateBps, uint16 endBurnBps)
@@ -337,37 +368,6 @@ func (_BondingCurveToken *BondingCurveTokenCallerSession) Config() (struct {
 	EndBurnBps          uint16
 }, error) {
 	return _BondingCurveToken.Contract.Config(&_BondingCurveToken.CallOpts)
-}
-
-// ExternalAddressToToken is a free data retrieval call binding the contract method 0x7ec25be8.
-//
-// Solidity: function externalAddressToToken(string ) view returns(address)
-func (_BondingCurveToken *BondingCurveTokenCaller) ExternalAddressToToken(opts *bind.CallOpts, arg0 string) (common.Address, error) {
-	var out []interface{}
-	err := _BondingCurveToken.contract.Call(opts, &out, "externalAddressToToken", arg0)
-
-	if err != nil {
-		return *new(common.Address), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-
-	return out0, err
-
-}
-
-// ExternalAddressToToken is a free data retrieval call binding the contract method 0x7ec25be8.
-//
-// Solidity: function externalAddressToToken(string ) view returns(address)
-func (_BondingCurveToken *BondingCurveTokenSession) ExternalAddressToToken(arg0 string) (common.Address, error) {
-	return _BondingCurveToken.Contract.ExternalAddressToToken(&_BondingCurveToken.CallOpts, arg0)
-}
-
-// ExternalAddressToToken is a free data retrieval call binding the contract method 0x7ec25be8.
-//
-// Solidity: function externalAddressToToken(string ) view returns(address)
-func (_BondingCurveToken *BondingCurveTokenCallerSession) ExternalAddressToToken(arg0 string) (common.Address, error) {
-	return _BondingCurveToken.Contract.ExternalAddressToToken(&_BondingCurveToken.CallOpts, arg0)
 }
 
 // FeePercentages is a free data retrieval call binding the contract method 0xa0e9bf34.
@@ -627,12 +627,14 @@ func (_BondingCurveToken *BondingCurveTokenCallerSession) PairIdOf(a common.Addr
 
 // Pairs is a free data retrieval call binding the contract method 0x673e0481.
 //
-// Solidity: function pairs(bytes32 ) view returns(address baseTokenAddress, address otherTokenAddress, address creator, address priceModel, uint256 startPrice, uint256 endPrice)
+// Solidity: function pairs(bytes32 ) view returns(address baseTokenAddress, address otherTokenAddress, address creator, bool feeIsOtherToken, address priceModel, address uniswapPool, uint256 startPrice, uint256 endPrice)
 func (_BondingCurveToken *BondingCurveTokenCaller) Pairs(opts *bind.CallOpts, arg0 [32]byte) (struct {
 	BaseTokenAddress  common.Address
 	OtherTokenAddress common.Address
 	Creator           common.Address
+	FeeIsOtherToken   bool
 	PriceModel        common.Address
+	UniswapPool       common.Address
 	StartPrice        *big.Int
 	EndPrice          *big.Int
 }, error) {
@@ -643,7 +645,9 @@ func (_BondingCurveToken *BondingCurveTokenCaller) Pairs(opts *bind.CallOpts, ar
 		BaseTokenAddress  common.Address
 		OtherTokenAddress common.Address
 		Creator           common.Address
+		FeeIsOtherToken   bool
 		PriceModel        common.Address
+		UniswapPool       common.Address
 		StartPrice        *big.Int
 		EndPrice          *big.Int
 	})
@@ -654,9 +658,11 @@ func (_BondingCurveToken *BondingCurveTokenCaller) Pairs(opts *bind.CallOpts, ar
 	outstruct.BaseTokenAddress = *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
 	outstruct.OtherTokenAddress = *abi.ConvertType(out[1], new(common.Address)).(*common.Address)
 	outstruct.Creator = *abi.ConvertType(out[2], new(common.Address)).(*common.Address)
-	outstruct.PriceModel = *abi.ConvertType(out[3], new(common.Address)).(*common.Address)
-	outstruct.StartPrice = *abi.ConvertType(out[4], new(*big.Int)).(**big.Int)
-	outstruct.EndPrice = *abi.ConvertType(out[5], new(*big.Int)).(**big.Int)
+	outstruct.FeeIsOtherToken = *abi.ConvertType(out[3], new(bool)).(*bool)
+	outstruct.PriceModel = *abi.ConvertType(out[4], new(common.Address)).(*common.Address)
+	outstruct.UniswapPool = *abi.ConvertType(out[5], new(common.Address)).(*common.Address)
+	outstruct.StartPrice = *abi.ConvertType(out[6], new(*big.Int)).(**big.Int)
+	outstruct.EndPrice = *abi.ConvertType(out[7], new(*big.Int)).(**big.Int)
 
 	return *outstruct, err
 
@@ -664,12 +670,14 @@ func (_BondingCurveToken *BondingCurveTokenCaller) Pairs(opts *bind.CallOpts, ar
 
 // Pairs is a free data retrieval call binding the contract method 0x673e0481.
 //
-// Solidity: function pairs(bytes32 ) view returns(address baseTokenAddress, address otherTokenAddress, address creator, address priceModel, uint256 startPrice, uint256 endPrice)
+// Solidity: function pairs(bytes32 ) view returns(address baseTokenAddress, address otherTokenAddress, address creator, bool feeIsOtherToken, address priceModel, address uniswapPool, uint256 startPrice, uint256 endPrice)
 func (_BondingCurveToken *BondingCurveTokenSession) Pairs(arg0 [32]byte) (struct {
 	BaseTokenAddress  common.Address
 	OtherTokenAddress common.Address
 	Creator           common.Address
+	FeeIsOtherToken   bool
 	PriceModel        common.Address
+	UniswapPool       common.Address
 	StartPrice        *big.Int
 	EndPrice          *big.Int
 }, error) {
@@ -678,12 +686,14 @@ func (_BondingCurveToken *BondingCurveTokenSession) Pairs(arg0 [32]byte) (struct
 
 // Pairs is a free data retrieval call binding the contract method 0x673e0481.
 //
-// Solidity: function pairs(bytes32 ) view returns(address baseTokenAddress, address otherTokenAddress, address creator, address priceModel, uint256 startPrice, uint256 endPrice)
+// Solidity: function pairs(bytes32 ) view returns(address baseTokenAddress, address otherTokenAddress, address creator, bool feeIsOtherToken, address priceModel, address uniswapPool, uint256 startPrice, uint256 endPrice)
 func (_BondingCurveToken *BondingCurveTokenCallerSession) Pairs(arg0 [32]byte) (struct {
 	BaseTokenAddress  common.Address
 	OtherTokenAddress common.Address
 	Creator           common.Address
+	FeeIsOtherToken   bool
 	PriceModel        common.Address
+	UniswapPool       common.Address
 	StartPrice        *big.Int
 	EndPrice          *big.Int
 }, error) {
@@ -773,46 +783,46 @@ func (_BondingCurveToken *BondingCurveTokenTransactorSession) ClaimLockedLiquidi
 	return _BondingCurveToken.Contract.ClaimLockedLiquidity(&_BondingCurveToken.TransactOpts, pairId, to)
 }
 
-// CreateBondingToken is a paid mutator transaction binding the contract method 0x77dee054.
+// CreateBondingToken is a paid mutator transaction binding the contract method 0x35f9a856.
 //
-// Solidity: function createBondingToken(string _name, string _symbol, uint8 _externalType, string _externalAddress, address _priceModel, uint256 _startPrice, uint256 _endPrice, uint256 _totalSupply, address _creatorAddress, address _affiliateAddress, address _burnAddress, address _baseTokenAddress) returns(address)
-func (_BondingCurveToken *BondingCurveTokenTransactor) CreateBondingToken(opts *bind.TransactOpts, _name string, _symbol string, _externalType uint8, _externalAddress string, _priceModel common.Address, _startPrice *big.Int, _endPrice *big.Int, _totalSupply *big.Int, _creatorAddress common.Address, _affiliateAddress common.Address, _burnAddress common.Address, _baseTokenAddress common.Address) (*types.Transaction, error) {
-	return _BondingCurveToken.contract.Transact(opts, "createBondingToken", _name, _symbol, _externalType, _externalAddress, _priceModel, _startPrice, _endPrice, _totalSupply, _creatorAddress, _affiliateAddress, _burnAddress, _baseTokenAddress)
+// Solidity: function createBondingToken(address _baseTokenAddress, string _name, string _symbol, uint8 _externalType, string _externalAddress, address _priceModel, uint256 _startPrice, uint256 _endPrice, uint256 _totalSupply, address _creatorAddress, address _affiliateAddress, address _burnAddress) returns(address newTokenAddress)
+func (_BondingCurveToken *BondingCurveTokenTransactor) CreateBondingToken(opts *bind.TransactOpts, _baseTokenAddress common.Address, _name string, _symbol string, _externalType uint8, _externalAddress string, _priceModel common.Address, _startPrice *big.Int, _endPrice *big.Int, _totalSupply *big.Int, _creatorAddress common.Address, _affiliateAddress common.Address, _burnAddress common.Address) (*types.Transaction, error) {
+	return _BondingCurveToken.contract.Transact(opts, "createBondingToken", _baseTokenAddress, _name, _symbol, _externalType, _externalAddress, _priceModel, _startPrice, _endPrice, _totalSupply, _creatorAddress, _affiliateAddress, _burnAddress)
 }
 
-// CreateBondingToken is a paid mutator transaction binding the contract method 0x77dee054.
+// CreateBondingToken is a paid mutator transaction binding the contract method 0x35f9a856.
 //
-// Solidity: function createBondingToken(string _name, string _symbol, uint8 _externalType, string _externalAddress, address _priceModel, uint256 _startPrice, uint256 _endPrice, uint256 _totalSupply, address _creatorAddress, address _affiliateAddress, address _burnAddress, address _baseTokenAddress) returns(address)
-func (_BondingCurveToken *BondingCurveTokenSession) CreateBondingToken(_name string, _symbol string, _externalType uint8, _externalAddress string, _priceModel common.Address, _startPrice *big.Int, _endPrice *big.Int, _totalSupply *big.Int, _creatorAddress common.Address, _affiliateAddress common.Address, _burnAddress common.Address, _baseTokenAddress common.Address) (*types.Transaction, error) {
-	return _BondingCurveToken.Contract.CreateBondingToken(&_BondingCurveToken.TransactOpts, _name, _symbol, _externalType, _externalAddress, _priceModel, _startPrice, _endPrice, _totalSupply, _creatorAddress, _affiliateAddress, _burnAddress, _baseTokenAddress)
+// Solidity: function createBondingToken(address _baseTokenAddress, string _name, string _symbol, uint8 _externalType, string _externalAddress, address _priceModel, uint256 _startPrice, uint256 _endPrice, uint256 _totalSupply, address _creatorAddress, address _affiliateAddress, address _burnAddress) returns(address newTokenAddress)
+func (_BondingCurveToken *BondingCurveTokenSession) CreateBondingToken(_baseTokenAddress common.Address, _name string, _symbol string, _externalType uint8, _externalAddress string, _priceModel common.Address, _startPrice *big.Int, _endPrice *big.Int, _totalSupply *big.Int, _creatorAddress common.Address, _affiliateAddress common.Address, _burnAddress common.Address) (*types.Transaction, error) {
+	return _BondingCurveToken.Contract.CreateBondingToken(&_BondingCurveToken.TransactOpts, _baseTokenAddress, _name, _symbol, _externalType, _externalAddress, _priceModel, _startPrice, _endPrice, _totalSupply, _creatorAddress, _affiliateAddress, _burnAddress)
 }
 
-// CreateBondingToken is a paid mutator transaction binding the contract method 0x77dee054.
+// CreateBondingToken is a paid mutator transaction binding the contract method 0x35f9a856.
 //
-// Solidity: function createBondingToken(string _name, string _symbol, uint8 _externalType, string _externalAddress, address _priceModel, uint256 _startPrice, uint256 _endPrice, uint256 _totalSupply, address _creatorAddress, address _affiliateAddress, address _burnAddress, address _baseTokenAddress) returns(address)
-func (_BondingCurveToken *BondingCurveTokenTransactorSession) CreateBondingToken(_name string, _symbol string, _externalType uint8, _externalAddress string, _priceModel common.Address, _startPrice *big.Int, _endPrice *big.Int, _totalSupply *big.Int, _creatorAddress common.Address, _affiliateAddress common.Address, _burnAddress common.Address, _baseTokenAddress common.Address) (*types.Transaction, error) {
-	return _BondingCurveToken.Contract.CreateBondingToken(&_BondingCurveToken.TransactOpts, _name, _symbol, _externalType, _externalAddress, _priceModel, _startPrice, _endPrice, _totalSupply, _creatorAddress, _affiliateAddress, _burnAddress, _baseTokenAddress)
+// Solidity: function createBondingToken(address _baseTokenAddress, string _name, string _symbol, uint8 _externalType, string _externalAddress, address _priceModel, uint256 _startPrice, uint256 _endPrice, uint256 _totalSupply, address _creatorAddress, address _affiliateAddress, address _burnAddress) returns(address newTokenAddress)
+func (_BondingCurveToken *BondingCurveTokenTransactorSession) CreateBondingToken(_baseTokenAddress common.Address, _name string, _symbol string, _externalType uint8, _externalAddress string, _priceModel common.Address, _startPrice *big.Int, _endPrice *big.Int, _totalSupply *big.Int, _creatorAddress common.Address, _affiliateAddress common.Address, _burnAddress common.Address) (*types.Transaction, error) {
+	return _BondingCurveToken.Contract.CreateBondingToken(&_BondingCurveToken.TransactOpts, _baseTokenAddress, _name, _symbol, _externalType, _externalAddress, _priceModel, _startPrice, _endPrice, _totalSupply, _creatorAddress, _affiliateAddress, _burnAddress)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0xb900ec77.
+// Initialize is a paid mutator transaction binding the contract method 0x3f1cc8d7.
 //
-// Solidity: function initialize(uint16 preMigrationFeeBps_, uint16 postMigrationFeeBps_, uint64 startTime_, address uniswapV3Router_, address uniswapV3Quoter_, address uniswapV3MigratorHelper_, address liquidityLens_, address priceModel_) returns()
-func (_BondingCurveToken *BondingCurveTokenTransactor) Initialize(opts *bind.TransactOpts, preMigrationFeeBps_ uint16, postMigrationFeeBps_ uint16, startTime_ uint64, uniswapV3Router_ common.Address, uniswapV3Quoter_ common.Address, uniswapV3MigratorHelper_ common.Address, liquidityLens_ common.Address, priceModel_ common.Address) (*types.Transaction, error) {
-	return _BondingCurveToken.contract.Transact(opts, "initialize", preMigrationFeeBps_, postMigrationFeeBps_, startTime_, uniswapV3Router_, uniswapV3Quoter_, uniswapV3MigratorHelper_, liquidityLens_, priceModel_)
+// Solidity: function initialize(uint16 preMigrationFeeBps_, uint16 postMigrationFeeBps_, uint64 startTime_, address uniswapV3Router_, address uniswapV3Quoter_, address uniswapV3MigratorHelper_, address bondingTokenFactory_, address defaultPriceModel_, address uniswapTrader_, address uncxLockAdapter_) returns()
+func (_BondingCurveToken *BondingCurveTokenTransactor) Initialize(opts *bind.TransactOpts, preMigrationFeeBps_ uint16, postMigrationFeeBps_ uint16, startTime_ uint64, uniswapV3Router_ common.Address, uniswapV3Quoter_ common.Address, uniswapV3MigratorHelper_ common.Address, bondingTokenFactory_ common.Address, defaultPriceModel_ common.Address, uniswapTrader_ common.Address, uncxLockAdapter_ common.Address) (*types.Transaction, error) {
+	return _BondingCurveToken.contract.Transact(opts, "initialize", preMigrationFeeBps_, postMigrationFeeBps_, startTime_, uniswapV3Router_, uniswapV3Quoter_, uniswapV3MigratorHelper_, bondingTokenFactory_, defaultPriceModel_, uniswapTrader_, uncxLockAdapter_)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0xb900ec77.
+// Initialize is a paid mutator transaction binding the contract method 0x3f1cc8d7.
 //
-// Solidity: function initialize(uint16 preMigrationFeeBps_, uint16 postMigrationFeeBps_, uint64 startTime_, address uniswapV3Router_, address uniswapV3Quoter_, address uniswapV3MigratorHelper_, address liquidityLens_, address priceModel_) returns()
-func (_BondingCurveToken *BondingCurveTokenSession) Initialize(preMigrationFeeBps_ uint16, postMigrationFeeBps_ uint16, startTime_ uint64, uniswapV3Router_ common.Address, uniswapV3Quoter_ common.Address, uniswapV3MigratorHelper_ common.Address, liquidityLens_ common.Address, priceModel_ common.Address) (*types.Transaction, error) {
-	return _BondingCurveToken.Contract.Initialize(&_BondingCurveToken.TransactOpts, preMigrationFeeBps_, postMigrationFeeBps_, startTime_, uniswapV3Router_, uniswapV3Quoter_, uniswapV3MigratorHelper_, liquidityLens_, priceModel_)
+// Solidity: function initialize(uint16 preMigrationFeeBps_, uint16 postMigrationFeeBps_, uint64 startTime_, address uniswapV3Router_, address uniswapV3Quoter_, address uniswapV3MigratorHelper_, address bondingTokenFactory_, address defaultPriceModel_, address uniswapTrader_, address uncxLockAdapter_) returns()
+func (_BondingCurveToken *BondingCurveTokenSession) Initialize(preMigrationFeeBps_ uint16, postMigrationFeeBps_ uint16, startTime_ uint64, uniswapV3Router_ common.Address, uniswapV3Quoter_ common.Address, uniswapV3MigratorHelper_ common.Address, bondingTokenFactory_ common.Address, defaultPriceModel_ common.Address, uniswapTrader_ common.Address, uncxLockAdapter_ common.Address) (*types.Transaction, error) {
+	return _BondingCurveToken.Contract.Initialize(&_BondingCurveToken.TransactOpts, preMigrationFeeBps_, postMigrationFeeBps_, startTime_, uniswapV3Router_, uniswapV3Quoter_, uniswapV3MigratorHelper_, bondingTokenFactory_, defaultPriceModel_, uniswapTrader_, uncxLockAdapter_)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0xb900ec77.
+// Initialize is a paid mutator transaction binding the contract method 0x3f1cc8d7.
 //
-// Solidity: function initialize(uint16 preMigrationFeeBps_, uint16 postMigrationFeeBps_, uint64 startTime_, address uniswapV3Router_, address uniswapV3Quoter_, address uniswapV3MigratorHelper_, address liquidityLens_, address priceModel_) returns()
-func (_BondingCurveToken *BondingCurveTokenTransactorSession) Initialize(preMigrationFeeBps_ uint16, postMigrationFeeBps_ uint16, startTime_ uint64, uniswapV3Router_ common.Address, uniswapV3Quoter_ common.Address, uniswapV3MigratorHelper_ common.Address, liquidityLens_ common.Address, priceModel_ common.Address) (*types.Transaction, error) {
-	return _BondingCurveToken.Contract.Initialize(&_BondingCurveToken.TransactOpts, preMigrationFeeBps_, postMigrationFeeBps_, startTime_, uniswapV3Router_, uniswapV3Quoter_, uniswapV3MigratorHelper_, liquidityLens_, priceModel_)
+// Solidity: function initialize(uint16 preMigrationFeeBps_, uint16 postMigrationFeeBps_, uint64 startTime_, address uniswapV3Router_, address uniswapV3Quoter_, address uniswapV3MigratorHelper_, address bondingTokenFactory_, address defaultPriceModel_, address uniswapTrader_, address uncxLockAdapter_) returns()
+func (_BondingCurveToken *BondingCurveTokenTransactorSession) Initialize(preMigrationFeeBps_ uint16, postMigrationFeeBps_ uint16, startTime_ uint64, uniswapV3Router_ common.Address, uniswapV3Quoter_ common.Address, uniswapV3MigratorHelper_ common.Address, bondingTokenFactory_ common.Address, defaultPriceModel_ common.Address, uniswapTrader_ common.Address, uncxLockAdapter_ common.Address) (*types.Transaction, error) {
+	return _BondingCurveToken.Contract.Initialize(&_BondingCurveToken.TransactOpts, preMigrationFeeBps_, postMigrationFeeBps_, startTime_, uniswapV3Router_, uniswapV3Quoter_, uniswapV3MigratorHelper_, bondingTokenFactory_, defaultPriceModel_, uniswapTrader_, uncxLockAdapter_)
 }
 
 // Swap is a paid mutator transaction binding the contract method 0x027c101d.
@@ -855,157 +865,6 @@ func (_BondingCurveToken *BondingCurveTokenSession) Swap0(fromToken []byte, toTo
 // Solidity: function swap(bytes fromToken, bytes toToken, uint256 amountIn, uint256 minReturn) returns()
 func (_BondingCurveToken *BondingCurveTokenTransactorSession) Swap0(fromToken []byte, toToken []byte, amountIn *big.Int, minReturn *big.Int) (*types.Transaction, error) {
 	return _BondingCurveToken.Contract.Swap0(&_BondingCurveToken.TransactOpts, fromToken, toToken, amountIn, minReturn)
-}
-
-// BondingCurveTokenBondingTokenCreatedIterator is returned from FilterBondingTokenCreated and is used to iterate over the raw logs and unpacked data for BondingTokenCreated events raised by the BondingCurveToken contract.
-type BondingCurveTokenBondingTokenCreatedIterator struct {
-	Event *BondingCurveTokenBondingTokenCreated // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *BondingCurveTokenBondingTokenCreatedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(BondingCurveTokenBondingTokenCreated)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(BondingCurveTokenBondingTokenCreated)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *BondingCurveTokenBondingTokenCreatedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *BondingCurveTokenBondingTokenCreatedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// BondingCurveTokenBondingTokenCreated represents a BondingTokenCreated event raised by the BondingCurveToken contract.
-type BondingCurveTokenBondingTokenCreated struct {
-	TokenAddress     common.Address
-	Name             string
-	Symbol           string
-	ExternalType     uint8
-	ExternalAddress  string
-	TotalSupply      *big.Int
-	CreatorAddress   common.Address
-	AffiliateAddress common.Address
-	Raw              types.Log // Blockchain specific contextual infos
-}
-
-// FilterBondingTokenCreated is a free log retrieval operation binding the contract event 0xf20c12ede00469181597169f5cbe631d40edec9a2a45c2e46eba231a831126dd.
-//
-// Solidity: event BondingTokenCreated(address indexed tokenAddress, string name, string symbol, uint8 externalType, string externalAddress, uint256 totalSupply, address creatorAddress, address affiliateAddress)
-func (_BondingCurveToken *BondingCurveTokenFilterer) FilterBondingTokenCreated(opts *bind.FilterOpts, tokenAddress []common.Address) (*BondingCurveTokenBondingTokenCreatedIterator, error) {
-
-	var tokenAddressRule []interface{}
-	for _, tokenAddressItem := range tokenAddress {
-		tokenAddressRule = append(tokenAddressRule, tokenAddressItem)
-	}
-
-	logs, sub, err := _BondingCurveToken.contract.FilterLogs(opts, "BondingTokenCreated", tokenAddressRule)
-	if err != nil {
-		return nil, err
-	}
-	return &BondingCurveTokenBondingTokenCreatedIterator{contract: _BondingCurveToken.contract, event: "BondingTokenCreated", logs: logs, sub: sub}, nil
-}
-
-// WatchBondingTokenCreated is a free log subscription operation binding the contract event 0xf20c12ede00469181597169f5cbe631d40edec9a2a45c2e46eba231a831126dd.
-//
-// Solidity: event BondingTokenCreated(address indexed tokenAddress, string name, string symbol, uint8 externalType, string externalAddress, uint256 totalSupply, address creatorAddress, address affiliateAddress)
-func (_BondingCurveToken *BondingCurveTokenFilterer) WatchBondingTokenCreated(opts *bind.WatchOpts, sink chan<- *BondingCurveTokenBondingTokenCreated, tokenAddress []common.Address) (event.Subscription, error) {
-
-	var tokenAddressRule []interface{}
-	for _, tokenAddressItem := range tokenAddress {
-		tokenAddressRule = append(tokenAddressRule, tokenAddressItem)
-	}
-
-	logs, sub, err := _BondingCurveToken.contract.WatchLogs(opts, "BondingTokenCreated", tokenAddressRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(BondingCurveTokenBondingTokenCreated)
-				if err := _BondingCurveToken.contract.UnpackLog(event, "BondingTokenCreated", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseBondingTokenCreated is a log parse operation binding the contract event 0xf20c12ede00469181597169f5cbe631d40edec9a2a45c2e46eba231a831126dd.
-//
-// Solidity: event BondingTokenCreated(address indexed tokenAddress, string name, string symbol, uint8 externalType, string externalAddress, uint256 totalSupply, address creatorAddress, address affiliateAddress)
-func (_BondingCurveToken *BondingCurveTokenFilterer) ParseBondingTokenCreated(log types.Log) (*BondingCurveTokenBondingTokenCreated, error) {
-	event := new(BondingCurveTokenBondingTokenCreated)
-	if err := _BondingCurveToken.contract.UnpackLog(event, "BondingTokenCreated", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
 }
 
 // BondingCurveTokenFeeAccruedIterator is returned from FilterFeeAccrued and is used to iterate over the raw logs and unpacked data for FeeAccrued events raised by the BondingCurveToken contract.
@@ -1388,18 +1247,19 @@ func (it *BondingCurveTokenPairRegisteredIterator) Close() error {
 
 // BondingCurveTokenPairRegistered represents a PairRegistered event raised by the BondingCurveToken contract.
 type BondingCurveTokenPairRegistered struct {
-	PairId     [32]byte
-	BaseToken  common.Address
-	OtherToken common.Address
-	PriceModel common.Address
-	StartPrice *big.Int
-	EndPrice   *big.Int
-	Raw        types.Log // Blockchain specific contextual infos
+	PairId          [32]byte
+	BaseToken       common.Address
+	OtherToken      common.Address
+	FeeIsOtherToken bool
+	PriceModel      common.Address
+	StartPrice      *big.Int
+	EndPrice        *big.Int
+	Raw             types.Log // Blockchain specific contextual infos
 }
 
-// FilterPairRegistered is a free log retrieval operation binding the contract event 0x872521cd21d976cd52c101bb81804e331c479f7895644ae16140b559222fda5c.
+// FilterPairRegistered is a free log retrieval operation binding the contract event 0x908a4168fc7576885b681f3b0594297fa8118a2bca55899ac9ef3229438dbb04.
 //
-// Solidity: event PairRegistered(bytes32 indexed pairId, address indexed baseToken, address indexed otherToken, address priceModel, uint256 startPrice, uint256 endPrice)
+// Solidity: event PairRegistered(bytes32 indexed pairId, address indexed baseToken, address indexed otherToken, bool feeIsOtherToken, address priceModel, uint256 startPrice, uint256 endPrice)
 func (_BondingCurveToken *BondingCurveTokenFilterer) FilterPairRegistered(opts *bind.FilterOpts, pairId [][32]byte, baseToken []common.Address, otherToken []common.Address) (*BondingCurveTokenPairRegisteredIterator, error) {
 
 	var pairIdRule []interface{}
@@ -1422,9 +1282,9 @@ func (_BondingCurveToken *BondingCurveTokenFilterer) FilterPairRegistered(opts *
 	return &BondingCurveTokenPairRegisteredIterator{contract: _BondingCurveToken.contract, event: "PairRegistered", logs: logs, sub: sub}, nil
 }
 
-// WatchPairRegistered is a free log subscription operation binding the contract event 0x872521cd21d976cd52c101bb81804e331c479f7895644ae16140b559222fda5c.
+// WatchPairRegistered is a free log subscription operation binding the contract event 0x908a4168fc7576885b681f3b0594297fa8118a2bca55899ac9ef3229438dbb04.
 //
-// Solidity: event PairRegistered(bytes32 indexed pairId, address indexed baseToken, address indexed otherToken, address priceModel, uint256 startPrice, uint256 endPrice)
+// Solidity: event PairRegistered(bytes32 indexed pairId, address indexed baseToken, address indexed otherToken, bool feeIsOtherToken, address priceModel, uint256 startPrice, uint256 endPrice)
 func (_BondingCurveToken *BondingCurveTokenFilterer) WatchPairRegistered(opts *bind.WatchOpts, sink chan<- *BondingCurveTokenPairRegistered, pairId [][32]byte, baseToken []common.Address, otherToken []common.Address) (event.Subscription, error) {
 
 	var pairIdRule []interface{}
@@ -1472,9 +1332,9 @@ func (_BondingCurveToken *BondingCurveTokenFilterer) WatchPairRegistered(opts *b
 	}), nil
 }
 
-// ParsePairRegistered is a log parse operation binding the contract event 0x872521cd21d976cd52c101bb81804e331c479f7895644ae16140b559222fda5c.
+// ParsePairRegistered is a log parse operation binding the contract event 0x908a4168fc7576885b681f3b0594297fa8118a2bca55899ac9ef3229438dbb04.
 //
-// Solidity: event PairRegistered(bytes32 indexed pairId, address indexed baseToken, address indexed otherToken, address priceModel, uint256 startPrice, uint256 endPrice)
+// Solidity: event PairRegistered(bytes32 indexed pairId, address indexed baseToken, address indexed otherToken, bool feeIsOtherToken, address priceModel, uint256 startPrice, uint256 endPrice)
 func (_BondingCurveToken *BondingCurveTokenFilterer) ParsePairRegistered(log types.Log) (*BondingCurveTokenPairRegistered, error) {
 	event := new(BondingCurveTokenPairRegistered)
 	if err := _BondingCurveToken.contract.UnpackLog(event, "PairRegistered", log); err != nil {
@@ -1849,16 +1709,15 @@ type BondingCurveTokenSwapped struct {
 	Swapper      common.Address
 	PairId       [32]byte
 	Direction    bool
-	FeeToken     common.Address
 	InputAmount  *big.Int
 	OutputAmount *big.Int
 	Fee          *big.Int
 	Raw          types.Log // Blockchain specific contextual infos
 }
 
-// FilterSwapped is a free log retrieval operation binding the contract event 0x163f655f7f84a04389233837ff842844953ef4efba74f5d9317d37131b3a6a81.
+// FilterSwapped is a free log retrieval operation binding the contract event 0xe4a3738af8db2ebbadd5b857bb8d2e0e6650fade69486571ff038a2a81433ca0.
 //
-// Solidity: event Swapped(address indexed swapper, bytes32 indexed pairId, bool direction, address feeToken, uint256 inputAmount, uint256 outputAmount, uint256 fee)
+// Solidity: event Swapped(address indexed swapper, bytes32 indexed pairId, bool direction, uint256 inputAmount, uint256 outputAmount, uint256 fee)
 func (_BondingCurveToken *BondingCurveTokenFilterer) FilterSwapped(opts *bind.FilterOpts, swapper []common.Address, pairId [][32]byte) (*BondingCurveTokenSwappedIterator, error) {
 
 	var swapperRule []interface{}
@@ -1877,9 +1736,9 @@ func (_BondingCurveToken *BondingCurveTokenFilterer) FilterSwapped(opts *bind.Fi
 	return &BondingCurveTokenSwappedIterator{contract: _BondingCurveToken.contract, event: "Swapped", logs: logs, sub: sub}, nil
 }
 
-// WatchSwapped is a free log subscription operation binding the contract event 0x163f655f7f84a04389233837ff842844953ef4efba74f5d9317d37131b3a6a81.
+// WatchSwapped is a free log subscription operation binding the contract event 0xe4a3738af8db2ebbadd5b857bb8d2e0e6650fade69486571ff038a2a81433ca0.
 //
-// Solidity: event Swapped(address indexed swapper, bytes32 indexed pairId, bool direction, address feeToken, uint256 inputAmount, uint256 outputAmount, uint256 fee)
+// Solidity: event Swapped(address indexed swapper, bytes32 indexed pairId, bool direction, uint256 inputAmount, uint256 outputAmount, uint256 fee)
 func (_BondingCurveToken *BondingCurveTokenFilterer) WatchSwapped(opts *bind.WatchOpts, sink chan<- *BondingCurveTokenSwapped, swapper []common.Address, pairId [][32]byte) (event.Subscription, error) {
 
 	var swapperRule []interface{}
@@ -1923,9 +1782,9 @@ func (_BondingCurveToken *BondingCurveTokenFilterer) WatchSwapped(opts *bind.Wat
 	}), nil
 }
 
-// ParseSwapped is a log parse operation binding the contract event 0x163f655f7f84a04389233837ff842844953ef4efba74f5d9317d37131b3a6a81.
+// ParseSwapped is a log parse operation binding the contract event 0xe4a3738af8db2ebbadd5b857bb8d2e0e6650fade69486571ff038a2a81433ca0.
 //
-// Solidity: event Swapped(address indexed swapper, bytes32 indexed pairId, bool direction, address feeToken, uint256 inputAmount, uint256 outputAmount, uint256 fee)
+// Solidity: event Swapped(address indexed swapper, bytes32 indexed pairId, bool direction, uint256 inputAmount, uint256 outputAmount, uint256 fee)
 func (_BondingCurveToken *BondingCurveTokenFilterer) ParseSwapped(log types.Log) (*BondingCurveTokenSwapped, error) {
 	event := new(BondingCurveTokenSwapped)
 	if err := _BondingCurveToken.contract.UnpackLog(event, "Swapped", log); err != nil {

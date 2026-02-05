@@ -446,8 +446,8 @@ token-analytics:
   batchSize: 2
   enableDummyGenerator: false
   bondingCurve:
-    smartContractAddress: 0x1dE5d88563224e885fA979d951eA42c06B4d962f
-    tokenFactorySmartContractAddress: 0xF3F6d764Bbbb77906af9c6F132a5fC7D71b5FF62
+    smartContractAddress: 0xF411faBcE1A441E5655db72419Ba2B0b95ec9fCC
+    tokenFactorySmartContractAddress: 0x26dae540C37aD4190156D45eC1ddB32243Fa33d0
     burnAddress: 0x0000000000000000000000000000000000696f6e
     bondingCurveProgressUpdateFrequency: 500ms
     rpcEndpoints:
@@ -456,28 +456,28 @@ token-analytics:
       profile: #creator
         initialPrice: 583400000000000
         finalPrice: 9749900000000000
-        bondingCurveAlgAddress: "0x000000000000000000000000000000000000dead"
+        bondingCurveAlgAddress: "0x2d8e40053dAf7e21C9bbDAdE293D9010ED2b5E13"
         emissionVolume: 1000000000000000000000000000
         feeSponsorAddress: "0x24c7ef0f468840620e13174e44f0cf10abba3425"
         feeSponsorId: "fs-01jea-99pmi-e7f8j0ofu8q15k9f"
       post: #content
         initialPrice: 16600000000000
         finalPrice: 10135800000000000
-        bondingCurveAlgAddress: "0x000000000000000000000000000000000000dead"
+        bondingCurveAlgAddress: "0x074B22eb9C5b95EF14F7c3BDc4E47e847C8e8b77"
         emissionVolume: 1000000000000000000000000000
         feeSponsorAddress: "0x24c7ef0f468840620e13174e44f0cf10abba3425"
         feeSponsorId: "fs-01jea-99pmi-e7f8j0ofu8q15k9f"
       video: #content
         initialPrice: 16600000000000
         finalPrice: 10135800000000000
-        bondingCurveAlgAddress: "0x000000000000000000000000000000000000dead"
+        bondingCurveAlgAddress: "0x074B22eb9C5b95EF14F7c3BDc4E47e847C8e8b77"
         emissionVolume: 1000000000000000000000000000
         feeSponsorAddress: "0x24c7ef0f468840620e13174e44f0cf10abba3425"
         feeSponsorId: "fs-01jea-99pmi-e7f8j0ofu8q15k9f"
       article: #content
         initialPrice: 16600000000000
         finalPrice: 10135800000000000
-        bondingCurveAlgAddress: "0x000000000000000000000000000000000000dead"
+        bondingCurveAlgAddress: "0x074B22eb9C5b95EF14F7c3BDc4E47e847C8e8b77"
         emissionVolume: 1000000000000000000000000000
         feeSponsorAddress: "0x24c7ef0f468840620e13174e44f0cf10abba3425"
         feeSponsorId: "fs-01jea-99pmi-e7f8j0ofu8q15k9f"
