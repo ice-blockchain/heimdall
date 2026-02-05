@@ -161,7 +161,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	return nil
 }
 
-func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount *big.Int) (pricing *Pricing, err error) {
+func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount *big.Int, amountBNB *big.Int, amountUSD float64) (pricing *Pricing, err error) {
 	type tokenInfo struct {
 		BaseToken       string  `db:"base_token"`
 		ContractAddress string  `db:"contract_address"`
@@ -176,6 +176,13 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 	ionPriceInUSD := *ionPrice
 	bnbPrice := t.bnbPriceUSD.Load()
 	bnbPriceInUSD := *bnbPrice
+	toBNBRatio := ionPriceInUSD / bnbPriceInUSD
+	if amountBNB != nil && amount == nil && amountUSD == 0 {
+		amount, _ = big.NewFloat(0).Quo(big.NewFloat(0).SetInt(amountBNB), big.NewFloat(0).SetFloat64(toBNBRatio)).Int(nil)
+	} else if amountBNB == nil && amount == nil && amountUSD != 0 {
+		ionTokens := big.NewFloat(0).Quo(big.NewFloat(float64(amountUSD)), big.NewFloat(ionPriceInUSD))
+		amount, _ = big.NewFloat(0).Mul(ionTokens, big.NewFloat(1e18)).Int(nil)
+	}
 	contractOrFatAddress := []byte{}
 	var creatorTokenStartParams *StartTokenParams
 	result, err := storage.Get[tokenInfo](ctx, t.ingestedDataDB, `
@@ -370,7 +377,6 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 		feeSponsorAddress = tokenStartParams.FeeSponsorAddress
 	}
 
-	toBNBRatio := ionPriceInUSD / bnbPriceInUSD
 	if strings.Contains(strings.ToLower(common.HexToAddress(result.ContractAddress).String()), "dead") {
 		amountUsd := toUSD(amountToConvert, *ionPrice)
 		amountInBNB := new(big.Float).Mul(big.NewFloat(toBNBRatio), new(big.Float).SetInt(amountToConvert))
@@ -449,10 +455,10 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 	}
 
 	amountInBNB := new(big.Float).Mul(big.NewFloat(toBNBRatio), new(big.Float).SetInt(amountForBNB))
-	amountBNB, _ := amountInBNB.Int(nil)
+	resAmountBNB, _ := amountInBNB.Int(nil)
 	p := &Pricing{
 		AmountInBase:      resAmount,
-		AmountInBNB:       amountBNB,
+		AmountInBNB:       resAmountBNB,
 		FeeSponsorAddress: feeSponsorAddress,
 		FeeSponsorId:      tokenStartParams.FeeSponsorId,
 		AmountInUSD:       amountUsd,

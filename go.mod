@@ -156,7 +156,7 @@ require (
 	github.com/decred/dcrd/crypto/blake256 v1.1.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/deepmap/oapi-codegen v1.6.0 // indirect
-	github.com/dgraph-io/badger/v4 v4.9.0 // indirect
+	github.com/dgraph-io/badger/v4 v4.9.1 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.4.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/disintegration/imaging v1.6.2 // indirect

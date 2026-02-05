@@ -809,10 +809,19 @@ paths:
         name: type
         required: true
         type: string
-      - description: Amount of tokens to exchange (by default = 1, 1e18)
+      - description: Amount of tokens to exchange (in wei)
         in: query
         name: amount
         type: integer
+      - description: Amount of BNB to exchange (in wei)
+        in: query
+        name: amountBNB
+        type: integer
+      - description: 'Amount of USD to exchange (ex: 1.99)'
+        format: float64
+        in: query
+        name: amountUSD
+        type: number
       produces:
       - application/json
       responses:

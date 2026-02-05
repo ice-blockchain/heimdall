@@ -82,7 +82,7 @@ type (
 		GenerateTokenSuggestion(ctx context.Context, data *CreationDetailsData) (*SuggestedCreationDetails, error)
 		GetBondingCurveProgress(ctx context.Context, externalAddress string) (*BondingCurveProgress, error)
 		SubscribeBondingCurveProgress(context.Context, string, func(*BondingCurveProgress, error)) error
-		GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount *big.Int) (pricing *Pricing, err error)
+		GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount *big.Int, amountBNB *big.Int, amountUSD float64) (pricing *Pricing, err error)
 	}
 	Pricing struct {
 		AmountInBase       *big.Int
