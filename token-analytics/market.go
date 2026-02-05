@@ -63,16 +63,18 @@ func (t *trade) Marshal(client questdb.LineSender) questdb.At {
 		DecimalColumnFromString("base_price_in_usd", fmt.Sprintf("%.18f", t.BasePriceInUsd)).
 		DecimalColumn("base_amount", t.BaseAmount).
 		DecimalColumn("amount", t.Amount).
-		DecimalColumnFromString("price_in_usd", t.PriceInUsd.String())
+		DecimalColumnFromString("price_in_usd", t.PriceInUsd.String()).
+		DecimalColumnFromString("market_cap_usd", t.MarketcapUsd.String())
 }
 
-func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, direction bool, inputAmount, outputAmount *big.Int, contractAddress, userAddress, externalAddress, baseToken string, pairId []byte) error {
+func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, direction bool, inputAmount, outputAmount *big.Int, contractAddress, userAddress, externalAddress, baseToken string, pairId []byte, totalSupply, burned *big.Int) error {
 	tradeTyp, baseAmount, amount, priceInBase := buyOrSell(direction, inputAmount, outputAmount)
 	priceInBaseF, _ := priceInBase.Float64()
 	priceInUSD, basePrice, err := t.calculatePriceInUSD(ctx, priceInBaseF, baseToken)
 	if err != nil {
 		return errors.Wrapf(err, "failed to calculate price in USD for base %v", baseToken)
 	}
+	marketCapUSD := marketCap(priceInUSD, totalSupply, burned)
 	tradeData := &trade{
 		Timestamp:       *tx.BlockTimestamp,
 		PairAddress:     hex.EncodeToString(pairId[:]),
@@ -85,6 +87,7 @@ func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, directi
 		TraderAddress:   userAddress,
 		TransactionHash: tx.TransactionHash,
 		PriceInUsd:      big.NewFloat(priceInUSD),
+		MarketcapUsd:    marketCapUSD,
 	}
 
 	if err := questdb.Write(ctx, t.questDB, tradeData); err != nil {
@@ -94,7 +97,7 @@ func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, directi
 		candleStick, _ := t.ohclvRecentData.LoadOrCompute(interval.String()+"_"+externalAddress, func() (newValue *recentCandlestick, cancel bool) {
 			return newRecentCandlestick(), false
 		})
-		candleStick.Update(priceInUSD)
+		candleStick.Update(priceInUSD, totalSupply, burned)
 	}
 	if recentTradingStats, ok := t.tradingStatsRecentData.Load(externalAddress); ok {
 		recentTradingStats.update(tx.BlockTimestamp.UnixNano(), priceInUSD, tradeTyp == TradeTypeSell)
@@ -135,7 +138,8 @@ func (t *tokenAnalytics) GetOHLVCHistory(ctx context.Context, now stdlibtime.Tim
 			high,
 			low,
 			close,
-			volume
+			volume,
+		    market_cap_usd
 		    from ohlcv_%[1]v WHERE timestamp < timestamp_floor('%[1]v', $2)
                          AND external_address = $1 ORDER BY timestamp DESC LIMIT $4, $4+$3;
 	`, interval.String())
@@ -340,7 +344,8 @@ func (r *recentCandlestick) SetInterval(ctx context.Context, interval Interval) 
 	r.onceStartTicker.Do(func() { go r.startResetTicker(ctx, interval) })
 }
 
-func (r *recentCandlestick) Update(priceInUsd float64) {
+func (r *recentCandlestick) Update(priceInUsd float64, totalSupply, burned *big.Int) {
+	marketCapUSD := marketCap(priceInUsd, totalSupply, burned)
 	current := r.o.Load()
 	updated := *current
 	if current.Empty() {
@@ -354,6 +359,7 @@ func (r *recentCandlestick) Update(priceInUsd float64) {
 	}
 	updated.Close = priceInUsd
 	updated.Volume += priceInUsd
+	updated.MarketCap, _ = marketCapUSD.Float64()
 	r.o.Store(&updated)
 }
 

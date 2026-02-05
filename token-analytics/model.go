@@ -119,6 +119,7 @@ type (
 		Low             float64 `json:"low" db:"low"`
 		Close           float64 `json:"close" db:"close"`
 		Volume          float64 `json:"volume" db:"volume"`
+		MarketCap       float64 `json:"market_cap" db:"market_cap_usd"`
 	}
 
 	HolderPosition struct {

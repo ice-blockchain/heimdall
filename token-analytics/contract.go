@@ -425,6 +425,7 @@ type (
 	trade struct {
 		Timestamp       time.Time       `db:"timestamp"`
 		PriceInUsd      *big.Float      `db:"price_in_usd"`
+		MarketcapUsd    *big.Float      `db:"price_in_usd"`
 		PairAddress     string          `db:"pair_address"`
 		ContractAddress string          `db:"contract_address"`
 		ExternalAddress string          `db:"external_address"`
@@ -501,6 +502,7 @@ type (
 		Title                      string  `db:"title"`
 		ImageURL                   string  `db:"image_url"`
 		TotalSupply                string  `db:"total_supply"`
+		Burned                     string  `db:"burned"`
 		PriceUsd                   float64 `db:"price_usd"`
 		BaseProfileContractAddress *string `db:"base_profile_contract_address"`
 		BaseProfileExternalAddress *string `db:"base_profile_external_address"`
