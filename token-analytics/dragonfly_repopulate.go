@@ -10,9 +10,10 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
+	"github.com/redis/go-redis/v9"
+
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
-	"github.com/redis/go-redis/v9"
 )
 
 const (
