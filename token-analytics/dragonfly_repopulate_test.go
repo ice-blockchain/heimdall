@@ -8,8 +8,6 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
-
-	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
 func TestRepopulateBondingCurve(t *testing.T) {
@@ -149,24 +147,10 @@ func TestRepopulateUserBalances_Basic(t *testing.T) {
 		helperInsertUserTokenPosition(t, ctx, db, masterPubkey, contractAddr, tokenExternalAddr,
 			userExternalAddr, correctAmount, 0, 0)
 
-		type userPos struct {
-			UserBlockchainAddress string `db:"user_blockchain_address"`
-		}
-		positions, err := storage.Select[userPos](ctx, db,
-			"SELECT user_blockchain_address FROM user_token_positions WHERE user_external_address = $1 AND external_address = $2",
-			userExternalAddr, tokenExternalAddr)
-		require.NoError(t, err)
-		require.Len(t, positions, 1)
-		userBlockchainAddr := positions[0].UserBlockchainAddress
-
 		userPositionKey := keyUserPositionOfToken(tokenExternalAddr)
-		userPositionKeyByBlockchainAddress := keyUserPositionOfTokenByUserBlockchainAddress(tokenExternalAddr)
 		oldAmount := 300.0 // Outdated
 
-		err = ta.processedDataDB.ZAdd(ctx, userPositionKey, redis.Z{Score: oldAmount, Member: userExternalAddr}).Err()
-		require.NoError(t, err)
-
-		err = ta.processedDataDB.ZAdd(ctx, userPositionKeyByBlockchainAddress, redis.Z{Score: oldAmount, Member: userBlockchainAddr}).Err()
+		err := ta.processedDataDB.ZAdd(ctx, userPositionKey, redis.Z{Score: oldAmount, Member: userExternalAddr}).Err()
 		require.NoError(t, err)
 
 		yesterday := time.Now().Add(-24 * time.Hour)
@@ -177,13 +161,9 @@ func TestRepopulateUserBalances_Basic(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 1, count, "should repopulate 1 position")
 
-		actualAmountByExternal, err := ta.processedDataDB.ZScore(ctx, userPositionKey, userExternalAddr).Result()
+		actualAmount, err := ta.processedDataDB.ZScore(ctx, userPositionKey, userExternalAddr).Result()
 		require.NoError(t, err)
-		require.InDelta(t, 500.0, actualAmountByExternal, 0.01, "Redis should be updated to correct amount (by external address)")
-
-		actualAmountByBlockchain, err := ta.processedDataDB.ZScore(ctx, userPositionKeyByBlockchainAddress, userBlockchainAddr).Result()
-		require.NoError(t, err)
-		require.InDelta(t, 500.0, actualAmountByBlockchain, 0.01, "Redis should be updated to correct amount (by blockchain address)")
+		require.InDelta(t, 500.0, actualAmount, 0.01, "Redis should be updated to correct amount")
 	})
 }
 
@@ -209,23 +189,9 @@ func TestRepopulateUserBalances_RemovesZero(t *testing.T) {
 		helperInsertUserTokenPosition(t, ctx, db, masterPubkey, contractAddr, tokenExternalAddr,
 			userExternalAddr, "0", 0, 0)
 
-		type userPos struct {
-			UserBlockchainAddress string `db:"user_blockchain_address"`
-		}
-		positions, err := storage.Select[userPos](ctx, db,
-			"SELECT user_blockchain_address FROM user_token_positions WHERE user_external_address = $1 AND external_address = $2",
-			userExternalAddr, tokenExternalAddr)
-		require.NoError(t, err)
-		require.Len(t, positions, 1)
-		userBlockchainAddr := positions[0].UserBlockchainAddress
-
 		userPositionKey := keyUserPositionOfToken(tokenExternalAddr)
-		userPositionKeyByBlockchainAddress := keyUserPositionOfTokenByUserBlockchainAddress(tokenExternalAddr)
 
-		err = ta.processedDataDB.ZAdd(ctx, userPositionKey, redis.Z{Score: 100.0, Member: userExternalAddr}).Err()
-		require.NoError(t, err)
-
-		err = ta.processedDataDB.ZAdd(ctx, userPositionKeyByBlockchainAddress, redis.Z{Score: 100.0, Member: userBlockchainAddr}).Err()
+		err := ta.processedDataDB.ZAdd(ctx, userPositionKey, redis.Z{Score: 100.0, Member: userExternalAddr}).Err()
 		require.NoError(t, err)
 
 		yesterday := time.Now().Add(-24 * time.Hour)
@@ -237,10 +203,7 @@ func TestRepopulateUserBalances_RemovesZero(t *testing.T) {
 		require.Equal(t, 1, count, "should process 1 position")
 
 		_, err = ta.processedDataDB.ZScore(ctx, userPositionKey, userExternalAddr).Result()
-		require.ErrorIs(t, err, redis.Nil, "zero balance should be removed from Redis (by external address)")
-
-		_, err = ta.processedDataDB.ZScore(ctx, userPositionKeyByBlockchainAddress, userBlockchainAddr).Result()
-		require.ErrorIs(t, err, redis.Nil, "zero balance should be removed from Redis (by blockchain address)")
+		require.ErrorIs(t, err, redis.Nil, "zero balance should be removed from Redis")
 	})
 }
 
@@ -267,17 +230,7 @@ func TestRepopulateRedisFromPostgres_Full(t *testing.T) {
 
 		helperInsertUserTokenPosition(t, ctx, db, masterPubkey, contractAddr, tokenExternalAddr, userExternalAddr, "250000000000000000000", 0, 0)
 
-		type userPos struct {
-			UserBlockchainAddress string `db:"user_blockchain_address"`
-		}
-		positions, err := storage.Select[userPos](ctx, db,
-			"SELECT user_blockchain_address FROM user_token_positions WHERE user_external_address = $1 AND external_address = $2",
-			userExternalAddr, tokenExternalAddr)
-		require.NoError(t, err)
-		require.Len(t, positions, 1)
-		userBlockchainAddr := positions[0].UserBlockchainAddress
-
-		err = ta.processedDataDB.FlushDB(ctx).Err()
+		err := ta.processedDataDB.FlushDB(ctx).Err()
 		require.NoError(t, err)
 
 		yesterday := time.Now().Add(-24 * time.Hour)
@@ -294,14 +247,9 @@ func TestRepopulateRedisFromPostgres_Full(t *testing.T) {
 		require.InDelta(t, 60e18, score, 1.0, "bonding curve score should be 60 * 10^18")
 
 		userPositionKey := keyUserPositionOfToken(tokenExternalAddr)
-		userPositionKeyByBlockchainAddress := keyUserPositionOfTokenByUserBlockchainAddress(tokenExternalAddr)
 
-		amountByExternal, err := ta.processedDataDB.ZScore(ctx, userPositionKey, userExternalAddr).Result()
+		amount, err := ta.processedDataDB.ZScore(ctx, userPositionKey, userExternalAddr).Result()
 		require.NoError(t, err)
-		require.InDelta(t, 250.0, amountByExternal, 0.01)
-
-		amountByBlockchain, err := ta.processedDataDB.ZScore(ctx, userPositionKeyByBlockchainAddress, userBlockchainAddr).Result()
-		require.NoError(t, err)
-		require.InDelta(t, 250.0, amountByBlockchain, 0.01)
+		require.InDelta(t, 250.0, amount, 0.01)
 	})
 }

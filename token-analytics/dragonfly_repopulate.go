@@ -107,11 +107,15 @@ func (t *tokenAnalytics) repopulateBondingCurve(ctx context.Context) (int, error
 		var maxSyncedAt time.Time
 		updatedCount := 0
 		skippedCount := 0
+		migratedCount := 0
 
 		for _, token := range tokens {
 			notifiedAt := "NULL"
 			if token.BondingCurveNotifiedAt != nil {
 				notifiedAt = token.BondingCurveNotifiedAt.Format(time.RFC3339)
+			}
+			if token.BondingCurveNotifiedAt != nil && token.BondingCurveNotifiedAt.After(maxSyncedAt) {
+				maxSyncedAt = *token.BondingCurveNotifiedAt
 			}
 
 			if token.BondingCurveMigrated {
@@ -121,12 +125,8 @@ func (t *tokenAnalytics) repopulateBondingCurve(ctx context.Context) (int, error
 				} else {
 					log.Debug(fmt.Sprintf("Bonding curve: removed migrated token from Redis: token=%s, type=%s, notified_at=%s",
 						token.ExternalAddress, token.Type, notifiedAt))
-					updatedCount++
+					migratedCount++
 				}
-				if token.BondingCurveNotifiedAt != nil && token.BondingCurveNotifiedAt.After(maxSyncedAt) {
-					maxSyncedAt = *token.BondingCurveNotifiedAt
-				}
-
 				continue
 			}
 
@@ -161,13 +161,11 @@ func (t *tokenAnalytics) repopulateBondingCurve(ctx context.Context) (int, error
 			} else {
 				skippedCount++
 			}
-			if token.BondingCurveNotifiedAt != nil && token.BondingCurveNotifiedAt.After(maxSyncedAt) {
-				maxSyncedAt = *token.BondingCurveNotifiedAt
-			}
 		}
 
-		if updatedCount > 0 || skippedCount > 0 {
-			log.Debug(fmt.Sprintf("Bonding curve batch summary: updated=%d, skipped=%d (already up-to-date), total=%d", updatedCount, skippedCount, len(tokens)))
+		if updatedCount > 0 || skippedCount > 0 || migratedCount > 0 {
+			log.Debug(fmt.Sprintf("Bonding curve batch summary: updated=%d, skipped=%d (already up-to-date), migrated=%d (removed), total=%d",
+				updatedCount, skippedCount, migratedCount, len(tokens)))
 		}
 		totalProcessed += len(tokens)
 		if !maxSyncedAt.IsZero() {
@@ -231,6 +229,7 @@ func (t *tokenAnalytics) repopulateUserBalances(ctx context.Context) (int, error
 		var maxSyncedAt time.Time
 		updatedCount := 0
 		skippedCount := 0
+		zeroBalanceCount := 0
 
 		for _, pos := range positions {
 			notifiedAt := "NULL"
@@ -246,14 +245,34 @@ func (t *tokenAnalytics) repopulateUserBalances(ctx context.Context) (int, error
 				continue
 			}
 			expectedAmount := weiToFloat64FromBigInt(amountBig)
-			userPositionKeyByBlockchainAddress := keyUserPositionOfTokenByUserBlockchainAddress(pos.ExternalAddress)
-			actualAmount, err := t.processedDataDB.ZScore(ctx, userPositionKeyByBlockchainAddress, pos.UserBlockchainAddress).Result()
+
+			if pos.BalanceNotifiedAt != nil && pos.BalanceNotifiedAt.After(maxSyncedAt) {
+				maxSyncedAt = *pos.BalanceNotifiedAt
+			}
+
+			userExternal := ""
+			if pos.UserExternalAddress != nil {
+				userExternal = *pos.UserExternalAddress
+			}
+			userPositionKey := keyUserPositionOfToken(pos.ExternalAddress)
+			actualAmount, err := t.processedDataDB.ZScore(ctx, userPositionKey, userExternal).Result()
+
+			if expectedAmount == 0 {
+				if !errors.Is(err, redis.Nil) {
+					if err := t.updateUserPositionInRedis(ctx, pos.UserBlockchainAddress, userExternal, pos.ExternalAddress, 0); err != nil {
+						log.Error(errors.Wrapf(err, "failed to remove zero balance from Redis: user=%s (external=%s), token=%s",
+							pos.UserBlockchainAddress, userExternal, pos.ExternalAddress))
+					} else {
+						zeroBalanceCount++
+					}
+				}
+
+				continue
+			}
+			log.Debug(fmt.Sprintf("User balance: processing position | user=%s (external=%s), token=%s, amount_wei=%s, amount_float=%.2f, notified_at=%s",
+				pos.UserBlockchainAddress, userExternal, pos.ExternalAddress, pos.Amount, expectedAmount, notifiedAt))
 
 			if errors.Is(err, redis.Nil) || actualAmount != expectedAmount {
-				userExternal := ""
-				if pos.UserExternalAddress != nil {
-					userExternal = *pos.UserExternalAddress
-				}
 				if err := t.updateUserPositionInRedis(ctx, pos.UserBlockchainAddress, userExternal, pos.ExternalAddress, expectedAmount); err != nil {
 					log.Error(errors.Wrapf(err, "failed to update user position in Redis: user=%s (external=%s), token=%s, expected_balance=%.2f, notified_at=%s",
 						pos.UserBlockchainAddress, userExternal, pos.ExternalAddress, expectedAmount, notifiedAt))
@@ -262,9 +281,6 @@ func (t *tokenAnalytics) repopulateUserBalances(ctx context.Context) (int, error
 					if errors.Is(err, redis.Nil) {
 						action = "created"
 					}
-					if expectedAmount == 0 {
-						action = "removed (zero balance)"
-					}
 					log.Debug(fmt.Sprintf("User balance: %s position in Redis: user=%s (external=%s), token=%s, balance: %.2f → %.2f, notified_at=%s",
 						action, pos.UserBlockchainAddress, userExternal, pos.ExternalAddress, actualAmount, expectedAmount, notifiedAt))
 					updatedCount++
@@ -272,14 +288,11 @@ func (t *tokenAnalytics) repopulateUserBalances(ctx context.Context) (int, error
 			} else {
 				skippedCount++
 			}
-			if pos.BalanceNotifiedAt != nil && pos.BalanceNotifiedAt.After(maxSyncedAt) {
-				maxSyncedAt = *pos.BalanceNotifiedAt
-			}
 		}
 
-		if updatedCount > 0 || skippedCount > 0 {
-			log.Debug(fmt.Sprintf("User balance batch summary: updated=%d, skipped=%d (already up-to-date), total=%d",
-				updatedCount, skippedCount, len(positions)))
+		if updatedCount > 0 || skippedCount > 0 || zeroBalanceCount > 0 {
+			log.Debug(fmt.Sprintf("User balance batch summary: updated=%d, skipped=%d (already up-to-date), zero_balance=%d (removed), total=%d",
+				updatedCount, skippedCount, zeroBalanceCount, len(positions)))
 		}
 		totalProcessed += len(positions)
 		if !maxSyncedAt.IsZero() {
