@@ -88,6 +88,14 @@ func newMockedWalletClient() interface {
 					"verified": true,
 					"balance":  "2000000",
 				},
+				map[string]any{
+					"kind":     "Erc20",
+					"contract": "0x000000000000000000000000000000000000dead",
+					"symbol":   "USDC",
+					"decimals": 6,
+					"verified": false,
+					"balance":  "2222222",
+				},
 			},
 			"nfts": []dfns.NFT{
 				{
@@ -275,6 +283,8 @@ func TestFetchWalletInfoForCoinsAggregation(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 4*stdlibtime.Second)
 	defer cancel()
 	wallet1, wallet2, wallet3 := "wa-wallet1", "wa-wallet2", "wa-wallet3"
+	tcAddress := "0:abcd:"
+	tcType := "profile"
 	aggregatedCoins, nfts, _, err := a.fetchWalletInfoForCoins(ctx, "userID", []*CoinMapping{
 		{
 			Coin: &coins.Coin{
@@ -320,12 +330,24 @@ func TestFetchWalletInfoForCoinsAggregation(t *testing.T) {
 			WalletID: &wallet2,
 			CoinID:   "usdc_on_bsc_id",
 		},
+		{
+			Coin: &coins.Coin{
+				ID:                                "usdc_on_bsc_bogus_from_tc",
+				Symbol:                            "usdc",
+				Network:                           "BscTestnet",
+				ContractAddress:                   "0x000000000000000000000000000000000000dead",
+				TokenizedCommunityExternalAddress: &tcAddress,
+				TokenizedCommunityTokenType:       &tcType,
+			},
+			WalletID: &wallet2,
+			CoinID:   "usdc_on_bsc_bogus_from_tc",
+		},
 	}, nil)
 	require.NoError(t, err)
 	require.NotNil(t, nfts)
 	require.NotEmpty(t, aggregatedCoins)
-	require.Len(t, aggregatedCoins, 3)
-	require.Contains(t, maps.Keys(aggregatedCoins), "usdc", "ice", "ion")
+	require.Len(t, aggregatedCoins, 4)
+	require.Contains(t, maps.Keys(aggregatedCoins), "usdc", "ice", "ion", "0x000000000000000000000000000000000000dead")
 	assetUSDCOnBSC := dfns.Asset(map[string]any{
 		"kind":     "Erc20",
 		"contract": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
@@ -333,6 +355,14 @@ func TestFetchWalletInfoForCoinsAggregation(t *testing.T) {
 		"decimals": 6,
 		"verified": true,
 		"balance":  "2000000",
+	})
+	assetUSDCOnBSCBogusFromTC := dfns.Asset(map[string]any{
+		"kind":     "Erc20",
+		"contract": "0x000000000000000000000000000000000000dead",
+		"symbol":   "USDC",
+		"decimals": 6,
+		"verified": false,
+		"balance":  "2222222",
 	})
 	assetUSDCOnSepolia := dfns.Asset(map[string]any{
 		"kind":     "Erc20",
@@ -352,7 +382,6 @@ func TestFetchWalletInfoForCoinsAggregation(t *testing.T) {
 
 	aggregatedCoinsUSDC, ok := aggregatedCoins["usdc"]
 	require.True(t, ok)
-
 	sort.Slice(aggregatedCoinsUSDC.Wallets, func(i, j int) bool {
 		return aggregatedCoinsUSDC.Wallets[i].Network > aggregatedCoinsUSDC.Wallets[j].Network
 	})
@@ -377,6 +406,24 @@ func TestFetchWalletInfoForCoinsAggregation(t *testing.T) {
 		},
 		aggregatedCoinsUSDC,
 	)
+	aggregatedCoinsUSDCBogusFromTC, ok := aggregatedCoins["0x000000000000000000000000000000000000dead"]
+	require.True(t, ok)
+
+	require.EqualValues(t,
+		&CoinAggregation{
+			TotalBalance: big.NewInt(2222222),
+			Wallets: []*CoinInWallet{
+				{
+					Asset:    &assetUSDCOnBSCBogusFromTC,
+					WalletID: "wa-wallet2",
+					Network:  "BscTestnet",
+					CoinID:   "usdc_on_bsc_bogus_from_tc",
+				},
+			},
+		},
+		aggregatedCoinsUSDCBogusFromTC,
+	)
+
 	assetION := dfns.Asset(map[string]any{
 		"kind":     "Native",
 		"symbol":   "ION",
@@ -460,9 +507,9 @@ func TestFetchWalletInfoForCoinsAggregation(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, tokenizedCommunityCoins)
 		require.Len(t, tokenizedCommunityCoins, 1)
-		require.Contains(t, maps.Keys(tokenizedCommunityCoins), "non-updated-symbol")
-		require.EqualValues(t, "1113871018693693333332", tokenizedCommunityCoins["non-updated-symbol"].TotalBalance.String())
-		require.Len(t, tokenizedCommunityCoins["non-updated-symbol"].Wallets, 1)
+		require.Contains(t, maps.Keys(tokenizedCommunityCoins), "0xbb88c364c759b2b42423b71f043212085d4cdeb0")
+		require.EqualValues(t, "1113871018693693333332", tokenizedCommunityCoins["0xbb88c364c759b2b42423b71f043212085d4cdeb0"].TotalBalance.String())
+		require.Len(t, tokenizedCommunityCoins["0xbb88c364c759b2b42423b71f043212085d4cdeb0"].Wallets, 1)
 		require.Equal(t, []*CoinInWallet{
 			{
 				Asset:    &assetTokenizedCommunityCoin,
@@ -470,7 +517,7 @@ func TestFetchWalletInfoForCoinsAggregation(t *testing.T) {
 				Network:  "BscTestnet",
 				CoinID:   "tokenized-coin",
 			},
-		}, tokenizedCommunityCoins["non-updated-symbol"].Wallets)
+		}, tokenizedCommunityCoins["0xbb88c364c759b2b42423b71f043212085d4cdeb0"].Wallets)
 	})
 }
 

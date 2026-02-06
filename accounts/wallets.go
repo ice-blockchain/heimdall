@@ -444,7 +444,7 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 		walletID := walletAsset.assets.WalletID
 		walletAssets := walletAsset.assets
 		linkedSymbols := walletAsset.linkedSymbols
-		assetsBySymbol := make(map[string]dfns.Asset)
+		assetsBySymbol := make(map[string][]dfns.Asset)
 		for _, asset := range walletAssets.Assets {
 			symbolI, hasSymbol := asset["symbol"]
 			contractI, hasContract := asset["contract"]
@@ -472,49 +472,78 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 						}
 					}
 				}
-				assetsBySymbol[symbol] = asset
+				assetsBySymbol[symbol] = append(assetsBySymbol[symbol], asset)
 				if hasContract {
-					if coins.IsTestnet(walletAssets.Network) && strings.ToLower(symbol) == "snow" {
-						assetsBySymbol["0xd1f3d2f5c12a205fc912358878b089eae48a557f"] = asset
+					assetContractAddr := contractI.(string)
+					coinWithMatchedSymbol := groupedBySymbol[symbol]
+					coinWithMatchedSymbol = append(coinWithMatchedSymbol, groupedBySymbol[assetContractAddr]...)
+					hasTCCoin := false
+					for _, coin := range coinWithMatchedSymbol {
+						if coin.TokenizedCommunityExternalAddress != nil {
+							hasTCCoin = true
+						}
 					}
-					assetsBySymbol[contractI.(string)] = asset
+					hasMatchingContract := len(coinWithMatchedSymbol) == 1 && strings.EqualFold(assetContractAddr, coinWithMatchedSymbol[0].ContractAddress)
+					// TC coin is matching by symbol some other coin
+					if hasTCCoin && (!hasMatchingContract) {
+						upd := assetsBySymbol[symbol][0 : len(assetsBySymbol[symbol])-1]
+						if len(upd) == 0 {
+							delete(assetsBySymbol, symbol)
+						} else {
+							assetsBySymbol[symbol] = upd
+						}
+					}
+					if coins.IsTestnet(walletAssets.Network) && strings.ToLower(symbol) == "snow" {
+						assetsBySymbol["0xd1f3d2f5c12a205fc912358878b089eae48a557f"] = []dfns.Asset{asset}
+					}
+					assetsBySymbol[assetContractAddr] = append(assetsBySymbol[assetContractAddr], asset)
 				}
 			}
 		}
+		//symbols:
 		for searchSymbol, group := range groupedBySymbol {
-			asset, hasAsset := assetsBySymbol[searchSymbol]
-			if hasAsset {
-				symbolI, hasSymbol := asset["symbol"]
-				symbol := searchSymbol
-				if hasSymbol {
-					symbol = strings.ToLower(symbolI.(string))
-					if symbol == "ice" && (strings.EqualFold(searchSymbol, "ion")) {
-						symbol = "ion"
+			assetsByCurrentSymbol, hasAsset := assetsBySymbol[searchSymbol]
+			if hasAsset && len(assetsByCurrentSymbol) > 0 {
+				for _, asset := range assetsByCurrentSymbol {
+					symbolI, hasSymbol := asset["symbol"]
+					symbol := searchSymbol
+					if hasSymbol {
+						symbol = strings.ToLower(symbolI.(string))
+						if symbol == "ice" && (strings.EqualFold(searchSymbol, "ion")) {
+							symbol = "ion"
+						}
 					}
-				}
-				for _, g := range group {
-					if g.WalletID == nil || *g.WalletID == walletID {
-						coin, hasCoin := coinGroups[symbol]
-						if !hasCoin {
-							coin = &CoinAggregation{
-								TotalBalance: new(big.Int),
-								Wallets:      make([]*CoinInWallet, 0),
+					for _, g := range group {
+						//// fix handling tc coins with overlapping symbol with normal coins, i.e ice,
+						//// extra verify contract address
+						//// (cannot do that with normal coins as USDC i.e has different addr in assets and coins
+						//// due to testnet, coins have value from mainnet)
+						if g.TokenizedCommunityExternalAddress != nil {
+							symbol = g.ContractAddress
+						}
+						if g.WalletID == nil || *g.WalletID == walletID {
+							coin, hasCoin := coinGroups[symbol]
+							if !hasCoin {
+								coin = &CoinAggregation{
+									TotalBalance: new(big.Int),
+									Wallets:      make([]*CoinInWallet, 0),
+								}
 							}
+							assetVal := new(big.Int)
+							if strBalance, isStr := asset["balance"].(string); isStr {
+								assetVal.SetString(strBalance, 10)
+							} else if floatBalance, isFloat := asset["balance"].(float64); isFloat {
+								assetVal.SetInt64(int64(floatBalance))
+							}
+							coin.TotalBalance = coin.TotalBalance.Add(coin.TotalBalance, assetVal)
+							coin.Wallets = append(coin.Wallets, &CoinInWallet{
+								WalletID: walletAssets.WalletID,
+								Network:  walletAssets.Network,
+								CoinID:   g.CoinID,
+								Asset:    &asset,
+							})
+							coinGroups[symbol] = coin
 						}
-						assetVal := new(big.Int)
-						if strBalance, isStr := asset["balance"].(string); isStr {
-							assetVal.SetString(strBalance, 10)
-						} else if floatBalance, isFloat := asset["balance"].(float64); isFloat {
-							assetVal.SetInt64(int64(floatBalance))
-						}
-						coin.TotalBalance = coin.TotalBalance.Add(coin.TotalBalance, assetVal)
-						coin.Wallets = append(coin.Wallets, &CoinInWallet{
-							WalletID: walletAssets.WalletID,
-							Network:  walletAssets.Network,
-							CoinID:   g.CoinID,
-							Asset:    &asset,
-						})
-						coinGroups[symbol] = coin
 					}
 				}
 			} else if _, hasCoin := coinGroups[searchSymbol]; !hasAsset && !hasCoin {
