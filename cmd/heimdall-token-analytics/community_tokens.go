@@ -808,47 +808,61 @@ func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *serv
 
 	return func(ctx context.Context) (<-chan server.StreamEvent[ta.TopHolderPosition], error) {
 		ctx = context.WithValue(ctx, "token", req.Token)
-		events := make(chan server.StreamEvent[ta.TopHolderPosition], limit+1)
-		holders, err := s.tokenAnalytics.GetTopHolders(ctx, ionConnectAddress, int64(limit))
-		if err != nil {
-			return nil, fmt.Errorf("failed to get initial top holders: %w", err)
-		}
 
-		for _, holder := range holders {
-			events <- server.StreamEvent[ta.TopHolderPosition]{
-				Type: "message",
-				Data: holder,
-			}
-		}
-
-		events <- server.StreamEvent[ta.TopHolderPosition]{
-			Type: "eose",
-			Data: nil,
-		}
-
-		ticker := time.NewTicker(1 * time.Second)
+		events := make(chan server.StreamEvent[ta.TopHolderPosition])
 		go func() {
 			defer close(events)
-			defer ticker.Stop()
 
-			for ctx.Err() == nil {
+			holders, err := s.tokenAnalytics.GetTopHolders(ctx, ionConnectAddress, int64(limit))
+			if err != nil {
+				slog.ErrorContext(ctx, "failed to get initial top holders", "error", err)
+				events <- server.StreamEvent[ta.TopHolderPosition]{
+					Err:  fmt.Errorf("failed to get initial top holders: %w", err),
+					Type: "error",
+				}
+
+				return
+			}
+			for _, holder := range holders {
 				select {
 				case <-ctx.Done():
+					slog.DebugContext(ctx, "top holders stream cancelled during initial send")
+
+					return
+				case events <- server.StreamEvent[ta.TopHolderPosition]{Type: "message", Data: holder}:
+				}
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case events <- server.StreamEvent[ta.TopHolderPosition]{Type: "eose", Data: nil}:
+			}
+			ticker := time.NewTicker(1 * time.Second)
+			defer ticker.Stop()
+
+			for {
+				select {
+				case <-ctx.Done():
+					slog.DebugContext(ctx, "top holders stream cancelled")
+
 					return
 				case <-ticker.C:
 					holders, err := s.tokenAnalytics.GetTopHolders(ctx, ionConnectAddress, int64(limit))
 					if err != nil {
+						slog.ErrorContext(ctx, "failed to get top holders in ticker", "error", err)
 						events <- server.StreamEvent[ta.TopHolderPosition]{
 							Err:  err,
 							Type: "error",
 						}
+
 						return
 					}
 
 					for _, holder := range holders {
-						events <- server.StreamEvent[ta.TopHolderPosition]{
-							Type: "message",
-							Data: holder,
+						select {
+						case <-ctx.Done():
+							return
+						case events <- server.StreamEvent[ta.TopHolderPosition]{Type: "message", Data: holder}:
 						}
 					}
 				}
