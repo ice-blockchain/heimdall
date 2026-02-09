@@ -139,7 +139,7 @@ func (t *tokenAnalytics) GetOHLVCHistory(ctx context.Context, now stdlibtime.Tim
 			low,
 			close,
 			volume,
-		    market_cap_usd
+		    COALESCE(market_cap_usd, 0) AS market_cap_usd
 		    from ohlcv_%[1]v WHERE timestamp < timestamp_floor('%[1]v', $2)
                          AND external_address = $1 ORDER BY timestamp DESC LIMIT $4, $4+$3;
 	`, interval.String())
