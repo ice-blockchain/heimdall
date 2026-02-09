@@ -415,7 +415,6 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 	})
 
 	t.Run("anyPost session in trending type works correctly", func(t *testing.T) {
-		t.Skip("Skipping for noe this test because it's not working as expected, TODO: fix it")
 		_ = testRedis.Del(ctx, globalTrendingAnyPostSetKey, globalTopAnyPostSetKey).Err()
 
 		helperInsertTestUser(t, ctx, db, "trend_post_creator", "trend_post", "Trending Post", "", false, PlatformGroupIonConnect)
@@ -506,6 +505,193 @@ func TestGetGlobalSetKey(t *testing.T) {
 		key, err := getGlobalSetKey(sessionTypeTop, &invalidType)
 		require.Error(t, err)
 		require.Empty(t, key)
+	})
+}
+
+func TestViewingSessionsXcomSupport(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	db, release := helperCreateDB(t)
+	defer release()
+
+	ta := helperNewForTest(t, db)
+
+	t.Run("creates_and_retrieves_xcom_session_for_top", func(t *testing.T) {
+		_ = testRedis.Del(ctx, globalTopXcomSetKey, globalTrendingXcomSetKey).Err()
+
+		helperInsertTestUser(t, ctx, db, "xcom_top_creator", "xcom_top", "XCom Top", "", true, PlatformGroupXCom)
+		helperInsertTestToken(t, ctx, db,
+			"0xXCOMTOP11111111111111111111111111111111",
+			"xcom_top_token",
+			"XTOP",
+			TokenTypeProfile,
+			"xcom_top_creator",
+			"1000000000000000000000000",
+			500.0,
+			0.001,
+			10,
+			PlatformGroupXCom,
+		)
+
+		helperSetupGlobalSet(t, ctx, globalTopXcomSetKey, map[string]float64{
+			"xcom_top_token": 500.0,
+		})
+		helperSetupGlobalSet(t, ctx, globalTrendingXcomSetKey, map[string]float64{
+			"xcom_top_token": 1000.0 * 1e18,
+		})
+
+		tokenType := TokenTypeXcom
+		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.10.1", "device_xcom_top", &tokenType)
+		require.NoError(t, err)
+		require.NotEmpty(t, sessionID)
+		require.Greater(t, ttl, uint64(0))
+
+		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTop, sessionID, "", 10, 0)
+		require.NoError(t, err)
+		require.Len(t, tokens, 1)
+
+		require.Equal(t, "profile", tokens[0].Type)
+		require.Equal(t, "xcom_top", tokens[0].Title)
+		require.InDelta(t, 500.0, tokens[0].MarketData.MarketCap, 1.0, "Market cap from xcom top set")
+		require.InDelta(t, 1000.0, tokens[0].MarketData.Volume, 1.0, "Volume from xcom trending set")
+	})
+
+	t.Run("creates_and_retrieves_xcom_session_for_trending", func(t *testing.T) {
+		_ = testRedis.Del(ctx, globalTrendingXcomSetKey, globalTopXcomSetKey).Err()
+
+		helperInsertTestUser(t, ctx, db, "xcom_trend_creator", "xcom_trend", "XCom Trend", "", false, PlatformGroupXCom)
+		helperInsertTestToken(t, ctx, db,
+			"0xXCOMTREND1111111111111111111111111111111",
+			"xcom_trend_token",
+			"XTREND",
+			TokenTypeProfile,
+			"xcom_trend_creator",
+			"2000000000000000000000000",
+			300.0,
+			0.002,
+			5,
+			PlatformGroupXCom,
+		)
+
+		helperSetupGlobalSet(t, ctx, globalTrendingXcomSetKey, map[string]float64{
+			"xcom_trend_token": 2000.0 * 1e18,
+		})
+		helperSetupGlobalSet(t, ctx, globalTopXcomSetKey, map[string]float64{
+			"xcom_trend_token": 300.0,
+		})
+
+		tokenType := TokenTypeXcom
+		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeTrending, "192.168.10.2", "device_xcom_trend", &tokenType)
+		require.NoError(t, err)
+		require.NotEmpty(t, sessionID)
+		require.Greater(t, ttl, uint64(0))
+
+		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTrending, sessionID, "", 10, 0)
+		require.NoError(t, err)
+		require.Len(t, tokens, 1)
+
+		require.InDelta(t, 2000.0, tokens[0].MarketData.Volume, 1.0, "Volume from xcom trending set")
+		require.InDelta(t, 300.0, tokens[0].MarketData.MarketCap, 1.0, "Market cap from xcom top set")
+	})
+
+	t.Run("creates_and_retrieves_xcom_session_for_bonding_curve", func(t *testing.T) {
+		_ = testRedis.Del(ctx, globalBondingCurveProgressXcomSetKey, globalTrendingXcomSetKey).Err()
+
+		helperInsertTestUser(t, ctx, db, "xcom_bc_creator", "xcom_bc", "XCom BC", "", false, PlatformGroupXCom)
+		helperInsertTestToken(t, ctx, db,
+			"0xXCOMBC111111111111111111111111111111111",
+			"xcom_bc_token",
+			"XBC",
+			TokenTypeProfile,
+			"xcom_bc_creator",
+			"3000000000000000000000000",
+			200.0,
+			0.003,
+			8,
+			PlatformGroupXCom,
+		)
+
+		helperUpdateTokenBondingCurve(t, ctx, db, "xcom_bc_token",
+			"90000000000000000000", "200000000000000000000",
+			1.5, 3.5, "12000000000000000000", false)
+
+		helperSetupGlobalSet(t, ctx, globalBondingCurveProgressXcomSetKey, map[string]float64{
+			"xcom_bc_token": 90000000000000000000.0,
+		})
+		helperSetupGlobalSet(t, ctx, globalTrendingXcomSetKey, map[string]float64{
+			"xcom_bc_token": 1500.0 * 1e18,
+		})
+
+		tokenType := TokenTypeXcom
+		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeBondingCurveProgress, "192.168.10.3", "device_xcom_bc", &tokenType)
+		require.NoError(t, err)
+		require.NotEmpty(t, sessionID)
+		require.Greater(t, ttl, uint64(0))
+
+		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeBondingCurveProgress, sessionID, "", 10, 0)
+		require.NoError(t, err)
+		require.Len(t, tokens, 1)
+
+		require.NotNil(t, tokens[0].MarketData.BondingCurveProgress)
+		require.Equal(t, "90000000000000000000", tokens[0].MarketData.BondingCurveProgress.CurrentAmount)
+		require.InDelta(t, 1500.0, tokens[0].MarketData.Volume, 1.0, "Volume from xcom trending set")
+	})
+
+	t.Run("xcom_session_does_not_mix_with_ionconnect", func(t *testing.T) {
+		_ = testRedis.Del(ctx, globalTopXcomSetKey, globalTopProfileSetKey, globalTopSetKey).Err()
+
+		helperInsertTestUser(t, ctx, db, "xcom_mix_creator", "xcom_mix", "XCom Mix", "", true, PlatformGroupXCom)
+		helperInsertTestToken(t, ctx, db,
+			"0xXCOMMIX11111111111111111111111111111111",
+			"xcom_mix_token",
+			"XMIX",
+			TokenTypeProfile,
+			"xcom_mix_creator",
+			"1000000000000000000000000",
+			1000.0,
+			0.01,
+			10,
+			PlatformGroupXCom,
+		)
+
+		helperInsertTestUser(t, ctx, db, "ion_mix_creator", "ion_mix", "Ion Mix", "", true, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db,
+			"0xIONMIX111111111111111111111111111111111",
+			"0:ion_mix_creator:",
+			"IMIX",
+			TokenTypeProfile,
+			"ion_mix_creator",
+			"2000000000000000000000000",
+			2000.0,
+			0.02,
+			20,
+			PlatformGroupIonConnect,
+		)
+
+		helperSetupGlobalSet(t, ctx, globalTopXcomSetKey, map[string]float64{
+			"xcom_mix_token": 1000.0,
+		})
+		helperSetupGlobalSet(t, ctx, globalTopProfileSetKey, map[string]float64{
+			"0:ion_mix_creator:": 2000.0,
+		})
+
+		tokenTypeXcom := TokenTypeXcom
+		xcomSessionID, _, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.11.1", "device_xcom_mix", &tokenTypeXcom)
+		require.NoError(t, err)
+
+		xcomTokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTop, xcomSessionID, "", 10, 0)
+		require.NoError(t, err)
+		require.Len(t, xcomTokens, 1, "Xcom session should only contain xcom tokens")
+		require.Equal(t, "xcom_mix", xcomTokens[0].Title)
+
+		tokenTypeProfile := TokenTypeProfile
+		profileSessionID, _, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.11.2", "device_profile_mix", &tokenTypeProfile)
+		require.NoError(t, err)
+
+		profileTokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTop, profileSessionID, "", 10, 0)
+		require.NoError(t, err)
+		require.Len(t, profileTokens, 1, "Profile session should only contain ionconnect profile tokens")
+		require.Equal(t, "ion_mix", profileTokens[0].Title)
 	})
 }
 

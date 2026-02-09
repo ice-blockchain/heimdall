@@ -26,6 +26,7 @@ type (
 	bondingCurveData struct {
 		ExternalAddress              string     `db:"external_address"`
 		Type                         string     `db:"type"`
+		Platform                     string     `db:"platform"`
 		BondingCurveMigrated         bool       `db:"bonding_curve_migrated"`
 		BondingCurveCurrentAmount    string     `db:"bonding_curve_current_amount"`
 		BondingCurveCurrentAmountUSD float64    `db:"bonding_curve_current_amount_usd"`
@@ -83,6 +84,7 @@ func (t *tokenAnalytics) repopulateBondingCurve(ctx context.Context) (int, error
 			SELECT 
 				external_address,
 				type,
+				platform,
 				bonding_curve_migrated,
 				bonding_curve_current_amount,
 				bonding_curve_current_amount_usd,
@@ -119,7 +121,7 @@ func (t *tokenAnalytics) repopulateBondingCurve(ctx context.Context) (int, error
 			}
 
 			if token.BondingCurveMigrated {
-				if err := t.updateBondingCurveInRedis(ctx, token.ExternalAddress, token.Type, 0, true); err != nil {
+				if err := t.updateBondingCurveInRedis(ctx, token.ExternalAddress, token.Type, token.Platform, 0, true); err != nil {
 					log.Error(errors.Wrapf(err, "failed to remove migrated token from Redis: token=%s, type=%s, notified_at=%s",
 						token.ExternalAddress, token.Type, notifiedAt))
 				} else {
@@ -144,7 +146,7 @@ func (t *tokenAnalytics) repopulateBondingCurve(ctx context.Context) (int, error
 
 			actualScore, err := t.processedDataDB.ZScore(ctx, globalBondingCurveProgressSetKey, token.ExternalAddress).Result()
 			if errors.Is(err, redis.Nil) || math.Abs(expectedScore-actualScore) > 1.0 {
-				if err := t.updateBondingCurveInRedis(ctx, token.ExternalAddress, token.Type, expectedScore, false); err != nil {
+				if err := t.updateBondingCurveInRedis(ctx, token.ExternalAddress, token.Type, token.Platform, expectedScore, false); err != nil {
 					log.Error(errors.Wrapf(err, "failed to update bonding curve in Redis: token=%s, type=%s, expected_score=%.2e, notified_at=%s",
 						token.ExternalAddress, token.Type, expectedScore, notifiedAt))
 				} else {

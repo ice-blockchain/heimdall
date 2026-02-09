@@ -26,6 +26,7 @@ type BalanceUpdateJobArgs struct {
 	PairID                string `json:"pair_id"`
 	BaseToken             string `json:"base_token"`
 	TokenType             string `json:"token_type"`
+	Platform              string `json:"platform"`
 
 	DummyBalance *string `json:"dummy_balance,omitempty"`
 }
@@ -136,14 +137,14 @@ func (w *balanceUpdateWorker) Work(ctx context.Context, job *riverqueue.Job[Bala
 	if args.PairID == "" || args.BaseToken == "" {
 		log.Debug(fmt.Sprintf("Skipping bonding curve update for token=%s: missing pairID (%q) or baseToken (%q)",
 			args.TokenExternalAddress, args.PairID, args.BaseToken))
-	} else if err := w.updateBondingCurveProgress(ctx, args.TokenExternalAddress, args.PairID, args.BaseToken, args.TokenType, args.DummyBalance != nil); err != nil {
+	} else if err := w.updateBondingCurveProgress(ctx, args.TokenExternalAddress, args.PairID, args.BaseToken, args.TokenType, args.Platform, args.DummyBalance != nil); err != nil {
 		log.Error(errors.Wrapf(err, "failed to update bonding curve for token %s (balance update succeeded)", args.TokenExternalAddress))
 	}
 
 	return nil
 }
 
-func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, externalAddress, pairID, baseToken, tokenType string, isDummy bool) error {
+func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, externalAddress, pairID, baseToken, tokenType, platform string, isDummy bool) error {
 	var progress *bondingcurve.BondingCurveProgress
 	var err error
 
@@ -214,7 +215,7 @@ func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, ex
 	currentAmountWei := new(big.Float).SetInt(progress.SoldTokens)
 	currentAmountScore, _ := currentAmountWei.Float64()
 
-	if err := w.ta.updateBondingCurveInRedis(ctx, externalAddress, tokenType, currentAmountScore, progress.Migrated); err != nil {
+	if err := w.ta.updateBondingCurveInRedis(ctx, externalAddress, tokenType, platform, currentAmountScore, progress.Migrated); err != nil {
 		return errors.Wrapf(err, "failed to update bonding curve in Redis for token %s", externalAddress)
 	}
 	progressPercent := 0.0
@@ -228,7 +229,7 @@ func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, ex
 	return nil
 }
 
-func (t *tokenAnalytics) updateBondingCurveInRedis(ctx context.Context, externalAddress, tokenType string, currentAmountScore float64, migrated bool) error {
+func (t *tokenAnalytics) updateBondingCurveInRedis(ctx context.Context, externalAddress, tokenType, platform string, currentAmountScore float64, migrated bool) error {
 	if !migrated {
 		if err := t.processedDataDB.ZAdd(ctx, globalBondingCurveProgressSetKey, redis.Z{
 			Score:  currentAmountScore,
@@ -237,6 +238,14 @@ func (t *tokenAnalytics) updateBondingCurveInRedis(ctx context.Context, external
 			return errors.Wrap(err, "failed to update bonding curve progress in Redis")
 		}
 
+		if platform == PlatformGroupXCom {
+			if err := t.processedDataDB.ZAdd(ctx, globalBondingCurveProgressXcomSetKey, redis.Z{
+				Score:  currentAmountScore,
+				Member: externalAddress,
+			}).Err(); err != nil {
+				return errors.Wrap(err, "failed to update xcom bonding curve progress in Redis")
+			}
+		}
 		if tokenType != "" {
 			if typeSpecificKey := getBondingCurveProgressSetKeyByType(tokenType); typeSpecificKey != "" {
 				if err := t.processedDataDB.ZAdd(ctx, typeSpecificKey, redis.Z{
@@ -258,6 +267,11 @@ func (t *tokenAnalytics) updateBondingCurveInRedis(ctx context.Context, external
 	} else {
 		if err := t.processedDataDB.ZRem(ctx, globalBondingCurveProgressSetKey, externalAddress).Err(); err != nil {
 			return errors.Wrap(err, "failed to remove token from bonding curve progress in Redis")
+		}
+		if platform == PlatformGroupXCom {
+			if err := t.processedDataDB.ZRem(ctx, globalBondingCurveProgressXcomSetKey, externalAddress).Err(); err != nil {
+				return errors.Wrap(err, "failed to remove token from xcom bonding curve progress in Redis")
+			}
 		}
 		if tokenType != "" {
 			if typeSpecificKey := getBondingCurveProgressSetKeyByType(tokenType); typeSpecificKey != "" {

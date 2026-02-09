@@ -215,6 +215,21 @@ const docTemplate = `{
                         "required": true
                     },
                     {
+                        "enum": [
+                            "profile",
+                            "post",
+                            "video",
+                            "article",
+                            "anyPost",
+                            "xcom"
+                        ],
+                        "type": "string",
+                        "example": "\"profile\"",
+                        "description": "Token type filter",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
                         "type": "string",
                         "example": "\"bitcoin\"",
                         "description": "Search keyword",
@@ -761,7 +776,8 @@ const docTemplate = `{
                             "post",
                             "video",
                             "article",
-                            "anyPost"
+                            "anyPost",
+                            "xcom"
                         ],
                         "type": "string",
                         "example": "\"profile\"",
@@ -993,9 +1009,17 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            "profile",
+                            "post",
+                            "video",
+                            "article",
+                            "anyPost",
+                            "xcom"
+                        ],
                         "type": "string",
                         "example": "\"profile\"",
-                        "description": "Token type filter (profile, post, video, article, or anyPost)",
+                        "description": "Token type filter",
                         "name": "type",
                         "in": "query"
                     }
@@ -1426,9 +1450,17 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            "profile",
+                            "post",
+                            "video",
+                            "article",
+                            "anyPost",
+                            "xcom"
+                        ],
                         "type": "string",
                         "example": "\"profile\"",
-                        "description": "Token type filter (profile, post, video, article, or anyPost)",
+                        "description": "Token type filter",
                         "name": "type",
                         "in": "query"
                     }

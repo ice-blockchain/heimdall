@@ -512,6 +512,18 @@ paths:
         name: externalAddressOrViewType
         required: true
         type: string
+      - description: Token type filter
+        enum:
+        - profile
+        - post
+        - video
+        - article
+        - anyPost
+        - xcom
+        example: '"profile"'
+        in: query
+        name: type
+        type: string
       - description: Search keyword
         example: '"bitcoin"'
         in: query
@@ -873,6 +885,7 @@ paths:
         - video
         - article
         - anyPost
+        - xcom
         example: '"profile"'
         in: query
         name: type
@@ -1064,7 +1077,14 @@ paths:
         in: query
         name: viewingSessionId
         type: string
-      - description: Token type filter (profile, post, video, article, or anyPost)
+      - description: Token type filter
+        enum:
+        - profile
+        - post
+        - video
+        - article
+        - anyPost
+        - xcom
         example: '"profile"'
         in: query
         name: type
@@ -1340,7 +1360,14 @@ paths:
         in: query
         name: viewingSessionId
         type: string
-      - description: Token type filter (profile, post, video, article, or anyPost)
+      - description: Token type filter
+        enum:
+        - profile
+        - post
+        - video
+        - article
+        - anyPost
+        - xcom
         example: '"profile"'
         in: query
         name: type
