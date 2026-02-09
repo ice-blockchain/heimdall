@@ -90,29 +90,27 @@ func (t *tokenAnalytics) updateTrendingVolumes(ctx context.Context) error {
 		if lastAddress == "" {
 			query = `
 				SELECT 
-					v.contract_address as token_address,
-					v.volume_24h,
-					v.external_address,
-					COALESCE(v.token_type, '') as token_type,
-					t.platform
-				FROM token_volumes_24h v
-				JOIN tokens t ON t.contract_address = v.contract_address
-				ORDER BY v.contract_address
+					contract_address as token_address,
+					volume_24h,
+					external_address,
+					COALESCE(token_type, '') as token_type,
+					platform
+				FROM token_volumes_24h
+				ORDER BY contract_address
 				LIMIT $1
 			`
 			args = append(args, batchSize)
 		} else {
 			query = `
 				SELECT 
-					v.contract_address as token_address,
-					v.volume_24h,
-					v.external_address, 
-					COALESCE(v.token_type, '') as token_type,
-					t.platform
-				FROM token_volumes_24h v
-				JOIN tokens t ON t.contract_address = v.contract_address
-				WHERE v.contract_address > $1
-				ORDER BY v.contract_address
+					contract_address as token_address,
+					volume_24h,
+					external_address, 
+					COALESCE(token_type, '') as token_type,
+					platform
+				FROM token_volumes_24h
+				WHERE contract_address > $1
+				ORDER BY contract_address
 				LIMIT $2
 			`
 			args = append(args, lastAddress, batchSize)

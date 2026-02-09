@@ -28,8 +28,9 @@ func (t *tokenAnalytics) CreateViewingSession(ctx context.Context, sessionType, 
 	}
 	if oldSessionID != "" {
 		oldSessionKey := sessionKey(sessionType, oldSessionID)
-		if err := t.processedDataDB.Del(ctx, oldSessionKey).Err(); err != nil {
-			return "", 0, fmt.Errorf("failed to delete old session key: %w", err)
+		oldSessionMetaKey := sessionMetadataKey(sessionType, oldSessionID)
+		if err := t.processedDataDB.Del(ctx, oldSessionKey, oldSessionMetaKey).Err(); err != nil {
+			return "", 0, fmt.Errorf("failed to delete old session keys: %w", err)
 		}
 	}
 	sessionID := uuid.New().String()
