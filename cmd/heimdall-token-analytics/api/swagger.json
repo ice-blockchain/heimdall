@@ -208,6 +208,21 @@
                         "required": true
                     },
                     {
+                        "enum": [
+                            "profile",
+                            "post",
+                            "video",
+                            "article",
+                            "anyPost",
+                            "xcom"
+                        ],
+                        "type": "string",
+                        "example": "\"profile\"",
+                        "description": "Token type filter",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
                         "type": "string",
                         "example": "\"bitcoin\"",
                         "description": "Search keyword",
@@ -754,7 +769,8 @@
                             "post",
                             "video",
                             "article",
-                            "anyPost"
+                            "anyPost",
+                            "xcom"
                         ],
                         "type": "string",
                         "example": "\"profile\"",
@@ -986,9 +1002,17 @@
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            "profile",
+                            "post",
+                            "video",
+                            "article",
+                            "anyPost",
+                            "xcom"
+                        ],
                         "type": "string",
                         "example": "\"profile\"",
-                        "description": "Token type filter (profile, post, video, article, or anyPost)",
+                        "description": "Token type filter",
                         "name": "type",
                         "in": "query"
                     }
@@ -1419,9 +1443,17 @@
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            "profile",
+                            "post",
+                            "video",
+                            "article",
+                            "anyPost",
+                            "xcom"
+                        ],
                         "type": "string",
                         "example": "\"profile\"",
-                        "description": "Token type filter (profile, post, video, article, or anyPost)",
+                        "description": "Token type filter",
                         "name": "type",
                         "in": "query"
                     }

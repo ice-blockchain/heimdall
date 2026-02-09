@@ -93,7 +93,8 @@ func (t *tokenAnalytics) updateTrendingVolumes(ctx context.Context) error {
 					contract_address as token_address,
 					volume_24h,
 					external_address,
-					COALESCE(token_type, '') as token_type
+					COALESCE(token_type, '') as token_type,
+					platform
 				FROM token_volumes_24h
 				ORDER BY contract_address
 				LIMIT $1
@@ -105,7 +106,8 @@ func (t *tokenAnalytics) updateTrendingVolumes(ctx context.Context) error {
 					contract_address as token_address,
 					volume_24h,
 					external_address, 
-					COALESCE(token_type, '') as token_type
+					COALESCE(token_type, '') as token_type,
+					platform
 				FROM token_volumes_24h
 				WHERE contract_address > $1
 				ORDER BY contract_address
@@ -115,6 +117,7 @@ func (t *tokenAnalytics) updateTrendingVolumes(ctx context.Context) error {
 		}
 
 		type volumeWithType struct {
+			Platform        *string `db:"platform"`
 			TokenAddress    string  `db:"token_address"`
 			Volume24h       float64 `db:"volume_24h"`
 			ExternalAddress string  `db:"external_address"`
@@ -134,7 +137,12 @@ func (t *tokenAnalytics) updateTrendingVolumes(ctx context.Context) error {
 				Score:  vol.Volume24h,
 				Member: vol.ExternalAddress,
 			})
-			if vol.TokenType != "" {
+			if vol.Platform != nil && *vol.Platform == PlatformGroupXCom {
+				pipe.ZAdd(ctx, globalTrendingXcomSetKey, redis.Z{
+					Score:  vol.Volume24h,
+					Member: vol.ExternalAddress,
+				})
+			} else if vol.TokenType != "" {
 				typeSpecificKey := getTrendingSetKeyByType(vol.TokenType)
 				if typeSpecificKey != "" {
 					pipe.ZAdd(ctx, typeSpecificKey, redis.Z{

@@ -18,9 +18,10 @@ import (
 
 type (
 	bondingCurveUpdate struct {
+		FeeSponsor                   *string `json:"fee_sponsor"`
 		ExternalAddress              string  `json:"external_address"`
 		Type                         string  `json:"type"`
-		BondingCurveMigrated         bool    `json:"bonding_curve_migrated"`
+		Platform                     string  `json:"platform"`
 		BondingCurveCurrentAmount    string  `json:"bonding_curve_current_amount"`
 		BondingCurveGoalAmount       string  `json:"bonding_curve_goal_amount"`
 		BondingCurveRaisedAmount     string  `json:"bonding_curve_raised_amount"`
@@ -32,8 +33,8 @@ type (
 		TotalSupply                  string  `json:"total_supply"`
 		PriceModel                   string  `json:"price_model"`
 		BaseToken                    string  `json:"base_token"`
-		FeeSponsor                   *string `json:"fee_sponsor"`
 		UpdatedAt                    int64   `json:"updated_at"`
+		BondingCurveMigrated         bool    `json:"bonding_curve_migrated"`
 	}
 )
 
@@ -112,7 +113,14 @@ func (t *tokenAnalytics) handleBondingCurveUpdate(ctx context.Context, payload s
 			}).Err(); err != nil {
 				return errors.Wrap(err, "failed to update bonding curve progress in Redis")
 			}
-
+			if update.Platform == PlatformGroupXCom {
+				if err := t.processedDataDB.ZAdd(ctx, globalBondingCurveProgressXcomSetKey, redis.Z{
+					Score:  currentAmountScore,
+					Member: update.ExternalAddress,
+				}).Err(); err != nil {
+					return errors.Wrap(err, "failed to update xcom bonding curve progress in Redis")
+				}
+			}
 			if update.Type != "" {
 				if typeSpecificKey := getBondingCurveProgressSetKeyByType(update.Type); typeSpecificKey != "" {
 					if err := t.processedDataDB.ZAdd(ctx, typeSpecificKey, redis.Z{
@@ -135,6 +143,11 @@ func (t *tokenAnalytics) handleBondingCurveUpdate(ctx context.Context, payload s
 	} else {
 		if err := t.processedDataDB.ZRem(ctx, globalBondingCurveProgressSetKey, update.ExternalAddress).Err(); err != nil {
 			return errors.Wrap(err, "failed to remove token from bonding curve progress in Redis")
+		}
+		if update.Platform == PlatformGroupXCom {
+			if err := t.processedDataDB.ZRem(ctx, globalBondingCurveProgressXcomSetKey, update.ExternalAddress).Err(); err != nil {
+				return errors.Wrap(err, "failed to remove token from xcom bonding curve progress in Redis")
+			}
 		}
 		if update.Type != "" {
 			if typeSpecificKey := getBondingCurveProgressSetKeyByType(update.Type); typeSpecificKey != "" {

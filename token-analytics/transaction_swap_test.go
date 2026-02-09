@@ -13,6 +13,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/nbd-wtf/go-nostr"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 
 	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
@@ -184,6 +185,17 @@ func TestOnSwap(t *testing.T) {
 		score, err := testRedis.ZScore(ctx, redisKey, userIonConnect).Result()
 		require.NoError(t, err)
 		require.Equal(t, float64(1), score) // 1 token from mock RPC
+
+		globalScore, err := testRedis.ZScore(ctx, globalTopSetKey, ionConnectAddr).Result()
+		require.NoError(t, err)
+		require.NotEqual(t, 0.0, globalScore, "Should be in globalTopSetKey")
+
+		articleScore, err := testRedis.ZScore(ctx, globalTopArticleSetKey, ionConnectAddr).Result()
+		require.NoError(t, err)
+		require.NotEqual(t, 0.0, articleScore, "Should be in globalTopArticleSetKey")
+
+		_, err = testRedis.ZScore(ctx, globalTopXcomSetKey, ionConnectAddr).Result()
+		require.Equal(t, redis.Nil, err, "IonConnect token should NOT be in globalTopXcomSetKey")
 	})
 
 	t.Run("processes_sell_swap_successfully", func(t *testing.T) {

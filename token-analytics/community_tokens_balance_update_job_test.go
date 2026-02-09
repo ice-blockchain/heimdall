@@ -50,6 +50,7 @@ func TestBalanceUpdateJob_WithDummyBalance(t *testing.T) {
 		PairID:                pairID,
 		BaseToken:             baseToken,
 		TokenType:             "profile",
+		Platform:              PlatformGroupIonConnect,
 		DummyBalance:          &dummyBalance,
 	})
 	require.NoError(t, err)
@@ -107,6 +108,7 @@ func TestBalanceUpdateJob_WithRPC(t *testing.T) {
 		PairID:                "0x0000000000000000000000000000000000000000000000000000000000000001",
 		BaseToken:             "0x2c73996babf1a06c2c057177353293f7ca0907c8",
 		TokenType:             "profile",
+		Platform:              PlatformGroupIonConnect,
 	})
 	require.NoError(t, err)
 
@@ -126,6 +128,17 @@ func TestBalanceUpdateJob_WithRPC(t *testing.T) {
 	score, err := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddr), userExternalAddr).Result()
 	require.NoError(t, err, "Redis entry should exist for user position")
 	require.InDelta(t, 5.0, score, 0.01, "Redis score should be 5.0")
+
+	bcScore, err := ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressSetKey, tokenExternalAddr).Result()
+	require.NoError(t, err)
+	require.NotEqual(t, 0.0, bcScore, "Global bonding curve progress should be updated")
+
+	profileBcScore, err := ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressProfileSetKey, tokenExternalAddr).Result()
+	require.NoError(t, err)
+	require.NotEqual(t, 0.0, profileBcScore, "Profile bonding curve progress should be updated")
+
+	_, err = ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressXcomSetKey, tokenExternalAddr).Result()
+	require.Equal(t, redis.Nil, err, "IonConnect token should NOT be in xcom-specific bonding curve set")
 }
 
 func TestBalanceUpdateJob_ZeroBalance(t *testing.T) {
@@ -147,8 +160,8 @@ func TestBalanceUpdateJob_ZeroBalance(t *testing.T) {
 	tokenExternalAddr := "0:testuser2:testtoken2"
 	txHash := "0xdeadbeef2"
 
-	helperInsertTestUser(t, ctx, db, userExternalAddr, "testuser2", "Test User 2", userBlockchainAddr, false, "ionconnect")
-	helperInsertTestToken(t, ctx, db, tokenContractAddr, tokenExternalAddr, "TEST2", "profile", userExternalAddr, "1000000000000000000000000000", 0, 0, 0, "ionconnect")
+	helperInsertTestUser(t, ctx, db, userExternalAddr, "testuser2", "Test User 2", userBlockchainAddr, false, PlatformGroupIonConnect)
+	helperInsertTestToken(t, ctx, db, tokenContractAddr, tokenExternalAddr, "TEST2", "profile", userExternalAddr, "1000000000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
 
 	helperInsertUserPosition(t, ctx, db, userBlockchainAddr, tokenContractAddr, tokenExternalAddr, userExternalAddr, "1000000000000000000")
 
@@ -170,6 +183,7 @@ func TestBalanceUpdateJob_ZeroBalance(t *testing.T) {
 		PairID:                "0x0000000000000000000000000000000000000000000000000000000000000002",
 		BaseToken:             "0x2c73996babf1a06c2c057177353293f7ca0907c8",
 		TokenType:             "profile",
+		Platform:              PlatformGroupIonConnect,
 	})
 	require.NoError(t, err)
 
@@ -187,6 +201,83 @@ func TestBalanceUpdateJob_ZeroBalance(t *testing.T) {
 
 	_, err = ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddr), userExternalAddr).Result()
 	require.Error(t, err, "Entry should be removed from Redis when balance is 0")
+}
+
+func TestBalanceUpdateJob_XcomPlatform(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	db, connString, release := helperCreateDBWithConnString(t)
+	defer release()
+
+	mockBackend, _, _ := fixture.SetupMockedBondingCurveBackend(t, fixture.DefaultMockBackendConfig())
+	mockBC := fixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+
+	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC))
+	defer ta.Close()
+
+	userBlockchainAddr := "0xXCOMBALANCE000000000000000000000000001"
+	userExternalAddr := "xcom_balance_user"
+	contractAddr := "0xXCOMBALANCETOKEN00000000000000000001"
+	tokenExternalAddr := "xcom_balance_token_123"
+	pairID := "0xaaaa000000000000000000000000000000000000000000000000000000000001"
+	baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+
+	helperInsertTestUser(t, ctx, db, "xcom_balance_creator", "xcom_bal_user", "XCom Balance User", userBlockchainAddr, false, PlatformGroupXCom)
+	helperInsertTestToken(t, ctx, db, contractAddr, tokenExternalAddr, "XBAL", TokenTypePost, "xcom_balance_creator",
+		"1000000000000000000000", 0, 0, 0, PlatformGroupXCom)
+
+	helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddr, pairID, baseToken)
+	helperInsertBaseTokenPrice(t, ctx, db, baseToken, "ION", 0.5)
+	helperInsertUserPosition(t, ctx, db, userBlockchainAddr, contractAddr, tokenExternalAddr, userExternalAddr, "0")
+
+	dummyBalance := "5000000000000000000" // 5 tokens
+	err := ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
+		UserBlockchainAddress: userBlockchainAddr,
+		UserExternalAddress:   userExternalAddr,
+		ContractAddress:       contractAddr,
+		TokenExternalAddress:  tokenExternalAddr,
+		TransactionHash:       "0xxcom_balance_test",
+		PairID:                pairID,
+		BaseToken:             baseToken,
+		TokenType:             TokenTypePost,
+		Platform:              PlatformGroupXCom,
+		DummyBalance:          &dummyBalance,
+	})
+	require.NoError(t, err)
+
+	helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
+
+	type position struct {
+		Amount string `db:"amount"`
+	}
+	pos, err := storage.Get[position](ctx, db, `
+		SELECT amount FROM user_token_positions 
+		WHERE user_blockchain_address = $1 AND contract_address = $2
+	`, userBlockchainAddr, contractAddr)
+	require.NoError(t, err)
+	require.Equal(t, dummyBalance, pos.Amount, "Should use dummy balance")
+
+	userPositionKey := keyUserPositionOfToken(tokenExternalAddr)
+	score, err := ta.processedDataDB.ZScore(ctx, userPositionKey, userExternalAddr).Result()
+	require.NoError(t, err)
+	require.InDelta(t, 5.0, score, 0.0001, "Redis should have dummy balance")
+
+	// Check bonding curve sets for xcom platform
+	bcScore, err := ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressSetKey, tokenExternalAddr).Result()
+	require.NoError(t, err)
+	require.NotEqual(t, 0.0, bcScore, "Global bonding curve progress should be updated")
+
+	xcomBcScore, err := ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressXcomSetKey, tokenExternalAddr).Result()
+	require.NoError(t, err)
+	require.NotEqual(t, 0.0, xcomBcScore, "Xcom bonding curve progress should be updated")
+
+	postBcScore, err := ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressPostSetKey, tokenExternalAddr).Result()
+	require.NoError(t, err)
+	require.NotEqual(t, 0.0, postBcScore, "Xcom post token should be in post-specific bonding curve set")
+
+	anyPostBcScore, err := ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressAnyPostSetKey, tokenExternalAddr).Result()
+	require.NoError(t, err)
+	require.NotEqual(t, 0.0, anyPostBcScore, "Xcom post token should be in anyPost bonding curve set")
 }
 
 func helperInsertUserPosition(t testing.TB, ctx context.Context, db *storage.DB, userBlockchainAddr, contractAddr, tokenExternalAddr, userExternalAddr, amount string) {

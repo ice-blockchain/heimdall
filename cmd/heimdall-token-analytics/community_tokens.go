@@ -30,8 +30,8 @@ type (
 		PaginationRequest
 	}
 	LatestTokensRequest struct {
+		Type     *string `form:"type" binding:"omitempty,oneof=profile post video article anyPost xcom" swaggerignore:"true"`
 		ViewType string  `uri:"externalAddressOrViewType" swaggerignore:"true"`
-		Type     *string `form:"type" binding:"omitempty,oneof=profile post video article anyPost" swaggerignore:"true"`
 		Keyword  string  `form:"keyword" swaggerignore:"true"`
 		PaginationRequest
 	}
@@ -44,12 +44,12 @@ type (
 	TokenInfoStreamTypeAndSessionQuery struct {
 		ViewType         string  `uri:"externalAddressOrViewType" swaggerignore:"true"`
 		ViewingSessionID string  `form:"viewingSessionId" swaggerignore:"true"`
-		Type             *string `form:"type" binding:"omitempty,oneof=profile post video article anyPost" swaggerignore:"true"`
+		Type             *string `form:"type" binding:"omitempty,oneof=profile post video article anyPost xcom" swaggerignore:"true"`
 		PaginationRequest
 	}
 	CreateViewingSessionRequest struct {
 		ViewType string  `uri:"externalAddressOrViewType" swaggerignore:"true"`
-		Type     *string `form:"type" binding:"omitempty,oneof=profile post video article anyPost" swaggerignore:"true"`
+		Type     *string `form:"type" binding:"omitempty,oneof=profile post video article anyPost xcom" swaggerignore:"true"`
 	}
 	SessionViewCreateResponse struct {
 		ID  string `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
@@ -185,6 +185,7 @@ func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[To
 //	@Tags			Tokens
 //	@Produce		json
 //	@Param			externalAddressOrViewType	path		string	true	"View type (latest)"		example("latest")
+//	@Param			type						query		string	false	"Token type filter"			Enums(profile,post,video,article,anyPost,xcom)	example("profile")
 //	@Param			keyword						query		string	false	"Search keyword"			example("bitcoin")
 //	@Param			limit						query		uint32	false	"Number of items to return"	example(10)
 //	@Param			offset						query		uint32	false	"Number of items to skip"	example(0)
@@ -220,8 +221,8 @@ func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Requ
 //	@Description	Creates a new session view for community tokens analytics.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			externalAddressOrViewType	path		string	true	"View type"			Enums(top,trending,bondingCurveProgress)	example("top")
-//	@Param			type						query		string	false	"Token type filter"	Enums(profile,post,video,article,anyPost)	example("profile")
+//	@Param			externalAddressOrViewType	path		string	true	"View type"			Enums(top,trending,bondingCurveProgress)		example("top")
+//	@Param			type						query		string	false	"Token type filter"	Enums(profile,post,video,article,anyPost,xcom)	example("profile")
 //	@Success		200							{object}	SessionViewCreateResponse
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500							{object}	server.ResponseErrorBody
@@ -701,7 +702,7 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 //	@Produce		json
 //	@Param			externalAddressOrViewType	path		string	true	"View type (latest, featured, top, trending, or bondingCurveProgress)"	example("latest","featured","top","trending","bondingCurveProgress")
 //	@Param			viewingSessionId			query		string	false	"Viewing session ID (required for top/trending/bondingCurveProgress)"	example("550e8400-e29b-41d4-a716-446655440000")
-//	@Param			type						query		string	false	"Token type filter (profile, post, video, article, or anyPost)"			example("profile")
+//	@Param			type						query		string	false	"Token type filter"														Enums(profile,post,video,article,anyPost,xcom)	example("profile")
 //	@Success		200							{object}	ta.CommunityToken
 //	@Failure		400							{object}	server.ResponseErrorBody
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
@@ -816,11 +817,14 @@ func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *serv
 			holders, err := s.tokenAnalytics.GetTopHolders(ctx, ionConnectAddress, int64(limit))
 			if err != nil {
 				slog.ErrorContext(ctx, "failed to get initial top holders", "error", err)
-				events <- server.StreamEvent[ta.TopHolderPosition]{
+				select {
+				case <-ctx.Done():
+					return
+				case events <- server.StreamEvent[ta.TopHolderPosition]{
 					Err:  fmt.Errorf("failed to get initial top holders: %w", err),
 					Type: "error",
+				}:
 				}
-
 				return
 			}
 			for _, holder := range holders {
@@ -850,11 +854,14 @@ func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *serv
 					holders, err := s.tokenAnalytics.GetTopHolders(ctx, ionConnectAddress, int64(limit))
 					if err != nil {
 						slog.ErrorContext(ctx, "failed to get top holders in ticker", "error", err)
-						events <- server.StreamEvent[ta.TopHolderPosition]{
+						select {
+						case <-ctx.Done():
+							return
+						case events <- server.StreamEvent[ta.TopHolderPosition]{
 							Err:  err,
 							Type: "error",
+						}:
 						}
-
 						return
 					}
 

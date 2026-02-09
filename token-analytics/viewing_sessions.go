@@ -4,6 +4,7 @@ package tokenanalytics
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -27,15 +28,22 @@ func (t *tokenAnalytics) CreateViewingSession(ctx context.Context, sessionType, 
 	}
 	if oldSessionID != "" {
 		oldSessionKey := sessionKey(sessionType, oldSessionID)
-		if err := t.processedDataDB.Del(ctx, oldSessionKey).Err(); err != nil {
-			return "", 0, fmt.Errorf("failed to delete old session key: %w", err)
+		oldSessionMetaKey := sessionMetadataKey(sessionType, oldSessionID)
+		if err := t.processedDataDB.Del(ctx, oldSessionKey, oldSessionMetaKey).Err(); err != nil {
+			return "", 0, fmt.Errorf("failed to delete old session keys: %w", err)
 		}
 	}
 	sessionID := uuid.New().String()
 	sessKey := sessionKey(sessionType, sessionID)
+	sessMetaKey := sessionMetadataKey(sessionType, sessionID)
 	globalKey, err := getGlobalSetKey(sessionType, tokenType)
 	if err != nil {
 		return "", 0, err
+	}
+
+	tokenTypeValue := ""
+	if tokenType != nil {
+		tokenTypeValue = *tokenType
 	}
 
 	if responses, txErr := t.processedDataDB.TxPipelined(ctx, func(pipeliner redis.Pipeliner) error {
@@ -46,6 +54,10 @@ func (t *tokenAnalytics) CreateViewingSession(ctx context.Context, sessionType, 
 			return pErr
 		}
 		if pErr := pipeliner.Set(ctx, mapKey, sessionID, defaultViewingSessionTTL).Err(); pErr != nil {
+			return pErr
+		}
+		// Store tokenType in a separate key for efficient retrieval
+		if pErr := pipeliner.Set(ctx, sessMetaKey, tokenTypeValue, defaultViewingSessionTTL).Err(); pErr != nil {
 			return pErr
 		}
 		return nil
@@ -67,16 +79,39 @@ func (t *tokenAnalytics) CreateViewingSession(ctx context.Context, sessionType, 
 
 func (t *tokenAnalytics) GetTokensFromViewingSession(ctx context.Context, sessionType, sessionID, keyword string, limit, offset uint64) ([]*CommunityToken, error) {
 	sessKey := sessionKey(sessionType, sessionID)
-	exists, err := t.processedDataDB.Exists(ctx, sessKey).Result()
+	sessMetaKey := sessionMetadataKey(sessionType, sessionID)
+
+	var existsCmd *redis.IntCmd
+	var tokenTypeCmd *redis.StringCmd
+
+	if responses, txErr := t.processedDataDB.TxPipelined(ctx, func(pipeliner redis.Pipeliner) error {
+		existsCmd = pipeliner.Exists(ctx, sessKey)
+		tokenTypeCmd = pipeliner.Get(ctx, sessMetaKey)
+		return nil
+	}); txErr != nil && !errors.Is(txErr, redis.Nil) {
+		return nil, fmt.Errorf("failed to check session: %w", txErr)
+	} else {
+		for _, response := range responses {
+			if rerr := response.Err(); rerr != nil && !errors.Is(rerr, redis.Nil) {
+				return nil, fmt.Errorf("failed to `%v`: %w", response.FullName(), rerr)
+			}
+		}
+	}
+
+	exists, err := existsCmd.Result()
 	if err != nil {
 		return nil, fmt.Errorf("failed to check session existence: %w", err)
 	}
 	if exists == 0 {
 		return nil, ErrSessionNotFound
 	}
+	tokenType, err := tokenTypeCmd.Result()
+	if err != nil && !errors.Is(err, redis.Nil) {
+		return nil, fmt.Errorf("failed to get session tokenType: %w", err)
+	}
 
 	if keyword != "" {
-		return t.getTokensWithKeywordFilter(ctx, sessKey, sessionType, keyword, limit, offset)
+		return t.getTokensWithKeywordFilter(ctx, sessKey, sessionType, tokenType, keyword, limit, offset)
 	}
 	tokenData, err := t.processedDataDB.ZRevRangeWithScores(ctx, sessKey, int64(offset), int64(offset+limit-1)).Result()
 	if err != nil {
@@ -92,7 +127,7 @@ func (t *tokenAnalytics) GetTokensFromViewingSession(ctx context.Context, sessio
 		tokenAddresses[i] = addr
 		scoresMap[addr] = z.Score
 	}
-	tokens, err := t.getTokenDetailsWithScoresMap(ctx, sessionType, tokenAddresses, scoresMap)
+	tokens, err := t.getTokenDetailsWithScoresMapWithType(ctx, sessionType, tokenType, tokenAddresses, scoresMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get token details: %w", err)
 	}
@@ -100,7 +135,7 @@ func (t *tokenAnalytics) GetTokensFromViewingSession(ctx context.Context, sessio
 	return tokens, nil
 }
 
-func (t *tokenAnalytics) getTokensWithKeywordFilter(ctx context.Context, sessionKey, sessionType, keyword string, limit, offset uint64) ([]*CommunityToken, error) {
+func (t *tokenAnalytics) getTokensWithKeywordFilter(ctx context.Context, sessionKey, sessionType, tokenType, keyword string, limit, offset uint64) ([]*CommunityToken, error) {
 	matchedAddresses, err := t.searchTokensByLookup(ctx, keyword)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search tokens by lookup: %w", err)
@@ -151,10 +186,10 @@ func (t *tokenAnalytics) getTokensWithKeywordFilter(ctx context.Context, session
 		paginatedScores[sorted[i].addr] = sorted[i].score
 	}
 
-	return t.getTokenDetailsWithScoresMap(ctx, sessionType, paginatedAddresses, paginatedScores)
+	return t.getTokenDetailsWithScoresMapWithType(ctx, sessionType, tokenType, paginatedAddresses, paginatedScores)
 }
 
-func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessionType string, externalAddresses []string, scoresMap map[string]float64) ([]*CommunityToken, error) {
+func (t *tokenAnalytics) getTokenDetailsWithScoresMapWithType(ctx context.Context, sessionType, tokenType string, externalAddresses []string, scoresMap map[string]float64) ([]*CommunityToken, error) {
 	if len(externalAddresses) == 0 {
 		return []*CommunityToken{}, nil
 	}
@@ -164,28 +199,28 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 			t.external_address,
 			t.platform as platform,
 			t.type,
-		COALESCE(t.title, '') as title,
-		COALESCE(t.description, '') as description,
-		COALESCE(t.image_url, '') as image_url,
-		t.created_at,
-		t.ticker,
-		t.total_supply,
-		t.content_author_id as content_author_id,
-		t.ion_connect_address,
-		creator.username as creator_username,
-		creator.display_name as creator_display,
-		creator.verified as creator_verified,
-		creator.avatar as creator_avatar,
-		creator.platform_group as creator_platform,
-		t.content_author_id as creator_bnb_bsc_address,
-		creator.external_address as creator_external_address,
-		COALESCE(t.price_usd, 0) as price_usd,
-		COALESCE(t.holders_count, 0) as holders_count,
-		COALESCE(t.market_cap_usd, 0) as market_cap_usd,
-		COALESCE(t.bonding_curve_current_amount, '0') as bonding_curve_current_amount,
-		COALESCE(t.bonding_curve_goal_amount, '0') as bonding_curve_goal_amount,
-		COALESCE(t.bonding_curve_current_amount_usd, 0) as bonding_curve_current_amount_usd,
-		COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd
+			COALESCE(t.title, '') as title,
+			COALESCE(t.description, '') as description,
+			COALESCE(t.image_url, '') as image_url,
+			t.created_at,
+			t.ticker,
+			t.total_supply,
+			t.content_author_id as content_author_id,
+			t.ion_connect_address,
+			creator.username as creator_username,
+			creator.display_name as creator_display,
+			creator.verified as creator_verified,
+			creator.avatar as creator_avatar,
+			creator.platform_group as creator_platform,
+			t.content_author_id as creator_bnb_bsc_address,
+			creator.external_address as creator_external_address,
+			COALESCE(t.price_usd, 0) as price_usd,
+			COALESCE(t.holders_count, 0) as holders_count,
+			COALESCE(t.market_cap_usd, 0) as market_cap_usd,
+			COALESCE(t.bonding_curve_current_amount, '0') as bonding_curve_current_amount,
+			COALESCE(t.bonding_curve_goal_amount, '0') as bonding_curve_goal_amount,
+			COALESCE(t.bonding_curve_current_amount_usd, 0) as bonding_curve_current_amount_usd,
+			COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd
 		FROM tokens t
 		LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
 		WHERE t.external_address = ANY($1)
@@ -199,24 +234,39 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 	for i := range tokensPtr {
 		tokensMap[tokensPtr[i].ExternalAddress] = tokensPtr[i]
 	}
-	additionalMetrics, err := t.fetchAdditionalMetricsFromRedis(ctx, sessionType, externalAddresses)
+	secondaryMetrics, err := t.fetchAdditionalMetricsFromRedis(ctx, sessionType, tokenType, externalAddresses)
 	if err != nil {
 		return nil, err
 	}
+	var volumeFromTrending map[string]float64
+	if sessionType == sessionTypeBondingCurveProgress {
+		volumeFromTrending, err = t.fetchAdditionalMetricsFromRedis(ctx, sessionTypeTop, tokenType, externalAddresses)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	result := make([]*CommunityToken, 0, len(externalAddresses))
 	for _, addr := range externalAddresses {
 		token, exists := tokensMap[addr]
 		if !exists {
 			continue
 		}
-		var marketCap float64
-		var volume float64
-		if sessionType == sessionTypeTop {
+
+		var marketCap, volume float64
+		switch sessionType {
+		case sessionTypeTop:
+			// scoresMap has market cap, secondaryMetrics has volume
 			marketCap = scoresMap[addr]
-			volume = additionalMetrics[addr] / 1e18
-		} else {
+			volume = secondaryMetrics[addr] / 1e18
+		case sessionTypeBondingCurveProgress:
+			// scoresMap has bonding curve progress (not used), secondaryMetrics has market cap, volumeFromTrending has volume
+			marketCap = secondaryMetrics[addr]
+			volume = volumeFromTrending[addr] / 1e18
+		case sessionTypeTrending:
+			// scoresMap has volume, secondaryMetrics has market cap
 			volume = scoresMap[addr] / 1e18
-			marketCap = additionalMetrics[addr]
+			marketCap = secondaryMetrics[addr]
 		}
 
 		tokenExternalAddresses, creatorExternalAddresses, err := buildTokenAndCreatorAddresses(TokenAndCreatorAddressesParams{
@@ -272,23 +322,37 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMap(ctx context.Context, sessi
 	return result, nil
 }
 
-func (t *tokenAnalytics) fetchAdditionalMetricsFromRedis(ctx context.Context, sessionType string, externalAddresses []string) (map[string]float64, error) {
+func (t *tokenAnalytics) fetchAdditionalMetricsFromRedis(ctx context.Context, sessionType, tokenType string, externalAddresses []string) (map[string]float64, error) {
 	pipe := t.processedDataDB.Pipeline()
 	cmds := make(map[string]*redis.FloatCmd, len(externalAddresses))
+
 	if sessionType == sessionTypeTop {
 		// For "top": need to fetch volume from global trending set
+		trendingKey := globalTrendingSetKey
+		if tokenType != "" {
+			if typeSpecificKey, err := getGlobalSetKey(sessionTypeTrending, &tokenType); err == nil {
+				trendingKey = typeSpecificKey
+			}
+		}
 		for _, addr := range externalAddresses {
-			cmds[addr] = pipe.ZScore(ctx, globalTrendingSetKey, addr)
+			cmds[addr] = pipe.ZScore(ctx, trendingKey, addr)
 		}
 	} else {
-		// For "trending": need to fetch market cap from global top set
+		// For "trending" and "bondingCurveProgress": need to fetch market cap from global top set
+		topKey := globalTopSetKey
+		if tokenType != "" {
+			if typeSpecificKey, err := getGlobalSetKey(sessionTypeTop, &tokenType); err == nil {
+				topKey = typeSpecificKey
+			}
+		}
 		for _, addr := range externalAddresses {
-			cmds[addr] = pipe.ZScore(ctx, globalTopSetKey, addr)
+			cmds[addr] = pipe.ZScore(ctx, topKey, addr)
 		}
 	}
-	if _, err := pipe.Exec(ctx); err != nil && err != redis.Nil {
+	if _, err := pipe.Exec(ctx); err != nil && !errors.Is(err, redis.Nil) {
 		return nil, fmt.Errorf("failed to fetch metrics from Redis: %w", err)
 	}
+
 	result := make(map[string]float64, len(externalAddresses))
 	for addr, cmd := range cmds {
 		if score, err := cmd.Result(); err == nil {
@@ -328,6 +392,10 @@ func userMapKey(sessionType, userIdentifier string) string {
 	return fmt.Sprintf(userIdentifierMapPrefix, sessionType, userIdentifier)
 }
 
+func sessionMetadataKey(sessionType, sessionID string) string {
+	return fmt.Sprintf("token_analytics:session_meta:%s:%s", sessionType, sessionID)
+}
+
 func getGlobalSetKey(sessionType string, tokenType *string) (string, error) {
 	switch sessionType {
 	case sessionTypeTop:
@@ -343,6 +411,8 @@ func getGlobalSetKey(sessionType string, tokenType *string) (string, error) {
 				return globalTopArticleSetKey, nil
 			case TokenTypeAnyPost:
 				return globalTopAnyPostSetKey, nil
+			case TokenTypeXcom:
+				return globalTopXcomSetKey, nil
 			default:
 				return "", fmt.Errorf("unsupported token type: %s", *tokenType)
 			}
@@ -361,6 +431,8 @@ func getGlobalSetKey(sessionType string, tokenType *string) (string, error) {
 				return globalTrendingArticleSetKey, nil
 			case TokenTypeAnyPost:
 				return globalTrendingAnyPostSetKey, nil
+			case TokenTypeXcom:
+				return globalTrendingXcomSetKey, nil
 			default:
 				return "", fmt.Errorf("unsupported token type: %s", *tokenType)
 			}
@@ -379,6 +451,8 @@ func getGlobalSetKey(sessionType string, tokenType *string) (string, error) {
 				return globalBondingCurveProgressArticleSetKey, nil
 			case TokenTypeAnyPost:
 				return globalBondingCurveProgressAnyPostSetKey, nil
+			case TokenTypeXcom:
+				return globalBondingCurveProgressXcomSetKey, nil
 			default:
 				return "", fmt.Errorf("unsupported token type: %s", *tokenType)
 			}

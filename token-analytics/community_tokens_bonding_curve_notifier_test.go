@@ -53,6 +53,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 		payload := fmt.Sprintf(`{
 			"external_address": "%s",
 			"type": "profile",
+			"platform": "ionconnect",
 			"contract_address": "%s",
 			"price_usd": %f,
 			"total_supply": "1000000000000000000000000",
@@ -126,6 +127,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"contract_address": "%s",
 			"price_usd": 0.005,
 			"type":"profile",
+			"platform": "ionconnect",
 			"total_supply": "1000000000000000000000000",
 			"liquidity_usd": 100.0,
 			"bonding_curve_migrated": true,
@@ -173,6 +175,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"external_address": "%s",
 			"contract_address": "%s",
 			"type":"profile",
+			"platform": "ionconnect",
 			"price_usd": %f,
 			"total_supply": "1000000000000000000000000",
 			"liquidity_usd": 0,
@@ -214,6 +217,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 			"contract_address": "0x1234567890123456789012345678901234567890",
 			"price_usd": 0.005,
 			"type":"profile",
+			"platform": "ionconnect",
 			"total_supply": "1000000000000000000000000",
 			"liquidity_usd": 2.5,
 			"bonding_curve_migrated": false,
@@ -257,6 +261,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 		payload := `{
 			"external_address": "0:test:",
 			"type": "profile",
+			"platform": "ionconnect",
 			"bonding_curve_migrated": false,
 			"bonding_curve_current_amount": "invalid_number",
 			"bonding_curve_goal_amount": "200000000000000000000",
@@ -293,6 +298,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 		payload := fmt.Sprintf(`{
 			"external_address": "%s",
 			"type": "post",
+			"platform": "ionconnect",
 			"bonding_curve_migrated": false,
 			"bonding_curve_current_amount": "75000000000000000000",
 			"bonding_curve_goal_amount": "200000000000000000000",
@@ -341,6 +347,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 		payload := fmt.Sprintf(`{
 			"external_address": "%s",
 			"type": "video",
+			"platform": "ionconnect",
 			"bonding_curve_migrated": false,
 			"bonding_curve_current_amount": "85000000000000000000",
 			"bonding_curve_goal_amount": "200000000000000000000",
@@ -385,6 +392,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 		payload := fmt.Sprintf(`{
 			"external_address": "%s",
 			"type": "article",
+			"platform": "ionconnect",
 			"bonding_curve_migrated": false,
 			"bonding_curve_current_amount": "95000000000000000000",
 			"bonding_curve_goal_amount": "200000000000000000000",
@@ -429,6 +437,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 		payload := fmt.Sprintf(`{
 			"external_address": "%s",
 			"type": "profile",
+			"platform": "ionconnect",
 			"bonding_curve_migrated": false,
 			"bonding_curve_current_amount": "65000000000000000000",
 			"bonding_curve_goal_amount": "200000000000000000000",
@@ -490,6 +499,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 		payload := fmt.Sprintf(`{
 			"external_address": "%s",
 			"type": "post",
+			"platform": "ionconnect",
 			"bonding_curve_migrated": true,
 			"bonding_curve_current_amount": "200000000000000000000",
 			"bonding_curve_goal_amount": "200000000000000000000",

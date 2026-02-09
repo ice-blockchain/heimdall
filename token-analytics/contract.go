@@ -131,6 +131,7 @@ const (
 	TokenTypeArticle = "article"
 	TokenTypeVideo   = "video"
 	TokenTypeAnyPost = "anyPost"
+	TokenTypeXcom    = "xcom"
 
 	TokenTypeLatest               = "latest"
 	TokenTypeFeatured             = "featured"
@@ -180,18 +181,21 @@ const (
 	globalTopVideoSetKey   = "token_analytics:global:top:video"
 	globalTopArticleSetKey = "token_analytics:global:top:article"
 	globalTopAnyPostSetKey = "token_analytics:global:top:anyPost"
+	globalTopXcomSetKey    = "token_analytics:global:top:xcom"
 
 	globalTrendingProfileSetKey = "token_analytics:global:trending:profile"
 	globalTrendingPostSetKey    = "token_analytics:global:trending:post"
 	globalTrendingVideoSetKey   = "token_analytics:global:trending:video"
 	globalTrendingArticleSetKey = "token_analytics:global:trending:article"
 	globalTrendingAnyPostSetKey = "token_analytics:global:trending:anyPost"
+	globalTrendingXcomSetKey    = "token_analytics:global:trending:xcom"
 
 	globalBondingCurveProgressProfileSetKey = "token_analytics:global:bonding_curve_progress:profile"
 	globalBondingCurveProgressPostSetKey    = "token_analytics:global:bonding_curve_progress:post"
 	globalBondingCurveProgressVideoSetKey   = "token_analytics:global:bonding_curve_progress:video"
 	globalBondingCurveProgressArticleSetKey = "token_analytics:global:bonding_curve_progress:article"
 	globalBondingCurveProgressAnyPostSetKey = "token_analytics:global:bonding_curve_progress:anyPost"
+	globalBondingCurveProgressXcomSetKey    = "token_analytics:global:bonding_curve_progress:xcom"
 
 	userSessionKeyPrefix    = "token_analytics:session:%s:%s"  // {type}:{sessionID}
 	userIdentifierMapPrefix = "token_analytics:user_map:%s:%s" // {type}:{IP:DeviceKey} -> sessionID

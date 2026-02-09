@@ -73,6 +73,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			ctx, tx, contractAddress, direction,
 			inputAmount, outputAmount, totalSupply, burned, priceUSD,
 			tokenExternalAddress, userExternalAddress, tokenType,
+			PlatformGroupIonConnect,                                              // platform
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
@@ -122,6 +123,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			ctx, tx, contractAddress, direction,
 			inputAmount, outputAmount, totalSupply, burned, priceUSD,
 			tokenExternalAddress, userExternalAddress, tokenType,
+			PlatformGroupIonConnect,                                              // platform
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
@@ -146,6 +148,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			ctx, tx2, contractAddress, direction,
 			inputAmount, outputAmount, totalSupply, burned, priceUSD2,
 			tokenExternalAddress, userExternalAddress, tokenType,
+			PlatformGroupIonConnect,
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
@@ -181,6 +184,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			ctx, tx1, contractAddress, false,
 			buyInput, buyOutput, totalSupply, burned, priceUSD,
 			tokenExternalAddress, userExternalAddress, tokenType,
+			PlatformGroupIonConnect,
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
@@ -214,6 +218,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			ctx, tx2, contractAddress, true, // direction = true (sell)
 			sellInput, sellOutput, totalSupply, burned, newPriceUSD,
 			tokenExternalAddress, userExternalAddress, tokenType,
+			PlatformGroupIonConnect,
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
@@ -248,6 +253,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			ctx, tx1, contractAddress, false,
 			buyInput, buyOutput, totalSupply, burned, 0.10,
 			tokenExternalAddress, userExternalAddress, tokenType,
+			PlatformGroupIonConnect,
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
@@ -269,6 +275,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			ctx, tx2, contractAddress, true,
 			sellInput, sellOutput, totalSupply, burned, 0.10,
 			tokenExternalAddress, userExternalAddress, tokenType,
+			PlatformGroupIonConnect,
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
