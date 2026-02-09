@@ -682,6 +682,9 @@ func marketCap(priceInUSD float64, totalSupply, burned *big.Int) *big.Float {
 }
 
 func (t *tokenAnalyticsUsers) ValidateTransaction(txPayload accounts.TransactionPayload) error {
+	if true { // TODO: remove when FE is ready
+		return nil
+	}
 	if len(txPayload.UserOperations) == 0 {
 		return nil // not a tc tx
 	}
