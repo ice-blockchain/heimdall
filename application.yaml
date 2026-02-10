@@ -440,6 +440,7 @@ apps-runtime:
     langDetectScoreThreshold: 0.5
     cdnBaseUrl: https://cdn.example.com/bogus
     forYouSeenSkipsMultiplier: 1
+    feeSponsorId: "dummy"
 token-analytics:
   workers: 10
   batchSize: 2
