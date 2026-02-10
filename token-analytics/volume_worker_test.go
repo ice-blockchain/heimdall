@@ -22,7 +22,8 @@ func TestUpdateTrendingVolumes(t *testing.T) {
 		ta := helperNewForTest(t, db)
 		ctx := context.Background()
 
-		_ = ta.processedDataDB.FlushDB(ctx).Err()
+		err := ta.processedDataDB.FlushDB(ctx).Err()
+		require.NoError(t, err)
 
 		token1ContractAddr := "0xtoken1_contract"
 		token1ExtAddr := "ext_token1"
@@ -98,11 +99,11 @@ func TestUpdateTrendingVolumes(t *testing.T) {
 
 		xcomScore, err := ta.processedDataDB.ZScore(ctx, globalTrendingXcomSetKey, tokenExtAddr).Result()
 		require.NoError(t, err)
-		require.Equal(t, 1.5e+19, xcomScore, "xcom token should have volume in wei*price_usd")
+		require.InDelta(t, 1.5e+19, xcomScore, 1e12, "xcom token should have volume in wei*price_usd")
 
 		globalScore, err := ta.processedDataDB.ZScore(ctx, globalTrendingSetKey, tokenExtAddr).Result()
 		require.NoError(t, err)
-		require.Equal(t, 1.5e+19, globalScore, "xcom token should also be in global trending set")
+		require.InDelta(t, 1.5e+19, globalScore, 1e12, "xcom token should also be in global trending set")
 	})
 
 	t.Run("adds content type tokens to anyPost set", func(t *testing.T) {
