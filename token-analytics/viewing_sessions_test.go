@@ -27,7 +27,7 @@ func TestCreateViewingSession(t *testing.T) {
 		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.1.1", "device123", nil)
 		require.NoError(t, err)
 		require.NotEmpty(t, sessionID)
-		require.Greater(t, ttl, uint64(0))
+		require.Equal(t, uint64(300), ttl)
 
 		sessKey := sessionKey(sessionTypeTop, sessionID)
 		exists, err := testRedis.Exists(ctx, sessKey).Result()
@@ -44,7 +44,7 @@ func TestCreateViewingSession(t *testing.T) {
 		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeTrending, "192.168.1.2", "device456", nil)
 		require.NoError(t, err)
 		require.NotEmpty(t, sessionID)
-		require.Greater(t, ttl, uint64(0))
+		require.Equal(t, uint64(300), ttl)
 	})
 
 	t.Run("creates session for bonding curve progress type", func(t *testing.T) {
@@ -56,7 +56,7 @@ func TestCreateViewingSession(t *testing.T) {
 		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeBondingCurveProgress, "192.168.1.3", "device789", nil)
 		require.NoError(t, err)
 		require.NotEmpty(t, sessionID)
-		require.Greater(t, ttl, uint64(0))
+		require.Equal(t, uint64(300), ttl)
 	})
 
 	t.Run("creates session with token type filter", func(t *testing.T) {
@@ -68,7 +68,7 @@ func TestCreateViewingSession(t *testing.T) {
 		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.1.4", "deviceABC", &tokenType)
 		require.NoError(t, err)
 		require.NotEmpty(t, sessionID)
-		require.Greater(t, ttl, uint64(0))
+		require.Equal(t, uint64(300), ttl)
 	})
 
 	t.Run("creates session for anyPost type in top", func(t *testing.T) {
@@ -81,7 +81,7 @@ func TestCreateViewingSession(t *testing.T) {
 		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.1.10", "deviceAnyPost1", &tokenType)
 		require.NoError(t, err)
 		require.NotEmpty(t, sessionID)
-		require.Greater(t, ttl, uint64(0))
+		require.Equal(t, uint64(300), ttl)
 
 		sessKey := sessionKey(sessionTypeTop, sessionID)
 		exists, err := testRedis.Exists(ctx, sessKey).Result()
@@ -99,7 +99,7 @@ func TestCreateViewingSession(t *testing.T) {
 		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeTrending, "192.168.1.11", "deviceAnyPost2", &tokenType)
 		require.NoError(t, err)
 		require.NotEmpty(t, sessionID)
-		require.Greater(t, ttl, uint64(0))
+		require.Equal(t, uint64(300), ttl)
 	})
 
 	t.Run("creates session for anyPost type in bonding curve progress", func(t *testing.T) {
@@ -112,7 +112,7 @@ func TestCreateViewingSession(t *testing.T) {
 		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeBondingCurveProgress, "192.168.1.12", "deviceAnyPost3", &tokenType)
 		require.NoError(t, err)
 		require.NotEmpty(t, sessionID)
-		require.Greater(t, ttl, uint64(0))
+		require.Equal(t, uint64(300), ttl)
 	})
 
 	t.Run("replaces existing session for same user", func(t *testing.T) {
@@ -307,11 +307,11 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 
 		tokens1, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTop, sessionID, "", 2, 0)
 		require.NoError(t, err)
-		require.GreaterOrEqual(t, len(tokens1), 1, "Expected at least 1 token in first page")
+		require.Equal(t, 2, len(tokens1), "Expected 2 tokens in first page")
 
 		tokens2, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTop, sessionID, "", 2, 2)
 		require.NoError(t, err)
-		require.GreaterOrEqual(t, len(tokens2), 0)
+		require.Equal(t, 2, len(tokens2), "Expected 2 tokens in second page")
 	})
 
 	t.Run("anyPost session returns only non-profile tokens", func(t *testing.T) {
@@ -508,6 +508,42 @@ func TestGetGlobalSetKey(t *testing.T) {
 	})
 }
 
+func TestCreateViewingSessionWithEmptyGlobalSet(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	db, release := helperCreateDB(t)
+	defer release()
+
+	ta := helperNewForTest(t, db)
+
+	t.Run("creates_and_retrieves_session_with_empty_xcom_top_set", func(t *testing.T) {
+		_ = testRedis.Del(ctx, globalTopXcomSetKey, globalTrendingXcomSetKey).Err()
+
+		tokenType := TokenTypeXcom
+		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.20.1", "device_empty_xcom", &tokenType)
+		require.NoError(t, err)
+		require.NotEmpty(t, sessionID)
+		require.Equal(t, uint64(300), ttl)
+
+		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTop, sessionID, "", 10, 0)
+		require.NoError(t, err)
+		require.Empty(t, tokens, "Should return empty array, not error")
+	})
+
+	t.Run("creates_and_retrieves_session_with_empty_global_top_set", func(t *testing.T) {
+		_ = testRedis.Del(ctx, globalTopSetKey, globalTrendingSetKey).Err()
+
+		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.20.2", "device_empty_global", nil)
+		require.NoError(t, err)
+		require.NotEmpty(t, sessionID)
+		require.Equal(t, uint64(300), ttl)
+
+		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTop, sessionID, "", 10, 0)
+		require.NoError(t, err)
+		require.Empty(t, tokens, "Should return empty array, not error")
+	})
+}
+
 func TestViewingSessionsXcomSupport(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
@@ -544,7 +580,7 @@ func TestViewingSessionsXcomSupport(t *testing.T) {
 		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.10.1", "device_xcom_top", &tokenType)
 		require.NoError(t, err)
 		require.NotEmpty(t, sessionID)
-		require.Greater(t, ttl, uint64(0))
+		require.Equal(t, uint64(300), ttl)
 
 		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTop, sessionID, "", 10, 0)
 		require.NoError(t, err)
@@ -584,7 +620,7 @@ func TestViewingSessionsXcomSupport(t *testing.T) {
 		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeTrending, "192.168.10.2", "device_xcom_trend", &tokenType)
 		require.NoError(t, err)
 		require.NotEmpty(t, sessionID)
-		require.Greater(t, ttl, uint64(0))
+		require.Equal(t, uint64(300), ttl)
 
 		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTrending, sessionID, "", 10, 0)
 		require.NoError(t, err)
@@ -626,7 +662,7 @@ func TestViewingSessionsXcomSupport(t *testing.T) {
 		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeBondingCurveProgress, "192.168.10.3", "device_xcom_bc", &tokenType)
 		require.NoError(t, err)
 		require.NotEmpty(t, sessionID)
-		require.Greater(t, ttl, uint64(0))
+		require.Equal(t, uint64(300), ttl)
 
 		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeBondingCurveProgress, sessionID, "", 10, 0)
 		require.NoError(t, err)
