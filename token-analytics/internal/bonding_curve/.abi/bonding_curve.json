@@ -6,17 +6,7 @@
   },
   {
     "inputs": [],
-    "name": "Allowance",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "DoubleCreate",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "EmptyRecipients",
     "type": "error"
   },
   {
@@ -93,22 +83,6 @@
     "type": "error"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "tokenA",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "tokenB",
-        "type": "address"
-      }
-    ],
-    "name": "NoFeeTokenFound",
-    "type": "error"
-  },
-  {
     "inputs": [],
     "name": "NotCreator",
     "type": "error"
@@ -151,63 +125,13 @@
   },
   {
     "inputs": [],
-    "name": "ZeroAddress",
+    "name": "UniswapTraderNotSet",
     "type": "error"
   },
   {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "tokenAddress",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "name",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "symbol",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint8",
-        "name": "externalType",
-        "type": "uint8"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "externalAddress",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "totalSupply",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "creatorAddress",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "affiliateAddress",
-        "type": "address"
-      }
-    ],
-    "name": "BondingTokenCreated",
-    "type": "event"
+    "inputs": [],
+    "name": "ZeroAddress",
+    "type": "error"
   },
   {
     "anonymous": false,
@@ -297,6 +221,12 @@
         "internalType": "address",
         "name": "otherToken",
         "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "feeIsOtherToken",
+        "type": "bool"
       },
       {
         "indexed": false,
@@ -396,12 +326,6 @@
         "internalType": "bool",
         "name": "direction",
         "type": "bool"
-      },
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "feeToken",
-        "type": "address"
       },
       {
         "indexed": false,
@@ -506,6 +430,25 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "compositeParamsToTokenAddress",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "config",
     "outputs": [
@@ -566,6 +509,11 @@
   {
     "inputs": [
       {
+        "internalType": "address",
+        "name": "_baseTokenAddress",
+        "type": "address"
+      },
+      {
         "internalType": "string",
         "name": "_name",
         "type": "string"
@@ -619,41 +567,17 @@
         "internalType": "address",
         "name": "_burnAddress",
         "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "_baseTokenAddress",
-        "type": "address"
       }
     ],
     "name": "createBondingToken",
     "outputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "newTokenAddress",
         "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "",
-        "type": "string"
-      }
-    ],
-    "name": "externalAddressToToken",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -833,12 +757,22 @@
       },
       {
         "internalType": "address",
-        "name": "liquidityLens_",
+        "name": "bondingTokenFactory_",
         "type": "address"
       },
       {
         "internalType": "address",
-        "name": "priceModel_",
+        "name": "defaultPriceModel_",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "uniswapTrader_",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "uncxLockAdapter_",
         "type": "address"
       }
     ],
@@ -943,8 +877,18 @@
         "type": "address"
       },
       {
+        "internalType": "bool",
+        "name": "feeIsOtherToken",
+        "type": "bool"
+      },
+      {
         "internalType": "address",
         "name": "priceModel",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "uniswapPool",
         "type": "address"
       },
       {

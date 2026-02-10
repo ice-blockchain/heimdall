@@ -2551,7 +2551,7 @@ func TestProcessPairRegistered(t *testing.T) {
 			testBaseTokenAddr[2:], // Remove 0x
 			testTokenAddr[2:],     // Remove 0x
 		)
-		data := fmt.Sprintf("0x000000000000000000000000%s%064s%064s",
+		data := fmt.Sprintf("0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000%s%064s%064s",
 			testPriceModel[2:], // priceModel (remove 0x, pad to 32 bytes)
 			testStartPrice[2:], // startPrice (hex, already 64 chars)
 			testEndPrice[2:],   // endPrice (hex, already 64 chars)

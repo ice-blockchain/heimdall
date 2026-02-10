@@ -36,6 +36,9 @@ func init() {
 	CustomHandleOpsABI, err = abi.JSON(strings.NewReader(CustomHandleOpsABIJSON))
 	log.Panic(errors.Wrapf(err, "failed to parse custom handle ops abi"))
 
+	BondingTokenFactoryABI, err = abi.JSON(strings.NewReader(BondingTokenFactoryABIJSON))
+	log.Panic(errors.Wrapf(err, "failed to parse bonding token factory abi"))
+
 	abi4Param, err = abi.JSON(strings.NewReader(swap4ParamABIJSON))
 	log.Panic(errors.Wrapf(err, "failed to parse 4-param swap ABI"))
 }

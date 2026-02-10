@@ -3,11 +3,11 @@
  */
 
 //Blocks with receipt dataset
-var bondingCurveContractAddress = '0x592c08406c3161463b32e7687892ca34d644816f'.toLowerCase();
-var uniswapV3Factory = '0x71abcf237afdfd4c36b0099b21cafa971f2aaec6'.toLowerCase();
-var bondingTokenFactory = '0x05b48bec6c6ae10b527687002dd08bddfee0e4ec'.toLowerCase();
+var bondingCurveContractAddress = '0xF411faBcE1A441E5655db72419Ba2B0b95ec9fCC'.toLowerCase();
+var uniswapV3Factory = '0x58F98CED992B39414bB4bCE347bedfC6b15AA596'.toLowerCase();
+var bondingTokenFactory = '0x26dae540C37aD4190156D45eC1ddB32243Fa33d0'.toLowerCase();
 
-var contractAddressesList = "testnet_v2026.01.14.1";
+var contractAddressesList = "staging_v2026.02.10.1";
 async function main(payload) {
     try {
         await qnLib.qnUpsertList(contractAddressesList, {

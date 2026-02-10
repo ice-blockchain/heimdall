@@ -439,6 +439,7 @@ func TestPairRegistered(t *testing.T) {
 		endPrice := big.NewInt(2000000000000000000)   // 2e18
 
 		data, err := ABI.Events["PairRegistered"].Inputs.NonIndexed().Pack(
+			false,
 			priceModel,
 			startPrice,
 			endPrice,
