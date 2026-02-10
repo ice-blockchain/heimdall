@@ -90,10 +90,11 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 		UserExternalAddress string `db:"user_external_address"`
 	}
 	user, err := storage.Get[userInfo](ctx, t.ingestedDataDB, `
-		SELECT 
+		SELECT
 			COALESCE(u.external_address, '') as user_external_address
-		FROM users u
-		WHERE LOWER(u.content_author_id) = LOWER($1)
+		FROM user_bsc_addresses uba
+		JOIN users u ON u.id = uba.user_id
+		WHERE uba.bsc_address = LOWER($1)
 	`, userAddress.Hex())
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 		return fmt.Errorf("failed to find user by content author id %v: %w", userAddress, err)
@@ -165,7 +166,8 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 		    base_token.contract_address as base_profile_contract_address,
             base_token.external_address as base_profile_external_address
 		FROM tokens t
-		LEFT JOIN users u ON LOWER(u.content_author_id) = LOWER($2)
+		LEFT JOIN user_bsc_addresses uba ON uba.bsc_address = LOWER($2)
+		LEFT JOIN users u ON u.id = uba.user_id
 		LEFT JOIN tokens base_token ON base_token.contract_address = t.base_token and base_token."type" = 'profile'
 		LEFT JOIN fees_transferred burned ON burned.token_external_address = t.external_address AND burned.recipient_bsc_address = $3`
 
@@ -647,12 +649,14 @@ func (t *tokenAnalytics) fetchTradeInfoFromSwap(ctx context.Context, txHash stri
 			
 			COALESCE(utp.amount, '0') as balance,
 			COALESCE(((utp.amount::NUMERIC / 1e18) * tokens.price_usd), 0) as balance_usd
-		FROM token_swaps 
+		FROM token_swaps
 		JOIN tokens ON token_swaps.contract_address = tokens.contract_address
-		LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(tokens.content_author_id)
-		LEFT JOIN users holder ON LOWER(holder.content_author_id) = LOWER(token_swaps.user_blockchain_address)
-		LEFT JOIN user_token_positions utp ON utp.external_address = token_swaps.external_address AND LOWER(utp.user_blockchain_address) = LOWER(token_swaps.user_blockchain_address)
-		WHERE token_swaps.transaction_hash = $1 AND LOWER(token_swaps.contract_address) = LOWER($2) AND LOWER(token_swaps.user_blockchain_address) = LOWER($3)
+		LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = tokens.content_author_id
+		LEFT JOIN users creator ON creator.id = creator_addr.user_id
+		LEFT JOIN user_bsc_addresses holder_addr ON holder_addr.bsc_address = token_swaps.user_blockchain_address
+		LEFT JOIN users holder ON holder.id = holder_addr.user_id
+		LEFT JOIN user_token_positions utp ON utp.external_address = token_swaps.external_address AND utp.user_blockchain_address = token_swaps.user_blockchain_address
+		WHERE token_swaps.transaction_hash = $1 AND token_swaps.contract_address = $2 AND token_swaps.user_blockchain_address = $3
 	`
 	swap, err := storage.Get[tokenSwap](ctx, t.ingestedDataDB, sql, txHash, contractAddress, userBlockchainAddress)
 	if err != nil {

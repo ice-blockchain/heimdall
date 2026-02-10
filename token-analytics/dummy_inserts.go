@@ -1817,15 +1817,22 @@ func (gen *dummyDataGenerator) createUserForPlatform(ctx context.Context, master
 		externalAddress = BuildProfileExternalAddress(masterPubkey)
 	}
 
+	bscAddr := strings.ToLower("0x" + blockchainAddress)
 	_, err = storage.Exec(ctx, gen.Target, `
-		INSERT INTO users (
-			created_at, updated_at, id, master_pubkey, content_author_id, external_address, username, 
-			display_name, avatar, lookup, ion_connect_relays, verified, platform_group
-		) VALUES (
-			NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+		WITH inserted_user AS (
+			INSERT INTO users (
+				created_at, updated_at, id, master_pubkey, external_address, username,
+				display_name, avatar, lookup, ion_connect_relays, verified, platform_group
+			) VALUES (
+				NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8::text[], $9, $10::platform_type
+			)
+			ON CONFLICT (id) DO NOTHING
+			RETURNING id
 		)
-		ON CONFLICT (id) DO NOTHING
-	`, id, masterPubkey, "0x"+blockchainAddress, externalAddress, username, displayName, avatarURL, lookup, ionConnectRelays, verified, platformGroup)
+		INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
+		SELECT id, LOWER($11), NOW() FROM inserted_user
+		ON CONFLICT (bsc_address) DO NOTHING
+	`, id, masterPubkey, externalAddress, username, displayName, avatarURL, lookup, ionConnectRelays, verified, platformGroup, bscAddr)
 	if err != nil && !storage.IsErr(err, storage.ErrDuplicate) {
 		return "", "", fmt.Errorf("failed to insert user %v: %w", masterPubkey, err)
 	}

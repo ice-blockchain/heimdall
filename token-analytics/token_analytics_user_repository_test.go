@@ -229,8 +229,14 @@ func TestUpdateUserProfileAndToken(t *testing.T) {
 		profileExternalAddr := BuildProfileExternalAddress(masterPubkey)
 
 		_, err := storage.Exec(t.Context(), db, `
-			INSERT INTO users (id, master_pubkey, external_address, content_author_id, username, display_name, avatar, platform_group, lookup, created_at, updated_at)
-			VALUES ($1, $1, $2, $2, $3, $4, NULL, $5, LOWER(TRIM($3 || ' ' || $4)), NOW(), NOW())
+			WITH ins_user AS (
+				INSERT INTO users (id, master_pubkey, external_address, username, display_name, avatar, platform_group, lookup, created_at, updated_at)
+				VALUES ($1, $1, $2, $3, $4, NULL, $5, LOWER(TRIM($3 || ' ' || $4)), NOW(), NOW())
+				RETURNING id
+			)
+			INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
+			SELECT id, LOWER($2), NOW() FROM ins_user
+			ON CONFLICT (bsc_address) DO NOTHING
 		`, masterPubkey, masterPubkey, "username", "Display Name", PlatformGroupIonConnect)
 		require.NoError(t, err)
 

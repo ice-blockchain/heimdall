@@ -79,8 +79,10 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 	FROM tokens t
 	JOIN user_token_positions utp ON utp.external_address = t.external_address
 		AND (utp.user_external_address = ANY($2) OR utp.user_blockchain_address = ANY($3))
-	LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
-	LEFT JOIN users holder ON holder.external_address = utp.user_external_address OR holder.content_author_id = utp.user_blockchain_address
+	LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
+	LEFT JOIN users creator ON creator.id = creator_addr.user_id
+	LEFT JOIN user_bsc_addresses holder_addr ON holder_addr.bsc_address = utp.user_blockchain_address
+	LEFT JOIN users holder ON holder.id = holder_addr.user_id OR holder.external_address = utp.user_external_address
 	WHERE t.external_address = $1
 	  AND t.ticker IS NOT NULL
 	`

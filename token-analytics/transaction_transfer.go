@@ -105,9 +105,10 @@ func (t *tokenAnalytics) getUserExternalAddress(ctx context.Context, blockchainA
 		ExternalAddress string `db:"external_address"`
 	}
 	query := `
-		SELECT external_address 
-		FROM users 
-		WHERE LOWER(content_author_id) = LOWER($1)
+		SELECT u.external_address
+		FROM user_bsc_addresses uba
+		JOIN users u ON u.id = uba.user_id
+		WHERE uba.bsc_address = LOWER($1)
 		LIMIT 1
 	`
 	row, err := storage.Get[userExternalAddressRow](ctx, t.ingestedDataDB, query, blockchainAddress)

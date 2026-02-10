@@ -201,7 +201,8 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMapWithType(ctx context.Contex
 			COALESCE(t.bonding_curve_current_amount_usd, 0) as bonding_curve_current_amount_usd,
 			COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd
 		FROM tokens t
-		LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
+		LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
+		LEFT JOIN users creator ON creator.id = creator_addr.user_id
 		WHERE t.external_address = ANY($1)
 		  AND t.ticker IS NOT NULL
 	`
