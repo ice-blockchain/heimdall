@@ -55,7 +55,7 @@ func parseTokenType(externalType byte, externalAddress string) (tokenType, platf
 		if len(parts) < 2 || parts[1] == "" {
 			return "", "", "", fmt.Errorf("invalid IonConnect article format: %s", externalAddress)
 		}
-		return TokenTypeArticle, parts[1], PlatformGroupIonConnect, nil
+		return TokenTypeArticle, PlatformGroupIonConnect, parts[1], nil
 
 	case 'z': // X.com Profile
 		return TokenTypeProfile, PlatformGroupXCom, externalAddress, nil
