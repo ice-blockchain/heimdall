@@ -519,6 +519,8 @@ type (
 		Symbol          string
 		ExternalAddress string
 		Type            string
+		Platform        string
+		RawType         byte
 		PricingModel    string
 		TotalSupply     *big.Int
 		StartPrice      *big.Int

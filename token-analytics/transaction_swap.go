@@ -326,7 +326,7 @@ func extractAllTokensFromFatAddress(toTokenBytes []byte) ([]*fatAddressToken, co
 		externalAddress := string(toTokenBytes[offset : offset+extAddrLen])
 		offset += extAddrLen
 
-		tokenType, _, err := parseTokenType(tokenTypeByte, externalAddress)
+		tokenType, platform, _, err := parseTokenType(tokenTypeByte, externalAddress)
 		if err != nil {
 			return nil, common.Address{}, common.Address{}, fmt.Errorf("failed to parse token type for token %d (%v): %w", i, externalAddress, err)
 		}
@@ -336,6 +336,8 @@ func extractAllTokensFromFatAddress(toTokenBytes []byte) ([]*fatAddressToken, co
 			ExternalAddress: externalAddress,
 			PricingModel:    priceModel,
 			Type:            tokenType,
+			Platform:        platform,
+			RawType:         tokenTypeByte,
 			TotalSupply:     totalSupply,
 			StartPrice:      startPrice,
 			EndPrice:        endPrice,

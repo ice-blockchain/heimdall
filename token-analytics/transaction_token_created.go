@@ -22,7 +22,7 @@ func (t *tokenAnalytics) onTokenCreated(ctx context.Context, contractAddress str
 		return fmt.Errorf("external_address is empty for token %s", contractAddress)
 	}
 
-	_, _, err := parseTokenType(ev.ExternalType, externalAddress)
+	_, _, _, err := parseTokenType(ev.ExternalType, externalAddress)
 	if err != nil {
 		return fmt.Errorf("failed to parse token type %d, external_address %s: %w", ev.ExternalType, externalAddress, err)
 	}
@@ -31,43 +31,43 @@ func (t *tokenAnalytics) onTokenCreated(ctx context.Context, contractAddress str
 	return nil
 }
 
-func parseTokenType(externalType byte, externalAddress string) (tokenType, masterPubkeyOrXHandle string, err error) {
+func parseTokenType(externalType byte, externalAddress string) (tokenType, platform, masterPubkeyOrXHandle string, err error) {
 	if externalAddress == "" {
-		return "", "", fmt.Errorf("external address is empty")
+		return "", "", "", fmt.Errorf("external address is empty")
 	}
 	switch externalType {
 	case 'a': // IonConnect Profile
-		return TokenTypeProfile, externalAddress, nil
+		return TokenTypeProfile, PlatformGroupIonConnect, externalAddress, nil
 	case 'b': // IonConnect Post
 		parts := strings.Split(externalAddress, ":")
 		if len(parts) < 2 || parts[1] == "" {
-			return "", "", fmt.Errorf("invalid IonConnect post format: %s", externalAddress)
+			return "", "", "", fmt.Errorf("invalid IonConnect post format: %s", externalAddress)
 		}
-		return TokenTypePost, parts[1], nil
+		return TokenTypePost, PlatformGroupIonConnect, parts[1], nil
 	case 'c': // IonConnect Video
 		parts := strings.Split(externalAddress, ":")
 		if len(parts) < 2 || parts[1] == "" {
-			return "", "", fmt.Errorf("invalid IonConnect video format: %s", externalAddress)
+			return "", "", "", fmt.Errorf("invalid IonConnect video format: %s", externalAddress)
 		}
-		return TokenTypeVideo, parts[1], nil
+		return TokenTypeVideo, PlatformGroupIonConnect, parts[1], nil
 	case 'd': // IonConnect Article
 		parts := strings.Split(externalAddress, ":")
 		if len(parts) < 2 || parts[1] == "" {
-			return "", "", fmt.Errorf("invalid IonConnect article format: %s", externalAddress)
+			return "", "", "", fmt.Errorf("invalid IonConnect article format: %s", externalAddress)
 		}
-		return TokenTypeArticle, parts[1], nil
+		return TokenTypeArticle, parts[1], PlatformGroupIonConnect, nil
 
 	case 'z': // X.com Profile
-		return TokenTypeProfile, externalAddress, nil
+		return TokenTypeProfile, PlatformGroupXCom, externalAddress, nil
 	case 'y': // X.com Post
-		return TokenTypePost, externalAddress, nil
+		return TokenTypePost, PlatformGroupXCom, externalAddress, nil
 	case 'x': // X.com Video
-		return TokenTypeVideo, externalAddress, nil
+		return TokenTypeVideo, PlatformGroupXCom, externalAddress, nil
 	case 'w': // X.com Article
-		return TokenTypeArticle, externalAddress, nil
+		return TokenTypeArticle, PlatformGroupXCom, externalAddress, nil
 
 	default:
-		return "", "", fmt.Errorf("unknown externalType '%c' (%d)", externalType, externalType)
+		return "", "", "", fmt.Errorf("unknown externalType '%c' (%d)", externalType, externalType)
 	}
 }
 
