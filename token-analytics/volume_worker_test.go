@@ -40,7 +40,7 @@ func TestUpdateTrendingVolumes(t *testing.T) {
 		helperInsertTokenSwap(t, ctx, db, token1ContractAddr, token1ExtAddr, "0xuser1", "0xtx1", false, "1000000000000000000", "1000000000000000000", 1.5, now)
 		helperInsertTokenSwap(t, ctx, db, token2ContractAddr, token2ExtAddr, "0xuser2", "0xtx2", true, "2000000000000000000", "2000000000000000000", 2.0, now)
 
-		_, err := storage.Exec(ctx, db, "REFRESH MATERIALIZED VIEW token_volumes_24h")
+		_, err = storage.Exec(ctx, db, "REFRESH MATERIALIZED VIEW token_volumes_24h")
 		require.NoError(t, err)
 
 		err = ta.processedDataDB.ZAdd(ctx, globalTrendingSetKey, redis.Z{

@@ -89,9 +89,12 @@ func (t *tokenAnalytics) refreshMaterializedView(ctx context.Context) error {
 
 func (t *tokenAnalytics) updateTrendingVolumes(ctx context.Context) error {
 	startTime := time.Now()
-	tempSetKey := fmt.Sprintf("token_analytics:temp:volumes_update:%d", time.Now().Unix())
+	tempSetKey := fmt.Sprintf("token_analytics:temp:volumes_update:%d", time.Now().UnixNano())
+
 	defer func() {
-		_ = t.processedDataDB.Del(ctx, tempSetKey).Err()
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = t.processedDataDB.Del(cleanupCtx, tempSetKey).Err()
 	}()
 	totalUpdated, err := t.updateTokenVolumesInRedis(ctx, tempSetKey)
 	if err != nil {
