@@ -1,6 +1,6 @@
 {
   "en": {
-    "_version": 8,
+    "_version": 9,
     "reply": {
       "title": "Online+",
       "body": "\uD83D\uDCAC @{{username}} replied to your post"
@@ -193,13 +193,17 @@
       "title": "\uD83D\uDCF8 Quick update",
       "body": "@{{username}} added a new story."
     },
+    "newVideoSubscription": {
+      "title": "\uD83D\uDCF9 New video added",
+      "body": "@{{username}} added a new video."
+    },
     "newArticleSubscription": {
       "title": "\uD83D\uDCD8 New article is out",
       "body": "@{{username}} just published a new article."
     }
   },
   "es": {
-    "_version": 8,
+    "_version": 9,
     "reply": {
       "title": "Online+",
       "body": "[ES] \uD83D\uDCAC @{{username}} replied to your post"
@@ -392,13 +396,17 @@
       "title": "[ES] \uD83D\uDCF8 Quick update",
       "body": "[ES] @{{username}} added a new story."
     },
+    "newVideoSubscription": {
+      "title": "[ES] \uD83D\uDCF9 New video added",
+      "body": "[ES] @{{username}} added a new video."
+    },
     "newArticleSubscription": {
       "title": "[ES] \uD83D\uDCD8 New article is out",
       "body": "[ES] @{{username}} just published a new article."
     }
   },
   "fr": {
-    "_version": 8,
+    "_version": 9,
     "reply": {
       "title": "Online+",
       "body": "[FR] \uD83D\uDCAC @{{username}} replied to your post"
@@ -590,6 +598,10 @@
     "newStorySubscription": {
       "title": "[FR] \uD83D\uDCF8 Quick update",
       "body": "[FR] @{{username}} added a new story."
+    },
+    "newVideoSubscription": {
+      "title": "[FR] \uD83D\uDCF9 New video added",
+      "body": "[FR] @{{username}} added a new video."
     },
     "newArticleSubscription": {
       "title": "[FR] \uD83D\uDCD8 New article is out",
