@@ -278,21 +278,34 @@ func (t *tokenAnalytics) removeZeroVolumeTokensFromSet(ctx context.Context, setK
 }
 
 func (t *tokenAnalytics) removeNonExistentTokens(ctx context.Context, setKey, tempSetKey string, members []string) (int, error) {
-	pipe := t.processedDataDB.Pipeline()
-	removed := 0
+	checkPipe := t.processedDataDB.Pipeline()
+	checkCmds := make([]*redis.BoolCmd, 0, len(members)/2)
+	externalAddrs := make([]string, 0, len(members)/2)
+
 	for i := 0; i < len(members); i += 2 {
 		externalAddr := members[i]
-		exists, err := t.processedDataDB.SIsMember(ctx, tempSetKey, externalAddr).Result()
+		externalAddrs = append(externalAddrs, externalAddr)
+		checkCmds = append(checkCmds, checkPipe.SIsMember(ctx, tempSetKey, externalAddr))
+	}
+
+	if _, err := checkPipe.Exec(ctx); err != nil {
+		return 0, fmt.Errorf("failed to batch check token existence: %w", err)
+	}
+	removePipe := t.processedDataDB.Pipeline()
+	removed := 0
+	for i, cmd := range checkCmds {
+		exists, err := cmd.Result()
 		if err != nil {
-			return removed, fmt.Errorf("failed to check token existence: %w", err)
+			return removed, fmt.Errorf("failed to get membership result for %s: %w", externalAddrs[i], err)
 		}
 		if !exists {
-			pipe.ZRem(ctx, setKey, externalAddr)
+			removePipe.ZRem(ctx, setKey, externalAddrs[i])
 			removed++
 		}
 	}
+
 	if removed > 0 {
-		if _, err := pipe.Exec(ctx); err != nil {
+		if _, err := removePipe.Exec(ctx); err != nil {
 			return removed, fmt.Errorf("failed to remove zero-volume tokens from %s: %w", setKey, err)
 		}
 	}
