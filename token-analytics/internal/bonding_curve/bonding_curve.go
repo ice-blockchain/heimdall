@@ -31,7 +31,13 @@ func init() {
 	log.Panic(errors.Wrapf(err, "failed to parse bonding curve abi"))
 
 	UniswapABI, err = abi.JSON(strings.NewReader(UniswapABIJSON))
-	log.Panic(errors.Wrapf(err, "failed to parse uniswap abi"))
+	log.Panic(errors.Wrapf(err, "failed to parse uniswap factory abi"))
+
+	UniswapMigratorABI, err = abi.JSON(strings.NewReader(UniswapMigratorABIJSON))
+	log.Panic(errors.Wrapf(err, "failed to parse uniswap migrator abi"))
+
+	UniswapPoolABI, err = abi.JSON(strings.NewReader(UniswapPoolABIJSON))
+	log.Panic(errors.Wrapf(err, "failed to parse uniswap pool abi"))
 
 	CustomHandleOpsABI, err = abi.JSON(strings.NewReader(CustomHandleOpsABIJSON))
 	log.Panic(errors.Wrapf(err, "failed to parse custom handle ops abi"))
