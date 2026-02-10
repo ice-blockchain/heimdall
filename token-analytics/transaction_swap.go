@@ -688,17 +688,18 @@ func (t *tokenAnalyticsUsers) ValidateTransaction(txPayload accounts.Transaction
 	if len(txPayload.UserOperations) == 0 {
 		return nil // not a tc tx
 	}
-	hasBondingCurveTx := false
 	for _, action := range txPayload.UserOperations {
 		if !strings.EqualFold(t.cfg.BondingCurve.SmartContractAddress, action.To) {
 			continue
 		}
-		hasBondingCurveTx = true
+		if len(action.Data) < 10 { // Transfer, not raw tx
+			return nil
+		}
 		functionSelector := action.Data[:10]
 		swapParams, err := bondingcurve.DecodeSwapFunctionParams(functionSelector, action.Data)
 		if err != nil {
 			if errors.Is(err, bondingcurve.ErrNotFound) {
-				return nil // Not swap.
+				continue // Not swap.
 			}
 			return errors.Wrapf(err, "failed to parse swap function parameters")
 		}
@@ -740,36 +741,5 @@ func (t *tokenAnalyticsUsers) ValidateTransaction(txPayload accounts.Transaction
 			}
 		}
 	}
-	if hasBondingCurveTx && txPayload.FeeSponsorId != "" {
-		if err := t.validateTxGas(txPayload); err != nil {
-			return errors.Wrapf(err, "failed to validate fees")
-		}
-	}
-	return nil
-}
-
-func (t *tokenAnalyticsUsers) validateTxGas(txPayload accounts.TransactionPayload) error {
-	if txPayload.MaxFeePerGas == nil && txPayload.MaxPriorityFeePerGas == nil {
-		return nil
-	}
-	actualFees := t.bscFees.Load()
-	slippage := t.cfg.BondingCurve.TransactionValidationFeeSlippage
-	expectedMaxFeePerGas, _ := new(big.Int).SetString(actualFees.MaxFeePerGas, 10)
-	allowance := new(big.Float).Mul(new(big.Float).SetInt(expectedMaxFeePerGas), big.NewFloat(slippage))
-	if txPayload.MaxFeePerGas != nil {
-		actualMaxFeePerGas, _ := new(big.Int).SetString(*txPayload.MaxFeePerGas, 10)
-		if diff := new(big.Float).Sub(new(big.Float).SetInt(actualMaxFeePerGas), new(big.Float).SetInt(expectedMaxFeePerGas)); diff.Sign() > 0 && diff.Cmp(allowance) > 0 {
-			return errors.Wrapf(ErrValidationFailed, "max fee per gas too high: expected %s, got %s", allowance.String(), actualMaxFeePerGas.String())
-		}
-	}
-	expectedMaxPriorityFeePerGas, _ := new(big.Int).SetString(actualFees.MaxPriorityFeePerGas, 10)
-	allowance = new(big.Float).Mul(new(big.Float).SetInt(expectedMaxPriorityFeePerGas), big.NewFloat(slippage))
-	if txPayload.MaxPriorityFeePerGas != nil {
-		actualMaxPriorityFeePerGas, _ := new(big.Int).SetString(*txPayload.MaxPriorityFeePerGas, 10)
-		if diff := new(big.Float).Sub(new(big.Float).SetInt(actualMaxPriorityFeePerGas), new(big.Float).SetInt(actualMaxPriorityFeePerGas)); diff.Sign() > 0 && diff.Cmp(allowance) > 0 {
-			return errors.Wrapf(ErrValidationFailed, "max priority fee per gas too high: expected %s, got %s", allowance.String(), actualMaxPriorityFeePerGas.String())
-		}
-	}
-
 	return nil
 }

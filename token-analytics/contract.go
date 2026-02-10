@@ -49,7 +49,6 @@ type (
 		SetVerified(ctx context.Context, masterPubkey string) error
 		GetUser(ctx context.Context, masterPubkey string) (*UserRecord, error)
 		ValidateTransaction(txPayload accounts.TransactionPayload) error
-		UpdateBscFees(fees *accounts.Fee)
 	}
 	CoinImport interface {
 		ImportTokenizedCommunitiesCoin(ctx context.Context, coin coins.TokenAnalyticsToken) (*coins.Coin, error)
@@ -242,7 +241,6 @@ type (
 			TokenFactorySmartContractAddress    string                         `yaml:"tokenFactorySmartContractAddress"`
 			BondingCurveProgressUpdateFrequency stdlibtime.Duration            `yaml:"bondingCurveProgressUpdateFrequency"`
 			CreateTokenDefaults                 map[string]createTokenDefaults `yaml:"createTokenDefaults" mapstructure:"createTokenDefaults"`
-			TransactionValidationFeeSlippage    float64                        `yaml:"transactionValidationFeeSlippage"`
 		} `yaml:"bondingCurve" mapstructure:"bondingCurve"`
 		RiverQueue struct {
 			QueueName       string              `yaml:"queueName,omitempty"`
@@ -298,7 +296,6 @@ type (
 		ingestedDataDB *storage.DB
 		shutdown       func() error
 		cfg            *config
-		bscFees        *atomic.Pointer[accounts.Fee]
 	}
 	txEvent struct {
 		BlockTimestamp   *time.Time  `db:"block_timestamp"`

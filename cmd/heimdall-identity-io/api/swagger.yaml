@@ -461,6 +461,9 @@ definitions:
       symbol_group:
         type: string
     type: object
+  main.TransactionResponse:
+    additionalProperties: {}
+    type: object
   main.UpdateDeeplinkRequest:
     properties:
       deeplink:
@@ -2786,7 +2789,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.WalletAssets'
+            $ref: '#/definitions/main.TransactionResponse'
         "500":
           description: Internal Server Error
           schema:

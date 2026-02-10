@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: ice License 1.0
 
-//go:build !test
-
 package relaymanagement
 
 import (
@@ -17,12 +15,6 @@ import (
 
 	"github.com/ice-blockchain/subzero/server/http/events"
 	"github.com/ice-blockchain/wintr/log"
-)
-
-type (
-	IonConnectClient interface {
-		GetPost(ctx context.Context, relayUrl string, eventAddress string) (*events.PostPreview, error)
-	}
 )
 
 func NewIonConnectClient() IonConnectClient {

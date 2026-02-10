@@ -2921,7 +2921,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.WalletAssets"
+                            "$ref": "#/definitions/main.TransactionResponse"
                         }
                     },
                     "500": {
@@ -3629,6 +3629,10 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "main.TransactionResponse": {
+            "type": "object",
+            "additionalProperties": {}
         },
         "main.UpdateDeeplinkRequest": {
             "type": "object",

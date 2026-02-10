@@ -148,7 +148,7 @@ func (a *accounts) updateBscFees(ctx context.Context) error {
 	default:
 		return errors.New("failed to get BSC fees from 3rd party: all empty")
 	}
-	a.tokenAnalyticsRepo.UpdateBscFees(fee)
+	a.bscFees.Store(fee)
 
 	return nil
 }

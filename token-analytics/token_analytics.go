@@ -56,7 +56,6 @@ func NewUserRepository(ctx context.Context) interface {
 	return &tokenAnalyticsUsers{
 		ingestedDataDB: db,
 		cfg:            &cfg,
-		bscFees:        new(atomic.Pointer[accounts.Fee]),
 		shutdown: func() error {
 			return errors.Join(
 				db.Close(),
@@ -872,7 +871,6 @@ func (dummyUserRepository) UpdateUserProfileAndToken(ctx context.Context, master
 func (dummyUserRepository) ValidateTransaction(txPayload accounts.TransactionPayload) error {
 	return nil
 }
-func (dummyUserRepository) UpdateBscFees(fees *accounts.Fee) {}
 func randInt(n int) int {
 	return rand.Intn(n)
 }
@@ -895,8 +893,4 @@ func (t *tokenAnalytics) runPeriodicRepopulationWorker(ctx context.Context) {
 			}
 		}
 	}
-}
-
-func (t *tokenAnalyticsUsers) UpdateBscFees(fees *accounts.Fee) {
-	t.bscFees.Store(fees)
 }

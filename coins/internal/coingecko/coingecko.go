@@ -198,7 +198,7 @@ func (c *client) enhanceWithTokenData(ctx context.Context, coins map[string][]*C
 			log.Debug(fmt.Sprintf("Fetching data for tokens on %v (%v/%v) %v/%v...", network, networkIdx, len(tokenAddrsByNetwork), i+1, len(batches)))
 			tokensData, err := c.GetTokens(ctx, network, batch)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to fetch data for tokens %v %+v", batch)
+				return nil, errors.Wrapf(err, "failed to fetch data for tokens %+v", batch)
 			}
 			for _, coin := range tokensData {
 				updCoins := coins[coin.ID]

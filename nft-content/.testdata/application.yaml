@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: ice License 1.0
+
+# placeholder for subzero cfg init,
+# not to fail with open /etc/subzero_ion_connect/subzero_ion_connect.yaml:
+# no such file or directory

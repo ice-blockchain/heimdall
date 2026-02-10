@@ -467,7 +467,7 @@ func (s *service) GetWalletAssets(
 //	@Param			X-Client-ID		header		string	true	"App ID"									default(ap-)
 //	@Param			Authorization	header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
 //	@Param			walletId		path		string	true	"ID of the wallet"
-//	@Success		200				{object}	WalletAssets
+//	@Success		200				{object}	TransactionResponse
 //	@Failure		500				{object}	server.ErrorResponse
 //	@Failure		504				{object}	server.ErrorResponse	"if request times out"
 //	@Router			/wallets/{walletId}/transactions [POST].

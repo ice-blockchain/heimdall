@@ -885,5 +885,55 @@ func (a *accounts) GetWalletAssets(ctx context.Context, walletID string) (*Asset
 }
 
 func (a *accounts) BroadcastTransactionFromWallet(ctx context.Context, walletId string, transactionData *TransactionPayload) (*TransactionResponse, error) {
+	if err := a.validateTxGas(transactionData); err != nil {
+		return nil, errors.Wrapf(err, "validation of tx gas failed, tx rejected")
+	}
 	return a.delegatedRPClient.BroadcastTransactionFromWallet(ctx, walletId, transactionData)
+}
+
+func (a *accounts) validateTxGas(txPayload *TransactionPayload) error {
+	if true { // TODO: remove when FE is ready
+		return nil
+	}
+	if txPayload.FeeSponsorId == "" {
+		return nil
+	}
+	if txPayload.MaxFeePerGas == nil && txPayload.MaxPriorityFeePerGas == nil {
+		return nil
+	}
+	actualFees := a.bscFees.Load()
+	if actualFees == nil {
+		return nil
+	}
+	slippage := a.cfg.TransactionValidationFeeSlippage
+	expectedMaxFeePerGas, ok := new(big.Int).SetString(actualFees.MaxFeePerGas, 10)
+	if !ok {
+		return nil
+	}
+	allowance := new(big.Float).Mul(new(big.Float).SetInt(expectedMaxFeePerGas), big.NewFloat(slippage))
+	if txPayload.MaxFeePerGas != nil {
+		actualMaxFeePerGas, ok := new(big.Int).SetString(*txPayload.MaxFeePerGas, 10)
+		if !ok {
+			return errors.Errorf("failed to parse maxFeePerGas: %v", *txPayload.MaxFeePerGas)
+		}
+		if diff := new(big.Float).Sub(new(big.Float).SetInt(actualMaxFeePerGas), new(big.Float).SetInt(expectedMaxFeePerGas)); diff.Sign() > 0 && diff.Cmp(allowance) > 0 {
+			return errors.Wrapf(ErrValidationFailed, "max fee per gas too high: expected %s, got %s", allowance.String(), actualMaxFeePerGas.String())
+		}
+	}
+	expectedMaxPriorityFeePerGas, ok := new(big.Int).SetString(actualFees.MaxPriorityFeePerGas, 10)
+	if !ok {
+		return nil
+	}
+	allowance = new(big.Float).Mul(new(big.Float).SetInt(expectedMaxPriorityFeePerGas), big.NewFloat(slippage))
+	if txPayload.MaxPriorityFeePerGas != nil {
+		actualMaxPriorityFeePerGas, ok := new(big.Int).SetString(*txPayload.MaxPriorityFeePerGas, 10)
+		if !ok {
+			return errors.Errorf("failed to parse maxPriorityFeePerGas: %v", *txPayload.MaxPriorityFeePerGas)
+		}
+		if diff := new(big.Float).Sub(new(big.Float).SetInt(actualMaxPriorityFeePerGas), new(big.Float).SetInt(expectedMaxFeePerGas)); diff.Sign() > 0 && diff.Cmp(allowance) > 0 {
+			return errors.Wrapf(ErrValidationFailed, "max priority fee per gas too high: expected %s, got %s", allowance.String(), actualMaxPriorityFeePerGas.String())
+		}
+	}
+
+	return nil
 }
