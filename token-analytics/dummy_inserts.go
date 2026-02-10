@@ -1361,13 +1361,40 @@ func buildFatAddressV2(tokens []*fatAddressToken, creatorAddr, affiliateAddr com
 		if t.TotalSupply != nil {
 			tokenMask |= 0x04
 		}
-
+		if t.RawType == 0 {
+			t.RawType = t.Type[0]
+		}
+		if _, _, _, err := parseTokenType(t.RawType, t.ExternalAddress); err != nil {
+			if t.Platform == PlatformGroupIonConnect {
+				switch t.Type {
+				case TokenTypeProfile:
+					t.RawType = 'a'
+				case TokenTypePost:
+					t.RawType = 'b'
+				case TokenTypeVideo:
+					t.RawType = 'c'
+				case TokenTypeArticle:
+					t.RawType = 'd'
+				}
+			} else if t.Platform == PlatformGroupXCom {
+				switch t.Type {
+				case TokenTypeProfile:
+					t.RawType = 'z'
+				case TokenTypePost:
+					t.RawType = 'y'
+				case TokenTypeVideo:
+					t.RawType = 'x'
+				case TokenTypeArticle:
+					t.RawType = 'w'
+				}
+			}
+		}
 		// Token Header (8 bytes): [nameLen][symLen][extAddrLen][extType][tokenMask uint32 BE]
 		result = append(result,
 			byte(len(nameBytes)),
 			byte(len(symbolBytes)),
 			byte(len(extAddrBytes)),
-			byte(t.Type[0]),
+			byte(t.RawType),
 			byte(tokenMask>>24),
 			byte(tokenMask>>16),
 			byte(tokenMask>>8),

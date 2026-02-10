@@ -135,7 +135,7 @@ func TestParseTokenType(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			tokenType, masterPubkeyOrXID, err := parseTokenType(tt.externalType, tt.externalAddress)
+			tokenType, _, masterPubkeyOrXID, err := parseTokenType(tt.externalType, tt.externalAddress)
 
 			if tt.expectError {
 				require.Error(t, err, "Expected error for externalType=%c, externalAddress=%s", tt.externalType, tt.externalAddress)

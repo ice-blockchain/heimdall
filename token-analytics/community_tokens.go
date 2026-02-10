@@ -287,7 +287,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 					// - ONLINE+ content tokens (0:pubkey:contentId) → creator's profile token
 					baseToken, baseTokenErr := t.determineBaseTokenFromExternalAddress(ctx, actualTokenAddress.ExternalAddress)
 					if baseTokenErr != nil {
-						return nil, fmt.Errorf("failed to determine base token for %s (from Fat Address %s): %w", actualTokenAddress, externalAddress, baseTokenErr)
+						return nil, fmt.Errorf("failed to determine base token for %s (from Fat Address %s): %w", actualTokenAddress.ExternalAddress, externalAddress, baseTokenErr)
 					}
 					tokenStartParams, ok := t.cfg.BondingCurve.CreateTokenDefaults[allTokens[0].Type]
 					if !ok {
