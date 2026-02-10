@@ -114,8 +114,7 @@ func TestOnSwap(t *testing.T) {
 		swapEvent := &bondingcurve.LogTokenSwapped{
 			Swapper:      common.HexToAddress(userAddr),
 			Pair:         common.HexToHash("0x36d6846c1bbd47fd80454415bef17cd169a55733231bd03afa004b03255b81b0"),
-			Direction:    false, // false = buy (user sends base token, gets community token)
-			FeeToken:     common.HexToAddress(baseToken),
+			Direction:    false,                           // false = buy (user sends base token, gets community token)
 			InputAmount:  big.NewInt(1000000000000000000), // 1 ION input
 			OutputAmount: big.NewInt(1000000000000000000), // 1 token output
 			Fee:          big.NewInt(0),
@@ -267,8 +266,7 @@ func TestOnSwap(t *testing.T) {
 		buyEvent := &bondingcurve.LogTokenSwapped{
 			Swapper:      common.HexToAddress(userAddr),
 			Pair:         common.HexToHash("0xc481c7a805798bc81ca4cbf0803d38bd785357f2ab3b22b70e42dedc13046e15"),
-			Direction:    false, // buy
-			FeeToken:     common.HexToAddress(baseToken),
+			Direction:    false,                           // buy
 			InputAmount:  big.NewInt(2000000000000000000), // 2 ION
 			OutputAmount: big.NewInt(2000000000000000000), // 2 tokens
 			Fee:          big.NewInt(0),
@@ -320,8 +318,7 @@ func TestOnSwap(t *testing.T) {
 		sellEvent := &bondingcurve.LogTokenSwapped{
 			Swapper:      common.HexToAddress(userAddr),
 			Pair:         common.HexToHash("0xc481c7a805798bc81ca4cbf0803d38bd785357f2ab3b22b70e42dedc13046e15"),
-			Direction:    true, // true = sell (user sends community token, gets base token)
-			FeeToken:     common.HexToAddress(contractAddress),
+			Direction:    true,                            // true = sell (user sends community token, gets base token)
 			InputAmount:  big.NewInt(1000000000000000000), // 1 token input
 			OutputAmount: big.NewInt(1000000000000000000), // 1 ION output
 			Fee:          big.NewInt(0),
@@ -436,8 +433,7 @@ func TestOnSwap(t *testing.T) {
 		event := &bondingcurve.LogTokenSwapped{
 			Swapper:      common.HexToAddress(userAddr),
 			Pair:         common.HexToHash("0xaaabbbcccdddeeefffaaabbbcccdddeeefffaaabbbcccdddeeefffaaabbbcccd"),
-			Direction:    false, // buy
-			FeeToken:     common.HexToAddress(baseToken),
+			Direction:    false,                           // buy
 			InputAmount:  big.NewInt(5000000000000000000), // 5 ION
 			OutputAmount: big.NewInt(5000000000000000000), // 5 tokens
 			Fee:          big.NewInt(0),
@@ -524,7 +520,6 @@ func TestOnSwap(t *testing.T) {
 			Swapper:      common.HexToAddress(userAddr),
 			Pair:         common.HexToHash("0x1111111111111111111111111111111111111111111111111111111111111111"),
 			Direction:    false,
-			FeeToken:     common.Address{}, // Invalid/empty base token
 			InputAmount:  big.NewInt(1000000000000000000),
 			OutputAmount: big.NewInt(1000000000000000000),
 			Fee:          big.NewInt(0),
@@ -620,8 +615,7 @@ func TestOnSwap(t *testing.T) {
 		swapEvent := &bondingcurve.LogTokenSwapped{
 			Swapper:      common.HexToAddress(contentUserAddr),
 			Pair:         common.HexToHash("0x2222222222222222222222222222222222222222222222222222222222222222"),
-			Direction:    false, // buy
-			FeeToken:     common.HexToAddress(creatorContractAddr),
+			Direction:    false,                           // buy
 			InputAmount:  big.NewInt(1000000000000000000), // 1 creator token input
 			OutputAmount: big.NewInt(1000000000000000000), // 1 content token output
 			Fee:          big.NewInt(0),
@@ -741,7 +735,6 @@ func TestOnSwap(t *testing.T) {
 			Swapper:      common.HexToAddress(userAddr),
 			Pair:         common.HexToHash("0x3333333333333333333333333333333333333333333333333333333333333333"),
 			Direction:    false,
-			FeeToken:     common.HexToAddress(baseToken),
 			InputAmount:  big.NewInt(1000000000000000000), // 1 ION
 			OutputAmount: big.NewInt(1000000000000000000), // 1 token
 			Fee:          big.NewInt(0),
@@ -790,7 +783,6 @@ func TestOnSwap(t *testing.T) {
 			Swapper:      common.HexToAddress(userAddr),
 			Pair:         common.HexToHash("0x3333333333333333333333333333333333333333333333333333333333333333"),
 			Direction:    false,
-			FeeToken:     common.HexToAddress(baseToken),
 			InputAmount:  big.NewInt(2000000000000000000), // 2 ION
 			OutputAmount: big.NewInt(2000000000000000000), // 2 tokens
 			Fee:          big.NewInt(0),
@@ -840,7 +832,6 @@ func TestOnSwap(t *testing.T) {
 			Swapper:      common.HexToAddress(userAddr),
 			Pair:         common.HexToHash("0x3333333333333333333333333333333333333333333333333333333333333333"),
 			Direction:    true,
-			FeeToken:     common.HexToAddress(contractAddress),
 			InputAmount:  big.NewInt(1000000000000000000), // 1 token
 			OutputAmount: big.NewInt(1000000000000000000), // 1 ION
 			Fee:          big.NewInt(0),
@@ -950,7 +941,6 @@ func TestOnSwap(t *testing.T) {
 			Swapper:      common.HexToAddress(userAddr),
 			Pair:         common.HexToHash("0x5555555555555555555555555555555555555555555555555555555555555555"),
 			Direction:    false,
-			FeeToken:     common.HexToAddress(creatorContractAddr),
 			InputAmount:  big.NewInt(1000000000000000000), // 1 creator token
 			OutputAmount: big.NewInt(1000000000000000000), // 1 content token
 			Fee:          big.NewInt(0),
@@ -999,7 +989,6 @@ func TestOnSwap(t *testing.T) {
 			Swapper:      common.HexToAddress(userAddr),
 			Pair:         common.HexToHash("0x5555555555555555555555555555555555555555555555555555555555555555"),
 			Direction:    false,
-			FeeToken:     common.HexToAddress(creatorContractAddr),
 			InputAmount:  big.NewInt(2000000000000000000), // 2 creator tokens
 			OutputAmount: big.NewInt(2000000000000000000), // 2 content tokens
 			Fee:          big.NewInt(0),
@@ -1049,7 +1038,6 @@ func TestOnSwap(t *testing.T) {
 			Swapper:      common.HexToAddress(userAddr),
 			Pair:         common.HexToHash("0x5555555555555555555555555555555555555555555555555555555555555555"),
 			Direction:    true,
-			FeeToken:     common.HexToAddress(contentContractAddr),
 			InputAmount:  big.NewInt(1000000000000000000), // 1 content token
 			OutputAmount: big.NewInt(1000000000000000000), // 1 creator token
 			Fee:          big.NewInt(0),

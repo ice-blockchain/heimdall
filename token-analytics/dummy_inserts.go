@@ -356,7 +356,7 @@ func (gen *dummyDataGenerator) createDoubleSwapTokenGenerator(ctx context.Contex
 		return nil
 	}
 
-	creatorTokenCreatedData, err := bondingcurve.ABI.Events["BondingTokenCreated"].Inputs.NonIndexed().Pack(
+	creatorTokenCreatedData, err := bondingcurve.BondingTokenFactoryABI.Events["BondingTokenCreated"].Inputs.NonIndexed().Pack(
 		creatorToken.Title,
 		creatorToken.Ticker,
 		creatorExtType,
@@ -373,7 +373,7 @@ func (gen *dummyDataGenerator) createDoubleSwapTokenGenerator(ctx context.Contex
 
 	// Pack SECOND BondingTokenCreated event (Content Token)
 	contentTotalSupply, _ := new(big.Int).SetString(contentToken.TotalSupply, 10)
-	contentTokenCreatedData, err := bondingcurve.ABI.Events["BondingTokenCreated"].Inputs.NonIndexed().Pack(
+	contentTokenCreatedData, err := bondingcurve.BondingTokenFactoryABI.Events["BondingTokenCreated"].Inputs.NonIndexed().Pack(
 		contentToken.Title,
 		contentToken.Ticker,
 		contentExtType,
@@ -390,8 +390,7 @@ func (gen *dummyDataGenerator) createDoubleSwapTokenGenerator(ctx context.Contex
 
 	// Pack FIRST Swapped event (ION → Creator)
 	firstSwappedData, err := bondingcurve.ABI.Events["Swapped"].Inputs.NonIndexed().Pack(
-		false, // direction: buy
-		common.HexToAddress(strings.ToLower(gen.IONTokenAddress)), // feeToken (ION)
+		false,         // direction: buy
 		totalSupply,   // inputAmount
 		totalSupply,   // outputAmount (1:1 at bonding curve start)
 		big.NewInt(0), // fee
@@ -404,8 +403,7 @@ func (gen *dummyDataGenerator) createDoubleSwapTokenGenerator(ctx context.Contex
 
 	// Pack SECOND Swapped event (Creator → Content)
 	secondSwappedData, err := bondingcurve.ABI.Events["Swapped"].Inputs.NonIndexed().Pack(
-		false, // direction: buy
-		common.HexToAddress(creatorToken.ContractAddress), // feeToken (Creator Token)
+		false,              // direction: buy
 		totalSupply,        // inputAmount (all creator tokens)
 		contentTotalSupply, // outputAmount (slightly less due to fee)
 		big.NewInt(0),      // fee
@@ -420,6 +418,7 @@ func (gen *dummyDataGenerator) createDoubleSwapTokenGenerator(ctx context.Contex
 	startPrice := big.NewInt(1e18) // 1
 	endPrice := big.NewInt(1e18)   // 1
 	firstPairRegisteredData, err := bondingcurve.ABI.Events["PairRegistered"].Inputs.NonIndexed().Pack(
+		false,
 		common.HexToAddress("0xdead"), // priceModel
 		startPrice,
 		endPrice,
@@ -432,6 +431,7 @@ func (gen *dummyDataGenerator) createDoubleSwapTokenGenerator(ctx context.Contex
 
 	// Pack SECOND PairRegistered event (Creator ↔ Content)
 	secondPairRegisteredData, err := bondingcurve.ABI.Events["PairRegistered"].Inputs.NonIndexed().Pack(
+		false,
 		common.HexToAddress("0xdead"), // priceModel
 		startPrice,
 		endPrice,
@@ -1056,10 +1056,8 @@ func (gen *dummyDataGenerator) generateBuyOrSellBatch(ctx context.Context, strea
 			outputAmount = tokenAmount // receiving tokens
 		}
 
-		feeTokenAddress := common.HexToAddress(strings.TrimPrefix(token.BaseToken, "0x"))
 		data, packErr := bondingcurve.ABI.Events["Swapped"].Inputs.NonIndexed().Pack(
 			buyOrSel,
-			feeTokenAddress,
 			inputAmount,
 			outputAmount,
 			new(big.Int).SetInt64(0),
@@ -1510,7 +1508,7 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
 	if err != nil {
 		return errors.Wrapf(err, "failed to pack token created tx input")
 	}
-	bondedTokenCreatedData, err := bondingcurve.ABI.Events["BondingTokenCreated"].Inputs.NonIndexed().Pack(
+	bondedTokenCreatedData, err := bondingcurve.BondingTokenFactoryABI.Events["BondingTokenCreated"].Inputs.NonIndexed().Pack(
 		seedData.Title,
 		seedData.Ticker,
 		externalType,
@@ -1525,8 +1523,7 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
 
 	// Pack Swapped event for first swap (ION → Token)
 	swappedData, err := bondingcurve.ABI.Events["Swapped"].Inputs.NonIndexed().Pack(
-		false, // direction: buy
-		common.HexToAddress(strings.ToLower(gen.IONTokenAddress)), // feeToken (ION)
+		false,         // direction: buy
 		totalSupply,   // inputAmount
 		totalSupply,   // outputAmount (1:1 at bonding curve start)
 		big.NewInt(0), // fee
@@ -1538,6 +1535,7 @@ func (gen *dummyDataGenerator) generateToken(ctx context.Context, stream string,
 	startPrice := big.NewInt(1e18) // 1
 	endPrice := big.NewInt(1e18)   // 1
 	pairRegisteredData, err := bondingcurve.ABI.Events["PairRegistered"].Inputs.NonIndexed().Pack(
+		false,
 		common.HexToAddress("0xdead"),
 		startPrice,
 		endPrice,
