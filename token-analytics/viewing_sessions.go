@@ -53,11 +53,10 @@ func (t *tokenAnalytics) CreateViewingSession(ctx context.Context, sessionType, 
 		if pErr := pipeliner.Expire(ctx, sessKey, defaultViewingSessionTTL).Err(); pErr != nil {
 			return pErr
 		}
-		if pErr := pipeliner.Set(ctx, mapKey, sessionID, defaultViewingSessionTTL).Err(); pErr != nil {
+		if pErr := pipeliner.Set(ctx, sessMetaKey, tokenTypeValue, defaultViewingSessionTTL).Err(); pErr != nil {
 			return pErr
 		}
-		// Store tokenType in a separate key for efficient retrieval
-		if pErr := pipeliner.Set(ctx, sessMetaKey, tokenTypeValue, defaultViewingSessionTTL).Err(); pErr != nil {
+		if pErr := pipeliner.Set(ctx, mapKey, sessionID, defaultViewingSessionTTL).Err(); pErr != nil {
 			return pErr
 		}
 		return nil
@@ -81,33 +80,13 @@ func (t *tokenAnalytics) GetTokensFromViewingSession(ctx context.Context, sessio
 	sessKey := sessionKey(sessionType, sessionID)
 	sessMetaKey := sessionMetadataKey(sessionType, sessionID)
 
-	var existsCmd *redis.IntCmd
-	var tokenTypeCmd *redis.StringCmd
-
-	if responses, txErr := t.processedDataDB.TxPipelined(ctx, func(pipeliner redis.Pipeliner) error {
-		existsCmd = pipeliner.Exists(ctx, sessKey)
-		tokenTypeCmd = pipeliner.Get(ctx, sessMetaKey)
-		return nil
-	}); txErr != nil && !errors.Is(txErr, redis.Nil) {
-		return nil, fmt.Errorf("failed to check session: %w", txErr)
-	} else {
-		for _, response := range responses {
-			if rerr := response.Err(); rerr != nil && !errors.Is(rerr, redis.Nil) {
-				return nil, fmt.Errorf("failed to `%v`: %w", response.FullName(), rerr)
-			}
-		}
-	}
-
-	exists, err := existsCmd.Result()
+	tokenType, err := t.processedDataDB.Get(ctx, sessMetaKey).Result()
 	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return nil, ErrSessionNotFound
+		}
+
 		return nil, fmt.Errorf("failed to check session existence: %w", err)
-	}
-	if exists == 0 {
-		return nil, ErrSessionNotFound
-	}
-	tokenType, err := tokenTypeCmd.Result()
-	if err != nil && !errors.Is(err, redis.Nil) {
-		return nil, fmt.Errorf("failed to get session tokenType: %w", err)
 	}
 
 	if keyword != "" {
