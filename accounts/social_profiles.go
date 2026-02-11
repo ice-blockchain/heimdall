@@ -5,6 +5,7 @@ package accounts
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/cockroachdb/errors"
@@ -281,7 +282,7 @@ func (a *accounts) UpsertSocialProfile(ctx context.Context, userIDOrMasterKey, u
 			); syncErr != nil {
 				rollbackSocialProfileUpdate(errors.Wrap(syncErr, "failed to sync user profile and token to token-analytics"))
 			} else {
-				if tcToken != nil {
+				if !(tcToken == nil || (reflect.ValueOf(tcToken).Kind() == reflect.Ptr && reflect.ValueOf(tcToken).IsNil())) {
 					if _, cErr := a.coinsRepo.ImportTokenizedCommunitiesCoin(ctx, tcToken); cErr != nil {
 						rollbackSocialProfileUpdate(errors.Wrap(cErr, "failed to update tokenized communities coin"))
 					}
