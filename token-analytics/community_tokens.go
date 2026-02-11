@@ -49,8 +49,8 @@ func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
 			RETURNING id
 		)
 		INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
-		SELECT id, $8, NOW() FROM upserted_user
-		WHERE $8 IS NOT NULL AND $8 != ''
+		SELECT id, $8::TEXT, NOW() FROM upserted_user
+		WHERE $8::TEXT IS NOT NULL AND $8::TEXT != ''
 		ON CONFLICT (bsc_address) DO NOTHING
 	`
 
@@ -113,8 +113,8 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 		),
 		upserted_addr AS (
 			INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
-			SELECT id, $3, NOW() FROM upserted_user
-			WHERE $3 IS NOT NULL AND $3 != ''
+			SELECT id, $3::TEXT, NOW() FROM upserted_user
+			WHERE $3::TEXT IS NOT NULL AND $3::TEXT != ''
 			ON CONFLICT (bsc_address) DO NOTHING
 		)
 		INSERT INTO tokens (
