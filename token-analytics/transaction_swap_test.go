@@ -1178,23 +1178,31 @@ func helperInsertBaseTokenPrice(t *testing.T, ctx context.Context, db *storage.D
 func helperGetTradeFromQuestDB(t *testing.T, ctx context.Context, questDB *questdb.DB, transactionHash string) *QuestDBTrade {
 	t.Helper()
 
-	trades, err := questdb.Select[QuestDBTrade](ctx, questDB, `
-		SELECT timestamp, pair_address, contract_address, external_address,
-		       base_price_in_usd, price_in_usd, base_amount, amount,
-		       trade_type, trader_address, transaction_hash
-		FROM trades
-		WHERE transaction_hash = $1
-		LIMIT 1
-	`, transactionHash)
-	if err != nil {
-		t.Fatalf("Failed to query QuestDB for trade: %v", err)
-	}
+	var result *QuestDBTrade
+	require.Eventually(t, func() bool {
+		queryCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
 
-	if len(trades) == 0 {
-		t.Fatalf("No trade found in QuestDB for transaction %s", transactionHash)
-	}
+		trades, err := questdb.Select[QuestDBTrade](queryCtx, questDB, `
+			SELECT timestamp, pair_address, contract_address, external_address,
+			       base_price_in_usd, price_in_usd, base_amount, amount,
+			       trade_type, trader_address, transaction_hash
+			FROM trades
+			WHERE transaction_hash = $1
+			LIMIT 1
+		`, transactionHash)
+		if err != nil {
+			t.Logf("helperGetTradeFromQuestDB: retrying query for tx %s: %v", transactionHash, err)
+			return false
+		}
+		if len(trades) == 0 {
+			return false
+		}
+		result = trades[0]
+		return true
+	}, 10*time.Second, 500*time.Millisecond, "trade %s should appear in QuestDB", transactionHash)
 
-	return trades[0]
+	return result
 }
 
 type swapResult struct {
