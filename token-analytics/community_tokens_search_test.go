@@ -97,9 +97,9 @@ func TestSearchCommunityTokens(t *testing.T) {
 		require.Equal(t, 1, len(tokens))
 
 		var token *CommunityToken
-		for _, t := range tokens {
-			if t.MarketData.Ticker == "UNIQTICKER" {
-				token = t
+		for _, tok := range tokens {
+			if tok.MarketData.Ticker == "UNIQTICKER" {
+				token = tok
 				break
 			}
 		}

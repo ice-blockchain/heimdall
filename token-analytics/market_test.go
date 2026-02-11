@@ -126,7 +126,7 @@ func TestGetTradingStats(t *testing.T) {
 	require.Eventually(t, func() bool {
 		stats, err = ta.GetTradingStats(t.Context(), now, externalAddress)
 		return err == nil && stats != nil && stats.Bucket5Min != nil && stats.Bucket5Min.NumberOfBuys == 3
-	}, 5*stdlibtime.Second, 100*stdlibtime.Millisecond, "QuestDB should flush data")
+	}, 3*stdlibtime.Second, 100*stdlibtime.Millisecond, "QuestDB should flush data")
 
 	require.NoError(t, err)
 	require.NotNil(t, stats)
@@ -249,7 +249,7 @@ func TestGetTradingStats_OnlyBuys(t *testing.T) {
 	require.Eventually(t, func() bool {
 		stats, err = ta.GetTradingStats(t.Context(), now, externalAddress)
 		return err == nil && stats != nil && stats.Bucket5Min != nil && stats.Bucket5Min.NumberOfBuys == 2
-	}, 5*stdlibtime.Second, 100*stdlibtime.Millisecond, "QuestDB should flush data")
+	}, 3*stdlibtime.Second, 100*stdlibtime.Millisecond, "QuestDB should flush data")
 
 	require.NoError(t, err)
 	require.NotNil(t, stats)
@@ -314,7 +314,7 @@ func TestGetTradingStats_OnlySells(t *testing.T) {
 	require.Eventually(t, func() bool {
 		stats, err = ta.GetTradingStats(ctx, now, externalAddress)
 		return err == nil && stats != nil && stats.Bucket5Min != nil && stats.Bucket5Min.NumberOfSells == 2
-	}, 5*stdlibtime.Second, 100*stdlibtime.Millisecond, "QuestDB should flush data")
+	}, 3*stdlibtime.Second, 100*stdlibtime.Millisecond, "QuestDB should flush data")
 
 	require.NoError(t, err)
 	require.NotNil(t, stats)
@@ -332,8 +332,10 @@ func mustDecimal(bi *big.Int) questdb.Decimal {
 }
 
 func mustBigInt(s string) *big.Int {
-	n := new(big.Int)
-	n.SetString(s, 10)
+	n, ok := new(big.Int).SetString(s, 10)
+	if !ok {
+		panic("mustBigInt: failed to parse " + s)
+	}
 	return n
 }
 
@@ -380,7 +382,7 @@ func TestRegisterTrade(t *testing.T) {
 				`SELECT external_address, trade_type, trader_address, transaction_hash, price_in_usd, market_cap_usd FROM trades WHERE transaction_hash = $1`,
 				"0xtx_register_buy_1")
 			return err == nil
-		}, 5*stdlibtime.Second, 100*stdlibtime.Millisecond, "QuestDB should flush trade data")
+		}, 3*stdlibtime.Second, 100*stdlibtime.Millisecond, "QuestDB should flush trade data")
 		require.NoError(t, err)
 		require.Equal(t, "ext_register_1", row.ExternalAddress)
 		require.Equal(t, "buy", row.TradeType)
@@ -433,7 +435,7 @@ func TestRegisterTrade(t *testing.T) {
 				`SELECT trade_type, price_in_usd FROM trades WHERE transaction_hash = $1`,
 				"0xtx_register_sell_1")
 			return err == nil
-		}, 5*stdlibtime.Second, 100*stdlibtime.Millisecond, "QuestDB should flush trade data")
+		}, 3*stdlibtime.Second, 100*stdlibtime.Millisecond, "QuestDB should flush trade data")
 		require.NoError(t, err)
 		require.Equal(t, "sell", row.TradeType)
 		require.InDelta(t, 0.115, row.PriceInUsd, 0.001, "price: 0.1 ION/token * 1.15 USD/ION = 0.115 USD")
@@ -597,7 +599,7 @@ func TestGetOHLVCHistory(t *testing.T) {
 		require.Eventually(t, func() bool {
 			result, err = ta.GetOHLVCHistory(ctx, now, extAddr, interval, 10, 0)
 			return err == nil && len(result) > 0
-		}, 5*stdlibtime.Second, 100*stdlibtime.Millisecond, "QuestDB should flush OHLVC data")
+		}, 3*stdlibtime.Second, 100*stdlibtime.Millisecond, "QuestDB should flush OHLVC data")
 
 		require.NoError(t, err)
 		require.NotEmpty(t, result, "should return at least one OHLCV candle")
@@ -668,7 +670,7 @@ func TestGetOHLVCHistory(t *testing.T) {
 		require.Eventually(t, func() bool {
 			result, err = ta.GetOHLVCHistory(t.Context(), now, extAddr, interval, 2, 0)
 			return err == nil && len(result) > 0
-		}, 5*stdlibtime.Second, 100*stdlibtime.Millisecond, "QuestDB should flush OHLVC data")
+		}, 3*stdlibtime.Second, 100*stdlibtime.Millisecond, "QuestDB should flush OHLVC data")
 
 		require.NoError(t, err)
 		require.LessOrEqual(t, len(result), 2, "should respect limit of 2")
@@ -678,7 +680,7 @@ func TestGetOHLVCHistory(t *testing.T) {
 func TestSubscribeTradingStats(t *testing.T) {
 
 	t.Run("delivers initial stats on subscribe", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*stdlibtime.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*stdlibtime.Second)
 		defer cancel()
 
 		db, connString, release := helperCreateDBWithConnString(t)
@@ -700,13 +702,13 @@ func TestSubscribeTradingStats(t *testing.T) {
 		select {
 		case stats := <-received:
 			require.NotNil(t, stats)
-		case <-stdlibtime.After(5 * stdlibtime.Second):
-			t.Fatal("did not receive initial stats within 5s")
+		case <-stdlibtime.After(2 * stdlibtime.Second):
+			t.Fatal("did not receive initial stats within 2s")
 		}
 	})
 
 	t.Run("delivers updates on swap notification", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*stdlibtime.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*stdlibtime.Second)
 		defer cancel()
 
 		db, connString, release := helperCreateDBWithConnString(t)
@@ -727,7 +729,7 @@ func TestSubscribeTradingStats(t *testing.T) {
 
 		select {
 		case <-received:
-		case <-stdlibtime.After(5 * stdlibtime.Second):
+		case <-stdlibtime.After(2 * stdlibtime.Second):
 			t.Fatal("did not receive initial stats")
 		}
 
@@ -736,18 +738,23 @@ func TestSubscribeTradingStats(t *testing.T) {
 
 		recentStats.update(stdlibtime.Now().UnixNano(), 0.5, false)
 
-		ta.subscriptions.NotifySwap(&Trade{
-			TokenExternalAddress: extAddr,
-		})
+		var receivedStats *TradeStats
+		require.Eventually(t, func() bool {
+			ta.subscriptions.NotifySwap(&Trade{
+				TokenExternalAddress: extAddr,
+			})
+			select {
+			case stats := <-received:
+				receivedStats = stats
+				return true
+			case <-stdlibtime.After(50 * stdlibtime.Millisecond):
+				return false
+			}
+		}, 2*stdlibtime.Second, 100*stdlibtime.Millisecond, "should receive updated stats after swap notification")
 
-		select {
-		case stats := <-received:
-			require.NotNil(t, stats)
-			require.Equal(t, uint64(1), stats.Bucket5Min.NumberOfBuys)
-			require.InDelta(t, 0.5, stats.Bucket5Min.VolumeUSD, 0.01)
-		case <-stdlibtime.After(5 * stdlibtime.Second):
-			t.Fatal("did not receive updated stats after swap notification")
-		}
+		require.NotNil(t, receivedStats)
+		require.Equal(t, uint64(1), receivedStats.Bucket5Min.NumberOfBuys)
+		require.InDelta(t, 0.5, receivedStats.Bucket5Min.VolumeUSD, 0.01)
 	})
 }
 
@@ -755,7 +762,7 @@ func TestSubscribeOHLVC(t *testing.T) {
 	// Not parallel - tests share in-memory candlestick data and subscriptions
 
 	t.Run("delivers updates on swap notification", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*stdlibtime.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*stdlibtime.Second)
 		defer cancel()
 
 		db, connString, release := helperCreateDBWithConnString(t)
@@ -782,28 +789,33 @@ func TestSubscribeOHLVC(t *testing.T) {
 
 		select {
 		case <-received:
-		case <-stdlibtime.After(5 * stdlibtime.Second):
+		case <-stdlibtime.After(2 * stdlibtime.Second):
 			t.Fatal("did not receive initial candle")
 		}
 
 		cs.Update(0.20, mustBigInt("1000000000000000000000000000"), big.NewInt(0))
 
-		ta.subscriptions.NotifySwap(&Trade{
-			TokenExternalAddress: extAddr,
-		})
+		var receivedOHLCV *OHLCV
+		require.Eventually(t, func() bool {
+			ta.subscriptions.NotifySwap(&Trade{
+				TokenExternalAddress: extAddr,
+			})
+			select {
+			case ohlcv := <-received:
+				receivedOHLCV = ohlcv
+				return true
+			case <-stdlibtime.After(50 * stdlibtime.Millisecond):
+				return false
+			}
+		}, 2*stdlibtime.Second, 100*stdlibtime.Millisecond, "should receive updated OHLCV candle after swap notification")
 
-		select {
-		case ohlcv := <-received:
-			require.NotNil(t, ohlcv)
-			require.InDelta(t, 0.20, ohlcv.High, 0.01)
-			require.InDelta(t, 0.20, ohlcv.Close, 0.01)
-		case <-stdlibtime.After(5 * stdlibtime.Second):
-			t.Fatal("did not receive updated OHLCV candle after swap notification")
-		}
+		require.NotNil(t, receivedOHLCV)
+		require.InDelta(t, 0.20, receivedOHLCV.High, 0.01)
+		require.InDelta(t, 0.20, receivedOHLCV.Close, 0.01)
 	})
 
 	t.Run("handles no data gracefully when not loaded", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*stdlibtime.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*stdlibtime.Second)
 		defer cancel()
 
 		db, connString, release := helperCreateDBWithConnString(t)
@@ -825,8 +837,8 @@ func TestSubscribeOHLVC(t *testing.T) {
 
 		select {
 		case ohlcv := <-received:
-			require.True(t, ohlcv.Empty(), "should not receive non-empty OHLCV when there is no data")
-		case <-stdlibtime.After(1 * stdlibtime.Second):
+			t.Fatalf("expected no OHLCV event when there is no data, but got: %+v", ohlcv)
+		case <-stdlibtime.After(200 * stdlibtime.Millisecond):
 		}
 	})
 }
