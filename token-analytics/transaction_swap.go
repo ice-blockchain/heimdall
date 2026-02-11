@@ -620,6 +620,8 @@ func (t *tokenAndUserInfo) PriceUSD() float64 {
 }
 
 func (t *tokenAnalytics) fetchTradeInfoFromSwap(ctx context.Context, txHash string, contractAddress string, userBlockchainAddress string) (*Trade, error) {
+	contractAddress = strings.ToLower(contractAddress)
+	userBlockchainAddress = strings.ToLower(userBlockchainAddress)
 	sql := `
 		SELECT token_swaps.created_at,
 		    token_swaps.transaction_hash,
@@ -654,7 +656,7 @@ func (t *tokenAnalytics) fetchTradeInfoFromSwap(ctx context.Context, txHash stri
 		JOIN tokens ON token_swaps.contract_address = tokens.contract_address
 		LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = tokens.content_author_id
 		LEFT JOIN users creator ON creator.id = creator_addr.user_id
-		LEFT JOIN user_bsc_addresses holder_addr ON holder_addr.bsc_address = token_swaps.user_blockchain_address
+		LEFT JOIN user_bsc_addresses 	holder_addr ON holder_addr.bsc_address = token_swaps.user_blockchain_address
 		LEFT JOIN users holder ON holder.id = holder_addr.user_id
 		LEFT JOIN user_token_positions utp ON utp.external_address = token_swaps.external_address AND utp.user_blockchain_address = token_swaps.user_blockchain_address
 		WHERE token_swaps.transaction_hash = $1 AND token_swaps.contract_address = $2 AND token_swaps.user_blockchain_address = $3

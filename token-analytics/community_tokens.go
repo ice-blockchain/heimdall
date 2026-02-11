@@ -35,7 +35,7 @@ func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
 			VALUES ($1, $2, $3, $4, $5, $6, $7,
 					LOWER($4 || ' ' || COALESCE($5, '')),
 					'xcom'::platform_type, NOW(), NOW())
-			ON CONFLICT (external_address) WHERE external_address IS NOT NULL
+			ON CONFLICT (external_address)
 			DO UPDATE SET
 				updated_at = NOW(),
 				username = COALESCE(NULLIF(EXCLUDED.username, ''), users.username),
@@ -95,7 +95,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 			VALUES (
 				NOW(), NOW(), $1, $2, $4, $5, $6, $7, $8, LOWER($5 || ' ' || COALESCE($6, '')), 'xcom'::platform_type
 			)
-			ON CONFLICT (external_address) WHERE external_address IS NOT NULL
+			ON CONFLICT (external_address)
 			DO UPDATE SET
 				master_pubkey = CASE WHEN EXCLUDED.master_pubkey != '' THEN EXCLUDED.master_pubkey ELSE users.master_pubkey END,
 				username = COALESCE(NULLIF(EXCLUDED.username, ''), users.username),
