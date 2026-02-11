@@ -39,7 +39,7 @@ func (t *tokenAnalytics) onTransfer(ctx context.Context, tx *txEvent, ev *bondin
 
 	zeroAddr := common.HexToAddress("0x0000000000000000000000000000000000000000")
 	burnAddr := common.HexToAddress(t.cfg.BondingCurve.BurnAddress)
-	if ev.From == zeroAddr || ev.To == zeroAddr || ev.From == burnAddr || ev.To == burnAddr {
+	if ev.From == zeroAddr || ev.From == burnAddr {
 		log.Debug(fmt.Sprintf("Skipping burn transfer in tx %s (from=%s, to=%s)",
 			tx.TransactionHash, ev.From.Hex(), ev.To.Hex()))
 		return nil
@@ -57,9 +57,12 @@ func (t *tokenAnalytics) onTransfer(ctx context.Context, tx *txEvent, ev *bondin
 	g.Go(func() error {
 		return t.enqueueBalanceUpdate(gctx, tx, ev.From.Hex(), ev.TokenAddress.Hex(), tokenData, ev.Value, false)
 	})
-	g.Go(func() error {
-		return t.enqueueBalanceUpdate(gctx, tx, ev.To.Hex(), ev.TokenAddress.Hex(), tokenData, ev.Value, true)
-	})
+	txToBurn := ev.To == zeroAddr || ev.To == burnAddr
+	if !txToBurn {
+		g.Go(func() error {
+			return t.enqueueBalanceUpdate(gctx, tx, ev.To.Hex(), ev.TokenAddress.Hex(), tokenData, ev.Value, true)
+		})
+	}
 	if err := g.Wait(); err != nil {
 		return errors.Wrapf(err, "failed to enqueue balance updates for transfer tx %s", tx.TransactionHash)
 	}
