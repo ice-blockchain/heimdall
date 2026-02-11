@@ -246,21 +246,6 @@ func TestOnTransfer(t *testing.T) {
 		helperInsertTestUser(t, ctx, db, creatorPubkey, "burn_user", "Burn User", "0xBurnAddr0000000000000000000000000000000", false, PlatformGroupIonConnect)
 		helperInsertTestToken(t, ctx, db, tokenContractAddr, tokenExternalAddr, "BURN", TokenTypeProfile, creatorPubkey, "1000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
 
-		// Test transfer to burn address (0x0000000000000000000000000000000000696f6e)
-		txBurnAddr := &txEvent{
-			TransactionHash: "0xburn_address_transaction",
-			Logs:            make(txEventLogs, 0),
-		}
-
-		evBurnAddr := &bondingcurve.LogTransfer{
-			TokenAddress: common.HexToAddress(tokenContractAddr),
-			From:         common.HexToAddress("0x3333333333333333333333333333333333333333"),
-			To:           common.HexToAddress(ta.cfg.BondingCurve.BurnAddress), // 0x0000000000000000000000000000000000696f6e
-			Value:        big.NewInt(1000000000000000000),
-		}
-
-		require.NoError(t, ta.onTransfer(ctx, txBurnAddr, evBurnAddr))
-
 		txFromBurnAddr := &txEvent{
 			TransactionHash: "0xfrom_burn_address_transaction",
 			Logs:            make(txEventLogs, 0),
@@ -275,20 +260,6 @@ func TestOnTransfer(t *testing.T) {
 
 		require.NoError(t, ta.onTransfer(ctx, txFromBurnAddr, evFromBurnAddr))
 
-		txZeroAddr := &txEvent{
-			TransactionHash: "0xzero_address_transaction",
-			Logs:            make(txEventLogs, 0),
-		}
-
-		evZeroAddr := &bondingcurve.LogTransfer{
-			TokenAddress: common.HexToAddress(tokenContractAddr),
-			From:         common.HexToAddress("0x3333333333333333333333333333333333333333"),
-			To:           common.HexToAddress("0x0000000000000000000000000000000000000000"),
-			Value:        big.NewInt(1000000000000000000),
-		}
-
-		require.NoError(t, ta.onTransfer(ctx, txZeroAddr, evZeroAddr))
-
 		txFromZeroAddr := &txEvent{
 			TransactionHash: "0xfrom_zero_address_transaction",
 			Logs:            make(txEventLogs, 0),
@@ -302,7 +273,88 @@ func TestOnTransfer(t *testing.T) {
 		}
 		require.NoError(t, ta.onTransfer(ctx, txFromZeroAddr, evFromZeroAddr))
 	})
+	t.Run("burn transfers updates balances for sender", func(t *testing.T) {
+		tokenContractAddr := strings.ToLower("0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF")
+		tokenExternalAddr := "0:burn_creator:"
+		creatorPubkey := "burn_creator"
 
+		helperInsertTestUser(t, ctx, db, creatorPubkey, "burn_user", "Burn User", "0xBurnAddr0000000000000000000000000000000", false, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db, tokenContractAddr, tokenExternalAddr, "BURN", TokenTypeProfile, creatorPubkey, "1000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+
+		baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+		helperInsertBaseTokenPrice(t, ctx, db, baseToken, "ION", 0.5)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddr, "0x0000000000000000000000000000000000000000000000000000000000000001", baseToken)
+
+		senderAddr := strings.ToLower("0xd38D7cDab8802A4Dc5730f9Dfd24464545BB88aC")
+		senderExternalAddr := "0:sender_pubkey:"
+
+		helperInsertTestUser(t, ctx, db, "sender_pubkey", "sender", "Sender", senderAddr, false, PlatformGroupIonConnect)
+		// Sender has 150 tokens
+		helperInsertUserPosition(t, ctx, db, senderAddr, tokenContractAddr, tokenExternalAddr, senderExternalAddr, "150000000000000000000")
+
+		senderInitialBalance := helperGetUserPosition(t, ctx, db, senderAddr, tokenContractAddr)
+
+		require.NotNil(t, senderInitialBalance, "Sender should have initial position")
+		require.Equal(t, "150000000000000000000", senderInitialBalance.Amount, "Sender initial balance should be 150 tokens")
+
+		// Sender transfers 75 tokens to burned
+		transferAmount := new(big.Int)
+		transferAmount.SetString("75000000000000000000", 10) // 75 tokens (18 decimals)
+		tx := &txEvent{
+			TransactionHash: "0x35c600124ae61ba86e9c85b679bd4c40c9bb30274f59d698593a52827f6d2746",
+			Logs:            make(txEventLogs, 0),
+		}
+
+		ev := &bondingcurve.LogTransfer{
+			TokenAddress: common.HexToAddress(tokenContractAddr),
+			From:         common.HexToAddress(senderAddr),
+			To:           common.HexToAddress(ta.cfg.BondingCurve.BurnAddress),
+			Value:        transferAmount,
+		}
+
+		expectedBalance := new(big.Int)
+		expectedBalance.SetString("75000000000000000000", 10) // 75 tokens
+		mockBackend.SetBalanceOfResponse(expectedBalance)
+
+		require.NoError(t, ta.onTransfer(ctx, tx, ev))
+
+		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
+
+		senderFinalBalance := helperGetUserPosition(t, ctx, db, senderAddr, tokenContractAddr)
+
+		require.NotNil(t, senderFinalBalance, "Sender should still have position after transfer")
+
+		require.Equal(t, "75000000000000000000", senderFinalBalance.Amount,
+			"Sender balance should be 75 tokens (150 - 75)")
+
+		// Sender transfers 75 tokens to zero address
+		transferAmount.SetString("75000000000000000000", 10) // 75 tokens (18 decimals)
+		tx = &txEvent{
+			TransactionHash: "0x37c600124ae61ba86e9c85b679bd4c40c9bb30274f59d698593a52827f6d2749",
+			Logs:            make(txEventLogs, 0),
+		}
+
+		ev = &bondingcurve.LogTransfer{
+			TokenAddress: common.HexToAddress(tokenContractAddr),
+			From:         common.HexToAddress(senderAddr),
+			To:           common.HexToAddress("0x0000000000000000000000000000000000000000"),
+			Value:        transferAmount,
+		}
+
+		expectedBalance.SetString("0", 10)
+		mockBackend.SetBalanceOfResponse(expectedBalance)
+
+		require.NoError(t, ta.onTransfer(ctx, tx, ev))
+
+		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
+
+		senderFinalBalance = helperGetUserPosition(t, ctx, db, senderAddr, tokenContractAddr)
+
+		require.NotNil(t, senderFinalBalance, "Sender should have zero position after transfer as all money is gone")
+
+		require.Equal(t, "0", senderFinalBalance.Amount,
+			"Sender balance should be 0 tokens (150 - 75 - 75)")
+	})
 	t.Run("skips_unknown_tokens", func(t *testing.T) {
 		tx := &txEvent{
 			TransactionHash: "0xunknown_token_transfer",
@@ -319,4 +371,49 @@ func TestOnTransfer(t *testing.T) {
 		err := ta.onTransfer(ctx, tx, ev)
 		require.NoError(t, err)
 	})
+	t.Run("burned transfers are saved as burned fees in trigger", func(t *testing.T) {
+		tokenContractAddr := strings.ToLower("0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF")
+		tokenExternalAddr := "0:burn_creator:"
+		creatorPubkey := "burn_creator"
+
+		helperInsertTestUser(t, ctx, db, creatorPubkey, "burn_user", "Burn User", "0xBurnAddr0000000000000000000000000000000", false, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db, tokenContractAddr, tokenExternalAddr, "BURN", TokenTypeProfile, creatorPubkey, "1000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+
+		blockTimestamp := "2024-01-01 12:00:00"
+		topics := []string{
+			"0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", // FeeTransfer
+			"0x000000000000000000000000d38D7cDab8802A4Dc5730f9Dfd24464545BB88aC", // from
+			"0x0000000000000000000000000000000000000000000000000000000000000000", // to (zero)
+		}
+		data := "0x" +
+			"0000000000000000000000000000000000000000000000008ac7230489e80000" // 10000000000000000000
+
+		_, err := storage.Exec(ctx, db, `
+			SELECT process_erc20_transfer($4,$2, $3, $1);
+		`,
+			blockTimestamp,
+			topics,
+			data,
+			tokenContractAddr,
+		)
+		require.NoError(t, err)
+
+		type feeResult struct {
+			TokenExternalAddress string  `db:"token_external_address"`
+			RecipientBscAddress  string  `db:"recipient_bsc_address"`
+			Type                 string  `db:"fee_type"`
+			Amount               float64 `db:"amount"`
+		}
+		res, err := storage.Get[feeResult](ctx, db, `
+			SELECT token_external_address, recipient_bsc_address, fee_type, amount
+			FROM fees_transferred
+			WHERE token_external_address = $1 AND recipient_bsc_address = $2
+		`, tokenExternalAddr, "0x0000000000000000000000000000000000696f6e")
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		require.Equal(t, "0x0000000000000000000000000000000000696f6e", res.RecipientBscAddress)
+		require.Equal(t, feeDestinationBurn, res.Type)
+		require.Equal(t, float64(10000000000000000000), res.Amount)
+	})
+
 }
