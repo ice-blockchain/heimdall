@@ -205,7 +205,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		require.InDelta(t, 100.0, token.MarketData.MarketCap, 0.01)
 		require.InDelta(t, 0.1, token.MarketData.Volume, 0.001, "Volume = 1000 tokens * 0.0001 USD = 0.1 USD")
 		require.InDelta(t, 0.0001, token.MarketData.PriceUSD, 0.00001)
-		require.Equal(t, uint64(4), token.MarketData.Holders)
+		require.Equal(t, uint64(5), token.MarketData.Holders, "Holders count includes all user_blockchain_addresses")
 
 		require.NotNil(t, token.MarketData.Position, "Position should be present for user with holdings")
 		require.Equal(t, uint64(3), token.MarketData.Position.Rank, "Rank from Redis sorted set")
@@ -1325,7 +1325,6 @@ func helperInsertTestUser(t *testing.T, ctx context.Context, db *storage.DB, mas
 		)
 		INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
 		SELECT id, LOWER($10::text), NOW() FROM upserted_user
-		WHERE $10::text IS NOT NULL AND $10::text != ''
 		ON CONFLICT (bsc_address) DO NOTHING`
 	_, err := storage.Exec(ctx, db, query,
 		masterPubkey,

@@ -94,8 +94,8 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 			COALESCE(u.external_address, '') as user_external_address
 		FROM user_bsc_addresses uba
 		JOIN users u ON u.id = uba.user_id
-		WHERE uba.bsc_address = LOWER($1)
-	`, userAddress.Hex())
+		WHERE uba.bsc_address = $1
+	`, strings.ToLower(userAddress.Hex()))
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 		return fmt.Errorf("failed to find user by content author id %v: %w", userAddress, err)
 	}
@@ -166,7 +166,7 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 		    base_token.contract_address as base_profile_contract_address,
             base_token.external_address as base_profile_external_address
 		FROM tokens t
-		LEFT JOIN user_bsc_addresses uba ON uba.bsc_address = LOWER($2)
+		LEFT JOIN user_bsc_addresses uba ON uba.bsc_address = $2
 		LEFT JOIN users u ON u.id = uba.user_id
 		LEFT JOIN tokens base_token ON base_token.contract_address = t.base_token and base_token."type" = 'profile'
 		LEFT JOIN fees_transferred burned ON burned.token_external_address = t.external_address AND burned.recipient_bsc_address = $3`
@@ -220,7 +220,8 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	contractAddress := result.ContractAddress
 	actualBaseToken := strings.ToLower(result.BaseToken)
 
-	log.Debug(fmt.Sprintf("onSwap: contractAddress=%s, baseToken=%s userAddr=%s, isFirstSwap=%v", contractAddress, actualBaseToken, userAddr, isFirstSwap))
+	log.Debug(fmt.Sprintf("onSwap: contractAddress=%s, baseToken=%s userAddr=%s, isFirstSwap=%v, userExternalAddress=%s, tokenExternalAddress=%s",
+		contractAddress, actualBaseToken, userAddr, isFirstSwap, result.UserExternalAddress, result.TokenExternalAddress))
 
 	priceInBaseToken := calculatePriceFromSwap(ev.InputAmount, ev.OutputAmount, ev.Direction) // Price: how much ION per 1 community token
 	priceUSD, basePriceUSD, err := t.calculatePriceInUSD(ctx, priceInBaseToken, actualBaseToken)
@@ -418,8 +419,8 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 		balanceStr := newBalanceBigInt.String()
 		jobArgs.DummyBalance = &balanceStr
 
-		log.Debug(fmt.Sprintf("Dummy data: Calculated balance=%s (current=%.2f, change=%.2f, new=%.2f) for user=%s, token=%s, direction=%v",
-			balanceStr, currentScore, amountFloat, newScore, userBlockchainAddress, tokenExternalAddress, direction))
+		log.Debug(fmt.Sprintf("Dummy data: Calculated balance=%s (current=%.2f, change=%.2f, new=%.2f) for user=%s (external=%s), token=%s, tx=%s, direction=%v",
+			balanceStr, currentScore, amountFloat, newScore, userBlockchainAddress, userExternalAddress, tokenExternalAddress, tx.TransactionHash, direction))
 	}
 
 	if err := t.riverClient.Push(ctx, jobArgs); err != nil {

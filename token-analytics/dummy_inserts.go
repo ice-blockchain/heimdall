@@ -612,17 +612,17 @@ func (gen *dummyDataGenerator) fetchRealTokens(ctx context.Context) error {
 			t.pair_id,
 			t.content_author_id,
 			t.created_at
-		FROM tokens t
-		INNER JOIN transactions tx ON tx.from_address = t.content_author_id
-		WHERE tx.to_address = LOWER($1)
-		  AND tx.dummy = FALSE
-		  AND t.pair_id IS NOT NULL
+	FROM tokens t
+	INNER JOIN transactions tx ON tx.from_address = t.content_author_id
+	WHERE tx.to_address = $1
+	  AND tx.dummy = FALSE
+	  AND t.pair_id IS NOT NULL
 		  AND t.base_token IS NOT NULL
 		ORDER BY t.created_at DESC
 		LIMIT 100
 	`
 
-	tokens, err := storage.Select[tokenRow](ctx, gen.Target, sql, gen.BondingCurveContractAddress)
+	tokens, err := storage.Select[tokenRow](ctx, gen.Target, sql, strings.ToLower(gen.BondingCurveContractAddress))
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch real tokens")
 	}
@@ -1830,9 +1830,9 @@ func (gen *dummyDataGenerator) createUserForPlatform(ctx context.Context, master
 			RETURNING id
 		)
 		INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
-		SELECT id, LOWER($11), NOW() FROM inserted_user
+		SELECT id, $11, NOW() FROM inserted_user
 		ON CONFLICT (bsc_address) DO NOTHING
-	`, id, masterPubkey, externalAddress, username, displayName, avatarURL, lookup, ionConnectRelays, verified, platformGroup, bscAddr)
+	`, id, masterPubkey, externalAddress, username, displayName, avatarURL, lookup, ionConnectRelays, verified, platformGroup, strings.ToLower(bscAddr))
 	if err != nil && !storage.IsErr(err, storage.ErrDuplicate) {
 		return "", "", fmt.Errorf("failed to insert user %v: %w", masterPubkey, err)
 	}

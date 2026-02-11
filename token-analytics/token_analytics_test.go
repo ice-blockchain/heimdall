@@ -2580,10 +2580,10 @@ func TestProcessPairRegistered(t *testing.T) {
 			BaseToken string `db:"base_token"`
 		}
 		result, err := storage.Get[tokenResult](ctx, db, `
-			SELECT pair_id, base_token 
-			FROM tokens 
-			WHERE LOWER(contract_address) = LOWER($1)
-		`, testTokenAddr)
+		SELECT pair_id, base_token 
+		FROM tokens 
+		WHERE contract_address = $1
+	`, strings.ToLower(testTokenAddr))
 		require.NoError(t, err)
 		require.Equal(t, strings.ToLower(testPairID), strings.ToLower(result.PairID))
 		require.Equal(t, strings.ToLower(testBaseTokenAddr), strings.ToLower(result.BaseToken))

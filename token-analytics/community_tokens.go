@@ -49,7 +49,7 @@ func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
 			RETURNING id
 		)
 		INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
-		SELECT id, LOWER($8), NOW() FROM upserted_user
+		SELECT id, $8, NOW() FROM upserted_user
 		WHERE $8 IS NOT NULL AND $8 != ''
 		ON CONFLICT (bsc_address) DO NOTHING
 	`
@@ -62,7 +62,7 @@ func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
 		userDisplayName,
 		userAvatar,
 		userVerified,
-		userContentId,
+		strings.ToLower(userContentId),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update logged-in user profile: %w", err)
@@ -113,7 +113,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 		),
 		upserted_addr AS (
 			INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
-			SELECT id, LOWER($3), NOW() FROM upserted_user
+			SELECT id, $3, NOW() FROM upserted_user
 			WHERE $3 IS NOT NULL AND $3 != ''
 			ON CONFLICT (bsc_address) DO NOTHING
 		)
@@ -125,7 +125,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 			NOW(), NOW(),
 			NULL,
 			$11,
-			LOWER(NULLIF($3, '')),
+			NULLIF($3, ''),
 			NULLIF($10, ''),
 			$9,
 			'xcom'::platform_type,
@@ -141,7 +141,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	`
 
 	_, err = storage.Exec(ctx, t.ingestedDataDB, query,
-		userId, postAuthorExternalAddress, userContentId, postAuthorExternalAddress,
+		userId, postAuthorExternalAddress, strings.ToLower(userContentId), postAuthorExternalAddress,
 		postAuthorUsername, postAuthorDisplayName, postAuthorAvatar, postAuthorVerified,
 		ionConnectAddress, tokenImageUrl, tokenExternalAddress,
 	)

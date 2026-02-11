@@ -89,10 +89,10 @@ func (t *tokenAnalytics) getTokenInfo(ctx context.Context, contractAddress strin
 			COALESCE(type, '') AS type,
 			platform
 		FROM tokens 
-		WHERE LOWER(contract_address) = LOWER($1)
+		WHERE contract_address = $1
 		LIMIT 1
 	`
-	row, err := storage.Get[tokenInfo](ctx, t.ingestedDataDB, query, contractAddress)
+	row, err := storage.Get[tokenInfo](ctx, t.ingestedDataDB, query, strings.ToLower(contractAddress))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get token info for contract %s", contractAddress)
 	}
@@ -108,10 +108,10 @@ func (t *tokenAnalytics) getUserExternalAddress(ctx context.Context, blockchainA
 		SELECT u.external_address
 		FROM user_bsc_addresses uba
 		JOIN users u ON u.id = uba.user_id
-		WHERE uba.bsc_address = LOWER($1)
+		WHERE uba.bsc_address = $1
 		LIMIT 1
 	`
-	row, err := storage.Get[userExternalAddressRow](ctx, t.ingestedDataDB, query, blockchainAddress)
+	row, err := storage.Get[userExternalAddressRow](ctx, t.ingestedDataDB, query, strings.ToLower(blockchainAddress))
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get user external address for blockchain address %s", blockchainAddress)
 	}

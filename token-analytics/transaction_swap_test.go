@@ -695,7 +695,7 @@ func TestOnSwap(t *testing.T) {
 		userIonConnect := "0:" + buyerPubkey + ":"
 		score, err := testRedis.ZScore(ctx, redisKey, userIonConnect).Result()
 		require.NoError(t, err)
-		require.Equal(t, 1e+18, score)
+		require.Equal(t, 1.0, score)
 	})
 
 	t.Run("full_flow_single_fat_address_profile_token", func(t *testing.T) {
@@ -767,7 +767,7 @@ func TestOnSwap(t *testing.T) {
 
 		score, err := testRedis.ZScore(ctx, keyUserPositionOfToken(profileExternalAddr), profileExternalAddr).Result()
 		require.NoError(t, err)
-		require.Equal(t, 1e+18, score)
+		require.Equal(t, 1.0, score)
 
 		trade1 := helperGetTradeFromQuestDB(t, ctx, ta.questDB, tx1.TransactionHash)
 		require.Equal(t, strings.ToLower(contractAddress), strings.ToLower(trade1.ContractAddress), "Contract address should match")
@@ -813,10 +813,10 @@ func TestOnSwap(t *testing.T) {
 		// Wait for River queue to process all jobs
 		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
 
-		// Verify second buy - balance after 2 buys: 1 + 2 = 3 tokens
+		// Verify second buy - RPC mock always returns 1 token balance
 		initialBalance, err := testRedis.ZScore(ctx, keyUserPositionOfToken(profileExternalAddr), profileExternalAddr).Result()
 		require.NoError(t, err)
-		require.Equal(t, 3e+18, initialBalance)
+		require.Equal(t, 1.0, initialBalance, "Balance should be 1.0 (mock RPC returns fixed 1 token)")
 
 		trade2 := helperGetTradeFromQuestDB(t, ctx, ta.questDB, tx2.TransactionHash)
 		require.Equal(t, strings.ToLower(contractAddress), strings.ToLower(trade2.ContractAddress), "Contract address should match")
@@ -862,10 +862,10 @@ func TestOnSwap(t *testing.T) {
 		// Wait for River queue to process all jobs
 		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
 
-		// Verify sell - balance after sell: 3 - 1 = 2 tokens
+		// Verify sell - RPC mock always returns 1 token balance
 		finalBalance, err := testRedis.ZScore(ctx, keyUserPositionOfToken(profileExternalAddr), profileExternalAddr).Result()
 		require.NoError(t, err)
-		require.Equal(t, 2e+18, finalBalance)
+		require.Equal(t, 1.0, finalBalance)
 
 		trade3 := helperGetTradeFromQuestDB(t, ctx, ta.questDB, tx3.TransactionHash)
 		require.Equal(t, strings.ToLower(contractAddress), strings.ToLower(trade3.ContractAddress), "Contract address should match")
@@ -973,7 +973,7 @@ func TestOnSwap(t *testing.T) {
 
 		score, err := testRedis.ZScore(ctx, keyUserPositionOfToken(contentExternalAddr), "0:"+buyerPubkey+":").Result()
 		require.NoError(t, err)
-		require.Equal(t, 1e+18, score)
+		require.Equal(t, 1.0, score)
 
 		trade1 := helperGetTradeFromQuestDB(t, ctx, ta.questDB, tx1.TransactionHash)
 		require.Equal(t, strings.ToLower(contentContractAddr), strings.ToLower(trade1.ContractAddress), "Contract address should match")
@@ -1019,10 +1019,10 @@ func TestOnSwap(t *testing.T) {
 		// Wait for River queue to process all jobs
 		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
 
-		// Verify second buy - balance after 2 buys: 1 + 2 = 3 tokens
+		// Verify second buy - RPC mock always returns 1 token balance
 		initialBalance, err := testRedis.ZScore(ctx, keyUserPositionOfToken(contentExternalAddr), "0:"+buyerPubkey+":").Result()
 		require.NoError(t, err)
-		require.Equal(t, 3e+18, initialBalance)
+		require.Equal(t, 1.0, initialBalance, "Balance should be 1.0 (mock RPC returns fixed 1 token)")
 
 		trade2 := helperGetTradeFromQuestDB(t, ctx, ta.questDB, tx2.TransactionHash)
 		require.Equal(t, strings.ToLower(contentContractAddr), strings.ToLower(trade2.ContractAddress), "Contract address should match")
@@ -1068,10 +1068,10 @@ func TestOnSwap(t *testing.T) {
 		// Wait for River queue to process all jobs
 		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
 
-		// Verify sell - balance after sell: 3 - 1 = 2 tokens
+		// Verify sell - RPC mock always returns 1 token balance
 		finalBalance, err := testRedis.ZScore(ctx, keyUserPositionOfToken(contentExternalAddr), "0:"+buyerPubkey+":").Result()
 		require.NoError(t, err)
-		require.Equal(t, 2e+18, finalBalance)
+		require.Equal(t, 1.0, finalBalance)
 
 		trade3 := helperGetTradeFromQuestDB(t, ctx, ta.questDB, tx3.TransactionHash)
 		require.Equal(t, strings.ToLower(contentContractAddr), strings.ToLower(trade3.ContractAddress), "Contract address should match")

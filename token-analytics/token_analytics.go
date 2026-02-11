@@ -292,10 +292,10 @@ func (t *tokenAnalyticsUsers) UpsertUser(ctx context.Context, id, masterPubkey, 
 			RETURNING id
 		)
 		INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
-		SELECT id, LOWER($10::text), NOW() FROM upserted_user
+		SELECT id, $10::text, NOW() FROM upserted_user
 		WHERE $10::text IS NOT NULL AND $10::text != ''
 		ON CONFLICT (bsc_address) DO NOTHING
-	`, id, masterPubkey, username, displayName, avatar, lookup, relays, verifiedVal, externalAddress, blockchainAddress, verified != nil && ionConnectRelays != nil)
+	`, id, masterPubkey, username, displayName, avatar, lookup, relays, verifiedVal, externalAddress, strings.ToLower(blockchainAddress), verified != nil && ionConnectRelays != nil)
 
 	log.Error(fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err))
 	// TODO: return an error here later.
