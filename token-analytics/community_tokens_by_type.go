@@ -59,7 +59,8 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 			COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd`
 
 		fromJoinsClause = `FROM %s t
-	LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
+	LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
+	LEFT JOIN users creator ON creator.id = creator_addr.user_id
 	LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address`
 	)
 
@@ -228,7 +229,8 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 			COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd
 	FROM tokens t
 	INNER JOIN tokens_featured tf ON tf.external_address = t.external_address
-	LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
+	LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
+	LEFT JOIN users creator ON creator.id = creator_addr.user_id
 	LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 	WHERE t.ticker IS NOT NULL
 	`

@@ -75,8 +75,9 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 			launcher.platform_group as launcher_platform,
 			first_swap.user_blockchain_address as launcher_blockchain_address
 		FROM tokens t
-		LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
-		LEFT JOIN user_token_positions utp ON utp.external_address = t.external_address AND LOWER(utp.user_blockchain_address) = (SELECT LOWER(content_author_id) FROM users WHERE master_pubkey = $2 LIMIT 1)
+		LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
+		LEFT JOIN users creator ON creator.id = creator_addr.user_id
+		LEFT JOIN user_token_positions utp ON utp.external_address = t.external_address AND utp.user_blockchain_address = (SELECT uba.bsc_address FROM user_bsc_addresses uba JOIN users u ON u.id = uba.user_id WHERE u.master_pubkey = $2 LIMIT 1)
 		LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 		LEFT JOIN token_platform_holders tph ON tph.external_address = t.external_address 
 			AND tph.platform_group = (SELECT platform_group FROM users WHERE master_pubkey = $2 LIMIT 1)
@@ -88,7 +89,8 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 			ORDER BY created_at ASC
 			LIMIT 1
 		) first_swap ON t.platform = 'xcom'
-		LEFT JOIN users launcher ON LOWER(launcher.content_author_id) = LOWER(first_swap.user_blockchain_address)
+		LEFT JOIN user_bsc_addresses launcher_addr ON launcher_addr.bsc_address = first_swap.user_blockchain_address
+		LEFT JOIN users launcher ON launcher.id = launcher_addr.user_id
 		WHERE t.external_address = ANY($1)
 		  AND t.ticker IS NOT NULL
 		ORDER BY t.created_at DESC
@@ -167,7 +169,8 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 					ELSE 0.0
 				END AS relevance_score
 			FROM tokens t
-			LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
+			LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
+			LEFT JOIN users creator ON creator.id = creator_addr.user_id
 			LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 			LEFT JOIN LATERAL (
 				SELECT user_blockchain_address
@@ -177,7 +180,8 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 				ORDER BY created_at ASC
 				LIMIT 1
 			) first_swap ON t.platform = 'xcom'
-			LEFT JOIN users launcher ON LOWER(launcher.content_author_id) = LOWER(first_swap.user_blockchain_address)
+			LEFT JOIN user_bsc_addresses launcher_addr ON launcher_addr.bsc_address = first_swap.user_blockchain_address
+			LEFT JOIN users launcher ON launcher.id = launcher_addr.user_id
 			` + whereClause + `
 			ORDER BY t.lookup <-> $` + kwParam + `
 			LIMIT 250
@@ -456,7 +460,8 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 							holder.platform_group as holder_platform,
 							utp_holders.amount as amount
 						FROM user_token_positions utp_holders
-						LEFT JOIN users holder ON LOWER(holder.content_author_id) = LOWER(utp_holders.user_blockchain_address)
+						LEFT JOIN user_bsc_addresses holder_addr ON holder_addr.bsc_address = utp_holders.user_blockchain_address
+						LEFT JOIN users holder ON holder.id = holder_addr.user_id
 						LEFT JOIN requestor_platform rp ON true
 						WHERE utp_holders.external_address = t.external_address
 						  AND (rp.platform_group IS NULL OR holder.platform_group = rp.platform_group)
@@ -468,8 +473,9 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 
 		fromJoinsClause = `FROM %s t
 			LEFT JOIN requestor_platform rp ON true
-			LEFT JOIN users creator ON LOWER(creator.content_author_id) = LOWER(t.content_author_id)
-			LEFT JOIN user_token_positions utp ON utp.external_address = t.external_address AND LOWER(utp.user_blockchain_address) = (SELECT LOWER(content_author_id) FROM users WHERE master_pubkey = $2 LIMIT 1)
+			LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
+			LEFT JOIN users creator ON creator.id = creator_addr.user_id
+			LEFT JOIN user_token_positions utp ON utp.external_address = t.external_address AND utp.user_blockchain_address = (SELECT uba.bsc_address FROM user_bsc_addresses uba JOIN users u ON u.id = uba.user_id WHERE u.master_pubkey = $2 LIMIT 1)
 			LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 			LEFT JOIN token_platform_holders tph ON tph.external_address = t.external_address
 				AND (rp.platform_group IS NULL OR tph.platform_group = rp.platform_group)
@@ -481,7 +487,8 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 				ORDER BY created_at ASC
 				LIMIT 1
 			) first_swap ON t.platform = 'xcom'
-			LEFT JOIN users launcher ON LOWER(launcher.content_author_id) = LOWER(first_swap.user_blockchain_address)`
+			LEFT JOIN user_bsc_addresses launcher_addr ON launcher_addr.bsc_address = first_swap.user_blockchain_address
+			LEFT JOIN users launcher ON launcher.id = launcher_addr.user_id`
 	)
 
 	var query string

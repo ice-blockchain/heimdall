@@ -280,6 +280,7 @@ func helperNewForTest(t testing.TB, db *storage.DB, opts ...HelperTestOption) *t
 		coins:                       &mockCoinImport{},
 		riverClient:                 riverClient,
 		bondingCurve:                bc,
+		identityClient:              newIdentityClient("http://localhost:0", "test-api-key"),
 		shutdown: func() error {
 			var errs []error
 			for _, fn := range shutdownFuncs {
@@ -928,9 +929,14 @@ func TestFeeTransfer(t *testing.T) {
 	testUserID := "test-user-id-123"
 
 	_, err = storage.Exec(ctx, db, `
-		INSERT INTO users (id, master_pubkey, content_author_id, external_address, username, display_name, avatar, platform_group, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, 'testuser', 'Test User', 'https://example.com/avatar.jpg', 'ionconnect', NOW(), NOW())
-	`, testUserID, testUserPubkey, testUserAddr, testUserExtAddr)
+		WITH ins_user AS (
+			INSERT INTO users (id, master_pubkey, external_address, username, display_name, avatar, platform_group, created_at, updated_at)
+			VALUES ($1, $2, $3, 'testuser', 'Test User', 'https://example.com/avatar.jpg', 'ionconnect', NOW(), NOW())
+			RETURNING id
+		)
+		INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
+		SELECT id, LOWER($4), NOW() FROM ins_user
+	`, testUserID, testUserPubkey, testUserExtAddr, testUserAddr)
 	require.NoError(t, err)
 
 	testTokenAddr := "0xdeadbeef00000000000000000000000000000001"
@@ -943,7 +949,7 @@ func TestFeeTransfer(t *testing.T) {
 			contract_address, external_address, title, ticker, base_token, pair_id,
 			total_supply, type, platform, created_at, updated_at, content_author_id
 		)
-		VALUES ($1, $2, 'Test Token', 'TEST', $3, $4, $5, 'profile', 'ionconnect', NOW(), NOW(), $6)
+		VALUES ($1, $2, 'Test Token', 'TEST', $3, $4, $5, 'profile', 'ionconnect', NOW(), NOW(), LOWER($6))
 	`, testTokenAddr, testTokenExtAddr, ionAddress, testPairId, totalSupply, testUserAddr)
 	require.NoError(t, err)
 
@@ -2016,9 +2022,14 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 	testUserID := "test-user-id-123"
 
 	_, err = storage.Exec(ctx, db, `
-		INSERT INTO users (id, master_pubkey, content_author_id, external_address, username, display_name, avatar, platform_group, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, 'testuser', 'Test User', 'https://example.com/avatar.jpg', 'ionconnect', NOW(), NOW())
-	`, testUserID, testUserPubkey, testUserAddr, testUserExtAddr)
+		WITH ins_user AS (
+			INSERT INTO users (id, master_pubkey, external_address, username, display_name, avatar, platform_group, created_at, updated_at)
+			VALUES ($1, $2, $3, 'testuser', 'Test User', 'https://example.com/avatar.jpg', 'ionconnect', NOW(), NOW())
+			RETURNING id
+		)
+		INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
+		SELECT id, LOWER($4), NOW() FROM ins_user
+	`, testUserID, testUserPubkey, testUserExtAddr, testUserAddr)
 	require.NoError(t, err)
 
 	testTokenAddr := "0xdeadbeef00000000000000000000000000000001"
@@ -2270,9 +2281,14 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 		newUserID := "new-user-id-456"
 
 		_, err = storage.Exec(ctx, db, `
-			INSERT INTO users (id, master_pubkey, content_author_id, external_address, username, display_name, avatar, platform_group, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, 'newuser', 'New User', 'https://example.com/new-avatar.jpg', 'ionconnect', NOW(), NOW())
-		`, newUserID, newUserPubkey, newUserAddr, newUserExtAddr)
+			WITH ins_user AS (
+				INSERT INTO users (id, master_pubkey, external_address, username, display_name, avatar, platform_group, created_at, updated_at)
+				VALUES ($1, $2, $3, 'newuser', 'New User', 'https://example.com/new-avatar.jpg', 'ionconnect', NOW(), NOW())
+				RETURNING id
+			)
+			INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
+			SELECT id, LOWER($4), NOW() FROM ins_user
+		`, newUserID, newUserPubkey, newUserExtAddr, newUserAddr)
 		require.NoError(t, err)
 
 		blockTimestamp := "2024-01-01 16:00:00"
@@ -2564,10 +2580,10 @@ func TestProcessPairRegistered(t *testing.T) {
 			BaseToken string `db:"base_token"`
 		}
 		result, err := storage.Get[tokenResult](ctx, db, `
-			SELECT pair_id, base_token 
-			FROM tokens 
-			WHERE LOWER(contract_address) = LOWER($1)
-		`, testTokenAddr)
+		SELECT pair_id, base_token 
+		FROM tokens 
+		WHERE contract_address = $1
+	`, strings.ToLower(testTokenAddr))
 		require.NoError(t, err)
 		require.Equal(t, strings.ToLower(testPairID), strings.ToLower(result.PairID))
 		require.Equal(t, strings.ToLower(testBaseTokenAddr), strings.ToLower(result.BaseToken))

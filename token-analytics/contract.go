@@ -30,7 +30,6 @@ type (
 	UserRecord struct {
 		ID               string   `db:"id"`
 		MasterPubkey     string   `db:"master_pubkey"`
-		ContentAuthorID  string   `db:"content_author_id"`
 		ExternalAddress  string   `db:"external_address"`
 		Username         string   `db:"username"`
 		DisplayName      string   `db:"display_name"`

@@ -266,30 +266,36 @@ func (t *tokenAnalyticsUsers) UpsertUser(ctx context.Context, id, masterPubkey, 
 	}
 
 	_, err := storage.Exec(ctx, t.ingestedDataDB, `
-		INSERT INTO users (
-			created_at, updated_at, id, master_pubkey, content_author_id, external_address, username, 
-			display_name, avatar, lookup, ion_connect_relays, verified, platform_group
-		) VALUES (
-			NOW(), NOW(), $1, $2, $10, $9, $3, $4, $5, $6, $7, $8, 'ionconnect'::platform_type
+		WITH upserted_user AS (
+			INSERT INTO users (
+				created_at, updated_at, id, master_pubkey, external_address, username,
+				display_name, avatar, lookup, ion_connect_relays, verified, platform_group
+			) VALUES (
+				NOW(), NOW(), $1, $2, $9, $3, $4, $5, $6, $7, $8, 'ionconnect'::platform_type
+			)
+			ON CONFLICT (id)
+			DO UPDATE SET
+				updated_at = NOW(),
+				master_pubkey = EXCLUDED.master_pubkey,
+				external_address = EXCLUDED.external_address,
+				username = COALESCE(NULLIF(EXCLUDED.username, ''), users.username),
+				display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name),
+				avatar = COALESCE(NULLIF(EXCLUDED.avatar, ''), users.avatar),
+				lookup = CASE
+					WHEN EXCLUDED.username != '' OR EXCLUDED.display_name != '' THEN
+						LOWER(TRIM(COALESCE(NULLIF(EXCLUDED.username, ''), users.username) || ' ' || COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name)))
+					ELSE users.lookup
+				END,
+				ion_connect_relays = CASE WHEN $11 THEN EXCLUDED.ion_connect_relays ELSE users.ion_connect_relays END,
+				verified = CASE WHEN $11 THEN EXCLUDED.verified ELSE users.verified END,
+				platform_group = EXCLUDED.platform_group
+			RETURNING id
 		)
-		ON CONFLICT (id) 
-		DO UPDATE SET
-			updated_at = NOW(),
-			master_pubkey = EXCLUDED.master_pubkey,
-			content_author_id = EXCLUDED.content_author_id,
-			external_address = EXCLUDED.external_address,
-			username = COALESCE(NULLIF(EXCLUDED.username, ''), users.username),
-			display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name),
-			avatar = COALESCE(NULLIF(EXCLUDED.avatar, ''), users.avatar),
-			lookup = CASE 
-				WHEN EXCLUDED.username != '' OR EXCLUDED.display_name != '' THEN 
-					LOWER(TRIM(COALESCE(NULLIF(EXCLUDED.username, ''), users.username) || ' ' || COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name)))
-				ELSE users.lookup
-			END,
-			ion_connect_relays = CASE WHEN $11 THEN EXCLUDED.ion_connect_relays ELSE users.ion_connect_relays END,
-			verified = CASE WHEN $11 THEN EXCLUDED.verified ELSE users.verified END,
-			platform_group = EXCLUDED.platform_group
-	`, id, masterPubkey, username, displayName, avatar, lookup, relays, verifiedVal, externalAddress, blockchainAddress, verified != nil && ionConnectRelays != nil)
+		INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
+		SELECT id, $10::text, NOW() FROM upserted_user
+		WHERE $10::text IS NOT NULL AND $10::text != ''
+		ON CONFLICT (bsc_address) DO NOTHING
+	`, id, masterPubkey, username, displayName, avatar, lookup, relays, verifiedVal, externalAddress, strings.ToLower(blockchainAddress), verified != nil && ionConnectRelays != nil)
 
 	log.Error(fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err))
 	// TODO: return an error here later.
@@ -341,25 +347,26 @@ func (t *tokenAnalyticsUsers) UpdateUserProfileAndToken(ctx context.Context, mas
 			updated_at = NOW()
 		FROM user_update
 		WHERE tokens.external_address = $5 
-			AND tokens.type = 'profile
+			AND tokens.type = 'profile'
 		RETURNING 
-			tokens.external_address, tokens.contract_address, tokens.image_url, tokens.title, tokens.platform, tokens.ticker, tokens."type", tokens.price_usd'
+			tokens.external_address AS token_external_address, tokens.contract_address, tokens.image_url, tokens.title, tokens.platform, tokens.ticker, tokens."type" AS token_type, tokens.price_usd
 	`, masterPubkey, username, displayName, avatar, profileExternalAddr)
 
 	if err != nil {
-		log.Error(fmt.Errorf("failed to update user profile and token: %w", err))
+		if storage.IsErr(err, storage.ErrNotFound) {
+			// Token doesn't exist yet but user was updated by the CTE — acceptable
+			return nil, nil
+		}
+		return nil, errors.Wrap(err, "failed to update user profile and token")
 	}
-	if res == nil {
-		err = errors.Wrapf(storage.ErrNotFound, "token %v was not updated", profileExternalAddr)
-	}
-	// TODO: return an error here later.
+
 	return res, nil
 }
 
 func (t *tokenAnalyticsUsers) GetUser(ctx context.Context, masterPubkey string) (*UserRecord, error) {
 	user, err := storage.Get[UserRecord](ctx, t.ingestedDataDB,
-		`SELECT id, master_pubkey, content_author_id, external_address, username, 
-		        display_name, avatar, lookup, ion_connect_relays, verified, platform_group 
+		`SELECT id, master_pubkey, external_address, username,
+		        display_name, avatar, lookup, ion_connect_relays, verified, platform_group
 		 FROM users WHERE master_pubkey = $1`, masterPubkey)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {

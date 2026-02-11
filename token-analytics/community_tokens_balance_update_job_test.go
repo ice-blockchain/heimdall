@@ -5,6 +5,7 @@ package tokenanalytics
 import (
 	"context"
 	"math/big"
+	"strings"
 	"testing"
 	"time"
 
@@ -119,8 +120,8 @@ func TestBalanceUpdateJob_WithRPC(t *testing.T) {
 	}
 	pos, err := storage.Get[position](ctx, db, `
 		SELECT amount FROM user_token_positions
-		WHERE LOWER(user_blockchain_address) = LOWER($1) AND LOWER(contract_address) = LOWER($2)
-	`, userBlockchainAddr, tokenContractAddr)
+		WHERE user_blockchain_address = $1 AND contract_address = $2
+	`, strings.ToLower(userBlockchainAddr), strings.ToLower(tokenContractAddr))
 	require.NoError(t, err)
 	require.Equal(t, "5000000000000000000", pos.Amount, "Balance should be updated to 5 tokens")
 
@@ -194,8 +195,8 @@ func TestBalanceUpdateJob_ZeroBalance(t *testing.T) {
 	}
 	pos, err := storage.Get[position](ctx, db, `
 		SELECT amount FROM user_token_positions
-		WHERE LOWER(user_blockchain_address) = LOWER($1) AND LOWER(contract_address) = LOWER($2)
-	`, userBlockchainAddr, tokenContractAddr)
+		WHERE user_blockchain_address = $1 AND contract_address = $2
+	`, strings.ToLower(userBlockchainAddr), strings.ToLower(tokenContractAddr))
 	require.NoError(t, err)
 	require.Equal(t, "0", pos.Amount, "Balance should be updated to 0")
 

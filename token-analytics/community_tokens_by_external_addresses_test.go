@@ -81,7 +81,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 
 		require.Equal(t, "BASIC1", token.MarketData.Ticker)
 		require.InDelta(t, 100.5, token.MarketData.MarketCap, 0.01)
-		require.GreaterOrEqual(t, token.MarketData.Volume, 0.0)
+		require.Equal(t, 0.0, token.MarketData.Volume)
 		require.InDelta(t, 0.0001, token.MarketData.PriceUSD, 0.00001)
 		require.Equal(t, uint64(5), token.MarketData.Holders)
 		require.Equal(t, uint64(0), token.MarketData.PlatformHolders)
@@ -203,9 +203,9 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 
 		require.Equal(t, "POS1", token.MarketData.Ticker)
 		require.InDelta(t, 100.0, token.MarketData.MarketCap, 0.01)
-		require.GreaterOrEqual(t, token.MarketData.Volume, 0.0, "Volume should be >= 0")
+		require.InDelta(t, 0.1, token.MarketData.Volume, 0.001, "Volume = 1000 tokens * 0.0001 USD = 0.1 USD")
 		require.InDelta(t, 0.0001, token.MarketData.PriceUSD, 0.00001)
-		require.GreaterOrEqual(t, token.MarketData.Holders, uint64(1), "Should have at least 1 holder")
+		require.Equal(t, uint64(5), token.MarketData.Holders, "Holders count includes all user_blockchain_addresses")
 
 		require.NotNil(t, token.MarketData.Position, "Position should be present for user with holdings")
 		require.Equal(t, uint64(3), token.MarketData.Position.Rank, "Rank from Redis sorted set")
@@ -418,7 +418,9 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 
 		creatorBscAddress := "0xCREATOR1111111111111111111111111111"
 
-		_, err := storage.Exec(ctx, db, `UPDATE users SET external_address = $1, content_author_id = $2 WHERE master_pubkey = $3`, creatorExtAddr, creatorBscAddress, "creator_bsc_addr")
+		_, err := storage.Exec(ctx, db, `UPDATE users SET external_address = $1 WHERE master_pubkey = $2`, creatorExtAddr, "creator_bsc_addr")
+		require.NoError(t, err)
+		_, err = storage.Exec(ctx, db, `INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at) VALUES ($1, LOWER($2), NOW()) ON CONFLICT (bsc_address) DO NOTHING`, "creator_bsc_addr", creatorBscAddress)
 		require.NoError(t, err)
 		_, err = storage.Exec(ctx, db, `UPDATE users SET external_address = $1 WHERE master_pubkey = $2`, launcherExtAddr, "launcher_bsc_addr")
 		require.NoError(t, err)
@@ -436,7 +438,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			5,
 			PlatformGroupXCom,
 		)
-		_, err = storage.Exec(ctx, db, `UPDATE tokens SET content_author_id = $1 WHERE contract_address = $2`, creatorBscAddress, contractAddr)
+		_, err = storage.Exec(ctx, db, `UPDATE tokens SET content_author_id = LOWER($1) WHERE contract_address = $2`, creatorBscAddress, contractAddr)
 		require.NoError(t, err)
 
 		helperInsertTokenSwap(t, ctx, db, // First buy by the launcher
@@ -461,7 +463,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		require.NotEmpty(t, strVal(token.Creator.Avatar), "Creator avatar should be present")
 		require.NotNil(t, token.Creator.Addresses, "Creator addresses should not be nil")
 		require.Equal(t, creatorExtAddr, token.Creator.Addresses.Twitter)
-		require.Equal(t, creatorBscAddress, token.Creator.Addresses.Blockchain, "Creator blockchain address should be from content_author_id")
+		require.Equal(t, strings.ToLower(creatorBscAddress), token.Creator.Addresses.Blockchain, "Creator blockchain address should be from content_author_id")
 		require.Empty(t, token.Creator.Addresses.IonConnect, "Creator IonConnect should be empty for xcom")
 
 		require.NotNil(t, token.Launcher, "Launcher should be populated for Twitter token with first swap")
@@ -471,14 +473,17 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		require.NotEmpty(t, strVal(token.Launcher.Avatar), "Launcher avatar should be present")
 		require.NotNil(t, token.Launcher.Addresses, "Launcher addresses should not be nil")
 		require.Equal(t, launcherExtAddr, token.Launcher.Addresses.Twitter)
-		require.Equal(t, "0x0000000000000000000000000000000000LAUNCH", token.Launcher.Addresses.Blockchain)
+		require.Equal(t, "0x0000000000000000000000000000000000launch", token.Launcher.Addresses.Blockchain)
 		require.Empty(t, token.Launcher.Addresses.IonConnect, "Launcher IonConnect should be empty")
 	})
 
 	t.Run("Twitter token without swaps - launcher is nil", func(t *testing.T) {
 		creatorExtAddr := "555666777"
 		helperInsertTestUser(t, ctx, db, "creator_no_swap", "twitter_no_swap", "Twitter No Swap", "0x0000000000000000000000000000000000NOSWAP", true, PlatformGroupXCom)
-		_, err := storage.Exec(ctx, db, `UPDATE users SET external_address = $1 WHERE content_author_id = $2`, creatorExtAddr, "0x0000000000000000000000000000000000noswap")
+		_, err := storage.Exec(ctx, db, `
+			UPDATE users SET external_address = $1
+			WHERE id IN (SELECT user_id FROM user_bsc_addresses WHERE bsc_address = $2)
+		`, creatorExtAddr, "0x0000000000000000000000000000000000noswap")
 		require.NoError(t, err)
 
 		contractAddr := "0xNOSWAP111111111111111111111111111111"
@@ -555,7 +560,9 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		require.NoError(t, err)
 		_, err = storage.Exec(ctx, db, `UPDATE users SET external_address = $1 WHERE master_pubkey = $2`, secondBuyerExtAddr, "second_buyer_master")
 		require.NoError(t, err)
-		_, err = storage.Exec(ctx, db, `UPDATE users SET external_address = $1, content_author_id = $2 WHERE master_pubkey = $3`, creatorExtAddr, orderCreatorBscAddress, "order_creator_master")
+		_, err = storage.Exec(ctx, db, `UPDATE users SET external_address = $1 WHERE master_pubkey = $2`, creatorExtAddr, "order_creator_master")
+		require.NoError(t, err)
+		_, err = storage.Exec(ctx, db, `INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at) VALUES ($1, LOWER($2), NOW()) ON CONFLICT (bsc_address) DO NOTHING`, "order_creator_master", orderCreatorBscAddress)
 		require.NoError(t, err)
 
 		contractAddr := "0xORDER1111111111111111111111111111111"
@@ -572,7 +579,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			PlatformGroupXCom,
 		)
 
-		_, err = storage.Exec(ctx, db, `UPDATE tokens SET content_author_id = $1 WHERE contract_address = $2`, orderCreatorBscAddress, contractAddr)
+		_, err = storage.Exec(ctx, db, `UPDATE tokens SET content_author_id = LOWER($1) WHERE contract_address = $2`, orderCreatorBscAddress, contractAddr)
 		require.NoError(t, err)
 
 		baseTime := stdtime.Now().Add(-1 * stdtime.Hour)
@@ -616,7 +623,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		require.NotEmpty(t, strVal(token.Creator.Avatar), "Creator avatar should be present")
 		require.NotNil(t, token.Creator.Addresses, "Creator addresses should not be nil")
 		require.Equal(t, creatorExtAddr, token.Creator.Addresses.Twitter)
-		require.Equal(t, orderCreatorBscAddress, token.Creator.Addresses.Blockchain, "Creator blockchain address should be from content_author_id")
+		require.Equal(t, strings.ToLower(orderCreatorBscAddress), token.Creator.Addresses.Blockchain, "Creator blockchain address should be from content_author_id")
 		require.Empty(t, token.Creator.Addresses.IonConnect, "Creator IonConnect should be empty for xcom")
 
 		// Verify launcher - ALL fields (should be FIRST buyer, not second)
@@ -627,7 +634,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		require.NotEmpty(t, strVal(token.Launcher.Avatar), "Launcher avatar should be present")
 		require.NotNil(t, token.Launcher.Addresses, "Launcher addresses should not be nil")
 		require.Equal(t, firstBuyerExtAddr, token.Launcher.Addresses.Twitter)
-		require.Equal(t, "0x0000000000000000000000000000000000FIRST", token.Launcher.Addresses.Blockchain)
+		require.Equal(t, "0x0000000000000000000000000000000000first", token.Launcher.Addresses.Blockchain)
 		require.Empty(t, token.Launcher.Addresses.IonConnect, "Launcher IonConnect should be empty")
 	})
 }
@@ -679,7 +686,7 @@ func TestGetCommunityTokensByExternalAddresses_WithKeyword(t *testing.T) {
 
 		require.Equal(t, "SAT", token.MarketData.Ticker)
 		require.InDelta(t, 100.0, token.MarketData.MarketCap, 0.01)
-		require.Greater(t, token.MarketData.Volume, 0.0, "Volume should be present from materialized view")
+		require.InDelta(t, 0.5, token.MarketData.Volume, 0.001, "Volume = 5000 tokens * 0.0001 USD = 0.5 USD")
 		require.InDelta(t, 0.0001, token.MarketData.PriceUSD, 0.00001)
 		require.Equal(t, uint64(10), token.MarketData.Holders)
 
@@ -727,7 +734,7 @@ func TestGetCommunityTokensByExternalAddresses_WithKeyword(t *testing.T) {
 			0,
 		)
 		require.NoError(t, err)
-		require.GreaterOrEqual(t, len(tokens), 10, "Should return at least 10 results from 260+ tokens")
+		require.Equal(t, 10, len(tokens), "Should return exactly 10 results with limit=10")
 
 		for _, token := range tokens {
 			require.Contains(t, strVal(token.Creator.Username), "testknn", "Creator username should contain search keyword")
@@ -806,8 +813,19 @@ func TestGetCommunityTokensByExternalAddresses_WithAndWithoutKeyword(t *testing.
 		for _, token := range tokens {
 			expectedTicker := tickerMap[token.Addresses.IonConnect]
 			require.Equal(t, expectedTicker, token.MarketData.Ticker, "Ticker should match for token %s", token.Addresses.IonConnect)
-			require.Greater(t, token.MarketData.MarketCap, 0.0, "MarketCap should be present")
-			require.Greater(t, token.MarketData.Volume, 0.0, "Volume should be present from materialized view")
+
+			// Check MarketCap and Volume based on token
+			switch token.Addresses.IonConnect {
+			case token1Ext:
+				require.Equal(t, 100.0, token.MarketData.MarketCap)
+				require.InDelta(t, 0.1, token.MarketData.Volume, 0.001)
+			case token2Ext:
+				require.Equal(t, 200.0, token.MarketData.MarketCap)
+				require.InDelta(t, 0.4, token.MarketData.Volume, 0.001)
+			case token3Ext:
+				require.Equal(t, 300.0, token.MarketData.MarketCap)
+				require.InDelta(t, 0.9, token.MarketData.Volume, 0.001)
+			}
 
 			require.NotNil(t, token.Addresses)
 			switch token.Addresses.IonConnect {
@@ -845,7 +863,7 @@ func TestGetCommunityTokensByExternalAddresses_WithAndWithoutKeyword(t *testing.
 
 		require.Equal(t, "TK1", token.MarketData.Ticker)
 		require.InDelta(t, 100.0, token.MarketData.MarketCap, 0.01)
-		require.Greater(t, token.MarketData.Volume, 0.0, "Volume should be present")
+		require.InDelta(t, 0.1, token.MarketData.Volume, 0.001)
 		require.InDelta(t, 0.0001, token.MarketData.PriceUSD, 0.00001)
 		require.Equal(t, uint64(5), token.MarketData.Holders)
 
@@ -855,7 +873,7 @@ func TestGetCommunityTokensByExternalAddresses_WithAndWithoutKeyword(t *testing.
 	t.Run("with keyword - uses KNN search and similarity ranking", func(t *testing.T) {
 		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{token1Ext, token2Ext, token3Ext}, "requestor_kw", nil, "keyword", 10, 0)
 		require.NoError(t, err)
-		require.GreaterOrEqual(t, len(tokens), 1, "Should find tokens with keyword in lookup")
+		require.Equal(t, 3, len(tokens), "Should find all 3 tokens with 'keyword' in lookup")
 
 		tickerMap := map[string]string{
 			token1Ext: "TK1",
@@ -1124,7 +1142,7 @@ func TestGetCommunityTokensByPlatform(t *testing.T) {
 		)
 
 		_, err := storage.Exec(ctx, db, `
-			UPDATE tokens SET content_author_id = $1 WHERE contract_address = $2
+			UPDATE tokens SET content_author_id = LOWER($1) WHERE contract_address = $2
 		`, bscAddress, contractAddr)
 		require.NoError(t, err)
 
@@ -1214,7 +1232,7 @@ func TestGetCommunityTokensByPlatform(t *testing.T) {
 			PlatformGroupXCom,
 		)
 		_, err := storage.Exec(ctx, db, `
-			UPDATE tokens SET content_author_id = $1 WHERE external_address = $2
+			UPDATE tokens SET content_author_id = LOWER($1) WHERE external_address = $2
 		`, xcomBscAddr, xcomTokenExt)
 		require.NoError(t, err)
 
@@ -1290,23 +1308,27 @@ func helperInsertTestUser(t *testing.T, ctx context.Context, db *storage.DB, mas
 	}
 
 	query := `
-		INSERT INTO users (created_at, updated_at, id, master_pubkey, content_author_id, external_address, username, display_name, avatar, lookup, verified, platform_group)
-		VALUES (NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		ON CONFLICT (id) DO UPDATE SET
-			master_pubkey = EXCLUDED.master_pubkey,
-			content_author_id = EXCLUDED.content_author_id,
-			external_address = EXCLUDED.external_address,
-			username = EXCLUDED.username,
-			display_name = EXCLUDED.display_name,
-			avatar = EXCLUDED.avatar,
-			lookup = EXCLUDED.lookup,
-			verified = EXCLUDED.verified,
-			platform_group = EXCLUDED.platform_group,
-			updated_at = NOW()`
+		WITH upserted_user AS (
+			INSERT INTO users (created_at, updated_at, id, master_pubkey, external_address, username, display_name, avatar, lookup, verified, platform_group)
+			VALUES (NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9)
+			ON CONFLICT (id) DO UPDATE SET
+				master_pubkey = EXCLUDED.master_pubkey,
+				external_address = EXCLUDED.external_address,
+				username = EXCLUDED.username,
+				display_name = EXCLUDED.display_name,
+				avatar = EXCLUDED.avatar,
+				lookup = EXCLUDED.lookup,
+				verified = EXCLUDED.verified,
+				platform_group = EXCLUDED.platform_group,
+				updated_at = NOW()
+			RETURNING id
+		)
+		INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
+		SELECT id, LOWER($10::text), NOW() FROM upserted_user
+		ON CONFLICT (bsc_address) DO NOTHING`
 	_, err := storage.Exec(ctx, db, query,
 		masterPubkey,
 		masterPubkey,
-		contentAuthorID,
 		externalAddr,
 		username,
 		displayName,
@@ -1314,6 +1336,7 @@ func helperInsertTestUser(t *testing.T, ctx context.Context, db *storage.DB, mas
 		username+" "+displayName,
 		verified,
 		platformGroup,
+		contentAuthorID,
 	)
 	require.NoError(t, err, "failed to insert test user")
 }
@@ -1324,17 +1347,24 @@ func helperInsertTestToken(t *testing.T, ctx context.Context, db *storage.DB,
 	t.Helper()
 
 	type userInfo struct {
-		Username        string `db:"username"`
-		DisplayName     string `db:"display_name"`
-		ContentAuthorID string `db:"content_author_id"`
-		Avatar          string `db:"avatar"`
+		Username    string  `db:"username"`
+		DisplayName string  `db:"display_name"`
+		BscAddress  *string `db:"bsc_address"`
+		Avatar      string  `db:"avatar"`
 	}
-	users, err := storage.Select[userInfo](ctx, db, "SELECT username, COALESCE(display_name, '') as display_name, content_author_id, COALESCE(avatar, '') as avatar FROM users WHERE master_pubkey = $1", creatorPubkey)
+	users, err := storage.Select[userInfo](ctx, db, `
+		SELECT u.username, COALESCE(u.display_name, '') as display_name, uba.bsc_address, COALESCE(u.avatar, '') as avatar
+		FROM users u
+		LEFT JOIN user_bsc_addresses uba ON uba.user_id = u.id
+		WHERE u.master_pubkey = $1
+		LIMIT 1`, creatorPubkey)
 	var username, displayName, creatorContentAuthorID, avatarURL string
 	if err == nil && len(users) > 0 {
 		username = users[0].Username
 		displayName = users[0].DisplayName
-		creatorContentAuthorID = users[0].ContentAuthorID
+		if users[0].BscAddress != nil {
+			creatorContentAuthorID = *users[0].BscAddress
+		}
 		avatarURL = users[0].Avatar
 	}
 	lookup := strings.ToLower(strings.TrimSpace(username + " " + displayName + " " + ticker))
@@ -1417,12 +1447,16 @@ func helperInsertUserTokenPosition(t *testing.T, ctx context.Context, db *storag
 	t.Helper()
 
 	type userAddr struct {
-		ContentAuthorID string `db:"content_author_id"`
+		BscAddress *string `db:"bsc_address"`
 	}
-	users, err := storage.Select[userAddr](ctx, db, "SELECT content_author_id FROM users WHERE master_pubkey = $1", masterPubkey)
+	users, err := storage.Select[userAddr](ctx, db, `
+		SELECT uba.bsc_address FROM user_bsc_addresses uba
+		JOIN users u ON u.id = uba.user_id
+		WHERE u.master_pubkey = $1
+		LIMIT 1`, masterPubkey)
 	var contentAuthorID string
-	if err == nil && len(users) > 0 {
-		contentAuthorID = users[0].ContentAuthorID
+	if err == nil && len(users) > 0 && users[0].BscAddress != nil {
+		contentAuthorID = *users[0].BscAddress
 	} else {
 		hexPubkey := fmt.Sprintf("%040s", masterPubkey)
 		hexPubkey = strings.ReplaceAll(hexPubkey, " ", "0")
@@ -1483,7 +1517,7 @@ func helperInsertTokenSwap(t *testing.T, ctx context.Context, db *storage.DB,
 			created_at, transaction_hash, contract_address, external_address,
 			user_blockchain_address, direction, input_amount, output_amount, price_usd, fee
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 0)
+		VALUES ($1, $2, $3, $4, LOWER($5), $6, $7, $8, $9, 0)
 		ON CONFLICT (transaction_hash, contract_address, user_blockchain_address) DO NOTHING
 	`
 	_, err := storage.Exec(ctx, db, query,
@@ -1510,7 +1544,7 @@ func helperCreateSwapForVolume(t *testing.T, ctx context.Context, db *storage.DB
 			created_at, transaction_hash, contract_address, external_address,
 			user_blockchain_address, direction, input_amount, output_amount, fee, price_usd
 		)
-		VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, 0, $8)
+		VALUES (NOW(), $1, $2, $3, LOWER($4), $5, $6, $7, 0, $8)
 		ON CONFLICT (transaction_hash, contract_address, user_blockchain_address) DO NOTHING
 	`
 	_, err := storage.Exec(ctx, db, query,
