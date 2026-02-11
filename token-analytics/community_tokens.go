@@ -441,7 +441,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 		return nil, fmt.Errorf("failed to get pricing for token %v (%v): %w", externalAddress, result.ContractAddress, err)
 	}
 	var creatorPrice float64
-	amountUsd, creatorPrice, err := t.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(resAmount), result.BaseToken)
+	amountUsd, creatorPrice, err := t.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(amount), result.BaseToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get usd price for token %v (%v base %v): %w", externalAddress, result.ContractAddress, result.BaseToken, err)
 	}

@@ -1,6 +1,6 @@
 module github.com/ice-blockchain/heimdall
 
-go 1.25.7
+go 1.26.0
 
 replace (
 	github.com/nbd-wtf/go-nostr => github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5
@@ -45,7 +45,7 @@ require (
 	github.com/libdns/cloudflare v0.2.2
 	github.com/lucasb-eyer/go-colorful v1.3.0
 	github.com/nbd-wtf/go-nostr v0.52.3
-	github.com/openai/openai-go/v3 v3.19.0
+	github.com/openai/openai-go/v3 v3.21.0
 	github.com/pkg/errors v0.9.1
 	github.com/puzpuzpuz/xsync/v4 v4.4.0
 	github.com/questdb/go-questdb-client/v4 v4.1.0
@@ -374,7 +374,7 @@ require (
 	golang.org/x/telemetry v0.0.0-20260209163413-e7419c687ee4 // indirect
 	golang.org/x/text v0.34.0 // indirect
 	golang.org/x/tools v0.42.0 // indirect
-	google.golang.org/api v0.265.0 // indirect
+	google.golang.org/api v0.266.0 // indirect
 	google.golang.org/appengine/v2 v2.0.6 // indirect
 	google.golang.org/genproto v0.0.0-20260209200024-4cfbd4190f57 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260209200024-4cfbd4190f57 // indirect
