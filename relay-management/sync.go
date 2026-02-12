@@ -14,7 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/net/http2"
 
-	"github.com/ice-blockchain/subzero/server/http/nip11"
+	"github.com/ice-blockchain/subzero/server/http/nip11/fetcher"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/time"
@@ -129,7 +129,7 @@ func (s *relaysSyncer) buildBatchUpdate(now *time.Time, results []nip11Result) (
 	return strings.Join(placeholders, ", \n"), params
 }
 
-func (r *relaysSyncer) requestNIP11(ctx context.Context, relayUrl string) (*nip11.RelayInformationDocument, error) {
-	nip11FromRelay, err := relayRequest[nip11.RelayInformationDocument](ctx, relayUrl, "/", "application/nostr+json")
+func (r *relaysSyncer) requestNIP11(ctx context.Context, relayUrl string) (*fetcher.RelayInformationDocument, error) {
+	nip11FromRelay, err := relayRequest[fetcher.RelayInformationDocument](ctx, relayUrl, "/", "application/nostr+json")
 	return nip11FromRelay, errors.Wrapf(err, "failed to request NIP-11 from relay %v", relayUrl)
 }
