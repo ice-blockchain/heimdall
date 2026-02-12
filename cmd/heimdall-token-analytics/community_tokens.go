@@ -274,10 +274,10 @@ func parseFlexibleDate(s string) (time.Time, error) {
 		}
 	}
 	if ts, err := strconv.ParseInt(s, 10, 64); err == nil {
+		if ts > 1e12 {
+			return time.Unix(ts/1000, (ts%1000)*int64(time.Millisecond)), nil
+		}
 		return time.Unix(ts, 0), nil
-	}
-	if ts, err := strconv.ParseInt(s, 10, 64); err == nil && ts > 1e12 {
-		return time.Unix(ts/1000, (ts%1000)*int64(time.Millisecond)), nil
 	}
 
 	return time.Time{}, fmt.Errorf("unable to parse date: %s", s)
@@ -1133,10 +1133,11 @@ func (s *service) GetCommunityTokenAnalytics(_ context.Context, req *server.Requ
 		return nil, server.BadRequest(fmt.Errorf("unsupported interval: %v (expected %v, %v, or %v)",
 			req.Data.Interval, analyticsInterval24h, analyticsInterval7d, analyticsInterval30d), invalidPropertiesErrorCode)
 	}
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	resp := &TokenAnalyticsResponse{
-		Launched: uint64(rand.Intn(1000)),
-		Migrated: uint64(rand.Intn(500)),
-		Volume:   math.Round(rand.Float64()*100000*100) / 100,
+		Launched: uint64(rng.Intn(1000)),
+		Migrated: uint64(rng.Intn(500)),
+		Volume:   math.Round(rng.Float64()*100000*100) / 100,
 	}
 
 	return server.OK(resp), nil
