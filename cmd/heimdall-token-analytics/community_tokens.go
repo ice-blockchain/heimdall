@@ -1120,6 +1120,9 @@ func (s *service) latestTradesStream(ctx context.Context, externalAddress string
 //	@Param			interval		query		string					true	"Time interval"		Enums(24h, 7d, 30d)
 //	@Success		200				{object}	GlobalTokenStatistics	"Analytics data"
 //	@Failure		400				{object}	server.ResponseErrorBody
+//	@Failure		403				{object}	server.ResponseErrorBody	"if auth is missing"
+//	@Security		Nostr
+//	@Security		XCom
 //	@Router			/v1/community-token-analytics/{analyticsType} [get]
 func (s *service) GetCommunityTokenAnalytics(_ context.Context, req *server.Request[GlobalTokenStatisticsRequest]) (*server.Response[GlobalTokenStatistics], error) {
 	switch req.Data.AnalyticsType {
