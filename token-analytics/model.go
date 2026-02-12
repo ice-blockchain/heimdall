@@ -326,16 +326,20 @@ func buildTokenAndCreatorAddresses(params TokenAndCreatorAddressesParams) (token
 	return tokenAddresses, creatorAddresses, nil
 }
 
-func buildCreatorToken(row *tokenRow) *CreatorTokenInfo {
+func buildCreatorToken(row *tokenRow) (*CreatorTokenInfo, error) {
 	if row.CreatorTokenContractAddress == nil || strVal(row.CreatorTokenContractAddress) == "" {
-		return nil
+		return nil, nil
 	}
-	addresses, _ := buildTokenAddressesFromContractAndExternalAddress(
+	addresses, err := buildTokenAddressesFromContractAndExternalAddress(
 		strVal(row.CreatorTokenContractAddress),
 		strVal(row.CreatorTokenExternalAddress),
 		strVal(row.CreatorTokenPlatform),
 		strVal(row.CreatorTokenIonConnectAddress),
 	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build creator token addresses from contract_address %s, external_address %s (platform %s): %w",
+			strVal(row.CreatorTokenContractAddress), strVal(row.CreatorTokenExternalAddress), strVal(row.CreatorTokenPlatform), err)
+	}
 
 	return &CreatorTokenInfo{
 		Ticker:      strVal(row.CreatorTokenTicker),
@@ -344,5 +348,5 @@ func buildCreatorToken(row *tokenRow) *CreatorTokenInfo {
 		ImageURL:    strVal(row.CreatorTokenImageURL),
 		CreatedAt:   row.CreatorTokenCreatedAt,
 		Addresses:   addresses,
-	}
+	}, nil
 }

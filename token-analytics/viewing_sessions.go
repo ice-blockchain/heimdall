@@ -281,6 +281,10 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMapWithType(ctx context.Contex
 				GoalAmountUSD:    token.BondingCurveGoalAmountUSD,
 			}
 		}
+		creatorToken, err := buildCreatorToken(token)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build creator token for %s: %w", token.ContractAddress, err)
+		}
 
 		result = append(result, &CommunityToken{
 			Type:        token.Type,
@@ -295,7 +299,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMapWithType(ctx context.Contex
 				Verified:  token.CreatorVerified,
 				Avatar:    token.CreatorAvatar,
 				Addresses: creatorExternalAddresses,
-				Token:     buildCreatorToken(token),
+				Token:     creatorToken,
 			},
 			MarketData: MarketData{
 				Ticker:               token.Ticker,

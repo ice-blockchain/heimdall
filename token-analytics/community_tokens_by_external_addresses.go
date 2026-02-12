@@ -294,6 +294,10 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 			}
 		}
 
+		creatorToken, err := buildCreatorToken(row)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build creator token for %s: %w", row.ContractAddress, err)
+		}
 		token := &CommunityToken{
 			Type:        row.Type,
 			Title:       row.Title,
@@ -307,7 +311,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 				Verified:  row.CreatorVerified,
 				Avatar:    row.CreatorAvatar,
 				Addresses: creatorAddresses,
-				Token:     buildCreatorToken(row),
+				Token:     creatorToken,
 			},
 			MarketData: MarketData{
 				Ticker:               row.Ticker,
@@ -399,6 +403,10 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 			}
 		}
 
+		creatorToken, err := buildCreatorToken(row)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build creator token for %s: %w", row.ContractAddress, err)
+		}
 		token := &CommunityToken{
 			Type:        row.Type,
 			Title:       row.Title,
@@ -412,7 +420,7 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 				Verified:  row.CreatorVerified,
 				Avatar:    row.CreatorAvatar,
 				Addresses: creatorAddresses,
-				Token:     buildCreatorToken(row),
+				Token:     creatorToken,
 			},
 			Launcher:   launcher,
 			MarketData: marketData,
