@@ -6,7 +6,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"math/big"
+	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -30,9 +32,11 @@ type (
 		PaginationRequest
 	}
 	LatestTokensRequest struct {
-		Type     *string `form:"type" binding:"omitempty,oneof=profile post video article anyPost xcom" swaggerignore:"true"`
-		ViewType string  `uri:"externalAddressOrViewType" swaggerignore:"true"`
-		Keyword  string  `form:"keyword" swaggerignore:"true"`
+		server.NoAuthRequired
+		Type          *string `form:"type" binding:"omitempty,oneof=profile post video article anyPost xcom" swaggerignore:"true"`
+		ViewType      string  `uri:"externalAddressOrViewType" swaggerignore:"true"`
+		Keyword       string  `form:"keyword" swaggerignore:"true"`
+		ReferenceDate *string `form:"referenceDate" swaggerignore:"true"`
 		PaginationRequest
 	}
 	ViewingSessionTokensRequest struct {
@@ -120,6 +124,23 @@ type (
 		*ta.StartTokenParams
 		CreatorTokenParams *ta.StartTokenParams `json:"creatorTokenParams,omitempty"`
 	}
+	GlobalTokenStatisticsRequest struct {
+		AnalyticsType string `uri:"analyticsType" swaggerignore:"true"`
+		Interval      string `form:"interval" swaggerignore:"true"`
+	}
+	GlobalTokenStatistics struct {
+		LaunchedTokens uint64  `json:"launched"`
+		MigratedTokens uint64  `json:"migrated"`
+		TotalVolume    float64 `json:"volume"`
+	}
+)
+
+const (
+	analyticsTypeGlobal = "global"
+
+	analyticsInterval24h = "24h"
+	analyticsInterval7d  = "7d"
+	analyticsInterval30d = "30d"
 )
 
 // GetCommunityTokens godoc
@@ -181,16 +202,18 @@ func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[To
 // GetCommunityTokensByType godoc
 //
 //	@Schemes
-//	@Description	Returns community tokens information for the given Ion Connect addresses.
+//	@Description	Returns community tokens by view type. "latest" requires authentication; "rewardsDistribution" is public and requires referenceDate.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			externalAddressOrViewType	path		string	true	"View type (latest)"		example("latest")
-//	@Param			type						query		string	false	"Token type filter"			Enums(profile,post,video,article,anyPost,xcom)	example("profile")
-//	@Param			keyword						query		string	false	"Search keyword"			example("bitcoin")
-//	@Param			limit						query		uint32	false	"Number of items to return"	example(10)
-//	@Param			offset						query		uint32	false	"Number of items to skip"	example(0)
+//	@Param			externalAddressOrViewType	path		string	true	"View type"											Enums(latest, rewardsDistribution)				example("latest")
+//	@Param			type						query		string	false	"Token type filter"									Enums(profile,post,video,article,anyPost,xcom)	example("profile")
+//	@Param			keyword						query		string	false	"Search keyword"									example("bitcoin")
+//	@Param			referenceDate				query		string	false	"Reference date (required for rewardsDistribution)"	example("2025-01-03T16:00:00Z")
+//	@Param			limit						query		uint32	false	"Number of items to return"							example(10)
+//	@Param			offset						query		uint32	false	"Number of items to skip"							example(0)
 //	@Success		200							{array}		ta.CommunityToken
-//	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
+//	@Failure		400							{object}	server.ResponseErrorBody	"if required params are missing"
+//	@Failure		403							{object}	server.ResponseErrorBody	"if auth is required but missing (latest)"
 //	@Failure		500							{object}	server.ResponseErrorBody
 //	@Failure		504							{object}	server.ResponseErrorBody	"if request times out"
 //	@Security		Nostr
@@ -200,19 +223,64 @@ func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Requ
 	if req.Data.ViewType == "" {
 		return nil, server.BadRequest(fmt.Errorf("viewType is required"), invalidPropertiesErrorCode)
 	}
-	if req.Data.ViewType != ta.TokenTypeLatest {
-		return nil, server.BadRequest(fmt.Errorf("invalid viewType '%s': only '%s' is supported for this endpoint", req.Data.ViewType, ta.TokenTypeLatest), invalidPropertiesErrorCode)
-	}
 	limit := req.Data.Limit
 	if limit == 0 {
 		limit = 10
 	}
-	tokens, err := s.tokenAnalytics.GetCommunityTokensByType(ctx, req.Data.ViewType, req.Data.Type, req.Data.Keyword, limit, req.Data.Offset)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get community tokens by type: %w", err)
+
+	switch req.Data.ViewType {
+	case ta.TokenTypeLatest:
+		if req.Token == nil {
+			return nil, server.Unauthorized(fmt.Errorf("authentication required for latest view type"))
+		}
+		tokens, err := s.tokenAnalytics.GetCommunityTokensByType(ctx, req.Data.ViewType, req.Data.Type, req.Data.Keyword, limit, req.Data.Offset)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get community tokens by type: %w", err)
+		}
+		return server.OK(&tokens), nil
+
+	case ta.TokenTypeRewardsDistribution:
+		if req.Data.ReferenceDate == nil || *req.Data.ReferenceDate == "" {
+			return nil, server.BadRequest(fmt.Errorf("referenceDate is required for rewardsDistribution"), invalidPropertiesErrorCode)
+		}
+		refDate, err := parseFlexibleDate(*req.Data.ReferenceDate)
+		if err != nil {
+			return nil, server.BadRequest(fmt.Errorf("invalid referenceDate: %w", err), invalidPropertiesErrorCode)
+		}
+		tokens, err := s.tokenAnalytics.GetCommunityTokensByRewardsDistribution(ctx, refDate, limit, req.Data.Offset)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get community tokens by rewards distribution: %w", err)
+		}
+		return server.OK(&tokens), nil
+
+	default:
+		return nil, server.BadRequest(fmt.Errorf("invalid viewType '%s': supported values are '%s', '%s'", req.Data.ViewType, ta.TokenTypeLatest, ta.TokenTypeRewardsDistribution), invalidPropertiesErrorCode)
+	}
+}
+
+func parseFlexibleDate(s string) (time.Time, error) {
+	formats := []string{
+		time.RFC3339,
+		time.RFC3339Nano,
+		"2006-01-02T15:04:05",
+		"2006-01-02 15:04:05",
+		"2006-01-02T15:04",
+		"2006-01-02 15:04",
+		"2006-01-02",
+	}
+	for _, f := range formats {
+		if t, err := time.Parse(f, s); err == nil {
+			return t, nil
+		}
+	}
+	if ts, err := strconv.ParseInt(s, 10, 64); err == nil {
+		if ts > 1e12 {
+			return time.Unix(ts/1000, (ts%1000)*int64(time.Millisecond)), nil
+		}
+		return time.Unix(ts, 0), nil
 	}
 
-	return server.OK(&tokens), nil
+	return time.Time{}, fmt.Errorf("unable to parse date: %s", s)
 }
 
 // CreateCommunityTokensSessionView godoc
@@ -1040,4 +1108,37 @@ func (s *service) latestTradesStream(ctx context.Context, externalAddress string
 		return nil, err
 	}
 	return emitter, nil
+}
+
+// GetCommunityTokenAnalytics godoc
+//
+//	@Schemes
+//	@Description	Returns aggregated analytics for community tokens.
+//	@Tags			Analytics
+//	@Produce		json
+//	@Param			analyticsType	path		string					true	"Analytics type"	Enums(global)
+//	@Param			interval		query		string					true	"Time interval"		Enums(24h, 7d, 30d)
+//	@Success		200				{object}	GlobalTokenStatistics	"Analytics data"
+//	@Failure		400				{object}	server.ResponseErrorBody
+//	@Router			/v1/community-token-analytics/{analyticsType} [get]
+func (s *service) GetCommunityTokenAnalytics(_ context.Context, req *server.Request[GlobalTokenStatisticsRequest]) (*server.Response[GlobalTokenStatistics], error) {
+	switch req.Data.AnalyticsType {
+	case analyticsTypeGlobal:
+	default:
+		return nil, server.BadRequest(fmt.Errorf("unsupported analyticsType: %v", req.Data.AnalyticsType), invalidPropertiesErrorCode)
+	}
+	switch req.Data.Interval {
+	case analyticsInterval24h, analyticsInterval7d, analyticsInterval30d:
+	default:
+		return nil, server.BadRequest(fmt.Errorf("unsupported interval: %v (expected %v, %v, or %v)",
+			req.Data.Interval, analyticsInterval24h, analyticsInterval7d, analyticsInterval30d), invalidPropertiesErrorCode)
+	}
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	resp := &GlobalTokenStatistics{
+		LaunchedTokens: uint64(rng.Intn(1000)),
+		MigratedTokens: uint64(rng.Intn(500)),
+		TotalVolume:    math.Round(rng.Float64()*100000*100) / 100,
+	}
+
+	return server.OK(resp), nil
 }

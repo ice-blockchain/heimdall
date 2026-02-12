@@ -59,6 +59,9 @@ func (s *service) RegisterREST(router gin.IRouter) {
 	tokensV1.GET("/:externalAddressOrViewType/pricing", server.RootHandler(s.GetCommunityTokenPricing))
 	tokensV1.GET("/:externalAddressOrViewType/ohlcv", server.RootHandler(s.GetCommunityTokensOHLCV))
 
+	analyticsV1 := router.Group("/v1/community-token-analytics")
+	analyticsV1.GET("/:analyticsType", server.RootHandler(s.GetCommunityTokenAnalytics))
+
 	api.SwaggerInfo.Version = readVersionString()
 	router.GET("/docs", func(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/docs/swagger/index.html")

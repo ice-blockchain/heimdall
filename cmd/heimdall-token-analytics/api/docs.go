@@ -20,6 +20,55 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/v1/community-token-analytics/{analyticsType}": {
+            "get": {
+                "description": "Returns aggregated analytics for community tokens.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics"
+                ],
+                "parameters": [
+                    {
+                        "enum": [
+                            "global"
+                        ],
+                        "type": "string",
+                        "description": "Analytics type",
+                        "name": "analyticsType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "24h",
+                            "7d",
+                            "30d"
+                        ],
+                        "type": "string",
+                        "description": "Time interval",
+                        "name": "interval",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Analytics data",
+                        "schema": {
+                            "$ref": "#/definitions/main.GlobalTokenStatistics"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/community-tokens": {
             "get": {
                 "description": "Returns community tokens information for the given Ion Connect addresses.",
@@ -198,7 +247,7 @@ const docTemplate = `{
         },
         "/v1/community-tokens/{externalAddressOrViewType}": {
             "get": {
-                "description": "Returns community tokens information for the given Ion Connect addresses.",
+                "description": "Returns community tokens by view type. \"latest\" requires authentication; \"rewardsDistribution\" is public and requires referenceDate.",
                 "produces": [
                     "application/json"
                 ],
@@ -207,9 +256,13 @@ const docTemplate = `{
                 ],
                 "parameters": [
                     {
+                        "enum": [
+                            "latest",
+                            "rewardsDistribution"
+                        ],
                         "type": "string",
                         "example": "\"latest\"",
-                        "description": "View type (latest)",
+                        "description": "View type",
                         "name": "externalAddressOrViewType",
                         "in": "path",
                         "required": true
@@ -234,6 +287,13 @@ const docTemplate = `{
                         "example": "\"bitcoin\"",
                         "description": "Search keyword",
                         "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"2025-01-03T16:00:00Z\"",
+                        "description": "Reference date (required for rewardsDistribution)",
+                        "name": "referenceDate",
                         "in": "query"
                     },
                     {
@@ -263,8 +323,14 @@ const docTemplate = `{
                             }
                         }
                     },
-                    "401": {
-                        "description": "if auth token is missing or invalid",
+                    "400": {
+                        "description": "if required params are missing",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
+                    },
+                    "403": {
+                        "description": "if auth is required but missing (latest)",
                         "schema": {
                             "$ref": "#/definitions/server.ResponseErrorBody"
                         }
@@ -1853,6 +1919,20 @@ const docTemplate = `{
                 }
             }
         },
+        "main.GlobalTokenStatistics": {
+            "type": "object",
+            "properties": {
+                "launched": {
+                    "type": "integer"
+                },
+                "migrated": {
+                    "type": "integer"
+                },
+                "volume": {
+                    "type": "number"
+                }
+            }
+        },
         "main.PriceResponse": {
             "type": "object",
             "properties": {
@@ -2125,6 +2205,29 @@ const docTemplate = `{
                 "website": {
                     "type": "string",
                     "example": "https://some.website.example.com"
+                }
+            }
+        },
+        "tokenanalytics.CreatorTokenInfo": {
+            "type": "object",
+            "properties": {
+                "addresses": {
+                    "$ref": "#/definitions/tokenanalytics.Addresses"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "imageUrl": {
+                    "type": "string"
+                },
+                "ticker": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
                 }
             }
         },
@@ -2403,6 +2506,9 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "token": {
+                    "$ref": "#/definitions/tokenanalytics.CreatorTokenInfo"
                 },
                 "verified": {
                     "type": "boolean"

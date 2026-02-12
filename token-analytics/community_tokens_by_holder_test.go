@@ -67,6 +67,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		require.Nil(t, token.MarketData.BondingCurveProgress, "BondingCurveProgress should be nil when not set")
 		require.NotNil(t, token.MarketData.Position)
 		require.Equal(t, "5000000000000000000000", token.MarketData.Position.Amount)
+		require.Nil(t, token.Creator.Token, "Profile token should not have creator.token")
 	})
 
 	t.Run("holder_with_multiple_positions_sorted_by_amount_desc", func(t *testing.T) {
@@ -240,6 +241,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		require.Equal(t, creatorPubkey, token.Creator.Addresses.IonConnect)
 		require.Empty(t, token.Creator.Addresses.Twitter)
 		require.Empty(t, token.Creator.Addresses.Blockchain)
+		require.Nil(t, token.Creator.Token, "Profile token should not have creator.token")
 
 		require.Equal(t, "FULL", token.MarketData.Ticker)
 		require.InDelta(t, 150.5, token.MarketData.MarketCap, 0.01)
@@ -423,6 +425,45 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		require.Len(t, tokens, 1, "Should only return token with amount > 0")
 		require.Equal(t, uint64(1), totalHoldings)
 		require.Equal(t, "ZERO1", tokens[0].MarketData.Ticker)
+	})
+
+	t.Run("holder_with_content_token_position_has_creator_token", func(t *testing.T) {
+		helperInsertTestUser(t, ctx, db, "creator_hcontent", "creator_hcontent", "Creator HContent", "", true, PlatformGroupIonConnect, "https://avatar-hcontent.png")
+		helperInsertTestUser(t, ctx, db, "holder_hcontent", "holder_hcontent", "Holder HContent", "", false, PlatformGroupIonConnect)
+
+		creatorProfileExt := "0:creator_hcontent:"
+		creatorProfileContract := "0xHCONTPROFILE111111111111111111111111"
+		helperInsertTestToken(t, ctx, db, creatorProfileContract, creatorProfileExt, "HCPROF", "profile", "creator_hcontent", "800000000000000000000000", 80.0, 0.00008, 4, PlatformGroupIonConnect)
+
+		holderExtAddr := "0:holder_hcontent:"
+		contentTokenExt := "30175:hcontent_video_id:content"
+		contentTokenContract := "0xHCONTVIDEO1111111111111111111111111"
+		helperInsertTestToken(t, ctx, db, contentTokenContract, contentTokenExt, "HCVID", "video", "creator_hcontent", "2000000000000000000000000", 200.0, 0.0002, 8, PlatformGroupIonConnect)
+		helperSetTokenBaseToken(t, ctx, db, contentTokenExt, creatorProfileContract)
+
+		helperInsertUserTokenPosition(t, ctx, db, "holder_hcontent", contentTokenContract, contentTokenExt, holderExtAddr, "4000000000000000000000", 0.0002, 0.8)
+		helperSetupRedisPositionData(t, ctx, testRedis, contentTokenExt, map[string]float64{
+			holderExtAddr: 4000.0,
+		})
+
+		tokens, totalHoldings, err := ta.GetCommunityTokensByHolder(ctx, holderExtAddr, "holder_hcontent", 10, 0)
+		require.NoError(t, err)
+		require.Len(t, tokens, 1)
+		require.Equal(t, uint64(1), totalHoldings)
+
+		token := tokens[0]
+		require.Equal(t, "video", token.Type)
+		require.Equal(t, "HCVID", token.MarketData.Ticker)
+
+		require.NotNil(t, token.Creator.Token, "Content token should have creator.token")
+		require.Equal(t, "HCPROF", token.Creator.Token.Ticker)
+		require.Equal(t, "creator_hcontent", token.Creator.Token.Title)
+		require.Equal(t, "Creator HContent", token.Creator.Token.Description)
+		require.Equal(t, "https://avatar-hcontent.png", token.Creator.Token.ImageURL)
+		require.NotNil(t, token.Creator.Token.CreatedAt)
+		require.NotNil(t, token.Creator.Token.Addresses)
+		require.Equal(t, creatorProfileContract, token.Creator.Token.Addresses.Blockchain)
+		require.Equal(t, creatorProfileExt, token.Creator.Token.Addresses.IonConnect)
 	})
 
 	t.Run("offset_beyond_total_returns_empty", func(t *testing.T) {

@@ -82,6 +82,7 @@ type (
 		GetBondingCurveProgress(ctx context.Context, externalAddress string) (*BondingCurveProgress, error)
 		SubscribeBondingCurveProgress(context.Context, string, func(*BondingCurveProgress, error)) error
 		GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount *big.Int, amountBNB *big.Int, amountUSD float64) (pricing *Pricing, err error)
+		GetCommunityTokensByRewardsDistribution(ctx context.Context, referenceDate stdlibtime.Time, limit, offset uint64) ([]*CommunityToken, error)
 	}
 	Pricing struct {
 		AmountInBase       *big.Int
@@ -137,6 +138,7 @@ const (
 	TokenTypeTop                  = "top"
 	TokenTypeTrending             = "trending"
 	TokenTypeBondingCurveProgress = "bondingCurveProgress"
+	TokenTypeRewardsDistribution  = "rewardsDistribution"
 )
 
 var (
@@ -327,54 +329,63 @@ type (
 	}
 
 	tokenRow struct {
-		CreatedAt                    *time.Time `db:"created_at"`
-		UpdatedAt                    *time.Time `db:"updated_at"`
-		LogIndex                     *int64     `db:"log_index"`
-		ContractAddress              string     `db:"contract_address"`
-		ExternalAddress              string     `db:"external_address"`
-		Platform                     string     `db:"platform"`
-		Type                         string     `db:"type"`
-		Title                        string     `db:"title"`
-		Description                  string     `db:"description"`
-		ImageURL                     string     `db:"image_url"`
-		Ticker                       string     `db:"ticker"`
-		TotalSupply                  string     `db:"total_supply"`
-		ContentAuthorID              *string    `db:"content_author_id"`
-		CreatorUsername              *string    `db:"creator_username"`
-		CreatorDisplay               *string    `db:"creator_display"`
-		CreatorAvatar                *string    `db:"creator_avatar"`
-		CreatorExternalAddress       *string    `db:"creator_external_address"`
-		CreatorPlatform              *string    `db:"creator_platform"`
-		CreatorBnbBscAddress         *string    `db:"creator_bnb_bsc_address"`
-		IonConnectAddress            *string    `db:"ion_connect_address"`
-		BaseToken                    string     `db:"base_token"`
-		PriceModel                   string     `db:"price_model"`
-		PairId                       string     `db:"pair_id"`
-		MarketCapUSD                 float64    `db:"market_cap_usd"`
-		PriceUSD                     float64    `db:"price_usd"`
-		LiquidityUSD                 float64    `db:"liquidity_usd"`
-		Volume24h                    float64    `db:"volume_24h"`
-		PositionAmount               string     `db:"position_amount"`
-		PositionAmountUSD            float64    `db:"position_amount_usd"`
-		PositionTotalInvestedUSD     float64    `db:"position_total_invested_usd"`
-		PositionTotalRealizedUSD     float64    `db:"position_total_realized_usd"`
-		HoldersCount                 int64      `db:"holders_count"`
-		PlatformHoldersCount         int64      `db:"platform_holders_count"`
-		BondingCurveCurrentAmount    string     `db:"bonding_curve_current_amount"`
-		BondingCurveGoalAmount       string     `db:"bonding_curve_goal_amount"`
-		BondingCurveRaisedAmount     string     `db:"bonding_curve_raised_amount"`
-		BondingCurveMigrated         bool       `db:"bonding_curve_migrated"`
-		BondingCurveCurrentAmountUSD float64    `db:"bonding_curve_current_amount_usd"`
-		BondingCurveGoalAmountUSD    float64    `db:"bonding_curve_goal_amount_usd"`
-		CreatorVerified              *bool      `db:"creator_verified"`
-		LauncherUsername             *string    `db:"launcher_username"`
-		LauncherDisplay              *string    `db:"launcher_display"`
-		LauncherAvatar               *string    `db:"launcher_avatar"`
-		LauncherExternalAddress      *string    `db:"launcher_external_address"`
-		LauncherPlatform             *string    `db:"launcher_platform"`
-		LauncherVerified             *bool      `db:"launcher_verified"`
-		LauncherBlockchainAddress    *string    `db:"launcher_blockchain_address"`
-		TokenHoldingsCount           uint64     `db:"token_holdings_count"`
+		CreatedAt                     *time.Time `db:"created_at"`
+		UpdatedAt                     *time.Time `db:"updated_at"`
+		LogIndex                      *int64     `db:"log_index"`
+		ContractAddress               string     `db:"contract_address"`
+		ExternalAddress               string     `db:"external_address"`
+		Platform                      string     `db:"platform"`
+		Type                          string     `db:"type"`
+		Title                         string     `db:"title"`
+		Description                   string     `db:"description"`
+		ImageURL                      string     `db:"image_url"`
+		Ticker                        string     `db:"ticker"`
+		TotalSupply                   string     `db:"total_supply"`
+		ContentAuthorID               *string    `db:"content_author_id"`
+		CreatorUsername               *string    `db:"creator_username"`
+		CreatorDisplay                *string    `db:"creator_display"`
+		CreatorAvatar                 *string    `db:"creator_avatar"`
+		CreatorExternalAddress        *string    `db:"creator_external_address"`
+		CreatorPlatform               *string    `db:"creator_platform"`
+		CreatorBnbBscAddress          *string    `db:"creator_bnb_bsc_address"`
+		IonConnectAddress             *string    `db:"ion_connect_address"`
+		BaseToken                     string     `db:"base_token"`
+		PriceModel                    string     `db:"price_model"`
+		PairId                        string     `db:"pair_id"`
+		MarketCapUSD                  float64    `db:"market_cap_usd"`
+		PriceUSD                      float64    `db:"price_usd"`
+		LiquidityUSD                  float64    `db:"liquidity_usd"`
+		Volume24h                     float64    `db:"volume_24h"`
+		PositionAmount                string     `db:"position_amount"`
+		PositionAmountUSD             float64    `db:"position_amount_usd"`
+		PositionTotalInvestedUSD      float64    `db:"position_total_invested_usd"`
+		PositionTotalRealizedUSD      float64    `db:"position_total_realized_usd"`
+		HoldersCount                  int64      `db:"holders_count"`
+		PlatformHoldersCount          int64      `db:"platform_holders_count"`
+		BondingCurveCurrentAmount     string     `db:"bonding_curve_current_amount"`
+		BondingCurveGoalAmount        string     `db:"bonding_curve_goal_amount"`
+		BondingCurveRaisedAmount      string     `db:"bonding_curve_raised_amount"`
+		BondingCurveMigrated          bool       `db:"bonding_curve_migrated"`
+		BondingCurveCurrentAmountUSD  float64    `db:"bonding_curve_current_amount_usd"`
+		BondingCurveGoalAmountUSD     float64    `db:"bonding_curve_goal_amount_usd"`
+		CreatorVerified               *bool      `db:"creator_verified"`
+		LauncherUsername              *string    `db:"launcher_username"`
+		LauncherDisplay               *string    `db:"launcher_display"`
+		LauncherAvatar                *string    `db:"launcher_avatar"`
+		LauncherExternalAddress       *string    `db:"launcher_external_address"`
+		LauncherPlatform              *string    `db:"launcher_platform"`
+		LauncherVerified              *bool      `db:"launcher_verified"`
+		LauncherBlockchainAddress     *string    `db:"launcher_blockchain_address"`
+		TokenHoldingsCount            uint64     `db:"token_holdings_count"`
+		CreatorTokenTicker            *string    `db:"creator_token_ticker"`
+		CreatorTokenTitle             *string    `db:"creator_token_title"`
+		CreatorTokenDescription       *string    `db:"creator_token_description"`
+		CreatorTokenImageURL          *string    `db:"creator_token_image_url"`
+		CreatorTokenCreatedAt         *time.Time `db:"creator_token_created_at"`
+		CreatorTokenContractAddress   *string    `db:"creator_token_contract_address"`
+		CreatorTokenExternalAddress   *string    `db:"creator_token_external_address"`
+		CreatorTokenPlatform          *string    `db:"creator_token_platform"`
+		CreatorTokenIonConnectAddress *string    `db:"creator_token_ion_connect_address"`
 	}
 
 	tokenVolume24h struct {

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
@@ -25,14 +26,24 @@ func TestGetCommunityTokensByLatest_WithAndWithoutKeyword(t *testing.T) {
 	helperInsertTestUser(t, ctx, db, "creator_latest3", "latest_three", "Latest Three", "", true, PlatformGroupIonConnect)
 
 	token1Ext := "0:creator_latest1:"
-	token2Ext := "0:creator_latest2:"
-	token3Ext := "0:creator_latest3:"
+	token2Ext := "30023:creator_latest2:post1"
+	token3Ext := "30175:creator_latest3:video1"
 
 	helperInsertTestToken(t, ctx, db, "0xLATEST1111111111111111111111111111111111", token1Ext, "LAT1", "profile", "creator_latest1", "1000000000000000000000000", 100.0, 0.0001, 5, PlatformGroupIonConnect)
 	time.Sleep(10 * time.Millisecond) // Ensure different created_at
+
+	creator2ProfileExt := "0:creator_latest2:"
+	helperInsertTestToken(t, ctx, db, "0xLAT2PROFILE1111111111111111111111111111", creator2ProfileExt, "CLAT2", "profile", "creator_latest2", "500000000000000000000000", 50.0, 0.00005, 2, PlatformGroupIonConnect)
+
 	helperInsertTestToken(t, ctx, db, "0xLATEST2222222222222222222222222222222222", token2Ext, "LAT2", "post", "creator_latest2", "2000000000000000000000000", 200.0, 0.0002, 10, PlatformGroupIonConnect)
+	helperSetTokenBaseToken(t, ctx, db, token2Ext, "0xLAT2PROFILE1111111111111111111111111111")
 	time.Sleep(10 * time.Millisecond)
+
+	creator3ProfileExt := "0:creator_latest3:"
+	helperInsertTestToken(t, ctx, db, "0xLAT3PROFILE1111111111111111111111111111", creator3ProfileExt, "CLAT3", "profile", "creator_latest3", "600000000000000000000000", 60.0, 0.00006, 3, PlatformGroupIonConnect)
+
 	helperInsertTestToken(t, ctx, db, "0xLATEST3333333333333333333333333333333333", token3Ext, "LAT3", "video", "creator_latest3", "3000000000000000000000000", 300.0, 0.0003, 15, PlatformGroupIonConnect)
+	helperSetTokenBaseToken(t, ctx, db, token3Ext, "0xLAT3PROFILE1111111111111111111111111111")
 
 	helperCreateSwapForVolume(t, ctx, db, "0xLATEST1111111111111111111111111111111111", token1Ext, "0x0000000000000000000000000000000000000001", false, "100000000000000000000", "1000000000000000000000", 0.0001)
 	helperCreateSwapForVolume(t, ctx, db, "0xLATEST2222222222222222222222222222222222", token2Ext, "0x0000000000000000000000000000000000000002", false, "200000000000000000000", "2000000000000000000000", 0.0002)
@@ -70,7 +81,7 @@ func TestGetCommunityTokensByLatest_WithAndWithoutKeyword(t *testing.T) {
 
 		for _, token := range foundTokens {
 			require.NotNil(t, token.Addresses)
-			require.True(t, strings.HasPrefix(token.Addresses.IonConnect, "0:creator_latest"), "IonConnect should start with 0:creator_latest")
+			require.True(t, expectedAddresses[token.Addresses.IonConnect], "IonConnect should be one of the test tokens")
 			require.Empty(t, token.Addresses.Twitter)
 			require.Equal(t, expectedBlockchain[token.Addresses.IonConnect], token.Addresses.Blockchain)
 
@@ -83,6 +94,16 @@ func TestGetCommunityTokensByLatest_WithAndWithoutKeyword(t *testing.T) {
 			require.Equal(t, uint64(0), token.MarketData.PlatformHolders)
 			require.Nil(t, token.MarketData.TopPlatformHolders)
 			require.Nil(t, token.MarketData.BondingCurveProgress)
+
+			// Verify creator.token: nil for profile tokens, populated for content tokens (post/video).
+			if token.Type == "profile" {
+				require.Nil(t, token.Creator.Token, "Profile token should not have creator.token")
+			} else {
+				require.NotNil(t, token.Creator.Token, "Content token (%s) should have creator.token", token.Type)
+				require.NotEmpty(t, token.Creator.Token.Ticker, "Creator token ticker should not be empty")
+				require.NotNil(t, token.Creator.Token.Addresses, "Creator token addresses should not be nil")
+				require.NotEmpty(t, token.Creator.Token.Addresses.Blockchain, "Creator token blockchain address should not be empty")
+			}
 		}
 	})
 
@@ -123,6 +144,8 @@ func TestGetCommunityTokensByLatest_WithAndWithoutKeyword(t *testing.T) {
 				require.Greater(t, token.MarketData.Volume, 0.0, "Volume should be present")
 				require.InDelta(t, 0.0001, token.MarketData.PriceUSD, 0.00001)
 				require.Equal(t, uint64(5), token.MarketData.Holders)
+
+				require.Nil(t, token.Creator.Token, "Profile token should not have creator.token")
 
 				break
 			}
@@ -195,8 +218,8 @@ func TestGetCommunityTokensByFeatured(t *testing.T) {
 	helperInsertTestUser(t, ctx, db, "creator_featured3", "featured_three", "Featured Three", "", true, PlatformGroupIonConnect)
 
 	token1Ext := "0:creator_featured1:"
-	token2Ext := "0:creator_featured2:"
-	token3Ext := "0:creator_featured3:"
+	token2Ext := "30023:creator_featured2:post1"
+	token3Ext := "30175:creator_featured3:video1"
 
 	helperInsertTestToken(t, ctx, db, "0xFEATURE1111111111111111111111111111111111", token1Ext, "FEA1", "profile", "creator_featured1", "1000000000000000000000000", 100.0, 0.0001, 5, PlatformGroupIonConnect)
 	helperUpdateTokenBondingCurve(t, ctx, db,
@@ -209,9 +232,19 @@ func TestGetCommunityTokensByFeatured(t *testing.T) {
 		false,                      // not migrated
 	)
 	time.Sleep(10 * time.Millisecond)
+
+	creator2FeatProfileExt := "0:creator_featured2:"
+	helperInsertTestToken(t, ctx, db, "0xFEA2PROFILE111111111111111111111111111", creator2FeatProfileExt, "CFE2", "profile", "creator_featured2", "400000000000000000000000", 40.0, 0.00004, 2, PlatformGroupIonConnect)
+
 	helperInsertTestToken(t, ctx, db, "0xFEATURE2222222222222222222222222222222222", token2Ext, "FEA2", "post", "creator_featured2", "2000000000000000000000000", 200.0, 0.0002, 10, PlatformGroupIonConnect)
+	helperSetTokenBaseToken(t, ctx, db, token2Ext, "0xFEA2PROFILE111111111111111111111111111")
 	time.Sleep(10 * time.Millisecond)
+
+	creator3FeatProfileExt := "0:creator_featured3:"
+	helperInsertTestToken(t, ctx, db, "0xFEA3PROFILE111111111111111111111111111", creator3FeatProfileExt, "CFE3", "profile", "creator_featured3", "500000000000000000000000", 50.0, 0.00005, 3, PlatformGroupIonConnect)
+
 	helperInsertTestToken(t, ctx, db, "0xFEATURE3333333333333333333333333333333333", token3Ext, "FEA3", "video", "creator_featured3", "3000000000000000000000000", 300.0, 0.0003, 15, PlatformGroupIonConnect)
+	helperSetTokenBaseToken(t, ctx, db, token3Ext, "0xFEA3PROFILE111111111111111111111111111")
 
 	helperCreateSwapForVolume(t, ctx, db, "0xFEATURE1111111111111111111111111111111111", token1Ext, "0x0000000000000000000000000000000000000001", false, "100000000000000000000", "1000000000000000000000", 0.0001)
 	helperCreateSwapForVolume(t, ctx, db, "0xFEATURE2222222222222222222222222222222222", token2Ext, "0x0000000000000000000000000000000000000002", false, "200000000000000000000", "2000000000000000000000", 0.0002)
@@ -229,9 +262,15 @@ func TestGetCommunityTokensByFeatured(t *testing.T) {
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, len(tokens), 3, "Should return at least our 3 featured tokens")
 
+		expectedAddresses := map[string]bool{
+			token1Ext: true,
+			token2Ext: true,
+			token3Ext: true,
+		}
+
 		var foundTokens []*CommunityToken
 		for _, token := range tokens {
-			if strings.HasPrefix(token.Addresses.IonConnect, "0:creator_featured") {
+			if expectedAddresses[token.Addresses.IonConnect] {
 				foundTokens = append(foundTokens, token)
 			}
 		}
@@ -259,8 +298,13 @@ func TestGetCommunityTokensByFeatured(t *testing.T) {
 				require.Equal(t, "200000000000000000000000", token.MarketData.BondingCurveProgress.GoalAmount)
 				require.InDelta(t, 160.0, token.MarketData.BondingCurveProgress.CurrentAmountUSD, 0.01)
 				require.InDelta(t, 400.0, token.MarketData.BondingCurveProgress.GoalAmountUSD, 0.01)
+				require.Nil(t, token.Creator.Token, "Profile token (FEA1) should not have creator.token")
 			} else {
 				require.Nil(t, token.MarketData.BondingCurveProgress)
+				require.NotNil(t, token.Creator.Token, "Content token (%s / %s) should have creator.token", token.MarketData.Ticker, token.Type)
+				require.NotEmpty(t, token.Creator.Token.Ticker)
+				require.NotNil(t, token.Creator.Token.Addresses)
+				require.NotEmpty(t, token.Creator.Token.Addresses.Blockchain)
 			}
 		}
 	})
@@ -278,6 +322,7 @@ func TestGetCommunityTokensByFeatured(t *testing.T) {
 				require.Equal(t, "featured_one", strVal(token.Creator.Username))
 				require.Equal(t, "Featured One", strVal(token.Creator.Display))
 				require.True(t, token.Creator.Verified != nil && *token.Creator.Verified)
+				require.Nil(t, token.Creator.Token, "Profile token should not have creator.token")
 				break
 			}
 		}
@@ -377,6 +422,10 @@ func TestGetCommunityTokensByLatest_CreatorNotRegistered(t *testing.T) {
 
 	helperInsertTestUser(t, ctx, db, unregisteredCreatorPubkey, "", "", unregisteredCreatorAddr, false, PlatformGroupIonConnect)
 
+	unregCreatorProfileExt := "0:unregistered_creator_pubkey_not_in_db:"
+	unregCreatorProfileContract := "0xUNREGPROFILE1111111111111111111111111"
+	helperInsertTestToken(t, ctx, db, unregCreatorProfileContract, unregCreatorProfileExt, "UNREG", "profile", unregisteredCreatorPubkey, "500000000000000000000000", 25.0, 0.00002, 1, PlatformGroupIonConnect)
+
 	helperInsertTestToken(t, ctx, db,
 		contractAddr,
 		tokenExternalAddr,
@@ -389,6 +438,7 @@ func TestGetCommunityTokensByLatest_CreatorNotRegistered(t *testing.T) {
 		3,
 		PlatformGroupIonConnect,
 	)
+	helperSetTokenBaseToken(t, ctx, db, tokenExternalAddr, unregCreatorProfileContract)
 
 	t.Run("token with unregistered creator should not fail", func(t *testing.T) {
 		tokens, err := ta.getCommunityTokensByLatest(ctx, "", 50, 0, nil)
@@ -417,6 +467,11 @@ func TestGetCommunityTokensByLatest_CreatorNotRegistered(t *testing.T) {
 		require.InDelta(t, 150.0, foundToken.MarketData.MarketCap, 0.01)
 		require.InDelta(t, 0.00015, foundToken.MarketData.PriceUSD, 0.000001)
 		require.Equal(t, uint64(3), foundToken.MarketData.Holders)
+
+		require.NotNil(t, foundToken.Creator.Token, "Article token should have creator.token")
+		require.Equal(t, "UNREG", foundToken.Creator.Token.Ticker)
+		require.NotNil(t, foundToken.Creator.Token.Addresses)
+		require.Equal(t, unregCreatorProfileContract, foundToken.Creator.Token.Addresses.Blockchain)
 	})
 
 	t.Run("featured tokens with unregistered creator should not fail", func(t *testing.T) {
@@ -437,5 +492,120 @@ func TestGetCommunityTokensByLatest_CreatorNotRegistered(t *testing.T) {
 		require.NotNil(t, foundToken.Creator.Addresses, "Creator addresses should not be nil")
 		require.Equal(t, unregisteredCreatorPubkey, foundToken.Creator.Addresses.IonConnect,
 			"Creator should have IonConnect address from external_address")
+
+		require.NotNil(t, foundToken.Creator.Token, "Article token should have creator.token")
+		require.Equal(t, "UNREG", foundToken.Creator.Token.Ticker)
+	})
+}
+
+func TestGetCommunityTokensByRewardsDistribution(t *testing.T) {
+	ctx := t.Context()
+	db, release := helperCreateDB(t)
+	defer release()
+
+	ta := helperNewForTest(t, db)
+
+	helperInsertTestUser(t, ctx, db, "rd_creator1", "rd_alice", "RD Alice", "", true, PlatformGroupIonConnect)
+	helperInsertTestUser(t, ctx, db, "rd_creator2", "rd_bob", "RD Bob", "", false, PlatformGroupIonConnect)
+
+	token1Ext := "0:rd_creator1:"
+	token2Ext := "0:rd_creator2:"
+
+	helperInsertTestToken(t, ctx, db, "0xRD111111111111111111111111111111111111", token1Ext, "RD1", "profile", "rd_creator1", "1000000000000000000000000", 500.0, 0.001, 10, PlatformGroupIonConnect)
+	helperInsertTestToken(t, ctx, db, "0xRD222222222222222222222222222222222222", token2Ext, "RD2", "profile", "rd_creator2", "2000000000000000000000000", 300.0, 0.002, 5, PlatformGroupIonConnect)
+
+	t.Run("returns tokens from trending set ordered by volume", func(t *testing.T) {
+		_ = testRedis.Del(ctx, globalTrendingSetKey).Err()
+
+		helperSetupGlobalSet(t, ctx, globalTrendingSetKey, map[string]float64{
+			token1Ext: 5000.0 * 1e18,
+			token2Ext: 3000.0 * 1e18,
+		})
+		helperSetupGlobalSet(t, ctx, globalTopSetKey, map[string]float64{
+			token1Ext: 500.0,
+			token2Ext: 300.0,
+		})
+
+		referenceDate := time.Now()
+		tokens, err := ta.GetCommunityTokensByRewardsDistribution(ctx, referenceDate, 10, 0)
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, len(tokens), 2, "Should return at least 2 test tokens")
+
+		var found1, found2 *CommunityToken
+		for _, token := range tokens {
+			switch token.Addresses.IonConnect {
+			case token1Ext:
+				found1 = token
+			case token2Ext:
+				found2 = token
+			}
+		}
+		require.NotNil(t, found1, "Should find token1")
+		require.NotNil(t, found2, "Should find token2")
+
+		require.Equal(t, "RD1", found1.MarketData.Ticker)
+		require.InDelta(t, 5000.0, found1.MarketData.Volume, 1.0)
+		require.InDelta(t, 500.0, found1.MarketData.MarketCap, 1.0)
+
+		require.Equal(t, "RD2", found2.MarketData.Ticker)
+		require.InDelta(t, 3000.0, found2.MarketData.Volume, 1.0)
+		require.InDelta(t, 300.0, found2.MarketData.MarketCap, 1.0)
+
+		require.Nil(t, found1.Creator.Token, "Profile token should not have creator.token")
+		require.Nil(t, found2.Creator.Token, "Profile token should not have creator.token")
+	})
+
+	t.Run("returns empty when no trending data", func(t *testing.T) {
+		_ = testRedis.Del(ctx, globalTrendingSetKey).Err()
+
+		referenceDate := time.Now()
+		tokens, err := ta.GetCommunityTokensByRewardsDistribution(ctx, referenceDate, 10, 0)
+		require.NoError(t, err)
+		require.Empty(t, tokens)
+	})
+
+	t.Run("respects limit cap of 100", func(t *testing.T) {
+		_ = testRedis.Del(ctx, globalTrendingSetKey).Err()
+
+		members := make([]redis.Z, 0, 110)
+		for i := 0; i < 110; i++ {
+			members = append(members, redis.Z{
+				Score:  float64(110 - i),
+				Member: fmt.Sprintf("0:rd_limit_token_%d:", i),
+			})
+		}
+		err := testRedis.ZAdd(ctx, globalTrendingSetKey, members...).Err()
+		require.NoError(t, err)
+
+		referenceDate := time.Now()
+		tokens, err := ta.GetCommunityTokensByRewardsDistribution(ctx, referenceDate, 200, 0)
+		require.NoError(t, err)
+		require.LessOrEqual(t, len(tokens), 100, "Should return at most 100 tokens")
+	})
+
+	t.Run("pagination with offset works", func(t *testing.T) {
+		_ = testRedis.Del(ctx, globalTrendingSetKey).Err()
+
+		helperSetupGlobalSet(t, ctx, globalTrendingSetKey, map[string]float64{
+			token1Ext: 5000.0 * 1e18,
+			token2Ext: 3000.0 * 1e18,
+		})
+		helperSetupGlobalSet(t, ctx, globalTopSetKey, map[string]float64{
+			token1Ext: 500.0,
+			token2Ext: 300.0,
+		})
+
+		referenceDate := time.Now()
+		tokens1, err := ta.GetCommunityTokensByRewardsDistribution(ctx, referenceDate, 1, 0)
+		require.NoError(t, err)
+		require.Len(t, tokens1, 1)
+
+		tokens2, err := ta.GetCommunityTokensByRewardsDistribution(ctx, referenceDate, 1, 1)
+		require.NoError(t, err)
+		require.Len(t, tokens2, 1)
+
+		if len(tokens1) > 0 && len(tokens2) > 0 {
+			require.NotEqual(t, tokens1[0].MarketData.Ticker, tokens2[0].MarketData.Ticker, "Pages should not overlap")
+		}
 	})
 }

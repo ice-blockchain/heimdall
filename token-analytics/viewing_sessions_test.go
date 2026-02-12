@@ -222,6 +222,7 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 		require.Equal(t, "vs_creator1", tokens[0].Creator.Addresses.IonConnect)
 		require.Empty(t, tokens[0].Creator.Addresses.Twitter)
 		require.Empty(t, tokens[0].Creator.Addresses.Blockchain)
+		require.Nil(t, tokens[0].Creator.Token, "Profile token should not have creator.token")
 
 		require.InDelta(t, 500.0, tokens[0].MarketData.MarketCap, 1.0, "Market cap from Redis top set")
 		require.InDelta(t, 1000.0, tokens[0].MarketData.Volume, 1.0, "Volume from trending set")
@@ -239,6 +240,7 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 		require.Equal(t, "vs_bob", strVal(tokens[1].Creator.Username))
 		require.Equal(t, "VS Bob", strVal(tokens[1].Creator.Display))
 		require.True(t, tokens[1].Creator.Verified == nil || !*tokens[1].Creator.Verified)
+		require.Nil(t, tokens[1].Creator.Token, "Profile token should not have creator.token")
 		require.InDelta(t, 300.0, tokens[1].MarketData.MarketCap, 1.0)
 		require.InDelta(t, 800.0, tokens[1].MarketData.Volume, 1.0)
 		require.Equal(t, uint64(5), tokens[1].MarketData.Holders)
@@ -333,6 +335,18 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 
 		helperInsertTestUser(t, ctx, db, "anypost_post_creator", "anypost_post_user", "AnyPost Post User", "", false, PlatformGroupIonConnect)
 		helperInsertTestToken(t, ctx, db,
+			"0xAPPOSTPROFILE11111111111111111111111111",
+			"0:anypost_post_creator:",
+			"APPPROF",
+			"profile",
+			"anypost_post_creator",
+			"500000000000000000000000",
+			50.0,
+			0.00005,
+			2,
+			PlatformGroupIonConnect,
+		)
+		helperInsertTestToken(t, ctx, db,
 			"0xANYPOSTPOST1111111111111111111111111111",
 			"30175:anypost_post_id:content",
 			"APPOST",
@@ -344,8 +358,21 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 			20,
 			PlatformGroupIonConnect,
 		)
+		helperSetTokenBaseToken(t, ctx, db, "30175:anypost_post_id:content", "0xAPPOSTPROFILE11111111111111111111111111")
 
 		helperInsertTestUser(t, ctx, db, "anypost_video_creator", "anypost_video_user", "AnyPost Video User", "", false, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db,
+			"0xAPVIDPROFILE11111111111111111111111111",
+			"0:anypost_video_creator:",
+			"APVPROF",
+			"profile",
+			"anypost_video_creator",
+			"600000000000000000000000",
+			60.0,
+			0.00006,
+			3,
+			PlatformGroupIonConnect,
+		)
 		helperInsertTestToken(t, ctx, db,
 			"0xANYPOSTVIDEO111111111111111111111111111",
 			"30175:anypost_video_id:content",
@@ -358,8 +385,21 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 			30,
 			PlatformGroupIonConnect,
 		)
+		helperSetTokenBaseToken(t, ctx, db, "30175:anypost_video_id:content", "0xAPVIDPROFILE11111111111111111111111111")
 
 		helperInsertTestUser(t, ctx, db, "anypost_article_creator", "anypost_article_user", "AnyPost Article User", "", false, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db,
+			"0xAPARTPROFILE1111111111111111111111111",
+			"0:anypost_article_creator:",
+			"APARTPROF",
+			"profile",
+			"anypost_article_creator",
+			"700000000000000000000000",
+			70.0,
+			0.00007,
+			4,
+			PlatformGroupIonConnect,
+		)
 		helperInsertTestToken(t, ctx, db,
 			"0xANYPOSTARTICLE1111111111111111111111111",
 			"30023:anypost_article_id:content",
@@ -372,6 +412,7 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 			40,
 			PlatformGroupIonConnect,
 		)
+		helperSetTokenBaseToken(t, ctx, db, "30023:anypost_article_id:content", "0xAPARTPROFILE1111111111111111111111111")
 
 		helperSetupGlobalSet(t, ctx, globalTopAnyPostSetKey, map[string]float64{
 			"30175:anypost_post_id:content":    2000.0,
@@ -395,6 +436,10 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 
 		for _, token := range tokens {
 			require.NotEqual(t, "profile", token.Type, "anyPost session should NOT contain profile tokens")
+			require.NotNil(t, token.Creator.Token, "Content token (%s) should have creator.token", token.Type)
+			require.NotEmpty(t, token.Creator.Token.Ticker, "Creator token ticker should not be empty")
+			require.NotNil(t, token.Creator.Token.Addresses, "Creator token addresses should not be nil")
+			require.NotEmpty(t, token.Creator.Token.Addresses.Blockchain, "Creator token blockchain address should not be empty")
 		}
 
 		foundTypes := make(map[string]bool)

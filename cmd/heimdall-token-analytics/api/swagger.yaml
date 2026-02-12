@@ -40,6 +40,15 @@ definitions:
         example: true
         type: boolean
     type: object
+  main.GlobalTokenStatistics:
+    properties:
+      launched:
+        type: integer
+      migrated:
+        type: integer
+      volume:
+        type: number
+    type: object
   main.PriceResponse:
     properties:
       amount:
@@ -223,6 +232,21 @@ definitions:
         type: string
       website:
         example: https://some.website.example.com
+        type: string
+    type: object
+  tokenanalytics.CreatorTokenInfo:
+    properties:
+      addresses:
+        $ref: '#/definitions/tokenanalytics.Addresses'
+      createdAt:
+        type: string
+      description:
+        type: string
+      imageUrl:
+        type: string
+      ticker:
+        type: string
+      title:
         type: string
     type: object
   tokenanalytics.HolderPosition:
@@ -410,6 +434,8 @@ definitions:
         type: string
       name:
         type: string
+      token:
+        $ref: '#/definitions/tokenanalytics.CreatorTokenInfo'
       verified:
         type: boolean
     type: object
@@ -424,6 +450,39 @@ info:
   title: Token Analytics Service API.
   version: latest
 paths:
+  /v1/community-token-analytics/{analyticsType}:
+    get:
+      description: Returns aggregated analytics for community tokens.
+      parameters:
+      - description: Analytics type
+        enum:
+        - global
+        in: path
+        name: analyticsType
+        required: true
+        type: string
+      - description: Time interval
+        enum:
+        - 24h
+        - 7d
+        - 30d
+        in: query
+        name: interval
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Analytics data
+          schema:
+            $ref: '#/definitions/main.GlobalTokenStatistics'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+      tags:
+      - Analytics
   /v1/community-tokens:
     get:
       description: Returns community tokens information for the given Ion Connect
@@ -503,10 +562,13 @@ paths:
       - Tokens
   /v1/community-tokens/{externalAddressOrViewType}:
     get:
-      description: Returns community tokens information for the given Ion Connect
-        addresses.
+      description: Returns community tokens by view type. "latest" requires authentication;
+        "rewardsDistribution" is public and requires referenceDate.
       parameters:
-      - description: View type (latest)
+      - description: View type
+        enum:
+        - latest
+        - rewardsDistribution
         example: '"latest"'
         in: path
         name: externalAddressOrViewType
@@ -529,6 +591,11 @@ paths:
         in: query
         name: keyword
         type: string
+      - description: Reference date (required for rewardsDistribution)
+        example: '"2025-01-03T16:00:00Z"'
+        in: query
+        name: referenceDate
+        type: string
       - description: Number of items to return
         example: 10
         format: int32
@@ -550,8 +617,12 @@ paths:
             items:
               $ref: '#/definitions/tokenanalytics.CommunityToken'
             type: array
-        "401":
-          description: if auth token is missing or invalid
+        "400":
+          description: if required params are missing
+          schema:
+            $ref: '#/definitions/server.ResponseErrorBody'
+        "403":
+          description: if auth is required but missing (latest)
           schema:
             $ref: '#/definitions/server.ResponseErrorBody'
         "500":

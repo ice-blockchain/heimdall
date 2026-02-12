@@ -30,13 +30,23 @@ type (
 	}
 
 	User struct {
-		MasterPubkey     *string    `json:"-"`
-		Username         *string    `json:"name,omitempty"`
-		Display          *string    `json:"display,omitempty"`
-		Avatar           *string    `json:"avatar,omitempty"`
-		Addresses        *Addresses `json:"addresses,omitempty"`
-		IONConnectRelays []string   `json:"-"`
-		Verified         *bool      `json:"verified,omitempty"`
+		MasterPubkey     *string           `json:"-"`
+		Username         *string           `json:"name,omitempty"`
+		Display          *string           `json:"display,omitempty"`
+		Avatar           *string           `json:"avatar,omitempty"`
+		Addresses        *Addresses        `json:"addresses,omitempty"`
+		IONConnectRelays []string          `json:"-"`
+		Verified         *bool             `json:"verified,omitempty"`
+		Token            *CreatorTokenInfo `json:"token,omitempty"`
+	}
+
+	CreatorTokenInfo struct {
+		Ticker      string     `json:"ticker,omitempty"`
+		Title       string     `json:"title,omitempty"`
+		Description string     `json:"description,omitempty"`
+		ImageURL    string     `json:"imageUrl,omitempty"`
+		CreatedAt   *time.Time `json:"createdAt,omitempty"`
+		Addresses   *Addresses `json:"addresses,omitempty"`
 	}
 
 	MarketData struct {
@@ -314,4 +324,29 @@ func buildTokenAndCreatorAddresses(params TokenAndCreatorAddressesParams) (token
 	}
 
 	return tokenAddresses, creatorAddresses, nil
+}
+
+func buildCreatorToken(row *tokenRow) (*CreatorTokenInfo, error) {
+	if row.CreatorTokenContractAddress == nil || strVal(row.CreatorTokenContractAddress) == "" {
+		return nil, nil
+	}
+	addresses, err := buildTokenAddressesFromContractAndExternalAddress(
+		strVal(row.CreatorTokenContractAddress),
+		strVal(row.CreatorTokenExternalAddress),
+		strVal(row.CreatorTokenPlatform),
+		strVal(row.CreatorTokenIonConnectAddress),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build creator token addresses from contract_address %s, external_address %s (platform %s): %w",
+			strVal(row.CreatorTokenContractAddress), strVal(row.CreatorTokenExternalAddress), strVal(row.CreatorTokenPlatform), err)
+	}
+
+	return &CreatorTokenInfo{
+		Ticker:      strVal(row.CreatorTokenTicker),
+		Title:       strVal(row.CreatorTokenTitle),
+		Description: strVal(row.CreatorTokenDescription),
+		ImageURL:    strVal(row.CreatorTokenImageURL),
+		CreatedAt:   row.CreatorTokenCreatedAt,
+		Addresses:   addresses,
+	}, nil
 }
