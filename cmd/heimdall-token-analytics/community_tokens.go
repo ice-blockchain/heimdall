@@ -128,10 +128,10 @@ type (
 		AnalyticsType string `uri:"analyticsType" swaggerignore:"true"`
 		Interval      string `form:"interval" swaggerignore:"true"`
 	}
-	TokenAnalyticsResponse struct {
-		Launched uint64  `json:"launched"`
-		Migrated uint64  `json:"migrated"`
-		Volume   float64 `json:"volume"`
+	GlobalTokenStatistics struct {
+		LaunchedTokens uint64  `json:"launched"`
+		MigratedTokens uint64  `json:"migrated"`
+		TotalVolume    float64 `json:"volume"`
 	}
 )
 
@@ -1118,10 +1118,10 @@ func (s *service) latestTradesStream(ctx context.Context, externalAddress string
 //	@Produce		json
 //	@Param			analyticsType	path		string					true	"Analytics type"	Enums(global)
 //	@Param			interval		query		string					true	"Time interval"		Enums(24h, 7d, 30d)
-//	@Success		200				{object}	TokenAnalyticsResponse	"Analytics data"
+//	@Success		200				{object}	GlobalTokenStatistics	"Analytics data"
 //	@Failure		400				{object}	server.ResponseErrorBody
 //	@Router			/v1/community-token-analytics/{analyticsType} [get]
-func (s *service) GetCommunityTokenAnalytics(_ context.Context, req *server.Request[TokenAnalyticsRequest]) (*server.Response[TokenAnalyticsResponse], error) {
+func (s *service) GetCommunityTokenAnalytics(_ context.Context, req *server.Request[TokenAnalyticsRequest]) (*server.Response[GlobalTokenStatistics], error) {
 	switch req.Data.AnalyticsType {
 	case analyticsTypeGlobal:
 	default:
@@ -1134,10 +1134,10 @@ func (s *service) GetCommunityTokenAnalytics(_ context.Context, req *server.Requ
 			req.Data.Interval, analyticsInterval24h, analyticsInterval7d, analyticsInterval30d), invalidPropertiesErrorCode)
 	}
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	resp := &TokenAnalyticsResponse{
-		Launched: uint64(rng.Intn(1000)),
-		Migrated: uint64(rng.Intn(500)),
-		Volume:   math.Round(rng.Float64()*100000*100) / 100,
+	resp := &GlobalTokenStatistics{
+		LaunchedTokens: uint64(rng.Intn(1000)),
+		MigratedTokens: uint64(rng.Intn(500)),
+		TotalVolume:    math.Round(rng.Float64()*100000*100) / 100,
 	}
 
 	return server.OK(resp), nil
