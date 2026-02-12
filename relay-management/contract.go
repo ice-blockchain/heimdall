@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/subzero/server/http/events"
-	"github.com/ice-blockchain/subzero/server/http/nip11"
+	"github.com/ice-blockchain/subzero/server/http/nip11/fetcher"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
@@ -61,7 +61,7 @@ type (
 	}
 	nip11Result struct {
 		url   string
-		nip11 *nip11.RelayInformationDocument
+		nip11 *fetcher.RelayInformationDocument
 		err   error
 	}
 
