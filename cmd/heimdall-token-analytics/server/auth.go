@@ -225,11 +225,11 @@ func authValidateEventAttestation(authEvent, attestationEvent *model.Event) erro
 		return fmt.Errorf("%w: attestation event has unexpected author %q, expected %q", errAuthValidationFailed, attestationEvent.PubKey, owner)
 	}
 
-	records, err := model.ParseAttestationTags(attestationEvent.Tags)
+	attestation, err := model.ParseAttestationTags(attestationEvent.Tags)
 	if err != nil {
 		return fmt.Errorf("failed to parse attestation tags: %w", err)
 	}
-
+	records := attestation.Records
 	record, ok := records[authEvent.PubKey]
 	if !ok {
 		return fmt.Errorf("%w: no attestation record found for pubkey %q", errAuthValidationFailed, authEvent.PubKey)
