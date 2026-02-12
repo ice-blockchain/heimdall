@@ -63,8 +63,8 @@ func (t *trade) Marshal(client questdb.LineSender) questdb.At {
 		DecimalColumnFromString("base_price_in_usd", fmt.Sprintf("%.18f", t.BasePriceInUsd)).
 		DecimalColumn("base_amount", t.BaseAmount).
 		DecimalColumn("amount", t.Amount).
-		DecimalColumnFromString("price_in_usd", t.PriceInUsd.String()).
-		DecimalColumnFromString("market_cap_usd", t.MarketcapUsd.String())
+		DecimalColumnFromString("price_in_usd", t.PriceInUsd.Text('f', 18)).
+		DecimalColumnFromString("market_cap_usd", t.MarketcapUsd.Text('f', 18))
 }
 
 func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, direction bool, inputAmount, outputAmount *big.Int, contractAddress, userAddress, externalAddress, baseToken string, pairId []byte, totalSupply, burned *big.Int) error {
