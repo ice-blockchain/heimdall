@@ -40,6 +40,15 @@ definitions:
         example: true
         type: boolean
     type: object
+  main.GlobalTokenStatistics:
+    properties:
+      launched:
+        type: integer
+      migrated:
+        type: integer
+      volume:
+        type: number
+    type: object
   main.PriceResponse:
     properties:
       amount:
@@ -118,15 +127,6 @@ definitions:
       ticker:
         example: SOMETHING_COOL
         type: string
-    type: object
-  main.TokenAnalyticsResponse:
-    properties:
-      launched:
-        type: integer
-      migrated:
-        type: integer
-      volume:
-        type: number
     type: object
   server.Response-main_SuggestCreationDetailsResponse:
     properties:
@@ -476,7 +476,7 @@ paths:
         "200":
           description: Analytics data
           schema:
-            $ref: '#/definitions/main.TokenAnalyticsResponse'
+            $ref: '#/definitions/main.GlobalTokenStatistics'
         "400":
           description: Bad Request
           schema:

@@ -50,7 +50,7 @@
                     "200": {
                         "description": "Analytics data",
                         "schema": {
-                            "$ref": "#/definitions/main.TokenAnalyticsResponse"
+                            "$ref": "#/definitions/main.GlobalTokenStatistics"
                         }
                     },
                     "400": {
@@ -1912,6 +1912,20 @@
                 }
             }
         },
+        "main.GlobalTokenStatistics": {
+            "type": "object",
+            "properties": {
+                "launched": {
+                    "type": "integer"
+                },
+                "migrated": {
+                    "type": "integer"
+                },
+                "volume": {
+                    "type": "number"
+                }
+            }
+        },
         "main.PriceResponse": {
             "type": "object",
             "properties": {
@@ -2026,20 +2040,6 @@
                 "ticker": {
                     "type": "string",
                     "example": "SOMETHING_COOL"
-                }
-            }
-        },
-        "main.TokenAnalyticsResponse": {
-            "type": "object",
-            "properties": {
-                "launched": {
-                    "type": "integer"
-                },
-                "migrated": {
-                    "type": "integer"
-                },
-                "volume": {
-                    "type": "number"
                 }
             }
         },

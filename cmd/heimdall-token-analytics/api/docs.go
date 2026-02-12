@@ -57,7 +57,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Analytics data",
                         "schema": {
-                            "$ref": "#/definitions/main.TokenAnalyticsResponse"
+                            "$ref": "#/definitions/main.GlobalTokenStatistics"
                         }
                     },
                     "400": {
@@ -1919,6 +1919,20 @@ const docTemplate = `{
                 }
             }
         },
+        "main.GlobalTokenStatistics": {
+            "type": "object",
+            "properties": {
+                "launched": {
+                    "type": "integer"
+                },
+                "migrated": {
+                    "type": "integer"
+                },
+                "volume": {
+                    "type": "number"
+                }
+            }
+        },
         "main.PriceResponse": {
             "type": "object",
             "properties": {
@@ -2033,20 +2047,6 @@ const docTemplate = `{
                 "ticker": {
                     "type": "string",
                     "example": "SOMETHING_COOL"
-                }
-            }
-        },
-        "main.TokenAnalyticsResponse": {
-            "type": "object",
-            "properties": {
-                "launched": {
-                    "type": "integer"
-                },
-                "migrated": {
-                    "type": "integer"
-                },
-                "volume": {
-                    "type": "number"
                 }
             }
         },
