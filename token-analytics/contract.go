@@ -462,6 +462,7 @@ type (
 		CreatorExternalAddress *string `db:"creator_external_address"`
 		CreatorPlatform        *string `db:"creator_platform"`
 		CreatorBnbBscAddress   *string `db:"creator_bnb_bsc_address"`
+		CreatorFees            string  `db:"creator_fees"`
 		TotalSupply            string  `db:"total_supply"`
 		BondingCurveMigrated   bool    `db:"bonding_curve_migrated"`
 		PairId                 string  `db:"pair_id"`
