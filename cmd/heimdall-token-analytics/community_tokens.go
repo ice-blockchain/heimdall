@@ -230,8 +230,8 @@ func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Requ
 
 	switch req.Data.ViewType {
 	case ta.TokenTypeLatest:
-		if _, authErr := server.RequireAuth(req.Context); authErr != nil {
-			return nil, authErr
+		if req.Token == nil {
+			return nil, server.Unauthorized(fmt.Errorf("authentication required for latest view type"))
 		}
 		tokens, err := s.tokenAnalytics.GetCommunityTokensByType(ctx, req.Data.ViewType, req.Data.Type, req.Data.Keyword, limit, req.Data.Offset)
 		if err != nil {
