@@ -89,6 +89,58 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		require.Empty(t, token.MarketData.TopPlatformHolders)
 
 		require.Nil(t, token.MarketData.Position, "Position should be nil when user has no position")
+		require.Nil(t, token.Creator.Token, "Profile token should not have creator.token")
+	})
+
+	t.Run("fetch content token with creator.token populated", func(t *testing.T) {
+		helperInsertTestUser(t, ctx, db, "creator_content_ext", "alice_content", "Alice Content", "", true, PlatformGroupIonConnect, "https://avatar-content.png")
+
+		creatorProfileExt := "0:creator_content_ext:"
+		creatorProfileContract := "0xCONTPROFILE1111111111111111111111111"
+		helperInsertTestToken(t, ctx, db,
+			creatorProfileContract,
+			creatorProfileExt,
+			"ACONT",
+			"profile",
+			"creator_content_ext",
+			"800000000000000000000000",
+			80.0,
+			0.00008,
+			4,
+			PlatformGroupIonConnect,
+		)
+
+		contentTokenExt := "30175:content_post_id:test_content"
+		contentTokenContract := "0xCONTENTPOST111111111111111111111111"
+		helperInsertTestToken(t, ctx, db,
+			contentTokenContract,
+			contentTokenExt,
+			"CPOST",
+			"post",
+			"creator_content_ext",
+			"2000000000000000000000000",
+			200.0,
+			0.0002,
+			8,
+			PlatformGroupIonConnect,
+		)
+		helperSetTokenBaseToken(t, ctx, db, contentTokenExt, creatorProfileContract)
+
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{contentTokenExt}, "requestor_basic", nil, "", 0, 0)
+		require.NoError(t, err)
+		require.Len(t, tokens, 1)
+
+		token := tokens[0]
+		require.Equal(t, "post", token.Type)
+		require.NotNil(t, token.Creator.Token, "Content token should have creator.token")
+		require.Equal(t, "ACONT", token.Creator.Token.Ticker)
+		require.Equal(t, "alice_content", token.Creator.Token.Title)
+		require.Equal(t, "Alice Content", token.Creator.Token.Description)
+		require.Equal(t, "https://avatar-content.png", token.Creator.Token.ImageURL)
+		require.NotNil(t, token.Creator.Token.CreatedAt)
+		require.NotNil(t, token.Creator.Token.Addresses)
+		require.Equal(t, creatorProfileContract, token.Creator.Token.Addresses.Blockchain)
+		require.Equal(t, creatorProfileExt, token.Creator.Token.Addresses.IonConnect)
 	})
 
 	t.Run("fetch tokens with bonding curve progress", func(t *testing.T) {
@@ -206,6 +258,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		require.InDelta(t, 0.1, token.MarketData.Volume, 0.001, "Volume = 1000 tokens * 0.0001 USD = 0.1 USD")
 		require.InDelta(t, 0.0001, token.MarketData.PriceUSD, 0.00001)
 		require.Equal(t, uint64(5), token.MarketData.Holders, "Holders count includes all user_blockchain_addresses")
+		require.Nil(t, token.Creator.Token, "Profile token should not have creator.token")
 
 		require.NotNil(t, token.MarketData.Position, "Position should be present for user with holdings")
 		require.Equal(t, uint64(3), token.MarketData.Position.Rank, "Rank from Redis sorted set")
@@ -1581,6 +1634,13 @@ func helperSetupRedisPositionData(t *testing.T, ctx context.Context, client redi
 		}).Err()
 		require.NoError(t, err, "failed to add position to redis")
 	}
+}
+
+func helperSetTokenBaseToken(t *testing.T, ctx context.Context, db *storage.DB, externalAddress, baseTokenContractAddress string) {
+	t.Helper()
+	_, err := storage.Exec(ctx, db, `UPDATE tokens SET base_token = $1 WHERE external_address = $2`, baseTokenContractAddress, externalAddress)
+
+	require.NoError(t, err, "failed to set base_token")
 }
 
 func helperInsertFeaturedToken(t *testing.T, ctx context.Context, db *storage.DB, externalAddress string) {

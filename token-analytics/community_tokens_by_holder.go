@@ -62,7 +62,16 @@ func (t *tokenAnalytics) GetCommunityTokensByHolder(ctx context.Context, holderE
 			launcher.external_address as launcher_external_address,
 			launcher.platform_group as launcher_platform,
 			first_swap.user_blockchain_address as launcher_blockchain_address,
-			COALESCE(holder_user.token_holdings_count, 0) as token_holdings_count
+			COALESCE(holder_user.token_holdings_count, 0) as token_holdings_count,
+			creator_token.ticker as creator_token_ticker,
+			creator_token.title as creator_token_title,
+			creator_token.description as creator_token_description,
+			creator_token.image_url as creator_token_image_url,
+			creator_token.created_at as creator_token_created_at,
+			creator_token.contract_address as creator_token_contract_address,
+			creator_token.external_address as creator_token_external_address,
+			creator_token.platform as creator_token_platform,
+			creator_token.ion_connect_address as creator_token_ion_connect_address
 		FROM user_token_positions utp
 		INNER JOIN tokens t ON t.external_address = utp.external_address
 		LEFT JOIN users holder_user ON holder_user.external_address = $1
@@ -81,6 +90,7 @@ func (t *tokenAnalytics) GetCommunityTokensByHolder(ctx context.Context, holderE
 		) first_swap ON t.platform = 'xcom'
 		LEFT JOIN user_bsc_addresses launcher_addr ON launcher_addr.bsc_address = first_swap.user_blockchain_address
 		LEFT JOIN users launcher ON launcher.id = launcher_addr.user_id
+		LEFT JOIN tokens creator_token ON creator_token.contract_address = t.base_token AND creator_token.type = 'profile'
 		WHERE utp.user_external_address = $1
 		  AND utp.amount > '0'
 		  AND t.ticker IS NOT NULL

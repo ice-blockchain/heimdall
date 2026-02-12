@@ -92,6 +92,19 @@ func (a *AuthContextXcom) Platform() string {
 	return TokenTypeXCom
 }
 
+func RequireAuth(ctx *gin.Context) (Token, *ResponseError) {
+	header := ctx.GetHeader(authHeaderName)
+	if header == "" {
+		return nil, Forbidden(errAuthRequired)
+	}
+	token, err := authValidateAuthHeader(header)
+	if err != nil {
+		return nil, Unauthorized(err)
+	}
+
+	return token, nil
+}
+
 func authGetToken(ctx *gin.Context) Token {
 	if ctx == nil {
 		return nil

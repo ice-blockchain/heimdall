@@ -73,7 +73,16 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 			launcher.avatar as launcher_avatar,
 			launcher.external_address as launcher_external_address,
 			launcher.platform_group as launcher_platform,
-			first_swap.user_blockchain_address as launcher_blockchain_address
+			first_swap.user_blockchain_address as launcher_blockchain_address,
+			creator_token.ticker as creator_token_ticker,
+			creator_token.title as creator_token_title,
+			creator_token.description as creator_token_description,
+			creator_token.image_url as creator_token_image_url,
+			creator_token.created_at as creator_token_created_at,
+			creator_token.contract_address as creator_token_contract_address,
+			creator_token.external_address as creator_token_external_address,
+			creator_token.platform as creator_token_platform,
+			creator_token.ion_connect_address as creator_token_ion_connect_address
 		FROM tokens t
 		LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
 		LEFT JOIN users creator ON creator.id = creator_addr.user_id
@@ -91,6 +100,7 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 		) first_swap ON t.platform = 'xcom'
 		LEFT JOIN user_bsc_addresses launcher_addr ON launcher_addr.bsc_address = first_swap.user_blockchain_address
 		LEFT JOIN users launcher ON launcher.id = launcher_addr.user_id
+		LEFT JOIN tokens creator_token ON creator_token.contract_address = t.base_token AND creator_token.type = 'profile'
 		WHERE t.external_address = ANY($1)
 		  AND t.ticker IS NOT NULL
 		ORDER BY t.created_at DESC
@@ -159,6 +169,15 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 				launcher.external_address as launcher_external_address,
 				launcher.platform_group as launcher_platform,
 				first_swap.user_blockchain_address as launcher_blockchain_address,
+				creator_token.ticker as creator_token_ticker,
+				creator_token.title as creator_token_title,
+				creator_token.description as creator_token_description,
+				creator_token.image_url as creator_token_image_url,
+				creator_token.created_at as creator_token_created_at,
+				creator_token.contract_address as creator_token_contract_address,
+				creator_token.external_address as creator_token_external_address,
+				creator_token.platform as creator_token_platform,
+				creator_token.ion_connect_address as creator_token_ion_connect_address,
 				GREATEST(
 					similarity(t.lookup, $` + kwParam + `),
 					word_similarity($` + kwParam + `, t.lookup)
@@ -182,6 +201,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 			) first_swap ON t.platform = 'xcom'
 			LEFT JOIN user_bsc_addresses launcher_addr ON launcher_addr.bsc_address = first_swap.user_blockchain_address
 			LEFT JOIN users launcher ON launcher.id = launcher_addr.user_id
+			LEFT JOIN tokens creator_token ON creator_token.contract_address = t.base_token AND creator_token.type = 'profile'
 			` + whereClause + `
 			ORDER BY t.lookup <-> $` + kwParam + `
 			LIMIT 250
@@ -221,7 +241,16 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 			bonding_curve_current_amount,
 			bonding_curve_goal_amount,
 			bonding_curve_current_amount_usd,
-			bonding_curve_goal_amount_usd
+			bonding_curve_goal_amount_usd,
+			creator_token_ticker,
+			creator_token_title,
+			creator_token_description,
+			creator_token_image_url,
+			creator_token_created_at,
+			creator_token_contract_address,
+			creator_token_external_address,
+			creator_token_platform,
+			creator_token_ion_connect_address
 		FROM candidates
 		ORDER BY relevance_score DESC, volume_24h DESC, created_at DESC`
 
@@ -278,6 +307,7 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 				Verified:  row.CreatorVerified,
 				Avatar:    row.CreatorAvatar,
 				Addresses: creatorAddresses,
+				Token:     buildCreatorToken(row),
 			},
 			MarketData: MarketData{
 				Ticker:               row.Ticker,
@@ -382,6 +412,7 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 				Verified:  row.CreatorVerified,
 				Avatar:    row.CreatorAvatar,
 				Addresses: creatorAddresses,
+				Token:     buildCreatorToken(row),
 			},
 			Launcher:   launcher,
 			MarketData: marketData,
@@ -437,6 +468,15 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 				launcher.external_address as launcher_external_address,
 				launcher.platform_group as launcher_platform,
 				first_swap.user_blockchain_address as launcher_blockchain_address,
+				creator_token.ticker as creator_token_ticker,
+				creator_token.title as creator_token_title,
+				creator_token.description as creator_token_description,
+				creator_token.image_url as creator_token_image_url,
+				creator_token.created_at as creator_token_created_at,
+				creator_token.contract_address as creator_token_contract_address,
+				creator_token.external_address as creator_token_external_address,
+				creator_token.platform as creator_token_platform,
+				creator_token.ion_connect_address as creator_token_ion_connect_address,
 				COALESCE(
 					(SELECT JSON_AGG(
 						JSON_BUILD_OBJECT(
@@ -488,7 +528,8 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 				LIMIT 1
 			) first_swap ON t.platform = 'xcom'
 			LEFT JOIN user_bsc_addresses launcher_addr ON launcher_addr.bsc_address = first_swap.user_blockchain_address
-			LEFT JOIN users launcher ON launcher.id = launcher_addr.user_id`
+			LEFT JOIN users launcher ON launcher.id = launcher_addr.user_id
+			LEFT JOIN tokens creator_token ON creator_token.contract_address = t.base_token AND creator_token.type = 'profile'`
 	)
 
 	var query string
@@ -520,6 +561,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 					t.bonding_curve_current_amount_usd,
 					t.bonding_curve_goal_amount_usd,
 					t.created_at,
+					t.base_token,
 					GREATEST(
 						similarity(t.lookup, $4),
 						word_similarity($4, t.lookup)

@@ -199,10 +199,20 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMapWithType(ctx context.Contex
 			COALESCE(t.bonding_curve_current_amount, '0') as bonding_curve_current_amount,
 			COALESCE(t.bonding_curve_goal_amount, '0') as bonding_curve_goal_amount,
 			COALESCE(t.bonding_curve_current_amount_usd, 0) as bonding_curve_current_amount_usd,
-			COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd
+			COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd,
+			creator_token.ticker as creator_token_ticker,
+			creator_token.title as creator_token_title,
+			creator_token.description as creator_token_description,
+			creator_token.image_url as creator_token_image_url,
+			creator_token.created_at as creator_token_created_at,
+			creator_token.contract_address as creator_token_contract_address,
+			creator_token.external_address as creator_token_external_address,
+			creator_token.platform as creator_token_platform,
+			creator_token.ion_connect_address as creator_token_ion_connect_address
 		FROM tokens t
 		LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
 		LEFT JOIN users creator ON creator.id = creator_addr.user_id
+		LEFT JOIN tokens creator_token ON creator_token.contract_address = t.base_token AND creator_token.type = 'profile'
 		WHERE t.external_address = ANY($1)
 		  AND t.ticker IS NOT NULL
 	`
@@ -285,6 +295,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMapWithType(ctx context.Contex
 				Verified:  token.CreatorVerified,
 				Avatar:    token.CreatorAvatar,
 				Addresses: creatorExternalAddresses,
+				Token:     buildCreatorToken(token),
 			},
 			MarketData: MarketData{
 				Ticker:               token.Ticker,

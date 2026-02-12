@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	stdlibtime "time"
 
 	"github.com/cockroachdb/errors"
 
@@ -19,7 +20,7 @@ func (t *tokenAnalytics) GetCommunityTokensByType(ctx context.Context, viewType 
 	case TokenTypeFeatured:
 		return t.getCommunityTokensByFeatured(ctx, limit, offset, tokenType)
 	default:
-		return nil, errors.New("unsupported token type")
+		return nil, errors.New("unsupported view type")
 	}
 }
 
@@ -56,12 +57,22 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 			COALESCE(t.bonding_curve_current_amount, '0') as bonding_curve_current_amount,
 			COALESCE(t.bonding_curve_goal_amount, '0') as bonding_curve_goal_amount,
 			COALESCE(t.bonding_curve_current_amount_usd, 0) as bonding_curve_current_amount_usd,
-			COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd`
+			COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd,
+			creator_token.ticker as creator_token_ticker,
+			creator_token.title as creator_token_title,
+			creator_token.description as creator_token_description,
+			creator_token.image_url as creator_token_image_url,
+			creator_token.created_at as creator_token_created_at,
+			creator_token.contract_address as creator_token_contract_address,
+			creator_token.external_address as creator_token_external_address,
+			creator_token.platform as creator_token_platform,
+			creator_token.ion_connect_address as creator_token_ion_connect_address`
 
 		fromJoinsClause = `FROM %s t
 	LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
 	LEFT JOIN users creator ON creator.id = creator_addr.user_id
-	LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address`
+	LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
+	LEFT JOIN tokens creator_token ON creator_token.contract_address = t.base_token AND creator_token.type = 'profile'`
 	)
 
 	if keyword != "" {
@@ -91,9 +102,10 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 					t.created_at,
 					t.ticker,
 					t.total_supply,
-					t.content_author_id,
-					t.ion_connect_address,
-					t.market_cap_usd,
+				t.content_author_id,
+				t.ion_connect_address,
+				t.base_token,
+				t.market_cap_usd,
 					t.price_usd,
 					t.holders_count,
 					t.bonding_curve_current_amount,
@@ -181,6 +193,7 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 				Verified:  row.CreatorVerified,
 				Avatar:    row.CreatorAvatar,
 				Addresses: creatorAddresses,
+				Token:     buildCreatorToken(row),
 			},
 			MarketData: MarketData{
 				Ticker:               row.Ticker,
@@ -226,12 +239,22 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 			COALESCE(t.bonding_curve_current_amount, '0') as bonding_curve_current_amount,
 			COALESCE(t.bonding_curve_goal_amount, '0') as bonding_curve_goal_amount,
 			COALESCE(t.bonding_curve_current_amount_usd, 0) as bonding_curve_current_amount_usd,
-			COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd
+			COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd,
+			creator_token.ticker as creator_token_ticker,
+			creator_token.title as creator_token_title,
+			creator_token.description as creator_token_description,
+			creator_token.image_url as creator_token_image_url,
+			creator_token.created_at as creator_token_created_at,
+			creator_token.contract_address as creator_token_contract_address,
+			creator_token.external_address as creator_token_external_address,
+			creator_token.platform as creator_token_platform,
+			creator_token.ion_connect_address as creator_token_ion_connect_address
 	FROM tokens t
 	INNER JOIN tokens_featured tf ON tf.external_address = t.external_address
 	LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
 	LEFT JOIN users creator ON creator.id = creator_addr.user_id
 	LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
+	LEFT JOIN tokens creator_token ON creator_token.contract_address = t.base_token AND creator_token.type = 'profile'
 	WHERE t.ticker IS NOT NULL
 	`
 
@@ -294,6 +317,7 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 				Verified:  row.CreatorVerified,
 				Avatar:    row.CreatorAvatar,
 				Addresses: creatorAddresses,
+				Token:     buildCreatorToken(row),
 			},
 			MarketData: MarketData{
 				Ticker:               row.Ticker,
@@ -309,4 +333,32 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 	}
 
 	return tokens, nil
+}
+
+func (t *tokenAnalytics) GetCommunityTokensByRewardsDistribution(ctx context.Context, referenceDate stdlibtime.Time, limit, offset uint64) ([]*CommunityToken, error) {
+	_ = referenceDate.Truncate(stdlibtime.Hour)
+	if limit == 0 {
+		limit = 100
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	tokenData, err := t.processedDataDB.ZRevRangeWithScores(ctx, globalTrendingSetKey, int64(offset), int64(offset+limit-1)).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get trending tokens from Redis: %w", err)
+	}
+	if len(tokenData) == 0 {
+		return make([]*CommunityToken, 0), nil
+	}
+
+	tokenAddresses := make([]string, len(tokenData))
+	scoresMap := make(map[string]float64, len(tokenData))
+	for i, z := range tokenData {
+		addr := z.Member.(string)
+		tokenAddresses[i] = addr
+		scoresMap[addr] = z.Score
+	}
+
+	return t.getTokenDetailsWithScoresMapWithType(ctx, sessionTypeTrending, "", tokenAddresses, scoresMap)
 }
