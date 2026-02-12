@@ -65,8 +65,22 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/server.ResponseErrorBody"
                         }
+                    },
+                    "403": {
+                        "description": "if auth is missing",
+                        "schema": {
+                            "$ref": "#/definitions/server.ResponseErrorBody"
+                        }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "Nostr": []
+                    },
+                    {
+                        "XCom": []
+                    }
+                ]
             }
         },
         "/v1/community-tokens": {
