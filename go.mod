@@ -7,6 +7,7 @@ replace (
 	github.com/olekukonko/tablewriter => github.com/olekukonko/tablewriter v0.0.5
 	github.com/quic-go/quic-go => github.com/quic-go/quic-go v0.58.1
 	github.com/quic-go/webtransport-go => github.com/quic-go/webtransport-go v0.9.0
+	github.com/xssnick/tonutils-storage => github.com/ice-blockchain/tonutils-storage v0.0.0-20250814151456-e141b5cb6e0b
 )
 
 require (

@@ -553,6 +553,8 @@ github.com/ice-blockchain/go/src v0.0.0-20251117100638-ebce142e0ce4 h1:MuIvX5Cpk
 github.com/ice-blockchain/go/src v0.0.0-20251117100638-ebce142e0ce4/go.mod h1:pVzkmaIwkLaJ5cKPHPtuKyxaXiTsa/V7kbbgLmsr4Hw=
 github.com/ice-blockchain/subzero v1.520.0 h1:iyDFZdl6BtE9YUe/lDA1YsgCo+tnUPVjUhCOD/03CVs=
 github.com/ice-blockchain/subzero v1.520.0/go.mod h1:+lUzB8hJNPaFWF4YK1jOEHcWE5MMemzj7T568VvKOSY=
+github.com/ice-blockchain/tonutils-storage v0.0.0-20250814151456-e141b5cb6e0b h1:BwC1wpUAZSAW6KFNT2tVFVgK0t57S6BK3acJkNZM0jI=
+github.com/ice-blockchain/tonutils-storage v0.0.0-20250814151456-e141b5cb6e0b/go.mod h1:z0wjEdddZDx6b1jId4cX/ltddpBNPnYhnkqwqQM2+tk=
 github.com/ice-blockchain/wintr v1.173.0 h1:ZWTO6vEb2gNDLcrXJA5jHzVpGS9pGSFJ+40sWo1RBkY=
 github.com/ice-blockchain/wintr v1.173.0/go.mod h1:8jd2yER0TrzI77wS/FOM0Y1DpufVrhwQPh40vxjBtdI=
 github.com/icholy/digest v1.1.0 h1:HfGg9Irj7i+IX1o1QAmPfIBNu/Q5A5Tu3n/MED9k9H4=
@@ -1014,8 +1016,6 @@ github.com/xssnick/raptorq v1.3.0 h1:3GoaySKMg/i8rbjhIuqjxpTTO2l3Gs2/Gh7k3GAjvGo
 github.com/xssnick/raptorq v1.3.0/go.mod h1:kgEVVsZv2hP+IeV7C7985KIFsDdvYq2ARW234SBA9Q4=
 github.com/xssnick/tonutils-go v1.15.5 h1:yAcHnDaY5QW0aIQE47lT0PuDhhHYE+N+NyZssdPKR0s=
 github.com/xssnick/tonutils-go v1.15.5/go.mod h1:3/B8mS5IWLTd1xbGbFbzRem55oz/Q86HG884bVsTqZ8=
-github.com/xssnick/tonutils-storage v1.3.2 h1:90R21MmYaTGqltYDDGrX25wVSas09GsnX3w459m//qA=
-github.com/xssnick/tonutils-storage v1.3.2/go.mod h1:pYcTqhuUcZ2UhpoEhE9cmQZhY+I7Yklzm1YzYqLYV10=
 github.com/xyproto/randomstring v1.0.5 h1:YtlWPoRdgMu3NZtP45drfy1GKoojuR7hmRcnhZqKjWU=
 github.com/xyproto/randomstring v1.0.5/go.mod h1:rgmS5DeNXLivK7YprL0pY+lTuhNQW3iGxZ18UQApw/E=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
