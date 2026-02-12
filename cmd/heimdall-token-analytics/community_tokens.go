@@ -124,7 +124,7 @@ type (
 		*ta.StartTokenParams
 		CreatorTokenParams *ta.StartTokenParams `json:"creatorTokenParams,omitempty"`
 	}
-	TokenAnalyticsRequest struct {
+	GlobalTokenStatisticsRequest struct {
 		AnalyticsType string `uri:"analyticsType" swaggerignore:"true"`
 		Interval      string `form:"interval" swaggerignore:"true"`
 	}
@@ -1121,7 +1121,7 @@ func (s *service) latestTradesStream(ctx context.Context, externalAddress string
 //	@Success		200				{object}	GlobalTokenStatistics	"Analytics data"
 //	@Failure		400				{object}	server.ResponseErrorBody
 //	@Router			/v1/community-token-analytics/{analyticsType} [get]
-func (s *service) GetCommunityTokenAnalytics(_ context.Context, req *server.Request[TokenAnalyticsRequest]) (*server.Response[GlobalTokenStatistics], error) {
+func (s *service) GetCommunityTokenAnalytics(_ context.Context, req *server.Request[GlobalTokenStatisticsRequest]) (*server.Response[GlobalTokenStatistics], error) {
 	switch req.Data.AnalyticsType {
 	case analyticsTypeGlobal:
 	default:
