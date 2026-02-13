@@ -12,7 +12,6 @@ import (
 )
 
 func TestValidateTxFees(t *testing.T) {
-	t.Skip("TODO: reenable when FE ready")
 	a := accounts{
 		bscFees: new(atomic.Pointer[Fee]),
 		cfg:     &config{TransactionValidationFeeSlippage: 0.05},

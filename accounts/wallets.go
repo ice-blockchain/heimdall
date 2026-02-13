@@ -892,9 +892,6 @@ func (a *accounts) BroadcastTransactionFromWallet(ctx context.Context, walletId 
 }
 
 func (a *accounts) validateTxGas(txPayload *TransactionPayload) error {
-	if true { // TODO: remove when FE is ready
-		return nil
-	}
 	if txPayload.FeeSponsorId == "" {
 		return nil
 	}
