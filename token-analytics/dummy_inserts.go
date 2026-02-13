@@ -1354,7 +1354,9 @@ func buildFatAddressV2(tokens []*fatAddressToken, creatorAddr, affiliateAddr com
 		}
 
 		tokenMask := uint32(0)
-
+		if common.HexToAddress(t.PricingModel) != common.HexToAddress("0x0") {
+			tokenMask |= 0x01
+		}
 		if t.StartPrice != nil && t.EndPrice != nil {
 			tokenMask |= 0x02
 		}
