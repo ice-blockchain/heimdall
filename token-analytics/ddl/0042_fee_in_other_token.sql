@@ -117,3 +117,49 @@ BEGIN
     RAISE DEBUG 'FeeTransfer processed: token=%, recipient=%', v_external_address, v_recipient;
 END;
 $$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION process_erc20_transfer(
+    p_contract_address TEXT,
+    p_topics TEXT[],
+    p_data TEXT,
+    p_block_timestamp TIMESTAMP
+) RETURNS VOID AS $$
+DECLARE
+    v_amount NUMERIC;
+    v_recipient TEXT;
+    v_external_address TEXT;
+    v_fee_type TEXT;
+BEGIN
+    IF array_length(p_topics, 1) < 3 THEN
+        RETURN;
+    END IF;
+    v_recipient := LOWER('0x' || substring(p_topics[3] from 27 for 40));
+    v_amount := decode_uint256(p_data, 0);
+    IF v_recipient = '0x0000000000000000000000000000000000000000' THEN
+        v_recipient := '0x0000000000000000000000000000000000696f6e';
+    END IF;
+    IF v_recipient != '0x0000000000000000000000000000000000696f6e' THEN -- handle only burned for now to increase burned fee
+        RETURN;
+    END IF;
+    SELECT
+        t.external_address
+    INTO v_external_address
+    FROM tokens t
+    WHERE t.contract_address = p_contract_address;
+    IF v_external_address IS NULL THEN
+        RAISE WARNING 'Token with contract_address % not found, skipping fee erc20 processing', p_contract_address;
+        RETURN;
+    END IF;
+    v_fee_type := 'burn';
+
+    INSERT INTO fees_transferred (updated_at, token_external_address, swapped_token, recipient_bsc_address, fee_type, amount)
+    VALUES (p_block_timestamp, v_external_address,  v_external_address, v_recipient, v_fee_type, v_amount)
+    ON CONFLICT (token_external_address, recipient_bsc_address) DO UPDATE
+        SET amount = fees_transferred.amount + v_amount,
+            swapped_token = v_external_address,
+            updated_at = excluded.updated_at;
+
+    RAISE DEBUG 'Transfer (erc20) processed: token=%, recipient=%, amount=%', v_external_address, v_recipient, v_amount;
+END;
+$$ LANGUAGE plpgsql;

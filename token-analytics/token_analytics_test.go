@@ -914,13 +914,13 @@ func TestFeeTransfer(t *testing.T) {
 	db, release := helperCreateDB(t)
 	defer release()
 	ctx := t.Context()
-	ionAddress := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+	baseTokenAddress := "0x2c73996babf1a06c2c057177353293f7ca0907c8" // ion
 	ionPriceUSD := 0.003
 
 	_, err := storage.Exec(ctx, db, `
 		INSERT INTO base_token_prices (token_address, token_symbol, price_usd, updated_at)
 		VALUES ($1, 'ION', $2, NOW())
-	`, ionAddress, ionPriceUSD)
+	`, baseTokenAddress, ionPriceUSD)
 	require.NoError(t, err)
 
 	testUserAddr := "0x1234567890123456789012345678901234567890"
@@ -947,10 +947,10 @@ func TestFeeTransfer(t *testing.T) {
 	_, err = storage.Exec(ctx, db, `
 		INSERT INTO tokens (
 			contract_address, external_address, title, ticker, base_token, pair_id,
-			total_supply, type, platform, created_at, updated_at, content_author_id
+			total_supply, type, platform, created_at, updated_at, content_author_id, fee_in_other_token
 		)
-		VALUES ($1, $2, 'Test Token', 'TEST', $3, $4, $5, 'profile', 'ionconnect', NOW(), NOW(), LOWER($6))
-	`, testTokenAddr, testTokenExtAddr, ionAddress, testPairId, totalSupply, testUserAddr)
+		VALUES ($1, $2, 'Test Token', 'TEST', $3, $4, $5, 'profile', 'ionconnect', NOW(), NOW(), LOWER($6), true)
+	`, testTokenAddr, testTokenExtAddr, baseTokenAddress, testPairId, totalSupply, testUserAddr)
 	require.NoError(t, err)
 
 	type tokRes struct {
@@ -1066,6 +1066,62 @@ func TestFeeTransfer(t *testing.T) {
 		require.Equal(t, testUserAddr, res.RecipientBscAddress)
 		require.Equal(t, feeDestinationCreator, res.Type)
 		require.Equal(t, float64(20000000000000000000), res.Amount)
+	})
+	t.Run("fees in base token", func(t *testing.T) {
+		testTokenWithBaseAddr := "0xdeadbeef00000000000000000000000000000002"
+		testPairIdWithBase := "0x9876543210abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+		// fee_in_other_token = false - content token, fees are in base
+		_, err = storage.Exec(ctx, db, `
+		INSERT INTO tokens (
+			contract_address, external_address, title, ticker, base_token, pair_id,
+			total_supply, type, platform, created_at, updated_at, content_author_id, fee_in_other_token
+		)
+		VALUES ($1, $2, 'Test Token', 'TEST', $3, $4, $5, 'profile', 'ionconnect', NOW(), NOW(), LOWER($6), false)
+	`, testTokenWithBaseAddr, testTokenWithBaseAddr, baseTokenAddress, testPairIdWithBase, totalSupply, testUserAddr)
+		require.NoError(t, err)
+		baseExternalAddress := testTokenExtAddr + "_base"
+		_, err = storage.Exec(ctx, db, `
+		INSERT INTO tokens (
+			contract_address, external_address, title, ticker, base_token, pair_id,
+			total_supply, type, platform, created_at, updated_at, content_author_id, fee_in_other_token
+		)
+		VALUES ($1, $2, 'Test Token', 'TEST', $3, $4, $5, 'profile', 'ionconnect', NOW(), NOW(), LOWER($6), true)
+	`, baseTokenAddress, baseExternalAddress, baseTokenAddress, testPairIdWithBase, totalSupply, testUserAddr)
+		require.NoError(t, err)
+		blockTimestamp := "2024-01-01 12:00:00"
+		topics := []string{
+			"0xbda77c1230f2354807b9e8307932c78ac43f6b38ea2e10d9886aa30c958300f5", // FeeTransfer
+			testPairIdWithBase, // PairId
+			"0x000000000000000000000000" + testUserAddr[2:], // to (creator)
+		}
+		data := "0x" +
+			"0000000000000000000000000000000000000000000000008ac7230489e80000" // 10000000000000000000
+
+		_, err := storage.Exec(ctx, db, `
+			SELECT process_fee_transfer($2, $3, $1);
+		`,
+			blockTimestamp,
+			topics,
+			data,
+		)
+		require.NoError(t, err)
+
+		type feeResult struct {
+			TokenExternalAddress string  `db:"token_external_address"`
+			RecipientBscAddress  string  `db:"recipient_bsc_address"`
+			Type                 string  `db:"fee_type"`
+			Amount               float64 `db:"amount"`
+		}
+		res, err := storage.Get[feeResult](ctx, db, `
+			SELECT token_external_address, recipient_bsc_address, fee_type, amount
+			FROM fees_transferred
+			WHERE token_external_address = $1 AND recipient_bsc_address = $2
+		`, baseExternalAddress, testUserAddr)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		require.Equal(t, testUserAddr, res.RecipientBscAddress)
+		require.Equal(t, feeDestinationCreator, res.Type)
+		require.Equal(t, float64(10000000000000000000), res.Amount)
 	})
 }
 
