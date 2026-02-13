@@ -207,6 +207,7 @@ CREATE TABLE IF NOT EXISTS tokens (
     affiliate_bsc_address           TEXT,
     fee_sponsor                     TEXT,
     ion_connect_address             TEXT, -- ION Connect address for xcom tokens (kind 31175 event address)
+    fee_in_other_token              BOOLEAN DEFAULT FALSE,
     PRIMARY KEY (contract_address)
 );
 

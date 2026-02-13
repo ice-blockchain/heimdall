@@ -33,6 +33,7 @@ $$ LANGUAGE plpgsql;
 CREATE TABLE IF NOT EXISTS fees_transferred (
     updated_at             TIMESTAMP NOT NULL,
     token_external_address TEXT NOT NULL,
+    swapped_token          TEXT NOT NULL,
     recipient_bsc_address  TEXT NOT NULL,
     fee_type               TEXT NOT NULL,
     amount                 uint256 NOT NULL,
