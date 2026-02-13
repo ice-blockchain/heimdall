@@ -5,6 +5,8 @@ package accounts
 import (
 	"context"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -66,6 +68,7 @@ func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *App
 		appsRuntimeConfig:          runtimeConfig,
 		tokenAnalyticsRepo:         tokenAnalyticsRepo,
 		indexer:                    indexer,
+		bscFees:                    new(atomic.Pointer[Fee]),
 	}
 	cl.RegisterPostProxyCallback(completeLoginUrl, acc.upsertUserFromLogin)
 	cl.RegisterPostProxyCallback(delegatedLoginUrl, acc.upsertUserFromLogin)
@@ -80,6 +83,12 @@ func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *App
 		defaultCoins[dc.SymbolGroup] = append(defaultCoins[dc.SymbolGroup], dc)
 	}
 	acc.deviceIdentificationClient = deviceidentification.New(applicationYamlKey, acc.masterKeyExists)
+	startCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	if err := acc.updateBscFees(startCtx); err != nil {
+		log.Panic(errors.Wrap(err, "failed to update bsc fees"))
+	}
+	go acc.startBscFeeSyncer(ctx)
+	cancel()
 
 	return &acc
 }

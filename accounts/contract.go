@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"regexp"
 	"sync"
+	"sync/atomic"
 	stdlibtime "time"
 
 	"github.com/cockroachdb/errors"
@@ -90,12 +91,14 @@ type (
 		CreateWalletForWalletView(ctx context.Context, userID, network, walletViewID string) (*Wallet, error)
 		FetchMainWallet(ctx context.Context, masterKey string) (Wallet, error)
 		SetProviderForUnsupportedNFTs(nft indexer.Indexer)
+		BroadcastTransactionFromWallet(ctx context.Context, walletId string, transactionData *TransactionPayload) (*TransactionResponse, error)
 	}
 	Coins interface {
 		GetCoinsOfSymbolGroup(ctx context.Context, symbolGroups []string) ([]*coins.Coin, error)
 		GetNativeCoinForNetwork(ctx context.Context, network string) (*coins.Coin, error)
 		GetFees(network string) *coins.Fee
 		ImportNFTs(ctx context.Context, network string, nft []coins.WalletNFT) ([]*NFT, error)
+		GetAllNetworks() []*coins.Network
 		ImportTokenizedCommunitiesCoin(ctx context.Context, coin coins.TokenAnalyticsToken) (*coins.Coin, error)
 	}
 	Relays interface {
@@ -190,6 +193,9 @@ type (
 	CompletedRegistration = dfns.CompletedRegistration
 	UserAssignedRelay     = relaymanagement.UserAssignedRelay
 	Assets                = dfns.Assets
+	TransactionPayload    = dfns.TransactionPayload
+	TransactionResponse   = dfns.TransactionResponse
+	Fee                   = dfns.Fee
 )
 
 const (
@@ -247,6 +253,7 @@ var (
 	ErrRegistrationsDisabled                 = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "registrations disabled"}
 	ErrEmailNotAllowedForEarlyAccess         = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "email not allowed for early access"}
 	ErrEmailUsed                             = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "email used"}
+	ErrValidationFailed                      = errors.New("validation failed")
 	verifiedBadgeImage1024X1024Tag           = nostr.Tag{"image", "https://api.iconify.design/bi:patch-check.svg?width=512&height=512", "512x512"}
 	verifiedBadgeThumbnail256X256Tag         = nostr.Tag{"thumb", "https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/icons/patch-check.svg", "16x16"}
 	identifiedDeviceBadgeThumbnail256X256Tag = nostr.Tag{"thumb", "https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/icons/shield-check.svg", "16x16"}
@@ -289,6 +296,7 @@ type (
 		indexer                    indexer.Indexer
 		tokenAnalyticsRepo         TokenAnalyticsUserRepository
 		keypairRelayGroups         []string
+		bscFees                    *atomic.Pointer[Fee]
 	}
 	verifiedUsersSync struct {
 		db                 *storage.DB
@@ -334,13 +342,14 @@ type (
 		Code            string
 	}
 	config struct {
-		EmailExpiration          stdlibtime.Duration `yaml:"emailExpiration" mapstructure:"emailExpiration"`
-		SMSExpiration            stdlibtime.Duration `yaml:"smsExpiration" mapstructure:"smsExpiration"`
-		UserSignatureExpiration  stdlibtime.Duration `yaml:"userSignatureExpiration" mapstructure:"userSignatureExpiration"`
-		Max2FACount              int                 `yaml:"max2FACount" mapstructure:"max2FACount"`
-		DefaultCoinsInWalletView []string            `yaml:"defaultCoinsInWalletView" mapstructure:"defaultCoinsInWalletView"`
-		IdentityKeypairs         []string            `yaml:"identityKeypairs" mapstructure:"identityKeypairs"`
-		CommunityTokenAPIKey     string              `yaml:"communityTokenAPIKey" mapstructure:"communityTokenAPIKey"`
+		EmailExpiration                  stdlibtime.Duration `yaml:"emailExpiration" mapstructure:"emailExpiration"`
+		SMSExpiration                    stdlibtime.Duration `yaml:"smsExpiration" mapstructure:"smsExpiration"`
+		UserSignatureExpiration          stdlibtime.Duration `yaml:"userSignatureExpiration" mapstructure:"userSignatureExpiration"`
+		Max2FACount                      int                 `yaml:"max2FACount" mapstructure:"max2FACount"`
+		DefaultCoinsInWalletView         []string            `yaml:"defaultCoinsInWalletView" mapstructure:"defaultCoinsInWalletView"`
+		IdentityKeypairs                 []string            `yaml:"identityKeypairs" mapstructure:"identityKeypairs"`
+		CommunityTokenAPIKey             string              `yaml:"communityTokenAPIKey" mapstructure:"communityTokenAPIKey"`
+		TransactionValidationFeeSlippage float64             `yaml:"transactionValidationFeeSlippage"`
 	}
 
 	AppsRuntimeConfig struct {

@@ -6,12 +6,14 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
+	"github.com/ice-blockchain/wintr/log"
 )
 
 func (a *accounts) ProxyDelegatedRelyingParty(ctx context.Context, rw http.ResponseWriter, r *http.Request) {
@@ -87,4 +89,66 @@ func (a *accounts) SecurePaymentConfirmation(ctx context.Context, userID, wallet
 	_, network, _ := dfns.ExtractWallet(*wallet)
 
 	return a.delegatedRPClient.SecurePaymentConfirmation(ctx, userID, strings.ToLower(network), *wallet, body)
+}
+
+func (a *accounts) startBscFeeSyncer(ctx context.Context) {
+	ticks := make(chan struct{}, 1)
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	go func() {
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+		defer close(ticks)
+
+		for {
+			select {
+			case <-ticker.C:
+				select {
+				case ticks <- struct{}{}:
+				default:
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	for range ticks {
+		fetchFeesCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		err := a.updateBscFees(fetchFeesCtx)
+		if err != nil {
+			log.Error(errors.Wrapf(err, "failed to update BSC fees in token-analytics"))
+		}
+		cancel()
+	}
+}
+
+func (a *accounts) updateBscFees(ctx context.Context) error {
+	network := dfns.BscWalletNetworkMainNet
+	for _, n := range a.coinsRepo.GetAllNetworks() {
+		if n.IsTestnet {
+			network = dfns.BscWalletNetworkTestNet
+			break
+		}
+	}
+	fees, err := a.delegatedRPClient.GetNetworkFees(ctx, network)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get BSC fees from 3rd party")
+	}
+	var fee *Fee
+	switch {
+	case fees.Fast != nil:
+		fee = fees.Fast
+	case fees.Standard != nil:
+		fee = fees.Standard
+	case fees.Slow != nil:
+		fee = fees.Slow
+	default:
+		return errors.New("failed to get BSC fees from 3rd party: all empty")
+	}
+	a.bscFees.Store(fee)
+
+	return nil
 }

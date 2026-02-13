@@ -4,8 +4,10 @@ package dfns
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -133,4 +135,124 @@ func (c *dfnsClient) GetWalletHistory(ctx context.Context, walletID, paginationT
 	}
 
 	return resp, nil
+}
+
+func (c *dfnsClient) BroadcastTransactionFromWallet(ctx context.Context, walletId string, transactionData *TransactionPayload) (*TransactionResponse, error) {
+	header := http.Header{}
+	header.Add(authDfnsHeader, dfnsAuthHeader(ctx))
+	header.Add(userActionDfnsHeader, dfnsUserActionHeader(ctx))
+	resp, err := dfnsCall[TransactionPayload, TransactionResponse](ctx, c, transactionData, "POST", fmt.Sprintf("/wallets/%v/transactions", walletId), header)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to send transaction to wallet %v", walletId)
+	}
+
+	return resp, nil
+}
+
+func (t *TransactionPayload) MarshalJSON() ([]byte, error) {
+	if t == nil {
+		return []byte("null"), nil
+	}
+	if t.rawPayload != nil {
+		return t.rawPayload, nil
+	}
+	values := map[string]any{}
+	if t.Payload != nil {
+		values = t.Payload
+	}
+	rPayload := reflect.TypeOf(t).Elem()
+	rPayloadVal := reflect.Indirect(reflect.ValueOf(t))
+	for i := range rPayload.NumField() {
+		field := rPayload.Field(i)
+		if jsonTag := field.Tag.Get("json"); jsonTag != "" && jsonTag != "-" {
+			var opt string
+			jsonTag, opt, _ = strings.Cut(jsonTag, ",")
+			val := rPayloadVal.FieldByName(field.Name)
+			if opt == "omitempty" && isEmptyValue(val) {
+				continue
+			}
+			values[jsonTag] = val.Interface()
+		}
+	}
+
+	return json.Marshal(values)
+}
+
+func isEmptyValue(value reflect.Value) bool {
+	switch value.Kind() {
+	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
+		return value.Len() == 0
+	case reflect.Bool:
+		return !value.Bool()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return value.Int() == 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return value.Uint() == 0
+	case reflect.Float32, reflect.Float64:
+		return value.Float() == 0
+	case reflect.Interface, reflect.Ptr:
+		return value.IsNil()
+	case reflect.Struct:
+		return value.IsZero()
+	case reflect.Invalid, reflect.Complex64, reflect.Complex128, reflect.Chan, reflect.Func, reflect.UnsafePointer:
+		return false
+	default:
+		return value.IsZero()
+	}
+}
+
+func (t *TransactionPayload) UnmarshalJSON(b []byte) error {
+	data := string(b)
+	if data == "null" || data == `""` || data == "" {
+		return nil
+	}
+	var m map[string]any
+	err := json.Unmarshal(b, &m)
+	if err != nil {
+		return err
+	}
+	*t = TransactionPayload{
+		Payload: m,
+	}
+	if ops, ok := m["userOperations"]; ok {
+		t.UserOperations, ok = ops.([]UserOperation)
+		if !ok {
+			uOps := ops.([]any)
+			for _, op := range uOps {
+				mOp := op.(map[string]any)
+				uOp := UserOperation{}
+				if to, ok := mOp["to"]; ok {
+					uOp.To = to.(string)
+				}
+				if value, ok := mOp["value"]; ok {
+					uOp.Value = value.(string)
+				}
+				if data, ok := mOp["data"]; ok {
+					uOp.Data = data.(string)
+				}
+				t.UserOperations = append(t.UserOperations, uOp)
+			}
+		}
+	}
+	if feeSponsor, ok := m["feeSponsorId"]; ok {
+		t.FeeSponsorId = feeSponsor.(string)
+	}
+	if maxFeePerGas, ok := m["maxFeePerGas"]; ok {
+		fee := (maxFeePerGas.(string))
+		t.MaxFeePerGas = &fee
+	}
+	if maxPriorityFeePerGas, ok := m["maxPriorityFeePerGas"]; ok {
+		fee := (maxPriorityFeePerGas.(string))
+		t.MaxPriorityFeePerGas = &fee
+	}
+	t.rawPayload = b
+	return nil
+}
+
+func (c *dfnsClient) GetNetworkFees(ctx context.Context, network string) (*FeeWithPriority, error) {
+	type feeParam struct {
+		Network string `form:"network"`
+	}
+	fees, err := dfnsCall[feeParam, FeeWithPriority](ctx, c, &feeParam{Network: network}, "GET", "/networks/fees", http.Header{}, []int{http.StatusBadRequest})
+	return fees, err
 }

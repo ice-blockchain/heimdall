@@ -290,7 +290,7 @@ func tokenSwapped(signature, data, contractAddress, swapperTopic, pairIdTopic, t
 		}
 
 		txInput, functionSelector, err = findWrappedSwap(txInput, functionSelector)
-		if err != nil && errors.Is(err, errNotFound) {
+		if err != nil && errors.Is(err, ErrNotFound) {
 			// No swap selector found in handleOps
 			log.Debug(fmt.Sprintf("Token swapped: swapper=%v, pair=%v, direction=%v (no swap selector found in custom handleOps)",
 				tokenSwappedEvent.Swapper.Hex(), tokenSwappedEvent.Pair.Hex(), tokenSwappedEvent.Direction))
@@ -299,7 +299,7 @@ func tokenSwapped(signature, data, contractAddress, swapperTopic, pairIdTopic, t
 	case executeSelector:
 		var err error
 		txInput, functionSelector, err = findWrappedSwap(txInput, functionSelector)
-		if err != nil && errors.Is(err, errNotFound) {
+		if err != nil && errors.Is(err, ErrNotFound) {
 			// No swap selector found in handleOps
 			log.Debug(fmt.Sprintf("Token swapped: swapper=%v, pair=%v, direction=%v (no swap selector found in custom handleOps)",
 				tokenSwappedEvent.Swapper.Hex(), tokenSwappedEvent.Pair.Hex(), tokenSwappedEvent.Direction))
@@ -307,10 +307,26 @@ func tokenSwapped(signature, data, contractAddress, swapperTopic, pairIdTopic, t
 		}
 	}
 
+	swapParams, err := DecodeSwapFunctionParams(functionSelector, txInput)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			log.Debug(fmt.Sprintf("Token swapped: swapper=%v, pair=%v, direction=%v (no tx input params - not a swap function, selector=%s)",
+				tokenSwappedEvent.Swapper.Hex(), tokenSwappedEvent.Pair.Hex(), tokenSwappedEvent.Direction, functionSelector))
+			return &tokenSwappedEvent, nil
+		}
+		return nil, errors.Wrapf(err, "failed to parse swap function parameters")
+	}
+	tokenSwappedEvent.Params = swapParams
+	log.Debug(fmt.Sprintf("Token swapped: swapper=%v, pair=%v, direction=%v",
+		tokenSwappedEvent.Swapper.Hex(), tokenSwappedEvent.Pair.Hex(),
+		tokenSwappedEvent.Direction))
+
+	return &tokenSwappedEvent, nil
+}
+
+func DecodeSwapFunctionParams(functionSelector, txInput string) (map[string]any, error) {
 	if functionSelector != swap4ParamSelector && functionSelector != swap5ParamSelector {
-		log.Debug(fmt.Sprintf("Token swapped: swapper=%v, pair=%v, direction=%v (no tx input params - not a swap function, selector=%s)",
-			tokenSwappedEvent.Swapper.Hex(), tokenSwappedEvent.Pair.Hex(), tokenSwappedEvent.Direction, functionSelector))
-		return &tokenSwappedEvent, nil
+		return nil, ErrNotFound
 	}
 
 	// Decode swap function parameters based on the selector
@@ -346,12 +362,7 @@ func tokenSwapped(signature, data, contractAddress, swapperTopic, pairIdTopic, t
 		return nil, errors.Errorf("unexpected function selector: %s", functionSelector)
 	}
 
-	tokenSwappedEvent.Params = swapParams
-	log.Debug(fmt.Sprintf("Token swapped: swapper=%v, pair=%v, direction=%v",
-		tokenSwappedEvent.Swapper.Hex(), tokenSwappedEvent.Pair.Hex(),
-		tokenSwappedEvent.Direction))
-
-	return &tokenSwappedEvent, nil
+	return swapParams, nil
 }
 
 func findWrappedSwap(txInput string, functionSelector string) (string, string, error) {
@@ -370,7 +381,7 @@ func findWrappedSwap(txInput string, functionSelector string) (string, string, e
 		functionSelector = swap5ParamSelector
 		log.Debug(fmt.Sprintf("Extracted 5-param swap from custom handleOps at position %d, new length: %d", swap5Pos, len(txInput)))
 	} else {
-		return "", "", errNotFound
+		return "", "", ErrNotFound
 	}
 	return txInput, functionSelector, nil
 }

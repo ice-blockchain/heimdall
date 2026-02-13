@@ -248,7 +248,18 @@ type (
 		WalletID      string `uri:"walletId"`
 		Authorization string `header:"Authorization" swaggerignore:"true"`
 	}
-	WalletAssets          = accounts.Assets
+	WalletAssets = accounts.Assets
+
+	TransactionPayload struct {
+		accounts.TransactionPayload
+		WalletID      string `uri:"walletId"`
+		Authorization string `header:"Authorization" swaggerignore:"true"`
+		UserAction    string `header:"X-Useraction" required:"true" swaggerignore:"true"`
+		// To trigger json unmarshaller on body
+		_ string `json:"bogus" required:"false" swaggerignore:"true"`
+	}
+	TransactionResponse = accounts.TransactionResponse
+
 	GetContentCreatorsReq struct {
 		Authorization        string   `header:"Authorization" swaggerignore:"true"`
 		Limit                uint64   `form:"limit" required:"true" swaggerignore:"true"`

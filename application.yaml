@@ -69,6 +69,7 @@ cmd/heimdall-token-analytics:
     certPath: cmd/heimdall-identity-io/.testdata/localhost.crt
     keyPath: cmd/heimdall-identity-io/.testdata/localhost.key
 accounts:
+  transactionValidationFeeSlippage: 0.05
   delegated_relying_party:
     auth:
       issuer: auth.dfns.ninja

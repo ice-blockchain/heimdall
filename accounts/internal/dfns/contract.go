@@ -49,6 +49,8 @@ type (
 		ListNFTs(ctx context.Context, walletID string) (*NFTs, error)
 		GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint64) (*WalletHistory, error)
 		SecurePaymentConfirmation(ctx context.Context, userID, network string, wallet Wallet, body map[string]string) (tmplData any, err error)
+		BroadcastTransactionFromWallet(ctx context.Context, walletId string, transactionData *TransactionPayload) (*TransactionResponse, error)
+		GetNetworkFees(ctx context.Context, network string) (*FeeWithPriority, error)
 	}
 	RefreshAuth interface {
 		AuthClient
@@ -109,6 +111,34 @@ type (
 	}
 
 	WalletHistoryItem = indexer.WalletHistoryItem
+
+	TransactionPayload struct {
+		// Used for tc
+		UserOperations       []UserOperation `json:"userOperations"`
+		FeeSponsorId         string          `json:"feeSponsorId"`
+		MaxFeePerGas         *string         `json:"maxFeePerGas,omitempty"`
+		MaxPriorityFeePerGas *string         `json:"maxPriorityFeePerGas,omitempty"`
+		// used for regular transactions, rest of the fields, ie data, to, etc
+		Payload map[string]any `json:"-"`
+		// Avoid re-marshalling to 100% match signature
+		rawPayload []byte `json:"-"`
+	}
+	UserOperation struct {
+		To    string `json:"to"`
+		Value string `json:"value,omitempty"`
+		Data  string `json:"data"`
+	}
+	TransactionResponse = map[string]any
+
+	FeeWithPriority struct {
+		Standard *Fee `json:"standard"`
+		Slow     *Fee `json:"slow"`
+		Fast     *Fee `json:"fast"`
+	}
+	Fee struct {
+		MaxFeePerGas         string `json:"maxFeePerGas"`
+		MaxPriorityFeePerGas string `json:"maxPriorityFeePerGas"`
+	}
 )
 
 const (
