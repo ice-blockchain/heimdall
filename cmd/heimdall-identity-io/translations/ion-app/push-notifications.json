@@ -1,6 +1,6 @@
 {
   "en": {
-    "_version": 9,
+    "_version": 10,
     "reply": {
       "title": "Online+",
       "body": "\uD83D\uDCAC @{{username}} replied to your post"
@@ -151,35 +151,43 @@
     },
     "yourCreatorTokenIsLive": {
       "title": "\uD83D\uDE80 Creator Token Is Live",
-      "body": "Your creator token is now available to buy and trade."
+      "body": "Your @{{username}} token is now available for trading."
     },
     "yourContentTokenIsLive": {
       "title": "\uD83D\uDCA0 Content Token Is Live",
-      "body": "Your post has its own token now."
+      "body": "Community launched a token for your post."
     },
     "yourFolloweeCreatorTokenIsLive": {
       "title": "\uD83D\uDD25 New Creator Token",
-      "body": "{{displayName}} just launched a token you can buy and trade"
+      "body": "@{{username}} just launched their token. Trade now!"
     },
     "yourFolloweeContentTokenIsLive": {
       "title": "\u2728 New Content Token",
-      "body": "{{displayName}} launched a token for their post."
+      "body": "Community launched a token for @{{username}}’s post."
     },
-    "someoneBoughtYourToken": {
-      "title": "\uD83D\uDCB8 New Buy",
-      "body": "Someone bought ${{amountUSD}} of your token"
+    "someoneBoughtYourCreatorToken": {
+      "title": "\uD83D\uDCB8 New ${{ticker}} Buy",
+      "body": "Someone bought ${{amountUSD}} of your creator token"
     },
-    "someoneBoughtSomeRelevantToken": {
-      "title": "\uD83D\uDCC8 Buying Activity",
-      "body": "@{{username}} bought ${{amountUSD}} of {{originalAuthorDisplayName}}’s token."
+    "someoneBoughtYourContentToken": {
+      "title": "\uD83D\uDCB8 New ${{ticker}} Buy",
+      "body": "Someone bought ${{amountUSD}} of your content token"
+    },
+    "someoneBoughtSomeRelevantCreatorToken": {
+      "title": "\uD83D\uDCC8 New ${{ticker}} Buy",
+      "body": "@{{username}} bought ${{amountUSD}} worth of tokens."
+    },
+    "someoneBoughtSomeRelevantContentToken": {
+      "title": "\uD83D\uDCC8 New ${{ticker}} Buy",
+      "body": "@{{username}} bought ${{amountUSD}} worth of tokens."
     },
     "yourCreatorTokenPriceIncreased": {
       "title": "\uD83D\uDE80 Token Is Going Up",
       "body": "Your token value increased {{priceIncreasePercentage}}%."
     },
     "moreBuyersJoined": {
-      "title": "\uD83D\uDD25 More Buying Activity",
-      "body": "More people are buying your token."
+      "title": "\uD83D\uDD25 Buying Activity Increased",
+      "body": "More people are buying ${{ticker}}."
     },
     "trendingToken": {
       "title": "\u2B50 ${{ticker}} Token Is Trending",
@@ -203,7 +211,7 @@
     }
   },
   "es": {
-    "_version": 9,
+    "_version": 10,
     "reply": {
       "title": "Online+",
       "body": "[ES] \uD83D\uDCAC @{{username}} replied to your post"
@@ -354,35 +362,43 @@
     },
     "yourCreatorTokenIsLive": {
       "title": "[ES] \uD83D\uDE80 Creator Token Is Live",
-      "body": "[ES] Your creator token is now available to buy and trade."
+      "body": "[ES] Your @{{username}} token is now available for trading."
     },
     "yourContentTokenIsLive": {
       "title": "[ES] \uD83D\uDCA0 Content Token Is Live",
-      "body": "[ES] Your post has its own token now."
+      "body": "[ES] Community launched a token for your post."
     },
     "yourFolloweeCreatorTokenIsLive": {
       "title": "[ES] \uD83D\uDD25 New Creator Token",
-      "body": "[ES] {{displayName}} just launched a token you can buy and trade"
+      "body": "[ES] @{{username}} just launched their token. Trade now!"
     },
     "yourFolloweeContentTokenIsLive": {
       "title": "[ES] \u2728 New Content Token",
-      "body": "[ES] {{displayName}} launched a token for their post."
+      "body": "[ES] Community launched a token for @{{username}}’s post."
     },
-    "someoneBoughtYourToken": {
-      "title": "[ES] \uD83D\uDCB8 New Buy",
-      "body": "[ES] Someone bought ${{amountUSD}} of your token"
+    "someoneBoughtYourCreatorToken": {
+      "title": "[ES] \uD83D\uDCB8 New ${{ticker}} Buy",
+      "body": "[ES] Someone bought ${{amountUSD}} of your creator token"
     },
-    "someoneBoughtSomeRelevantToken": {
-      "title": "[ES] \uD83D\uDCC8 Buying Activity",
-      "body": "[ES] @{{username}} bought ${{amountUSD}} of {{originalAuthorDisplayName}}’s token."
+    "someoneBoughtYourContentToken": {
+      "title": "[ES] \uD83D\uDCB8 New ${{ticker}} Buy",
+      "body": "[ES] Someone bought ${{amountUSD}} of your content token"
+    },
+    "someoneBoughtSomeRelevantCreatorToken": {
+      "title": "[ES] \uD83D\uDCC8 New ${{ticker}} Buy",
+      "body": "[ES] @{{username}} bought ${{amountUSD}} worth of tokens."
+    },
+    "someoneBoughtSomeRelevantContentToken": {
+      "title": "[ES] \uD83D\uDCC8 New ${{ticker}} Buy",
+      "body": "[ES] @{{username}} bought ${{amountUSD}} worth of tokens."
     },
     "yourCreatorTokenPriceIncreased": {
       "title": "[ES] \uD83D\uDE80 Token Is Going Up",
       "body": "[ES] Your token value increased {{priceIncreasePercentage}}%."
     },
     "moreBuyersJoined": {
-      "title": "[ES] \uD83D\uDD25 More Buying Activity",
-      "body": "[ES] More people are buying your token."
+      "title": "[ES] \uD83D\uDD25 Buying Activity Increased",
+      "body": "[ES] More people are buying ${{ticker}}."
     },
     "trendingToken": {
       "title": "[ES] \u2B50 ${{ticker}} Token Is Trending",
@@ -406,7 +422,7 @@
     }
   },
   "fr": {
-    "_version": 9,
+    "_version": 10,
     "reply": {
       "title": "Online+",
       "body": "[FR] \uD83D\uDCAC @{{username}} replied to your post"
@@ -557,35 +573,43 @@
     },
     "yourCreatorTokenIsLive": {
       "title": "[FR] \uD83D\uDE80 Creator Token Is Live",
-      "body": "[FR] Your creator token is now available to buy and trade."
+      "body": "[FR] Your @{{username}} token is now available for trading."
     },
     "yourContentTokenIsLive": {
       "title": "[FR] \uD83D\uDCA0 Content Token Is Live",
-      "body": "[FR] Your post has its own token now."
+      "body": "[FR] Community launched a token for your post."
     },
     "yourFolloweeCreatorTokenIsLive": {
       "title": "[FR] \uD83D\uDD25 New Creator Token",
-      "body": "[FR] {{displayName}} just launched a token you can buy and trade"
+      "body": "[FR] @{{username}} just launched their token. Trade now!"
     },
     "yourFolloweeContentTokenIsLive": {
       "title": "[FR] \u2728 New Content Token",
-      "body": "[FR] {{displayName}} launched a token for their post."
+      "body": "[FR] Community launched a token for @{{username}}’s post."
     },
-    "someoneBoughtYourToken": {
-      "title": "[FR] \uD83D\uDCB8 New Buy",
-      "body": "[FR] Someone bought ${{amountUSD}} of your token"
+    "someoneBoughtYourCreatorToken": {
+      "title": "[FR] \uD83D\uDCB8 New ${{ticker}} Buy",
+      "body": "[FR] Someone bought ${{amountUSD}} of your creator token"
     },
-    "someoneBoughtSomeRelevantToken": {
-      "title": "[FR] \uD83D\uDCC8 Buying Activity",
-      "body": "[FR] @{{username}} bought ${{amountUSD}} of {{originalAuthorDisplayName}}’s token."
+    "someoneBoughtYourContentToken": {
+      "title": "[FR] \uD83D\uDCB8 New ${{ticker}} Buy",
+      "body": "[FR] Someone bought ${{amountUSD}} of your content token"
+    },
+    "someoneBoughtSomeRelevantCreatorToken": {
+      "title": "[FR] \uD83D\uDCC8 New ${{ticker}} Buy",
+      "body": "[FR] @{{username}} bought ${{amountUSD}} worth of tokens."
+    },
+    "someoneBoughtSomeRelevantContentToken": {
+      "title": "[FR] \uD83D\uDCC8 New ${{ticker}} Buy",
+      "body": "[FR] @{{username}} bought ${{amountUSD}} worth of tokens."
     },
     "yourCreatorTokenPriceIncreased": {
       "title": "[FR] \uD83D\uDE80 Token Is Going Up",
       "body": "[FR] Your token value increased {{priceIncreasePercentage}}%."
     },
     "moreBuyersJoined": {
-      "title": "[FR] \uD83D\uDD25 More Buying Activity",
-      "body": "[FR] More people are buying your token."
+      "title": "[FR] \uD83D\uDD25 Buying Activity Increased",
+      "body": "[FR] More people are buying ${{ticker}}."
     },
     "trendingToken": {
       "title": "[FR] \u2B50 ${{ticker}} Token Is Trending",
