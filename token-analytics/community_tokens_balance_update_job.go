@@ -192,6 +192,7 @@ func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, ex
 		    bonding_curve_current_amount_usd = $5,
 		    bonding_curve_goal_amount_usd = $6,
 		    bonding_curve_migrated = $7,
+		    migrated_at = CASE WHEN $7 = true AND t.bonding_curve_migrated = false THEN NOW() ELSE t.migrated_at END,
 		    liquidity_usd = $8,
 		    start_price = $9,
 		    end_price = $10,

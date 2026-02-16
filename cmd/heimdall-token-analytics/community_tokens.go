@@ -6,9 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"math"
 	"math/big"
-	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -247,7 +245,14 @@ func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Requ
 		if err != nil {
 			return nil, server.BadRequest(fmt.Errorf("invalid referenceDate: %w", err), invalidPropertiesErrorCode)
 		}
-		tokens, err := s.tokenAnalytics.GetCommunityTokensByRewardsDistribution(ctx, refDate, limit, req.Data.Offset)
+		rdLimit := limit
+		if rdLimit == 0 {
+			rdLimit = ta.HourlyRankingTopN
+		}
+		if rdLimit > ta.HourlyRankingTopN {
+			rdLimit = ta.HourlyRankingTopN
+		}
+		tokens, err := s.tokenAnalytics.GetCommunityTokensByRewardsDistribution(ctx, refDate, rdLimit, req.Data.Offset)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get community tokens by rewards distribution: %w", err)
 		}
@@ -1124,7 +1129,7 @@ func (s *service) latestTradesStream(ctx context.Context, externalAddress string
 //	@Security		Nostr
 //	@Security		XCom
 //	@Router			/v1/community-token-analytics/{analyticsType} [get]
-func (s *service) GetCommunityTokenAnalytics(_ context.Context, req *server.Request[GlobalTokenStatisticsRequest]) (*server.Response[GlobalTokenStatistics], error) {
+func (s *service) GetCommunityTokenAnalytics(ctx context.Context, req *server.Request[GlobalTokenStatisticsRequest]) (*server.Response[GlobalTokenStatistics], error) {
 	switch req.Data.AnalyticsType {
 	case analyticsTypeGlobal:
 	default:
@@ -1136,11 +1141,16 @@ func (s *service) GetCommunityTokenAnalytics(_ context.Context, req *server.Requ
 		return nil, server.BadRequest(fmt.Errorf("unsupported interval: %v (expected %v, %v, or %v)",
 			req.Data.Interval, analyticsInterval24h, analyticsInterval7d, analyticsInterval30d), invalidPropertiesErrorCode)
 	}
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	stats, err := s.tokenAnalytics.GetGlobalTokenStatistics(ctx, req.Data.Interval)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get global token statistics for interval %s: %w", req.Data.Interval, err)
+	}
+
 	resp := &GlobalTokenStatistics{
-		LaunchedTokens: uint64(rng.Intn(1000)),
-		MigratedTokens: uint64(rng.Intn(500)),
-		TotalVolume:    math.Round(rng.Float64()*100000*100) / 100,
+		LaunchedTokens: stats.Launched,
+		MigratedTokens: stats.Migrated,
+		TotalVolume:    stats.TotalVolume,
 	}
 
 	return server.OK(resp), nil

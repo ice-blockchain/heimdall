@@ -100,6 +100,12 @@ func Select[T any](ctx context.Context, db *DB, sql string, args ...any) ([]*T, 
 	return storage.Select[T](ctx, db.db, sql, args...)
 }
 
+func Exec(ctx context.Context, db *DB, sql string, args ...any) error {
+	_, err := storage.Exec(ctx, db.db, sql, args...)
+
+	return err
+}
+
 func NewDecimal(bi *big.Int) Decimal {
 	dec, err := questdb.NewDecimal(bi, 0)
 	if err != nil {

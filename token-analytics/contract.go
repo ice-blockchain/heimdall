@@ -85,6 +85,7 @@ type (
 		SubscribeBondingCurveProgress(context.Context, string, func(*BondingCurveProgress, error)) error
 		GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount *big.Int, amountBNB *big.Int, amountUSD float64) (pricing *Pricing, err error)
 		GetCommunityTokensByRewardsDistribution(ctx context.Context, referenceDate stdlibtime.Time, limit, offset uint64) ([]*CommunityToken, error)
+		GetGlobalTokenStatistics(ctx context.Context, interval string) (*GlobalTokenStats, error)
 	}
 	Pricing struct {
 		AmountInBase       *big.Int
@@ -120,11 +121,16 @@ type (
 		CreatedAt int64  `redis:"created_at"`
 		TTL       int64  `redis:"ttl"`
 	}
-	TradeType string
-	JSON      map[string]any
-
+	TradeType  string
+	JSON       map[string]any
 	Interval   string
 	WindowSize stdlibtime.Duration
+
+	GlobalTokenStats struct {
+		Launched    uint64  `json:"launched" db:"launched" redis:"launched"`
+		Migrated    uint64  `json:"migrated" db:"migrated" redis:"migrated"`
+		TotalVolume float64 `json:"volume" db:"total_volume" redis:"total_volume"`
+	}
 )
 
 const (
@@ -171,6 +177,13 @@ const (
 
 	volumeUpdateInterval                     = 1 * stdlibtime.Minute
 	volume24hMaterializedViewRefreshInterval = 30 * stdlibtime.Second
+
+	analyticsSnapshotCheckInterval = 1 * stdlibtime.Minute
+	HourlyRankingTopN              = 100
+
+	hourKeyFormat = "2006-01-02T15"
+
+	processedSnapshotsSetKey = "token_analytics:processed_snapshots"
 
 	globalTopSetKey                  = "token_analytics:global:top"
 	globalTrendingSetKey             = "token_analytics:global:trending"
@@ -539,5 +552,21 @@ type (
 		TotalSupply     *big.Int
 		StartPrice      *big.Int
 		EndPrice        *big.Int
+	}
+	analyticsSnapshotEntry struct {
+		timestamp    stdlibtime.Time
+		intervalType string
+		launched     int64
+		migrated     int64
+		totalVolume  float64
+	}
+	intervalStatsRow struct {
+		Launched    uint64  `db:"launched"`
+		Migrated    uint64  `db:"migrated"`
+		TotalVolume float64 `db:"total_volume"`
+	}
+	hourlyTokenRanking struct {
+		ExternalAddress string  `db:"external_address"`
+		Volume1h        float64 `db:"volume_1h"`
 	}
 )

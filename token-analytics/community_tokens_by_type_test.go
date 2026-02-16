@@ -3,16 +3,29 @@
 package tokenanalytics
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
+	stdtime "time"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
+
+type testTradeEntry struct {
+	timestamp       stdtime.Time
+	externalAddress string
+	contractAddress string
+	traderAddress   string
+	transactionHash string
+	amount          string
+	priceInUsd      string
+	tradeType       TradeType
+}
 
 func TestGetCommunityTokensByLatest_WithAndWithoutKeyword(t *testing.T) {
 	ctx := t.Context()
@@ -507,95 +520,158 @@ func TestGetCommunityTokensByRewardsDistribution(t *testing.T) {
 
 	helperInsertTestUser(t, ctx, db, "rd_creator1", "rd_alice", "RD Alice", "", true, PlatformGroupIonConnect)
 	helperInsertTestUser(t, ctx, db, "rd_creator2", "rd_bob", "RD Bob", "", false, PlatformGroupIonConnect)
+	helperInsertTestUser(t, ctx, db, "rd_creator3", "rd_charlie", "RD Charlie", "", true, PlatformGroupIonConnect)
+
+	helperInsertTestUser(t, ctx, db, "xcom_launcher", "xcom_launcher_user", "XCom Launcher", "", true, PlatformGroupXCom)
+	helperInsertTestUser(t, ctx, db, "xcom_creator", "xcom_creator_user", "XCom Creator", "", true, PlatformGroupXCom)
+	_, err := storage.Exec(ctx, db, `INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at) VALUES ($1, LOWER($2), NOW())`, "xcom_launcher", "0xLAUNCHER111")
+	require.NoError(t, err)
 
 	token1Ext := "0:rd_creator1:"
 	token2Ext := "0:rd_creator2:"
+	token3Ext := "30023:rd_creator3:post1"
+	xcomTokenExt := "123456789"
 
-	helperInsertTestToken(t, ctx, db, "0xRD111111111111111111111111111111111111", token1Ext, "RD1", "profile", "rd_creator1", "1000000000000000000000000", 500.0, 0.001, 10, PlatformGroupIonConnect)
-	helperInsertTestToken(t, ctx, db, "0xRD222222222222222222222222222222222222", token2Ext, "RD2", "profile", "rd_creator2", "2000000000000000000000000", 300.0, 0.002, 5, PlatformGroupIonConnect)
+	helperInsertTestToken(t, ctx, db, "0xRD11111111111111111111111111111111111111", token1Ext, "RD1", "profile", "rd_creator1", "1000000000000000000000000", 500.0, 0.001, 10, PlatformGroupIonConnect)
+	helperInsertTestToken(t, ctx, db, "0xRD22222222222222222222222222222222222222", token2Ext, "RD2", "profile", "rd_creator2", "2000000000000000000000000", 300.0, 0.002, 5, PlatformGroupIonConnect)
 
-	t.Run("returns tokens from trending set ordered by volume", func(t *testing.T) {
-		_ = testRedis.Del(ctx, globalTrendingSetKey).Err()
+	creator3ProfileExt := "0:rd_creator3:"
+	helperInsertTestToken(t, ctx, db, "0xRD3PROFILE111111111111111111111111111111", creator3ProfileExt, "CRD3", "profile", "rd_creator3", "400000000000000000000000", 40.0, 0.00004, 2, PlatformGroupIonConnect)
+	helperInsertTestToken(t, ctx, db, "0xRD33333333333333333333333333333333333333", token3Ext, "RD3", "post", "rd_creator3", "3000000000000000000000000", 800.0, 0.003, 20, PlatformGroupIonConnect)
+	helperSetTokenBaseToken(t, ctx, db, token3Ext, "0xRD3PROFILE111111111111111111111111111111")
 
-		helperSetupGlobalSet(t, ctx, globalTrendingSetKey, map[string]float64{
-			token1Ext: 5000.0 * 1e18,
-			token2Ext: 3000.0 * 1e18,
-		})
-		helperSetupGlobalSet(t, ctx, globalTopSetKey, map[string]float64{
-			token1Ext: 500.0,
-			token2Ext: 300.0,
-		})
+	helperInsertTestToken(t, ctx, db, "0xXCOM1111111111111111111111111111111111111", xcomTokenExt, "XCOM", "post", "xcom_creator", "5000000000000000000000000", 1000.0, 0.005, 50, PlatformGroupXCom)
 
-		referenceDate := time.Now()
-		tokens, err := ta.GetCommunityTokensByRewardsDistribution(ctx, referenceDate, 10, 0)
-		require.NoError(t, err)
-		require.GreaterOrEqual(t, len(tokens), 2, "Should return at least 2 test tokens")
+	targetHour := time.Date(2022, 3, 15, 14, 0, 0, 0, time.UTC)
+	swapTime := targetHour.Add(30 * time.Minute)
 
-		var found1, found2 *CommunityToken
-		for _, token := range tokens {
-			switch token.Addresses.IonConnect {
-			case token1Ext:
-				found1 = token
-			case token2Ext:
-				found2 = token
-			}
-		}
-		require.NotNil(t, found1, "Should find token1")
-		require.NotNil(t, found2, "Should find token2")
+	// Token1: 5e21/1e18 * 1.0 = 5000 USD
+	helperWriteTradeToQuestDB(t, ctx, ta, token1Ext, "5000000000000000000000", "1.0", TradeTypeBuy, swapTime)
+	// Token2: 3e21/1e18 * 1.0 = 3000 USD
+	helperWriteTradeToQuestDB(t, ctx, ta, token2Ext, "3000000000000000000000", "1.0", TradeTypeBuy, swapTime)
+	// Token3: 8e21/1e18 * 2.0 = 16000 USD
+	helperWriteTradeToQuestDB(t, ctx, ta, token3Ext, "8000000000000000000000", "2.0", TradeTypeBuy, swapTime)
+	// XCom token: 1e22/1e18 * 3.0 = 30000 USD
+	helperWriteTradeToQuestDB(t, ctx, ta, xcomTokenExt, "10000000000000000000000", "3.0", TradeTypeBuy, swapTime)
 
-		require.Equal(t, "RD1", found1.MarketData.Ticker)
-		require.InDelta(t, 5000.0, found1.MarketData.Volume, 1.0)
-		require.InDelta(t, 500.0, found1.MarketData.MarketCap, 1.0)
+	helperCreateSwapAtTime(t, ctx, db, "0xXCOM1111111111111111111111111111111111111", xcomTokenExt, "0xLAUNCHER111", false,
+		"1000000000000000000000", "10000000000000000000000", 3.0, swapTime)
 
-		require.Equal(t, "RD2", found2.MarketData.Ticker)
-		require.InDelta(t, 3000.0, found2.MarketData.Volume, 1.0)
-		require.InDelta(t, 300.0, found2.MarketData.MarketCap, 1.0)
-
-		require.Nil(t, found1.Creator.Token, "Profile token should not have creator.token")
-		require.Nil(t, found2.Creator.Token, "Profile token should not have creator.token")
+	helperSetupGlobalSet(t, ctx, globalTopSetKey, map[string]float64{
+		token1Ext:    500.0,
+		token2Ext:    300.0,
+		token3Ext:    800.0,
+		xcomTokenExt: 1000.0,
 	})
 
-	t.Run("returns empty when no trending data", func(t *testing.T) {
-		_ = testRedis.Del(ctx, globalTrendingSetKey).Err()
+	helperWaitForQuestDBVolume(t, ctx, ta, targetHour, 4)
 
-		referenceDate := time.Now()
+	var initialTokens []*CommunityToken
+	var lastErr error
+	var lastLen int
+	require.Eventually(t, func() bool {
+		initialTokens, lastErr = ta.GetCommunityTokensByRewardsDistribution(ctx, targetHour.Add(30*time.Minute), 10, 0)
+		lastLen = len(initialTokens)
+		return lastErr == nil && lastLen == 4
+	}, 10*time.Second, 200*time.Millisecond, "rewardsDistribution should have 4 ranked tokens (lastErr=%v, lastLen=%d)", lastErr, lastLen)
+
+	t.Run("returns tokens ordered by volume rank descending", func(t *testing.T) {
+		referenceDate := targetHour.Add(30 * time.Minute)
 		tokens, err := ta.GetCommunityTokensByRewardsDistribution(ctx, referenceDate, 10, 0)
+		require.NoError(t, err)
+		require.Len(t, tokens, 4, "should return exactly 4 ranked tokens")
+
+		require.Equal(t, xcomTokenExt, tokens[0].Addresses.Twitter, "rank 1 should be xcom token (highest volume)")
+		require.Empty(t, tokens[0].Addresses.IonConnect, "xcom token should not have ionconnect address")
+		require.Equal(t, token3Ext, tokens[1].Addresses.IonConnect, "rank 2 should be token3")
+		require.Equal(t, token1Ext, tokens[2].Addresses.IonConnect, "rank 3 should be token1")
+		require.Equal(t, token2Ext, tokens[3].Addresses.IonConnect, "rank 4 should be token2 (lowest volume)")
+	})
+
+	t.Run("market data and creator are properly enriched", func(t *testing.T) {
+		referenceDate := targetHour.Add(30 * time.Minute)
+		tokens, err := ta.GetCommunityTokensByRewardsDistribution(ctx, referenceDate, 10, 0)
+		require.NoError(t, err)
+		require.Len(t, tokens, 4)
+
+		for _, token := range tokens {
+			require.NotNil(t, token.Addresses, "addresses should not be nil")
+			require.NotEmpty(t, token.Addresses.Blockchain, "blockchain address should be set")
+			require.NotEmpty(t, token.MarketData.Ticker, "ticker should be set")
+			require.Greater(t, token.MarketData.MarketCap, 0.0, "market cap should be > 0")
+			require.Greater(t, token.MarketData.PriceUSD, 0.0, "price should be > 0")
+			require.Greater(t, token.MarketData.Holders, uint64(0), "holders should be > 0")
+			require.NotNil(t, token.Creator.Addresses, "creator addresses should not be nil")
+		}
+
+		var profileToken, contentToken, xcomToken *CommunityToken
+		for _, token := range tokens {
+			if token.MarketData.Ticker == "RD1" {
+				profileToken = token
+			}
+			if token.MarketData.Ticker == "RD3" {
+				contentToken = token
+			}
+			if token.MarketData.Ticker == "XCOM" {
+				xcomToken = token
+			}
+		}
+
+		require.NotNil(t, profileToken)
+		require.Equal(t, "profile", profileToken.Type)
+		require.Equal(t, "rd_alice", strVal(profileToken.Creator.Username))
+		require.True(t, profileToken.Creator.Verified != nil && *profileToken.Creator.Verified)
+		require.Nil(t, profileToken.Creator.Token, "profile token should not have creator.token")
+		require.Nil(t, profileToken.Launcher, "ionconnect token should have nil launcher")
+
+		require.NotNil(t, contentToken)
+		require.Equal(t, "post", contentToken.Type)
+		require.Equal(t, "rd_charlie", strVal(contentToken.Creator.Username))
+		require.NotNil(t, contentToken.Creator.Token, "content token should have creator.token")
+		require.Equal(t, "CRD3", contentToken.Creator.Token.Ticker)
+		require.NotNil(t, contentToken.Creator.Token.Addresses)
+		require.Equal(t, "0xRD3PROFILE111111111111111111111111111111", contentToken.Creator.Token.Addresses.Blockchain)
+		require.Nil(t, contentToken.Launcher, "ionconnect token should have nil launcher")
+
+		require.NotNil(t, xcomToken, "xcom token should be in results")
+		require.Equal(t, "post", xcomToken.Type)
+		require.Equal(t, "xcom_creator_user", strVal(xcomToken.Creator.Username))
+		require.NotNil(t, xcomToken.Launcher, "xcom token should have launcher populated")
+		require.Equal(t, "xcom_launcher_user", strVal(xcomToken.Launcher.Username), "launcher username should match")
+		require.Equal(t, "XCom Launcher", strVal(xcomToken.Launcher.Display), "launcher display should match")
+		require.NotNil(t, xcomToken.Launcher.Verified, "launcher verified should not be nil")
+		require.True(t, *xcomToken.Launcher.Verified, "launcher should be verified")
+		require.NotNil(t, xcomToken.Launcher.Addresses, "launcher addresses should not be nil")
+		require.NotEmpty(t, xcomToken.Launcher.Addresses.Blockchain, "launcher blockchain address should be set")
+	})
+
+	t.Run("returns empty when no hourly ranking data for given hour", func(t *testing.T) {
+		emptyHour := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
+		tokens, err := ta.GetCommunityTokensByRewardsDistribution(ctx, emptyHour, 10, 0)
 		require.NoError(t, err)
 		require.Empty(t, tokens)
 	})
 
-	t.Run("respects limit cap of 100", func(t *testing.T) {
-		_ = testRedis.Del(ctx, globalTrendingSetKey).Err()
-
-		members := make([]redis.Z, 0, 110)
-		for i := 0; i < 110; i++ {
-			members = append(members, redis.Z{
-				Score:  float64(110 - i),
-				Member: fmt.Sprintf("0:rd_limit_token_%d:", i),
-			})
-		}
-		err := testRedis.ZAdd(ctx, globalTrendingSetKey, members...).Err()
+	t.Run("referenceDate truncates to hour correctly", func(t *testing.T) {
+		referenceDate := targetHour.Add(45*time.Minute + 30*time.Second)
+		tokens, err := ta.GetCommunityTokensByRewardsDistribution(ctx, referenceDate, 10, 0)
 		require.NoError(t, err)
+		require.Len(t, tokens, 4, "should find tokens regardless of minute/second offset")
+	})
 
-		referenceDate := time.Now()
-		tokens, err := ta.GetCommunityTokensByRewardsDistribution(ctx, referenceDate, 200, 0)
+	t.Run("pagination with limit works", func(t *testing.T) {
+		referenceDate := targetHour.Add(30 * time.Minute)
+		tokens, err := ta.GetCommunityTokensByRewardsDistribution(ctx, referenceDate, 2, 0)
 		require.NoError(t, err)
-		require.LessOrEqual(t, len(tokens), 100, "Should return at most 100 tokens")
+		require.Len(t, tokens, 2, "should return exactly 2 tokens with limit=2")
+
+		require.Equal(t, xcomTokenExt, tokens[0].Addresses.Twitter, "first token should be xcom")
+		require.Empty(t, tokens[0].Addresses.IonConnect, "xcom token should not have ionconnect address")
+		require.Equal(t, token3Ext, tokens[1].Addresses.IonConnect, "second token should be token3")
 	})
 
 	t.Run("pagination with offset works", func(t *testing.T) {
-		_ = testRedis.Del(ctx, globalTrendingSetKey).Err()
-
-		helperSetupGlobalSet(t, ctx, globalTrendingSetKey, map[string]float64{
-			token1Ext: 5000.0 * 1e18,
-			token2Ext: 3000.0 * 1e18,
-		})
-		helperSetupGlobalSet(t, ctx, globalTopSetKey, map[string]float64{
-			token1Ext: 500.0,
-			token2Ext: 300.0,
-		})
-
-		referenceDate := time.Now()
+		referenceDate := targetHour.Add(30 * time.Minute)
 		tokens1, err := ta.GetCommunityTokensByRewardsDistribution(ctx, referenceDate, 1, 0)
 		require.NoError(t, err)
 		require.Len(t, tokens1, 1)
@@ -604,8 +680,104 @@ func TestGetCommunityTokensByRewardsDistribution(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, tokens2, 1)
 
-		if len(tokens1) > 0 && len(tokens2) > 0 {
-			require.NotEqual(t, tokens1[0].MarketData.Ticker, tokens2[0].MarketData.Ticker, "Pages should not overlap")
-		}
+		tokens3, err := ta.GetCommunityTokensByRewardsDistribution(ctx, referenceDate, 1, 2)
+		require.NoError(t, err)
+		require.Len(t, tokens3, 1)
+
+		require.NotEqual(t, tokens1[0].Addresses.IonConnect, tokens2[0].Addresses.IonConnect, "page 1 and 2 should differ")
+		require.NotEqual(t, tokens2[0].Addresses.IonConnect, tokens3[0].Addresses.IonConnect, "page 2 and 3 should differ")
+		require.NotEqual(t, tokens1[0].Addresses.IonConnect, tokens3[0].Addresses.IonConnect, "page 1 and 3 should differ")
 	})
+
+	t.Run("offset beyond data returns empty", func(t *testing.T) {
+		referenceDate := targetHour.Add(30 * time.Minute)
+		tokens, err := ta.GetCommunityTokensByRewardsDistribution(ctx, referenceDate, 10, 100)
+		require.NoError(t, err)
+		require.Empty(t, tokens, "offset beyond available data should return empty")
+	})
+}
+
+func helperCreateSwapAtTime(t *testing.T, ctx context.Context, db *storage.DB,
+	contractAddress, externalAddress, userAddress string, direction bool,
+	inputAmount, outputAmount string, priceUSD float64, createdAt stdtime.Time) {
+	t.Helper()
+
+	txHash := fmt.Sprintf("0x%s%d", contractAddress[2:10], createdAt.UnixNano())
+	query := `
+		INSERT INTO token_swaps (
+			created_at, transaction_hash, contract_address, external_address,
+			user_blockchain_address, direction, input_amount, output_amount, fee, price_usd
+		)
+		VALUES ($1, $2, $3, $4, LOWER($5), $6, $7, $8, 0, $9)
+		ON CONFLICT (transaction_hash, contract_address, user_blockchain_address) DO NOTHING
+	`
+	_, err := storage.Exec(ctx, db, query,
+		createdAt,
+		txHash,
+		contractAddress,
+		externalAddress,
+		userAddress,
+		direction,
+		inputAmount,
+		outputAmount,
+		priceUSD,
+	)
+	require.NoError(t, err, "failed to insert token swap at time")
+}
+
+func helperWriteTradeToQuestDB(t *testing.T, ctx context.Context, ta *tokenAnalytics,
+	externalAddress string, amountWei string, priceInUsd string, tradeType TradeType, timestamp stdtime.Time) {
+	t.Helper()
+
+	entry := &testTradeEntry{
+		timestamp:       timestamp,
+		externalAddress: externalAddress,
+		amount:          amountWei,
+		priceInUsd:      priceInUsd,
+		tradeType:       tradeType,
+		contractAddress: "0xCONTRACT_" + externalAddress,
+		traderAddress:   "0xTESTTRADER",
+		transactionHash: fmt.Sprintf("0xTX_%s_%d", externalAddress, timestamp.UnixNano()),
+	}
+	err := questdb.Write(ctx, ta.questDB, entry)
+	require.NoError(t, err, "failed to write trade to QuestDB")
+}
+
+func helperWaitForQuestDBVolume(t *testing.T, ctx context.Context, ta *tokenAnalytics, hourTimestamp stdtime.Time, minRows int) {
+	t.Helper()
+
+	require.Eventually(t, func() bool {
+		rows, err := questdb.Select[struct {
+			Cnt int64 `db:"cnt"`
+		}](ctx, ta.questDB, `SELECT count() AS cnt FROM trades WHERE timestamp >= $1 AND timestamp < $2`,
+			hourTimestamp, hourTimestamp.Add(stdtime.Hour))
+
+		return err == nil && len(rows) > 0 && rows[0].Cnt >= int64(minRows)
+	}, 30*stdtime.Second, 200*stdtime.Millisecond, "trades at %v should have >= %d rows", hourTimestamp, minRows)
+
+	err := questdb.Exec(ctx, ta.questDB, "REFRESH MATERIALIZED VIEW token_volume_1h FULL")
+	require.NoError(t, err, "REFRESH MATERIALIZED VIEW FULL failed")
+
+	require.Eventually(t, func() bool {
+		rows, err := questdb.Select[struct {
+			Cnt int64 `db:"cnt"`
+		}](ctx, ta.questDB, `SELECT count() AS cnt FROM token_volume_1h WHERE timestamp = $1 AND volume_1h > 0`, hourTimestamp)
+
+		return err == nil && len(rows) > 0 && rows[0].Cnt >= int64(minRows)
+	}, 30*stdtime.Second, 300*stdtime.Millisecond, "token_volume_1h at %v should have >= %d rows with volume > 0", hourTimestamp, minRows)
+}
+
+func (e *testTradeEntry) Marshal(client questdb.LineSender) questdb.At {
+	return client.Table("trades").
+		Symbol("external_address", e.externalAddress).
+		Symbol("contract_address", e.contractAddress).
+		Symbol("trade_type", string(e.tradeType)).
+		Symbol("trader_address", e.traderAddress).
+		Symbol("transaction_hash", e.transactionHash).
+		DecimalColumnFromString("amount", e.amount).
+		DecimalColumnFromString("price_in_usd", e.priceInUsd)
+}
+
+func (e *testTradeEntry) Time() stdtime.Time {
+	return e.timestamp
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 
+	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
@@ -357,28 +358,26 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 }
 
 func (t *tokenAnalytics) GetCommunityTokensByRewardsDistribution(ctx context.Context, referenceDate stdlibtime.Time, limit, offset uint64) ([]*CommunityToken, error) {
-	_ = referenceDate.Truncate(stdlibtime.Hour)
-	if limit == 0 {
-		limit = 100
-	}
-	if limit > 100 {
-		limit = 100
-	}
-
-	tokenData, err := t.processedDataDB.ZRevRangeWithScores(ctx, globalTrendingSetKey, int64(offset), int64(offset+limit-1)).Result()
+	targetHour := referenceDate.UTC().Truncate(stdlibtime.Hour)
+	rankings, err := questdb.Select[hourlyTokenRanking](ctx, t.questDB,
+		`SELECT
+			external_address,
+			volume_1h
+		 FROM token_volume_1h
+		 WHERE timestamp = $1 AND volume_1h > 0
+		 ORDER BY volume_1h DESC
+		 LIMIT $2, $2+$3`, targetHour, offset, limit)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get trending tokens from Redis: %w", err)
+		return nil, fmt.Errorf("failed to get hourly rankings from QuestDB for %v: %w", targetHour, err)
 	}
-	if len(tokenData) == 0 {
+	if len(rankings) == 0 {
 		return make([]*CommunityToken, 0), nil
 	}
-
-	tokenAddresses := make([]string, len(tokenData))
-	scoresMap := make(map[string]float64, len(tokenData))
-	for i, z := range tokenData {
-		addr := z.Member.(string)
-		tokenAddresses[i] = addr
-		scoresMap[addr] = z.Score
+	tokenAddresses := make([]string, 0, len(rankings))
+	scoresMap := make(map[string]float64, len(rankings))
+	for _, r := range rankings {
+		tokenAddresses = append(tokenAddresses, r.ExternalAddress)
+		scoresMap[r.ExternalAddress] = r.Volume1h
 	}
 
 	return t.getTokenDetailsWithScoresMapWithType(ctx, sessionTypeTrending, "", tokenAddresses, scoresMap)
