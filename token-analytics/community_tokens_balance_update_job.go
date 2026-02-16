@@ -66,8 +66,55 @@ func (w *balanceUpdateWorker) Work(ctx context.Context, job *riverqueue.Job[Bala
 				args.UserBlockchainAddress, args.ContractAddress)
 		}
 	}
+	if err := w.ta.setUserPosition(ctx, args.UserBlockchainAddress, args.ContractAddress, args.TokenExternalAddress, args.UserExternalAddress, balance); err != nil {
+		return errors.Wrapf(err, "failed to update user token position for user %s token %s %s",
+			args.UserBlockchainAddress, args.ContractAddress, args.TokenExternalAddress)
+	}
+	if args.PairID == "" || args.BaseToken == "" {
+		log.Debug(fmt.Sprintf("Skipping bonding curve update for token=%s: missing pairID (%q) or baseToken (%q)",
+			args.TokenExternalAddress, args.PairID, args.BaseToken))
+	} else if err := w.updateBondingCurveProgress(ctx, args.TokenExternalAddress, args.PairID, args.BaseToken, args.TokenType, args.Platform, args.DummyBalance != nil); err != nil {
+		log.Error(errors.Wrapf(err, "failed to update bonding curve for token %s (balance update succeeded)", args.TokenExternalAddress))
+	}
 
-	_, err = storage.Exec(ctx, w.ta.ingestedDataDB, `
+	return nil
+}
+
+func (t *tokenAnalytics) setUserPosition(ctx context.Context, userBlockchainAddress, contractAddress,
+	tokenExternalAddress, userExternalAddress string, balance *big.Int) error {
+	return t.setOrIncrUserPosition(ctx, userBlockchainAddress, contractAddress, tokenExternalAddress, userExternalAddress, balance,
+		"amount = EXCLUDED.amount,",
+		func(ctx context.Context, p redis.Pipeliner, key, userKey string, balance float64) redis.Cmder {
+			return p.ZAdd(ctx, key, redis.Z{
+				Score:  balance,
+				Member: userKey,
+			})
+		})
+}
+
+func (t *tokenAnalytics) incrUserPosition(ctx context.Context, userBlockchainAddress, contractAddress,
+	tokenExternalAddress, userExternalAddress string, balance *big.Int) error {
+	return t.setOrIncrUserPosition(ctx, userBlockchainAddress, contractAddress, tokenExternalAddress, userExternalAddress, balance,
+		"amount = user_token_positions.amount + EXCLUDED.amount,",
+		func(ctx context.Context, p redis.Pipeliner, key, userKey string, balance float64) redis.Cmder {
+			return p.ZIncrBy(ctx, key, balance, userKey)
+		})
+}
+
+func (t *tokenAnalytics) decrUserPosition(ctx context.Context, userBlockchainAddress, contractAddress,
+	tokenExternalAddress, userExternalAddress string, balance *big.Int) error {
+	return t.setOrIncrUserPosition(ctx, userBlockchainAddress, contractAddress, tokenExternalAddress, userExternalAddress, balance,
+		"amount = GREATEST(user_token_positions.amount - EXCLUDED.amount, 0::NUMERIC),",
+		func(ctx context.Context, p redis.Pipeliner, key, userKey string, balance float64) redis.Cmder {
+			return p.ZIncrBy(ctx, key, -balance, userKey)
+		})
+}
+
+func (t *tokenAnalytics) setOrIncrUserPosition(ctx context.Context, userBlockchainAddress, contractAddress,
+	tokenExternalAddress, userExternalAddress string, balance *big.Int,
+	sqlUpdateClause string,
+	zAddOrIncr func(ctx context.Context, p redis.Pipeliner, redisKey, userKey string, balance float64) redis.Cmder) error {
+	_, err := storage.Exec(ctx, t.ingestedDataDB, fmt.Sprintf(`
 		INSERT INTO user_token_positions (
 			user_blockchain_address, contract_address, external_address, user_external_address,
 			amount, avg_buy_price_usd, total_invested_usd, total_realized_usd, updated_at, balance_notified_at
@@ -77,69 +124,56 @@ func (w *balanceUpdateWorker) Work(ctx context.Context, job *riverqueue.Job[Bala
 			$5, 0, 0, 0, NOW(), NOW()
 		)
 		ON CONFLICT (user_blockchain_address, contract_address) DO UPDATE SET
-			amount = EXCLUDED.amount,
+			%[1]v
 			updated_at = EXCLUDED.updated_at,
 			balance_notified_at = EXCLUDED.balance_notified_at;
-	`, args.UserBlockchainAddress, args.ContractAddress, args.TokenExternalAddress,
-		args.UserExternalAddress, balance.String())
+	`, sqlUpdateClause), userBlockchainAddress, contractAddress, tokenExternalAddress,
+		userExternalAddress, balance.String())
 	if err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
-		return errors.Wrapf(err, "failed to update user token position in DB for user %s token %s",
-			args.UserBlockchainAddress, args.ContractAddress)
+		return errors.Wrapf(err, "failed to update user token position in DB for user/pool %s %s token %s",
+			userBlockchainAddress, userExternalAddress, contractAddress)
 	}
 
-	userPositionKey := keyUserPositionOfToken(args.TokenExternalAddress)
-	userPositionKeyByBlockchainAddress := keyUserPositionOfTokenByUserBlockchainAddress(args.TokenExternalAddress)
+	userPositionKey := keyUserPositionOfToken(tokenExternalAddress)
+	userPositionKeyByBlockchainAddress := keyUserPositionOfTokenByUserBlockchainAddress(tokenExternalAddress)
 	balanceFloat := weiToFloat64FromBigInt(balance)
-	if responses, txErr := w.ta.processedDataDB.TxPipelined(ctx, func(pipeliner redis.Pipeliner) error {
+	if responses, txErr := t.processedDataDB.TxPipelined(ctx, func(pipeliner redis.Pipeliner) error {
 		if balanceFloat <= 0 {
-			if args.UserExternalAddress != "" {
-				if perr := pipeliner.ZRem(ctx, userPositionKey, args.UserExternalAddress).Err(); perr != nil {
+			if userExternalAddress != "" {
+				if perr := pipeliner.ZRem(ctx, userPositionKey, userExternalAddress).Err(); perr != nil {
 					return errors.Wrapf(perr, "failed to remove user position from Redis for user %s token %s",
-						args.UserExternalAddress, args.TokenExternalAddress)
+						userExternalAddress, tokenExternalAddress)
 				}
 			}
-			if perr := pipeliner.ZRem(ctx, userPositionKeyByBlockchainAddress, args.UserBlockchainAddress).Err(); perr != nil {
+			if perr := pipeliner.ZRem(ctx, userPositionKeyByBlockchainAddress, userBlockchainAddress).Err(); perr != nil {
 				return errors.Wrapf(perr, "failed to remove user position from Redis for user %s token %s",
-					args.UserBlockchainAddress, args.TokenExternalAddress)
+					userBlockchainAddress, tokenExternalAddress)
 			}
 		} else {
-			if args.UserExternalAddress != "" {
-				if perr := pipeliner.ZAdd(ctx, userPositionKey, redis.Z{
-					Score:  balanceFloat,
-					Member: args.UserExternalAddress,
-				}).Err(); perr != nil {
+			if userExternalAddress != "" {
+				if perr := zAddOrIncr(ctx, pipeliner, userPositionKey, userExternalAddress, balanceFloat).Err(); perr != nil {
 					return errors.Wrapf(perr, "failed to add user position to Redis for user %s token %s",
-						args.UserExternalAddress, args.TokenExternalAddress)
+						userExternalAddress, tokenExternalAddress)
 				}
 			}
-			if perr := pipeliner.ZAdd(ctx, userPositionKeyByBlockchainAddress, redis.Z{
-				Score:  balanceFloat,
-				Member: args.UserBlockchainAddress,
-			}).Err(); perr != nil {
+			if perr := zAddOrIncr(ctx, pipeliner, userPositionKeyByBlockchainAddress, userBlockchainAddress, balanceFloat).Err(); perr != nil {
 				return errors.Wrapf(perr, "failed to add user position to Redis for user %s token %s",
-					args.UserBlockchainAddress, args.TokenExternalAddress)
+					userBlockchainAddress, tokenExternalAddress)
 			}
 		}
 		return nil
 	}); txErr != nil {
-		return errors.Wrapf(txErr, "failed to update user positions for user %v(%v): %w", args.UserExternalAddress, args.UserBlockchainAddress)
+		return errors.Wrapf(txErr, "failed to update user positions for user %v(%v): %w", userExternalAddress, userBlockchainAddress)
 	} else {
 		for _, response := range responses {
 			if rerr := response.Err(); rerr != nil {
-				return errors.Wrapf(rerr, "failed to `%v` while updating user positions for user %v(%v): %w", response.FullName(), args.UserExternalAddress, args.UserBlockchainAddress, rerr)
+				return errors.Wrapf(rerr, "failed to `%v` while updating user positions for user %v(%v): %w", response.FullName(), userExternalAddress, userBlockchainAddress, rerr)
 			}
 		}
 	}
 
 	log.Debug(fmt.Sprintf("Balance updated: user=%s, token=%s, balance=%s",
-		args.UserBlockchainAddress, args.TokenExternalAddress, balance.String()))
-
-	if args.PairID == "" || args.BaseToken == "" {
-		log.Debug(fmt.Sprintf("Skipping bonding curve update for token=%s: missing pairID (%q) or baseToken (%q)",
-			args.TokenExternalAddress, args.PairID, args.BaseToken))
-	} else if err := w.updateBondingCurveProgress(ctx, args.TokenExternalAddress, args.PairID, args.BaseToken, args.TokenType, args.Platform, args.DummyBalance != nil); err != nil {
-		log.Error(errors.Wrapf(err, "failed to update bonding curve for token %s (balance update succeeded)", args.TokenExternalAddress))
-	}
+		userBlockchainAddress, tokenExternalAddress, balance.String()))
 
 	return nil
 }
