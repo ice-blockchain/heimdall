@@ -159,6 +159,18 @@ func TestBuildAddressesFromExternalAddressAndPlatform(t *testing.T) {
 			},
 		},
 		{
+			name:            "Valid IonConnect address with BSC blockchain address",
+			externalAddress: "a:pubkey:creator123",
+			platform:        PlatformGroupIonConnect,
+			bnbBscAddress:   "0xdeadbeef",
+			expectNil:       false,
+			expectError:     false,
+			expectedAddresses: &Addresses{
+				IonConnect: "a:pubkey:creator123",
+				Blockchain: "0xdeadbeef",
+			},
+		},
+		{
 			name:            "Valid X.com address",
 			externalAddress: "123456789",
 			platform:        PlatformGroupXCom,
@@ -429,7 +441,7 @@ func TestBuildTokenAndCreatorAddresses(t *testing.T) {
 		require.Equal(t, "0xabcd1234", tokenAddresses.Blockchain)
 		require.Equal(t, "0:creator_pubkey:", tokenAddresses.IonConnect)
 
-		require.Equal(t, "", creatorAddresses.Blockchain)
+		require.Equal(t, "0xdeadbeef", creatorAddresses.Blockchain)
 		require.Equal(t, "creator_pubkey", creatorAddresses.IonConnect)
 	})
 

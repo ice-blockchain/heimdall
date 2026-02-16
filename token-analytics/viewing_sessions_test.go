@@ -221,7 +221,7 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 		require.NotNil(t, tokens[0].Creator.Addresses)
 		require.Equal(t, "vs_creator1", tokens[0].Creator.Addresses.IonConnect)
 		require.Empty(t, tokens[0].Creator.Addresses.Twitter)
-		require.Empty(t, tokens[0].Creator.Addresses.Blockchain)
+		require.Equal(t, "0x00000000000000000000000000000vs_creator1", tokens[0].Creator.Addresses.Blockchain)
 		require.Nil(t, tokens[0].Creator.Token, "Profile token should not have creator.token")
 
 		require.InDelta(t, 500.0, tokens[0].MarketData.MarketCap, 1.0, "Market cap from Redis top set")

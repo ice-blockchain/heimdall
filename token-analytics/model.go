@@ -247,6 +247,9 @@ func buildAddressesFromExternalAddressAndPlatform(externalAddress, platform stri
 			addresses = Addresses{
 				IonConnect: externalAddress,
 			}
+			if bnbBscAddress != "" {
+				addresses.Blockchain = bnbBscAddress
+			}
 		case PlatformGroupXCom:
 			addresses = Addresses{
 				Twitter: externalAddress,

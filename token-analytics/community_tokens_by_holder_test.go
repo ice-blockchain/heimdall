@@ -240,7 +240,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		require.NotNil(t, token.Creator.Addresses)
 		require.Equal(t, creatorPubkey, token.Creator.Addresses.IonConnect)
 		require.Empty(t, token.Creator.Addresses.Twitter)
-		require.Empty(t, token.Creator.Addresses.Blockchain)
+		require.Equal(t, "0x0000000000000000000000000000creator_full", token.Creator.Addresses.Blockchain)
 		require.Nil(t, token.Creator.Token, "Profile token should not have creator.token")
 
 		require.Equal(t, "FULL", token.MarketData.Ticker)

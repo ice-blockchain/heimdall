@@ -79,9 +79,12 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 		kw := strings.ToLower(keyword)
 		whereClause := "WHERE t.ticker IS NOT NULL"
 		if tokenType != nil && *tokenType != "" {
-			if *tokenType == TokenTypeAnyPost {
+			switch *tokenType {
+			case TokenTypeAnyPost:
 				whereClause += ` AND t.type IN ('post', 'video', 'article')`
-			} else {
+			case TokenTypeXcom:
+				whereClause += ` AND t.platform = 'xcom'`
+			default:
 				whereClause += fmt.Sprintf(` AND t.type = $%d`, argIndex)
 				args = append(args, *tokenType)
 				argIndex++
@@ -142,9 +145,16 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 		WHERE t.ticker IS NOT NULL`
 
 		if tokenType != nil && *tokenType != "" {
-			query += fmt.Sprintf(` AND t.type = $%d`, argIndex)
-			args = append(args, *tokenType)
-			argIndex++
+			switch *tokenType {
+			case TokenTypeAnyPost:
+				query += ` AND t.type IN ('post', 'video', 'article')`
+			case TokenTypeXcom:
+				query += ` AND t.platform = 'xcom'`
+			default:
+				query += fmt.Sprintf(` AND t.type = $%d`, argIndex)
+				args = append(args, *tokenType)
+				argIndex++
+			}
 		}
 		query += " ORDER BY t.created_at DESC"
 		query += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argIndex, argIndex+1)
@@ -266,9 +276,12 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 	argIndex := 1
 
 	if tokenType != nil && *tokenType != "" {
-		if *tokenType == TokenTypeAnyPost {
+		switch *tokenType {
+		case TokenTypeAnyPost:
 			query += ` AND t.type IN ('post', 'video', 'article')`
-		} else {
+		case TokenTypeXcom:
+			query += ` AND t.platform = 'xcom'`
+		default:
 			query += fmt.Sprintf(` AND t.type = $%d`, argIndex)
 			args = append(args, *tokenType)
 			argIndex++
