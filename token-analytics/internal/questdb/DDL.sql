@@ -249,3 +249,19 @@ ALTER TABLE trades DEDUP DISABLE;
 ALTER TABLE trades DEDUP ENABLE UPSERT KEYS(timestamp, transaction_hash, trader_address, contract_address);
 -- we need to apply manually cuz of issue: https://github.com/questdb/questdb/issues/6750
 -- ALTER TABLE trades ADD COLUMN IF NOT EXISTS market_cap_usd DECIMAL(48, 18);
+
+CREATE TABLE IF NOT EXISTS hourly_token_rankings (
+    timestamp TIMESTAMP,
+    external_address SYMBOL CAPACITY 100000 INDEX,
+    contract_address VARCHAR,
+    rank INT,
+    volume_1h DOUBLE
+) TIMESTAMP(timestamp) PARTITION BY MONTH WAL;
+
+CREATE TABLE IF NOT EXISTS token_analytics_snapshots (
+    timestamp TIMESTAMP,
+    interval_type SYMBOL CAPACITY 10 CACHE,
+    launched LONG,
+    migrated LONG,
+    total_volume DOUBLE
+) TIMESTAMP(timestamp) PARTITION BY MONTH WAL;
