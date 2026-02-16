@@ -179,12 +179,10 @@ const (
 	volume24hMaterializedViewRefreshInterval = 30 * stdlibtime.Second
 
 	analyticsSnapshotCheckInterval = 1 * stdlibtime.Minute
-	hourlyRankingCheckInterval     = 1 * stdlibtime.Minute
 	HourlyRankingTopN              = 100
 
 	hourKeyFormat = "2006-01-02T15"
 
-	processedHoursSetKey     = "token_analytics:processed_hours"
 	processedSnapshotsSetKey = "token_analytics:processed_snapshots"
 
 	globalTopSetKey                  = "token_analytics:global:top"
@@ -555,24 +553,12 @@ type (
 		StartPrice      *big.Int
 		EndPrice        *big.Int
 	}
-	hourlyTokenRankingEntry struct {
-		timestamp       stdlibtime.Time
-		externalAddress string
-		contractAddress string
-		rank            int
-		volume1h        float64
-	}
 	analyticsSnapshotEntry struct {
 		timestamp    stdlibtime.Time
 		intervalType string
 		launched     int64
 		migrated     int64
 		totalVolume  float64
-	}
-	hourlyVolumeRow struct {
-		ContractAddress string  `db:"contract_address"`
-		ExternalAddress string  `db:"external_address"`
-		Volume1h        float64 `db:"volume_1h"`
 	}
 	intervalStatsRow struct {
 		Launched    uint64  `db:"launched"`
@@ -581,8 +567,6 @@ type (
 	}
 	hourlyTokenRanking struct {
 		ExternalAddress string  `db:"external_address"`
-		ContractAddress string  `db:"contract_address"`
-		Rank            int     `db:"rank"`
 		Volume1h        float64 `db:"volume_1h"`
 	}
 )

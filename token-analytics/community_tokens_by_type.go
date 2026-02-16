@@ -360,14 +360,12 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 func (t *tokenAnalytics) GetCommunityTokensByRewardsDistribution(ctx context.Context, referenceDate stdlibtime.Time, limit, offset uint64) ([]*CommunityToken, error) {
 	targetHour := referenceDate.UTC().Truncate(stdlibtime.Hour)
 	rankings, err := questdb.Select[hourlyTokenRanking](ctx, t.questDB,
-		`SELECT 
+		`SELECT
 			external_address,
-			contract_address,
-			rank,
 			volume_1h
-		 FROM hourly_token_rankings
-		 WHERE timestamp = $1
-		 ORDER BY rank ASC
+		 FROM token_volume_1h
+		 WHERE timestamp = $1 AND volume_1h > 0
+		 ORDER BY volume_1h DESC
 		 LIMIT $2, $2+$3`, targetHour, offset, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get hourly rankings from QuestDB for %v: %w", targetHour, err)

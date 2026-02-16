@@ -174,29 +174,42 @@ func (t *tokenAnalytics) computeAndStoreAnalyticsSnapshot(ctx context.Context, t
 }
 
 func (t *tokenAnalytics) computeIntervalStats(ctx context.Context, from, to time.Time) (*intervalStatsRow, error) {
-	result, err := storage.Get[intervalStatsRow](ctx, t.ingestedDataDB, `
+	pgRow, err := storage.Get[struct {
+		Launched uint64 `db:"launched"`
+		Migrated uint64 `db:"migrated"`
+	}](ctx, t.ingestedDataDB, `
 		SELECT
 			(SELECT COUNT(*) FROM tokens WHERE created_at >= $1 AND created_at < $2) AS launched,
-			(SELECT COUNT(*) FROM tokens WHERE migrated_at >= $1 AND migrated_at < $2) AS migrated,
-			COALESCE((
-				SELECT SUM(
-					CASE
-						WHEN direction = true THEN input_amount::numeric * price_usd
-						ELSE output_amount::numeric * price_usd
-					END
-				)
-				FROM token_swaps
-				WHERE created_at >= $1 AND created_at < $2
-			), 0) AS total_volume`, from, to)
+			(SELECT COUNT(*) FROM tokens WHERE migrated_at >= $1 AND migrated_at < $2) AS migrated`, from, to)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to query launched/migrated from PostgreSQL: %w", err)
 	}
+	volRow, err := questdb.Select[struct {
+		TotalVolume float64 `db:"total_volume"`
+	}](ctx, t.questDB, `
+		SELECT COALESCE(sum(volume_1h), 0) AS total_volume
+		FROM token_volume_1h
+		WHERE timestamp >= $1 AND timestamp < $2`, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query total_volume from QuestDB: %w", err)
+	}
+	result := &intervalStatsRow{
+		Launched: pgRow.Launched,
+		Migrated: pgRow.Migrated,
+	}
+	if len(volRow) > 0 {
+		result.TotalVolume = volRow[0].TotalVolume
+	}
+
 	return result, nil
 }
 
 func (t *tokenAnalytics) GetGlobalTokenStatistics(ctx context.Context, interval string) (*GlobalTokenStats, error) {
 	results, err := questdb.Select[GlobalTokenStats](ctx, t.questDB,
-		`SELECT launched, migrated, total_volume
+		`SELECT 
+			launched,
+			migrated,
+			total_volume
 		 FROM token_analytics_snapshots
 		 WHERE interval_type = $1
 		 ORDER BY timestamp DESC

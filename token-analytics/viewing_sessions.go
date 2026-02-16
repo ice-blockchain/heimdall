@@ -224,11 +224,10 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMapWithType(ctx context.Contex
 			FROM token_swaps
 			WHERE token_swaps.contract_address = t.contract_address
 				AND direction = false
-				AND t.platform = 'xcom'
 			ORDER BY created_at ASC
 			LIMIT 1
-		) first_swap ON true
-		LEFT JOIN user_bsc_addresses launcher_addr ON LOWER(launcher_addr.bsc_address) = LOWER(first_swap.user_blockchain_address)
+		) first_swap ON t.platform = 'xcom'
+		LEFT JOIN user_bsc_addresses launcher_addr ON launcher_addr.bsc_address = first_swap.user_blockchain_address
 		LEFT JOIN users launcher ON launcher.id = launcher_addr.user_id
 		LEFT JOIN tokens creator_token ON creator_token.contract_address = t.base_token AND creator_token.type = 'profile'
 		WHERE t.external_address = ANY($1)

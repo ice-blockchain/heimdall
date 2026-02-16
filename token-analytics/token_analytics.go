@@ -393,7 +393,6 @@ func (t *tokenAnalytics) MustStart(ctx context.Context) {
 	go t.runMaterializedViewRefreshWorker(ctx)
 	go t.runVolumeWorker(ctx)
 	go t.runPeriodicRepopulationWorker(ctx)
-	go t.runHourlyRankingWorker(ctx)
 	go t.runAnalyticsSnapshotWorker(ctx)
 }
 
