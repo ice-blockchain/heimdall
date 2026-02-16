@@ -132,7 +132,7 @@ func TestGetCommunityTokensByLatest_WithAndWithoutKeyword(t *testing.T) {
 				require.NotNil(t, token.Creator.Addresses)
 				require.Equal(t, "creator_latest1", token.Creator.Addresses.IonConnect)
 				require.Empty(t, token.Creator.Addresses.Twitter)
-				require.Empty(t, token.Creator.Addresses.Blockchain)
+				require.Equal(t, "0x0000000000000000000000000creator_latest1", token.Creator.Addresses.Blockchain)
 
 				require.Equal(t, "latest_one", strVal(token.Creator.Username))
 				require.Equal(t, "Latest One", strVal(token.Creator.Display))

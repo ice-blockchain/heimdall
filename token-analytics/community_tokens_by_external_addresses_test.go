@@ -1263,7 +1263,7 @@ func TestGetCommunityTokensByPlatform(t *testing.T) {
 		require.Equal(t, ionMasterPubkey, token.Creator.Addresses.IonConnect)
 		require.Empty(t, token.Creator.Addresses.Twitter)
 
-		require.Empty(t, token.Creator.Addresses.Blockchain, "IonConnect creator should NOT have blockchain address")
+		require.Equal(t, "0x0000000000000000000000000ion_creator_123", token.Creator.Addresses.Blockchain, "IonConnect creator should have blockchain address from content_author_id")
 	})
 
 	t.Run("mixed_platforms_in_same_query", func(t *testing.T) {
@@ -1327,7 +1327,7 @@ func TestGetCommunityTokensByPlatform(t *testing.T) {
 		require.NotEmpty(t, xcomToken.Addresses.Twitter)
 		require.Empty(t, xcomToken.Addresses.IonConnect)
 
-		require.Empty(t, ionToken.Creator.Addresses.Blockchain)
+		require.Equal(t, "0x000000000000000000000000000ion_mixed_456", ionToken.Creator.Addresses.Blockchain)
 		require.Empty(t, ionToken.Addresses.Twitter)
 		require.NotEmpty(t, ionToken.Addresses.IonConnect)
 	})
