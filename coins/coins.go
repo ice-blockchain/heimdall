@@ -285,33 +285,40 @@ func (c *coinsRepository) upsertCoin(ctx context.Context, now *time.Time, tok *c
 		)) as t(sync_frequency, created_at, updated_at, data_updated_at, decimals, version,                             price_usd, id, coingecko_coin_id,
 				network, name, contract_address, symbol, symbol_group, icon_url, native, tc_external_address, tc_type)
 		WHERE NOT EXISTS (SELECT 1 FROM coins WHERE symbol_group = $9) -- restrict contract_address to be eq symbol_group of existing coins
+	), coin_insert AS (
+		INSERT INTO coins (sync_frequency, created_at, updated_at, data_updated_at, decimals, version, price_usd, id, coingecko_coin_id,
+			network, name, contract_address, symbol, symbol_group, icon_url, native, tc_external_address, tc_type) 
+			SELECT * from insert_data
+			ON CONFLICT (id) DO UPDATE SET
+			sync_frequency = excluded.sync_frequency,
+				updated_at = excluded.updated_at,
+				decimals = excluded.decimals,
+				version = (CASE WHEN
+			coins.decimals != excluded.decimals OR
+			coins.coingecko_coin_id != excluded.coingecko_coin_id OR
+			coins.network != excluded.network OR
+			coins.name != excluded.name OR
+			coins.contract_address != excluded.contract_address OR
+			coins.symbol != excluded.symbol OR
+			coins.symbol_group != excluded.symbol_group OR
+			coins.icon_url != excluded.icon_url
+			THEN (select value from global where key = '%[1]v')::BIGINT + 1 ELSE coins.version END),
+				price_usd = excluded.price_usd,
+					coingecko_coin_id = excluded.coingecko_coin_id,
+					network = excluded.network,
+					name = excluded.name,
+					contract_address = excluded.contract_address,
+					symbol = excluded.symbol,
+					symbol_group = excluded.symbol_group,
+					icon_url = excluded.icon_url
+				RETURNING coins.*, 1 as union_idx
 	)
-	INSERT INTO coins (sync_frequency, created_at, updated_at, data_updated_at, decimals, version,                             price_usd, id, coingecko_coin_id,
-		network, name, contract_address, symbol, symbol_group, icon_url, native, tc_external_address, tc_type) 
-		SELECT * from insert_data
-		ON CONFLICT (id) DO UPDATE SET
-		sync_frequency = excluded.sync_frequency,
-			updated_at = excluded.updated_at,
-			decimals = excluded.decimals,
-			version = (CASE WHEN
-		coins.decimals != excluded.decimals OR
-		coins.coingecko_coin_id != excluded.coingecko_coin_id OR
-		coins.network != excluded.network OR
-		coins.name != excluded.name OR
-		coins.contract_address != excluded.contract_address OR
-		coins.symbol != excluded.symbol OR
-		coins.symbol_group != excluded.symbol_group OR
-		coins.icon_url != excluded.icon_url
-		THEN (select value from global where key = '%[1]v')::BIGINT + 1 ELSE coins.version END),
-			price_usd = excluded.price_usd,
-				coingecko_coin_id = excluded.coingecko_coin_id,
-				network = excluded.network,
-				name = excluded.name,
-				contract_address = excluded.contract_address,
-				symbol = excluded.symbol,
-				symbol_group = excluded.symbol_group,
-				icon_url = excluded.icon_url
-			RETURNING *;`, keyCoinsMaxVersion)
+	SELECT sync_frequency, created_at, updated_at, data_updated_at, decimals, version, price_usd, id, coingecko_coin_id,
+		network, name, contract_address, symbol, symbol_group, icon_url, native, tc_external_address, tc_type
+	from (
+	SELECT * FROM coin_insert UNION ALL (
+		SELECT coins.*, 2 as union_idx FROM coins WHERE symbol_group = $9 and network = $7
+	) ORDER BY union_idx LIMIT 1);`, keyCoinsMaxVersion)
 
 	updated, err := storage.ExecOne[coin](ctx, c.db, sql, now, syncFrequency(c.cfg, tok.ID), tok.Decimals, tok.PriceUSD, generateInternalID(tok, nil),
 		tok.ID, tok.Network, tok.Name, tok.ContractAddress, tok.Symbol, tok.SymbolGroup(), tok.IconUrl, tokenizedCommunityExternalAddress, tokenizedCommunityTokenType)
