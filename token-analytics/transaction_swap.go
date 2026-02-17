@@ -379,6 +379,7 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 		ContractAddress:       contractAddress,
 		TokenExternalAddress:  tokenExternalAddress,
 		TransactionHash:       tx.TransactionHash,
+		BlockNumber:           tx.BlockNumber,
 		PairID:                pairID,
 		BaseToken:             baseToken,
 		TokenType:             tokenType,
@@ -438,6 +439,7 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 			ContractAddress:       *baseProfileContractAddress,
 			TokenExternalAddress:  *baseProfileExternalAddress,
 			TransactionHash:       tx.TransactionHash,
+			BlockNumber:           tx.BlockNumber,
 			TokenType:             TokenTypeProfile,
 			Platform:              platform,
 		}
@@ -447,11 +449,11 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 		// also push spent tokens into "Content Pool" - mocked position for content tokens (spent amount)
 		// Use content token pool address / ext address to track its position
 		if !direction { // buy content, sell creator
-			if err := t.incrUserPosition(ctx, contractAddress, *baseProfileContractAddress, *baseProfileExternalAddress, tokenExternalAddress, input); err != nil {
+			if err := t.incrUserPosition(ctx, contractAddress, *baseProfileContractAddress, *baseProfileExternalAddress, tokenExternalAddress, input, tx.BlockNumber, tx.TransactionHash); err != nil {
 				return errors.Wrapf(err, "failed to update content token pool position for content %v (base token %v)", tokenExternalAddress, *baseProfileExternalAddress)
 			}
 		} else { // sell content, buy creator
-			if err := t.decrUserPosition(ctx, contractAddress, *baseProfileContractAddress, *baseProfileExternalAddress, tokenExternalAddress, output); err != nil {
+			if err := t.decrUserPosition(ctx, contractAddress, *baseProfileContractAddress, *baseProfileExternalAddress, tokenExternalAddress, output, tx.BlockNumber, tx.TransactionHash); err != nil {
 				return errors.Wrapf(err, "failed to update content token pool position for content %v (base token %v)", tokenExternalAddress, *baseProfileExternalAddress)
 			}
 		}
