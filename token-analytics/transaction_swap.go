@@ -170,7 +170,8 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 		LEFT JOIN user_bsc_addresses uba ON uba.bsc_address = $2
 		LEFT JOIN users u ON u.id = uba.user_id
 		LEFT JOIN tokens base_token ON base_token.contract_address = t.base_token and base_token."type" = 'profile'
-		LEFT JOIN fees_transferred burned ON burned.token_external_address = t.external_address AND burned.recipient_bsc_address = $3`
+		LEFT JOIN fees_transferred burned ON burned.token_external_address = t.external_address AND burned.recipient_bsc_address = $3
+		`
 
 	var result *tokenAndUserInfo
 	var err error
@@ -442,6 +443,17 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 		}
 		if err := t.riverClient.Push(ctx, baseJobArgs); err != nil {
 			return errors.Wrapf(err, "failed to enqueue balance update job for tx %v (base token %v)", tx.TransactionHash, *baseProfileContractAddress)
+		}
+		// also push spent tokens into "Content Pool" - mocked position for content tokens (spent amount)
+		// Use content token pool address / ext address to track its position
+		if !direction { // buy content, sell creator
+			if err := t.incrUserPosition(ctx, contractAddress, *baseProfileContractAddress, *baseProfileExternalAddress, tokenExternalAddress, input); err != nil {
+				return errors.Wrapf(err, "failed to update content token pool position for content %v (base token %v)", tokenExternalAddress, *baseProfileExternalAddress)
+			}
+		} else { // sell content, buy creator
+			if err := t.decrUserPosition(ctx, contractAddress, *baseProfileContractAddress, *baseProfileExternalAddress, tokenExternalAddress, output); err != nil {
+				return errors.Wrapf(err, "failed to update content token pool position for content %v (base token %v)", tokenExternalAddress, *baseProfileExternalAddress)
+			}
 		}
 	}
 

@@ -5,6 +5,7 @@ package tokenanalytics
 import (
 	"context"
 	"fmt"
+	"math"
 	"math/big"
 	"strconv"
 	"strings"
@@ -35,6 +36,157 @@ type QuestDBTrade struct {
 	TradeType       string    `db:"trade_type"`
 	TraderAddress   string    `db:"trader_address"`
 	TransactionHash string    `db:"transaction_hash"`
+}
+
+func TestContentPoolPosition(t *testing.T) {
+	ctx := t.Context()
+	ionPrice := 0.1 // $0.1 per ION
+	db, connString, release := helperCreateDBWithConnString(t)
+	defer release()
+
+	ta := helperNewForTestWithConnString(t, db, connString)
+	ta.ionPriceUSD.Store(&ionPrice)
+	masterPubkey := "buyerpubkey"
+	contractAddress := "0x0937ea7ab4a7e5bcba1bf18c9495d08107d9f8a1"
+	ionConnectAddr := helperBuildExternalAddress("ionconnect", "post", masterPubkey)
+	userAddr := "0xb5946173c7f997949494dfd87d2076ea41b8069a"
+	baseToken := "0xbace001b26d8d121a51717306adbebc70b8b0001"
+	pairId := "0x78a6846c1bbd47fd80454415bef17cd169a55733231bd03afa004b03255b67ab"
+	helperInsertTestUser(t, ctx, db, masterPubkey, "buyer_of_content", "Buyer Of Content", userAddr, false, PlatformGroupIonConnect)
+
+	now := wintrtime.Now()
+	totalSupply := new(big.Int)
+	totalSupply.SetString("1000000000000000000000", 10)
+	// base profile token
+	baseExternalAddress := helperBuildExternalAddress("ionconnect", TokenTypeProfile, masterPubkey)
+	helperInsertTestToken(t, ctx, db,
+		baseToken,
+		baseExternalAddress,
+		"PROFILE",
+		TokenTypeProfile,
+		masterPubkey,
+		totalSupply.String(),
+		0,
+		0,
+		0,
+		PlatformGroupIonConnect,
+	)
+	helperInsertBaseTokenPrice(t, ctx, db, baseToken, "PROFILE", 0.1)
+	// content token to buy
+	helperInsertTestToken(t, ctx, db,
+		contractAddress,
+		ionConnectAddr,
+		"CONTENT",
+		TokenTypePost,
+		masterPubkey,
+		totalSupply.String(),
+		0,
+		0,
+		0,
+		PlatformGroupIonConnect,
+	)
+	_, err := storage.Exec(ctx, db, `
+		UPDATE tokens SET base_token = $1, pair_id = $2 WHERE contract_address = $3
+	`, baseToken, pairId, contractAddress)
+	require.NoError(t, err)
+
+	t.Run("content token pool is registered when swap of content token occurs", func(t *testing.T) {
+		swapEvent := &bondingcurve.LogTokenSwapped{
+			Swapper:      common.HexToAddress(userAddr),
+			Pair:         common.HexToHash(pairId),
+			Direction:    false,                           // false = buy
+			InputAmount:  big.NewInt(2000000000000000000), // 2 Profile input
+			OutputAmount: big.NewInt(1000000000000000000), // 1 content token output
+			Fee:          big.NewInt(0),
+			Params: map[string]interface{}{
+				"toToken": buildFatAddressV2Single("Content", "CONTENT", ionConnectAddr, 'd', common.Address{}, common.Address{}),
+			},
+		}
+
+		tx := &txEvent{
+			TransactionHash: "0xtest_buy_content_123",
+			BlockNumber:     2,
+			FromAddress:     userAddr,
+			BlockTimestamp:  now,
+			Input:           buildMockSwapInput(ionConnectAddr), // Add mock tx.Input
+		}
+
+		err = ta.onSwap(ctx, tx, swapEvent)
+		require.NoError(t, err)
+
+		scoreOfContentPool, err := testRedis.ZScore(ctx, keyUserPositionOfToken(baseExternalAddress), ionConnectAddr).Result()
+		require.NoError(t, err)
+		require.InDelta(t, scoreOfContentPool, 2.0, 0.00001, "Should match with spent amount on CONTENT")
+
+		require.Eventually(t, func() bool {
+			score, err := testRedis.ZScore(ctx, keyUserPositionOfToken(ionConnectAddr), "0:"+masterPubkey+":").Result()
+			return err == nil && math.Trunc(score) == 1.0
+		}, 2*time.Second, 50*time.Millisecond, "User should get 1 CONTENT for 2 PROFILE")
+	})
+	t.Run("when user sells CONTENT for PROFILE, content pool is decreased", func(t *testing.T) {
+		sellEvent := &bondingcurve.LogTokenSwapped{
+			Swapper:      common.HexToAddress(userAddr),
+			Pair:         common.HexToHash(pairId),
+			Direction:    true,                            // true = sell
+			InputAmount:  big.NewInt(1000000000000000000), // 1 token input
+			OutputAmount: big.NewInt(500000000000000000),  // 0.5 PROFILE output
+			Fee:          big.NewInt(0),
+			Params: map[string]interface{}{
+				"toToken": buildFatAddressV2Single("Creator", "CREATOR", ionConnectAddr, 'd', common.Address{}, common.Address{}),
+			},
+		}
+
+		txSell := &txEvent{
+			TransactionHash: "0xtest_sell_content_456",
+			BlockNumber:     12,
+			FromAddress:     userAddr,
+			BlockTimestamp:  now,
+			Input:           buildMockSwapInput(ionConnectAddr),
+		}
+
+		err = ta.onSwap(ctx, txSell, sellEvent)
+		require.NoError(t, err)
+		scoreOfContentPool, err := testRedis.ZScore(ctx, keyUserPositionOfToken(baseExternalAddress), ionConnectAddr).Result()
+		require.NoError(t, err)
+		require.InDelta(t, scoreOfContentPool, 1.5, 0.00001, "user gets 0.5 of PROFILE back")
+	})
+	t.Run("when user buys CONTENT using twisted swap", func(t *testing.T) {
+		// Create double fat address for content token
+		doubleFatAddress := buildFatAddressV2Double(
+			"Creator Token", "CREATOR", baseExternalAddress, 0x61,
+			"Content Token", "CONTENT", ionConnectAddr, 0x62,
+			common.Address{}, common.Address{},
+		)
+
+		// Simulate buying content token (double swap: ION -> Creator -> Content)
+		swapEvent := &bondingcurve.LogTokenSwapped{
+			Swapper:      common.HexToAddress(userAddr),
+			Pair:         common.HexToHash(pairId),
+			Direction:    false,                           // buy
+			InputAmount:  big.NewInt(2000000000000000000), // 2 creator token input
+			OutputAmount: big.NewInt(1000000000000000000), // 1 content token output
+			Fee:          big.NewInt(0),
+			Params: map[string]interface{}{
+				"toToken": doubleFatAddress,
+			},
+		}
+
+		tx := &txEvent{
+			TransactionHash: "0xtest_content_twisted_swap",
+			BlockNumber:     100,
+			FromAddress:     userAddr,
+			BlockTimestamp:  now,
+			Input:           buildMockSwapInput(ionConnectAddr),
+		}
+
+		err = ta.onSwap(ctx, tx, swapEvent)
+		require.NoError(t, err)
+
+		scoreOfContentPool, err := testRedis.ZScore(ctx, keyUserPositionOfToken(baseExternalAddress), ionConnectAddr).Result()
+		require.NoError(t, err)
+		require.InDelta(t, scoreOfContentPool, 3.5, 0.00001, "1.5 + 2 spent more = 3.5")
+
+	})
 }
 
 func TestOnSwap(t *testing.T) {

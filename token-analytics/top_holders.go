@@ -54,40 +54,95 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 	}
 
 	query := `
-	SELECT 
-		t.content_author_id as content_author_id,
-		creator.username as creator_username,
-		creator.display_name as creator_display,
-		creator.verified as creator_verified,
-		creator.avatar as creator_avatar,
-		creator.platform_group as creator_platform,
-		COALESCE(creator_fees_transferred.amount,'0') as creator_fees,
-		t.content_author_id as creator_bnb_bsc_address,
-		creator.external_address as creator_external_address,
-		t.price_usd as price_usd,
-		t.total_supply as total_supply,
-		t.bonding_curve_migrated as bonding_curve_migrated,
-		t.pair_id as pair_id,
-		t.base_token,
+	WITH token_info AS (
+		SELECT t.content_author_id                            as content_author_id,
+		   creator.username                               as creator_username,
+		   creator.display_name                           as creator_display,
+		   creator.verified                               as creator_verified,
+		   creator.avatar                                 as creator_avatar,
+		   creator.platform_group                         as creator_platform,
+		   COALESCE(creator_fees_transferred.amount, '0') as creator_fees,
+		   t.content_author_id                            as creator_bnb_bsc_address,
+		   creator.external_address                       as creator_external_address,
+		   t.price_usd                                    as price_usd,
+		   t.total_supply                                 as total_supply,
+		   t.bonding_curve_migrated                       as bonding_curve_migrated,
+		   t.pair_id                                      as pair_id,
+		   t.base_token,
+		   t.contract_address,
+		   utp.user_blockchain_address as holder_bnb_bsc_address,
+		   utp.user_external_address as holder_external_address,
+		   holder_addr.user_id as holder_id
+		FROM tokens t
+			 JOIN user_token_positions utp ON utp.external_address = t.external_address
+					AND (utp.user_external_address = ANY($2) OR
+						 utp.user_blockchain_address = ANY($3))
+			 LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
+			 LEFT JOIN users creator ON creator.id = creator_addr.user_id
+			 LEFT JOIN user_bsc_addresses holder_addr
+					   ON holder_addr.bsc_address = utp.user_blockchain_address
+			 LEFT JOIN fees_transferred creator_fees_transferred
+					   ON recipient_bsc_address = t.content_author_id AND
+						  token_external_address = t.external_address AND fee_type = 'creator'
+		WHERE t.external_address = $1
+		  AND t.ticker IS NOT NULL
+	)
+    SELECT
+        t.content_author_id,
+        t.creator_username,
+        t.creator_display,
+        t.creator_verified,
+        t.creator_avatar,
+        t.creator_platform,
+        t.creator_fees,
+        t.creator_bnb_bsc_address,
+        t.creator_external_address,
+        t.price_usd,
+        t.total_supply,
+        t.bonding_curve_migrated,
+        t.pair_id,
+        t.base_token,
+
+        t.holder_bnb_bsc_address,
+        t.holder_external_address,
 		holder.master_pubkey as holder_master_pubkey,
-		holder.username as holder_username,
-		holder.display_name as holder_display,
-		holder.verified as holder_verified,
-		holder.avatar as holder_avatar,
-		utp.user_external_address as holder_external_address,
-		holder.platform_group as holder_platform,
-		utp.user_blockchain_address as holder_bnb_bsc_address
-	FROM tokens t
-	JOIN user_token_positions utp ON utp.external_address = t.external_address
-		AND (utp.user_external_address = ANY($2) OR utp.user_blockchain_address = ANY($3))
-	LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
-	LEFT JOIN users creator ON creator.id = creator_addr.user_id
-	LEFT JOIN user_bsc_addresses holder_addr ON holder_addr.bsc_address = utp.user_blockchain_address
-	LEFT JOIN users holder ON holder.id = holder_addr.user_id OR holder.external_address = utp.user_external_address
-	LEFT JOIN fees_transferred creator_fees_transferred ON recipient_bsc_address = t.content_author_id AND token_external_address = t.external_address AND fee_type = 'creator'
-	WHERE t.external_address = $1
-	  AND t.ticker IS NOT NULL
-	`
+	    holder.username as holder_username,
+	    holder.display_name as holder_display,
+	    holder.verified as holder_verified,
+	    holder.avatar as holder_avatar,
+	    holder.platform_group as holder_platform
+    FROM token_info t
+        LEFT JOIN users holder ON holder.id = t.holder_id OR holder.external_address = t.holder_external_address
+	UNION ALL (
+		    SELECT
+        t.content_author_id,
+        t.creator_username,
+        t.creator_display,
+        t.creator_verified,
+        t.creator_avatar,
+        t.creator_platform,
+        t.creator_fees,
+        t.creator_bnb_bsc_address,
+        t.creator_external_address,
+        t.price_usd,
+        t.total_supply,
+        t.bonding_curve_migrated,
+        t.pair_id,
+        t.base_token,
+
+        t.holder_bnb_bsc_address,
+        t.holder_external_address,
+		NULL as holder_master_pubkey,
+	    holder_content_pool.ticker as holder_username,
+	    '$' || holder_content_pool.ticker || ' Pool' as holder_display,
+	    TRUE as holder_verified,
+	    holder_content_pool.image_url as holder_avatar,
+	    'ionconnect' as holder_platform
+    FROM token_info t
+        JOIN tokens holder_content_pool ON holder_content_pool.external_address = t.holder_external_address
+									   AND holder_content_pool.base_token = t.contract_address
+	);
+`
 	rows, err := storage.Select[holderWithTokenData](ctx, t.ingestedDataDB, query, externalAddress, userIonConnects, userBlockchainAddresses)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch holders data")
@@ -111,6 +166,7 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 	}
 
 	creatorPosition := t.creatorPosition(ctx, externalAddress, creatorAddresses)
+	extraItemsEnriched := 0
 	if creatorPosition == 0 { // When creator has position fees are included in it as we read balance from blockchain
 		creatorPosition = weiToFloat64FromBigString(rows[0].CreatorFees)
 		for idx, z := range result {
@@ -149,12 +205,12 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 					CreatorVerified:        creator.Verified,
 					HolderVerified:         creator.Verified,
 				})
+				extraItemsEnriched += 1
 				break
 			}
 		}
 	}
 
-	extraItemsEnriched := 0
 	if !tokenMigrated {
 		if rows, result, resultBlockChainAddresses, err = t.enrichTopHoldersWithBongingCurve(ctx, pairId, externalAddress, rows, creator, limit, result, resultBlockChainAddresses); err != nil {
 			return nil, errors.Wrapf(err, "failed to enrich top holders with bonging curve for token %v", externalAddress)
