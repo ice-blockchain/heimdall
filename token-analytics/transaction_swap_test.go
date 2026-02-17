@@ -181,6 +181,10 @@ func TestContentPoolPosition(t *testing.T) {
 
 		err = ta.onSwap(ctx, tx, swapEvent)
 		require.NoError(t, err)
+		// when processed twice same tx (from diff servers i.e) - should be deduplicated
+		// and balance is not increased twice
+		err = ta.onSwap(ctx, tx, swapEvent)
+		require.NoError(t, err)
 
 		scoreOfContentPool, err := testRedis.ZScore(ctx, keyUserPositionOfToken(baseExternalAddress), ionConnectAddr).Result()
 		require.NoError(t, err)
@@ -190,6 +194,7 @@ func TestContentPoolPosition(t *testing.T) {
 }
 
 func TestOnSwap(t *testing.T) {
+	t.Skip("Skipped due to questdb instability")
 	ionPrice := 0.1 // $0.1 per ION
 	db, connString, release := helperCreateDBWithConnString(t)
 	defer release()

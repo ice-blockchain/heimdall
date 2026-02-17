@@ -23,6 +23,7 @@ type BalanceUpdateJobArgs struct {
 	ContractAddress       string `json:"contract_address"`
 	TokenExternalAddress  string `json:"token_external_address"`
 	TransactionHash       string `json:"transaction_hash"`
+	BlockNumber           uint64 `json:"block_number"`
 	PairID                string `json:"pair_id"`
 	BaseToken             string `json:"base_token"`
 	TokenType             string `json:"token_type"`
@@ -66,7 +67,7 @@ func (w *balanceUpdateWorker) Work(ctx context.Context, job *riverqueue.Job[Bala
 				args.UserBlockchainAddress, args.ContractAddress)
 		}
 	}
-	if err := w.ta.setUserPosition(ctx, args.UserBlockchainAddress, args.ContractAddress, args.TokenExternalAddress, args.UserExternalAddress, balance); err != nil {
+	if err := w.ta.setUserPosition(ctx, args.UserBlockchainAddress, args.ContractAddress, args.TokenExternalAddress, args.UserExternalAddress, balance, args.BlockNumber, args.TransactionHash); err != nil {
 		return errors.Wrapf(err, "failed to update user token position for user %s token %s %s",
 			args.UserBlockchainAddress, args.ContractAddress, args.TokenExternalAddress)
 	}
@@ -81,8 +82,8 @@ func (w *balanceUpdateWorker) Work(ctx context.Context, job *riverqueue.Job[Bala
 }
 
 func (t *tokenAnalytics) setUserPosition(ctx context.Context, userBlockchainAddress, contractAddress,
-	tokenExternalAddress, userExternalAddress string, balance *big.Int) error {
-	return t.setOrIncrUserPosition(ctx, userBlockchainAddress, contractAddress, tokenExternalAddress, userExternalAddress, balance,
+	tokenExternalAddress, userExternalAddress string, balance *big.Int, blockNum uint64, txHash string) error {
+	return t.setOrIncrUserPosition(ctx, userBlockchainAddress, contractAddress, tokenExternalAddress, userExternalAddress, balance, blockNum, txHash,
 		"amount = EXCLUDED.amount,",
 		func(ctx context.Context, p redis.Pipeliner, key, userKey string, balance float64) redis.Cmder {
 			return p.ZAdd(ctx, key, redis.Z{
@@ -93,8 +94,8 @@ func (t *tokenAnalytics) setUserPosition(ctx context.Context, userBlockchainAddr
 }
 
 func (t *tokenAnalytics) incrUserPosition(ctx context.Context, userBlockchainAddress, contractAddress,
-	tokenExternalAddress, userExternalAddress string, balance *big.Int) error {
-	return t.setOrIncrUserPosition(ctx, userBlockchainAddress, contractAddress, tokenExternalAddress, userExternalAddress, balance,
+	tokenExternalAddress, userExternalAddress string, balance *big.Int, blockNum uint64, txHash string) error {
+	return t.setOrIncrUserPosition(ctx, userBlockchainAddress, contractAddress, tokenExternalAddress, userExternalAddress, balance, blockNum, txHash,
 		"amount = user_token_positions.amount + EXCLUDED.amount,",
 		func(ctx context.Context, p redis.Pipeliner, key, userKey string, balance float64) redis.Cmder {
 			return p.ZIncrBy(ctx, key, balance, userKey)
@@ -102,8 +103,8 @@ func (t *tokenAnalytics) incrUserPosition(ctx context.Context, userBlockchainAdd
 }
 
 func (t *tokenAnalytics) decrUserPosition(ctx context.Context, userBlockchainAddress, contractAddress,
-	tokenExternalAddress, userExternalAddress string, balance *big.Int) error {
-	return t.setOrIncrUserPosition(ctx, userBlockchainAddress, contractAddress, tokenExternalAddress, userExternalAddress, balance,
+	tokenExternalAddress, userExternalAddress string, balance *big.Int, blockNum uint64, txHash string) error {
+	return t.setOrIncrUserPosition(ctx, userBlockchainAddress, contractAddress, tokenExternalAddress, userExternalAddress, balance, blockNum, txHash,
 		"amount = GREATEST(user_token_positions.amount - EXCLUDED.amount, 0::NUMERIC),",
 		func(ctx context.Context, p redis.Pipeliner, key, userKey string, balance float64) redis.Cmder {
 			return p.ZIncrBy(ctx, key, -balance, userKey)
@@ -111,24 +112,33 @@ func (t *tokenAnalytics) decrUserPosition(ctx context.Context, userBlockchainAdd
 }
 
 func (t *tokenAnalytics) setOrIncrUserPosition(ctx context.Context, userBlockchainAddress, contractAddress,
-	tokenExternalAddress, userExternalAddress string, balance *big.Int,
+	tokenExternalAddress, userExternalAddress string, balance *big.Int, blockNum uint64, txHash string,
 	sqlUpdateClause string,
 	zAddOrIncr func(ctx context.Context, p redis.Pipeliner, redisKey, userKey string, balance float64) redis.Cmder) error {
-	_, err := storage.Exec(ctx, t.ingestedDataDB, fmt.Sprintf(`
+	rowsUpdated, err := storage.Exec(ctx, t.ingestedDataDB, fmt.Sprintf(`
 		INSERT INTO user_token_positions (
 			user_blockchain_address, contract_address, external_address, user_external_address,
-			amount, avg_buy_price_usd, total_invested_usd, total_realized_usd, updated_at, balance_notified_at
+			amount, avg_buy_price_usd, total_invested_usd, total_realized_usd, updated_at, balance_notified_at,
+		    last_update_block, last_update_tx_hash
 		)
 		VALUES (
 			$1, $2, $3, $4,
-			$5, 0, 0, 0, NOW(), NOW()
+			$5, 0, 0, 0, NOW(), NOW(), $6, $7
 		)
 		ON CONFLICT (user_blockchain_address, contract_address) DO UPDATE SET
 			%[1]v
 			updated_at = EXCLUDED.updated_at,
-			balance_notified_at = EXCLUDED.balance_notified_at;
+		    last_update_block = excluded.last_update_block,
+		    last_update_tx_hash = excluded.last_update_tx_hash,                  
+			balance_notified_at = EXCLUDED.balance_notified_at
+		WHERE user_token_positions.last_update_block <= $6 and user_token_positions.last_update_tx_hash != $7;
 	`, sqlUpdateClause), userBlockchainAddress, contractAddress, tokenExternalAddress,
-		userExternalAddress, balance.String())
+		userExternalAddress, balance.String(), blockNum, txHash)
+	if err == nil && rowsUpdated == 0 {
+		log.Debug(fmt.Sprintf("Duplicated call for balance update: user=%s, token=%s, balance=%s tx=%s block=%v",
+			userBlockchainAddress, tokenExternalAddress, balance.String(), txHash, blockNum))
+		return nil
+	}
 	if err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
 		return errors.Wrapf(err, "failed to update user token position in DB for user/pool %s %s token %s",
 			userBlockchainAddress, userExternalAddress, contractAddress)
