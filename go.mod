@@ -252,7 +252,7 @@ require (
 	github.com/mailru/easyjson v0.9.1 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mattn/go-runewidth v0.0.19 // indirect
+	github.com/mattn/go-runewidth v0.0.20 // indirect
 	github.com/mholt/acmez/v3 v3.1.4 // indirect
 	github.com/microcosm-cc/bluemonday v1.0.27 // indirect
 	github.com/miekg/dns v1.1.72 // indirect
