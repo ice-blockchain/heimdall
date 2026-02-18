@@ -585,13 +585,41 @@ func tokenizedCommunityTokenToCoin(token TokenAnalyticsToken) *coingecko.Coin {
 }
 
 func (c *coinsRepository) Search(ctx context.Context, keyword string, limit, offset uint64) ([]*Coin, error) {
-	coinsList, err := storage.Select[coin](ctx, c.db, `SELECT * from coins where 
+	coinsList, err := storage.Select[coin](ctx, c.db, `
+				WITH candidates AS (SELECT  coins.*, 
+						    GREATEST(similarity(symbol, $1), word_similarity($1, symbol)) + 
+							(CASE 
+							   WHEN symbol = $1 THEN 1.0
+							   ELSE 0
+							END) as score
+					FROM coins WHERE 
                         symbol LIKE ($1 || '%%')
                     	AND GREATEST(similarity(symbol, $1), word_similarity($1, symbol)) >= 0.2
-                    ORDER BY (CASE 
-					   WHEN symbol = $1 THEN 1.0
-					   ELSE GREATEST(similarity(symbol, $1), word_similarity($1, symbol))
-				   END) DESC LIMIT $2 OFFSET $3`, keyword, limit, offset)
+					    ORDER BY coins.symbol <-> ($1 || '%%')
+					    LIMIT 200
+					)
+				SELECT 
+					sync_frequency,
+					created_at,
+					updated_at,
+					data_updated_at,
+					version,
+					coingecko_coin_id,
+					id,
+					network,
+					name,
+					contract_address,
+					symbol,
+					symbol_group,
+					icon_url,
+					price_usd,
+					decimals,
+					native,
+					tc_external_address,
+					tc_type
+				FROM candidates
+				ORDER BY score DESC
+				LIMIT $2 OFFSET $3`, keyword, limit, offset)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to search coins for %v", keyword)
 	}

@@ -2595,11 +2595,11 @@ paths:
       - description: limit (default 10)
         in: query
         name: limit
-        type: string
+        type: integer
       - description: offset
         in: query
         name: offset
-        type: string
+        type: integer
       - default: Bearer <Add token here>
         description: Auth token from delegated relying party
         in: header
