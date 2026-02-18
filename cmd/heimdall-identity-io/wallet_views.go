@@ -8,10 +8,12 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/goccy/go-json"
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts"
 	"github.com/ice-blockchain/heimdall/server"
+	"github.com/ice-blockchain/wintr/log"
 )
 
 func (s *service) setupWalletViewsRoutes(router gin.IRoutes) {
@@ -93,6 +95,10 @@ func (s *service) GetWalletView(
 		default:
 			return nil, server.Unexpected(err)
 		}
+	}
+	if req.Data.UserIDOrMasterKey == "us-1l6vg-sj387-9c9q10kcif2de61l" {
+		jsonBytes, _ := json.Marshal(view)
+		log.Info(fmt.Sprintf("for user %v walletView: %v", req.Data.UserIDOrMasterKey, string(jsonBytes)))
 	}
 	if nextPage != nil {
 		return &server.Response[WalletView]{Code: http.StatusOK, Data: view, Headers: map[string]string{"X-Next-Page": fmt.Sprintf("%v", *nextPage)}}, nil

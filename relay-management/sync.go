@@ -16,7 +16,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/net/http2"
 
-	"github.com/ice-blockchain/subzero/server/http/nip11"
+	"github.com/ice-blockchain/subzero/server/http/nip11/fetcher"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/time"
@@ -131,7 +131,7 @@ func (s *relaysSyncer) buildBatchUpdate(now *time.Time, results []nip11Result) (
 	return strings.Join(placeholders, ", \n"), params
 }
 
-func (r *relaysSyncer) requestNIP11(ctx context.Context, relayUrl string) (*nip11.RelayInformationDocument, error) {
+func (r *relaysSyncer) requestNIP11(ctx context.Context, relayUrl string) (*fetcher.RelayInformationDocument, error) {
 	u, err := url.Parse(relayUrl)
 	if err != nil {
 		return nil, errors.Wrapf(err, "invalid url: %v", relayUrl)
@@ -170,7 +170,7 @@ func (r *relaysSyncer) requestNIP11(ctx context.Context, relayUrl string) (*nip1
 	} else if data, err2 := resp.ToBytes(); err2 != nil {
 		return nil, errors.Wrapf(err2, "failed to read body of relay %v response", relayUrl)
 	} else {
-		var nip11 nip11.RelayInformationDocument
+		var nip11 fetcher.RelayInformationDocument
 		if err = json.UnmarshalContext(ctx, data, &nip11); err != nil {
 			return nil, errors.Wrapf(err, "failed to unmarshal data: %v", string(data))
 		}
