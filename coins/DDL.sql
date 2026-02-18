@@ -30,6 +30,9 @@ CREATE INDEX IF NOT EXISTS coins_contract_address_idx ON coins (contract_address
 CREATE INDEX IF NOT EXISTS coins_symbol_group_idx ON coins (symbol_group);
 CREATE INDEX IF NOT EXISTS coins_coingecko_coin_id_idx ON coins (coingecko_coin_id);
 
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX IF NOT EXISTS idx_coins_symbol_gist_trgm ON coins USING GiST(symbol gist_trgm_ops);
+
 CREATE OR REPLACE FUNCTION trigger_coins_after_insert_update_store_new_version()
     RETURNS TRIGGER AS $$
 BEGIN

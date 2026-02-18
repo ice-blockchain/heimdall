@@ -151,6 +151,12 @@ type (
 		UserIDOrMasterKey string `uri:"userIdOrMasterKey" required:"true" swaggerignore:"true"`
 		SymbolGroup       string `uri:"symbolGroup" required:"true" swaggerignore:"true"`
 	}
+	SearchCoinsReq struct {
+		Keyword string `form:"keyword" required:"true"`
+		Limit   uint64 `form:"limit" required:"false"`
+		Offset  uint64 `form:"offset" required:"false"`
+	}
+
 	CoinWithWalletInfo = accounts.CoinWithWalletInfo
 	WalletView         = accounts.WalletView
 	WalletViews        = []*WalletView

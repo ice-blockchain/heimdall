@@ -23,6 +23,7 @@ func (s *service) setupCoinRoutes(router gin.IRoutes) {
 	router.GET("/v1/users/:userIdOrMasterKey/coins", server.RootHandler(s.GetVersionedCoins))
 	router.PATCH("/v1/sync-coins", server.RootHandler(s.SyncCoins))
 	router.GET("/v1/users/:userIdOrMasterKey/coins/:symbolGroup", server.RootHandler(s.GetCoinsOfSymbolGroup))
+	router.GET("/v2/coins", server.RootHandler(s.SearchCoins))
 }
 
 // ImportCoin godoc
@@ -188,6 +189,36 @@ func (s *service) GetCoinsOfSymbolGroup(
 	}
 
 	return server.OK[[]*CoinWithWalletInfo](&items), nil
+}
+
+// SearchCoins godoc
+//
+//	@Schemes
+//	@Description	Returns all coins matching by symbol the provided keyword
+//	@Tags			Coins
+//	@Produce		json
+//	@Param			keyword			query		string	true	"keyword to filter"
+//	@Param			limit			query		string	false	"limit (default 10)"
+//	@Param			offset			query		string	false	"offset"
+//	@Param			Authorization	header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
+//	@Success		200				{object}	[]Coin
+//	@Failure		500				{object}	server.ErrorResponse
+//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
+//	@Router			/v2/coins [GET].
+func (s *service) SearchCoins(
+	ctx context.Context,
+	req *server.Request[SearchCoinsReq, []*Coin],
+) (successResp *server.Response[[]*Coin], errorResp *server.ErrResponse[*server.ErrorResponse]) {
+	if req.Data.Limit == 0 {
+		req.Data.Limit = 10
+	}
+
+	items, err := s.coins.Search(ctx, req.Data.Keyword, req.Data.Limit, req.Data.Offset)
+	if err != nil {
+		return nil, server.Unexpected(err)
+	}
+
+	return server.OK[[]*Coin](&items), nil
 }
 
 func validateNetwork(network string) (string, error) {
