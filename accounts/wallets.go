@@ -15,6 +15,7 @@ import (
 	"github.com/goccy/go-json"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/coins"
@@ -400,6 +401,9 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 	paginationTokens, limit, err := pagination(ctx)
 	if err != nil {
 		return nil, nil, nil, errors.Wrapf(err, "malformed pagination tokens %v", userID)
+	}
+	if userID == "us-1l6vg-sj387-9c9q10kcif2de61l" {
+		log.Info(fmt.Sprintf("wallets for user %v: aggregating into view: %v", userID, maps.Keys(walletIDs)))
 	}
 	for walletID, linkedSymbols := range walletIDs {
 		assetsWg.Go(func() {
