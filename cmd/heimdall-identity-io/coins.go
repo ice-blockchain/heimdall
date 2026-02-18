@@ -198,8 +198,8 @@ func (s *service) GetCoinsOfSymbolGroup(
 //	@Tags			Coins
 //	@Produce		json
 //	@Param			keyword			query		string	true	"keyword to filter"
-//	@Param			limit			query		string	false	"limit (default 10)"
-//	@Param			offset			query		string	false	"offset"
+//	@Param			limit			query		int		false	"limit (default 10)"
+//	@Param			offset			query		int		false	"offset"
 //	@Param			Authorization	header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
 //	@Success		200				{object}	[]Coin
 //	@Failure		500				{object}	server.ErrorResponse
@@ -212,8 +212,10 @@ func (s *service) SearchCoins(
 	if req.Data.Limit == 0 {
 		req.Data.Limit = 10
 	}
-
-	items, err := s.coins.Search(ctx, req.Data.Keyword, req.Data.Limit, req.Data.Offset)
+	if req.Data.Limit > 200 {
+		req.Data.Limit = 200
+	}
+	items, err := s.coins.Search(ctx, strings.ToLower(req.Data.Keyword), req.Data.Limit, req.Data.Offset)
 	if err != nil {
 		return nil, server.Unexpected(err)
 	}
