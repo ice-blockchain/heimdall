@@ -148,7 +148,10 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	if !ok {
 		return fmt.Errorf("toToken is not []byte")
 	}
-
+	if ev.OutputAmount.Cmp(big.NewInt(0)) == 0 || ev.InputAmount.Cmp(big.NewInt(0)) == 0 {
+		log.Warn(fmt.Sprintf("Skipping swap event for tx %v, incorrect amounts: output %v input %v", tx.TransactionHash, ev.OutputAmount.String(), ev.InputAmount.String()))
+		return nil
+	}
 	const selectClause = `
 		SELECT 
 			t.contract_address,
