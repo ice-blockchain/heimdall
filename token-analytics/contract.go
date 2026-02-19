@@ -65,11 +65,11 @@ type (
 		GetCommunityTokensByHolder(ctx context.Context, holderExternalAddress, requestorMasterPubkey string, limit, offset uint64) ([]*CommunityToken, uint64, error)
 		GetCommunityTokensByType(ctx context.Context, viewType string, tokenType *string, keyword string, limit, offset uint64) ([]*CommunityToken, error)
 		GetLatestTrades(ctx context.Context, externalAddress string, limit, offset uint64, startFrom *stdlibtime.Time) (trades []*Trade, maxTs stdlibtime.Time, err error)
-		SubscribeLatestTrades(ctx context.Context, externalAddress string, addToStream func(*Trade, error)) error
+		SubscribeLatestTrades(ctx context.Context, externalAddress, user string, addToStream func(*Trade, error)) error
 		GetOHLVCHistory(ctx context.Context, now stdlibtime.Time, externalAddress string, interval Interval, limit, offset uint64) (res []*OHLCV, err error)
-		SubscribeOHLVC(context.Context, stdlibtime.Time, string, Interval, func(*OHLCV, error)) error
+		SubscribeOHLVC(ctx context.Context, now stdlibtime.Time, externalAddress, user string, interval Interval, addToStream func(*OHLCV, error)) error
 		GetTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress string) (*TradeStats, error)
-		SubscribeTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress string, addToStream func(*TradeStats, error)) error
+		SubscribeTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress, user string, addToStream func(*TradeStats, error)) error
 		CreateViewingSession(ctx context.Context, sessionType, clientIP, deviceKey string, tokenType *string) (sessionID string, ttl uint64, err error)
 		GetTopHolders(ctx context.Context, externalAddress string, limit int64) ([]*TopHolderPosition, error)
 		GetTokensFromViewingSession(ctx context.Context, sessionType, sessionID, keyword string, limit, offset uint64) ([]*CommunityToken, error)
@@ -82,7 +82,7 @@ type (
 		GetHolderPositions(ctx context.Context, tokenExternalAddress string, holderExternalAddresses []string) ([]*HolderPosition, error)
 		GenerateTokenSuggestion(ctx context.Context, data *CreationDetailsData) (*SuggestedCreationDetails, error)
 		GetBondingCurveProgress(ctx context.Context, externalAddress string) (*BondingCurveProgress, error)
-		SubscribeBondingCurveProgress(context.Context, string, func(*BondingCurveProgress, error)) error
+		SubscribeBondingCurveProgress(ctx context.Context, externalAddress, user string, addToStream func(*BondingCurveProgress, error)) error
 		GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount *big.Int, amountBNB *big.Int, amountUSD float64) (pricing *Pricing, err error)
 		GetCommunityTokensByRewardsDistribution(ctx context.Context, referenceDate stdlibtime.Time, limit, offset uint64) ([]*CommunityToken, error)
 		GetGlobalTokenStatistics(ctx context.Context, interval string) (*GlobalTokenStats, error)

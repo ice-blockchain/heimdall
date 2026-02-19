@@ -969,7 +969,16 @@ func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *serv
 //	@Router			/v1sse/community-tokens/{externalAddressOrViewType}/latest-trades [GET].
 //	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/latest-trades [GET].
 func (s *service) StreamCommunityTokensLatestTrades(ctx context.Context, req *server.Request[TradeRequest]) (server.StreamEventEmitter[ta.Trade], error) {
-	return s.latestTradesStream(ctx, req.Data.ExternalAddress)
+	emitter, err := wrapIntoStream[ta.Trade](1, func(addToStream func(t *ta.Trade, err error)) error {
+		if err := s.tokenAnalytics.SubscribeLatestTrades(ctx, req.Data.ExternalAddress, req.Token.GetDevicePublicKey(), addToStream); err != nil {
+			return errors.Wrapf(err, "failed to subscribe to latest-trades updates for  %v", req.Data.ExternalAddress)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return emitter, nil
 }
 
 // StreamCommunityTokensTradingStats godoc
@@ -988,7 +997,17 @@ func (s *service) StreamCommunityTokensLatestTrades(ctx context.Context, req *se
 //	@Router			/v1sse/community-tokens/{externalAddressOrViewType}/trading-stats [GET].
 //	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/trading-stats [GET].
 func (s *service) StreamCommunityTokensTradingStats(ctx context.Context, req *server.Request[TradeRequest]) (server.StreamEventEmitter[ta.TradeStats], error) {
-	return s.tradingStatsStream(ctx, req.Data.ExternalAddress)
+	now := time.Now().In(time.UTC)
+	emitter, err := wrapIntoStream[ta.TradeStats](100, func(addToStream func(t *ta.TradeStats, err error)) error {
+		if err := s.tokenAnalytics.SubscribeTradingStats(ctx, now, req.Data.ExternalAddress, req.Token.GetDevicePublicKey(), addToStream); err != nil {
+			return errors.Wrapf(err, "failed to subscribe to trading stats updates for  %v", req.Data.ExternalAddress)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return emitter, nil
 }
 
 // StreamCommunityTokensOHLCV godoc
@@ -1008,18 +1027,14 @@ func (s *service) StreamCommunityTokensTradingStats(ctx context.Context, req *se
 //	@Router			/v1sse/community-tokens/{externalAddressOrViewType}/ohlcv [GET].
 //	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/ohlcv [GET].
 func (s *service) StreamCommunityTokensOHLCV(ctx context.Context, req *server.Request[OHLCVRequest]) (server.StreamEventEmitter[ta.OHLCV], error) {
-	return s.ohlcvStream(ctx, req.Data.ExternalAddress, req.Data.Interval)
-}
-
-func (s *service) ohlcvStream(ctx context.Context, ionContentAddress string, intervalStr string) (server.StreamEventEmitter[ta.OHLCV], error) {
-	interval := ta.Interval(intervalStr)
+	interval := ta.Interval(req.Data.Interval)
 	if err := interval.Validate(); err != nil {
 		return nil, errors.Wrapf(err, "invalid interval")
 	}
 	now := time.Now().In(time.UTC)
 	emitter, err := wrapIntoStream[ta.OHLCV](interval.InitialBufferSize(), func(addToStream func(t *ta.OHLCV, err error)) error {
-		if err := s.tokenAnalytics.SubscribeOHLVC(ctx, now, ionContentAddress, interval, addToStream); err != nil {
-			return errors.Wrapf(err, "failed to subscribe to OHLCV for %v", ionContentAddress)
+		if err := s.tokenAnalytics.SubscribeOHLVC(ctx, now, req.Data.ExternalAddress, req.Token.GetDevicePublicKey(), interval, addToStream); err != nil {
+			return errors.Wrapf(err, "failed to subscribe to OHLCV for %v", req.Data.ExternalAddress)
 		}
 		return nil
 	})
@@ -1046,7 +1061,7 @@ func (s *service) ohlcvStream(ctx context.Context, ionContentAddress string, int
 //	@Router			/v1ws/community-tokens/{externalAddressOrViewType}/bondingCurveProgress [GET].
 func (s *service) StreamCommunityTokenBondingCurveProgress(ctx context.Context, req *server.Request[BondingCurveProgressRequest]) (server.StreamEventEmitter[ta.BondingCurveProgress], error) {
 	emitter, err := wrapIntoStream[ta.BondingCurveProgress](100, func(addToStream func(t *ta.BondingCurveProgress, err error)) error {
-		if err := s.tokenAnalytics.SubscribeBondingCurveProgress(ctx, req.Data.ExternalAddress, addToStream); err != nil {
+		if err := s.tokenAnalytics.SubscribeBondingCurveProgress(ctx, req.Data.ExternalAddress, req.Token.GetDevicePublicKey(), addToStream); err != nil {
 			return errors.Wrapf(err, "failed to subscribe to bonding curve progress for %v", req.Data.ExternalAddress)
 		}
 		return nil
@@ -1086,33 +1101,6 @@ func wrapIntoStream[T any](initialBuffer int, impl func(addToStream func(t *T, e
 		}
 		return events, nil
 	}, nil
-}
-
-func (s *service) tradingStatsStream(ctx context.Context, externalAddress string) (server.StreamEventEmitter[ta.TradeStats], error) {
-	now := time.Now().In(time.UTC)
-	emitter, err := wrapIntoStream[ta.TradeStats](100, func(addToStream func(t *ta.TradeStats, err error)) error {
-		if err := s.tokenAnalytics.SubscribeTradingStats(ctx, now, externalAddress, addToStream); err != nil {
-			return errors.Wrapf(err, "failed to subscribe to trading stats updates for  %v", externalAddress)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return emitter, nil
-}
-
-func (s *service) latestTradesStream(ctx context.Context, externalAddress string) (server.StreamEventEmitter[ta.Trade], error) {
-	emitter, err := wrapIntoStream[ta.Trade](1, func(addToStream func(t *ta.Trade, err error)) error {
-		if err := s.tokenAnalytics.SubscribeLatestTrades(ctx, externalAddress, addToStream); err != nil {
-			return errors.Wrapf(err, "failed to subscribe to latest-trades updates for  %v", externalAddress)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return emitter, nil
 }
 
 // GetCommunityTokenAnalytics godoc
