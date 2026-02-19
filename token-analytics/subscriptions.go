@@ -5,7 +5,6 @@ package tokenanalytics
 import (
 	"context"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/puzpuzpuz/xsync/v4"
@@ -13,8 +12,8 @@ import (
 
 type (
 	Subscriptions interface {
-		SubscribeOnSwaps(ctx context.Context, externalAddress string) (notifyEvents <-chan *Trade, atLeastOneSubExists bool, lastSubClosed <-chan struct{})
-		SubscribeOnBondingCurveProgress(ctx context.Context, externalAddress string) (notify <-chan *BondingCurveProgress, atLeastOneSubExists bool, lastSubClosed <-chan struct{})
+		SubscribeOnSwaps(ctx context.Context, externalAddress, userID string) (notifyEvents <-chan *Trade)
+		SubscribeOnBondingCurveProgress(ctx context.Context, externalAddress, userID string) (notify <-chan *BondingCurveProgress)
 	}
 	Notifier interface {
 		NotifySwap(trade *Trade)
@@ -29,9 +28,7 @@ type (
 		shutdown                        <-chan struct{}
 	}
 	subscription[T any] struct {
-		subscriptions *atomic.Int64
-		notifyClients chan T
-		lastClosed    chan struct{}
+		notifyClients *xsync.Map[string, chan T]
 		closeOnce     sync.Once
 	}
 	bondingCurveProgressUpdate struct {
@@ -74,8 +71,10 @@ func routeToSubscribers[T any, N interface {
 		close(notifyChan)
 		subs.Range(func(key string, value *subscription[T]) bool {
 			value.closeOnce.Do(func() {
-				close(value.notifyClients)
-				close(value.lastClosed)
+				value.notifyClients.Range(func(_ string, clientNotifyChannel chan T) bool {
+					close(clientNotifyChannel)
+					return true
+				})
 			})
 			return true
 		})
@@ -84,42 +83,54 @@ func routeToSubscribers[T any, N interface {
 		addr := newEventTokenExternalAddr.ExternalAddress()
 		dest, ok := subs.Load(addr)
 		if ok {
-			select {
-			case dest.notifyClients <- newEventTokenExternalAddr.Value():
-			case <-s.shutdown:
-			}
-
+			var wg sync.WaitGroup
+			dest.notifyClients.Range(func(_ string, clientNotifyChannel chan T) bool {
+				wg.Go(func() {
+					select {
+					case clientNotifyChannel <- newEventTokenExternalAddr.Value():
+					case <-s.shutdown:
+					}
+				})
+				return true
+			})
+			wg.Wait()
 		}
 	}
 }
 
-func (s *subscriptions) SubscribeOnSwaps(ctx context.Context, externalAddress string) (<-chan *Trade, bool, <-chan struct{}) {
-	return subscribe[*Trade](ctx, externalAddress, s.swapSubs)
+func (s *subscriptions) SubscribeOnSwaps(ctx context.Context, externalAddress, userID string) <-chan *Trade {
+	return subscribe[*Trade](ctx, externalAddress, userID, s.swapSubs)
 }
-func (s *subscriptions) SubscribeOnBondingCurveProgress(ctx context.Context, externalAddress string) (<-chan *BondingCurveProgress, bool, <-chan struct{}) {
-	return subscribe[*BondingCurveProgress](ctx, externalAddress, s.bondingCurveProgressUpdatesSubs)
+func (s *subscriptions) SubscribeOnBondingCurveProgress(ctx context.Context, externalAddress, userID string) <-chan *BondingCurveProgress {
+	return subscribe[*BondingCurveProgress](ctx, externalAddress, userID, s.bondingCurveProgressUpdatesSubs)
 }
 
-func subscribe[T any](ctx context.Context, externalAddress string, subs *xsync.Map[string, *subscription[T]]) (nofifyClients <-chan T, hasAtLeastOneSub bool, lastSubClosed <-chan struct{}) {
+func subscribe[T any](ctx context.Context, externalAddress, userID string, subs *xsync.Map[string, *subscription[T]]) (nofifyClients <-chan T) {
 	go func() {
 		<-ctx.Done()
 
 		sub, ok := subs.Load(externalAddress)
 		if ok {
-			if last := sub.subscriptions.Add(-1) <= 0; last {
-				subs.Delete(externalAddress)
-				sub.closeOnce.Do(func() {
-					close(sub.notifyClients)
-					close(sub.lastClosed)
-				})
+			if nofity, deleted := sub.notifyClients.LoadAndDelete(userID); deleted {
+				close(nofity)
+				last := sub.notifyClients.Size() == 0
+				if last {
+					subs.Delete(externalAddress)
+				}
 			}
 		}
 	}()
 	progress, loaded := subs.LoadOrCompute(externalAddress, func() (newValue *subscription[T], cancel bool) {
-		return &subscription[T]{subscriptions: new(atomic.Int64), notifyClients: make(chan T), lastClosed: make(chan struct{})}, false
+		notif := xsync.NewMap[string, chan T]()
+		nofifyClient := make(chan T)
+		notif.Store(userID, nofifyClient)
+		nofifyClients = nofifyClient
+		return &subscription[T]{notifyClients: notif}, false
 	})
-	progress.subscriptions.Add(1)
-	return progress.notifyClients, loaded, progress.lastClosed
+	if loaded {
+		nofifyClients = progress.addClientSub(userID)
+	}
+	return nofifyClients
 }
 
 func (s *subscriptions) NotifySwap(tr *Trade) {
@@ -136,4 +147,10 @@ func (s *subscriptions) NotifyBondingCurveProgress(externalAddress string, progr
 	case <-time.After(10 * time.Millisecond): // Just in case if reader get stuck, TODO: remove when we'll have proper subs/notify flow
 	case <-s.shutdown:
 	}
+}
+
+func (s *subscription[T]) addClientSub(userID string) chan T {
+	clientSub := make(chan T)
+	s.notifyClients.Store(userID, clientSub)
+	return clientSub
 }

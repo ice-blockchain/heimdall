@@ -158,14 +158,14 @@ func tradingStatsCacheKey(ionConnectAddr, interval string) string {
 	return fmt.Sprintf("trading_stats:%v:%v", ionConnectAddr, interval)
 }
 
-func (t *tokenAnalytics) SubscribeTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress string, addToStream func(*TradeStats, error)) error {
+func (t *tokenAnalytics) SubscribeTradingStats(ctx context.Context, now stdlibtime.Time, externalAddress, user string, addToStream func(*TradeStats, error)) error {
 	initialStats, err := t.GetTradingStats(ctx, now, externalAddress)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get initial trading stats")
 	}
 	addToStream(initialStats, nil)
 
-	swaps, _, _ := t.subscriptions.SubscribeOnSwaps(ctx, externalAddress)
+	swaps := t.subscriptions.SubscribeOnSwaps(ctx, externalAddress, user)
 	recentStats, _ := t.tradingStatsRecentData.LoadOrCompute(externalAddress, func() (*recentTradeStats, bool) {
 		return newRecentTradingStats(initialStats, now), false
 	})
@@ -194,8 +194,8 @@ func (t *tokenAnalytics) SubscribeTradingStats(ctx context.Context, now stdlibti
 	return nil
 }
 
-func (t *tokenAnalytics) SubscribeOHLVC(ctx context.Context, now stdlibtime.Time, externalAddress string, interval Interval, addToStream func(*OHLCV, error)) error {
-	swaps, _, _ := t.subscriptions.SubscribeOnSwaps(ctx, externalAddress)
+func (t *tokenAnalytics) SubscribeOHLVC(ctx context.Context, now stdlibtime.Time, externalAddress, user string, interval Interval, addToStream func(*OHLCV, error)) error {
+	swaps := t.subscriptions.SubscribeOnSwaps(ctx, externalAddress, user)
 	candleStick, loaded := t.ohclvRecentData.Load(interval.String() + "_" + externalAddress)
 	if loaded {
 		o := candleStick.OHLCV()

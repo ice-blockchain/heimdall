@@ -100,7 +100,7 @@ func TestSubscribeBondingCurveProgress(t *testing.T) {
 			}
 		}
 
-		err := ta.SubscribeBondingCurveProgress(t.Context(), tokenExternalAddr, addToStream)
+		err := ta.SubscribeBondingCurveProgress(t.Context(), tokenExternalAddr, "bogus", addToStream)
 		require.NoError(t, err)
 
 		select {
@@ -125,7 +125,7 @@ func TestSubscribeBondingCurveProgress(t *testing.T) {
 			t.Fatal("should not be called")
 		}
 
-		err := ta.SubscribeBondingCurveProgress(ctx, "0:non_existent:", addToStream)
+		err := ta.SubscribeBondingCurveProgress(ctx, "0:non_existent:", "bogus", addToStream)
 		require.Error(t, err)
 	})
 }

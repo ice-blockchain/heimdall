@@ -55,13 +55,13 @@ func (t *tokenAnalytics) getBondingCurveProgress(ctx context.Context, externalAd
 	return m, pairId.PairId, pairId.BaseToken, nil
 }
 
-func (t *tokenAnalytics) SubscribeBondingCurveProgress(ctx context.Context, externalAddress string, addToStream func(*BondingCurveProgress, error)) error {
+func (t *tokenAnalytics) SubscribeBondingCurveProgress(ctx context.Context, externalAddress, user string, addToStream func(*BondingCurveProgress, error)) error {
 	currentProgress, _, _, err := t.getBondingCurveProgress(ctx, externalAddress)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get initial bonding curve progress for token %v", externalAddress)
 	}
 	addToStream(currentProgress, nil)
-	updates, _, _ := t.subscriptions.SubscribeOnBondingCurveProgress(ctx, externalAddress)
+	updates := t.subscriptions.SubscribeOnBondingCurveProgress(ctx, externalAddress, user)
 	go func() {
 		defer log.Debug(fmt.Sprintf("bonding curve progress subscriber stopped for %v", externalAddress))
 		for {

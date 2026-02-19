@@ -143,8 +143,8 @@ func convertSwapsToTrades(swaps []*tokenSwap) (trades []*Trade, maxTs time.Time)
 	return
 }
 
-func (t *tokenAnalytics) SubscribeLatestTrades(ctx context.Context, externalAddress string, addToStream func(*Trade, error)) error {
-	swaps, _, _ := t.subscriptions.SubscribeOnSwaps(ctx, externalAddress)
+func (t *tokenAnalytics) SubscribeLatestTrades(ctx context.Context, externalAddress, user string, addToStream func(*Trade, error)) error {
+	swaps := t.subscriptions.SubscribeOnSwaps(ctx, externalAddress, user)
 	go func() {
 		for {
 			select {
