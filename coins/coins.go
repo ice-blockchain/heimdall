@@ -583,3 +583,70 @@ func tokenizedCommunityTokenToCoin(token TokenAnalyticsToken) *coingecko.Coin {
 		IconUrl:         token.IconUrl(),
 	}
 }
+
+func (c *coinsRepository) Search(ctx context.Context, keyword string, limit, offset uint64) ([]*Coin, error) {
+	coinsList, err := storage.Select[coin](ctx, c.db, `
+				WITH candidates AS (SELECT  coins.*, 
+						    GREATEST(similarity(symbol, $1), word_similarity($1, symbol)) + 
+							(CASE 
+							   WHEN symbol = $1 THEN 1.0
+							   ELSE 0
+							END) as score
+					FROM coins WHERE 
+                        symbol LIKE ($1 || '%%')
+                    	AND GREATEST(similarity(symbol, $1), word_similarity($1, symbol)) >= 0.2
+					    ORDER BY coins.symbol <-> ($1 || '%%')
+					    LIMIT 200
+					)
+				SELECT 
+					sync_frequency,
+					created_at,
+					updated_at,
+					data_updated_at,
+					version,
+					coingecko_coin_id,
+					id,
+					network,
+					name,
+					contract_address,
+					symbol,
+					symbol_group,
+					icon_url,
+					price_usd,
+					decimals,
+					native,
+					tc_external_address,
+					tc_type
+				FROM candidates
+				ORDER BY score DESC
+				LIMIT $2 OFFSET $3`, keyword, limit, offset)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to search coins for %v", keyword)
+	}
+	res := make([]*Coin, 0, len(coinsList))
+	for _, c := range coinsList {
+		network, priority, err := MapNetworkFromCoinGecko(c.Network, c.SymbolGroup)
+		if err != nil {
+			log.Error(errors.Wrapf(err, "search coins for %v has unmapped network %v %v", keyword, c.Network, c))
+			continue
+		}
+		res = append(res, &Coin{
+			ID:                                c.ID,
+			Name:                              c.Name,
+			Symbol:                            c.Symbol,
+			SymbolGroup:                       c.SymbolGroup,
+			Network:                           network,
+			ContractAddress:                   c.ContractAddress,
+			IconURL:                           c.IconUrl,
+			PriceUSD:                          c.PriceUSD,
+			SyncFrequency:                     c.SyncFrequency,
+			Decimals:                          c.Decimals,
+			Native:                            c.Native,
+			Prioritized:                       priority,
+			TokenizedCommunityExternalAddress: c.TokenizedCommunityExternalAddress,
+			TokenizedCommunityTokenType:       c.TokenizedCommunityTokenType,
+			Version:                           &c.Version,
+		})
+	}
+	return res, nil
+}

@@ -2583,6 +2583,48 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - SocialProfiles
+  /v2/coins:
+    get:
+      description: Returns all coins matching by symbol the provided keyword
+      parameters:
+      - description: keyword to filter
+        in: query
+        name: keyword
+        required: true
+        type: string
+      - description: limit (default 10)
+        in: query
+        name: limit
+        type: integer
+      - description: offset
+        in: query
+        name: offset
+        type: integer
+      - default: Bearer <Add token here>
+        description: Auth token from delegated relying party
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.Coin'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Coins
   /wallets:
     post:
       description: Creates wallet on 3rd-party
