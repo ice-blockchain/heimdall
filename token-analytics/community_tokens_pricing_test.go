@@ -115,7 +115,7 @@ func TestGetTokenPricing(t *testing.T) {
 		tokensOut, tokensBNB, tokenPriceUSD, ionPriceReturned, bnbPriceReturned := p.AmountInBase, p.AmountInBNB, p.AmountInUSD, p.IonPriceInUSD, p.BNBPriceInUSD
 		require.NoError(t, err)
 		require.Equal(t, big.NewInt(1050000000000000000).String(), tokensOut.String(), "Should return 1.05 ION")
-		require.InDelta(t, 0.1, tokenPriceUSD, 0.0001, "Should be $0.1")
+		require.InDelta(t, 0.105, tokenPriceUSD, 0.0001, "Should be $0.105 (1.05 spent * 0.1)")
 		require.Greater(t, tokensBNB.Int64(), int64(0))
 		require.Equal(t, ionPrice, ionPriceReturned)
 		require.Equal(t, bnbPrice, bnbPriceReturned)
@@ -226,7 +226,7 @@ func TestGetTokenPricing(t *testing.T) {
 		tokensOut, tokensBNB, tokenPriceUSD, ionPriceReturned, bnbPriceReturned := p.AmountInBase, p.AmountInBNB, p.AmountInUSD, p.IonPriceInUSD, p.BNBPriceInUSD
 		require.NoError(t, err)
 		require.Equal(t, big.NewInt(1050000000000000000).String(), tokensOut.String())
-		require.InDelta(t, 0.1, tokenPriceUSD, 0.0001)
+		require.InDelta(t, 0.105, tokenPriceUSD, 0.0001)
 		require.Greater(t, tokensBNB.Int64(), int64(0))
 		require.Equal(t, ionPrice, ionPriceReturned)
 		require.Equal(t, bnbPrice, bnbPriceReturned)
@@ -312,7 +312,7 @@ func TestGetTokenPricing(t *testing.T) {
 		tokensOut, tokensBNB, tokenPriceUSD, ionPriceReturned, bnbPriceReturned := p.AmountInBase, p.AmountInBNB, p.AmountInUSD, p.IonPriceInUSD, p.BNBPriceInUSD
 		require.NoError(t, err)
 		require.Equal(t, big.NewInt(1050000000000000000).String(), tokensOut.String(), "Should get 1.05 creator tokens")
-		require.InDelta(t, 0.75, tokenPriceUSD, 0.0001, "Should be $0.75 (1 base spent * $0.75)")
+		require.InDelta(t, 0.7875, tokenPriceUSD, 0.0001, "Should be 0.7875 (1.05 base * $0.75)")
 		require.Greater(t, tokensBNB.Int64(), int64(0))
 		require.Equal(t, ionPrice, ionPriceReturned)
 		require.Equal(t, bnbPrice, bnbPriceReturned)
