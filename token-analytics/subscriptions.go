@@ -71,9 +71,9 @@ func routeToSubscribers[T any, N interface {
 		close(notifyChan)
 		subs.Range(func(key string, value *subscription[T]) bool {
 			value.closeOnce.Do(func() {
-				value.notifyClients.Range(func(_ string, clientNotifyChannel chan T) bool {
+				value.notifyClients.DeleteMatching(func(userKey string, clientNotifyChannel chan T) (bool, bool) {
 					close(clientNotifyChannel)
-					return true
+					return true, false
 				})
 			})
 			return true
@@ -83,17 +83,15 @@ func routeToSubscribers[T any, N interface {
 		addr := newEventTokenExternalAddr.ExternalAddress()
 		dest, ok := subs.Load(addr)
 		if ok {
-			var wg sync.WaitGroup
 			dest.notifyClients.Range(func(_ string, clientNotifyChannel chan T) bool {
-				wg.Go(func() {
+				go func() {
 					select {
 					case clientNotifyChannel <- newEventTokenExternalAddr.Value():
 					case <-s.shutdown:
 					}
-				})
+				}()
 				return true
 			})
-			wg.Wait()
 		}
 	}
 }
@@ -151,6 +149,9 @@ func (s *subscriptions) NotifyBondingCurveProgress(externalAddress string, progr
 
 func (s *subscription[T]) addClientSub(userID string) chan T {
 	clientSub := make(chan T)
-	s.notifyClients.Store(userID, clientSub)
+	prev, hasPrev := s.notifyClients.LoadAndStore(userID, clientSub)
+	if hasPrev {
+		close(prev)
+	}
 	return clientSub
 }
