@@ -12,7 +12,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve/fixture"
+	bondingcurvefixture "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve/fixture"
+	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
@@ -22,8 +23,8 @@ func TestBalanceUpdateJob_WithDummyBalance(t *testing.T) {
 	db, connString, release := helperCreateDBWithConnString(t)
 	defer release()
 
-	mockBackend, _, _ := fixture.SetupMockedBondingCurveBackend(t, fixture.DefaultMockBackendConfig())
-	mockBC := fixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+	mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
+	mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
 	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC))
 	defer ta.Close()
@@ -81,9 +82,9 @@ func TestBalanceUpdateJob_WithRPC(t *testing.T) {
 	db, connString, release := helperCreateDBWithConnString(t)
 	defer release()
 
-	mockBackend, _, _ := fixture.SetupMockedBondingCurveBackend(t, fixture.DefaultMockBackendConfig())
+	mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
 	mockBackend.SetBalanceOfResponse(big.NewInt(5000000000000000000)) // 5 tokens
-	mockBC := fixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+	mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
 	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC))
 	defer ta.Close()
@@ -150,9 +151,9 @@ func TestBalanceUpdateJob_ZeroBalance(t *testing.T) {
 	db, connString, release := helperCreateDBWithConnString(t)
 	defer release()
 
-	mockBackend, _, _ := fixture.SetupMockedBondingCurveBackend(t, fixture.DefaultMockBackendConfig())
+	mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
 	mockBackend.SetBalanceOfResponse(big.NewInt(0)) // 0 tokens
-	mockBC := fixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+	mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
 	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC))
 	defer ta.Close()
@@ -213,8 +214,8 @@ func TestBalanceUpdateJob_XcomPlatform(t *testing.T) {
 	db, connString, release := helperCreateDBWithConnString(t)
 	defer release()
 
-	mockBackend, _, _ := fixture.SetupMockedBondingCurveBackend(t, fixture.DefaultMockBackendConfig())
-	mockBC := fixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+	mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
+	mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
 	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC))
 	defer ta.Close()
@@ -304,4 +305,83 @@ func helperUpdateTokenPairAndBaseToken(t testing.TB, ctx context.Context, db *st
 	`, pairID, baseToken, tokenExternalAddr)
 
 	require.NoError(t, err)
+}
+
+func TestBalanceUpdateJob_RegistersTradeInQuestDB(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	db, connString, release := helperCreateDBWithConnString(t)
+	defer release()
+
+	mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
+	mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+
+	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC))
+	defer ta.Close()
+
+	helperInsertTestUser(t, ctx, db, "test_user", "user1", "User One", "", true, PlatformGroupIonConnect)
+	helperInsertBaseTokenPrice(t, ctx, db, "0x2c73996babf1a06c2c057177353293f7ca0907c8", "ION", 0.01)
+
+	contractAddress := "0xtest_contract_001"
+	tokenExternalAddress := "0:test_token_trade:"
+	userBlockchainAddress := "0x1234567890123456789012345678901234567890"
+	userExternalAddress := "0:user1:"
+	pairID := "0x0000000000000000000000000000000000000000000000000000000000000001"
+	baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+	txHash := "0xtest_trade_tx_001"
+
+	totalSupply := "1000000000000000000000"
+	helperInsertTestToken(t, ctx, db, contractAddress, tokenExternalAddress, "TEST", TokenTypeProfile, "test_user", totalSupply, 0, 0, 0, PlatformGroupIonConnect)
+	helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddress, pairID, baseToken)
+
+	helperInsertTokenSwap(t, ctx, db, contractAddress, tokenExternalAddress, userBlockchainAddress,
+		txHash, false, "1000000000000000000", "10000000000000000000", 0.10)
+
+	helperInsertUserPosition(t, ctx, db, userBlockchainAddress, contractAddress, tokenExternalAddress, userExternalAddress, "10000000000000000000")
+
+	balance := new(big.Int)
+	balance.SetString("10000000000000000000", 10)
+	mockBackend.SetBalanceOfResponse(balance)
+
+	burned := new(big.Int).SetUint64(0)
+
+	jobArgs := BalanceUpdateJobArgs{
+		UserBlockchainAddress: userBlockchainAddress,
+		UserExternalAddress:   userExternalAddress,
+		ContractAddress:       contractAddress,
+		TokenExternalAddress:  tokenExternalAddress,
+		TransactionHash:       txHash,
+		BlockNumber:           100,
+		PairID:                pairID,
+		BaseToken:             baseToken,
+		TokenType:             TokenTypeProfile,
+		Platform:              PlatformGroupIonConnect,
+		Burned:                burned,
+		Ticker:                "TEST",
+	}
+
+	err := ta.riverClient.Push(ctx, jobArgs)
+	require.NoError(t, err)
+
+	helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
+
+	type tradeRecord struct {
+		TransactionHash string  `db:"transaction_hash"`
+		ContractAddress string  `db:"contract_address"`
+		PriceInUsd      float64 `db:"price_in_usd"`
+		TradeType       string  `db:"trade_type"`
+	}
+
+	trades, err := questdb.Select[tradeRecord](ctx, ta.questDB, `
+		SELECT transaction_hash, contract_address, price_in_usd, trade_type
+		FROM trades
+		WHERE transaction_hash = $1 AND contract_address = $2
+	`, txHash, contractAddress)
+
+	require.NoError(t, err)
+	require.Len(t, trades, 1, "Trade should be registered in QuestDB")
+	require.Equal(t, txHash, trades[0].TransactionHash)
+	require.Equal(t, contractAddress, trades[0].ContractAddress)
+	require.Equal(t, "buy", trades[0].TradeType)
+	require.Greater(t, trades[0].PriceInUsd, 0.0, "Price should be > 0")
 }

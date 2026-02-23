@@ -3,6 +3,7 @@
 package tokenanalytics
 
 import (
+	"math/big"
 	"sync"
 	"testing"
 
@@ -24,7 +25,7 @@ func TestSaveBaseTokenPriceToDatabase(t *testing.T) {
 		symbol := "TEST1"
 		price := 1.234
 
-		err := saveBaseTokenPriceToDatabase(ctx, db, symbol, tokenAddress, price)
+		err := saveBaseTokenPriceToDatabase(ctx, db, symbol, tokenAddress, price, big.NewInt(1))
 		require.NoError(t, err)
 
 		type priceRow struct {
@@ -55,11 +56,11 @@ func TestSaveBaseTokenPriceToDatabase(t *testing.T) {
 		symbol := "TEST2"
 		price := 2.345
 
-		err := saveBaseTokenPriceToDatabase(ctx, db, symbol, tokenAddress, price)
+		err := saveBaseTokenPriceToDatabase(ctx, db, symbol, tokenAddress, price, big.NewInt(1))
 		require.NoError(t, err)
 
 		// Update with same price
-		err = saveBaseTokenPriceToDatabase(ctx, db, symbol, tokenAddress, price)
+		err = saveBaseTokenPriceToDatabase(ctx, db, symbol, tokenAddress, price, big.NewInt(1))
 		require.NoError(t, err)
 
 		type historyRow struct {
@@ -77,10 +78,10 @@ func TestSaveBaseTokenPriceToDatabase(t *testing.T) {
 		initialPrice := 3.456
 		newPrice := 4.567
 
-		err := saveBaseTokenPriceToDatabase(ctx, db, symbol, tokenAddress, initialPrice)
+		err := saveBaseTokenPriceToDatabase(ctx, db, symbol, tokenAddress, initialPrice, big.NewInt(1))
 		require.NoError(t, err)
 
-		err = saveBaseTokenPriceToDatabase(ctx, db, symbol, tokenAddress, newPrice)
+		err = saveBaseTokenPriceToDatabase(ctx, db, symbol, tokenAddress, newPrice, big.NewInt(1))
 		require.NoError(t, err)
 
 		type priceRow struct {
@@ -106,7 +107,7 @@ func TestSaveBaseTokenPriceToDatabase(t *testing.T) {
 		symbol := "TEST4"
 		price := 5.678
 
-		err := saveBaseTokenPriceToDatabase(ctx, db, symbol, tokenAddress, price)
+		err := saveBaseTokenPriceToDatabase(ctx, db, symbol, tokenAddress, price, big.NewInt(1))
 		require.NoError(t, err)
 
 		var wg sync.WaitGroup
@@ -117,7 +118,7 @@ func TestSaveBaseTokenPriceToDatabase(t *testing.T) {
 			go func(iteration int) {
 				defer wg.Done()
 				newPrice := price + float64(iteration)*0.1
-				err := saveBaseTokenPriceToDatabase(ctx, db, symbol, tokenAddress, newPrice)
+				err := saveBaseTokenPriceToDatabase(ctx, db, symbol, tokenAddress, newPrice, big.NewInt(1))
 				if err != nil {
 					errors <- err
 				}
@@ -154,7 +155,7 @@ func TestSaveBaseTokenPriceToDatabase(t *testing.T) {
 		prices := []float64{1.0, 2.0, 3.0, 2.5, 4.0}
 
 		for i, price := range prices {
-			err := saveBaseTokenPriceToDatabase(ctx, db, symbol, tokenAddress, price)
+			err := saveBaseTokenPriceToDatabase(ctx, db, symbol, tokenAddress, price, big.NewInt(1))
 			require.NoError(t, err, "insert %d should succeed", i)
 		}
 
@@ -184,10 +185,10 @@ func TestSaveBaseTokenPriceToDatabase(t *testing.T) {
 		newSymbol := "NEW"
 		price := 10.0
 
-		err := saveBaseTokenPriceToDatabase(ctx, db, oldSymbol, tokenAddress, price)
+		err := saveBaseTokenPriceToDatabase(ctx, db, oldSymbol, tokenAddress, price, big.NewInt(1))
 		require.NoError(t, err)
 
-		err = saveBaseTokenPriceToDatabase(ctx, db, newSymbol, tokenAddress, price)
+		err = saveBaseTokenPriceToDatabase(ctx, db, newSymbol, tokenAddress, price, big.NewInt(1))
 		require.NoError(t, err)
 
 		type priceRow struct {

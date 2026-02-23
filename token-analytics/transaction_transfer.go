@@ -94,7 +94,7 @@ func (t *tokenAnalytics) getTokenInfo(ctx context.Context, contractAddress strin
 			COALESCE(type, '') AS type,
 			platform,
 			COALESCE(burned.amount, '0') as burned,
-			t.ticker
+			COALESCE(ticker, '') as ticker
 		FROM tokens 
 		LEFT JOIN fees_transferred burned ON burned.token_external_address = tokens.external_address AND burned.recipient_bsc_address = $2
 		WHERE contract_address = $1

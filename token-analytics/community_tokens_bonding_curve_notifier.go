@@ -216,16 +216,13 @@ func (t *tokenAnalytics) handleBondingCurveUpdate(ctx context.Context, payload s
 
 	if update.Type == TokenTypeProfile {
 		t.creatorTokenPricesUSD.Store(strings.ToLower(update.ContractAddress), update.PriceUSD)
-		t.creatorTokenPricesION.Store(strings.ToLower(update.ContractAddress), priceInBaseToken)
+		ionPriceUSD := t.ionPriceUSD.Load()
+		if ionPriceUSD != nil && *ionPriceUSD > 0 {
+			priceInION := update.PriceUSD / *ionPriceUSD
+			priceInIONWei := new(big.Int).SetUint64(uint64(priceInION * 1e18))
+			t.creatorTokenPricesION.Store(strings.ToLower(update.ContractAddress), priceInIONWei)
+		}
 	}
-	// TODO: move registerTrade for questdb here as well (+ in repopulate)
-	tradeInfo, err := t.fetchTradeInfoFromSwap(ctx, tx.TransactionHash, update.ContractAddress, userAddr)
-	if err != nil {
-		log.Error(errors.Wrapf(err, "failed to fetch trade info for tx %v contract %v user %v to notify subscribers", tx.TransactionHash, contractAddress, userAddr))
-
-		return nil
-	}
-	t.subscriptions.NotifySwap(tradeInfo)
 
 	return nil
 }

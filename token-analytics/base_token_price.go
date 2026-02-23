@@ -131,7 +131,7 @@ func (t *tokenAnalytics) syncIONPrice(ctx context.Context) error {
 func saveBaseTokenPriceToDatabase(ctx context.Context, db *storage.DB, symbol, tokenAddress string, price float64, priceInION *big.Int) (err error) {
 	_, err = storage.Exec(ctx, db, `
 		WITH old_price AS (
-			SELECT price_usd
+			SELECT price_usd, price_in_ion
 			FROM base_token_prices
 			WHERE token_address = $1
 		),

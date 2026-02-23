@@ -122,12 +122,15 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 		return errors.Wrap(err, "failed to calculate token market data and user position")
 	}
 	pairId := common.HexToHash(result.PairId)
-	if err = t.registerTrade(ctx, tx, direction, inputAmount, outputAmount, result.ContractAddress, userAddress.Hex(), result.TokenExternalAddress, strings.ToLower(result.BaseToken), pairId.Bytes(), totalSupplyBig, burnedBig); err != nil {
+	mCapUSDF := marketCap(priceUSD, totalSupplyBig, burnedBig)
+	mCapUSD, _ := mCapUSDF.Float64()
+	if err = t.registerTrade(ctx, tx, direction, inputAmount, outputAmount, result.ContractAddress, userAddress.Hex(), result.TokenExternalAddress, strings.ToLower(result.BaseToken), pairId.Bytes(), totalSupplyBig, burnedBig, priceUSD, mCapUSD); err != nil {
 		return errors.Wrapf(err, "failed to save trade in questdb %v %v tx %v", userAddress, user.UserExternalAddress, tx.TransactionHash)
 	}
 	if result.TokenType == TokenTypeProfile {
 		t.creatorTokenPricesUSD.Store(strings.ToLower(result.ContractAddress), priceUSD)
-		t.creatorTokenPricesION.Store(strings.ToLower(result.ContractAddress), priceInBaseToken)
+		priceInIONWei := new(big.Int).SetUint64(uint64(priceInBaseToken * 1e18))
+		t.creatorTokenPricesION.Store(strings.ToLower(result.ContractAddress), priceInIONWei)
 	}
 	go func() {
 		tradeInfo, err := t.fetchTradeInfoFromSwap(ctx, tx.TransactionHash, result.ContractAddress, userAddress.Hex())
@@ -170,7 +173,6 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 			COALESCE(t.total_supply, '0') as total_supply,
 			COALESCE(burned.amount, '0') as burned,
 			t.platform as platform,
-			t.ticker,
 		    base_token.contract_address as base_profile_contract_address,
             base_token.external_address as base_profile_external_address
 		FROM tokens t
@@ -247,9 +249,6 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, result.Ticker, contractAddress, ev.Direction, ev.InputAmount, ev.OutputAmount, totalSupplyBig, burnedBig, priceUSD, result.TokenExternalAddress, result.UserExternalAddress, result.Type, result.Platform, userAddr, result.PairId, result.BaseToken, result.BaseProfileContractAddress, result.BaseProfileExternalAddress); err != nil {
 
 		return errors.Wrap(err, "failed to calculate token market data and user position")
-	}
-	if err = t.registerTrade(ctx, tx, ev.Direction, ev.InputAmount, ev.OutputAmount, result.ContractAddress, ev.Swapper.Hex(), result.TokenExternalAddress, actualBaseToken, ev.Pair.Bytes(), totalSupplyBig, burnedBig); err != nil {
-		return errors.Wrapf(err, "failed to save trade in questdb %v", userAddr)
 	}
 	if isFirstSwap {
 		result.PriceUsd = priceUSD

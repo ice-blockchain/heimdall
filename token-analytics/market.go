@@ -67,14 +67,10 @@ func (t *trade) Marshal(client questdb.LineSender) questdb.At {
 		DecimalColumnFromString("market_cap_usd", t.MarketcapUsd.Text('f', 18))
 }
 
-func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, direction bool, inputAmount, outputAmount *big.Int, contractAddress, userAddress, externalAddress, baseToken string, pairId []byte, totalSupply, burned *big.Int) error {
+func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, direction bool, inputAmount, outputAmount *big.Int, contractAddress, userAddress, externalAddress, baseToken string, pairId []byte, totalSupply, burned *big.Int, priceInUSD, marketCapUSD float64) error {
 	tradeTyp, baseAmount, amount, priceInBase := buyOrSell(direction, inputAmount, outputAmount)
 	priceInBaseF, _ := priceInBase.Float64()
-	priceInUSD, basePrice, err := t.calculatePriceInUSD(ctx, priceInBaseF, baseToken)
-	if err != nil {
-		return errors.Wrapf(err, "failed to calculate price in USD for base %v", baseToken)
-	}
-	marketCapUSD := marketCap(priceInUSD, totalSupply, burned)
+	basePrice := priceInUSD / priceInBaseF
 	tradeData := &trade{
 		Timestamp:       *tx.BlockTimestamp,
 		PairAddress:     hex.EncodeToString(pairId[:]),
@@ -87,7 +83,7 @@ func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, directi
 		TraderAddress:   userAddress,
 		TransactionHash: tx.TransactionHash,
 		PriceInUsd:      big.NewFloat(priceInUSD),
-		MarketcapUsd:    marketCapUSD,
+		MarketcapUsd:    big.NewFloat(marketCapUSD),
 	}
 
 	if err := questdb.Write(ctx, t.questDB, tradeData); err != nil {

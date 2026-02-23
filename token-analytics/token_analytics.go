@@ -190,6 +190,7 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 	go t.startBNBPriceLoader(ctx)
 	t.startBondingCurveNotifier(ctx)
 	t.startUserBalanceNotifier(ctx)
+	t.startTokenSwapNotifier(ctx)
 
 	if err := riverClient.Start(ctx); err != nil {
 		log.Panic(errors.Wrap(err, "failed to start river queue"))
@@ -384,6 +385,9 @@ func (t *tokenAnalyticsUsers) GetUser(ctx context.Context, masterPubkey string) 
 func (t *tokenAnalytics) MustStart(ctx context.Context) {
 	if err := t.RepopulateRedisFromPostgres(ctx); err != nil {
 		log.Panic(errors.Wrap(err, "failed to repopulate Redis on startup"))
+	}
+	if err := t.RepopulateQuestDBTrades(ctx); err != nil {
+		log.Panic(errors.Wrap(err, "failed to repopulate QuestDB trades on startup"))
 	}
 
 	for workerIdx := range t.cfg.Workers {
@@ -893,6 +897,9 @@ func (t *tokenAnalytics) runPeriodicRepopulationWorker(ctx context.Context) {
 			log.Debug("Periodic repopulation: starting scheduled check for missed updates")
 			if err := t.RepopulateRedisFromPostgres(ctx); err != nil {
 				log.Error(fmt.Errorf("periodic repopulation failed (will retry in 5 minutes): %w", err))
+			}
+			if err := t.RepopulateQuestDBTrades(ctx); err != nil {
+				log.Error(fmt.Errorf("periodic QuestDB repopulation failed (will retry in 5 minutes): %w", err))
 			}
 		}
 	}

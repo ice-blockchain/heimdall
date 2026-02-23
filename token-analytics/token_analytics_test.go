@@ -277,6 +277,7 @@ func helperNewForTest(t testing.TB, db *storage.DB, opts ...HelperTestOption) *t
 		tradingStatsRecentData:      xsync.NewMap[string, *recentTradeStats](),
 		subscriptions:               newSubscriptions(t.Context()),
 		creatorTokenPricesUSD:       xsync.NewMap[string, float64](),
+		creatorTokenPricesION:       xsync.NewMap[string, *big.Int](),
 		coins:                       &mockCoinImport{},
 		riverClient:                 riverClient,
 		bondingCurve:                bc,
@@ -916,11 +917,12 @@ func TestFeeTransfer(t *testing.T) {
 	ctx := t.Context()
 	baseTokenAddress := "0x2c73996babf1a06c2c057177353293f7ca0907c8" // ion
 	ionPriceUSD := 0.003
+	priceInION := big.NewInt(int64(ionPriceUSD * 1e18))
 
 	_, err := storage.Exec(ctx, db, `
-		INSERT INTO base_token_prices (token_address, token_symbol, price_usd, updated_at)
-		VALUES ($1, 'ION', $2, NOW())
-	`, baseTokenAddress, ionPriceUSD)
+		INSERT INTO base_token_prices (token_address, token_symbol, price_usd, price_in_ion, updated_at)
+		VALUES ($1, 'ION', $2, $3, NOW())
+	`, baseTokenAddress, ionPriceUSD, priceInION.String())
 	require.NoError(t, err)
 
 	testUserAddr := "0x1234567890123456789012345678901234567890"
@@ -2065,11 +2067,12 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 	ctx := t.Context()
 	ionAddress := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
 	ionPriceUSD := 0.003
+	priceInION := big.NewInt(int64(ionPriceUSD * 1e18))
 
 	_, err := storage.Exec(ctx, db, `
-		INSERT INTO base_token_prices (token_address, token_symbol, price_usd, updated_at)
-		VALUES ($1, 'ION', $2, NOW())
-	`, ionAddress, ionPriceUSD)
+		INSERT INTO base_token_prices (token_address, token_symbol, price_usd, price_in_ion, updated_at)
+		VALUES ($1, 'ION', $2, $3, NOW())
+	`, ionAddress, ionPriceUSD, priceInION.String())
 	require.NoError(t, err)
 
 	testUserAddr := "0x1234567890123456789012345678901234567890"
@@ -2464,10 +2467,11 @@ func TestUpdateBaseTokenPrice(t *testing.T) {
 
 	t.Run("creates_new_base_token_price", func(t *testing.T) {
 		priceUSD := 0.005
+		priceInION := big.NewInt(int64(priceUSD * 1e18))
 
 		_, err := storage.Exec(ctx, db, `
-			SELECT update_base_token_price($1, $2, $3)
-		`, testTokenAddr, testTokenTicker, priceUSD)
+			SELECT update_base_token_price($1, $2, $3, $4)
+		`, testTokenAddr, testTokenTicker, priceUSD, priceInION.String())
 		require.NoError(t, err)
 
 		type priceResult struct {
@@ -2500,10 +2504,11 @@ func TestUpdateBaseTokenPrice(t *testing.T) {
 
 	t.Run("updates_existing_price", func(t *testing.T) {
 		newPriceUSD := 0.007
+		priceInION := big.NewInt(int64(newPriceUSD * 1e18))
 
 		_, err := storage.Exec(ctx, db, `
-			SELECT update_base_token_price($1, $2, $3)
-		`, testTokenAddr, testTokenTicker, newPriceUSD)
+			SELECT update_base_token_price($1, $2, $3, $4)
+		`, testTokenAddr, testTokenTicker, newPriceUSD, priceInION.String())
 		require.NoError(t, err)
 
 		type priceResult struct {
@@ -2532,10 +2537,11 @@ func TestUpdateBaseTokenPrice(t *testing.T) {
 
 	t.Run("does_not_create_duplicate_history_for_same_price", func(t *testing.T) {
 		samePriceUSD := 0.007
+		priceInION := big.NewInt(int64(samePriceUSD * 1e18))
 
 		_, err := storage.Exec(ctx, db, `
-			SELECT update_base_token_price($1, $2, $3)
-		`, testTokenAddr, testTokenTicker, samePriceUSD)
+			SELECT update_base_token_price($1, $2, $3, $4)
+		`, testTokenAddr, testTokenTicker, samePriceUSD, priceInION.String())
 		require.NoError(t, err)
 
 		type historyResult struct {
@@ -2553,10 +2559,11 @@ func TestUpdateBaseTokenPrice(t *testing.T) {
 
 	t.Run("creates_history_when_price_changes_again", func(t *testing.T) {
 		anotherPriceUSD := 0.009
+		priceInION := big.NewInt(int64(anotherPriceUSD * 1e18))
 
 		_, err := storage.Exec(ctx, db, `
-			SELECT update_base_token_price($1, $2, $3)
-		`, testTokenAddr, testTokenTicker, anotherPriceUSD)
+			SELECT update_base_token_price($1, $2, $3, $4)
+		`, testTokenAddr, testTokenTicker, anotherPriceUSD, priceInION.String())
 		require.NoError(t, err)
 
 		type historyResult struct {
