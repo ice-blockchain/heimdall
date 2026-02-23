@@ -162,15 +162,15 @@ func (t *tokenAnalytics) handleBondingCurveUpdate(ctx context.Context, payload s
 			}
 		}
 	}
-	startTokenParam, ok := t.cfg.BondingCurve.CreateTokenDefaults[update.Type]
-	if !ok {
-		return errors.Errorf("failed to find bonding curve start token params for type %s after bonding curve update %v", update.Type, update.ExternalAddress)
+	_, feeSponsorId, feeSponsorAddr, err := t.defaultStartTokenParamsForBase(update.BaseToken, update.Type)
+	if err != nil {
+		return errors.Wrapf(err, "failed to find bonding curve start token params for type %s after bonding curve update %v", update.Type, update.ExternalAddress)
 	}
 	feeSponsor := ""
 	if update.FeeSponsor != nil {
 		feeSponsor = *update.FeeSponsor
 	} else {
-		feeSponsor = startTokenParam.FeeSponsorAddress
+		feeSponsor = feeSponsorAddr
 	}
 
 	log.Debug(fmt.Sprintf("Updated Redis bonding curve for token %s from notifier", update.ExternalAddress))
@@ -192,7 +192,7 @@ func (t *tokenAnalytics) handleBondingCurveUpdate(ctx context.Context, payload s
 	}
 	bondingProgress := &BondingCurveProgress{
 		FeeSponsorAddress: feeSponsor,
-		FeeSponsorId:      startTokenParam.FeeSponsorId,
+		FeeSponsorId:      feeSponsorId,
 		CurrentAmount:     update.BondingCurveCurrentAmount,
 		GoalAmount:        update.BondingCurveGoalAmount,
 		RaisedAmount:      update.BondingCurveRaisedAmount,

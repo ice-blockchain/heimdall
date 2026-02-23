@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	stdlog "log"
+	"math/big"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -152,6 +153,7 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 		llmClient:                   llm.New(cfg.LLM),
 		coins:                       coinImport,
 		creatorTokenPricesUSD:       xsync.NewMap[string, float64](),
+		creatorTokenPricesION:       xsync.NewMap[string, *big.Int](),
 		shutdown: func() error {
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()

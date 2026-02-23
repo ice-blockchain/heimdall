@@ -291,6 +291,7 @@ type (
 		ionPriceUSD           *atomic.Pointer[float64]
 		bnbPriceUSD           *atomic.Pointer[float64]
 		creatorTokenPricesUSD *xsync.Map[string, float64]
+		creatorTokenPricesION *xsync.Map[string, *big.Int]
 		identityClient        *identityClient
 		llmClient             llm.Client
 		cdnClient             cdn.Client

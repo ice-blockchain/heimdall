@@ -125,6 +125,7 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 	}
 	if result.TokenType == TokenTypeProfile {
 		t.creatorTokenPricesUSD.Store(strings.ToLower(result.ContractAddress), priceUSD)
+		t.creatorTokenPricesION.Store(strings.ToLower(result.ContractAddress), priceInBaseToken)
 	}
 	go func() {
 		tradeInfo, err := t.fetchTradeInfoFromSwap(ctx, tx.TransactionHash, result.ContractAddress, userAddress.Hex())
@@ -258,6 +259,7 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	}
 	if result.Type == TokenTypeProfile {
 		t.creatorTokenPricesUSD.Store(strings.ToLower(result.ContractAddress), priceUSD)
+		t.creatorTokenPricesION.Store(strings.ToLower(result.ContractAddress), priceInBaseToken)
 	}
 	tradeInfo, err := t.fetchTradeInfoFromSwap(ctx, tx.TransactionHash, contractAddress, userAddr)
 	if err != nil {
@@ -543,6 +545,28 @@ func (t *tokenAnalytics) calculatePriceInUSD(ctx context.Context, priceInBaseTok
 	return priceInBaseToken * creatorTokenPrice, creatorTokenPrice, nil
 }
 
+func (t *tokenAnalytics) calculateIONtoBase(ctx context.Context, priceInION *big.Int, baseToken string) (priceInBase *big.Int, err error) {
+	if baseToken == "" {
+		return nil, errors.New("base token is empty")
+	}
+	if strings.EqualFold(baseToken, t.cfg.IONTokenAddress) {
+		return priceInION, nil
+	}
+	creatorTokenPrice, ok := t.creatorTokenPricesION.Load(strings.ToLower(baseToken))
+	if !ok {
+		basePriceP, err := storage.Get[string](ctx, t.ingestedDataDB, `SELECT price_in_ion FROM base_token_prices WHERE token_address = $1`, strings.ToLower(baseToken))
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get price for base token %v", baseToken)
+		}
+		creatorTokenPrice, ok = new(big.Int).SetString(*basePriceP, 10)
+		if !ok {
+			return nil, errors.Errorf("failed to parse price_in_ion for base token %v: %v", baseToken, *basePriceP)
+		}
+		creatorTokenPrice, _ = t.creatorTokenPricesION.LoadOrStore(strings.ToLower(baseToken), creatorTokenPrice)
+	}
+	return new(big.Int).Mul(priceInION, creatorTokenPrice), nil
+}
+
 func keyUserPositionOfToken(ionConnectAddress string) string {
 	return fmt.Sprintf("position:%s", ionConnectAddress)
 }
@@ -734,7 +758,7 @@ func (t *tokenAnalyticsUsers) ValidateTransaction(txPayload accounts.Transaction
 			return fmt.Errorf("no tokens found in Fat Address")
 		}
 		for _, token := range allTokens {
-			expectedParams := t.cfg.BondingCurve.CreateTokenDefaults[token.Type]
+			expectedParams := t.de
 			if !strings.EqualFold(token.PricingModel, expectedParams.BondingCurveAlgAddress) {
 				return errors.Wrapf(ErrValidationFailed, "wrong pricing model for token %s: expected %s, got %s", token.ExternalAddress, expectedParams.BondingCurveAlgAddress, token.PricingModel)
 			}
