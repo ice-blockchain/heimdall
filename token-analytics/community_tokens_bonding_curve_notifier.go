@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
+	"strings"
 	stdlibtime "time"
 
 	"github.com/cockroachdb/errors"
@@ -20,6 +21,7 @@ type (
 	bondingCurveUpdate struct {
 		FeeSponsor                   *string `json:"fee_sponsor"`
 		ExternalAddress              string  `json:"external_address"`
+		ContractAddress              string  `json:"contract_address"`
 		Type                         string  `json:"type"`
 		Platform                     string  `json:"platform"`
 		BondingCurveCurrentAmount    string  `json:"bonding_curve_current_amount"`
@@ -35,6 +37,7 @@ type (
 		BaseToken                    string  `json:"base_token"`
 		UpdatedAt                    int64   `json:"updated_at"`
 		BondingCurveMigrated         bool    `json:"bonding_curve_migrated"`
+		PriceUSD                     float64 `json:"price_usd"` // TODO
 	}
 )
 
@@ -162,7 +165,7 @@ func (t *tokenAnalytics) handleBondingCurveUpdate(ctx context.Context, payload s
 			}
 		}
 	}
-	_, feeSponsorId, feeSponsorAddr, err := t.defaultStartTokenParamsForBase(update.BaseToken, update.Type)
+	_, feeSponsorId, feeSponsorAddr, err := t.defaultStartTokenParamsForBase(ctx, update.BaseToken, update.Type)
 	if err != nil {
 		return errors.Wrapf(err, "failed to find bonding curve start token params for type %s after bonding curve update %v", update.Type, update.ExternalAddress)
 	}
@@ -210,6 +213,19 @@ func (t *tokenAnalytics) handleBondingCurveUpdate(ctx context.Context, payload s
 		},
 	}
 	t.subscriptions.NotifyBondingCurveProgress(update.ExternalAddress, bondingProgress)
+
+	if update.Type == TokenTypeProfile {
+		t.creatorTokenPricesUSD.Store(strings.ToLower(update.ContractAddress), update.PriceUSD)
+		t.creatorTokenPricesION.Store(strings.ToLower(update.ContractAddress), priceInBaseToken)
+	}
+	// TODO: move registerTrade for questdb here as well (+ in repopulate)
+	tradeInfo, err := t.fetchTradeInfoFromSwap(ctx, tx.TransactionHash, update.ContractAddress, userAddr)
+	if err != nil {
+		log.Error(errors.Wrapf(err, "failed to fetch trade info for tx %v contract %v user %v to notify subscribers", tx.TransactionHash, contractAddress, userAddr))
+
+		return nil
+	}
+	t.subscriptions.NotifySwap(tradeInfo)
 
 	return nil
 }

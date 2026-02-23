@@ -198,11 +198,42 @@ BEGIN
     PERFORM update_market_cap_and_position(p_block_timestamp, v_user_address, v_token_address, v_token_external_address,
                                            v_direction, v_input_amount, v_output_amount, v_price_usd, v_base_price_usd, v_total_supply);
 
-    IF v_token_type = 'profile' THEN
-        PERFORM update_base_token_price(v_token_address, v_token_ticker, v_price_usd, v_price_in_base);
-    END IF;
-
     RAISE NOTICE '[EVENT_PROCESSOR] Swapped: Successfully processed | tx=% | token=% | user=% | external=%',
         p_transaction_hash, v_token_address, v_user_address, v_token_external_address;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION notify_bonding_curve_update() RETURNS TRIGGER AS $$
+DECLARE
+    payload JSON;
+BEGIN
+    payload := json_build_object(
+            'external_address', NEW.external_address,
+            'external_address', NEW.contract_address,
+            'type', COALESCE(NEW.type, ''),
+            'platform', NEW.platform::text,
+            'bonding_curve_migrated', COALESCE(NEW.bonding_curve_migrated, false),
+            'bonding_curve_current_amount', COALESCE(NEW.bonding_curve_current_amount::text, '0'),
+            'bonding_curve_goal_amount', COALESCE(NEW.bonding_curve_goal_amount::text, '0'),
+            'bonding_curve_raised_amount', COALESCE(NEW.bonding_curve_raised_amount::text, '0'),
+            'bonding_curve_current_amount_usd', COALESCE(NEW.bonding_curve_current_amount_usd, 0),
+            'bonding_curve_goal_amount_usd', COALESCE(NEW.bonding_curve_goal_amount_usd, 0),
+            'liquidity_usd', COALESCE(NEW.liquidity_usd, 0),
+            'start_price', COALESCE(NEW.start_price::text, '0'),
+            'end_price', COALESCE(NEW.end_price::text, '0'),
+            'total_supply', COALESCE(NEW.total_supply::text, '0'),
+            'price_model', COALESCE(NEW.price_model, ''),
+            'base_token', COALESCE(NEW.base_token, ''),
+            'fee_sponsor', NEW.fee_sponsor,
+            'price_usd', NEW.price_usd,
+            'market_cap', NEW.market_cap,
+            'market_cap_usd', NEW.market_cap_usd,
+            'updated_at', EXTRACT(EPOCH FROM NEW.updated_at)::bigint
+         );
+
+    PERFORM pg_notify('token_bonding_curve_updates', payload::text);
+
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

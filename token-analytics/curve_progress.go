@@ -111,7 +111,7 @@ func (t *tokenAnalytics) toBondingCurveProgressToModel(ctx context.Context, prog
 		return nil, errors.Wrapf(err, "failed to handle base token for end price usd calculation %v", baseToken)
 	}
 	feeSponsorAddress := ""
-	_, feeSponsorId, feeSponsorAddr, err := t.defaultStartTokenParamsForBase(baseToken, tokenType)
+	_, feeSponsorId, feeSponsorAddr, err := t.defaultStartTokenParamsForBase(ctx, baseToken, tokenType)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to find bonding curve start token params for type %s and base %s", tokenType, baseToken)
 	}

@@ -226,7 +226,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 						}
 					}
 					for _, tok := range allTokens {
-						tokenStartParams, _, feeSponsorAddress, tserr := t.defaultStartTokenParamsForBase(baseToken, tok.Type)
+						tokenStartParams, _, feeSponsorAddress, tserr := t.defaultStartTokenParamsForBase(ctx, baseToken, tok.Type)
 						if tserr != nil {
 							return nil, errors.Wrapf(err, "failed to get start token params for %v", tok.Type)
 						}
@@ -280,7 +280,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 					if baseTokenErr != nil {
 						return nil, fmt.Errorf("failed to determine base token for %s (from Fat Address %s): %w", actualTokenAddress.ExternalAddress, externalAddress, baseTokenErr)
 					}
-					tokenStartParams, _, feeSponsorAddress, tserr := t.defaultStartTokenParamsForBase(baseToken, allTokens[0].Type)
+					tokenStartParams, _, feeSponsorAddress, tserr := t.defaultStartTokenParamsForBase(ctx, baseToken, allTokens[0].Type)
 					if tserr != nil {
 						return nil, errors.Wrapf(err, "failed to get start token params for %v", allTokens[0].Type)
 					}
@@ -358,7 +358,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 		return nil, errors.Wrapf(err, "failed to handle base token for end price usd calculation %v", result.BaseToken)
 	}
 	feeSponsorAddress := ""
-	tokenStartParams, feeSponsorId, feeSponsorAddr, tserr := t.defaultStartTokenParamsForBase(result.BaseToken, result.Type)
+	_, feeSponsorId, feeSponsorAddr, tserr := t.defaultStartTokenParamsForBase(ctx, result.BaseToken, result.Type)
 	if result.FeeSponsor != nil {
 		feeSponsorAddress = *result.FeeSponsor
 	} else {
@@ -515,8 +515,8 @@ func (t *tokenAnalytics) defaultStartTokenParamsForBase(ctx context.Context, bas
 	}
 	return &StartTokenParams{
 		BondingCurveAlgAddress: p.BondingCurveAlgAddress,
-		InitialPrice:           p.InitialPrice,
-		FinalPrice:             p.FinalPrice,
+		InitialPrice:           initial.String(),
+		FinalPrice:             final.String(),
 		EmissionVolume:         p.EmissionVolume,
 	}, p.FeeSponsorId, p.FeeSponsorAddress, nil
 }

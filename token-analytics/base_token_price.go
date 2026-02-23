@@ -4,6 +4,7 @@ package tokenanalytics
 
 import (
 	"context"
+	"math/big"
 	"net/http"
 	"time"
 
@@ -104,7 +105,7 @@ loop:
 }
 
 func (t *tokenAnalyticsUsers) UpdateBNBPrice(ctx context.Context, price float64) error {
-	return errors.Wrapf(saveBaseTokenPriceToDatabase(ctx, t.ingestedDataDB, "BNB", "BNB", price), "failed to save BNB price to database")
+	return errors.Wrapf(saveBaseTokenPriceToDatabase(ctx, t.ingestedDataDB, "BNB", "BNB", price, new(big.Int).SetUint64(1)), "failed to save BNB price to database")
 }
 
 func (t *tokenAnalytics) loadBNBPrice(ctx context.Context) error {
@@ -124,10 +125,10 @@ func (t *tokenAnalytics) syncIONPrice(ctx context.Context) error {
 	}
 	t.ionPriceUSD.Store(&stats.Price)
 
-	return errors.Wrapf(saveBaseTokenPriceToDatabase(ctx, t.ingestedDataDB, "ION", t.cfg.IONTokenAddress, stats.Price), "failed to save ION price to database")
+	return errors.Wrapf(saveBaseTokenPriceToDatabase(ctx, t.ingestedDataDB, "ION", t.cfg.IONTokenAddress, stats.Price, new(big.Int).SetUint64(1)), "failed to save ION price to database")
 }
 
-func saveBaseTokenPriceToDatabase(ctx context.Context, db *storage.DB, symbol, tokenAddress string, price float64) (err error) {
+func saveBaseTokenPriceToDatabase(ctx context.Context, db *storage.DB, symbol, tokenAddress string, price float64, priceInION *big.Int) (err error) {
 	_, err = storage.Exec(ctx, db, `
 		WITH old_price AS (
 			SELECT price_usd
@@ -135,10 +136,11 @@ func saveBaseTokenPriceToDatabase(ctx context.Context, db *storage.DB, symbol, t
 			WHERE token_address = $1
 		),
 		updated AS (
-			INSERT INTO base_token_prices (token_address, token_symbol, price_usd, updated_at)
-			VALUES ($1, $2, $3, NOW())
+			INSERT INTO base_token_prices (token_address, token_symbol, price_usd, price_in_ion, updated_at)
+			VALUES ($1, $2, $3, $4, NOW())
 			ON CONFLICT (token_address) DO UPDATE SET
 				price_usd = EXCLUDED.price_usd,
+				price_in_ion = EXCLUDED.price_in_ion,
 				updated_at = EXCLUDED.updated_at,
 				token_symbol = EXCLUDED.token_symbol
 			RETURNING price_usd
@@ -147,8 +149,9 @@ func saveBaseTokenPriceToDatabase(ctx context.Context, db *storage.DB, symbol, t
 		SELECT $1, $3, NOW()
 		WHERE NOT EXISTS (SELECT 1 FROM old_price)
 		   OR (SELECT price_usd FROM old_price) != $3
+		   OR (SELECT price_in_ion FROM old_price) != $4
 		ON CONFLICT DO NOTHING
-	`, tokenAddress, symbol, price)
+	`, tokenAddress, symbol, price, priceInION.String())
 
 	if err != nil {
 		return errors.Wrapf(err, "failed to save %v price to database", symbol)

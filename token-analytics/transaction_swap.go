@@ -37,6 +37,7 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 		PairId                     string  `db:"pair_id"`
 		TotalSupply                string  `db:"total_supply"`
 		Burned                     string  `db:"burned"`
+		Ticker                     string  `db:"ticker"`
 		BaseProfileContractAddress *string `db:"base_profile_contract_address"`
 		BaseProfileExternalAddress *string `db:"base_profile_external_address"`
 	}
@@ -50,6 +51,7 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 			p.token0 AS pool_token0,
 			t.pair_id,
 			COALESCE(t.total_supply, '0') as total_supply,
+			t.ticker,
 			base_token.contract_address as base_profile_contract_address,
             base_token.external_address as base_profile_external_address,
             COALESCE(burned.amount, '0') as burned
@@ -116,7 +118,7 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 	totalSupplyBig.SetString(result.TotalSupply, 10)
 	burnedBig := new(big.Int)
 	burnedBig.SetString(result.Burned, 10)
-	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, result.ContractAddress, direction, inputAmount, outputAmount, totalSupplyBig, burnedBig, priceUSD, result.TokenExternalAddress, user.UserExternalAddress, result.TokenType, result.Platform, userAddress.Hex(), result.PairId, result.BaseToken, result.BaseProfileContractAddress, result.BaseProfileExternalAddress); err != nil {
+	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, result.Ticker, result.ContractAddress, direction, inputAmount, outputAmount, totalSupplyBig, burnedBig, priceUSD, result.TokenExternalAddress, user.UserExternalAddress, result.TokenType, result.Platform, userAddress.Hex(), result.PairId, result.BaseToken, result.BaseProfileContractAddress, result.BaseProfileExternalAddress); err != nil {
 		return errors.Wrap(err, "failed to calculate token market data and user position")
 	}
 	pairId := common.HexToHash(result.PairId)
@@ -168,6 +170,7 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 			COALESCE(t.total_supply, '0') as total_supply,
 			COALESCE(burned.amount, '0') as burned,
 			t.platform as platform,
+			t.ticker,
 		    base_token.contract_address as base_profile_contract_address,
             base_token.external_address as base_profile_external_address
 		FROM tokens t
@@ -241,7 +244,7 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	totalSupplyBig.SetString(result.TotalSupply, 10)
 	burnedBig := new(big.Int)
 	burnedBig.SetString(result.Burned, 10)
-	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, contractAddress, ev.Direction, ev.InputAmount, ev.OutputAmount, totalSupplyBig, burnedBig, priceUSD, result.TokenExternalAddress, result.UserExternalAddress, result.Type, result.Platform, userAddr, result.PairId, result.BaseToken, result.BaseProfileContractAddress, result.BaseProfileExternalAddress); err != nil {
+	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, result.Ticker, contractAddress, ev.Direction, ev.InputAmount, ev.OutputAmount, totalSupplyBig, burnedBig, priceUSD, result.TokenExternalAddress, result.UserExternalAddress, result.Type, result.Platform, userAddr, result.PairId, result.BaseToken, result.BaseProfileContractAddress, result.BaseProfileExternalAddress); err != nil {
 
 		return errors.Wrap(err, "failed to calculate token market data and user position")
 	}
@@ -257,17 +260,7 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 			log.Debug(fmt.Sprintf("Skipping coin import for token %v: external data not found (will be imported later)", result.TokenExternalAddress))
 		}
 	}
-	if result.Type == TokenTypeProfile {
-		t.creatorTokenPricesUSD.Store(strings.ToLower(result.ContractAddress), priceUSD)
-		t.creatorTokenPricesION.Store(strings.ToLower(result.ContractAddress), priceInBaseToken)
-	}
-	tradeInfo, err := t.fetchTradeInfoFromSwap(ctx, tx.TransactionHash, contractAddress, userAddr)
-	if err != nil {
-		log.Error(errors.Wrapf(err, "failed to fetch trade info for tx %v contract %v user %v to notify subscribers", tx.TransactionHash, contractAddress, userAddr))
 
-		return nil
-	}
-	t.subscriptions.NotifySwap(tradeInfo)
 	return nil
 }
 
@@ -373,7 +366,7 @@ func extractAllTokensFromFatAddress(toTokenBytes []byte) ([]*fatAddressToken, co
 	return tokens, creatorAddr, affiliateAddr, nil
 }
 
-func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Context, tx *txEvent, contractAddress string, direction bool, input, output, totalSupply, burned *big.Int,
+func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Context, tx *txEvent, ticker, contractAddress string, direction bool, input, output, totalSupply, burned *big.Int,
 	priceUSD float64, tokenExternalAddress, userExternalAddress, tokenType, platform, userBlockchainAddress, pairID, baseToken string, baseProfileContractAddress, baseProfileExternalAddress *string) error {
 	log.Debug(fmt.Sprintf("Swap processed: contractAddress=%s, tokenExternalAddress=%s, userExternalAddress=%s (will be processed by trigger on tx_logs)",
 		contractAddress, tokenExternalAddress, userExternalAddress))
@@ -389,6 +382,8 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 		BaseToken:             baseToken,
 		TokenType:             tokenType,
 		Platform:              platform,
+		Burned:                burned,
+		Ticker:                ticker,
 	}
 
 	if t.cfg.EnableDummyGenerator {
@@ -447,6 +442,7 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 			BlockNumber:           tx.BlockNumber,
 			TokenType:             TokenTypeProfile,
 			Platform:              platform,
+			Burned:                new(big.Int).SetUint64(0),
 		}
 		if err := t.riverClient.Push(ctx, baseJobArgs); err != nil {
 			return errors.Wrapf(err, "failed to enqueue balance update job for tx %v (base token %v)", tx.TransactionHash, *baseProfileContractAddress)
