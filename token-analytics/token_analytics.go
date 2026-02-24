@@ -53,10 +53,11 @@ func NewUserRepository(ctx context.Context) interface {
 
 	appconfig.MustLoadFromKey(applicationYamlKey, &cfg)
 	db := storage.MustConnect(ctx, applicationYamlKey, storage.NewFilesystemDDL(&ddl.Files, schemeMigrationTableName))
-
+	bondingCurve := bondingcurve.New(ctx, applicationYamlKey)
 	return &tokenAnalyticsUsers{
 		ingestedDataDB: db,
 		cfg:            &cfg,
+		bondingCurve:   bondingCurve,
 		shutdown: func() error {
 			return errors.Join(
 				db.Close(),

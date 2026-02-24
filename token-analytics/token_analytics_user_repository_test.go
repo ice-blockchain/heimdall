@@ -3,6 +3,7 @@
 package tokenanalytics
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -47,7 +48,7 @@ func TestUpdateUserProfileAndToken(t *testing.T) {
 		token, err := storage.Get[tokenResult](t.Context(), db, `SELECT ticker, title, image_url FROM tokens WHERE external_address = $1 AND type = 'profile'`, profileExternalAddr)
 		require.NoError(t, err)
 		require.Equal(t, "newusername", token.Ticker)
-		require.Equal(t, tcCoin.Symbol(), token.Ticker)
+		require.Equal(t, tcCoin.Symbol(), strings.ToLower(token.Ticker))
 		require.Equal(t, tcCoin.Name(), token.Title)
 		require.NotNil(t, token.ImageURL)
 		require.Equal(t, "new_avatar.jpg", *token.ImageURL)

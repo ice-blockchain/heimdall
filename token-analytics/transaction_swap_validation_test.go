@@ -23,6 +23,7 @@ func TestTransactionValidation(t *testing.T) {
 			CreateTokenDefaults                 map[string]createTokenDefaults `yaml:"createTokenDefaults" mapstructure:"createTokenDefaults"`
 		}{CreateTokenDefaults: make(map[string]createTokenDefaults), SmartContractAddress: "0x4ab1807ff59a391503b0c8e28d2647bd9a7ecda1"}},
 	}
+	tu.bondingCurve = &mockBondingCurveForBalanceUpdater{}
 	tu.cfg.BondingCurve.CreateTokenDefaults["post"] = createTokenDefaults{
 		InitialPrice:           "10000",
 		FinalPrice:             "100000",

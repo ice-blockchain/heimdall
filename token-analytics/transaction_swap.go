@@ -620,7 +620,7 @@ func (t *tokenAndUserInfo) Name() string {
 }
 
 func (t *tokenAndUserInfo) Symbol() string {
-	return t.Ticker
+	return strings.ToLower(t.Ticker)
 }
 
 func (t *tokenAndUserInfo) IconUrl() string {
@@ -738,10 +738,23 @@ func (t *tokenAnalyticsUsers) ValidateTransaction(ctx context.Context, txPayload
 		}
 		for _, token := range allTokens {
 			base := t.cfg.IONTokenAddress
-			if len(allTokens) > 1 { //
-
+			if len(allTokens) > 1 {
+				base = baseForTwistedSwapIsNotExistYet
 			}
-			expectedParams, _, _, err := defaultStartTokenParamsForBase(ctx, t.cfg, xsync.NewMap[string, *big.Int](), t.ingestedDataDB, base, token.Type)
+			var swapAmount *big.Int
+			amountIn, ok := swapParams["amountIn"]
+			if !ok {
+				return fmt.Errorf("minReturn param not found in swap event")
+			}
+			if swapAmount, ok = amountIn.(*big.Int); !ok {
+				if str, ok := amountIn.(string); ok {
+					swapAmount, _ = new(big.Int).SetString(str, 10)
+				}
+			}
+			if swapAmount == nil {
+				return fmt.Errorf("failed to decode minReturn param")
+			}
+			expectedParams, _, _, err := defaultStartTokenParamsForBase(ctx, t.cfg, xsync.NewMap[string, *big.Int](), t.ingestedDataDB, t.bondingCurve, base, token.Type, token.Platform, swapAmount, allTokens[0])
 			if err != nil {
 				return errors.Wrapf(err, "failed to get default params for base token %v", base)
 			}

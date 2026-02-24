@@ -234,6 +234,8 @@ const (
 	feeDestinationCreator   = "creator"
 	feeDestinationBurn      = "burn"
 	feeDestinationAffiliate = "affiliate"
+
+	baseForTwistedSwapIsNotExistYet = "0x0"
 )
 
 var (
@@ -308,6 +310,7 @@ type (
 	}
 	tokenAnalyticsUsers struct {
 		ingestedDataDB *storage.DB
+		bondingCurve   bondingcurve.BondingCurve
 		shutdown       func() error
 		cfg            *config
 	}

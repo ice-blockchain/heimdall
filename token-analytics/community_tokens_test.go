@@ -458,7 +458,7 @@ func TestDetermineBaseTokenFromExternalAddress(t *testing.T) {
 		contentExternalAddr := "30175:nonexistent_creator_xyz:post456"
 		baseToken, err := taImpl.determineBaseTokenFromExternalAddress(ctx, contentExternalAddr)
 
-		require.NoError(t, err)
+		require.Error(t, err, storage.ErrNotFound)
 		require.Equal(t, taImpl.cfg.IONTokenAddress, baseToken, "Should fallback to ION when creator token not found")
 	})
 

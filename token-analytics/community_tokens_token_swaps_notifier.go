@@ -189,7 +189,7 @@ func (t *tokenAnalytics) updateTokenRankingsInRedis(ctx context.Context, mCapUSD
 	} else {
 		for _, response := range responses {
 			if rerr := response.Err(); rerr != nil {
-				return fmt.Errorf("failed to `%v` for tx %v: %w", response.FullName(), rerr)
+				return fmt.Errorf("failed to `%v`  for token %v: %w", response.FullName(), externalAddress, rerr)
 			}
 		}
 	}

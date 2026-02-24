@@ -196,6 +196,7 @@ func TestGetTokenPricing(t *testing.T) {
 		_, err = storage.Exec(ctx, db, `UPDATE tokens SET base_token = $1 WHERE contract_address = $2`, ta.cfg.IONTokenAddress, creatorContractAddr)
 		require.NoError(t, err)
 		helperInsertBaseTokenPrice(t, ctx, db, creatorContractAddr, "CREA", 0.5)
+		ta.creatorTokenPricesION.Store(creatorContractAddr, big.NewInt(1))
 	})
 
 	t.Run("buy_online_plus_profile_token_1plus_swap", func(t *testing.T) {
@@ -245,6 +246,7 @@ func TestGetTokenPricing(t *testing.T) {
 		_, err := storage.Exec(ctx, db, `UPDATE tokens SET base_token = $1 WHERE contract_address = $2`, ta.cfg.IONTokenAddress, creatorContractAddr)
 		require.NoError(t, err)
 		helperInsertBaseTokenPrice(t, ctx, db, creatorContractAddr, "CREADBL", 0.75)
+		ta.creatorTokenPricesION.Store(creatorContractAddr, big.NewInt(1))
 
 		fatAddressBytes := buildFatAddressV2Double(
 			"Creator Token", "CREADBL", creatorExternalAddr, 0x61,
