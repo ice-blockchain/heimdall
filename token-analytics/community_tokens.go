@@ -288,7 +288,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 					if baseTokenErr != nil {
 						return nil, fmt.Errorf("failed to determine base token for %s (from Fat Address %s): %w", actualTokenAddress.ExternalAddress, externalAddress, baseTokenErr)
 					}
-					tokenStartParams, _, feeSponsorAddress, tserr := defaultStartTokenParamsForBase(ctx, t.cfg, t.creatorTokenPricesION, t.ingestedDataDB, t.bondingCurve, baseToken, allTokens[0].Type, allTokens[0].Platform, amount, allTokens[0])
+					tokenStartParams, _, feeSponsorAddress, tserr := defaultStartTokenParamsForBase(ctx, t.cfg, t.creatorTokenPricesION, t.ingestedDataDB, t.bondingCurve, baseToken, allTokens[0].Type, allTokens[0].Platform, nil, nil)
 					if tserr != nil {
 						return nil, errors.Wrapf(err, "failed to get start token params for %v", allTokens[0].Type)
 					}
@@ -551,6 +551,9 @@ func convertFromION(ctx context.Context, cfg *config, ionPriceCache *xsync.Map[s
 				creatorFatAddress, err := buildFatAddressV2([]*fatAddressToken{creatorTokenForTwistedBuy}, common.HexToAddress("0x0"), common.HexToAddress("0x0"))
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to build fat address of creator %+v for twisted swap", creatorTokenForTwistedBuy)
+				}
+				if baseToken == baseForTwistedSwapIsNotExistYet {
+					baseToken = cfg.IONTokenAddress
 				}
 				profilePrice, err = bc.Pricing(ctx, common.HexToAddress(baseToken), creatorFatAddress, amountToFirstBuy, false)
 				if err != nil {
