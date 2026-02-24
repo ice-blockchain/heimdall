@@ -1324,11 +1324,12 @@ func helperBuildExternalAddress(platform, tokenType, identifier string) string {
 func helperInsertBaseTokenPrice(t *testing.T, ctx context.Context, db *storage.DB, tokenAddress string, tokenSymbol string, priceUSD float64) {
 	t.Helper()
 
+	priceInION := big.NewInt(int64(priceUSD * 1e18))
 	_, err := storage.Exec(ctx, db, `
-		INSERT INTO base_token_prices (token_address, token_symbol, price_usd, updated_at)
-		VALUES ($1, $2, $3, NOW())
-		ON CONFLICT (token_address) DO UPDATE SET price_usd = EXCLUDED.price_usd, updated_at = EXCLUDED.updated_at
-	`, tokenAddress, tokenSymbol, priceUSD)
+		INSERT INTO base_token_prices (token_address, token_symbol, price_usd, price_in_ion, updated_at)
+		VALUES ($1, $2, $3, $4, NOW())
+		ON CONFLICT (token_address) DO UPDATE SET price_usd = EXCLUDED.price_usd, price_in_ion = EXCLUDED.price_in_ion, updated_at = EXCLUDED.updated_at
+	`, tokenAddress, tokenSymbol, priceUSD, priceInION.String())
 	require.NoError(t, err, "failed to insert base token price")
 }
 

@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	stdlog "log"
+	"math/big"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -52,10 +53,11 @@ func NewUserRepository(ctx context.Context) interface {
 
 	appconfig.MustLoadFromKey(applicationYamlKey, &cfg)
 	db := storage.MustConnect(ctx, applicationYamlKey, storage.NewFilesystemDDL(&ddl.Files, schemeMigrationTableName))
-
+	bondingCurve := bondingcurve.New(ctx, applicationYamlKey)
 	return &tokenAnalyticsUsers{
 		ingestedDataDB: db,
 		cfg:            &cfg,
+		bondingCurve:   bondingCurve,
 		shutdown: func() error {
 			return errors.Join(
 				db.Close(),
@@ -152,6 +154,7 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 		llmClient:                   llm.New(cfg.LLM),
 		coins:                       coinImport,
 		creatorTokenPricesUSD:       xsync.NewMap[string, float64](),
+		creatorTokenPricesION:       xsync.NewMap[string, *big.Int](),
 		shutdown: func() error {
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
@@ -188,6 +191,7 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 	go t.startBNBPriceLoader(ctx)
 	t.startBondingCurveNotifier(ctx)
 	t.startUserBalanceNotifier(ctx)
+	t.startTokenSwapNotifier(ctx)
 
 	if err := riverClient.Start(ctx); err != nil {
 		log.Panic(errors.Wrap(err, "failed to start river queue"))
@@ -382,6 +386,9 @@ func (t *tokenAnalyticsUsers) GetUser(ctx context.Context, masterPubkey string) 
 func (t *tokenAnalytics) MustStart(ctx context.Context) {
 	if err := t.RepopulateRedisFromPostgres(ctx); err != nil {
 		log.Panic(errors.Wrap(err, "failed to repopulate Redis on startup"))
+	}
+	if err := t.RepopulateQuestDBTrades(ctx); err != nil {
+		log.Panic(errors.Wrap(err, "failed to repopulate QuestDB trades on startup"))
 	}
 
 	for workerIdx := range t.cfg.Workers {
@@ -869,7 +876,7 @@ func (dummyUserRepository) GetTokenUpdates(ctx context.Context, contractAddress 
 func (dummyUserRepository) UpdateUserProfileAndToken(ctx context.Context, masterPubkey, username, displayName, avatar string) (coins.TokenAnalyticsToken, error) {
 	return nil, nil
 }
-func (dummyUserRepository) ValidateTransaction(txPayload accounts.TransactionPayload) error {
+func (dummyUserRepository) ValidateTransaction(ctx context.Context, txPayload accounts.TransactionPayload) error {
 	return nil
 }
 func randInt(n int) int {
@@ -891,6 +898,9 @@ func (t *tokenAnalytics) runPeriodicRepopulationWorker(ctx context.Context) {
 			log.Debug("Periodic repopulation: starting scheduled check for missed updates")
 			if err := t.RepopulateRedisFromPostgres(ctx); err != nil {
 				log.Error(fmt.Errorf("periodic repopulation failed (will retry in 5 minutes): %w", err))
+			}
+			if err := t.RepopulateQuestDBTrades(ctx); err != nil {
+				log.Error(fmt.Errorf("periodic QuestDB repopulation failed (will retry in 5 minutes): %w", err))
 			}
 		}
 	}

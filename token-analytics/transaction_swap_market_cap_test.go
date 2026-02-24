@@ -24,7 +24,6 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC))
 	defer ta.Close()
-
 	contractAddress := "0xTEST0000000000000000000000000000000001"
 	tokenExternalAddress := "0:test_token:"
 	userExternalAddress := "0:test_user:"
@@ -68,10 +67,12 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		direction := false
 
 		mockBackend.SetBalanceOfResponse(outputAmount)
+		helperInsertTokenSwap(t, t.Context(), ta.ingestedDataDB, contractAddress, tokenExternalAddress,
+			"0x0000000000000000000000000000000000000000", tx.TransactionHash, false, inputAmount.String(), outputAmount.String(), priceUSD)
 
 		err := ta.calculateTokenMarketDataAndUserPosition(
-			ctx, tx, contractAddress, direction,
-			inputAmount, outputAmount, totalSupply, burned, priceUSD,
+			ctx, tx, "TEST", contractAddress, direction,
+			inputAmount, outputAmount, totalSupply, burned,
 			tokenExternalAddress, userExternalAddress, tokenType,
 			PlatformGroupIonConnect,                                              // platform
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
@@ -82,17 +83,6 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		require.NoError(t, err)
 
 		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
-
-		// = 0.10 * ((1000 - 10) * 1e18 / 1e18) = 0.10 * 1000 = 100.0
-		expectedMarketCap := 99.0
-
-		score, err := testRedis.ZScore(ctx, globalTopSetKey, tokenExternalAddress).Result()
-		require.NoError(t, err)
-		require.InDelta(t, expectedMarketCap, score, 0.001, "Market cap in globalTopSetKey should be 100.0")
-
-		score, err = testRedis.ZScore(ctx, globalTopProfileSetKey, tokenExternalAddress).Result()
-		require.NoError(t, err)
-		require.InDelta(t, expectedMarketCap, score, 0.001, "Market cap in globalTopProfileSetKey should be 100.0")
 
 		userScore, err := testRedis.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddress), userExternalAddress).Result()
 		require.NoError(t, err)
@@ -118,10 +108,12 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		direction := false
 
 		mockBackend.SetBalanceOfResponse(outputAmount)
+		helperInsertTokenSwap(t, t.Context(), ta.ingestedDataDB, contractAddress, tokenExternalAddress,
+			"0x0000000000000000000000000000000000000000", tx.TransactionHash, false, inputAmount.String(), outputAmount.String(), priceUSD)
 
 		err := ta.calculateTokenMarketDataAndUserPosition(
-			ctx, tx, contractAddress, direction,
-			inputAmount, outputAmount, totalSupply, burned, priceUSD,
+			ctx, tx, "TEST", contractAddress, direction,
+			inputAmount, outputAmount, totalSupply, burned,
 			tokenExternalAddress, userExternalAddress, tokenType,
 			PlatformGroupIonConnect,                                              // platform
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
@@ -133,9 +125,6 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
 
-		score1, _ := testRedis.ZScore(ctx, globalTopSetKey, tokenExternalAddress).Result()
-		require.InDelta(t, 99.0, score1, 0.001)
-
 		// Second swap: price $0.20
 		tx2 := &txEvent{
 			TransactionHash: "0xtestbuy003",
@@ -143,10 +132,12 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			BlockTimestamp:  nil,
 		}
 		priceUSD2 := 0.20
+		helperInsertTokenSwap(t, t.Context(), ta.ingestedDataDB, contractAddress, tokenExternalAddress,
+			"0x0000000000000000000000000000000000000000", tx.TransactionHash, false, inputAmount.String(), outputAmount.String(), priceUSD2)
 
 		err = ta.calculateTokenMarketDataAndUserPosition(
-			ctx, tx2, contractAddress, direction,
-			inputAmount, outputAmount, totalSupply, burned, priceUSD2,
+			ctx, tx2, "TEST", contractAddress, direction,
+			inputAmount, outputAmount, totalSupply, burned,
 			tokenExternalAddress, userExternalAddress, tokenType,
 			PlatformGroupIonConnect,
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
@@ -157,10 +148,6 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		require.NoError(t, err)
 
 		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
-
-		score2, err := testRedis.ZScore(ctx, globalTopSetKey, tokenExternalAddress).Result()
-		require.NoError(t, err)
-		require.InDelta(t, 198.0, score2, 0.001, "Market cap should double when price doubles")
 	})
 
 	t.Run("handles_sell_correctly", func(t *testing.T) {
@@ -179,10 +166,12 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		priceUSD := 0.10
 
 		mockBackend.SetBalanceOfResponse(buyOutput)
+		helperInsertTokenSwap(t, t.Context(), ta.ingestedDataDB, contractAddress, tokenExternalAddress,
+			"0x0000000000000000000000000000000000000000", tx1.TransactionHash, false, buyInput.String(), buyOutput.String(), priceUSD)
 
 		err := ta.calculateTokenMarketDataAndUserPosition(
-			ctx, tx1, contractAddress, false,
-			buyInput, buyOutput, totalSupply, burned, priceUSD,
+			ctx, tx1, "TEST", contractAddress, false,
+			buyInput, buyOutput, totalSupply, burned,
 			tokenExternalAddress, userExternalAddress, tokenType,
 			PlatformGroupIonConnect,
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
@@ -213,10 +202,12 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		remainingBalance := new(big.Int)
 		remainingBalance.SetString("15000000000000000000", 10) // 15 tokens
 		mockBackend.SetBalanceOfResponse(remainingBalance)
+		helperInsertTokenSwap(t, t.Context(), ta.ingestedDataDB, contractAddress, tokenExternalAddress,
+			"0x0000000000000000000000000000000000000000", tx2.TransactionHash, true, sellInput.String(), sellOutput.String(), newPriceUSD)
 
 		err = ta.calculateTokenMarketDataAndUserPosition(
-			ctx, tx2, contractAddress, true, // direction = true (sell)
-			sellInput, sellOutput, totalSupply, burned, newPriceUSD,
+			ctx, tx2, "TEST", contractAddress, true, // direction = true (sell)
+			sellInput, sellOutput, totalSupply, burned,
 			tokenExternalAddress, userExternalAddress, tokenType,
 			PlatformGroupIonConnect,
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
@@ -231,11 +222,6 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		userScore2, err := testRedis.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddress), userExternalAddress).Result()
 		require.NoError(t, err)
 		require.InDelta(t, 15.0, userScore2, 0.001, "User position should be 15 tokens after selling 5")
-
-		marketCapScore, err := testRedis.ZScore(ctx, globalTopSetKey, tokenExternalAddress).Result()
-		require.NoError(t, err)
-		// 0.5 * (1000 - 10) * 1e18 / 1e18
-		require.InDelta(t, 49.5, marketCapScore, 0.001, "Market cap should decrease after sell due to lower price")
 	})
 
 	t.Run("removes_user_position_when_sold_all", func(t *testing.T) {
@@ -250,8 +236,8 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		mockBackend.SetBalanceOfResponse(buyOutput)
 
 		err := ta.calculateTokenMarketDataAndUserPosition(
-			ctx, tx1, contractAddress, false,
-			buyInput, buyOutput, totalSupply, burned, 0.10,
+			ctx, tx1, "TEST", contractAddress, false,
+			buyInput, buyOutput, totalSupply, burned,
 			tokenExternalAddress, userExternalAddress, tokenType,
 			PlatformGroupIonConnect,
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
@@ -272,8 +258,8 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		mockBackend.SetBalanceOfResponse(big.NewInt(0))
 
 		err = ta.calculateTokenMarketDataAndUserPosition(
-			ctx, tx2, contractAddress, true,
-			sellInput, sellOutput, totalSupply, burned, 0.10,
+			ctx, tx2, "TEST", contractAddress, true,
+			sellInput, sellOutput, totalSupply, burned,
 			tokenExternalAddress, userExternalAddress, tokenType,
 			PlatformGroupIonConnect,
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress

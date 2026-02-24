@@ -48,7 +48,7 @@ type (
 		UpdateUserProfileAndToken(ctx context.Context, masterPubkey, username, displayName, avatar string) (coins.TokenAnalyticsToken, error)
 		SetVerified(ctx context.Context, masterPubkey string) error
 		GetUser(ctx context.Context, masterPubkey string) (*UserRecord, error)
-		ValidateTransaction(txPayload accounts.TransactionPayload) error
+		ValidateTransaction(ctx context.Context, txPayload accounts.TransactionPayload) error
 	}
 	CoinImport interface {
 		ImportTokenizedCommunitiesCoin(ctx context.Context, coin coins.TokenAnalyticsToken) (*coins.Coin, error)
@@ -234,6 +234,8 @@ const (
 	feeDestinationCreator   = "creator"
 	feeDestinationBurn      = "burn"
 	feeDestinationAffiliate = "affiliate"
+
+	baseForTwistedSwapIsNotExistYet = "0x0"
 )
 
 var (
@@ -291,6 +293,7 @@ type (
 		ionPriceUSD           *atomic.Pointer[float64]
 		bnbPriceUSD           *atomic.Pointer[float64]
 		creatorTokenPricesUSD *xsync.Map[string, float64]
+		creatorTokenPricesION *xsync.Map[string, *big.Int]
 		identityClient        *identityClient
 		llmClient             llm.Client
 		cdnClient             cdn.Client
@@ -307,6 +310,7 @@ type (
 	}
 	tokenAnalyticsUsers struct {
 		ingestedDataDB *storage.DB
+		bondingCurve   bondingcurve.BondingCurve
 		shutdown       func() error
 		cfg            *config
 	}

@@ -25,6 +25,8 @@ type tokenInfo struct {
 	BaseToken       string `db:"base_token"`
 	Type            string `db:"type"`
 	Platform        string `db:"platform"`
+	Burned          string `db:"burned"`
+	Ticker          string `db:"ticker"`
 }
 
 func (t *tokenAnalytics) onTransfer(ctx context.Context, tx *txEvent, ev *bondingcurve.LogTransfer) error {
@@ -90,12 +92,15 @@ func (t *tokenAnalytics) getTokenInfo(ctx context.Context, contractAddress strin
 			COALESCE(pair_id, '') AS pair_id,
 			COALESCE(base_token, '') AS base_token,
 			COALESCE(type, '') AS type,
-			platform
+			platform,
+			COALESCE(burned.amount, '0') as burned,
+			COALESCE(ticker, '') as ticker
 		FROM tokens 
+		LEFT JOIN fees_transferred burned ON burned.token_external_address = tokens.external_address AND burned.recipient_bsc_address = $2
 		WHERE contract_address = $1
 		LIMIT 1
 	`
-	row, err := storage.Get[tokenInfo](ctx, t.ingestedDataDB, query, strings.ToLower(contractAddress))
+	row, err := storage.Get[tokenInfo](ctx, t.ingestedDataDB, query, strings.ToLower(contractAddress), t.cfg.BondingCurve.BurnAddress)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get token info for contract %s", contractAddress)
 	}
@@ -127,7 +132,8 @@ func (t *tokenAnalytics) enqueueBalanceUpdate(ctx context.Context, tx *txEvent, 
 	if err != nil {
 		return errors.Wrapf(err, "failed to get user external address for %s", userBlockchainAddress)
 	}
-
+	burnedBig := new(big.Int)
+	burnedBig.SetString(tokenData.Burned, 10)
 	jobArgs := BalanceUpdateJobArgs{
 		UserBlockchainAddress: strings.ToLower(userBlockchainAddress),
 		UserExternalAddress:   userExternalAddress,
@@ -139,6 +145,8 @@ func (t *tokenAnalytics) enqueueBalanceUpdate(ctx context.Context, tx *txEvent, 
 		BaseToken:             tokenData.BaseToken,
 		TokenType:             tokenData.Type,
 		Platform:              tokenData.Platform,
+		Burned:                burnedBig,
+		Ticker:                tokenData.Ticker,
 	}
 	if t.cfg.EnableDummyGenerator {
 		userPositionKey := keyUserPositionOfToken(tokenData.ExternalAddress)

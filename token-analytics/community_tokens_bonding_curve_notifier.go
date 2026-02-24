@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
+	"strings"
 	stdlibtime "time"
 
 	"github.com/cockroachdb/errors"
@@ -20,6 +21,7 @@ type (
 	bondingCurveUpdate struct {
 		FeeSponsor                   *string `json:"fee_sponsor"`
 		ExternalAddress              string  `json:"external_address"`
+		ContractAddress              string  `json:"contract_address"`
 		Type                         string  `json:"type"`
 		Platform                     string  `json:"platform"`
 		BondingCurveCurrentAmount    string  `json:"bonding_curve_current_amount"`
@@ -35,6 +37,7 @@ type (
 		BaseToken                    string  `json:"base_token"`
 		UpdatedAt                    int64   `json:"updated_at"`
 		BondingCurveMigrated         bool    `json:"bonding_curve_migrated"`
+		PriceUSD                     float64 `json:"price_usd"` // TODO
 	}
 )
 
@@ -162,15 +165,15 @@ func (t *tokenAnalytics) handleBondingCurveUpdate(ctx context.Context, payload s
 			}
 		}
 	}
-	startTokenParam, ok := t.cfg.BondingCurve.CreateTokenDefaults[update.Type]
-	if !ok {
-		return errors.Errorf("failed to find bonding curve start token params for type %s after bonding curve update %v", update.Type, update.ExternalAddress)
+	_, feeSponsorId, feeSponsorAddr, err := defaultStartTokenParamsForBase(ctx, t.cfg, t.creatorTokenPricesION, t.ingestedDataDB, t.bondingCurve, update.BaseToken, update.Type, update.Platform, nil, nil)
+	if err != nil {
+		return errors.Wrapf(err, "failed to find bonding curve start token params for type %s after bonding curve update %v", update.Type, update.ExternalAddress)
 	}
 	feeSponsor := ""
 	if update.FeeSponsor != nil {
 		feeSponsor = *update.FeeSponsor
 	} else {
-		feeSponsor = startTokenParam.FeeSponsorAddress
+		feeSponsor = feeSponsorAddr
 	}
 
 	log.Debug(fmt.Sprintf("Updated Redis bonding curve for token %s from notifier", update.ExternalAddress))
@@ -192,7 +195,7 @@ func (t *tokenAnalytics) handleBondingCurveUpdate(ctx context.Context, payload s
 	}
 	bondingProgress := &BondingCurveProgress{
 		FeeSponsorAddress: feeSponsor,
-		FeeSponsorId:      startTokenParam.FeeSponsorId,
+		FeeSponsorId:      feeSponsorId,
 		CurrentAmount:     update.BondingCurveCurrentAmount,
 		GoalAmount:        update.BondingCurveGoalAmount,
 		RaisedAmount:      update.BondingCurveRaisedAmount,
@@ -210,6 +213,16 @@ func (t *tokenAnalytics) handleBondingCurveUpdate(ctx context.Context, payload s
 		},
 	}
 	t.subscriptions.NotifyBondingCurveProgress(update.ExternalAddress, bondingProgress)
+
+	if update.Type == TokenTypeProfile {
+		t.creatorTokenPricesUSD.Store(strings.ToLower(update.ContractAddress), update.PriceUSD)
+		ionPriceUSD := t.ionPriceUSD.Load()
+		if ionPriceUSD != nil && *ionPriceUSD > 0 {
+			priceInION := update.PriceUSD / *ionPriceUSD
+			priceInIONWei := new(big.Int).SetUint64(uint64(priceInION * 1e18))
+			t.creatorTokenPricesION.Store(strings.ToLower(update.ContractAddress), priceInIONWei)
+		}
+	}
 
 	return nil
 }
