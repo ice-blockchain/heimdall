@@ -59,8 +59,8 @@ github.com/MicahParks/keyfunc v1.9.0 h1:lhKd5xrFHLNOWrDc4Tyb/Q1AJ4LCzQ48GVJyVIID
 github.com/MicahParks/keyfunc v1.9.0/go.mod h1:IdnCilugA0O/99dW+/MkvlyrsX8+L8+x95xuVNtM5jw=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
-github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20260224143816-d58e43473e5a h1:FOC/kgw7tmdZwBNWY/ILrV4JHkE3E4Qu/Mc8gwRqfgk=
-github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20260224143816-d58e43473e5a/go.mod h1:ioLG6R+5bUSO1oeGSDxOV3FADARuMoytZCSX6MEMQkI=
+github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20260224171832-d0e24df9ee63 h1:kLumy+keYsmuByIG8/G7Iay1vGCd1/WBq8a3vvPJWTM=
+github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20260224171832-d0e24df9ee63/go.mod h1:ioLG6R+5bUSO1oeGSDxOV3FADARuMoytZCSX6MEMQkI=
 github.com/VictoriaMetrics/fastcache v1.13.3 h1:rBabE0iIxcqKEMCwUmwHZ9dgEqXerg8FRbRDUvC7OVc=
 github.com/VictoriaMetrics/fastcache v1.13.3/go.mod h1:hHXhl4DA2fTL2HTZDJFXWgW0LNjo6B+4aj2Wmng3TjU=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
