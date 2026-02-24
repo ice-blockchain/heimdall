@@ -4,9 +4,13 @@ ALTER TABLE base_token_prices ADD COLUMN price_in_ion uint256 NOT NULL DEFAULT 0
 ALTER TABLE base_token_price_history ADD COLUMN price_in_ion uint256 NOT NULL DEFAULT 0;
 
 WITH ion_price AS (
-SELECT price_usd FROM base_token_prices WHERE lower(token_address) = '0x2c73996babf1a06c2c057177353293f7ca0907c8' LIMIT 1)
+    SELECT price_usd FROM base_token_prices WHERE
+    lower(token_address) = '0x2c73996babf1a06c2c057177353293f7ca0907c8'
+    AND price_usd IS NOT NULL AND price_usd <> 0
+    LIMIT 1
+)
 UPDATE base_token_prices
-    SET price_in_ion = (base_token_prices.price_usd / ion_price.price_usd) * 1e18
+    SET price_in_ion = (base_token_prices.price_usd / COALESCE(ion_price.price_usd,0.003)) * 1e18
 FROM ion_price
 WHERE price_in_ion = 0;
 ALTER TABLE base_token_prices ALTER COLUMN price_in_ion DROP DEFAULT;

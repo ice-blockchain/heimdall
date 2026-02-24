@@ -215,6 +215,7 @@ func TestHandleTokenSwapUpdate(t *testing.T) {
 			TotalSupply:           "1000000000000000000000000",
 			PairId:                "0x1234567890123456789012345678901234567890123456789012345678901234",
 			Burned:                burnedAmount,
+			Type:                  TokenTypeProfile,
 		}
 
 		payload, err := json.Marshal(update)
@@ -277,5 +278,12 @@ func TestHandleTokenSwapUpdate(t *testing.T) {
 			}
 			return true
 		}, 10*stdlibtime.Second, 200*stdlibtime.Millisecond, "registerTrade should calculate market cap accounting for burned tokens")
+
+		score2, err := testRedis.ZScore(ctx, globalTopSetKey, tokenExternalAddr).Result()
+		require.NoError(t, err)
+		require.InDelta(t, 0.005*(1000000.0-100000.0), score2, 0.001, "market cap should be populated in redis")
+		scoreProfile, err := testRedis.ZScore(ctx, globalTopProfileSetKey, tokenExternalAddr).Result()
+		require.NoError(t, err)
+		require.InDelta(t, 0.005*(1000000.0-100000.0), scoreProfile, 0.001, "market cap should be populated in redis")
 	})
 }

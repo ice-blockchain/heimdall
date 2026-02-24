@@ -125,7 +125,7 @@ func (t *tokenAnalytics) syncIONPrice(ctx context.Context) error {
 	}
 	t.ionPriceUSD.Store(&stats.Price)
 
-	return errors.Wrapf(saveBaseTokenPriceToDatabase(ctx, t.ingestedDataDB, "ION", t.cfg.IONTokenAddress, stats.Price, new(big.Int).SetUint64(1)), "failed to save ION price to database")
+	return errors.Wrapf(saveBaseTokenPriceToDatabase(ctx, t.ingestedDataDB, "ION", t.cfg.IONTokenAddress, stats.Price, new(big.Int).SetUint64(1e18)), "failed to save ION price to database")
 }
 
 func saveBaseTokenPriceToDatabase(ctx context.Context, db *storage.DB, symbol, tokenAddress string, price float64, priceInION *big.Int) (err error) {
@@ -145,8 +145,8 @@ func saveBaseTokenPriceToDatabase(ctx context.Context, db *storage.DB, symbol, t
 				token_symbol = EXCLUDED.token_symbol
 			RETURNING price_usd
 		)
-		INSERT INTO base_token_price_history (token_address, price_usd, created_at)
-		SELECT $1, $3, NOW()
+		INSERT INTO base_token_price_history (token_address, price_usd,price_in_ion, created_at)
+		SELECT $1, $3, $4, NOW()
 		WHERE NOT EXISTS (SELECT 1 FROM old_price)
 		   OR (SELECT price_usd FROM old_price) != $3
 		   OR (SELECT price_in_ion FROM old_price) != $4

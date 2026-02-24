@@ -24,7 +24,6 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC))
 	defer ta.Close()
-	ta.startTokenSwapNotifier(ctx)
 	contractAddress := "0xTEST0000000000000000000000000000000001"
 	tokenExternalAddress := "0:test_token:"
 	userExternalAddress := "0:test_user:"
@@ -79,22 +78,11 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
-			nil, nil, // baseProfileContractAddress, baseProfileExternalAddress
+			nil, nil,                                                             // baseProfileContractAddress, baseProfileExternalAddress
 		)
 		require.NoError(t, err)
 
 		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
-
-		// = 0.10 * ((1000 - 10) * 1e18 / 1e18) = 0.10 * 1000 = 100.0
-		expectedMarketCap := 172.5
-
-		score, err := testRedis.ZScore(ctx, globalTopSetKey, tokenExternalAddress).Result()
-		require.NoError(t, err)
-		require.InDelta(t, expectedMarketCap, score, 0.001, "Market cap in globalTopSetKey should be 100.0")
-
-		score, err = testRedis.ZScore(ctx, globalTopProfileSetKey, tokenExternalAddress).Result()
-		require.NoError(t, err)
-		require.InDelta(t, expectedMarketCap, score, 0.001, "Market cap in globalTopProfileSetKey should be 100.0")
 
 		userScore, err := testRedis.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddress), userExternalAddress).Result()
 		require.NoError(t, err)
@@ -131,14 +119,11 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
-			nil, nil, // baseProfileContractAddress, baseProfileExternalAddress
+			nil, nil,                                                             // baseProfileContractAddress, baseProfileExternalAddress
 		)
 		require.NoError(t, err)
 
 		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
-
-		score1, _ := testRedis.ZScore(ctx, globalTopSetKey, tokenExternalAddress).Result()
-		require.InDelta(t, 172.5, score1, 0.001)
 
 		// Second swap: price $0.20
 		tx2 := &txEvent{
@@ -158,15 +143,11 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
-			nil, nil, // baseProfileContractAddress, baseProfileExternalAddress
+			nil, nil,                                                             // baseProfileContractAddress, baseProfileExternalAddress
 		)
 		require.NoError(t, err)
 
 		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
-
-		score2, err := testRedis.ZScore(ctx, globalTopSetKey, tokenExternalAddress).Result()
-		require.NoError(t, err)
-		require.InDelta(t, 172.5, score2, 0.001, "Market cap should double when price doubles")
 	})
 
 	t.Run("handles_sell_correctly", func(t *testing.T) {
@@ -196,7 +177,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
-			nil, nil, // baseProfileContractAddress, baseProfileExternalAddress
+			nil, nil,                                                             // baseProfileContractAddress, baseProfileExternalAddress
 		)
 		require.NoError(t, err)
 
@@ -232,7 +213,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
-			nil, nil, // baseProfileContractAddress, baseProfileExternalAddress
+			nil, nil,                                                             // baseProfileContractAddress, baseProfileExternalAddress
 		)
 		require.NoError(t, err)
 
@@ -241,11 +222,6 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 		userScore2, err := testRedis.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddress), userExternalAddress).Result()
 		require.NoError(t, err)
 		require.InDelta(t, 15.0, userScore2, 0.001, "User position should be 15 tokens after selling 5")
-
-		marketCapScore, err := testRedis.ZScore(ctx, globalTopSetKey, tokenExternalAddress).Result()
-		require.NoError(t, err)
-		// 0.5 * 172.5 * (1000 - 0) * 1e18 / 1e18
-		require.InDelta(t, 172.5, marketCapScore, 0.001, "Market cap should decrease after sell due to lower price")
 	})
 
 	t.Run("removes_user_position_when_sold_all", func(t *testing.T) {
@@ -267,7 +243,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
-			nil, nil, // baseProfileContractAddress, baseProfileExternalAddress
+			nil, nil,                                                             // baseProfileContractAddress, baseProfileExternalAddress
 		)
 		require.NoError(t, err)
 
@@ -289,7 +265,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
-			nil, nil, // baseProfileContractAddress, baseProfileExternalAddress
+			nil, nil,                                                             // baseProfileContractAddress, baseProfileExternalAddress
 		)
 		require.NoError(t, err)
 
