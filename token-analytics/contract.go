@@ -48,7 +48,7 @@ type (
 		UpdateUserProfileAndToken(ctx context.Context, masterPubkey, username, displayName, avatar string) (coins.TokenAnalyticsToken, error)
 		SetVerified(ctx context.Context, masterPubkey string) error
 		GetUser(ctx context.Context, masterPubkey string) (*UserRecord, error)
-		ValidateTransaction(txPayload accounts.TransactionPayload) error
+		ValidateTransaction(ctx context.Context, txPayload accounts.TransactionPayload) error
 	}
 	CoinImport interface {
 		ImportTokenizedCommunitiesCoin(ctx context.Context, coin coins.TokenAnalyticsToken) (*coins.Coin, error)

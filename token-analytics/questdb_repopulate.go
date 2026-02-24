@@ -51,6 +51,8 @@ func (t *tokenAnalytics) RepopulateQuestDBTrades(ctx context.Context) error {
 		TotalSupply           string          `db:"total_supply"`
 		PairID                string          `db:"pair_id"`
 		Burned                string          `db:"burned"`
+		Platform              string          `db:"platform"`
+		Type                  string          `db:"type"`
 	}
 	swaps, err := storage.Select[swapToRepopulate](ctx, t.ingestedDataDB, `
 		SELECT 
@@ -66,6 +68,8 @@ func (t *tokenAnalytics) RepopulateQuestDBTrades(ctx context.Context) error {
 			t.base_token,
 			t.total_supply,
 			t.pair_id,
+			t.platform,
+			t."type",
 			COALESCE(burned.amount, 0)::text as burned
 		FROM token_swaps ts
 		JOIN tokens t ON t.contract_address = ts.contract_address
@@ -138,6 +142,11 @@ func (t *tokenAnalytics) RepopulateQuestDBTrades(ctx context.Context) error {
 			errorCount++
 
 			continue
+		}
+
+		if err = t.updateTokenRankingsInRedis(ctx, mCapUSD, swap.ExternalAddress, swap.Platform, swap.Type); err != nil {
+			return errors.Wrapf(err, "failed to update redis ranking for tx %v contract %v %v user %v",
+				swap.TransactionHash, swap.ContractAddress, swap.ExternalAddress, swap.UserBlockchainAddress)
 		}
 		tradeInfo, err := t.fetchTradeInfoFromSwap(ctx, swap.TransactionHash, swap.ContractAddress, swap.UserBlockchainAddress)
 		if err != nil {

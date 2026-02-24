@@ -165,7 +165,7 @@ func (t *tokenAnalytics) handleBondingCurveUpdate(ctx context.Context, payload s
 			}
 		}
 	}
-	_, feeSponsorId, feeSponsorAddr, err := t.defaultStartTokenParamsForBase(ctx, update.BaseToken, update.Type)
+	_, feeSponsorId, feeSponsorAddr, err := defaultStartTokenParamsForBase(ctx, t.cfg, t.creatorTokenPricesION, t.ingestedDataDB, update.BaseToken, update.Type)
 	if err != nil {
 		return errors.Wrapf(err, "failed to find bonding curve start token params for type %s after bonding curve update %v", update.Type, update.ExternalAddress)
 	}

@@ -12,9 +12,9 @@ import (
 	stdlibtime "time"
 
 	"github.com/cockroachdb/errors"
-
 	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/time"
+	"github.com/redis/go-redis/v9"
 )
 
 const tokenSwapUpdatesChannel = "token_swap_updates"
@@ -33,6 +33,8 @@ type tokenSwapUpdate struct {
 	TotalSupply           string  `json:"total_supply"`
 	PairId                string  `json:"pair_id"`
 	Burned                string  `json:"burned"`
+	Platform              string  `json:"platform"`
+	Type                  string  `json:"type"`
 }
 
 func (t *tokenAnalytics) startTokenSwapNotifier(ctx context.Context) {
@@ -131,13 +133,65 @@ func (t *tokenAnalytics) handleTokenSwapUpdate(ctx context.Context, payload stri
 		update.BaseToken, pairIdBytes, totalSupply, burned, update.CurvePriceUSD, mCapUSD); err != nil {
 		return errors.Wrapf(err, "failed to register trade for tx %s", update.TransactionHash)
 	}
+	if err = t.updateTokenRankingsInRedis(ctx, mCapUSD, update.ExternalAddress, update.Platform, update.Type); err != nil {
+		return errors.Wrapf(err, "failed to update redis ranking for tx %v contract %v %v user %v to notify subscribers",
+			update.TransactionHash, update.ContractAddress, update.ExternalAddress, update.UserBlockchainAddress)
+	}
 	tradeInfo, err := t.fetchTradeInfoFromSwap(ctx, update.TransactionHash, update.ContractAddress, update.UserBlockchainAddress)
 	if err != nil {
 		log.Error(errors.Wrapf(err, "failed to fetch trade info for tx %v contract %v user %v to notify subscribers",
 			update.TransactionHash, update.ContractAddress, update.UserBlockchainAddress))
 		return nil
 	}
+
 	t.subscriptions.NotifySwap(tradeInfo)
 
+	return nil
+}
+
+func (t *tokenAnalytics) updateTokenRankingsInRedis(ctx context.Context, mCapUSD float64, externalAddress, platform, tokenType string) error {
+	if responses, txErr := t.processedDataDB.TxPipelined(ctx, func(pipeliner redis.Pipeliner) error {
+		if pErr := pipeliner.ZAdd(ctx, globalTopSetKey, redis.Z{
+			Score:  mCapUSD,
+			Member: externalAddress,
+		}).Err(); pErr != nil {
+			return pErr
+		}
+		if platform == PlatformGroupXCom {
+			if pErr := pipeliner.ZAdd(ctx, globalTopXcomSetKey, redis.Z{
+				Score:  mCapUSD,
+				Member: externalAddress,
+			}).Err(); pErr != nil {
+				return pErr
+			}
+		}
+		if tokenType != "" {
+			if typeSpecificKey := getTopSetKeyByType(tokenType); typeSpecificKey != "" {
+				if pErr := pipeliner.ZAdd(ctx, typeSpecificKey, redis.Z{
+					Score:  mCapUSD,
+					Member: externalAddress,
+				}).Err(); pErr != nil {
+					return pErr
+				}
+			}
+			if IsContentType(tokenType) {
+				if pErr := pipeliner.ZAdd(ctx, globalTopAnyPostSetKey, redis.Z{
+					Score:  mCapUSD,
+					Member: externalAddress,
+				}).Err(); pErr != nil {
+					return pErr
+				}
+			}
+		}
+		return nil
+	}); txErr != nil {
+		return txErr
+	} else {
+		for _, response := range responses {
+			if rerr := response.Err(); rerr != nil {
+				return fmt.Errorf("failed to `%v` for tx %v: %w", response.FullName(), rerr)
+			}
+		}
+	}
 	return nil
 }

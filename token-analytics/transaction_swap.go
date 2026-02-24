@@ -8,9 +8,12 @@ import (
 	"math"
 	"math/big"
 	"strings"
+	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/cockroachdb/errors"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/ice-blockchain/heimdall/accounts"
@@ -118,7 +121,7 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 	totalSupplyBig.SetString(result.TotalSupply, 10)
 	burnedBig := new(big.Int)
 	burnedBig.SetString(result.Burned, 10)
-	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, result.Ticker, result.ContractAddress, direction, inputAmount, outputAmount, totalSupplyBig, burnedBig, priceUSD, result.TokenExternalAddress, user.UserExternalAddress, result.TokenType, result.Platform, userAddress.Hex(), result.PairId, result.BaseToken, result.BaseProfileContractAddress, result.BaseProfileExternalAddress); err != nil {
+	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, result.Ticker, result.ContractAddress, direction, inputAmount, outputAmount, totalSupplyBig, burnedBig, result.TokenExternalAddress, user.UserExternalAddress, result.TokenType, result.Platform, userAddress.Hex(), result.PairId, result.BaseToken, result.BaseProfileContractAddress, result.BaseProfileExternalAddress); err != nil {
 		return errors.Wrap(err, "failed to calculate token market data and user position")
 	}
 	pairId := common.HexToHash(result.PairId)
@@ -234,24 +237,24 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 	log.Debug(fmt.Sprintf("onSwap: contractAddress=%s, baseToken=%s userAddr=%s, isFirstSwap=%v, userExternalAddress=%s, tokenExternalAddress=%s",
 		contractAddress, actualBaseToken, userAddr, isFirstSwap, result.UserExternalAddress, result.TokenExternalAddress))
 
-	priceInBaseToken := calculatePriceFromSwap(ev.InputAmount, ev.OutputAmount, ev.Direction) // Price: how much ION per 1 community token
-	priceUSD, basePriceUSD, err := t.calculatePriceInUSD(ctx, priceInBaseToken, actualBaseToken)
-	if err != nil {
-		return fmt.Errorf("failed to calculate price in USD for base token %v: %w", actualBaseToken, err)
-	}
+	//priceInBaseToken := calculatePriceFromSwap(ev.InputAmount, ev.OutputAmount, ev.Direction) // Price: how much ION per 1 community token
+	////priceUSD, basePriceUSD, err := t.calculatePriceInUSD(ctx, priceInBaseToken, actualBaseToken)
+	////if err != nil {
+	////	return fmt.Errorf("failed to calculate price in USD for base token %v: %w", actualBaseToken, err)
+	////}
 
-	log.Debug(fmt.Sprintf("Swap on token %v: direction=%v, price=%v USD (ION price: %v), user=%v, tx:%v",
-		contractAddress, ev.Direction, priceUSD, basePriceUSD, userAddr, tx.TransactionHash))
+	log.Debug(fmt.Sprintf("Swap on token %v: direction=%v, user=%v, tx:%v",
+		contractAddress, ev.Direction, userAddr, tx.TransactionHash))
 	totalSupplyBig := new(big.Int)
 	totalSupplyBig.SetString(result.TotalSupply, 10)
 	burnedBig := new(big.Int)
 	burnedBig.SetString(result.Burned, 10)
-	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, result.Ticker, contractAddress, ev.Direction, ev.InputAmount, ev.OutputAmount, totalSupplyBig, burnedBig, priceUSD, result.TokenExternalAddress, result.UserExternalAddress, result.Type, result.Platform, userAddr, result.PairId, result.BaseToken, result.BaseProfileContractAddress, result.BaseProfileExternalAddress); err != nil {
+	if err = t.calculateTokenMarketDataAndUserPosition(ctx, tx, result.Ticker, contractAddress, ev.Direction, ev.InputAmount, ev.OutputAmount, totalSupplyBig, burnedBig, result.TokenExternalAddress, result.UserExternalAddress, result.Type, result.Platform, userAddr, result.PairId, result.BaseToken, result.BaseProfileContractAddress, result.BaseProfileExternalAddress); err != nil {
 
 		return errors.Wrap(err, "failed to calculate token market data and user position")
 	}
 	if isFirstSwap {
-		result.PriceUsd = priceUSD
+		result.PriceUsd = 0
 		if _, err = t.coins.ImportTokenizedCommunitiesCoin(ctx, result); err != nil {
 			if !storage.IsErr(err, storage.ErrNotFound) {
 				return errors.Wrapf(err, "failed to import tokenized community coin %v %v", result.TokenExternalAddress, result.ContractAddress)
@@ -366,7 +369,7 @@ func extractAllTokensFromFatAddress(toTokenBytes []byte) ([]*fatAddressToken, co
 }
 
 func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Context, tx *txEvent, ticker, contractAddress string, direction bool, input, output, totalSupply, burned *big.Int,
-	priceUSD float64, tokenExternalAddress, userExternalAddress, tokenType, platform, userBlockchainAddress, pairID, baseToken string, baseProfileContractAddress, baseProfileExternalAddress *string) error {
+	tokenExternalAddress, userExternalAddress, tokenType, platform, userBlockchainAddress, pairID, baseToken string, baseProfileContractAddress, baseProfileExternalAddress *string) error {
 	log.Debug(fmt.Sprintf("Swap processed: contractAddress=%s, tokenExternalAddress=%s, userExternalAddress=%s (will be processed by trigger on tx_logs)",
 		contractAddress, tokenExternalAddress, userExternalAddress))
 
@@ -459,52 +462,6 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 		}
 	}
 
-	mCap := marketCap(priceUSD, totalSupply, burned)
-	marketCapUSD, _ := mCap.Float64()
-	if responses, txErr := t.processedDataDB.TxPipelined(ctx, func(pipeliner redis.Pipeliner) error {
-		if pErr := pipeliner.ZAdd(ctx, globalTopSetKey, redis.Z{
-			Score:  marketCapUSD,
-			Member: tokenExternalAddress,
-		}).Err(); pErr != nil {
-			return pErr
-		}
-		if platform == PlatformGroupXCom {
-			if pErr := pipeliner.ZAdd(ctx, globalTopXcomSetKey, redis.Z{
-				Score:  marketCapUSD,
-				Member: tokenExternalAddress,
-			}).Err(); pErr != nil {
-				return pErr
-			}
-		}
-		if tokenType != "" {
-			if typeSpecificKey := getTopSetKeyByType(tokenType); typeSpecificKey != "" {
-				if pErr := pipeliner.ZAdd(ctx, typeSpecificKey, redis.Z{
-					Score:  marketCapUSD,
-					Member: tokenExternalAddress,
-				}).Err(); pErr != nil {
-					return pErr
-				}
-			}
-			if IsContentType(tokenType) {
-				if pErr := pipeliner.ZAdd(ctx, globalTopAnyPostSetKey, redis.Z{
-					Score:  marketCapUSD,
-					Member: tokenExternalAddress,
-				}).Err(); pErr != nil {
-					return pErr
-				}
-			}
-		}
-		return nil
-	}); txErr != nil {
-		return fmt.Errorf("failed to update market data for tx %v: %w", tx.TransactionHash, txErr)
-	} else {
-		for _, response := range responses {
-			if rerr := response.Err(); rerr != nil {
-				return fmt.Errorf("failed to `%v` for tx %v: %w", response.FullName(), tx.TransactionHash, rerr)
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -531,25 +488,52 @@ func (t *tokenAnalytics) calculatePriceInUSD(ctx context.Context, priceInBaseTok
 	}
 	creatorTokenPrice, ok := t.creatorTokenPricesUSD.Load(strings.ToLower(baseToken))
 	if !ok {
-		basePriceP, err := storage.Get[float64](ctx, t.ingestedDataDB, `SELECT price_usd FROM base_token_prices WHERE token_address = $1`, strings.ToLower(baseToken))
-		if err != nil {
-			return 0, 0, errors.Wrapf(err, "failed to get price for base token %v", baseToken)
+		var basePriceP *float64
+		var berr error
+		err = backoff.RetryNotify( // could be race between content and creator, as we're fetching price async now
+			func() error {
+				basePriceP, berr = storage.Get[float64](ctx, t.ingestedDataDB, `SELECT price_usd FROM base_token_prices WHERE token_address = $1`, strings.ToLower(baseToken))
+				if berr != nil {
+					if !storage.IsErr(berr, storage.ErrNotFound) {
+						return errors.Wrapf(backoff.Permanent(berr), "failed to get price for base token %v", baseToken)
+					}
+					return errors.Wrapf(berr, "failed to get price for base token %v", baseToken)
+				}
+				return nil
+			},
+			backoff.WithContext(&backoff.ExponentialBackOff{
+				InitialInterval:     50 * time.Millisecond,
+				RandomizationFactor: 0.5,
+				Multiplier:          2.5,
+				MaxInterval:         500 * time.Millisecond,
+				MaxElapsedTime:      2 * time.Second,
+				Stop:                backoff.Stop,
+				Clock:               backoff.SystemClock,
+			}, ctx),
+			func(e error, next time.Duration) {
+				log.Info(fmt.Sprintf("failed get base token price %v: %v, retrying in %v... ", baseToken, e, next))
+			})
+		if storage.IsErr(err, storage.ErrNotFound) {
+			// TODO: could be twisted swap
+			log.Error(errors.Wrapf(err, "failed to get price for base token (TWISTED SWAP????) %v", baseToken))
 		}
-		creatorTokenPrice, _ = t.creatorTokenPricesUSD.LoadOrStore(strings.ToLower(baseToken), *basePriceP)
+		if basePriceP != nil {
+			creatorTokenPrice, _ = t.creatorTokenPricesUSD.LoadOrStore(strings.ToLower(baseToken), *basePriceP)
+		}
 	}
-	return priceInBaseToken * creatorTokenPrice, creatorTokenPrice, nil
+	return priceInBaseToken * creatorTokenPrice, creatorTokenPrice, err
 }
 
-func (t *tokenAnalytics) calculateIONtoBase(ctx context.Context, priceInION *big.Int, baseToken string) (priceInBase *big.Int, err error) {
+func calculateIONtoBase(ctx context.Context, cfg *config, creatorTokenPricesION *xsync.Map[string, *big.Int], db storage.Querier, priceInION *big.Int, baseToken string) (priceInBase *big.Int, err error) {
 	if baseToken == "" {
 		return nil, errors.New("base token is empty")
 	}
-	if strings.EqualFold(baseToken, t.cfg.IONTokenAddress) {
+	if strings.EqualFold(baseToken, cfg.IONTokenAddress) {
 		return priceInION, nil
 	}
-	creatorTokenPrice, ok := t.creatorTokenPricesION.Load(strings.ToLower(baseToken))
+	creatorTokenPrice, ok := creatorTokenPricesION.Load(strings.ToLower(baseToken))
 	if !ok {
-		basePriceP, err := storage.Get[string](ctx, t.ingestedDataDB, `SELECT price_in_ion FROM base_token_prices WHERE token_address = $1`, strings.ToLower(baseToken))
+		basePriceP, err := storage.Get[string](ctx, db, `SELECT price_in_ion FROM base_token_prices WHERE token_address = $1`, strings.ToLower(baseToken))
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get price for base token %v", baseToken)
 		}
@@ -557,7 +541,7 @@ func (t *tokenAnalytics) calculateIONtoBase(ctx context.Context, priceInION *big
 		if !ok {
 			return nil, errors.Errorf("failed to parse price_in_ion for base token %v: %v", baseToken, *basePriceP)
 		}
-		creatorTokenPrice, _ = t.creatorTokenPricesION.LoadOrStore(strings.ToLower(baseToken), creatorTokenPrice)
+		creatorTokenPrice, _ = creatorTokenPricesION.LoadOrStore(strings.ToLower(baseToken), creatorTokenPrice)
 	}
 	return new(big.Int).Mul(priceInION, creatorTokenPrice), nil
 }
@@ -717,7 +701,7 @@ func marketCap(priceInUSD float64, totalSupply, burned *big.Int) *big.Float {
 	return marketCapUSD
 }
 
-func (t *tokenAnalyticsUsers) ValidateTransaction(txPayload accounts.TransactionPayload) error {
+func (t *tokenAnalyticsUsers) ValidateTransaction(ctx context.Context, txPayload accounts.TransactionPayload) error {
 	if len(txPayload.UserOperations) == 0 {
 		return nil // not a tc tx
 	}
@@ -753,7 +737,14 @@ func (t *tokenAnalyticsUsers) ValidateTransaction(txPayload accounts.Transaction
 			return fmt.Errorf("no tokens found in Fat Address")
 		}
 		for _, token := range allTokens {
-			expectedParams := t.de
+			base := t.cfg.IONTokenAddress
+			if len(allTokens) > 1 { //
+
+			}
+			expectedParams, _, _, err := defaultStartTokenParamsForBase(ctx, t.cfg, xsync.NewMap[string, *big.Int](), t.ingestedDataDB, base, token.Type)
+			if err != nil {
+				return errors.Wrapf(err, "failed to get default params for base token %v", base)
+			}
 			if !strings.EqualFold(token.PricingModel, expectedParams.BondingCurveAlgAddress) {
 				return errors.Wrapf(ErrValidationFailed, "wrong pricing model for token %s: expected %s, got %s", token.ExternalAddress, expectedParams.BondingCurveAlgAddress, token.PricingModel)
 			}

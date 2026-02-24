@@ -248,11 +248,14 @@ DECLARE
     v_total_supply TEXT;
     v_pair_id TEXT;
     v_burned TEXT;
+    v_platform TEXT;
+    v_type TEXT;
 BEGIN
-    SELECT t.base_token, t.total_supply, t.pair_id, COALESCE(burned.amount, 0)::text
-    INTO v_base_token, v_total_supply, v_pair_id, v_burned
+    SELECT t.base_token, t.total_supply, t.pair_id, COALESCE(burned.amount, 0)::text,
+           t.platform, t."type"
+    INTO v_base_token, v_total_supply, v_pair_id, v_burned, v_platform, v_type
     FROM tokens t
-    LEFT JOIN fees_transferred burned ON burned.token_external_address = t.external_address 
+    LEFT JOIN fees_transferred burned ON burned.token_external_address = t.external_address
         AND burned.recipient_bsc_address = '0x0000000000000000000000000000000000696f6e'
     WHERE t.contract_address = NEW.contract_address;
 
@@ -269,7 +272,9 @@ BEGIN
             'base_token', COALESCE(v_base_token, ''),
             'total_supply', COALESCE(v_total_supply, '0'),
             'pair_id', COALESCE(v_pair_id, ''),
-            'burned', v_burned
+            'burned', v_burned,
+            'platform', v_platform,
+            'type', v_type
          );
 
     PERFORM pg_notify('token_swap_updates', payload::text);

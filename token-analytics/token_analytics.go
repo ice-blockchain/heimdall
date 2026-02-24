@@ -875,7 +875,7 @@ func (dummyUserRepository) GetTokenUpdates(ctx context.Context, contractAddress 
 func (dummyUserRepository) UpdateUserProfileAndToken(ctx context.Context, masterPubkey, username, displayName, avatar string) (coins.TokenAnalyticsToken, error) {
 	return nil, nil
 }
-func (dummyUserRepository) ValidateTransaction(txPayload accounts.TransactionPayload) error {
+func (dummyUserRepository) ValidateTransaction(ctx context.Context, txPayload accounts.TransactionPayload) error {
 	return nil
 }
 func randInt(n int) int {

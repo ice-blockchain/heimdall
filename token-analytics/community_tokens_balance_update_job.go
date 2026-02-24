@@ -439,6 +439,13 @@ func (w *balanceUpdateWorker) registerTradeFromJob(ctx context.Context, args Bal
 		args.BaseToken, pairIdBytes, totalSupply, burned, priceUSD, marketCapUSD); err != nil {
 		return err
 	}
+	tradeInfo, err := w.ta.fetchTradeInfoFromSwap(ctx, args.TransactionHash, args.ContractAddress, args.UserBlockchainAddress)
+	if err != nil {
+		log.Error(errors.Wrapf(err, "failed to fetch trade info for tx %v contract %v user %v to notify subscribers",
+			args.TransactionHash, args.ContractAddress, args.UserBlockchainAddress))
+
+		return
+	}
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -446,13 +453,6 @@ func (w *balanceUpdateWorker) registerTradeFromJob(ctx context.Context, args Bal
 			}
 		}()
 
-		tradeInfo, err := w.ta.fetchTradeInfoFromSwap(ctx, args.TransactionHash, args.ContractAddress, args.UserBlockchainAddress)
-		if err != nil {
-			log.Error(errors.Wrapf(err, "failed to fetch trade info for tx %v contract %v user %v to notify subscribers",
-				args.TransactionHash, args.ContractAddress, args.UserBlockchainAddress))
-
-			return
-		}
 		w.ta.subscriptions.NotifySwap(tradeInfo)
 	}()
 

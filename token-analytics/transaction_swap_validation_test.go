@@ -55,7 +55,7 @@ func TestTransactionValidation(t *testing.T) {
         }`
 		var txNotToBondingCurve accounts.TransactionPayload
 		require.NoError(t, json.Unmarshal([]byte(txNotToBondingCurveData), &txNotToBondingCurve))
-		require.NoError(t, tu.ValidateTransaction(txNotToBondingCurve))
+		require.NoError(t, tu.ValidateTransaction(t.Context(), txNotToBondingCurve))
 	})
 	t.Run("bonding curve params are validated when non-first swap occurs", func(t *testing.T) {
 		txFirstSwapData := `{
@@ -73,7 +73,7 @@ func TestTransactionValidation(t *testing.T) {
         }`
 		var txFirstSwap accounts.TransactionPayload
 		require.NoError(t, json.Unmarshal([]byte(txFirstSwapData), &txFirstSwap))
-		err := tu.ValidateTransaction(txFirstSwap)
+		err := tu.ValidateTransaction(t.Context(), txFirstSwap)
 		require.Error(t, err, ErrValidationFailed)
 		require.True(t, strings.Contains(err.Error(), "expected 0x000000000000000000000000000000000000dead, got 0x0000000000000000000000000000000000000000"))
 	})

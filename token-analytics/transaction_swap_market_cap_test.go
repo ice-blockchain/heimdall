@@ -71,7 +71,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		err := ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx, "TEST", contractAddress, direction,
-			inputAmount, outputAmount, totalSupply, burned, priceUSD,
+			inputAmount, outputAmount, totalSupply, burned,
 			tokenExternalAddress, userExternalAddress, tokenType,
 			PlatformGroupIonConnect,                                              // platform
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
@@ -121,7 +121,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		err := ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx, "TEST", contractAddress, direction,
-			inputAmount, outputAmount, totalSupply, burned, priceUSD,
+			inputAmount, outputAmount, totalSupply, burned,
 			tokenExternalAddress, userExternalAddress, tokenType,
 			PlatformGroupIonConnect,                                              // platform
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
@@ -146,7 +146,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		err = ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx2, "TEST", contractAddress, direction,
-			inputAmount, outputAmount, totalSupply, burned, priceUSD2,
+			inputAmount, outputAmount, totalSupply, burned,
 			tokenExternalAddress, userExternalAddress, tokenType,
 			PlatformGroupIonConnect,
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
@@ -182,7 +182,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		err := ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx1, "TEST", contractAddress, false,
-			buyInput, buyOutput, totalSupply, burned, priceUSD,
+			buyInput, buyOutput, totalSupply, burned,
 			tokenExternalAddress, userExternalAddress, tokenType,
 			PlatformGroupIonConnect,
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
@@ -216,7 +216,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		err = ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx2, "TEST", contractAddress, true, // direction = true (sell)
-			sellInput, sellOutput, totalSupply, burned, newPriceUSD,
+			sellInput, sellOutput, totalSupply, burned,
 			tokenExternalAddress, userExternalAddress, tokenType,
 			PlatformGroupIonConnect,
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
@@ -251,7 +251,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		err := ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx1, "TEST", contractAddress, false,
-			buyInput, buyOutput, totalSupply, burned, 0.10,
+			buyInput, buyOutput, totalSupply, burned,
 			tokenExternalAddress, userExternalAddress, tokenType,
 			PlatformGroupIonConnect,
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
@@ -273,7 +273,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		err = ta.calculateTokenMarketDataAndUserPosition(
 			ctx, tx2, "TEST", contractAddress, true,
-			sellInput, sellOutput, totalSupply, burned, 0.10,
+			sellInput, sellOutput, totalSupply, burned,
 			tokenExternalAddress, userExternalAddress, tokenType,
 			PlatformGroupIonConnect,
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress

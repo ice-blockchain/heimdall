@@ -477,7 +477,7 @@ func (s *service) BroadcastTransactionFromWallet(
 ) (successResp *server.Response[TransactionResponse], errorResp *server.ErrResponse[InternalError]) {
 	ctx = withAuth(ctx, req.Data.Authorization)
 	ctx = withUserAction(ctx, req.Data.UserAction)
-	err := s.tokenAnalytics.ValidateTransaction(req.Data.TransactionPayload)
+	err := s.tokenAnalytics.ValidateTransaction(ctx, req.Data.TransactionPayload)
 	if err != nil {
 		return nil, buildDelegatedErrorResponse(http.StatusBadRequest, err, err.Error())
 	}
