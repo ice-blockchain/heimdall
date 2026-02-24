@@ -79,7 +79,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
-			nil, nil,                                                             // baseProfileContractAddress, baseProfileExternalAddress
+			nil, nil, // baseProfileContractAddress, baseProfileExternalAddress
 		)
 		require.NoError(t, err)
 
@@ -131,7 +131,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
-			nil, nil,                                                             // baseProfileContractAddress, baseProfileExternalAddress
+			nil, nil, // baseProfileContractAddress, baseProfileExternalAddress
 		)
 		require.NoError(t, err)
 
@@ -158,7 +158,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
-			nil, nil,                                                             // baseProfileContractAddress, baseProfileExternalAddress
+			nil, nil, // baseProfileContractAddress, baseProfileExternalAddress
 		)
 		require.NoError(t, err)
 
@@ -196,7 +196,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
-			nil, nil,                                                             // baseProfileContractAddress, baseProfileExternalAddress
+			nil, nil, // baseProfileContractAddress, baseProfileExternalAddress
 		)
 		require.NoError(t, err)
 
@@ -232,7 +232,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
-			nil, nil,                                                             // baseProfileContractAddress, baseProfileExternalAddress
+			nil, nil, // baseProfileContractAddress, baseProfileExternalAddress
 		)
 		require.NoError(t, err)
 
@@ -267,7 +267,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
-			nil, nil,                                                             // baseProfileContractAddress, baseProfileExternalAddress
+			nil, nil, // baseProfileContractAddress, baseProfileExternalAddress
 		)
 		require.NoError(t, err)
 
@@ -289,7 +289,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 			"0x0000000000000000000000000000000000000000",                         // userBlockchainAddress
 			"0x0000000000000000000000000000000000000000000000000000000000000001", // pairID
 			"0x2c73996babf1a06c2c057177353293f7ca0907c8",                         // baseToken
-			nil, nil,                                                             // baseProfileContractAddress, baseProfileExternalAddress
+			nil, nil, // baseProfileContractAddress, baseProfileExternalAddress
 		)
 		require.NoError(t, err)
 

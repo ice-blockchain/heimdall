@@ -12,9 +12,10 @@ import (
 	stdlibtime "time"
 
 	"github.com/cockroachdb/errors"
+	"github.com/redis/go-redis/v9"
+
 	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/time"
-	"github.com/redis/go-redis/v9"
 )
 
 const tokenSwapUpdatesChannel = "token_swap_updates"
