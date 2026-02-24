@@ -311,109 +311,136 @@ func TestCalculatePnL(t *testing.T) {
 	t.Parallel()
 
 	t.Run("profit scenario", func(t *testing.T) {
-		// Invested $100, current value $150, no sales
-		pnl, pnlPercentage := calculatePnL(150.0, 100.0, 0.0)
-		require.InDelta(t, 50.0, pnl, 0.01, "PnL should be $50")
-		require.InDelta(t, 50.0, pnlPercentage, 0.01, "PnL% should be 50%")
+		// Invested $100, paid $2 in fees (2% on buy), current value $150, no sales
+		// PnL = 150 + 0 - 100 + 2 = $52
+		pnl, pnlPercentage := calculatePnL(150.0, 100.0, 0.0, 2.0)
+		require.InDelta(t, 52.0, pnl, 0.01, "PnL should be $52")
+		require.InDelta(t, 52.0, pnlPercentage, 0.01, "PnL% should be 52%")
 	})
 
 	t.Run("loss scenario", func(t *testing.T) {
-		// Invested $100, current value $80, no sales
-		pnl, pnlPercentage := calculatePnL(80.0, 100.0, 0.0)
-		require.InDelta(t, -20.0, pnl, 0.01, "PnL should be -$20")
-		require.InDelta(t, -20.0, pnlPercentage, 0.01, "PnL% should be -20%")
+		// Invested $100, paid $2 in fees (2% on buy), current value $80, no sales
+		// PnL = 80 + 0 - 100 + 2 = -$18
+		pnl, pnlPercentage := calculatePnL(80.0, 100.0, 0.0, 2.0)
+		require.InDelta(t, -18.0, pnl, 0.01, "PnL should be -$18")
+		require.InDelta(t, -18.0, pnlPercentage, 0.01, "PnL% should be -18%")
 	})
 
 	t.Run("break even with partial sale - your example", func(t *testing.T) {
-		// Bought 100 ION worth ($0.3)
-		// Bought 200 ION worth ($0.6)
-		// Total invested: $0.9
-		// Sold 50% (450 tokens) for 150 ION ($0.45) - realized $0.45
+		// Bought 100 ION worth ($0.3), fee $0.006 (2%)
+		// Bought 200 ION worth ($0.6), fee $0.012 (2%)
+		// Total invested: $0.9, total fees: $0.018
+		// Sold 50% (450 tokens) for 150 ION ($0.45), fee $0.009 (2%) - realized $0.45
 		// Holding 50% (450 tokens) worth $0.45 - unrealized $0.45
-		// Total: $0.45 + $0.45 = $0.9
-		// PnL = $0.9 - $0.9 = $0
+		// Total fees: $0.018 + $0.009 = $0.027
+		// PnL = 0.45 + 0.45 - 0.9 + 0.027 = $0.027
 
 		invested := 0.9
 		currentHoldingValue := 0.45
 		realized := 0.45
+		fees := 0.027
 
-		pnl, pnlPercentage := calculatePnL(currentHoldingValue, invested, realized)
-		require.InDelta(t, 0.0, pnl, 0.01, "PnL should be $0 (break even)")
-		require.InDelta(t, 0.0, pnlPercentage, 0.01, "PnL% should be 0%")
+		pnl, pnlPercentage := calculatePnL(currentHoldingValue, invested, realized, fees)
+		require.InDelta(t, 0.027, pnl, 0.01, "PnL should be $0.027 (fees recovered)")
+		require.InDelta(t, 3.0, pnlPercentage, 0.5, "PnL% should be ~3%")
 	})
 
 	t.Run("profit with partial sale", func(t *testing.T) {
-		// Invested $100
-		// Sold 50% for $60 (realized $10 profit on sold portion)
-		// Holding 50% worth $55 (unrealized $5 profit on holding)
-		// Total: $60 + $55 = $115
-		// PnL = $115 - $100 = $15
+		// Invested $100, paid $2 in fees on buy (2%)
+		// Sold 50% for $60, paid $1.2 in fees on sell (2% of $60)
+		// Holding 50% worth $55 (unrealized profit)
+		// Total fees: $2 + $1.2 = $3.2
+		// PnL = 55 + 60 - 100 + 3.2 = $18.2
 
 		invested := 100.0
 		currentHoldingValue := 55.0
 		realized := 60.0
+		fees := 3.2
 
-		pnl, pnlPercentage := calculatePnL(currentHoldingValue, invested, realized)
-		require.InDelta(t, 15.0, pnl, 0.01, "PnL should be $15")
-		require.InDelta(t, 15.0, pnlPercentage, 0.01, "PnL% should be 15%")
+		pnl, pnlPercentage := calculatePnL(currentHoldingValue, invested, realized, fees)
+		require.InDelta(t, 18.2, pnl, 0.01, "PnL should be $18.2")
+		require.InDelta(t, 18.2, pnlPercentage, 0.01, "PnL% should be 18.2%")
 	})
 
 	t.Run("loss with partial sale", func(t *testing.T) {
-		// Invested $100
-		// Sold 50% for $40 (realized $10 loss on sold portion)
-		// Holding 50% worth $35 (unrealized $15 loss on holding)
-		// Total: $40 + $35 = $75
-		// PnL = $75 - $100 = -$25
+		// Invested $100, paid $2 in fees on buy (2%)
+		// Sold 50% for $40, paid $0.8 in fees on sell (2% of $40)
+		// Holding 50% worth $35 (unrealized loss)
+		// Total fees: $2 + $0.8 = $2.8
+		// PnL = 35 + 40 - 100 + 2.8 = -$22.2
 
 		invested := 100.0
 		currentHoldingValue := 35.0
 		realized := 40.0
+		fees := 2.8
 
-		pnl, pnlPercentage := calculatePnL(currentHoldingValue, invested, realized)
-		require.InDelta(t, -25.0, pnl, 0.01, "PnL should be -$25")
-		require.InDelta(t, -25.0, pnlPercentage, 0.01, "PnL% should be -25%")
+		pnl, pnlPercentage := calculatePnL(currentHoldingValue, invested, realized, fees)
+		require.InDelta(t, -22.2, pnl, 0.01, "PnL should be -$22.2")
+		require.InDelta(t, -22.2, pnlPercentage, 0.01, "PnL% should be -22.2%")
 	})
 
 	t.Run("sold everything at profit", func(t *testing.T) {
-		// Invested $100, sold everything for $120
+		// Invested $100, paid $2 in fees on buy (2%)
+		// Sold everything for $120, paid $2.4 in fees on sell (2% of $120)
 		// Current holding: $0, realized: $120
-		// PnL = $120 - $100 = $20
+		// Total fees: $2 + $2.4 = $4.4
+		// PnL = 0 + 120 - 100 + 4.4 = $24.4
 
 		invested := 100.0
 		currentHoldingValue := 0.0
 		realized := 120.0
+		fees := 4.4
 
-		pnl, pnlPercentage := calculatePnL(currentHoldingValue, invested, realized)
-		require.InDelta(t, 20.0, pnl, 0.01, "PnL should be $20")
-		require.InDelta(t, 20.0, pnlPercentage, 0.01, "PnL% should be 20%")
+		pnl, pnlPercentage := calculatePnL(currentHoldingValue, invested, realized, fees)
+		require.InDelta(t, 24.4, pnl, 0.01, "PnL should be $24.4")
+		require.InDelta(t, 24.4, pnlPercentage, 0.01, "PnL% should be 24.4%")
 	})
 
 	t.Run("sold everything at loss", func(t *testing.T) {
-		// Invested $100, sold everything for $70
+		// Invested $100, paid $2 in fees on buy (2%)
+		// Sold everything for $70, paid $1.4 in fees on sell (2% of $70)
 		// Current holding: $0, realized: $70
-		// PnL = $70 - $100 = -$30
+		// Total fees: $2 + $1.4 = $3.4
+		// PnL = 0 + 70 - 100 + 3.4 = -$26.6
 
 		invested := 100.0
 		currentHoldingValue := 0.0
 		realized := 70.0
+		fees := 3.4
 
-		pnl, pnlPercentage := calculatePnL(currentHoldingValue, invested, realized)
-		require.InDelta(t, -30.0, pnl, 0.01, "PnL should be -$30")
-		require.InDelta(t, -30.0, pnlPercentage, 0.01, "PnL% should be -30%")
+		pnl, pnlPercentage := calculatePnL(currentHoldingValue, invested, realized, fees)
+		require.InDelta(t, -26.6, pnl, 0.01, "PnL should be -$26.6")
+		require.InDelta(t, -26.6, pnlPercentage, 0.01, "PnL% should be -26.6%")
 	})
 
 	t.Run("handles zero investment", func(t *testing.T) {
 		// Edge case: somehow got tokens without investment (airdrop?)
-		pnl, pnlPercentage := calculatePnL(100.0, 0.0, 0.0)
+		pnl, pnlPercentage := calculatePnL(100.0, 0.0, 0.0, 0.0)
 		require.Equal(t, 100.0, pnl, "PnL should equal current value")
 		require.Equal(t, 0.0, pnlPercentage, "PnL% should be 0 when invested is 0")
 	})
 
 	t.Run("doubled investment", func(t *testing.T) {
-		// Invested $100, now worth $200 (all unrealized)
-		pnl, pnlPercentage := calculatePnL(200.0, 100.0, 0.0)
-		require.InDelta(t, 100.0, pnl, 0.01, "PnL should be $100")
-		require.InDelta(t, 100.0, pnlPercentage, 0.01, "PnL% should be 100%")
+		// Invested $100, paid $2 in fees on buy (2%), now worth $200 (all unrealized)
+		// PnL = 200 + 0 - 100 + 2 = $102
+		pnl, pnlPercentage := calculatePnL(200.0, 100.0, 0.0, 2.0)
+		require.InDelta(t, 102.0, pnl, 0.01, "PnL should be $102")
+		require.InDelta(t, 102.0, pnlPercentage, 0.01, "PnL% should be 102%")
+	})
+
+	t.Run("round-trip with fees at constant price", func(t *testing.T) {
+		// Buy: input=100 ION, fee=2 ION (2%), output=98 tokens
+		// Sell: input=98 tokens, fee=1.96 ION (2% of 98), output=96.04 ION
+		// At constant price: invested=$100, realized=$96.04, fees=$2 + $1.96 = $3.96
+		// PnL = 0 + 96.04 - 100 + 3.96 = 0
+		invested := 100.0
+		currentHoldingValue := 0.0
+		realized := 96.04
+		fees := 3.96
+
+		pnl, pnlPercentage := calculatePnL(currentHoldingValue, invested, realized, fees)
+		require.InDelta(t, 0.0, pnl, 0.01, "PnL should be $0 for round-trip at constant price")
+		require.InDelta(t, 0.0, pnlPercentage, 0.01, "PnL% should be 0%")
 	})
 }
 

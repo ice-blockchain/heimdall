@@ -49,15 +49,15 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, externalAddress st
 			holder.external_address as holder_external_address,
 			holder.platform_group as holder_platform,
 			
-			utp.amount as balance,
-			COALESCE(((utp.amount::NUMERIC / 1e18) * tokens.price_usd), 0) as balance_usd
+			COALESCE(uap.amount, '0') as balance,
+			COALESCE(((uap.amount::NUMERIC / 1e18) * tokens.price_usd), 0) as balance_usd
 		FROM token_swaps
 		JOIN tokens ON token_swaps.contract_address = tokens.contract_address
 		LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = tokens.content_author_id
 		LEFT JOIN users creator ON creator.id = creator_addr.user_id
 		LEFT JOIN user_bsc_addresses holder_addr ON holder_addr.bsc_address = token_swaps.user_blockchain_address
 		LEFT JOIN users holder ON holder.id = holder_addr.user_id
-		LEFT JOIN user_token_positions utp ON utp.external_address = token_swaps.external_address AND utp.user_blockchain_address = token_swaps.user_blockchain_address
+		LEFT JOIN user_aggregate_positions uap ON uap.external_address = token_swaps.external_address AND uap.user_external_address = holder.external_address
 		WHERE token_swaps.external_address = $1 %[3]v
 		ORDER BY token_swaps.created_at DESC
 		LIMIT %[1]v OFFSET %[2]v

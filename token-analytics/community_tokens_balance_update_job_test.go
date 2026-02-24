@@ -12,6 +12,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve/fixture"
 	bondingcurvefixture "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve/fixture"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
@@ -286,6 +287,150 @@ func TestBalanceUpdateJob_XcomPlatform(t *testing.T) {
 	require.NotEqual(t, 0.0, anyPostBcScore, "Xcom post token should be in anyPost bonding curve set")
 }
 
+func TestBalanceUpdateJob_SellToZeroResetsAvgBuyPrice(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	db, connString, release := helperCreateDBWithConnString(t)
+	defer release()
+
+	mockBackend, _, _ := fixture.SetupMockedBondingCurveBackend(t, fixture.DefaultMockBackendConfig())
+	mockBackend.SetBalanceOfResponse(big.NewInt(0)) // 0 tokens (sell-to-zero)
+	mockBC := fixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+
+	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC))
+	defer ta.Close()
+
+	userBlockchainAddr := "0xSELLZERO0000000000000000000000000001"
+	userExternalAddr := "0:sellzero_user:"
+	contractAddr := "0xSELLZEROTOKEN000000000000000000000001"
+	tokenExternalAddr := "0:sellzero_user:token1"
+	pairID := "0xbbbb000000000000000000000000000000000000000000000000000000000001"
+	baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+
+	helperInsertTestUser(t, ctx, db, "sellzero_user", "sellzero", "Sell Zero User", userBlockchainAddr, false, PlatformGroupIonConnect)
+	helperInsertTestToken(t, ctx, db, contractAddr, tokenExternalAddr, "SZT", "profile", "sellzero_user",
+		"1000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+	helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddr, pairID, baseToken)
+	helperInsertBaseTokenPrice(t, ctx, db, baseToken, "ION", 0.5)
+
+	_, err := storage.Exec(ctx, db, `
+		INSERT INTO user_token_positions (
+			user_blockchain_address, contract_address, external_address, user_external_address,
+			amount, avg_buy_price_usd, total_invested_usd, total_realized_usd, updated_at
+		) VALUES ($1, $2, $3, $4, 1000000000000000000, 0.05, 5.0, 0, NOW())
+	`, userBlockchainAddr, contractAddr, tokenExternalAddr, userExternalAddr)
+	require.NoError(t, err)
+
+	zeroBal := "0"
+	err = ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
+		UserBlockchainAddress: userBlockchainAddr,
+		UserExternalAddress:   userExternalAddr,
+		ContractAddress:       contractAddr,
+		TokenExternalAddress:  tokenExternalAddr,
+		TransactionHash:       "0xsellzero_tx1",
+		PairID:                pairID,
+		BaseToken:             baseToken,
+		TokenType:             "profile",
+		Platform:              PlatformGroupIonConnect,
+		DummyBalance:          &zeroBal,
+	})
+	require.NoError(t, err)
+
+	helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
+
+	type position struct {
+		Amount         string  `db:"amount"`
+		AvgBuyPriceUSD float64 `db:"avg_buy_price_usd"`
+	}
+	pos, err := storage.Get[position](ctx, db, `
+		SELECT amount, avg_buy_price_usd FROM user_token_positions
+		WHERE user_blockchain_address = $1 AND contract_address = $2
+	`, userBlockchainAddr, contractAddr)
+	require.NoError(t, err)
+	require.Equal(t, "0", pos.Amount, "Balance should be 0")
+	require.Equal(t, 0.0, pos.AvgBuyPriceUSD, "avg_buy_price should reset to 0 on sell-to-zero")
+}
+
+func TestBalanceUpdateJob_MultiAddressAggregateRedis(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	db, connString, release := helperCreateDBWithConnString(t)
+	defer release()
+
+	mockBackend, _, _ := fixture.SetupMockedBondingCurveBackend(t, fixture.DefaultMockBackendConfig())
+	mockBC := fixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+
+	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC))
+	defer ta.Close()
+
+	userExternalAddr := "0:multi_redis_user:"
+	userID := "multi-redis-user-id"
+	bscAddr1 := "0xMULTIREDIS_BSC_001"
+	bscAddr2 := "0xMULTIREDIS_BSC_002"
+
+	helperCreateUser(t, ctx, db, userID, "multi_redis_user", userExternalAddr, "multiredis", "Multi Redis User", "avatar.png", "ionconnect")
+	helperAddUserBscAddress(t, ctx, db, userID, bscAddr1)
+	helperAddUserBscAddress(t, ctx, db, userID, bscAddr2)
+
+	contractAddr := "0xMULTIREDISTOKEN0000000000000000000001"
+	tokenExternalAddr := "0:multi_redis_token:"
+	pairID := "0xcccc000000000000000000000000000000000000000000000000000000000001"
+	baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+
+	helperInsertTestToken(t, ctx, db, contractAddr, tokenExternalAddr, "MRT", "profile", "multi_redis_user",
+		"1000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+	helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddr, pairID, baseToken)
+	helperInsertBaseTokenPrice(t, ctx, db, baseToken, "ION", 0.5)
+
+	// First address has 3 tokens
+	dummyBal1 := "3000000000000000000" // 3 tokens
+	err := ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
+		UserBlockchainAddress: strings.ToLower(bscAddr1),
+		UserExternalAddress:   userExternalAddr,
+		ContractAddress:       contractAddr,
+		TokenExternalAddress:  tokenExternalAddr,
+		TransactionHash:       "0xmulti_redis_tx1",
+		PairID:                pairID,
+		BaseToken:             baseToken,
+		TokenType:             "profile",
+		Platform:              PlatformGroupIonConnect,
+		DummyBalance:          &dummyBal1,
+	})
+	require.NoError(t, err)
+	helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
+
+	// Second address has 7 tokens
+	dummyBal2 := "7000000000000000000" // 7 tokens
+	err = ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
+		UserBlockchainAddress: strings.ToLower(bscAddr2),
+		UserExternalAddress:   userExternalAddr,
+		ContractAddress:       contractAddr,
+		TokenExternalAddress:  tokenExternalAddr,
+		TransactionHash:       "0xmulti_redis_tx2",
+		PairID:                pairID,
+		BaseToken:             baseToken,
+		TokenType:             "profile",
+		Platform:              PlatformGroupIonConnect,
+		DummyBalance:          &dummyBal2,
+	})
+	require.NoError(t, err)
+	helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
+
+	userPositionKey := keyUserPositionOfToken(tokenExternalAddr)
+	score, err := ta.processedDataDB.ZScore(ctx, userPositionKey, userExternalAddr).Result()
+	require.NoError(t, err)
+	require.InDelta(t, 10.0, score, 0.01, "Primary Redis key should have AGGREGATE balance (3+7=10)")
+
+	byBlockchainKey := keyUserPositionOfTokenByUserBlockchainAddress(tokenExternalAddr)
+	score1, err := ta.processedDataDB.ZScore(ctx, byBlockchainKey, strings.ToLower(bscAddr1)).Result()
+	require.NoError(t, err)
+	require.InDelta(t, 3.0, score1, 0.01, "Secondary Redis key should have individual balance for addr1")
+
+	score2, err := ta.processedDataDB.ZScore(ctx, byBlockchainKey, strings.ToLower(bscAddr2)).Result()
+	require.NoError(t, err)
+	require.InDelta(t, 7.0, score2, 0.01, "Secondary Redis key should have individual balance for addr2")
+}
+
 func helperInsertUserPosition(t testing.TB, ctx context.Context, db *storage.DB, userBlockchainAddr, contractAddr, tokenExternalAddr, userExternalAddr, amount string) {
 	t.Helper()
 	_, err := storage.Exec(ctx, db, `
@@ -385,4 +530,21 @@ func TestBalanceUpdateJob_RegistersTradeInQuestDB(t *testing.T) {
 	require.Equal(t, contractAddress, trades[0].ContractAddress)
 	require.Equal(t, "buy", trades[0].TradeType)
 	require.Greater(t, trades[0].PriceInUsd, 0.0, "Price should be > 0")
+}
+
+func helperCreateUser(t testing.TB, ctx context.Context, db *storage.DB, userID, masterPubkey, externalAddr, username, displayName, avatar, platform string) {
+	t.Helper()
+	_, err := storage.Exec(ctx, db, `
+		INSERT INTO users (id, master_pubkey, external_address, username, display_name, avatar, platform_group, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+	`, userID, masterPubkey, externalAddr, username, displayName, avatar, platform)
+	require.NoError(t, err)
+}
+
+func helperAddUserBscAddress(t testing.TB, ctx context.Context, db *storage.DB, userID, bscAddress string) {
+	t.Helper()
+	_, err := storage.Exec(ctx, db, `
+		INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at) VALUES ($1, LOWER($2), NOW())
+	`, userID, bscAddress)
+	require.NoError(t, err)
 }

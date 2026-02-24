@@ -145,6 +145,8 @@ func (t *tokenAnalytics) setOrIncrUserPosition(ctx context.Context, userBlockcha
 		)
 		ON CONFLICT (user_blockchain_address, contract_address) DO UPDATE SET
 			%[1]v
+			avg_buy_price_usd = CASE WHEN EXCLUDED.amount = 0 THEN 0
+									 ELSE user_token_positions.avg_buy_price_usd END,
 			updated_at = EXCLUDED.updated_at,
 		    last_update_block = excluded.last_update_block,
 		    last_update_tx_hash = excluded.last_update_tx_hash,                  
@@ -164,28 +166,51 @@ func (t *tokenAnalytics) setOrIncrUserPosition(ctx context.Context, userBlockcha
 
 	userPositionKey := keyUserPositionOfToken(tokenExternalAddress)
 	userPositionKeyByBlockchainAddress := keyUserPositionOfTokenByUserBlockchainAddress(tokenExternalAddress)
-	balanceFloat := weiToFloat64FromBigInt(balance)
+	individualBalanceFloat := weiToFloat64FromBigInt(balance)
+
+	var aggregateBalanceFloat float64
+	if userExternalAddress != "" {
+		aggAmount, aggErr := storage.Get[string](ctx, t.ingestedDataDB,
+			`SELECT amount::text FROM user_aggregate_positions WHERE user_external_address = $1 AND external_address = $2`,
+			userExternalAddress, tokenExternalAddress)
+		if aggErr != nil && !storage.IsErr(aggErr, storage.ErrNotFound) {
+			return errors.Wrapf(aggErr, "failed to query aggregate position for user %s token %s",
+				userExternalAddress, tokenExternalAddress)
+		}
+		if aggAmount != nil {
+			if parsed, ok := new(big.Int).SetString(*aggAmount, 10); ok {
+				aggregateBalanceFloat = weiToFloat64FromBigInt(parsed)
+			}
+		}
+	}
+
 	if responses, txErr := t.processedDataDB.TxPipelined(ctx, func(pipeliner redis.Pipeliner) error {
-		if balanceFloat <= 0 {
-			if userExternalAddress != "" {
+		// (position:{token}): AGGREGATE balance
+		if userExternalAddress != "" {
+			if aggregateBalanceFloat <= 0 {
 				if perr := pipeliner.ZRem(ctx, userPositionKey, userExternalAddress).Err(); perr != nil {
-					return errors.Wrapf(perr, "failed to remove user position from Redis for user %s token %s",
+					return errors.Wrapf(perr, "failed to remove aggregate position from Redis for user %s token %s",
+						userExternalAddress, tokenExternalAddress)
+				}
+			} else {
+				if perr := pipeliner.ZAdd(ctx, userPositionKey, redis.Z{
+					Score:  aggregateBalanceFloat,
+					Member: userExternalAddress,
+				}).Err(); perr != nil {
+					return errors.Wrapf(perr, "failed to add aggregate position to Redis for user %s token %s",
 						userExternalAddress, tokenExternalAddress)
 				}
 			}
+		}
+		// (position_by_user_blockchain_address:{token})
+		if individualBalanceFloat <= 0 {
 			if perr := pipeliner.ZRem(ctx, userPositionKeyByBlockchainAddress, userBlockchainAddress).Err(); perr != nil {
-				return errors.Wrapf(perr, "failed to remove user position from Redis for user %s token %s",
+				return errors.Wrapf(perr, "failed to remove individual position from Redis for user %s token %s",
 					userBlockchainAddress, tokenExternalAddress)
 			}
 		} else {
-			if userExternalAddress != "" {
-				if perr := zAddOrIncr(ctx, pipeliner, userPositionKey, userExternalAddress, balanceFloat).Err(); perr != nil {
-					return errors.Wrapf(perr, "failed to add user position to Redis for user %s token %s",
-						userExternalAddress, tokenExternalAddress)
-				}
-			}
-			if perr := zAddOrIncr(ctx, pipeliner, userPositionKeyByBlockchainAddress, userBlockchainAddress, balanceFloat).Err(); perr != nil {
-				return errors.Wrapf(perr, "failed to add user position to Redis for user %s token %s",
+			if perr := zAddOrIncr(ctx, pipeliner, userPositionKeyByBlockchainAddress, userBlockchainAddress, individualBalanceFloat).Err(); perr != nil {
+				return errors.Wrapf(perr, "failed to add individual position to Redis for user %s token %s",
 					userBlockchainAddress, tokenExternalAddress)
 			}
 		}

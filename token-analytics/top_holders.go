@@ -72,13 +72,51 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 		   t.contract_address,
 		   t.type                                         as token_type,
 		   t.platform                                     as token_platform,
-		   utp.user_blockchain_address as holder_bnb_bsc_address,
+		   uap.user_external_address as holder_external_address,
+		   (SELECT utp_inner.user_blockchain_address 
+		    FROM user_token_positions utp_inner 
+		    WHERE utp_inner.external_address = t.external_address 
+		      AND utp_inner.user_external_address = uap.user_external_address 
+		    LIMIT 1) as holder_bnb_bsc_address,
+		   holder_user_agg.id as holder_id
+		FROM tokens t
+			 JOIN user_aggregate_positions uap ON uap.external_address = t.external_address
+					AND uap.user_external_address = ANY($2)
+			 LEFT JOIN users holder_user_agg ON holder_user_agg.external_address = uap.user_external_address
+			 LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
+			 LEFT JOIN users creator ON creator.id = creator_addr.user_id
+			 LEFT JOIN fees_transferred creator_fees_transferred
+					   ON recipient_bsc_address = t.content_author_id AND
+						  token_external_address = t.external_address AND fee_type = 'creator'
+		WHERE t.external_address = $1
+		  AND t.ticker IS NOT NULL
+		UNION ALL
+		SELECT t.content_author_id                            as content_author_id,
+		   creator.username                               as creator_username,
+		   creator.display_name                           as creator_display,
+		   creator.verified                               as creator_verified,
+		   creator.avatar                                 as creator_avatar,
+		   creator.platform_group                         as creator_platform,
+		   COALESCE(creator_fees_transferred.amount, '0') as creator_fees,
+		   t.content_author_id                            as creator_bnb_bsc_address,
+		   creator.external_address                       as creator_external_address,
+		   t.price_usd                                    as price_usd,
+		   t.total_supply                                 as total_supply,
+		   t.bonding_curve_migrated                       as bonding_curve_migrated,
+		   t.pair_id                                      as pair_id,
+		   t.base_token,
+		   t.contract_address,
+		   t.type                                         as token_type,
+		   t.platform                                     as token_platform,
 		   utp.user_external_address as holder_external_address,
+		   utp.user_blockchain_address as holder_bnb_bsc_address,
 		   holder_addr.user_id as holder_id
 		FROM tokens t
 			 JOIN user_token_positions utp ON utp.external_address = t.external_address
-					AND (utp.user_external_address = ANY($2) OR
-						 utp.user_blockchain_address = ANY($3))
+					AND utp.user_blockchain_address = ANY($3)
+			 LEFT JOIN user_aggregate_positions uap_check ON uap_check.external_address = t.external_address
+					AND uap_check.user_external_address = utp.user_external_address
+					AND uap_check.user_external_address = ANY($2)
 			 LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
 			 LEFT JOIN users creator ON creator.id = creator_addr.user_id
 			 LEFT JOIN user_bsc_addresses holder_addr
@@ -88,6 +126,7 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 						  token_external_address = t.external_address AND fee_type = 'creator'
 		WHERE t.external_address = $1
 		  AND t.ticker IS NOT NULL
+		  AND uap_check.user_external_address IS NULL
 	)
     SELECT
         t.content_author_id,
@@ -110,11 +149,11 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
         t.holder_bnb_bsc_address,
         t.holder_external_address,
 		holder.master_pubkey as holder_master_pubkey,
-	    holder.username as holder_username,
-	    holder.display_name as holder_display,
-	    holder.verified as holder_verified,
-	    holder.avatar as holder_avatar,
-	    holder.platform_group as holder_platform
+		holder.username as holder_username,
+		holder.display_name as holder_display,
+		holder.verified as holder_verified,
+		holder.avatar as holder_avatar,
+		holder.platform_group as holder_platform
     FROM token_info t
         LEFT JOIN users holder ON holder.id = t.holder_id OR holder.external_address = t.holder_external_address
 	UNION ALL (

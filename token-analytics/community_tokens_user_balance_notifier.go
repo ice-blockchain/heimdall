@@ -111,9 +111,11 @@ func (t *tokenAnalytics) updateUserPositionInRedis(ctx context.Context, userBloc
 					userExternalAddress, tokenExternalAddress)
 			}
 		}
-		if err := t.processedDataDB.ZRem(ctx, userPositionKeyByBlockchainAddress, userBlockchainAddress).Err(); err != nil {
-			return errors.Wrapf(err, "failed to remove user position from Redis for user %s token %s",
-				userBlockchainAddress, tokenExternalAddress)
+		if userBlockchainAddress != "" {
+			if err := t.processedDataDB.ZRem(ctx, userPositionKeyByBlockchainAddress, userBlockchainAddress).Err(); err != nil {
+				return errors.Wrapf(err, "failed to remove user position from Redis for user %s token %s",
+					userBlockchainAddress, tokenExternalAddress)
+			}
 		}
 		log.Debug(fmt.Sprintf("Removed user position from Redis: user=%s (external=%s), token=%s",
 			userBlockchainAddress, userExternalAddress, tokenExternalAddress))
@@ -127,12 +129,14 @@ func (t *tokenAnalytics) updateUserPositionInRedis(ctx context.Context, userBloc
 					userExternalAddress, tokenExternalAddress)
 			}
 		}
-		if err := t.processedDataDB.ZAdd(ctx, userPositionKeyByBlockchainAddress, redis.Z{
-			Score:  balanceFloat,
-			Member: userBlockchainAddress,
-		}).Err(); err != nil {
-			return errors.Wrapf(err, "failed to add user position to Redis for user %s token %s",
-				userBlockchainAddress, tokenExternalAddress)
+		if userBlockchainAddress != "" {
+			if err := t.processedDataDB.ZAdd(ctx, userPositionKeyByBlockchainAddress, redis.Z{
+				Score:  balanceFloat,
+				Member: userBlockchainAddress,
+			}).Err(); err != nil {
+				return errors.Wrapf(err, "failed to add user position to Redis for user %s token %s",
+					userBlockchainAddress, tokenExternalAddress)
+			}
 		}
 		log.Debug(fmt.Sprintf("Updated user position in Redis: user=%s (external=%s), token=%s, balance=%.2f",
 			userBlockchainAddress, userExternalAddress, tokenExternalAddress, balanceFloat))
