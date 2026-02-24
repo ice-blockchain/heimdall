@@ -2110,6 +2110,9 @@ const docTemplate = `{
                 "blockchain": {
                     "type": "string"
                 },
+                "bondingCurvePairId": {
+                    "type": "string"
+                },
                 "ionConnect": {
                     "type": "string"
                 },

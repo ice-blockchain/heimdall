@@ -24,9 +24,10 @@ type (
 	}
 
 	Addresses struct {
-		Blockchain string `json:"blockchain,omitempty"`
-		IonConnect string `json:"ionConnect,omitempty"`
-		Twitter    string `json:"twitter,omitempty"`
+		Blockchain         string `json:"blockchain,omitempty"`
+		IonConnect         string `json:"ionConnect,omitempty"`
+		Twitter            string `json:"twitter,omitempty"`
+		BondingCurvePairId string `json:"bondingCurvePairId,omitempty"`
 	}
 
 	User struct {
@@ -176,6 +177,7 @@ type (
 		TokenContractAddress   string
 		TokenExternalAddress   string
 		TokenPlatform          string
+		TokenPairId            string
 		CreatorExternalAddress string
 		CreatorPlatform        string
 	}
@@ -311,6 +313,9 @@ func buildTokenAndCreatorAddresses(params TokenAndCreatorAddressesParams) (token
 		return nil, nil, fmt.Errorf("failed to build token addresses from contract_address %s, external_address %s (platform %s): %w",
 			params.TokenContractAddress, params.TokenExternalAddress, params.TokenPlatform, err)
 	}
+	if tokenAddresses != nil && params.TokenPairId != "" {
+		tokenAddresses.BondingCurvePairId = params.TokenPairId
+	}
 	var ionConnectPubkey string
 	if params.TokenIonConnectAddress != nil && strVal(params.TokenIonConnectAddress) != "" && params.TokenPlatform == PlatformGroupXCom {
 		ionConnectPubkey = extractIonConnectFromTokenExternalAddress(strVal(params.TokenIonConnectAddress), params.TokenPlatform)
@@ -342,6 +347,9 @@ func buildCreatorToken(row *tokenRow) (*CreatorTokenInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to build creator token addresses from contract_address %s, external_address %s (platform %s): %w",
 			strVal(row.CreatorTokenContractAddress), strVal(row.CreatorTokenExternalAddress), strVal(row.CreatorTokenPlatform), err)
+	}
+	if addresses != nil && row.CreatorTokenPairId != nil && strVal(row.CreatorTokenPairId) != "" {
+		addresses.BondingCurvePairId = strVal(row.CreatorTokenPairId)
 	}
 
 	return &CreatorTokenInfo{

@@ -533,14 +533,26 @@ func TestGetCommunityTokensByRewardsDistribution(t *testing.T) {
 	xcomTokenExt := "123456789"
 
 	helperInsertTestToken(t, ctx, db, "0xRD11111111111111111111111111111111111111", token1Ext, "RD1", "profile", "rd_creator1", "1000000000000000000000000", 500.0, 0.001, 10, PlatformGroupIonConnect)
+	_, err = storage.Exec(ctx, db, `UPDATE tokens SET pair_id = $1 WHERE contract_address = $2`, "0xPAIRRD1111111111111111111111111111111111111111111111111111111111111", "0xRD11111111111111111111111111111111111111")
+	require.NoError(t, err)
+
 	helperInsertTestToken(t, ctx, db, "0xRD22222222222222222222222222222222222222", token2Ext, "RD2", "profile", "rd_creator2", "2000000000000000000000000", 300.0, 0.002, 5, PlatformGroupIonConnect)
+	_, err = storage.Exec(ctx, db, `UPDATE tokens SET pair_id = $1 WHERE contract_address = $2`, "0xPAIRRD2222222222222222222222222222222222222222222222222222222222222", "0xRD22222222222222222222222222222222222222")
+	require.NoError(t, err)
 
 	creator3ProfileExt := "0:rd_creator3:"
 	helperInsertTestToken(t, ctx, db, "0xRD3PROFILE111111111111111111111111111111", creator3ProfileExt, "CRD3", "profile", "rd_creator3", "400000000000000000000000", 40.0, 0.00004, 2, PlatformGroupIonConnect)
+	_, err = storage.Exec(ctx, db, `UPDATE tokens SET pair_id = $1 WHERE contract_address = $2`, "0xPAIRRD3PROF11111111111111111111111111111111111111111111111111111111", "0xRD3PROFILE111111111111111111111111111111")
+	require.NoError(t, err)
+
 	helperInsertTestToken(t, ctx, db, "0xRD33333333333333333333333333333333333333", token3Ext, "RD3", "post", "rd_creator3", "3000000000000000000000000", 800.0, 0.003, 20, PlatformGroupIonConnect)
+	_, err = storage.Exec(ctx, db, `UPDATE tokens SET pair_id = $1 WHERE contract_address = $2`, "0xPAIRRD3333333333333333333333333333333333333333333333333333333333333", "0xRD33333333333333333333333333333333333333")
+	require.NoError(t, err)
 	helperSetTokenBaseToken(t, ctx, db, token3Ext, "0xRD3PROFILE111111111111111111111111111111")
 
 	helperInsertTestToken(t, ctx, db, "0xXCOM1111111111111111111111111111111111111", xcomTokenExt, "XCOM", "post", "xcom_creator", "5000000000000000000000000", 1000.0, 0.005, 50, PlatformGroupXCom)
+	_, err = storage.Exec(ctx, db, `UPDATE tokens SET pair_id = $1 WHERE contract_address = $2`, "0xPAIRXCOM11111111111111111111111111111111111111111111111111111111111", "0xXCOM1111111111111111111111111111111111111")
+	require.NoError(t, err)
 
 	targetHour := time.Date(2022, 3, 15, 14, 0, 0, 0, time.UTC)
 	swapTime := targetHour.Add(30 * time.Minute)
@@ -623,6 +635,7 @@ func TestGetCommunityTokensByRewardsDistribution(t *testing.T) {
 		require.True(t, profileToken.Creator.Verified != nil && *profileToken.Creator.Verified)
 		require.Nil(t, profileToken.Creator.Token, "profile token should not have creator.token")
 		require.Nil(t, profileToken.Launcher, "ionconnect token should have nil launcher")
+		require.Equal(t, "0xPAIRRD1111111111111111111111111111111111111111111111111111111111111", profileToken.Addresses.BondingCurvePairId, "profile token should have bondingCurvePairId")
 
 		require.NotNil(t, contentToken)
 		require.Equal(t, "post", contentToken.Type)
@@ -631,11 +644,14 @@ func TestGetCommunityTokensByRewardsDistribution(t *testing.T) {
 		require.Equal(t, "CRD3", contentToken.Creator.Token.Ticker)
 		require.NotNil(t, contentToken.Creator.Token.Addresses)
 		require.Equal(t, "0xRD3PROFILE111111111111111111111111111111", contentToken.Creator.Token.Addresses.Blockchain)
+		require.Equal(t, "0xPAIRRD3PROF11111111111111111111111111111111111111111111111111111111", contentToken.Creator.Token.Addresses.BondingCurvePairId, "creator token should have bondingCurvePairId")
+		require.Equal(t, "0xPAIRRD3333333333333333333333333333333333333333333333333333333333333", contentToken.Addresses.BondingCurvePairId, "content token should have bondingCurvePairId")
 		require.Nil(t, contentToken.Launcher, "ionconnect token should have nil launcher")
 
 		require.NotNil(t, xcomToken, "xcom token should be in results")
 		require.Equal(t, "post", xcomToken.Type)
 		require.Equal(t, "xcom_creator_user", strVal(xcomToken.Creator.Username))
+		require.Equal(t, "0xPAIRXCOM11111111111111111111111111111111111111111111111111111111111", xcomToken.Addresses.BondingCurvePairId, "xcom token should have bondingCurvePairId")
 		require.NotNil(t, xcomToken.Launcher, "xcom token should have launcher populated")
 		require.Equal(t, "xcom_launcher_user", strVal(xcomToken.Launcher.Username), "launcher username should match")
 		require.Equal(t, "XCom Launcher", strVal(xcomToken.Launcher.Display), "launcher display should match")

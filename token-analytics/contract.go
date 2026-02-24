@@ -402,6 +402,7 @@ type (
 		CreatorTokenExternalAddress   *string    `db:"creator_token_external_address"`
 		CreatorTokenPlatform          *string    `db:"creator_token_platform"`
 		CreatorTokenIonConnectAddress *string    `db:"creator_token_ion_connect_address"`
+		CreatorTokenPairId            *string    `db:"creator_token_pair_id"`
 	}
 
 	tokenVolume24h struct {

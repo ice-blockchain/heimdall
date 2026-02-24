@@ -186,6 +186,7 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMapWithType(ctx context.Contex
 			t.total_supply,
 			t.content_author_id as content_author_id,
 			t.ion_connect_address,
+			COALESCE(t.pair_id, '') as pair_id,
 			creator.username as creator_username,
 			creator.display_name as creator_display,
 			creator.verified as creator_verified,
@@ -215,7 +216,8 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMapWithType(ctx context.Contex
 			creator_token.contract_address as creator_token_contract_address,
 			creator_token.external_address as creator_token_external_address,
 			creator_token.platform as creator_token_platform,
-			creator_token.ion_connect_address as creator_token_ion_connect_address
+			creator_token.ion_connect_address as creator_token_ion_connect_address,
+			COALESCE(creator_token.pair_id, '') as creator_token_pair_id
 		FROM tokens t
 		LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
 		LEFT JOIN users creator ON creator.id = creator_addr.user_id
@@ -277,13 +279,14 @@ func (t *tokenAnalytics) getTokenDetailsWithScoresMapWithType(ctx context.Contex
 		}
 
 		tokenExternalAddresses, creatorExternalAddresses, err := buildTokenAndCreatorAddresses(TokenAndCreatorAddressesParams{
+			CreatorBnbBscAddress:   token.CreatorBnbBscAddress,
+			TokenIonConnectAddress: token.IonConnectAddress,
 			TokenContractAddress:   token.ContractAddress,
 			TokenExternalAddress:   token.ExternalAddress,
 			TokenPlatform:          token.Platform,
-			TokenIonConnectAddress: token.IonConnectAddress,
+			TokenPairId:            token.PairId,
 			CreatorExternalAddress: strVal(token.CreatorExternalAddress),
 			CreatorPlatform:        strVal(token.CreatorPlatform),
-			CreatorBnbBscAddress:   token.CreatorBnbBscAddress,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to build token and creator addresses: %w", err)
