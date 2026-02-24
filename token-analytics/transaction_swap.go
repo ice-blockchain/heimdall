@@ -754,7 +754,11 @@ func (t *tokenAnalyticsUsers) ValidateTransaction(ctx context.Context, txPayload
 			if swapAmount == nil {
 				return fmt.Errorf("failed to decode minReturn param")
 			}
-			expectedParams, _, _, err := defaultStartTokenParamsForBase(ctx, t.cfg, xsync.NewMap[string, *big.Int](), t.ingestedDataDB, t.bondingCurve, base, token.Type, token.Platform, swapAmount, allTokens[0])
+			creatorTokenInfo := allTokens[0]
+			if len(allTokens) == 1 {
+				creatorTokenInfo = nil
+			}
+			expectedParams, _, _, err := defaultStartTokenParamsForBase(ctx, t.cfg, xsync.NewMap[string, *big.Int](), t.ingestedDataDB, t.bondingCurve, base, token.Type, token.Platform, swapAmount, creatorTokenInfo)
 			if err != nil {
 				return errors.Wrapf(err, "failed to get default params for base token %v", base)
 			}
