@@ -547,7 +547,7 @@ func calculateIONtoBase(ctx context.Context, cfg *config, creatorTokenPricesION 
 	if inBase.Cmp(big.NewInt(1)) < 0 {
 		inBase = big.NewInt(1)
 	}
-	return inBase, nil
+	return new(big.Int).Mul(inBase, big.NewInt(1e18)), nil
 }
 
 func keyUserPositionOfToken(ionConnectAddress string) string {

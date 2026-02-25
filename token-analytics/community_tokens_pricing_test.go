@@ -233,19 +233,16 @@ func TestGetTokenPricing(t *testing.T) {
 		require.Equal(t, bnbPrice, bnbPriceReturned)
 	})
 
-	t.Run("buy_online_plus_content_token_double_swap_with_fat_address", func(t *testing.T) {
-		// Content token with double swap (ION -> Creator -> Content)
-		// User pays 1 creator token, gets content tokens back
-		creatorPubkey := "creator_double_swap"
-		creatorExternalAddr := BuildProfileExternalAddress(creatorPubkey)
-		creatorContractAddr := "0x5555555555555555555555555555555555555555"
-		contentExternalAddr := "30175:" + creatorPubkey + ":post123"
+	// Content token with double swap (ION -> Creator -> Content)
+	// User pays 1 creator token, gets content tokens back
+	creatorPubkey := "creator_double_swap"
+	creatorExternalAddr := BuildProfileExternalAddress(creatorPubkey)
+	creatorContractAddr := "0x5555555555555555555555555555555555555555"
+	contentExternalAddr := "30175:" + creatorPubkey + ":post123"
 
-		helperInsertTestUser(t, ctx, db, creatorExternalAddr, creatorPubkey, "Creator Double", "", true, PlatformGroupIonConnect)
-		helperInsertTestToken(t, ctx, db, creatorContractAddr, creatorExternalAddr, "CREADBL", "profile", creatorExternalAddr, "1000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+	t.Run("buy_online_plus_content_token_double_swap_with_fat_address", func(t *testing.T) {
 		_, err := storage.Exec(ctx, db, `UPDATE tokens SET base_token = $1 WHERE contract_address = $2`, ta.cfg.IONTokenAddress, creatorContractAddr)
 		require.NoError(t, err)
-		helperInsertBaseTokenPrice(t, ctx, db, creatorContractAddr, "CREADBL", 0.75)
 		ta.creatorTokenPricesION.Store(creatorContractAddr, big.NewInt(1))
 
 		fatAddressBytes := buildFatAddressV2Double(
@@ -261,12 +258,12 @@ func TestGetTokenPricing(t *testing.T) {
 		require.NoError(t, err)
 		// For content token, base is creator token, so we get 0.95 content tokens for 1 creator token
 		require.Equal(t, big.NewInt(950000000000000000).String(), tokensOut.String(), "Should get 0.95 content tokens")
-		require.InDelta(t, 0.75, tokenPriceUSD, 0.0001, "Should be $0.7125 (1 spent * $0.75)")
+		require.InDelta(t, 0.1, tokenPriceUSD, 0.0001, "Should be $0.1 (1 spent * $0.1 (ION spent, twisted))")
 		require.Greater(t, tokensBNB.Int64(), int64(0))
 		require.Equal(t, ionPrice, ionPriceReturned)
 		require.Equal(t, bnbPrice, bnbPriceReturned)
-		require.Equal(t, "100000", p.ContentTokenParams.FinalPrice)
-		require.Equal(t, "10000", p.ContentTokenParams.InitialPrice)
+		require.Equal(t, "1000000000000000000", p.ContentTokenParams.FinalPrice)   // 1e18, 1 to 1 to ION
+		require.Equal(t, "1000000000000000000", p.ContentTokenParams.InitialPrice) // 1e18, 1 to 1 to ION
 		require.Equal(t, "1000000000000000000000", p.ContentTokenParams.EmissionVolume)
 		require.Equal(t, "0x000000000000000000000000000000000000dead", p.ContentTokenParams.BondingCurveAlgAddress)
 		require.NotNil(t, p.CreatorTokenParams)
@@ -285,13 +282,17 @@ func TestGetTokenPricing(t *testing.T) {
 	})
 
 	t.Run("buy_online_plus_content_token_1plus_swap", func(t *testing.T) {
+		helperInsertTestUser(t, ctx, db, creatorExternalAddr, creatorPubkey, "Creator Double", "", true, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db, creatorContractAddr, creatorExternalAddr, "CREADBL", "profile", creatorExternalAddr, "1000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperInsertBaseTokenPrice(t, ctx, db, creatorContractAddr, "CREADBL", 0.75)
+
 		creatorPubkey := "creator_double_swap"
 		contentExternalAddr := "30175:" + creatorPubkey + ":post123"
 
 		amount := big.NewInt(1000000000000000000) // 1 creator token
 		p, err := ta.GetTokenPricing(ctx, contentExternalAddr, TradeTypeBuy, amount, nil, 0)
-		tokensOut, tokensBNB, tokenPriceUSD, ionPriceReturned, bnbPriceReturned := p.AmountInBase, p.AmountInBNB, p.AmountInUSD, p.IonPriceInUSD, p.BNBPriceInUSD
 		require.NoError(t, err)
+		tokensOut, tokensBNB, tokenPriceUSD, ionPriceReturned, bnbPriceReturned := p.AmountInBase, p.AmountInBNB, p.AmountInUSD, p.IonPriceInUSD, p.BNBPriceInUSD
 		require.Equal(t, big.NewInt(950000000000000000).String(), tokensOut.String(), "Should get 0.95 content tokens")
 		require.InDelta(t, 0.75, tokenPriceUSD, 0.0001, "Should be $0.75")
 		require.Greater(t, tokensBNB.Int64(), int64(0))
