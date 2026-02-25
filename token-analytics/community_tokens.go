@@ -513,12 +513,12 @@ func defaultStartTokenParamsForBase(ctx context.Context, cfg *config, ionPriceCa
 
 	initial, err := convertFromION(ctx, cfg, ionPriceCache, db, bc, p.InitialPrice, baseToken, tokenType, func(params createTokenDefaults) string { return params.InitialPrice }, amountToBuy, creatorTokenForTwistedBuy)
 	if err != nil {
-		return nil, "", "", errors.Wrapf(err, "failed to convert initial price to %v: %w", baseToken)
+		return nil, "", "", errors.Wrapf(err, "failed to convert initial price to %v", baseToken)
 	}
 
 	final, err := convertFromION(ctx, cfg, ionPriceCache, db, bc, p.FinalPrice, baseToken, tokenType, func(params createTokenDefaults) string { return params.FinalPrice }, amountToBuy, creatorTokenForTwistedBuy)
 	if err != nil {
-		return nil, "", "", errors.Wrapf(err, "failed to convert final price to %v: %w", baseToken)
+		return nil, "", "", errors.Wrapf(err, "failed to convert final price to %v", baseToken)
 	}
 
 	return &StartTokenParams{
@@ -573,7 +573,7 @@ func convertFromION(ctx context.Context, cfg *config, ionPriceCache *xsync.Map[s
 			initial = new(big.Int).Mul(inBase, big.NewInt(1e18))
 		}
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to convert initial price to %v: %w", baseToken)
+			return nil, errors.Wrapf(err, "failed to convert initial price to %v", baseToken)
 		}
 	}
 	return initial, nil

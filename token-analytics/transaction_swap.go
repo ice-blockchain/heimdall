@@ -740,9 +740,9 @@ func (t *tokenAnalyticsUsers) ValidateTransaction(ctx context.Context, txPayload
 		if len(allTokens) == 0 {
 			return fmt.Errorf("no tokens found in Fat Address")
 		}
-		for _, token := range allTokens {
+		for i, token := range allTokens {
 			base := t.cfg.IONTokenAddress
-			if len(allTokens) > 1 {
+			if len(allTokens) > 1 && token.Platform == PlatformGroupIonConnect && token.Type != TokenTypeProfile {
 				base = baseForTwistedSwapIsNotExistYet
 			}
 			var swapAmount *big.Int
@@ -771,17 +771,17 @@ func (t *tokenAnalyticsUsers) ValidateTransaction(ctx context.Context, txPayload
 			}
 			if token.TotalSupply != nil {
 				if token.TotalSupply.String() != expectedParams.EmissionVolume {
-					return errors.Wrapf(ErrValidationFailed, "total supply mismatch: expected %s, got %s", expectedParams.EmissionVolume, token.TotalSupply)
+					return errors.Wrapf(ErrValidationFailed, "total supply mismatch for %v: expected %s, got %s", i, expectedParams.EmissionVolume, token.TotalSupply)
 				}
 			}
 			if token.StartPrice != nil {
 				if token.StartPrice.String() != expectedParams.InitialPrice {
-					return errors.Wrapf(ErrValidationFailed, "start price mismatch: expected %s, got %s", expectedParams.InitialPrice, token.StartPrice)
+					return errors.Wrapf(ErrValidationFailed, "start price mismatch: expected %s, got %s", i, expectedParams.InitialPrice, token.StartPrice)
 				}
 			}
 			if token.EndPrice != nil {
 				if token.EndPrice.String() != expectedParams.FinalPrice {
-					return errors.Wrapf(ErrValidationFailed, "end price mismatch: expected %s, got %s", expectedParams.FinalPrice, token.EndPrice)
+					return errors.Wrapf(ErrValidationFailed, "end price mismatch for %v: expected %s, got %s", i, expectedParams.FinalPrice, token.EndPrice)
 				}
 			}
 		}

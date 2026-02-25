@@ -72,10 +72,15 @@ func (m *mockCoinImport) ImportTokenizedCommunitiesCoin(ctx context.Context, coi
 	return nil, nil
 }
 
-type mockBondingCurveForBalanceUpdater struct{}
+type mockBondingCurveForBalanceUpdater struct {
+	pricing *big.Int
+}
 
 func (m *mockBondingCurveForBalanceUpdater) Pricing(ctx context.Context, baseToken common.Address, targetToken []byte, amount *big.Int, sale bool) (*big.Int, error) {
-	return big.NewInt(1000000000000000), nil
+	if m.pricing == nil {
+		return big.NewInt(1000000000000000), nil
+	}
+	return m.pricing, nil
 }
 
 func (m *mockBondingCurveForBalanceUpdater) Progress(ctx context.Context, pairId common.Hash) (*bondingcurve.BondingCurveProgress, error) {
