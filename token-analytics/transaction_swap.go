@@ -744,6 +744,18 @@ func (t *tokenAnalyticsUsers) ValidateTransaction(ctx context.Context, txPayload
 			base := t.cfg.IONTokenAddress
 			if len(allTokens) > 1 && token.Platform == PlatformGroupIonConnect && token.Type != TokenTypeProfile {
 				base = baseForTwistedSwapIsNotExistYet
+			} else {
+				var baseTokenErr error
+				base, baseTokenErr = determineBaseTokenFromExternalAddress(ctx, t.cfg, t.ingestedDataDB, token.ExternalAddress)
+				if baseTokenErr != nil {
+					if errors.Is(baseTokenErr, storage.ErrNotFound) {
+						base = baseForTwistedSwapIsNotExistYet
+						baseTokenErr = nil
+					}
+					if baseTokenErr != nil {
+						return fmt.Errorf("failed to determine base token for %s (from Fat Address %x): %w", token.ExternalAddress, toTokenBytes, baseTokenErr)
+					}
+				}
 			}
 			var swapAmount *big.Int
 			amountIn, ok := swapParams["amountIn"]
