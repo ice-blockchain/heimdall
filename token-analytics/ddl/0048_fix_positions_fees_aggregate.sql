@@ -240,23 +240,16 @@ BEGIN
 
         INSERT INTO user_token_positions (
             user_blockchain_address, contract_address, external_address, user_external_address,
-            amount, avg_buy_price_usd, total_invested_usd, total_realized_usd, total_fees_usd, updated_at
+            amount, total_invested_usd, total_realized_usd, total_fees_usd, updated_at
         )
         VALUES (
                    p_user_blockchain_address, p_token_address, p_token_external_address,
                    v_user_external_address,
-                   0, p_price_usd, v_cost_usd, 0, v_fee_usd, p_block_timestamp
+                   0, v_cost_usd, 0, v_fee_usd, p_block_timestamp
                )
         ON CONFLICT (user_blockchain_address, contract_address) DO UPDATE SET
             total_invested_usd = user_token_positions.total_invested_usd + EXCLUDED.total_invested_usd,
             total_fees_usd = user_token_positions.total_fees_usd + EXCLUDED.total_fees_usd,
-            -- Weighted average: (old_invested + new_invested) / (old_tokens + new_tokens)
-            avg_buy_price_usd = (user_token_positions.total_invested_usd + EXCLUDED.total_invested_usd) /
-                                NULLIF(
-                                    (user_token_positions.total_invested_usd / NULLIF(user_token_positions.avg_buy_price_usd, 0)) +
-                                    (EXCLUDED.total_invested_usd / NULLIF(p_price_usd, 0)),
-                                    0
-                                ),
             updated_at = EXCLUDED.updated_at,
             user_external_address = COALESCE(EXCLUDED.user_external_address, user_token_positions.user_external_address);
     ELSE -- sell
@@ -440,3 +433,5 @@ BEGIN
         p_transaction_hash, v_token_address, v_user_address, v_token_external_address;
 END;
 $$ LANGUAGE plpgsql;
+
+ALTER TABLE user_token_positions DROP COLUMN IF EXISTS avg_buy_price_usd;

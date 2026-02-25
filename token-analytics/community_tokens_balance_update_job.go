@@ -136,17 +136,15 @@ func (t *tokenAnalytics) setOrIncrUserPosition(ctx context.Context, userBlockcha
 	rowsUpdated, err := storage.Exec(ctx, t.ingestedDataDB, fmt.Sprintf(`
 		INSERT INTO user_token_positions (
 			user_blockchain_address, contract_address, external_address, user_external_address,
-			amount, avg_buy_price_usd, total_invested_usd, total_realized_usd, updated_at, balance_notified_at,
+			amount, total_invested_usd, total_realized_usd, updated_at, balance_notified_at,
 		    last_update_block, last_update_tx_hash
 		)
 		VALUES (
 			$1, $2, $3, $4,
-			$5, 0, 0, 0, NOW(), NOW(), $6, $7
+			$5, 0, 0, NOW(), NOW(), $6, $7
 		)
 		ON CONFLICT (user_blockchain_address, contract_address) DO UPDATE SET
 			%[1]v
-			avg_buy_price_usd = CASE WHEN EXCLUDED.amount = 0 THEN 0
-									 ELSE user_token_positions.avg_buy_price_usd END,
 			updated_at = EXCLUDED.updated_at,
 		    last_update_block = excluded.last_update_block,
 		    last_update_tx_hash = excluded.last_update_tx_hash,                  

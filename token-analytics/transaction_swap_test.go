@@ -333,7 +333,6 @@ func TestOnSwap(t *testing.T) {
 		require.Equal(t, ionConnectAddr, position.ExternalAddress)
 		// Balance is updated by River queue via RPC (mocked to return 1 token)
 		require.Equal(t, "1000000000000000000", position.Amount) // 1 token from mock RPC
-		require.Equal(t, 0.1, position.AvgBuyPrice)              // $0.1
 		require.Equal(t, 0.1, position.TotalInvested)            // 1 ION * $0.1 = $0.1
 
 		redisKey := keyUserPositionOfToken(ionConnectAddr)
@@ -541,9 +540,7 @@ func TestOnSwap(t *testing.T) {
 
 		position := helperGetUserPosition(t, ctx, db, userAddr, contractAddress)
 		require.Equal(t, "1000000000000000000", position.Amount) // 2 - 1 = 1 token left
-		// After buying 2 tokens at price $0.1 (total invested $0.2), avg buy price = $0.1
-		require.InDelta(t, 0.1, position.AvgBuyPrice, 0.001)
-		require.InDelta(t, 0.2, position.TotalInvested, 0.001) // 2 ION * $0.1
+		require.InDelta(t, 0.2, position.TotalInvested, 0.001)   // 2 ION * $0.1
 
 		redisKey := keyUserPositionOfToken(ionConnectAddr)
 		userIonConnect := "0:" + masterPubkey + ":" // kind=0 for user profile
@@ -846,7 +843,6 @@ func TestOnSwap(t *testing.T) {
 		require.Equal(t, strings.ToLower(contentContractAddr), position.ContractAddress)
 		require.Equal(t, contentExternalAddr, position.ExternalAddress)
 		require.Equal(t, "1000000000000000000", position.Amount)
-		require.Equal(t, 0.5, position.AvgBuyPrice)
 
 		redisKey := keyUserPositionOfToken(contentExternalAddr)
 		userIonConnect := "0:" + buyerPubkey + ":"
@@ -1386,7 +1382,6 @@ type positionResult struct {
 	ContractAddress string  `db:"contract_address"`
 	ExternalAddress string  `db:"external_address"`
 	Amount          string  `db:"amount"`
-	AvgBuyPrice     float64 `db:"avg_buy_price_usd"`
 	TotalInvested   float64 `db:"total_invested_usd"`
 }
 
@@ -1395,7 +1390,7 @@ func helperGetUserPosition(t *testing.T, ctx context.Context, db *storage.DB, us
 
 	positions, err := storage.Select[positionResult](ctx, db,
 		`SELECT user_blockchain_address, contract_address, external_address, amount,
-	        avg_buy_price_usd, total_invested_usd
+	        total_invested_usd
 	 FROM user_token_positions
 	 WHERE user_blockchain_address = $1 AND contract_address = $2`,
 		strings.ToLower(userAddress), strings.ToLower(contractAddress))

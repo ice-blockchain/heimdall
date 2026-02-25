@@ -1531,14 +1531,13 @@ func helperInsertUserTokenPosition(t *testing.T, ctx context.Context, db *storag
 	query := `
 		INSERT INTO user_token_positions (
 			updated_at, user_blockchain_address, contract_address, external_address, user_external_address,
-			amount, avg_buy_price_usd, total_invested_usd, total_realized_usd
+			amount, total_invested_usd, total_realized_usd
 		)
-		VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, $8)
+		VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT (user_blockchain_address, contract_address) DO UPDATE SET
 			amount = EXCLUDED.amount,
 			external_address = EXCLUDED.external_address,
 			user_external_address = EXCLUDED.user_external_address,
-		    avg_buy_price_usd = EXCLUDED.avg_buy_price_usd,
 		    total_invested_usd = EXCLUDED.total_invested_usd,
 		    total_realized_usd = EXCLUDED.total_realized_usd,
 		    updated_at = NOW()
@@ -1549,7 +1548,6 @@ func helperInsertUserTokenPosition(t *testing.T, ctx context.Context, db *storag
 		externalAddress,
 		userExternalAddress,
 		amount,
-		avgBuyPriceUSD,
 		totalInvestedUSD,
 		realized,
 	)

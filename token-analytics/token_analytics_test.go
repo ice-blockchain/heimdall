@@ -2174,12 +2174,11 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 
 		type positionResult struct {
 			Amount           string  `db:"amount"`
-			AvgBuyPriceUSD   float64 `db:"avg_buy_price_usd"`
 			TotalInvestedUSD float64 `db:"total_invested_usd"`
 			TotalRealizedUSD float64 `db:"total_realized_usd"`
 		}
 		pr, err := storage.Get[positionResult](ctx, db, `
-			SELECT amount::TEXT, avg_buy_price_usd, total_invested_usd, total_realized_usd
+			SELECT amount::TEXT, total_invested_usd, total_realized_usd
 			FROM user_token_positions
 			WHERE user_blockchain_address = $1 AND contract_address = $2
 		`, testUserAddr, testTokenAddr)
@@ -2189,7 +2188,6 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 		// v_cost_usd := (p_input_amount / 1e18) * p_ion_price_usd
 		// v_cost_usd = (1000000000000000000000 / 1e18) * 0.003 = 1000 * 0.003 = 3 USD
 		require.InDelta(t, 3.0, pr.TotalInvestedUSD, 0.000001, "Total invested = (1000 * 10^18 / 1e18) * 0.003 USD = 3 USD")
-		require.InDelta(t, priceUSD, pr.AvgBuyPriceUSD, 0.000001, "Avg buy price should match token price")
 		require.Equal(t, 0.0, pr.TotalRealizedUSD, "Realized USD should be 0 for buy")
 	})
 

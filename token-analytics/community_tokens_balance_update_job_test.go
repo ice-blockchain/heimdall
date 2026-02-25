@@ -287,70 +287,6 @@ func TestBalanceUpdateJob_XcomPlatform(t *testing.T) {
 	require.NotEqual(t, 0.0, anyPostBcScore, "Xcom post token should be in anyPost bonding curve set")
 }
 
-func TestBalanceUpdateJob_SellToZeroResetsAvgBuyPrice(t *testing.T) {
-	t.Parallel()
-	ctx := t.Context()
-	db, connString, release := helperCreateDBWithConnString(t)
-	defer release()
-
-	mockBackend, _, _ := fixture.SetupMockedBondingCurveBackend(t, fixture.DefaultMockBackendConfig())
-	mockBackend.SetBalanceOfResponse(big.NewInt(0)) // 0 tokens (sell-to-zero)
-	mockBC := fixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
-
-	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC))
-	defer ta.Close()
-
-	userBlockchainAddr := "0xSELLZERO0000000000000000000000000001"
-	userExternalAddr := "0:sellzero_user:"
-	contractAddr := "0xSELLZEROTOKEN000000000000000000000001"
-	tokenExternalAddr := "0:sellzero_user:token1"
-	pairID := "0xbbbb000000000000000000000000000000000000000000000000000000000001"
-	baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
-
-	helperInsertTestUser(t, ctx, db, "sellzero_user", "sellzero", "Sell Zero User", userBlockchainAddr, false, PlatformGroupIonConnect)
-	helperInsertTestToken(t, ctx, db, contractAddr, tokenExternalAddr, "SZT", "profile", "sellzero_user",
-		"1000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
-	helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddr, pairID, baseToken)
-	helperInsertBaseTokenPrice(t, ctx, db, baseToken, "ION", 0.5)
-
-	_, err := storage.Exec(ctx, db, `
-		INSERT INTO user_token_positions (
-			user_blockchain_address, contract_address, external_address, user_external_address,
-			amount, avg_buy_price_usd, total_invested_usd, total_realized_usd, updated_at
-		) VALUES ($1, $2, $3, $4, 1000000000000000000, 0.05, 5.0, 0, NOW())
-	`, userBlockchainAddr, contractAddr, tokenExternalAddr, userExternalAddr)
-	require.NoError(t, err)
-
-	zeroBal := "0"
-	err = ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
-		UserBlockchainAddress: userBlockchainAddr,
-		UserExternalAddress:   userExternalAddr,
-		ContractAddress:       contractAddr,
-		TokenExternalAddress:  tokenExternalAddr,
-		TransactionHash:       "0xsellzero_tx1",
-		PairID:                pairID,
-		BaseToken:             baseToken,
-		TokenType:             "profile",
-		Platform:              PlatformGroupIonConnect,
-		DummyBalance:          &zeroBal,
-	})
-	require.NoError(t, err)
-
-	helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
-
-	type position struct {
-		Amount         string  `db:"amount"`
-		AvgBuyPriceUSD float64 `db:"avg_buy_price_usd"`
-	}
-	pos, err := storage.Get[position](ctx, db, `
-		SELECT amount, avg_buy_price_usd FROM user_token_positions
-		WHERE user_blockchain_address = $1 AND contract_address = $2
-	`, userBlockchainAddr, contractAddr)
-	require.NoError(t, err)
-	require.Equal(t, "0", pos.Amount, "Balance should be 0")
-	require.Equal(t, 0.0, pos.AvgBuyPriceUSD, "avg_buy_price should reset to 0 on sell-to-zero")
-}
-
 func TestBalanceUpdateJob_MultiAddressAggregateRedis(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
@@ -436,9 +372,9 @@ func helperInsertUserPosition(t testing.TB, ctx context.Context, db *storage.DB,
 	_, err := storage.Exec(ctx, db, `
 		INSERT INTO user_token_positions (
 			user_blockchain_address, contract_address, external_address, user_external_address,
-			amount, avg_buy_price_usd, total_invested_usd, total_realized_usd, updated_at
+			amount, total_invested_usd, total_realized_usd, updated_at
 		)
-		VALUES ($1, $2, $3, $4, $5, 0, 0, 0, NOW())
+		VALUES ($1, $2, $3, $4, $5, 0, 0, NOW())
 	`, userBlockchainAddr, contractAddr, tokenExternalAddr, userExternalAddr, amount)
 	require.NoError(t, err)
 }
