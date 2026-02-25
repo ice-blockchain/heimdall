@@ -542,6 +542,8 @@ type (
 		PriceUsd                   float64 `db:"price_usd"`
 		BaseProfileContractAddress *string `db:"base_profile_contract_address"`
 		BaseProfileExternalAddress *string `db:"base_profile_external_address"`
+		BaseProfilePairId          *string `db:"base_profile_pair_id"`
+		BaseProfileBaseToken       *string `db:"base_profile_base_token"`
 	}
 	fee struct {
 		Amount float64 `db:"amount"`
