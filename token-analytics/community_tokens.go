@@ -222,7 +222,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 					if creatorErr == nil && creatorToken.ContractAddress != "" {
 						baseToken = creatorToken.ContractAddress
 					} else {
-						baseToken, err = t.determineBaseTokenFromExternalAddress(ctx, creatorExternalAddress)
+						baseToken, err = determineBaseTokenFromExternalAddress(ctx, t.cfg, t.ingestedDataDB, creatorExternalAddress)
 						if err != nil {
 							if errors.Is(err, storage.ErrNotFound) {
 								baseToken = baseForTwistedSwapIsNotExistYet
@@ -284,7 +284,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 					// - X.com tokens (numeric ID) → ION
 					// - ONLINE+ profile tokens (0:pubkey:) → ION
 					// - ONLINE+ content tokens (0:pubkey:contentId) → creator's profile token
-					baseToken, baseTokenErr := t.determineBaseTokenFromExternalAddress(ctx, actualTokenAddress.ExternalAddress)
+					baseToken, baseTokenErr := determineBaseTokenFromExternalAddress(ctx, t.cfg, t.ingestedDataDB, actualTokenAddress.ExternalAddress)
 					if baseTokenErr != nil {
 						return nil, fmt.Errorf("failed to determine base token for %s (from Fat Address %s): %w", actualTokenAddress.ExternalAddress, externalAddress, baseTokenErr)
 					}
@@ -332,7 +332,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 	}
 	if result.BaseToken == "" {
 		var baseTokenErr error
-		result.BaseToken, baseTokenErr = t.determineBaseTokenFromExternalAddress(ctx, externalAddress)
+		result.BaseToken, baseTokenErr = determineBaseTokenFromExternalAddress(ctx, t.cfg, t.ingestedDataDB, externalAddress)
 		if baseTokenErr != nil {
 			return nil, fmt.Errorf("failed to determine base token for %s: %w", externalAddress, baseTokenErr)
 		}
@@ -455,19 +455,19 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 	return p, nil
 }
 
-func (t *tokenAnalytics) determineBaseTokenFromExternalAddress(ctx context.Context, externalAddress string) (string, error) {
+func determineBaseTokenFromExternalAddress(ctx context.Context, cfg *config, db storage.Querier, externalAddress string) (string, error) {
 	if !strings.Contains(externalAddress, ":") {
-		return t.cfg.IONTokenAddress, nil
+		return cfg.IONTokenAddress, nil
 	}
 	parts := strings.Split(externalAddress, ":")
 	if len(parts) < 2 {
 		log.Warn(fmt.Sprintf("Invalid ONLINE_PLUS external address format: %s, defaulting to ION", externalAddress))
 
-		return t.cfg.IONTokenAddress, nil
+		return cfg.IONTokenAddress, nil
 	}
 	kind := parts[0]
 	if kind == strconv.Itoa(nostr.KindProfileMetadata) {
-		return t.cfg.IONTokenAddress, nil
+		return cfg.IONTokenAddress, nil
 	}
 	creatorPubkey := parts[1]
 	if creatorPubkey == "" {
@@ -477,14 +477,14 @@ func (t *tokenAnalytics) determineBaseTokenFromExternalAddress(ctx context.Conte
 		ContractAddress string `db:"contract_address"`
 	}
 	creatorExternalAddress := BuildProfileExternalAddress(creatorPubkey)
-	creatorToken, err := storage.Get[creatorTokenInfo](ctx, t.ingestedDataDB, `
+	creatorToken, err := storage.Get[creatorTokenInfo](ctx, db, `
 		SELECT contract_address
 		FROM tokens
 		WHERE external_address = $1
 	`, creatorExternalAddress)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
-			return t.cfg.IONTokenAddress, storage.ErrNotFound
+			return cfg.IONTokenAddress, storage.ErrNotFound
 		}
 		return "", fmt.Errorf("failed to get creator token info for %s: %w", creatorExternalAddress, err)
 	}
