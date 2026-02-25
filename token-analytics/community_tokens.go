@@ -566,7 +566,11 @@ func convertFromION(ctx context.Context, cfg *config, ionPriceCache *xsync.Map[s
 					return nil, errors.Errorf("token type %s not found in bonding curve config", TokenTypeProfile)
 				}
 			}
-			initial = new(big.Int).Quo(bigInitial, profilePrice)
+			inBase := new(big.Int).Div(initial, profilePrice)
+			if inBase.Cmp(big.NewInt(1)) < 0 {
+				inBase = big.NewInt(1)
+			}
+			initial = new(big.Int).Mul(inBase, big.NewInt(1e18))
 		}
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to convert initial price to %v: %w", baseToken)

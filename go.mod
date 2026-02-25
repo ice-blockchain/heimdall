@@ -45,7 +45,7 @@ require (
 	github.com/libdns/cloudflare v0.2.2
 	github.com/lucasb-eyer/go-colorful v1.3.0
 	github.com/nbd-wtf/go-nostr v0.52.3
-	github.com/openai/openai-go/v3 v3.23.0
+	github.com/openai/openai-go/v3 v3.24.0
 	github.com/pkg/errors v0.9.1
 	github.com/puzpuzpuz/xsync/v4 v4.4.0
 	github.com/questdb/go-questdb-client/v4 v4.1.0
@@ -95,7 +95,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0 // indirect
 	github.com/MicahParks/keyfunc v1.9.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20260224171832-d0e24df9ee63 // indirect
+	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20260225065256-91dd007ecddc // indirect
 	github.com/VictoriaMetrics/fastcache v1.13.3 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.41.2 // indirect
@@ -364,7 +364,7 @@ require (
 	golang.org/x/telemetry v0.0.0-20260209163413-e7419c687ee4 // indirect
 	golang.org/x/text v0.34.0 // indirect
 	golang.org/x/tools v0.42.0 // indirect
-	google.golang.org/api v0.268.0 // indirect
+	google.golang.org/api v0.269.0 // indirect
 	google.golang.org/appengine/v2 v2.0.6 // indirect
 	google.golang.org/genproto v0.0.0-20260223185530-2f722ef697dc // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260223185530-2f722ef697dc // indirect
