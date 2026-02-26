@@ -270,8 +270,8 @@ github.com/envoyproxy/go-control-plane/ratelimit v0.1.0 h1:/G9QYbddjL25KvtKTv3an
 github.com/envoyproxy/go-control-plane/ratelimit v0.1.0/go.mod h1:Wk+tMFAFbCXaJPzVVHnPgRKdUdwW/KdbRt94AzgRee4=
 github.com/envoyproxy/protoc-gen-validate v1.3.3 h1:MVQghNeW+LZcmXe7SY1V36Z+WFMDjpqGAGacLe2T0ds=
 github.com/envoyproxy/protoc-gen-validate v1.3.3/go.mod h1:TsndJ/ngyIdQRhMcVVGDDHINPLWB7C82oDArY51KfB0=
-github.com/ethereum/c-kzg-4844/v2 v2.1.5 h1:aVtoLK5xwJ6c5RiqO8g8ptJ5KU+2Hdquf6G3aXiHh5s=
-github.com/ethereum/c-kzg-4844/v2 v2.1.5/go.mod h1:u59hRTTah4Co6i9fDWtiCjTrblJv0UwsqZKCc0GfgUs=
+github.com/ethereum/c-kzg-4844/v2 v2.1.6 h1:xQymkKCT5E2Jiaoqf3v4wsNgjZLY0lRSkZn27fRjSls=
+github.com/ethereum/c-kzg-4844/v2 v2.1.6/go.mod h1:8HMkUZ5JRv4hpw/XUrYWSQNAUzhHMg2UDb/U+5m+XNw=
 github.com/ethereum/go-bigmodexpfix v0.0.0-20250911101455-f9e208c548ab h1:rvv6MJhy07IMfEKuARQ9TKojGqLVNxQajaXEp/BoqSk=
 github.com/ethereum/go-bigmodexpfix v0.0.0-20250911101455-f9e208c548ab/go.mod h1:IuLm4IsPipXKF7CW5Lzf68PIbZ5yl7FFd74l/E0o9A8=
 github.com/ethereum/go-ethereum v1.17.0 h1:2D+1Fe23CwZ5tQoAS5DfwKFNI1HGcTwi65/kRlAVxes=
@@ -475,8 +475,8 @@ github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5 h1:
 github.com/ice-blockchain/go-nostr v0.42.3-ion.0.20250618110920-2070eacdb5f5/go.mod h1:or80JBz1VHXxKN5qXBNYFooWcfjUPIQzbNUVZ7FTFzo=
 github.com/ice-blockchain/go/src v0.0.0-20251117100638-ebce142e0ce4 h1:MuIvX5CpkDfDyThLXK/GrG1+sRDJoy+YwX5SuygBeag=
 github.com/ice-blockchain/go/src v0.0.0-20251117100638-ebce142e0ce4/go.mod h1:pVzkmaIwkLaJ5cKPHPtuKyxaXiTsa/V7kbbgLmsr4Hw=
-github.com/ice-blockchain/subzero v1.536.0 h1:P2aFXgCjVBcbfTifrT9b7U8GCHCb5i9lD7qkEGBDmZ8=
-github.com/ice-blockchain/subzero v1.536.0/go.mod h1:OXDDg20SnyV6MrZLITEqtVyjHGcwDxL2V3S+c7qIA8A=
+github.com/ice-blockchain/subzero v1.537.0 h1:fR8DHYbR3Jh7i51+8o3FHBWcfk8gRVqPazUgkO4bFMQ=
+github.com/ice-blockchain/subzero v1.537.0/go.mod h1:sR9eJc3OYsfYGQuouIqtZUkXNuaTLMkAjSSjw65JlSE=
 github.com/ice-blockchain/wintr v1.174.0 h1:b3956zcA/+qWpe8755+NvjXoB8ihzwjYO1hvnsp62ew=
 github.com/ice-blockchain/wintr v1.174.0/go.mod h1:98u6HQTxoVPzi0CKm6VHQS0OV6SLhH/SESYMMOYwZgI=
 github.com/icholy/digest v1.1.0 h1:HfGg9Irj7i+IX1o1QAmPfIBNu/Q5A5Tu3n/MED9k9H4=
