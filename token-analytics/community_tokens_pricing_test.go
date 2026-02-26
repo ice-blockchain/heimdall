@@ -262,8 +262,8 @@ func TestGetTokenPricing(t *testing.T) {
 		require.Greater(t, tokensBNB.Int64(), int64(0))
 		require.Equal(t, ionPrice, ionPriceReturned)
 		require.Equal(t, bnbPrice, bnbPriceReturned)
-		require.Equal(t, "1000000000000000000", p.ContentTokenParams.FinalPrice)   // 1e18, 1 to 1 to ION
-		require.Equal(t, "1000000000000000000", p.ContentTokenParams.InitialPrice) // 1e18, 1 to 1 to ION
+		require.Equal(t, "95000", p.ContentTokenParams.FinalPrice)  // 1e18, 1 to 1 to ION
+		require.Equal(t, "9500", p.ContentTokenParams.InitialPrice) // 1e18, 1 to 1 to ION
 		require.Equal(t, "1000000000000000000000", p.ContentTokenParams.EmissionVolume)
 		require.Equal(t, "0x000000000000000000000000000000000000dead", p.ContentTokenParams.BondingCurveAlgAddress)
 		require.NotNil(t, p.CreatorTokenParams)

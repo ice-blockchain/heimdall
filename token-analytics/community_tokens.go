@@ -555,10 +555,11 @@ func convertFromION(ctx context.Context, cfg *config, ionPriceCache *xsync.Map[s
 				if baseToken == baseForTwistedSwapIsNotExistYet {
 					baseToken = cfg.IONTokenAddress
 				}
-				profilePrice, err = bc.Pricing(ctx, common.HexToAddress(baseToken), creatorFatAddress, amountToFirstBuy, false)
+				profileAmount, err := bc.Pricing(ctx, common.HexToAddress(baseToken), creatorFatAddress, amountToFirstBuy, false)
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to query price %+v for twisted swap (amount %v)", creatorTokenForTwistedBuy, amountToFirstBuy.String())
 				}
+				profilePrice, _ = new(big.Float).Mul(new(big.Float).Quo(new(big.Float).SetInt(amountToFirstBuy), new(big.Float).SetInt(profileAmount)), big.NewFloat(1e18)).Int(nil)
 			} else {
 				profile := cfg.BondingCurve.CreateTokenDefaults[TokenTypeProfile]
 				profilePrice, ok = new(big.Int).SetString(extract(profile), 10)
@@ -566,11 +567,8 @@ func convertFromION(ctx context.Context, cfg *config, ionPriceCache *xsync.Map[s
 					return nil, errors.Errorf("token type %s not found in bonding curve config", TokenTypeProfile)
 				}
 			}
-			inBase := new(big.Int).Div(initial, profilePrice)
-			if inBase.Cmp(big.NewInt(1)) < 0 {
-				inBase = big.NewInt(1)
-			}
-			initial = new(big.Int).Mul(inBase, big.NewInt(1e18))
+			inBase := new(big.Float).Mul(new(big.Float).Quo(new(big.Float).SetInt(initial), new(big.Float).SetInt(profilePrice)), big.NewFloat(1e18))
+			initial, _ = inBase.Int(nil)
 		}
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to convert initial price to %v", baseToken)

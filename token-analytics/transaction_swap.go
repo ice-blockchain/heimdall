@@ -556,11 +556,9 @@ func calculateIONtoBase(ctx context.Context, cfg *config, creatorTokenPricesION 
 		}
 		creatorTokenPrice, _ = creatorTokenPricesION.LoadOrStore(strings.ToLower(baseToken), creatorTokenPrice)
 	}
-	inBase := new(big.Int).Div(priceInION, creatorTokenPrice)
-	if inBase.Cmp(big.NewInt(1)) < 0 {
-		inBase = big.NewInt(1)
-	}
-	return new(big.Int).Mul(inBase, big.NewInt(1e18)), nil
+	inBase := new(big.Float).Mul(new(big.Float).Quo(new(big.Float).SetInt(priceInION), new(big.Float).SetInt(creatorTokenPrice)), big.NewFloat(1e18))
+	priceInBase, _ = inBase.Int(nil)
+	return priceInBase, nil
 }
 
 func keyUserPositionOfToken(ionConnectAddress string) string {
@@ -796,17 +794,17 @@ func (t *tokenAnalyticsUsers) ValidateTransaction(ctx context.Context, txPayload
 			}
 			if token.TotalSupply != nil {
 				if token.TotalSupply.String() != expectedParams.EmissionVolume {
-					return errors.Wrapf(ErrValidationFailed, "total supply mismatch for %v: expected %s, got %s", i, expectedParams.EmissionVolume, token.TotalSupply)
+					return errors.Wrapf(ErrValidationFailed, "total supply mismatch for %v: expected %v, got %s", i, expectedParams.EmissionVolume, token.TotalSupply)
 				}
 			}
 			if token.StartPrice != nil {
 				if token.StartPrice.String() != expectedParams.InitialPrice {
-					return errors.Wrapf(ErrValidationFailed, "start price mismatch: expected %s, got %s", i, expectedParams.InitialPrice, token.StartPrice)
+					return errors.Wrapf(ErrValidationFailed, "start price mismatch: expected for %v: %v, got %v", i, expectedParams.InitialPrice, token.StartPrice)
 				}
 			}
 			if token.EndPrice != nil {
 				if token.EndPrice.String() != expectedParams.FinalPrice {
-					return errors.Wrapf(ErrValidationFailed, "end price mismatch for %v: expected %s, got %s", i, expectedParams.FinalPrice, token.EndPrice)
+					return errors.Wrapf(ErrValidationFailed, "end price mismatch for %v: expected %v, got %v", i, expectedParams.FinalPrice, token.EndPrice)
 				}
 			}
 		}
