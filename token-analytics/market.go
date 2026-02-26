@@ -178,11 +178,10 @@ func (t *tokenAnalytics) SubscribeTradingStats(ctx context.Context, now stdlibti
 			select {
 			case <-ctx.Done():
 				return
-			case swap, ok := <-swaps:
-				if !ok {
+			case _, open := <-swaps:
+				if !open {
 					return
 				}
-				_ = swap
 				rec, ok := t.tradingStatsRecentData.Load(externalAddress)
 				if ok {
 					stats := rec.TradeStats()
