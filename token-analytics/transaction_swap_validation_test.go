@@ -101,7 +101,7 @@ func TestTransactionValidation(t *testing.T) {
 		}
 
 		tu.bondingCurve = &mockBondingCurveForBalanceUpdater{
-			pricing: big.NewInt(9749900000000000),
+			pricing: big.NewInt(1000000000000000000),
 		}
 
 		swapData := `{
