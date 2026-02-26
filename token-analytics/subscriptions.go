@@ -83,13 +83,14 @@ func routeToSubscribers[T any, N interface {
 		addr := newEventTokenExternalAddr.ExternalAddress()
 		dest, ok := subs.Load(addr)
 		if ok {
-			dest.notifyClients.Range(func(_ string, clientNotifyChannel chan T) bool {
-				go func() {
+			dest.notifyClients.Range(func(userID string, clientNotifyChannel chan T) bool {
+				go func(ch chan T, val T) {
 					select {
-					case clientNotifyChannel <- newEventTokenExternalAddr.Value():
+					case ch <- val:
+					case <-time.After(10 * time.Millisecond):
 					case <-s.shutdown:
 					}
-				}()
+				}(clientNotifyChannel, newEventTokenExternalAddr.Value())
 				return true
 			})
 		}
@@ -120,7 +121,7 @@ func subscribe[T any](ctx context.Context, externalAddress, userID string, subs 
 	}()
 	progress, loaded := subs.LoadOrCompute(externalAddress, func() (newValue *subscription[T], cancel bool) {
 		notif := xsync.NewMap[string, chan T]()
-		nofifyClient := make(chan T)
+		nofifyClient := make(chan T, 100)
 		notif.Store(userID, nofifyClient)
 		nofifyClients = nofifyClient
 		return &subscription[T]{notifyClients: notif}, false
@@ -148,7 +149,7 @@ func (s *subscriptions) NotifyBondingCurveProgress(externalAddress string, progr
 }
 
 func (s *subscription[T]) addClientSub(userID string) chan T {
-	clientSub := make(chan T)
+	clientSub := make(chan T, 100)
 	prev, hasPrev := s.notifyClients.LoadAndStore(userID, clientSub)
 	if hasPrev {
 		close(prev)

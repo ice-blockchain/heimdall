@@ -971,7 +971,7 @@ func (s *service) StreamCommunityTokensTopHolders(ctx context.Context, req *serv
 func (s *service) StreamCommunityTokensLatestTrades(ctx context.Context, req *server.Request[TradeRequest]) (server.StreamEventEmitter[ta.Trade], error) {
 	emitter, err := wrapIntoStream[ta.Trade](1, func(addToStream func(t *ta.Trade, err error)) error {
 		if err := s.tokenAnalytics.SubscribeLatestTrades(ctx, req.Data.ExternalAddress, req.Token.GetDevicePublicKey(), addToStream); err != nil {
-			return errors.Wrapf(err, "failed to subscribe to latest-trades updates for  %v", req.Data.ExternalAddress)
+			return errors.Wrapf(err, "failed to subscribe to latest-trades updates for %v", req.Data.ExternalAddress)
 		}
 		return nil
 	})
@@ -1000,7 +1000,7 @@ func (s *service) StreamCommunityTokensTradingStats(ctx context.Context, req *se
 	now := time.Now().In(time.UTC)
 	emitter, err := wrapIntoStream[ta.TradeStats](100, func(addToStream func(t *ta.TradeStats, err error)) error {
 		if err := s.tokenAnalytics.SubscribeTradingStats(ctx, now, req.Data.ExternalAddress, req.Token.GetDevicePublicKey(), addToStream); err != nil {
-			return errors.Wrapf(err, "failed to subscribe to trading stats updates for  %v", req.Data.ExternalAddress)
+			return errors.Wrapf(err, "failed to subscribe to trading stats updates for %v", req.Data.ExternalAddress)
 		}
 		return nil
 	})
@@ -1073,32 +1073,59 @@ func (s *service) StreamCommunityTokenBondingCurveProgress(ctx context.Context, 
 }
 
 func wrapIntoStream[T any](initialBuffer int, impl func(addToStream func(t *T, err error)) error) (server.StreamEventEmitter[T], error) {
-	events := make(chan server.StreamEvent[T], initialBuffer)
-	addWithWrap := func(t *T, err error) {
-		if err != nil {
-			events <- server.StreamEvent[T]{
-				Err:  err,
-				Data: nil,
-				Type: "error",
-			}
-			return
-		}
-		if t == nil && err == nil {
-			events <- server.StreamEvent[T]{
-				Type: "eose",
-				Data: nil,
-			}
-			return
-		}
-		events <- server.StreamEvent[T]{
-			Data: t,
-			Type: "message",
-		}
-	}
 	return func(ctx context.Context) (<-chan server.StreamEvent[T], error) {
-		if err := impl(addWithWrap); err != nil {
-			return nil, errors.Wrapf(err, "failed to call stream implementation")
+		events := make(chan server.StreamEvent[T], initialBuffer)
+
+		addWithWrap := func(t *T, err error) {
+			if err != nil {
+				select {
+				case <-ctx.Done():
+					return
+				case events <- server.StreamEvent[T]{
+					Err:  err,
+					Data: nil,
+					Type: "error",
+				}:
+				}
+				return
+			}
+			if t == nil {
+				select {
+				case <-ctx.Done():
+					return
+				case events <- server.StreamEvent[T]{
+					Type: "eose",
+					Data: nil,
+				}:
+				}
+				return
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case events <- server.StreamEvent[T]{
+				Data: t,
+				Type: "message",
+			}:
+			}
 		}
+
+		go func() {
+			defer close(events)
+			if err := impl(addWithWrap); err != nil {
+				select {
+				case <-ctx.Done():
+				case events <- server.StreamEvent[T]{
+					Err:  errors.Wrapf(err, "failed to call stream implementation"),
+					Data: nil,
+					Type: "error",
+				}:
+				}
+				return
+			}
+			<-ctx.Done()
+		}()
+
 		return events, nil
 	}, nil
 }
