@@ -148,15 +148,6 @@ func (t *tokenAnalytics) RepopulateQuestDBTrades(ctx context.Context) error {
 			return errors.Wrapf(err, "failed to update redis ranking for tx %v contract %v %v user %v",
 				swap.TransactionHash, swap.ContractAddress, swap.ExternalAddress, swap.UserBlockchainAddress)
 		}
-		tradeInfo, err := t.fetchTradeInfoFromSwap(ctx, swap.TransactionHash, swap.ContractAddress, swap.UserBlockchainAddress)
-		if err != nil {
-			log.Error(errors.Wrapf(err, "failed to fetch trade info for tx %v contract %v user %v",
-				swap.TransactionHash, swap.ContractAddress, swap.UserBlockchainAddress))
-			errorCount++
-
-			continue
-		}
-		t.subscriptions.NotifySwap(tradeInfo)
 		processedCount++
 		if processedCount%100 == 0 {
 			stdlibtime.Sleep(100 * stdlibtime.Millisecond)

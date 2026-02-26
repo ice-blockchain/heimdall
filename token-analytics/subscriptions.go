@@ -50,8 +50,8 @@ func newSubscriptions(ctx context.Context) interface {
 	Notifier
 } {
 	s := &subscriptions{
-		swaps:                           make(chan *Trade),
-		bondingCurveProgressUpdates:     make(chan bondingCurveProgressUpdate),
+		swaps:                           make(chan *Trade, 1000),
+		bondingCurveProgressUpdates:     make(chan bondingCurveProgressUpdate, 1000),
 		swapSubs:                        xsync.NewMap[string, *subscription[*Trade]](),
 		bondingCurveProgressUpdatesSubs: xsync.NewMap[string, *subscription[*BondingCurveProgress]](),
 		shutdown:                        ctx.Done(),
