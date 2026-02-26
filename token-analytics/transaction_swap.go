@@ -797,14 +797,19 @@ func (t *tokenAnalyticsUsers) ValidateTransaction(ctx context.Context, txPayload
 					return errors.Wrapf(ErrValidationFailed, "total supply mismatch for %v: expected %v, got %s", i, expectedParams.EmissionVolume, token.TotalSupply)
 				}
 			}
+			slippage := 0.001
 			if token.StartPrice != nil {
-				if token.StartPrice.String() != expectedParams.InitialPrice {
-					return errors.Wrapf(ErrValidationFailed, "start price mismatch: expected for %v: %v, got %v", i, expectedParams.InitialPrice, token.StartPrice)
+				expectedBig, _ := new(big.Int).SetString(expectedParams.InitialPrice, 10)
+				delta, _ := new(big.Float).Mul(new(big.Float).SetInt(expectedBig), big.NewFloat(slippage)).Int(nil)
+				if token.StartPrice.Cmp(new(big.Int).Sub(expectedBig, delta)) < 0 || token.StartPrice.Cmp(new(big.Int).Add(expectedBig, delta)) > 0 {
+					return errors.Wrapf(ErrValidationFailed, "start price mismatch for %v: expected %v, got %s", i, expectedParams.InitialPrice, token.StartPrice)
 				}
 			}
 			if token.EndPrice != nil {
-				if token.EndPrice.String() != expectedParams.FinalPrice {
-					return errors.Wrapf(ErrValidationFailed, "end price mismatch for %v: expected %v, got %v", i, expectedParams.FinalPrice, token.EndPrice)
+				expectedBig, _ := new(big.Int).SetString(expectedParams.FinalPrice, 10)
+				delta, _ := new(big.Float).Mul(new(big.Float).SetInt(expectedBig), big.NewFloat(slippage)).Int(nil)
+				if token.EndPrice.Cmp(new(big.Int).Sub(expectedBig, delta)) < 0 || token.StartPrice.Cmp(new(big.Int).Add(expectedBig, delta)) > 0 {
+					return errors.Wrapf(ErrValidationFailed, "start price mismatch for %v: expected %v, got %s", i, expectedParams.FinalPrice, token.EndPrice)
 				}
 			}
 		}
