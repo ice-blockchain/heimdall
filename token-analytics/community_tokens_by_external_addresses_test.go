@@ -1428,14 +1428,15 @@ func helperInsertTestToken(t *testing.T, ctx context.Context, db *storage.DB,
 		end = "100000000"
 	}
 	priceModel := "0x000000000000000000000000000000000000dead"
+	pairID := "0x000000000000000000000000000000000000dead"
 	query := `
 		INSERT INTO tokens (
 			created_at, updated_at, contract_address, external_address, platform,
 			ticker, total_supply, content_author_id, type, 
 			market_cap_usd, price_usd, holders_count, lookup,
-			title, description, image_url, price_model, start_price, end_price
+			title, description, image_url, price_model, start_price, end_price, pair_id
 		)
-		VALUES (NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+		VALUES (NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 		ON CONFLICT (external_address) DO UPDATE SET
 			external_address = EXCLUDED.external_address,
 			ticker = EXCLUDED.ticker,
@@ -1467,6 +1468,7 @@ func helperInsertTestToken(t *testing.T, ctx context.Context, db *storage.DB,
 		priceModel,
 		start,
 		end,
+		pairID,
 	)
 	require.NoError(t, err, "failed to insert test token")
 }

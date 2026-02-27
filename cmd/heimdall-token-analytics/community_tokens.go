@@ -108,6 +108,7 @@ type (
 		ExternalAddress string   `uri:"externalAddressOrViewType" required:"true" swaggerignore:"true"`
 		Type            string   `form:"type" swaggerignore:"true" example:"buy"`
 		Amount          *big.Int `form:"amount" swaggerignore:"true" example:"100000000"`
+		AmountION       *big.Int `form:"amountION" swaggerignore:"true" example:"100000000"`
 		AmountBNB       *big.Int `form:"amountBNB" swaggerignore:"true" example:"100000000"`
 		AmountUSD       float64  `form:"amountUSD" swaggerignore:"true" example:"1.99"`
 	}
@@ -470,6 +471,7 @@ func (s *service) GetCommunityTokenBondingCurveProgress(ctx context.Context, req
 //	@Param			type						query		string	true	"Buy or sell"					example("buy")
 //	@Param			amount						query		int		false	"Amount of tokens to exchange (in wei)"
 //	@Param			amountBNB					query		int		false	"Amount of BNB to exchange (in wei)"
+//	@Param			amountION					query		int		false	"Amount of ION to exchange (in wei), for ion -> content purshases"
 //	@Param			amountUSD					query		float64	false	"Amount of USD to exchange (ex: 1.99)"
 //	@Success		200							{object}	PriceResponse
 //	@Failure		400							{object}	server.ResponseErrorBody	"if request parameters are invalid"
@@ -496,7 +498,7 @@ func (s *service) GetCommunityTokenPricing(ctx context.Context, req *server.Requ
 	if req.Data.AmountUSD != 0 && (req.Data.Amount != nil || req.Data.AmountBNB != nil) {
 		return nil, server.BadRequest(errors.Errorf("amount/amountBNB/amountUSD are mutually exclusive"), invalidPropertiesErrorCode)
 	}
-	pricing, err := s.tokenAnalytics.GetTokenPricing(ctx, req.Data.ExternalAddress, tradeType, req.Data.Amount, req.Data.AmountBNB, req.Data.AmountUSD)
+	pricing, err := s.tokenAnalytics.GetTokenPricing(ctx, req.Data.ExternalAddress, tradeType, req.Data.Amount, req.Data.AmountBNB, req.Data.AmountION, req.Data.AmountUSD)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pricing for token %v: %w", req.Data.ExternalAddress, err)
 	}

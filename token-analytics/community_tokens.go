@@ -19,6 +19,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/ice-blockchain/heimdall/coins"
+	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 )
@@ -153,7 +154,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	return nil
 }
 
-func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount *big.Int, amountBNB *big.Int, amountUSD float64) (pricing *Pricing, err error) {
+func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount, amountBNB, amountION *big.Int, amountUSD float64) (pricing *Pricing, err error) {
 	type tokenInfo struct {
 		BaseToken       string  `db:"base_token"`
 		ContractAddress string  `db:"contract_address"`
@@ -164,6 +165,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 		StartPrice      string  `db:"start_price"`
 		EndPrice        string  `db:"end_price"`
 		FeeSponsor      *string `db:"fee_sponsor"`
+		PairId          string  `db:"pair_id"`
 	}
 	ionPrice := t.ionPriceUSD.Load()
 	ionPriceInUSD := *ionPrice
@@ -192,6 +194,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
 			var baseToken string
+			var basePairId *common.Hash
 			if strings.HasPrefix(externalAddress, fatAddressV2Prefix) {
 				decodedBytes, hexErr := hex.DecodeString(strings.TrimPrefix(externalAddress, "0x"))
 				if hexErr != nil {
@@ -212,7 +215,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 					contractOrFatAddress = decodedBytes
 
 					creatorToken, creatorErr := storage.Get[tokenInfo](ctx, t.ingestedDataDB, `
-						SELECT contract_address, base_token 
+						SELECT contract_address, base_token, pair_id 
 						FROM tokens 
 						WHERE external_address = $1`, creatorExternalAddress)
 
@@ -221,8 +224,9 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 					}
 					if creatorErr == nil && creatorToken.ContractAddress != "" {
 						baseToken = creatorToken.ContractAddress
+						basePairId = new(common.HexToHash(creatorToken.PairId))
 					} else {
-						baseToken, err = determineBaseTokenFromExternalAddress(ctx, t.cfg, t.ingestedDataDB, creatorExternalAddress)
+						baseToken, basePairId, err = determineBaseTokenFromExternalAddress(ctx, t.cfg, t.ingestedDataDB, creatorExternalAddress)
 						if err != nil {
 							if errors.Is(err, storage.ErrNotFound) {
 								baseToken = baseForTwistedSwapIsNotExistYet
@@ -234,7 +238,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 						}
 					}
 					for _, tok := range allTokens {
-						tokenStartParams, _, feeSponsorAddress, tserr := defaultStartTokenParamsForBase(ctx, t.cfg, t.creatorTokenPricesION, t.ingestedDataDB, t.bondingCurve, baseToken, tok.Type, tok.Platform, amount, allTokens[0])
+						tokenStartParams, _, feeSponsorAddress, tserr := defaultStartTokenParamsForBase(ctx, t.cfg, t.creatorTokenPricesION, t.ingestedDataDB, t.bondingCurve, baseToken, tok.Type, tok.Platform, amount, basePairId)
 						if tserr != nil {
 							return nil, errors.Wrapf(err, "failed to get start token params for %v", tok.Type)
 						}
@@ -284,11 +288,12 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 					// - X.com tokens (numeric ID) → ION
 					// - ONLINE+ profile tokens (0:pubkey:) → ION
 					// - ONLINE+ content tokens (0:pubkey:contentId) → creator's profile token
-					baseToken, baseTokenErr := determineBaseTokenFromExternalAddress(ctx, t.cfg, t.ingestedDataDB, actualTokenAddress.ExternalAddress)
+					var baseTokenErr error
+					baseToken, basePairId, baseTokenErr = determineBaseTokenFromExternalAddress(ctx, t.cfg, t.ingestedDataDB, actualTokenAddress.ExternalAddress)
 					if baseTokenErr != nil {
 						return nil, fmt.Errorf("failed to determine base token for %s (from Fat Address %s): %w", actualTokenAddress.ExternalAddress, externalAddress, baseTokenErr)
 					}
-					tokenStartParams, _, feeSponsorAddress, tserr := defaultStartTokenParamsForBase(ctx, t.cfg, t.creatorTokenPricesION, t.ingestedDataDB, t.bondingCurve, baseToken, allTokens[0].Type, allTokens[0].Platform, nil, nil)
+					tokenStartParams, _, feeSponsorAddress, tserr := defaultStartTokenParamsForBase(ctx, t.cfg, t.creatorTokenPricesION, t.ingestedDataDB, t.bondingCurve, baseToken, allTokens[0].Type, allTokens[0].Platform, amountION, basePairId)
 					if tserr != nil {
 						return nil, errors.Wrapf(err, "failed to get start token params for %v", allTokens[0].Type)
 					}
@@ -332,7 +337,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 	}
 	if result.BaseToken == "" {
 		var baseTokenErr error
-		result.BaseToken, baseTokenErr = determineBaseTokenFromExternalAddress(ctx, t.cfg, t.ingestedDataDB, externalAddress)
+		result.BaseToken, _, baseTokenErr = determineBaseTokenFromExternalAddress(ctx, t.cfg, t.ingestedDataDB, externalAddress)
 		if baseTokenErr != nil {
 			return nil, fmt.Errorf("failed to determine base token for %s: %w", externalAddress, baseTokenErr)
 		}
@@ -366,14 +371,11 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 		return nil, errors.Wrapf(err, "failed to handle base token for end price usd calculation %v", result.BaseToken)
 	}
 	feeSponsorAddress := ""
-	_, feeSponsorId, feeSponsorAddr, tserr := defaultStartTokenParamsForBase(ctx, t.cfg, t.creatorTokenPricesION, t.ingestedDataDB, t.bondingCurve, result.BaseToken, result.Type, result.Platform, nil, nil)
+	createTokenParams := t.cfg.BondingCurve.CreateTokenDefaults[result.Type]
 	if result.FeeSponsor != nil {
 		feeSponsorAddress = *result.FeeSponsor
 	} else {
-		if tserr != nil {
-			return nil, errors.Wrapf(err, "failed to get start token params for %v", result.Type)
-		}
-		feeSponsorAddress = feeSponsorAddr
+		feeSponsorAddress = createTokenParams.FeeSponsorAddress
 	}
 	var fromToken, toToken []byte
 	if tradeType == TradeTypeBuy {
@@ -412,7 +414,7 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 		AmountInBase:      resAmount,
 		AmountInBNB:       resAmountBNB,
 		FeeSponsorAddress: feeSponsorAddress,
-		FeeSponsorId:      feeSponsorId,
+		FeeSponsorId:      createTokenParams.FeeSponsorId,
 		AmountInUSD:       amountUsd,
 		IonPriceInUSD:     *ionPrice,
 		BNBPriceInUSD:     bnbPriceInUSD,
@@ -455,46 +457,47 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 	return p, nil
 }
 
-func determineBaseTokenFromExternalAddress(ctx context.Context, cfg *config, db storage.Querier, externalAddress string) (string, error) {
+func determineBaseTokenFromExternalAddress(ctx context.Context, cfg *config, db storage.Querier, externalAddress string) (string, *common.Hash, error) {
 	if !strings.Contains(externalAddress, ":") {
-		return cfg.IONTokenAddress, nil
+		return cfg.IONTokenAddress, nil, nil
 	}
 	parts := strings.Split(externalAddress, ":")
 	if len(parts) < 2 {
 		log.Warn(fmt.Sprintf("Invalid ONLINE_PLUS external address format: %s, defaulting to ION", externalAddress))
 
-		return cfg.IONTokenAddress, nil
+		return cfg.IONTokenAddress, nil, nil
 	}
 	kind := parts[0]
 	if kind == strconv.Itoa(nostr.KindProfileMetadata) {
-		return cfg.IONTokenAddress, nil
+		return cfg.IONTokenAddress, nil, nil
 	}
 	creatorPubkey := parts[1]
 	if creatorPubkey == "" {
-		return "", fmt.Errorf("empty creator pubkey in external address: %s", externalAddress)
+		return "", nil, fmt.Errorf("empty creator pubkey in external address: %s", externalAddress)
 	}
 	type creatorTokenInfo struct {
 		ContractAddress string `db:"contract_address"`
+		PairId          string `db:"pair_id"`
 	}
 	creatorExternalAddress := BuildProfileExternalAddress(creatorPubkey)
 	creatorToken, err := storage.Get[creatorTokenInfo](ctx, db, `
-		SELECT contract_address
+		SELECT contract_address, pair_id
 		FROM tokens
 		WHERE external_address = $1
 	`, creatorExternalAddress)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
-			return cfg.IONTokenAddress, storage.ErrNotFound
+			return cfg.IONTokenAddress, nil, storage.ErrNotFound
 		}
-		return "", fmt.Errorf("failed to get creator token info for %s: %w", creatorExternalAddress, err)
+		return "", nil, fmt.Errorf("failed to get creator token info for %s: %w", creatorExternalAddress, err)
 	}
 
-	return creatorToken.ContractAddress, nil
+	return creatorToken.ContractAddress, new(common.HexToHash(creatorToken.PairId)), nil
 }
 
 func defaultStartTokenParamsForBase(ctx context.Context, cfg *config, ionPriceCache *xsync.Map[string, *big.Int], db storage.Querier, bc interface {
-	Pricing(ctx context.Context, baseToken common.Address, targetToken []byte, amount *big.Int, sale bool) (*big.Int, error)
-}, baseToken string, tokenType, tokenPlatform string, amountToBuy *big.Int, creatorTokenForTwistedBuy *fatAddressToken) (params *StartTokenParams, feeSponsorId, feeSponsorAddress string, err error) {
+	Progress(ctx context.Context, pairId common.Hash) (p *bondingcurve.BondingCurveProgress, err error)
+}, baseToken string, tokenType, tokenPlatform string, amountToBuy *big.Int, pairId *common.Hash) (params *StartTokenParams, feeSponsorId, feeSponsorAddress string, err error) {
 	p, ok := cfg.BondingCurve.CreateTokenDefaults[tokenType]
 	if !ok {
 		return nil, "", "", errors.Errorf("token type %s not found in bonding curve config", tokenType)
@@ -511,12 +514,12 @@ func defaultStartTokenParamsForBase(ctx context.Context, cfg *config, ionPriceCa
 		}, p.FeeSponsorId, p.FeeSponsorAddress, nil
 	}
 
-	initial, err := convertFromION(ctx, cfg, ionPriceCache, db, bc, p.InitialPrice, baseToken, tokenType, func(params createTokenDefaults) string { return params.InitialPrice }, amountToBuy, creatorTokenForTwistedBuy)
+	initial, err := convertFromION(ctx, cfg, ionPriceCache, db, bc, p.InitialPrice, baseToken, tokenType, func(params createTokenDefaults) string { return params.InitialPrice }, amountToBuy, pairId)
 	if err != nil {
 		return nil, "", "", errors.Wrapf(err, "failed to convert initial price to %v", baseToken)
 	}
 
-	final, err := convertFromION(ctx, cfg, ionPriceCache, db, bc, p.FinalPrice, baseToken, tokenType, func(params createTokenDefaults) string { return params.FinalPrice }, amountToBuy, creatorTokenForTwistedBuy)
+	final, err := convertFromION(ctx, cfg, ionPriceCache, db, bc, p.FinalPrice, baseToken, tokenType, func(params createTokenDefaults) string { return params.FinalPrice }, amountToBuy, pairId)
 	if err != nil {
 		return nil, "", "", errors.Wrapf(err, "failed to convert final price to %v", baseToken)
 	}
@@ -530,36 +533,43 @@ func defaultStartTokenParamsForBase(ctx context.Context, cfg *config, ionPriceCa
 }
 
 func convertFromION(ctx context.Context, cfg *config, ionPriceCache *xsync.Map[string, *big.Int], db storage.Querier, bc interface {
-	Pricing(ctx context.Context, baseToken common.Address, targetToken []byte, amount *big.Int, sale bool) (*big.Int, error)
-}, price, baseToken, tokenType string, extract func(params createTokenDefaults) string, amountToFirstBuy *big.Int, creatorTokenForTwistedBuy *fatAddressToken) (initial *big.Int, err error) {
+	Progress(ctx context.Context, pairId common.Hash) (p *bondingcurve.BondingCurveProgress, err error)
+}, price, baseToken, tokenType string, extract func(params createTokenDefaults) string, amountOfIONForFirstBuy *big.Int, pairId *common.Hash) (initial *big.Int, err error) {
 	bigInitial, ok := new(big.Int).SetString(price, 10)
 	if !ok {
 		return nil, errors.Wrapf(err, "failed to parse initial price %v for token type %v", price, tokenType)
 	}
-	if strings.EqualFold(baseToken, baseForTwistedSwapIsNotExistYet) {
+	if strings.EqualFold(baseToken, baseForTwistedSwapIsNotExistYet) || amountOfIONForFirstBuy != nil {
 		initial = bigInitial
 		err = storage.ErrNotFound
 	} else {
 		initial, err = calculateIONtoBase(ctx, cfg, ionPriceCache, db, bigInitial, baseToken)
 	}
 	if err != nil {
-		if storage.IsErr(err, storage.ErrNotFound) && tokenType != TokenTypeProfile { // twisted swap and no base yet
+		if storage.IsErr(err, storage.ErrNotFound) && tokenType != TokenTypeProfile {
 			err = nil
 			var profilePrice *big.Int
-			if amountToFirstBuy != nil && creatorTokenForTwistedBuy != nil {
-				// it could depend on amount
-				creatorFatAddress, err := buildFatAddressV2([]*fatAddressToken{creatorTokenForTwistedBuy}, common.HexToAddress("0x0"), common.HexToAddress("0x0"))
-				if err != nil {
-					return nil, errors.Wrapf(err, "failed to build fat address of creator %+v for twisted swap", creatorTokenForTwistedBuy)
+			if amountOfIONForFirstBuy != nil { // twisted swap and no base yet, or 1st buy of content for ION
+				currentBondingCurvePosition := big.NewInt(0)
+				profile, ok := cfg.BondingCurve.CreateTokenDefaults[TokenTypeProfile]
+				if !ok {
+					return nil, errors.Errorf("token type %s not found in bonding curve config", TokenTypeProfile)
 				}
-				if baseToken == baseForTwistedSwapIsNotExistYet {
-					baseToken = cfg.IONTokenAddress
+				profileInitial, _ := new(big.Int).SetString(profile.InitialPrice, 10)
+				profileFinal, _ := new(big.Int).SetString(profile.FinalPrice, 10)
+				leftOnCurve, ok := new(big.Int).SetString(profile.EmissionVolume, 10)
+				if pairId != nil {
+					progress, err := bc.Progress(ctx, *pairId)
+					if err != nil {
+						return nil, errors.Wrapf(err, "failed to get bonding curve current progress state for %v", pairId.String())
+					}
+					currentBondingCurvePosition = progress.SoldTokens
+					leftOnCurve = progress.BondingTokensGoal.Sub(progress.BondingTokensGoal, progress.SoldTokens)
 				}
-				profileAmount, err := bc.Pricing(ctx, common.HexToAddress(baseToken), creatorFatAddress, amountToFirstBuy, false)
-				if err != nil {
-					return nil, errors.Wrapf(err, "failed to query price %+v for twisted swap (amount %v)", creatorTokenForTwistedBuy, amountToFirstBuy.String())
-				}
-				profilePrice, _ = new(big.Float).Mul(new(big.Float).Quo(new(big.Float).SetInt(amountToFirstBuy), new(big.Float).SetInt(profileAmount)), big.NewFloat(1e18)).Int(nil)
+				err = nil
+				model := &creatorModel{}
+				finalAmountAfterIONInvestment := model.QuoteBuyOut(amountOfIONForFirstBuy, currentBondingCurvePosition, leftOnCurve, profileInitial, profileFinal)
+				profilePrice = model.CurrentPrice(new(big.Int).Add(currentBondingCurvePosition, finalAmountAfterIONInvestment), new(big.Int).Sub(leftOnCurve, finalAmountAfterIONInvestment), profileInitial, profileFinal)
 			} else {
 				profile := cfg.BondingCurve.CreateTokenDefaults[TokenTypeProfile]
 				profilePrice, ok = new(big.Int).SetString(extract(profile), 10)
@@ -567,6 +577,7 @@ func convertFromION(ctx context.Context, cfg *config, ionPriceCache *xsync.Map[s
 					return nil, errors.Errorf("token type %s not found in bonding curve config", TokenTypeProfile)
 				}
 			}
+
 			inBase := new(big.Float).Mul(new(big.Float).Quo(new(big.Float).SetInt(initial), new(big.Float).SetInt(profilePrice)), big.NewFloat(1e18))
 			initial, _ = inBase.Int(nil)
 		}

@@ -426,14 +426,14 @@ func TestDetermineBaseTokenFromExternalAddress(t *testing.T) {
 	taImpl := helperNewForTest(t, db)
 
 	t.Run("xcom_numeric_id_returns_ion", func(t *testing.T) {
-		baseToken, err := determineBaseTokenFromExternalAddress(ctx, taImpl.cfg, taImpl.ingestedDataDB, "1234567890")
+		baseToken, _, err := determineBaseTokenFromExternalAddress(ctx, taImpl.cfg, taImpl.ingestedDataDB, "1234567890")
 
 		require.NoError(t, err)
 		require.Equal(t, taImpl.cfg.IONTokenAddress, baseToken)
 	})
 
 	t.Run("online_plus_creator_token_returns_ion", func(t *testing.T) {
-		baseToken, err := determineBaseTokenFromExternalAddress(ctx, taImpl.cfg, taImpl.ingestedDataDB, "0:testcreatorpubkey123:")
+		baseToken, _, err := determineBaseTokenFromExternalAddress(ctx, taImpl.cfg, taImpl.ingestedDataDB, "0:testcreatorpubkey123:")
 
 		require.NoError(t, err)
 		require.Equal(t, taImpl.cfg.IONTokenAddress, baseToken)
@@ -448,7 +448,7 @@ func TestDetermineBaseTokenFromExternalAddress(t *testing.T) {
 		helperInsertTestToken(t, ctx, db, creatorContractAddr, creatorExternalAddr, "CREA1", "profile", creatorPubkey, "1000000000000000000000", 0, 0, 0, PlatformGroupXCom)
 
 		contentExternalAddr := "30175:" + creatorPubkey + ":post123"
-		baseToken, err := determineBaseTokenFromExternalAddress(ctx, taImpl.cfg, taImpl.ingestedDataDB, contentExternalAddr)
+		baseToken, _, err := determineBaseTokenFromExternalAddress(ctx, taImpl.cfg, taImpl.ingestedDataDB, contentExternalAddr)
 
 		require.NoError(t, err)
 		require.Equal(t, creatorContractAddr, baseToken)
@@ -456,7 +456,7 @@ func TestDetermineBaseTokenFromExternalAddress(t *testing.T) {
 
 	t.Run("online_plus_content_token_creator_not_exists", func(t *testing.T) {
 		contentExternalAddr := "30175:nonexistent_creator_xyz:post456"
-		baseToken, err := determineBaseTokenFromExternalAddress(ctx, taImpl.cfg, taImpl.ingestedDataDB, contentExternalAddr)
+		baseToken, _, err := determineBaseTokenFromExternalAddress(ctx, taImpl.cfg, taImpl.ingestedDataDB, contentExternalAddr)
 
 		require.Error(t, err, storage.ErrNotFound)
 		require.Equal(t, taImpl.cfg.IONTokenAddress, baseToken, "Should fallback to ION when creator token not found")
@@ -471,27 +471,27 @@ func TestDetermineBaseTokenFromExternalAddress(t *testing.T) {
 		helperInsertTestToken(t, ctx, db, creatorContractAddr, creatorExternalAddr, "CREA2", "profile", creatorPubkey, "1000000000000000000000", 0, 0, 0, PlatformGroupXCom)
 
 		articleExternalAddr := "30023:" + creatorPubkey + ":article789"
-		baseToken, err := determineBaseTokenFromExternalAddress(ctx, taImpl.cfg, taImpl.ingestedDataDB, articleExternalAddr)
+		baseToken, _, err := determineBaseTokenFromExternalAddress(ctx, taImpl.cfg, taImpl.ingestedDataDB, articleExternalAddr)
 
 		require.NoError(t, err)
 		require.Equal(t, creatorContractAddr, baseToken)
 	})
 
 	t.Run("invalid_format_single_colon", func(t *testing.T) {
-		_, err := determineBaseTokenFromExternalAddress(ctx, taImpl.cfg, taImpl.ingestedDataDB, ":")
+		_, _, err := determineBaseTokenFromExternalAddress(ctx, taImpl.cfg, taImpl.ingestedDataDB, ":")
 
 		require.Error(t, err)
 	})
 
 	t.Run("content_token_with_empty_creator_pubkey", func(t *testing.T) {
 		contentExternalAddr := "30175::post999"
-		_, err := determineBaseTokenFromExternalAddress(ctx, taImpl.cfg, taImpl.ingestedDataDB, contentExternalAddr)
+		_, _, err := determineBaseTokenFromExternalAddress(ctx, taImpl.cfg, taImpl.ingestedDataDB, contentExternalAddr)
 
 		require.Error(t, err)
 	})
 
 	t.Run("creator_token_with_trailing_identifier", func(t *testing.T) {
-		baseToken, err := determineBaseTokenFromExternalAddress(ctx, taImpl.cfg, taImpl.ingestedDataDB, "0:somepubkey:creator")
+		baseToken, _, err := determineBaseTokenFromExternalAddress(ctx, taImpl.cfg, taImpl.ingestedDataDB, "0:somepubkey:creator")
 
 		require.NoError(t, err)
 		require.Equal(t, taImpl.cfg.IONTokenAddress, baseToken)
@@ -506,7 +506,7 @@ func TestDetermineBaseTokenFromExternalAddress(t *testing.T) {
 		helperInsertTestToken(t, ctx, db, creatorContractAddr, creatorExternalAddr, "CREA4", "profile", creatorPubkey, "1000000000000000000000", 0, 0, 0, PlatformGroupXCom)
 
 		contentExternalAddr := "30175:" + creatorPubkey + ":content"
-		baseToken, err := determineBaseTokenFromExternalAddress(ctx, taImpl.cfg, taImpl.ingestedDataDB, contentExternalAddr)
+		baseToken, _, err := determineBaseTokenFromExternalAddress(ctx, taImpl.cfg, taImpl.ingestedDataDB, contentExternalAddr)
 
 		require.NoError(t, err)
 		require.Equal(t, creatorContractAddr, baseToken)
@@ -521,7 +521,7 @@ func TestDetermineBaseTokenFromExternalAddress(t *testing.T) {
 		helperInsertTestToken(t, ctx, db, creatorContractAddr, creatorExternalAddr, "CREA5", "profile", creatorPubkey, "1000000000000000000000", 0, 0, 0, PlatformGroupXCom)
 
 		contentExternalAddr := "30175:" + creatorPubkey + ":content:with:many:colons"
-		baseToken, err := determineBaseTokenFromExternalAddress(ctx, taImpl.cfg, taImpl.ingestedDataDB, contentExternalAddr)
+		baseToken, _, err := determineBaseTokenFromExternalAddress(ctx, taImpl.cfg, taImpl.ingestedDataDB, contentExternalAddr)
 
 		require.NoError(t, err)
 		require.Equal(t, creatorContractAddr, baseToken)
