@@ -485,6 +485,8 @@ type (
 		BondingCurveMigrated   bool    `db:"bonding_curve_migrated"`
 		PairId                 string  `db:"pair_id"`
 		BaseToken              string  `db:"base_token"`
+		TokenType              string  `db:"token_type"`
+		TokenPlatform          string  `db:"token_platform"`
 		HolderMasterPubkey     *string `db:"holder_master_pubkey"`
 		HolderUsername         *string `db:"holder_username"`
 		HolderDisplay          *string `db:"holder_display"`
