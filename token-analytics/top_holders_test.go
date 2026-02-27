@@ -3,11 +3,16 @@
 package tokenanalytics
 
 import (
+	"context"
+	"fmt"
 	"math/big"
 	"testing"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
+
+	bondingcurvefixture "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve/fixture"
+	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
 func Test_buildTopHolderPositions(t *testing.T) {
@@ -430,4 +435,518 @@ func Test_buildTopHolderPositions(t *testing.T) {
 		require.Equal(t, 30.0, result[1].Position.SupplyShare)
 		require.Equal(t, 20.0, result[2].Position.SupplyShare)
 	})
+}
+
+func TestGetTopHolders(t *testing.T) {
+	t.Parallel()
+
+	t.Run("should return top holders with bonding curve and burned for profile token", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		db, release := helperCreateDB(t)
+		defer release()
+
+		bondingGoal, _ := new(big.Int).SetString("1000000000000000000000", 10)
+		soldTokens, _ := new(big.Int).SetString("500000000000000000000", 10)
+		config := &bondingcurvefixture.MockBackendConfig{
+			BuyPrice:          big.NewInt(950000000000000000),
+			SellPrice:         big.NewInt(1050000000000000000),
+			SoldTokens:        soldTokens,
+			TokensRaised:      big.NewInt(0),
+			StartPrice:        big.NewInt(100000000000000000),
+			EndPrice:          big.NewInt(200000000000000000),
+			BondingTokensGoal: bondingGoal,
+			CurrentPrice:      big.NewInt(150000000000000000),
+			Migrated:          false,
+		}
+		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, config)
+		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+
+		ta := helperNewForTest(t, db, WithBondingCurve(mockBC))
+		defer ta.Close()
+
+		creatorMasterPubkey := "creator123"
+		creatorBlockchainAddr := "0x1111111111111111111111111111111111111111"
+		tokenContractAddr := "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+		tokenExternalAddr := "0:creator123:token1"
+		baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+		pairID := "0x0000000000000000000000000000000000000000000000000000000000000001"
+
+		helperInsertTestUser(t, ctx, db, creatorMasterPubkey, "creator", "Creator User", creatorBlockchainAddr, true, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db, tokenContractAddr, tokenExternalAddr, "CRTK", TokenTypeProfile, creatorMasterPubkey, "1000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperInsertBaseTokenPrice(t, ctx, db, baseToken, "ION", 0.5)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddr, pairID, baseToken)
+		helperUpdateTokenPrice(t, ctx, db, tokenExternalAddr, 2.0)
+
+		holder1MasterPubkey := "holder1"
+		holder1ExternalAddr := "0:holder1:"
+		holder1BlockchainAddr := "0x2222222222222222222222222222222222222222"
+		holder2MasterPubkey := "holder2"
+		holder2ExternalAddr := "0:holder2:"
+		holder2BlockchainAddr := "0x3333333333333333333333333333333333333333"
+		holder3MasterPubkey := "holder3"
+		holder3ExternalAddr := "0:holder3:"
+		holder3BlockchainAddr := "0x4444444444444444444444444444444444444444"
+
+		helperInsertTestUser(t, ctx, db, holder1MasterPubkey, "holder1", "Holder One", holder1BlockchainAddr, true, PlatformGroupIonConnect)
+		helperInsertTestUser(t, ctx, db, holder2MasterPubkey, "holder2", "Holder Two", holder2BlockchainAddr, false, PlatformGroupIonConnect)
+		helperInsertTestUser(t, ctx, db, holder3MasterPubkey, "holder3", "Holder Three", holder3BlockchainAddr, false, PlatformGroupIonConnect)
+
+		helperInsertUserTokenPosition(t, ctx, db, holder1MasterPubkey, tokenContractAddr, tokenExternalAddr, holder1ExternalAddr, "10000000000000000000", 2.0, 20.0)
+		helperInsertUserTokenPosition(t, ctx, db, holder2MasterPubkey, tokenContractAddr, tokenExternalAddr, holder2ExternalAddr, "5000000000000000000", 2.0, 10.0)
+		helperInsertUserTokenPosition(t, ctx, db, holder3MasterPubkey, tokenContractAddr, tokenExternalAddr, holder3ExternalAddr, "2000000000000000000", 2.0, 4.0)
+
+		userPositionKey := keyUserPositionOfToken(tokenExternalAddr)
+		err := ta.processedDataDB.ZAdd(ctx, userPositionKey, redis.Z{Score: 10.0, Member: holder1ExternalAddr}).Err()
+		require.NoError(t, err)
+		err = ta.processedDataDB.ZAdd(ctx, userPositionKey, redis.Z{Score: 5.0, Member: holder2ExternalAddr}).Err()
+		require.NoError(t, err)
+		err = ta.processedDataDB.ZAdd(ctx, userPositionKey, redis.Z{Score: 2.0, Member: holder3ExternalAddr}).Err()
+		require.NoError(t, err)
+
+		userPositionKeyBlockchain := keyUserPositionOfTokenByUserBlockchainAddress(tokenExternalAddr)
+		err = ta.processedDataDB.ZAdd(ctx, userPositionKeyBlockchain, redis.Z{Score: 10.0, Member: holder1BlockchainAddr}).Err()
+		require.NoError(t, err)
+		err = ta.processedDataDB.ZAdd(ctx, userPositionKeyBlockchain, redis.Z{Score: 5.0, Member: holder2BlockchainAddr}).Err()
+		require.NoError(t, err)
+		err = ta.processedDataDB.ZAdd(ctx, userPositionKeyBlockchain, redis.Z{Score: 2.0, Member: holder3BlockchainAddr}).Err()
+		require.NoError(t, err)
+
+		result, err := ta.GetTopHolders(ctx, tokenExternalAddr, 10)
+		require.NoError(t, err)
+		require.Equal(t, 5, len(result))
+
+		require.Equal(t, uint64(0), result[0].Position.Rank)
+		require.Equal(t, "Bonding Curve", strVal(result[0].Position.Holder.Display))
+		require.Equal(t, "500000000000000000000", result[0].Position.Amount)
+		require.NotNil(t, result[0].Position.Holder.Avatar)
+		require.Equal(t, ta.cfg.BondingCurve.SmartContractAddress, result[0].Position.Holder.Addresses.Blockchain)
+
+		require.Equal(t, uint64(0), result[1].Position.Rank)
+		require.Equal(t, "Burned", strVal(result[1].Position.Holder.Display))
+		require.NotNil(t, result[1].Position.Holder.Avatar)
+		require.Equal(t, ta.cfg.BondingCurve.BurnAddress, result[1].Position.Holder.Addresses.Blockchain)
+
+		require.Equal(t, uint64(1), result[2].Position.Rank)
+		require.Equal(t, "holder1", strVal(result[2].Position.Holder.Username))
+		require.Equal(t, "Holder One", strVal(result[2].Position.Holder.Display))
+		require.True(t, *result[2].Position.Holder.Verified)
+		require.NotNil(t, result[2].Position.Holder.Avatar)
+		require.Equal(t, holder1MasterPubkey, result[2].Position.Holder.Addresses.IonConnect)
+		require.Equal(t, holder1BlockchainAddr, result[2].Position.Holder.Addresses.Blockchain)
+		require.Empty(t, result[2].Position.Holder.Addresses.Twitter)
+		require.Equal(t, "10000000000000000000", result[2].Position.Amount)
+		require.Equal(t, 20.0, result[2].Position.AmountUSD)
+		require.Equal(t, 1.0, result[2].Position.SupplyShare)
+
+		require.Equal(t, "creator", strVal(result[2].Creator.Username))
+		require.Equal(t, "Creator User", strVal(result[2].Creator.Display))
+		require.True(t, *result[2].Creator.Verified)
+		require.NotNil(t, result[2].Creator.Avatar)
+		require.Equal(t, creatorMasterPubkey, result[2].Creator.Addresses.IonConnect)
+		require.Equal(t, creatorBlockchainAddr, result[2].Creator.Addresses.Blockchain)
+		require.Empty(t, result[2].Creator.Addresses.Twitter)
+
+		require.Equal(t, uint64(2), result[3].Position.Rank)
+		require.Equal(t, "holder2", strVal(result[3].Position.Holder.Username))
+		require.Equal(t, "Holder Two", strVal(result[3].Position.Holder.Display))
+		require.False(t, *result[3].Position.Holder.Verified)
+		require.Equal(t, holder2MasterPubkey, result[3].Position.Holder.Addresses.IonConnect)
+		require.Equal(t, holder2BlockchainAddr, result[3].Position.Holder.Addresses.Blockchain)
+		require.Equal(t, "5000000000000000000", result[3].Position.Amount)
+		require.Equal(t, 10.0, result[3].Position.AmountUSD)
+		require.Equal(t, 0.5, result[3].Position.SupplyShare)
+
+		require.Equal(t, uint64(3), result[4].Position.Rank)
+		require.Equal(t, "holder3", strVal(result[4].Position.Holder.Username))
+		require.Equal(t, "Holder Three", strVal(result[4].Position.Holder.Display))
+		require.False(t, *result[4].Position.Holder.Verified)
+		require.Equal(t, holder3MasterPubkey, result[4].Position.Holder.Addresses.IonConnect)
+		require.Equal(t, holder3BlockchainAddr, result[4].Position.Holder.Addresses.Blockchain)
+		require.Equal(t, "2000000000000000000", result[4].Position.Amount)
+		require.Equal(t, 4.0, result[4].Position.AmountUSD)
+		require.Equal(t, 0.2, result[4].Position.SupplyShare)
+	})
+
+	t.Run("should return content token holders with bonding curve without burned", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		db, release := helperCreateDB(t)
+		defer release()
+
+		bondingGoal, _ := new(big.Int).SetString("1000000000000000000000", 10)
+		soldTokens, _ := new(big.Int).SetString("300000000000000000000", 10)
+		config := &bondingcurvefixture.MockBackendConfig{
+			BuyPrice:          big.NewInt(950000000000000000),
+			SellPrice:         big.NewInt(1050000000000000000),
+			SoldTokens:        soldTokens,
+			TokensRaised:      big.NewInt(0),
+			StartPrice:        big.NewInt(100000000000000000),
+			EndPrice:          big.NewInt(200000000000000000),
+			BondingTokensGoal: bondingGoal,
+			CurrentPrice:      big.NewInt(150000000000000000),
+			Migrated:          false,
+		}
+		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, config)
+		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+
+		ta := helperNewForTest(t, db, WithBondingCurve(mockBC))
+		defer ta.Close()
+
+		creatorMasterPubkey := "creator_content"
+		creatorBlockchainAddr := "0xaaaa000000000000000000000000000000000000"
+		tokenContractAddr := "0xcccccccccccccccccccccccccccccccccccccccc"
+		tokenExternalAddr := "0:creator_content:token_content"
+		baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+		pairID := "0x0000000000000000000000000000000000000000000000000000000000000008"
+
+		helperInsertTestUser(t, ctx, db, creatorMasterPubkey, "creator_content", "Creator Content", creatorBlockchainAddr, false, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db, tokenContractAddr, tokenExternalAddr, "TCNT", TokenTypePost, creatorMasterPubkey, "1000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperInsertBaseTokenPrice(t, ctx, db, baseToken, "ION", 0.5)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddr, pairID, baseToken)
+		helperUpdateTokenPrice(t, ctx, db, tokenExternalAddr, 1.5)
+
+		holder1MasterPubkey := "holder_content1"
+		holder1ExternalAddr := "0:holder_content1:"
+		holder1BlockchainAddr := "0xbbbb000000000000000000000000000000000000"
+		holder2MasterPubkey := "holder_content2"
+		holder2ExternalAddr := "0:holder_content2:"
+		holder2BlockchainAddr := "0xcccc000000000000000000000000000000000000"
+
+		helperInsertTestUser(t, ctx, db, holder1MasterPubkey, "holder_content1", "Holder Content 1", holder1BlockchainAddr, false, PlatformGroupIonConnect)
+		helperInsertTestUser(t, ctx, db, holder2MasterPubkey, "holder_content2", "Holder Content 2", holder2BlockchainAddr, false, PlatformGroupIonConnect)
+
+		helperInsertUserTokenPosition(t, ctx, db, holder1MasterPubkey, tokenContractAddr, tokenExternalAddr, holder1ExternalAddr, "8000000000000000000", 1.5, 12.0)
+		helperInsertUserTokenPosition(t, ctx, db, holder2MasterPubkey, tokenContractAddr, tokenExternalAddr, holder2ExternalAddr, "3000000000000000000", 1.5, 4.5)
+
+		userPositionKey := keyUserPositionOfToken(tokenExternalAddr)
+		err := ta.processedDataDB.ZAdd(ctx, userPositionKey, redis.Z{Score: 8.0, Member: holder1ExternalAddr}).Err()
+		require.NoError(t, err)
+		err = ta.processedDataDB.ZAdd(ctx, userPositionKey, redis.Z{Score: 3.0, Member: holder2ExternalAddr}).Err()
+		require.NoError(t, err)
+
+		userPositionKeyBlockchain := keyUserPositionOfTokenByUserBlockchainAddress(tokenExternalAddr)
+		err = ta.processedDataDB.ZAdd(ctx, userPositionKeyBlockchain, redis.Z{Score: 8.0, Member: holder1BlockchainAddr}).Err()
+		require.NoError(t, err)
+		err = ta.processedDataDB.ZAdd(ctx, userPositionKeyBlockchain, redis.Z{Score: 3.0, Member: holder2BlockchainAddr}).Err()
+		require.NoError(t, err)
+
+		result, err := ta.GetTopHolders(ctx, tokenExternalAddr, 10)
+		require.NoError(t, err)
+		require.Equal(t, 3, len(result))
+
+		require.Equal(t, uint64(0), result[0].Position.Rank)
+		require.Equal(t, "Bonding Curve", strVal(result[0].Position.Holder.Display))
+		require.Equal(t, "700000000000000000000", result[0].Position.Amount)
+		require.NotNil(t, result[0].Position.Holder.Avatar)
+		require.Equal(t, ta.cfg.BondingCurve.SmartContractAddress, result[0].Position.Holder.Addresses.Blockchain)
+
+		require.Equal(t, uint64(1), result[1].Position.Rank)
+		require.Equal(t, "holder_content1", strVal(result[1].Position.Holder.Username))
+		require.Equal(t, "Holder Content 1", strVal(result[1].Position.Holder.Display))
+		require.False(t, *result[1].Position.Holder.Verified)
+		require.NotNil(t, result[1].Position.Holder.Avatar)
+		require.Equal(t, holder1MasterPubkey, result[1].Position.Holder.Addresses.IonConnect)
+		require.Equal(t, holder1BlockchainAddr, result[1].Position.Holder.Addresses.Blockchain)
+		require.Equal(t, "8000000000000000000", result[1].Position.Amount)
+		require.InDelta(t, 12.0, result[1].Position.AmountUSD, 0.0001)
+		require.InDelta(t, 0.8, result[1].Position.SupplyShare, 0.0001)
+
+		require.Equal(t, "creator_content", strVal(result[1].Creator.Username))
+		require.Equal(t, "Creator Content", strVal(result[1].Creator.Display))
+		require.False(t, *result[1].Creator.Verified)
+		require.Equal(t, creatorMasterPubkey, result[1].Creator.Addresses.IonConnect)
+		require.Equal(t, creatorBlockchainAddr, result[1].Creator.Addresses.Blockchain)
+
+		require.Equal(t, uint64(2), result[2].Position.Rank)
+		require.Equal(t, "holder_content2", strVal(result[2].Position.Holder.Username))
+		require.Equal(t, "Holder Content 2", strVal(result[2].Position.Holder.Display))
+		require.False(t, *result[2].Position.Holder.Verified)
+		require.Equal(t, holder2MasterPubkey, result[2].Position.Holder.Addresses.IonConnect)
+		require.Equal(t, holder2BlockchainAddr, result[2].Position.Holder.Addresses.Blockchain)
+		require.Equal(t, "3000000000000000000", result[2].Position.Amount)
+		require.InDelta(t, 4.5, result[2].Position.AmountUSD, 0.0001)
+		require.InDelta(t, 0.3, result[2].Position.SupplyShare, 0.0001)
+	})
+
+	t.Run("should return empty array when token has no holders", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		db, release := helperCreateDB(t)
+		defer release()
+
+		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
+		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+
+		ta := helperNewForTest(t, db, WithBondingCurve(mockBC))
+		defer ta.Close()
+
+		tokenExternalAddr := "0:nonexistent:token"
+
+		result, err := ta.GetTopHolders(ctx, tokenExternalAddr, 10)
+		require.NoError(t, err)
+		require.Empty(t, result)
+	})
+
+	t.Run("should respect limit parameter with content token", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		db, release := helperCreateDB(t)
+		defer release()
+
+		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
+		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+
+		ta := helperNewForTest(t, db, WithBondingCurve(mockBC))
+		defer ta.Close()
+
+		creatorMasterPubkey := "creator456"
+		creatorBlockchainAddr := "0x5555555555555555555555555555555555555555"
+		tokenContractAddr := "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+		tokenExternalAddr := "0:creator456:token2"
+		baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+		pairID := "0x0000000000000000000000000000000000000000000000000000000000000002"
+
+		helperInsertTestUser(t, ctx, db, creatorMasterPubkey, "creator2", "Creator Two", creatorBlockchainAddr, false, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db, tokenContractAddr, tokenExternalAddr, "TK2", TokenTypePost, creatorMasterPubkey, "1000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperInsertBaseTokenPrice(t, ctx, db, baseToken, "ION", 0.5)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddr, pairID, baseToken)
+		helperUpdateTokenPrice(t, ctx, db, tokenExternalAddr, 1.0)
+		helperUpdateTokenBondingCurveMigrated(t, ctx, db, tokenExternalAddr, true)
+
+		for i := 1; i <= 10; i++ {
+			holderMasterPubkey := fmt.Sprintf("holder%d", i)
+			holderExternalAddr := fmt.Sprintf("0:holder%d:", i)
+			holderBlockchainAddr := fmt.Sprintf("0x%040d", i)
+			helperInsertTestUser(t, ctx, db, holderMasterPubkey, fmt.Sprintf("holder%d", i), fmt.Sprintf("Holder %d", i), holderBlockchainAddr, false, PlatformGroupIonConnect)
+			helperInsertUserTokenPosition(t, ctx, db, holderMasterPubkey, tokenContractAddr, tokenExternalAddr, holderExternalAddr, "1000000000000000000", 1.0, 1.0)
+
+			userPositionKey := keyUserPositionOfToken(tokenExternalAddr)
+			err := ta.processedDataDB.ZAdd(ctx, userPositionKey, redis.Z{Score: float64(11 - i), Member: holderExternalAddr}).Err()
+			require.NoError(t, err)
+
+			userPositionKeyBlockchain := keyUserPositionOfTokenByUserBlockchainAddress(tokenExternalAddr)
+			err = ta.processedDataDB.ZAdd(ctx, userPositionKeyBlockchain, redis.Z{Score: float64(11 - i), Member: holderBlockchainAddr}).Err()
+			require.NoError(t, err)
+		}
+
+		result, err := ta.GetTopHolders(ctx, tokenExternalAddr, 10)
+		require.NoError(t, err)
+		require.Equal(t, 10, len(result))
+
+		require.Equal(t, uint64(1), result[0].Position.Rank)
+		require.Equal(t, "holder1", strVal(result[0].Position.Holder.Username))
+		require.Equal(t, "10000000000000000000", result[0].Position.Amount)
+		require.Equal(t, 10.0, result[0].Position.AmountUSD)
+		require.InDelta(t, 1.0, result[0].Position.SupplyShare, 0.0001)
+
+		require.Equal(t, uint64(2), result[1].Position.Rank)
+		require.Equal(t, "holder2", strVal(result[1].Position.Holder.Username))
+
+		require.Equal(t, uint64(10), result[9].Position.Rank)
+		require.Equal(t, "holder10", strVal(result[9].Position.Holder.Username))
+	})
+
+	t.Run("should handle holders without user records", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		db, release := helperCreateDB(t)
+		defer release()
+
+		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
+		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+
+		ta := helperNewForTest(t, db, WithBondingCurve(mockBC))
+		defer ta.Close()
+
+		creatorMasterPubkey := "creator789"
+		creatorBlockchainAddr := "0x6666666666666666666666666666666666666666"
+		tokenContractAddr := "0xcccccccccccccccccccccccccccccccccccccccc"
+		tokenExternalAddr := "0:creator789:token3"
+		baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+		pairID := "0x0000000000000000000000000000000000000000000000000000000000000003"
+
+		helperInsertTestUser(t, ctx, db, creatorMasterPubkey, "creator3", "Creator Three", creatorBlockchainAddr, false, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db, tokenContractAddr, tokenExternalAddr, "TK3", TokenTypePost, creatorMasterPubkey, "1000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperInsertBaseTokenPrice(t, ctx, db, baseToken, "ION", 0.5)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddr, pairID, baseToken)
+		helperUpdateTokenPrice(t, ctx, db, tokenExternalAddr, 1.5)
+		helperUpdateTokenBondingCurveMigrated(t, ctx, db, tokenExternalAddr, true)
+
+		unknownHolderMasterPubkey := "unknown_holder"
+		unknownHolderExternalAddr := "0:unknown_holder:"
+		unknownHolderBlockchainAddr := "0x7777777777777777777777777777777777777777"
+
+		helperInsertUserTokenPosition(t, ctx, db, unknownHolderMasterPubkey, tokenContractAddr, tokenExternalAddr, unknownHolderExternalAddr, "3000000000000000000", 1.5, 4.5)
+
+		userPositionKey := keyUserPositionOfToken(tokenExternalAddr)
+		err := ta.processedDataDB.ZAdd(ctx, userPositionKey, redis.Z{Score: 3.0, Member: unknownHolderExternalAddr}).Err()
+		require.NoError(t, err)
+
+		userPositionKeyBlockchain := keyUserPositionOfTokenByUserBlockchainAddress(tokenExternalAddr)
+		err = ta.processedDataDB.ZAdd(ctx, userPositionKeyBlockchain, redis.Z{Score: 3.0, Member: unknownHolderBlockchainAddr}).Err()
+		require.NoError(t, err)
+
+		result, err := ta.GetTopHolders(ctx, tokenExternalAddr, 10)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(result))
+
+		require.Equal(t, uint64(1), result[0].Position.Rank)
+		require.Nil(t, result[0].Position.Holder.Username)
+		require.Nil(t, result[0].Position.Holder.Display)
+		require.Nil(t, result[0].Position.Holder.Verified)
+		require.Equal(t, unknownHolderMasterPubkey, result[0].Position.Holder.Addresses.IonConnect)
+		require.NotEmpty(t, result[0].Position.Holder.Addresses.Blockchain)
+		require.Empty(t, result[0].Position.Holder.Addresses.Twitter)
+		require.Equal(t, "3000000000000000000", result[0].Position.Amount)
+		require.InDelta(t, 4.5, result[0].Position.AmountUSD, 0.0001)
+		require.InDelta(t, 0.3, result[0].Position.SupplyShare, 0.0001)
+
+		require.Equal(t, "creator3", strVal(result[0].Creator.Username))
+		require.Equal(t, "Creator Three", strVal(result[0].Creator.Display))
+		require.False(t, *result[0].Creator.Verified)
+		require.Equal(t, creatorMasterPubkey, result[0].Creator.Addresses.IonConnect)
+		require.Equal(t, creatorBlockchainAddr, result[0].Creator.Addresses.Blockchain)
+	})
+
+	t.Run("should handle X.com platform holders with burned", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		db, release := helperCreateDB(t)
+		defer release()
+
+		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
+		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+
+		ta := helperNewForTest(t, db, WithBondingCurve(mockBC))
+		defer ta.Close()
+
+		creatorMasterPubkey := "123456789"
+		creatorBlockchainAddr := "0x8888888888888888888888888888888888888888"
+		tokenContractAddr := "0xdddddddddddddddddddddddddddddddddddddddd"
+		tokenExternalAddr := "xcom:123456789:token1"
+		baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+		pairID := "0x0000000000000000000000000000000000000000000000000000000000000004"
+
+		helperInsertTestUser(t, ctx, db, creatorMasterPubkey, "xcom_creator", "X Creator", creatorBlockchainAddr, true, PlatformGroupXCom)
+		helperInsertTestToken(t, ctx, db, tokenContractAddr, tokenExternalAddr, "XTK", TokenTypePost, creatorMasterPubkey, "1000000000000000000000", 0, 0, 0, PlatformGroupXCom)
+		helperInsertBaseTokenPrice(t, ctx, db, baseToken, "ION", 0.5)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddr, pairID, baseToken)
+		helperUpdateTokenPrice(t, ctx, db, tokenExternalAddr, 3.0)
+		helperUpdateTokenBondingCurveMigrated(t, ctx, db, tokenExternalAddr, true)
+
+		holderMasterPubkey := "987654321"
+		holderExternalAddr := "987654321"
+		holderBlockchainAddr := "0x9999999999999999999999999999999999999999"
+
+		helperInsertTestUser(t, ctx, db, holderMasterPubkey, "xcom_holder", "X Holder", holderBlockchainAddr, false, PlatformGroupXCom)
+		helperInsertUserTokenPosition(t, ctx, db, holderMasterPubkey, tokenContractAddr, tokenExternalAddr, holderExternalAddr, "7000000000000000000", 3.0, 21.0)
+
+		userPositionKey := keyUserPositionOfToken(tokenExternalAddr)
+		err := ta.processedDataDB.ZAdd(ctx, userPositionKey, redis.Z{Score: 7.0, Member: holderExternalAddr}).Err()
+		require.NoError(t, err)
+
+		userPositionKeyBlockchain := keyUserPositionOfTokenByUserBlockchainAddress(tokenExternalAddr)
+		err = ta.processedDataDB.ZAdd(ctx, userPositionKeyBlockchain, redis.Z{Score: 7.0, Member: holderBlockchainAddr}).Err()
+		require.NoError(t, err)
+
+		result, err := ta.GetTopHolders(ctx, tokenExternalAddr, 10)
+		require.NoError(t, err)
+		require.Equal(t, 2, len(result))
+
+		require.Equal(t, uint64(1), result[0].Position.Rank)
+		require.Equal(t, "xcom_holder", strVal(result[0].Position.Holder.Username))
+		require.Equal(t, "X Holder", strVal(result[0].Position.Holder.Display))
+		require.False(t, *result[0].Position.Holder.Verified)
+		require.NotNil(t, result[0].Position.Holder.Avatar)
+		require.Equal(t, holderMasterPubkey, result[0].Position.Holder.Addresses.Twitter)
+		require.Empty(t, result[0].Position.Holder.Addresses.IonConnect)
+		require.Equal(t, holderBlockchainAddr, result[0].Position.Holder.Addresses.Blockchain)
+		require.Equal(t, "7000000000000000000", result[0].Position.Amount)
+		require.InDelta(t, 21.0, result[0].Position.AmountUSD, 0.0001)
+		require.InDelta(t, 0.7, result[0].Position.SupplyShare, 0.0001)
+
+		require.Equal(t, "xcom_creator", strVal(result[0].Creator.Username))
+		require.Equal(t, "X Creator", strVal(result[0].Creator.Display))
+		require.True(t, *result[0].Creator.Verified)
+		require.Equal(t, creatorMasterPubkey, result[0].Creator.Addresses.Twitter)
+		require.Empty(t, result[0].Creator.Addresses.IonConnect)
+		require.Equal(t, creatorBlockchainAddr, result[0].Creator.Addresses.Blockchain)
+
+		require.Equal(t, uint64(0), result[1].Position.Rank)
+		require.Equal(t, "Burned", strVal(result[1].Position.Holder.Display))
+		require.NotNil(t, result[1].Position.Holder.Avatar)
+		require.Equal(t, ta.cfg.BondingCurve.BurnAddress, result[1].Position.Holder.Addresses.Blockchain)
+	})
+
+	t.Run("should calculate correct USD values", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		db, release := helperCreateDB(t)
+		defer release()
+
+		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
+		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+
+		ta := helperNewForTest(t, db, WithBondingCurve(mockBC))
+		defer ta.Close()
+
+		creatorMasterPubkey := "creator_usd"
+		creatorBlockchainAddr := "0xaaaa000000000000000000000000000000000000"
+		tokenContractAddr := "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+		tokenExternalAddr := "0:creator_usd:token_usd"
+		baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+		pairID := "0x0000000000000000000000000000000000000000000000000000000000000005"
+
+		helperInsertTestUser(t, ctx, db, creatorMasterPubkey, "creator_usd", "Creator USD", creatorBlockchainAddr, false, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db, tokenContractAddr, tokenExternalAddr, "TUSD", TokenTypePost, creatorMasterPubkey, "1000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperInsertBaseTokenPrice(t, ctx, db, baseToken, "ION", 2.0)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddr, pairID, baseToken)
+		helperUpdateTokenPrice(t, ctx, db, tokenExternalAddr, 5.0)
+		helperUpdateTokenBondingCurveMigrated(t, ctx, db, tokenExternalAddr, true)
+
+		holderMasterPubkey := "holder_usd"
+		holderExternalAddr := "0:holder_usd:"
+		holderBlockchainAddr := "0xbbbb000000000000000000000000000000000000"
+
+		helperInsertTestUser(t, ctx, db, holderMasterPubkey, "holder_usd", "Holder USD", holderBlockchainAddr, false, PlatformGroupIonConnect)
+		helperInsertUserTokenPosition(t, ctx, db, holderMasterPubkey, tokenContractAddr, tokenExternalAddr, holderExternalAddr, "4500000000000000000", 5.0, 22.5)
+
+		userPositionKey := keyUserPositionOfToken(tokenExternalAddr)
+		err := ta.processedDataDB.ZAdd(ctx, userPositionKey, redis.Z{Score: 4.5, Member: holderExternalAddr}).Err()
+		require.NoError(t, err)
+
+		userPositionKeyBlockchain := keyUserPositionOfTokenByUserBlockchainAddress(tokenExternalAddr)
+		err = ta.processedDataDB.ZAdd(ctx, userPositionKeyBlockchain, redis.Z{Score: 4.5, Member: holderBlockchainAddr}).Err()
+		require.NoError(t, err)
+
+		result, err := ta.GetTopHolders(ctx, tokenExternalAddr, 10)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(result))
+
+		require.Equal(t, uint64(1), result[0].Position.Rank)
+		require.Equal(t, "holder_usd", strVal(result[0].Position.Holder.Username))
+		require.Equal(t, "Holder USD", strVal(result[0].Position.Holder.Display))
+		require.False(t, *result[0].Position.Holder.Verified)
+		require.NotNil(t, result[0].Position.Holder.Avatar)
+		require.Equal(t, holderMasterPubkey, result[0].Position.Holder.Addresses.IonConnect)
+		require.Equal(t, holderBlockchainAddr, result[0].Position.Holder.Addresses.Blockchain)
+		require.Empty(t, result[0].Position.Holder.Addresses.Twitter)
+		require.Equal(t, "4500000000000000000", result[0].Position.Amount)
+		require.InDelta(t, 22.5, result[0].Position.AmountUSD, 0.0001)
+		require.InDelta(t, 0.45, result[0].Position.SupplyShare, 0.0001)
+
+		require.Equal(t, "creator_usd", strVal(result[0].Creator.Username))
+		require.Equal(t, "Creator USD", strVal(result[0].Creator.Display))
+		require.False(t, *result[0].Creator.Verified)
+		require.Equal(t, creatorMasterPubkey, result[0].Creator.Addresses.IonConnect)
+		require.Equal(t, creatorBlockchainAddr, result[0].Creator.Addresses.Blockchain)
+		require.Empty(t, result[0].Creator.Addresses.Twitter)
+	})
+}
+
+func helperUpdateTokenBondingCurveMigrated(t *testing.T, ctx context.Context, db *storage.DB, externalAddress string, migrated bool) {
+	t.Helper()
+	_, err := storage.Exec(ctx, db, `UPDATE tokens SET bonding_curve_migrated = $1 WHERE external_address = $2`, migrated, externalAddress)
+	require.NoError(t, err)
 }
