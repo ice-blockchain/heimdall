@@ -446,6 +446,10 @@ func (w *balanceUpdateWorker) registerTradeFromJob(ctx context.Context, args Bal
 
 		return
 	}
+
+	log.Debug(fmt.Sprintf("[BALANCE_JOB->NOTIFY_SWAP] tx=%s, external_address=%s, direction=%v, input=%s, output=%s, price_usd=%.6f, mcap_usd=%.2f",
+		args.TransactionHash, tradeInfo.TokenExternalAddress, swap.Direction, swap.InputAmount, swap.OutputAmount, priceUSD, marketCapUSD))
+
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
