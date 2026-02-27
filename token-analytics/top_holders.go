@@ -70,6 +70,8 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 		   t.pair_id                                      as pair_id,
 		   t.base_token,
 		   t.contract_address,
+		   t.type                                         as token_type,
+		   t.platform_group                               as token_platform,
 		   utp.user_blockchain_address as holder_bnb_bsc_address,
 		   utp.user_external_address as holder_external_address,
 		   holder_addr.user_id as holder_id
@@ -102,6 +104,8 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
         t.bonding_curve_migrated,
         t.pair_id,
         t.base_token,
+        t.token_type,
+        t.token_platform,
 
         t.holder_bnb_bsc_address,
         t.holder_external_address,
@@ -129,6 +133,8 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
         t.bonding_curve_migrated,
         t.pair_id,
         t.base_token,
+        t.token_type,
+        t.token_platform,
 
         t.holder_bnb_bsc_address,
         t.holder_external_address,
@@ -194,6 +200,8 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 					BondingCurveMigrated:   rows[0].BondingCurveMigrated,
 					PairId:                 rows[0].PairId,
 					BaseToken:              rows[0].BaseToken,
+					TokenType:              rows[0].TokenType,
+					TokenPlatform:          rows[0].TokenPlatform,
 					HolderMasterPubkey:     creator.MasterPubkey,
 					HolderUsername:         creator.Username,
 					HolderDisplay:          creator.Display,
@@ -217,10 +225,13 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 		}
 		extraItemsEnriched += 1
 	}
-	if rows, result, resultBlockChainAddresses, err = t.enrichTopHoldersWithBurned(ctx, externalAddress, rows, creator, limit, result, resultBlockChainAddresses); err != nil {
-		return nil, errors.Wrapf(err, "failed to enrich top holders with burned for token %v", externalAddress)
+	isIonConnectContentToken := rows[0].TokenType != TokenTypeProfile && rows[0].TokenPlatform == PlatformGroupIonConnect
+	if !isIonConnectContentToken {
+		if rows, result, resultBlockChainAddresses, err = t.enrichTopHoldersWithBurned(ctx, externalAddress, rows, creator, limit, result, resultBlockChainAddresses); err != nil {
+			return nil, errors.Wrapf(err, "failed to enrich top holders with burned for token %v", externalAddress)
+		}
+		extraItemsEnriched += 1
 	}
-	extraItemsEnriched += 1
 
 	positions, err := buildTopHolderPositions(externalAddress, result, resultBlockChainAddresses, rows, t.cfg.BondingCurve.SmartContractAddress, t.cfg.BondingCurve.BurnAddress, extraItemsEnriched)
 	if err != nil {
@@ -275,6 +286,8 @@ func (t *tokenAnalytics) enrichTopHoldersWithBurned(ctx context.Context, externa
 		CreatorPlatform:        rows[0].CreatorPlatform,
 		CreatorBnbBscAddress:   rows[0].CreatorBnbBscAddress,
 		TotalSupply:            rows[0].TotalSupply,
+		TokenType:              rows[0].TokenType,
+		TokenPlatform:          rows[0].TokenPlatform,
 		HolderMasterPubkey:     &t.cfg.BondingCurve.BurnAddress,
 		HolderUsername:         &burnedUsername,
 		HolderDisplay:          &burnedDisplayName,
@@ -339,6 +352,8 @@ func (t *tokenAnalytics) enrichTopHoldersWithBongingCurve(ctx context.Context, p
 		CreatorPlatform:        rows[0].CreatorPlatform,
 		CreatorBnbBscAddress:   rows[0].CreatorBnbBscAddress,
 		TotalSupply:            rows[0].TotalSupply,
+		TokenType:              rows[0].TokenType,
+		TokenPlatform:          rows[0].TokenPlatform,
 		HolderMasterPubkey:     &t.cfg.BondingCurve.SmartContractAddress,
 		HolderUsername:         &curveUsername,
 		HolderDisplay:          &curveDisplayName,
@@ -404,6 +419,8 @@ func buildTopHolderPositions(externalAddress string, rankings, rankingsByBlockch
 				BondingCurveMigrated:   rows[0].BondingCurveMigrated,
 				PairId:                 rows[0].PairId,
 				BaseToken:              rows[0].BaseToken,
+				TokenType:              rows[0].TokenType,
+				TokenPlatform:          rows[0].TokenPlatform,
 				PriceUSD:               rows[0].PriceUSD,
 				CreatorVerified:        rows[0].CreatorVerified,
 
