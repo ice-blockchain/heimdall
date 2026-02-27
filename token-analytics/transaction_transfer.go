@@ -46,9 +46,9 @@ func (t *tokenAnalytics) onTransfer(ctx context.Context, tx *txEvent, ev *bondin
 			tx.TransactionHash, ev.From.Hex(), ev.To.Hex()))
 		return nil
 	}
-	tokenData, err := t.getTokenInfo(ctx, ev.TokenAddress.Hex())
+	tokenData, err := t.getTokenInfo(ctx, strings.ToLower(ev.TokenAddress.Hex()))
 	if err != nil {
-		log.Debug(fmt.Sprintf("Token %s not found in DB, skipping transfer", ev.TokenAddress.Hex()))
+		log.Debug(fmt.Sprintf("Token %s not found in DB, skipping transfer", strings.ToLower(ev.TokenAddress.Hex())))
 
 		return nil
 	}
@@ -130,6 +130,11 @@ func (t *tokenAnalytics) getUserExternalAddress(ctx context.Context, blockchainA
 func (t *tokenAnalytics) enqueueBalanceUpdate(ctx context.Context, tx *txEvent, userBlockchainAddress, tokenContractAddress string, tokenData *tokenInfo, transferAmount *big.Int, isAddition bool) error {
 	userExternalAddress, err := t.getUserExternalAddress(ctx, userBlockchainAddress)
 	if err != nil {
+		if storage.IsErr(err, storage.ErrNotFound) {
+			log.Warn(fmt.Sprintf("User not found in user_bsc_addresses for blockchain address %s, skipping balance update", userBlockchainAddress))
+
+			return nil
+		}
 		return errors.Wrapf(err, "failed to get user external address for %s", userBlockchainAddress)
 	}
 	burnedBig := new(big.Int)
@@ -139,10 +144,10 @@ func (t *tokenAnalytics) enqueueBalanceUpdate(ctx context.Context, tx *txEvent, 
 		UserExternalAddress:   userExternalAddress,
 		ContractAddress:       strings.ToLower(tokenContractAddress),
 		TokenExternalAddress:  tokenData.ExternalAddress,
-		TransactionHash:       tx.TransactionHash,
+		TransactionHash:       strings.ToLower(tx.TransactionHash),
 		BlockNumber:           tx.BlockNumber,
-		PairID:                tokenData.PairID,
-		BaseToken:             tokenData.BaseToken,
+		PairID:                strings.ToLower(tokenData.PairID),
+		BaseToken:             strings.ToLower(tokenData.BaseToken),
 		TokenType:             tokenData.Type,
 		Platform:              tokenData.Platform,
 		Burned:                burnedBig,

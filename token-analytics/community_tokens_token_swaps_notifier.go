@@ -145,6 +145,9 @@ func (t *tokenAnalytics) handleTokenSwapUpdate(ctx context.Context, payload stri
 		return nil
 	}
 
+	log.Debug(fmt.Sprintf("[PG_NOTIFY->NOTIFY_SWAP] tx=%s, external_address=%s, direction=%v, input=%s, output=%s, price_usd=%.6f, mcap_usd=%.2f",
+		update.TransactionHash, tradeInfo.TokenExternalAddress, update.Direction, update.InputAmount, update.OutputAmount, update.CurvePriceUSD, mCapUSD))
+
 	t.subscriptions.NotifySwap(tradeInfo)
 
 	return nil

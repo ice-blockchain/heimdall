@@ -383,14 +383,14 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 		contractAddress, tokenExternalAddress, userExternalAddress))
 
 	jobArgs := BalanceUpdateJobArgs{
-		UserBlockchainAddress: userBlockchainAddress,
+		UserBlockchainAddress: strings.ToLower(userBlockchainAddress),
 		UserExternalAddress:   userExternalAddress,
-		ContractAddress:       contractAddress,
+		ContractAddress:       strings.ToLower(contractAddress),
 		TokenExternalAddress:  tokenExternalAddress,
-		TransactionHash:       tx.TransactionHash,
+		TransactionHash:       strings.ToLower(tx.TransactionHash),
 		BlockNumber:           tx.BlockNumber,
-		PairID:                pairID,
-		BaseToken:             baseToken,
+		PairID:                strings.ToLower(pairID),
+		BaseToken:             strings.ToLower(baseToken),
 		TokenType:             tokenType,
 		Platform:              platform,
 		Burned:                burned,
@@ -445,17 +445,17 @@ func (t *tokenAnalytics) calculateTokenMarketDataAndUserPosition(ctx context.Con
 		log.Debug(fmt.Sprintf("Updating user position for base creatorToken: contractAddress=%s, tokenExternalAddress=%s, user=%s tx=%s",
 			*baseProfileContractAddress, *baseProfileExternalAddress, userBlockchainAddress, tx.TransactionHash))
 		baseJobArgs := BalanceUpdateJobArgs{
-			UserBlockchainAddress: userBlockchainAddress,
+			UserBlockchainAddress: strings.ToLower(userBlockchainAddress),
 			UserExternalAddress:   userExternalAddress,
-			ContractAddress:       *baseProfileContractAddress,
+			ContractAddress:       strings.ToLower(*baseProfileContractAddress),
 			TokenExternalAddress:  *baseProfileExternalAddress,
-			TransactionHash:       tx.TransactionHash,
+			TransactionHash:       strings.ToLower(tx.TransactionHash),
 			BlockNumber:           tx.BlockNumber,
 			TokenType:             TokenTypeProfile,
 			Platform:              platform,
 			Burned:                new(big.Int).SetUint64(0),
-			PairID:                *basePair,
-			BaseToken:             *baseTokenForBaseToken,
+			PairID:                strings.ToLower(*basePair),
+			BaseToken:             strings.ToLower(*baseTokenForBaseToken),
 		}
 		if err := t.riverClient.Push(ctx, baseJobArgs); err != nil {
 			return errors.Wrapf(err, "failed to enqueue balance update job for tx %v (base token %v)", tx.TransactionHash, *baseProfileContractAddress)
