@@ -911,6 +911,10 @@ paths:
         in: query
         name: amountBNB
         type: integer
+      - description: Amount of ION to exchange (in wei), for ion -> content purshases
+        in: query
+        name: amountION
+        type: integer
       - description: 'Amount of USD to exchange (ex: 1.99)'
         format: float64
         in: query

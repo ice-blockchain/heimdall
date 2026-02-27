@@ -778,6 +778,12 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "integer",
+                        "description": "Amount of ION to exchange (in wei), for ion -\u003e content purshases",
+                        "name": "amountION",
+                        "in": "query"
+                    },
+                    {
                         "type": "number",
                         "format": "float64",
                         "description": "Amount of USD to exchange (ex: 1.99)",

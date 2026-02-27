@@ -83,7 +83,7 @@ type (
 		GenerateTokenSuggestion(ctx context.Context, data *CreationDetailsData) (*SuggestedCreationDetails, error)
 		GetBondingCurveProgress(ctx context.Context, externalAddress string) (*BondingCurveProgress, error)
 		SubscribeBondingCurveProgress(ctx context.Context, externalAddress, user string, addToStream func(*BondingCurveProgress, error)) error
-		GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount *big.Int, amountBNB *big.Int, amountUSD float64) (pricing *Pricing, err error)
+		GetTokenPricing(ctx context.Context, externalAddress string, tradeType TradeType, amount *big.Int, amountBNB, amountION *big.Int, amountUSD float64) (pricing *Pricing, err error)
 		GetCommunityTokensByRewardsDistribution(ctx context.Context, referenceDate stdlibtime.Time, limit, offset uint64) ([]*CommunityToken, error)
 		GetGlobalTokenStatistics(ctx context.Context, interval string) (*GlobalTokenStats, error)
 	}
