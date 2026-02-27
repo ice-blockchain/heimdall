@@ -71,7 +71,7 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 		   t.base_token,
 		   t.contract_address,
 		   t.type                                         as token_type,
-		   t.platform_group                               as token_platform,
+		   t.platform                                     as token_platform,
 		   utp.user_blockchain_address as holder_bnb_bsc_address,
 		   utp.user_external_address as holder_external_address,
 		   holder_addr.user_id as holder_id
