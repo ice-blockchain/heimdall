@@ -1420,7 +1420,7 @@ func helperInsertTestToken(t *testing.T, ctx context.Context, db *storage.DB,
 		}
 		avatarURL = users[0].Avatar
 	}
-	lookup := strings.ToLower(strings.TrimSpace(username + " " + displayName + " " + ticker))
+	lookup := strings.ToLower(strings.TrimSpace(contractAddress + " " + username + " " + displayName + " " + ticker))
 	start := "10000"
 	end := "100000"
 	if tokenType == TokenTypeProfile {
