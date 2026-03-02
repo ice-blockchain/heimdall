@@ -96,6 +96,7 @@ const (
 	DefaultWalletViewCoinSymbolGroup = "ice"
 	BNBSymbolGroup                   = "binancecoin"
 	DefaultWalletViewCoinID          = "7b471f92-ced2-38b0-e408-88e5d89e8045"
+	DefaultWalletViewCoinIDBsc       = "9442df6b-543c-35cd-f0b2-c630d6bcaa44"
 	CollectionMetadataIndexedKey     = "__collection_metadata__"
 )
 

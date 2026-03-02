@@ -146,6 +146,24 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 
 	ids := map[string]string{}
 	tokensPriceData := []*coingecko.Coin{}
+	// take ion price from dex until it listed as full-fledged coin
+	if slices.Contains(coinIDs, "ion") {
+		coinIDs = slices.DeleteFunc(coinIDs, func(s string) bool {
+			return strings.EqualFold(s, "ion")
+		})
+		bsc, hasBSC := coinsToSync["bsc"]
+		if !hasBSC {
+			bsc = &coinToSync{
+				Network:           "bsc",
+				ContractAddresses: []string{"ion:@:@:0xe1ab61f7b093435204df32f5b3a405de55445ea8"},
+				SyncTokenFullData: false,
+			}
+		}
+		bsc.ContractAddresses = append(bsc.ContractAddresses, "ion:@:@:0xe1ab61f7b093435204df32f5b3a405de55445ea8")
+		coinsToSync["bsc"] = bsc
+		networks["bsc:@:@:0xe1ab61f7b093435204df32f5b3a405de55445ea8"] = "ion"
+	}
+
 	for network, tokensAddrs := range coinsToSync {
 		if network == "" {
 			continue
@@ -169,6 +187,7 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 			ids[network+":@:@:"+contractAddr] = id
 		}
 		errorredTokens := make([]string, 0, 0)
+
 		tokens, err := fn(ctx, network, contractAddrs)
 		if err != nil {
 			if errors.Is(err, coingecko.ErrNotFound) {
@@ -203,7 +222,6 @@ func (s *coinSync) syncCoinBatch(ctx context.Context) {
 				coinIDs = append(coinIDs, "ice")
 			}
 		}
-
 		if len(tokens) < len(contractAddrs) && (!tokensAddrs.SyncTokenFullData || hasICE) {
 			for _, tok := range tokens {
 				delete(notFetched, tok.ContractAddress)
@@ -416,7 +434,7 @@ func (s *coinSync) updateCoinsData(ctx context.Context, now *time.Time, coins []
 	if err != nil {
 		return errors.Wrap(err, "failed to update coins data in db from coingecko")
 	}
-	if len(rowsUpdated) != len(coins) {
+	if len(rowsUpdated) < len(coins) {
 		ids := func() []string {
 			res := make([]string, 0, len(coins))
 			for _, c := range coins {
@@ -425,7 +443,7 @@ func (s *coinSync) updateCoinsData(ctx context.Context, now *time.Time, coins []
 			return res
 		}()
 		log.Error(errors.Errorf("not all coins were updated, expecting %v, updated %v, ids: %#v", len(coins), len(rowsUpdated), ids))
-		nonUpdatedCoins := make([]*coingecko.Coin, 0, len(coins)-len(rowsUpdated))
+		nonUpdatedCoins := make([]*coingecko.Coin, 0, max(len(coins)-len(rowsUpdated), 0))
 		for _, c := range coins {
 			updated := false
 			for _, upd := range rowsUpdated {
@@ -447,11 +465,25 @@ func (s *coinSync) buildBatchUpdate(now *time.Time, coinsList []*coingecko.Coin,
 	placeholders := make([]string, 0, len(coinsList))
 	idx := 2
 	params = make([]any, 0, len(coinsList)*10)
-	for _, coin := range coinsList {
+	for i := 0; i < len(coinsList); i++ {
+		coin := coinsList[i]
 		id := generateInternalID(coin, mapping)
 		if id == DefaultWalletViewCoinID {
 			coin.Symbol = "ion"
 			coin.ID = "ion"
+		}
+		if id == DefaultWalletViewCoinIDBsc {
+			coinsList = append(coinsList, &coingecko.Coin{
+				ID:              "ice", // to match legacy id
+				Symbol:          "ion",
+				Name:            "Ice Open Network",
+				Network:         "ion",
+				ContractAddress: "",
+				Decimals:        9,
+				PriceUSD:        coin.PriceUSD,
+				Native:          true,
+				IconUrl:         "https://cdn.ice.io/online+/assets/coins/ion.svg",
+			})
 		}
 		coingecko.OverwriteCoinWithStaticContent(coin)
 		if matchByDb {
