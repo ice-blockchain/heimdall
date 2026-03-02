@@ -435,6 +435,119 @@ func Test_buildTopHolderPositions(t *testing.T) {
 		require.Equal(t, 30.0, result[1].Position.SupplyShare)
 		require.Equal(t, 20.0, result[2].Position.SupplyShare)
 	})
+
+	t.Run("should assign unique ranks when holders come from both rankings lists", func(t *testing.T) {
+		t.Parallel()
+
+		totalSupply := new(big.Int).Mul(big.NewInt(100), big.NewInt(1e18))
+
+		rankings := []redis.Z{
+			{Score: 40.0, Member: "0:holder1:"},
+			{Score: 30.0, Member: "0:holder2:"},
+		}
+
+		rankingsByBlockchain := []redis.Z{
+			{Score: 25.0, Member: "0xblockchain3"},
+			{Score: 20.0, Member: "0xblockchain4"},
+		}
+
+		rows := []*holderWithTokenData{
+			{
+				ContentAuthorID:        strPtr("creator"),
+				CreatorUsername:        strPtr("creator"),
+				CreatorDisplay:         strPtr("Creator"),
+				CreatorVerified:        boolPtr(false),
+				CreatorExternalAddress: strPtr("0:creator:"),
+				CreatorPlatform:        strPtr("ionconnect"),
+				PriceUSD:               1.0,
+				TotalSupply:            totalSupply.String(),
+				TokenType:              TokenTypeProfile,
+				TokenPlatform:          PlatformGroupIonConnect,
+				HolderMasterPubkey:     strPtr("holder1"),
+				HolderUsername:         strPtr("user1"),
+				HolderDisplay:          strPtr("User 1"),
+				HolderVerified:         boolPtr(false),
+				HolderExternalAddress:  strPtr("0:holder1:"),
+				HolderBnbBscAddress:    strPtr("0xblockchain1"),
+				HolderPlatform:         strPtr("ionconnect"),
+			},
+			{
+				ContentAuthorID:        strPtr("creator"),
+				CreatorUsername:        strPtr("creator"),
+				CreatorDisplay:         strPtr("Creator"),
+				CreatorVerified:        boolPtr(false),
+				CreatorExternalAddress: strPtr("0:creator:"),
+				CreatorPlatform:        strPtr("ionconnect"),
+				PriceUSD:               1.0,
+				TotalSupply:            totalSupply.String(),
+				TokenType:              TokenTypeProfile,
+				TokenPlatform:          PlatformGroupIonConnect,
+				HolderMasterPubkey:     strPtr("holder2"),
+				HolderUsername:         strPtr("user2"),
+				HolderDisplay:          strPtr("User 2"),
+				HolderVerified:         boolPtr(false),
+				HolderExternalAddress:  strPtr("0:holder2:"),
+				HolderBnbBscAddress:    strPtr("0xblockchain2"),
+				HolderPlatform:         strPtr("ionconnect"),
+			},
+			{
+				ContentAuthorID:        strPtr("creator"),
+				CreatorUsername:        strPtr("creator"),
+				CreatorDisplay:         strPtr("Creator"),
+				CreatorVerified:        boolPtr(false),
+				CreatorExternalAddress: strPtr("0:creator:"),
+				CreatorPlatform:        strPtr("ionconnect"),
+				PriceUSD:               1.0,
+				TotalSupply:            totalSupply.String(),
+				TokenType:              TokenTypeProfile,
+				TokenPlatform:          PlatformGroupIonConnect,
+				HolderMasterPubkey:     nil,
+				HolderUsername:         nil,
+				HolderDisplay:          nil,
+				HolderVerified:         nil,
+				HolderBnbBscAddress:    strPtr("0xblockchain3"),
+				HolderPlatform:         strPtr("ionconnect"),
+			},
+			{
+				ContentAuthorID:        strPtr("creator"),
+				CreatorUsername:        strPtr("creator"),
+				CreatorDisplay:         strPtr("Creator"),
+				CreatorVerified:        boolPtr(false),
+				CreatorExternalAddress: strPtr("0:creator:"),
+				CreatorPlatform:        strPtr("ionconnect"),
+				PriceUSD:               1.0,
+				TotalSupply:            totalSupply.String(),
+				TokenType:              TokenTypeProfile,
+				TokenPlatform:          PlatformGroupIonConnect,
+				HolderMasterPubkey:     nil,
+				HolderUsername:         nil,
+				HolderDisplay:          nil,
+				HolderVerified:         nil,
+				HolderBnbBscAddress:    strPtr("0xblockchain4"),
+				HolderPlatform:         strPtr("ionconnect"),
+			},
+		}
+
+		result, err := buildTopHolderPositions(contractAddr, rankings, rankingsByBlockchain, rows, "", "", 0)
+		require.NoError(t, err)
+		require.Len(t, result, 4)
+
+		require.Equal(t, uint64(1), result[0].Position.Rank)
+		require.Equal(t, "user1", strVal(result[0].Position.Holder.Username))
+		require.Equal(t, "40000000000000000000", result[0].Position.Amount)
+
+		require.Equal(t, uint64(2), result[1].Position.Rank)
+		require.Equal(t, "user2", strVal(result[1].Position.Holder.Username))
+		require.Equal(t, "30000000000000000000", result[1].Position.Amount)
+
+		require.Equal(t, uint64(3), result[2].Position.Rank)
+		require.Equal(t, "0xblockchain3", result[2].Position.Holder.Addresses.Blockchain)
+		require.Equal(t, "25000000000000000000", result[2].Position.Amount)
+
+		require.Equal(t, uint64(4), result[3].Position.Rank)
+		require.Equal(t, "0xblockchain4", result[3].Position.Holder.Addresses.Blockchain)
+		require.Equal(t, "20000000000000000000", result[3].Position.Amount)
+	})
 }
 
 func TestGetTopHolders(t *testing.T) {
@@ -942,6 +1055,114 @@ func TestGetTopHolders(t *testing.T) {
 		require.Equal(t, creatorMasterPubkey, result[0].Creator.Addresses.IonConnect)
 		require.Equal(t, creatorBlockchainAddr, result[0].Creator.Addresses.Blockchain)
 		require.Empty(t, result[0].Creator.Addresses.Twitter)
+	})
+
+	t.Run("should assign unique ranks when holders come from both ionConnect and blockchain rankings", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		db, release := helperCreateDB(t)
+		defer release()
+
+		bondingGoal, _ := new(big.Int).SetString("1000000000000000000000", 10)
+		soldTokens, _ := new(big.Int).SetString("500000000000000000000", 10)
+		config := &bondingcurvefixture.MockBackendConfig{
+			BuyPrice:          big.NewInt(950000000000000000),
+			SellPrice:         big.NewInt(1050000000000000000),
+			SoldTokens:        soldTokens,
+			TokensRaised:      big.NewInt(0),
+			StartPrice:        big.NewInt(100000000000000000),
+			EndPrice:          big.NewInt(200000000000000000),
+			BondingTokensGoal: bondingGoal,
+			CurrentPrice:      big.NewInt(150000000000000000),
+			Migrated:          false,
+		}
+		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, config)
+		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+
+		ta := helperNewForTest(t, db, WithBondingCurve(mockBC))
+		defer ta.Close()
+
+		creatorMasterPubkey := "creator_rank"
+		creatorBlockchainAddr := "0x1111000000000000000000000000000000000000"
+		tokenContractAddr := "0xaaaa111111111111111111111111111111111111"
+		tokenExternalAddr := "0:creator_rank:token_rank"
+		baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+		pairID := "0x0000000000000000000000000000000000000000000000000000000000000099"
+
+		helperInsertTestUser(t, ctx, db, creatorMasterPubkey, "creator_rank", "Creator Rank", creatorBlockchainAddr, false, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db, tokenContractAddr, tokenExternalAddr, "RANK", TokenTypeProfile, creatorMasterPubkey, "1000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperInsertBaseTokenPrice(t, ctx, db, baseToken, "ION", 0.5)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddr, pairID, baseToken)
+		helperUpdateTokenPrice(t, ctx, db, tokenExternalAddr, 2.0)
+
+		holder1MasterPubkey := "holder_rank1"
+		holder1ExternalAddr := "0:holder_rank1:"
+		holder1BlockchainAddr := "0x2222000000000000000000000000000000000000"
+		holder2MasterPubkey := "holder_rank2"
+		holder2ExternalAddr := "0:holder_rank2:"
+		holder2BlockchainAddr := "0x3333000000000000000000000000000000000000"
+		holder3BlockchainAddr := "0x4444000000000000000000000000000000000000"
+		holder4BlockchainAddr := "0x5555000000000000000000000000000000000000"
+
+		helperInsertTestUser(t, ctx, db, holder1MasterPubkey, "holder_rank1", "Holder Rank 1", holder1BlockchainAddr, false, PlatformGroupIonConnect)
+		helperInsertTestUser(t, ctx, db, holder2MasterPubkey, "holder_rank2", "Holder Rank 2", holder2BlockchainAddr, false, PlatformGroupIonConnect)
+
+		helperInsertUserTokenPosition(t, ctx, db, holder1MasterPubkey, tokenContractAddr, tokenExternalAddr, holder1ExternalAddr, "40000000000000000000", 2.0, 80.0)
+		helperInsertUserTokenPosition(t, ctx, db, holder2MasterPubkey, tokenContractAddr, tokenExternalAddr, holder2ExternalAddr, "30000000000000000000", 2.0, 60.0)
+		helperInsertUserPosition(t, ctx, db, holder3BlockchainAddr, tokenContractAddr, tokenExternalAddr, "", "25000000000000000000")
+		helperInsertUserPosition(t, ctx, db, holder4BlockchainAddr, tokenContractAddr, tokenExternalAddr, "", "20000000000000000000")
+
+		userPositionKey := keyUserPositionOfToken(tokenExternalAddr)
+		err := ta.processedDataDB.ZAdd(ctx, userPositionKey, redis.Z{Score: 40.0, Member: holder1ExternalAddr}).Err()
+		require.NoError(t, err)
+		err = ta.processedDataDB.ZAdd(ctx, userPositionKey, redis.Z{Score: 30.0, Member: holder2ExternalAddr}).Err()
+		require.NoError(t, err)
+
+		userPositionKeyBlockchain := keyUserPositionOfTokenByUserBlockchainAddress(tokenExternalAddr)
+		err = ta.processedDataDB.ZAdd(ctx, userPositionKeyBlockchain, redis.Z{Score: 40.0, Member: holder1BlockchainAddr}).Err()
+		require.NoError(t, err)
+		err = ta.processedDataDB.ZAdd(ctx, userPositionKeyBlockchain, redis.Z{Score: 30.0, Member: holder2BlockchainAddr}).Err()
+		require.NoError(t, err)
+		err = ta.processedDataDB.ZAdd(ctx, userPositionKeyBlockchain, redis.Z{Score: 25.0, Member: holder3BlockchainAddr}).Err()
+		require.NoError(t, err)
+		err = ta.processedDataDB.ZAdd(ctx, userPositionKeyBlockchain, redis.Z{Score: 20.0, Member: holder4BlockchainAddr}).Err()
+		require.NoError(t, err)
+
+		result, err := ta.GetTopHolders(ctx, tokenExternalAddr, 10)
+		require.NoError(t, err)
+		require.Equal(t, 6, len(result))
+
+		require.Equal(t, uint64(0), result[0].Position.Rank)
+		require.Equal(t, "Bonding Curve", strVal(result[0].Position.Holder.Display))
+
+		require.Equal(t, uint64(0), result[1].Position.Rank)
+		require.Equal(t, "Burned", strVal(result[1].Position.Holder.Display))
+
+		require.Equal(t, uint64(1), result[2].Position.Rank)
+		require.Equal(t, "holder_rank1", strVal(result[2].Position.Holder.Username))
+		require.Equal(t, "Holder Rank 1", strVal(result[2].Position.Holder.Display))
+		require.Equal(t, holder1MasterPubkey, result[2].Position.Holder.Addresses.IonConnect)
+		require.Equal(t, holder1BlockchainAddr, result[2].Position.Holder.Addresses.Blockchain)
+		require.Equal(t, "40000000000000000000", result[2].Position.Amount)
+
+		require.Equal(t, uint64(2), result[3].Position.Rank)
+		require.Equal(t, "holder_rank2", strVal(result[3].Position.Holder.Username))
+		require.Equal(t, "Holder Rank 2", strVal(result[3].Position.Holder.Display))
+		require.Equal(t, holder2MasterPubkey, result[3].Position.Holder.Addresses.IonConnect)
+		require.Equal(t, holder2BlockchainAddr, result[3].Position.Holder.Addresses.Blockchain)
+		require.Equal(t, "30000000000000000000", result[3].Position.Amount)
+
+		require.Equal(t, uint64(3), result[4].Position.Rank)
+		require.Equal(t, holder3BlockchainAddr, result[4].Position.Holder.Addresses.Blockchain)
+		require.Empty(t, result[4].Position.Holder.Addresses.IonConnect)
+		require.Nil(t, result[4].Position.Holder.Username)
+		require.Equal(t, "25000000000000000000", result[4].Position.Amount)
+
+		require.Equal(t, uint64(4), result[5].Position.Rank)
+		require.Equal(t, holder4BlockchainAddr, result[5].Position.Holder.Addresses.Blockchain)
+		require.Empty(t, result[5].Position.Holder.Addresses.IonConnect)
+		require.Nil(t, result[5].Position.Holder.Username)
+		require.Equal(t, "20000000000000000000", result[5].Position.Amount)
 	})
 }
 
