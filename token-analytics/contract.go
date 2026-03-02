@@ -578,4 +578,9 @@ type (
 		ExternalAddress string  `db:"external_address"`
 		Volume1h        float64 `db:"volume_1h"`
 	}
+	rankedHolder struct {
+		address         string
+		score           float64
+		hasFullUserData bool
+	}
 )
