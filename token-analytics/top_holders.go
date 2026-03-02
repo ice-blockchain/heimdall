@@ -480,7 +480,9 @@ func buildTopHolderPositions(externalAddress string, rankings, rankingsByBlockch
 
 		holders = append(holders, holder)
 	}
-	for rank, z := range rankingsByBlockchainAddress {
+	currentRank := len(holders) - extraItemsEnriched
+	blockchainOnlyHoldersAdded := 0
+	for _, z := range rankingsByBlockchainAddress {
 		userBlockChainAddress := z.Member.(string)
 		if _, ok := byBlockchainAddress[z.Member.(string)]; !ok {
 			continue
@@ -508,7 +510,7 @@ func buildTopHolderPositions(externalAddress string, rankings, rankingsByBlockch
 		if err != nil {
 			return nil, fmt.Errorf("failed to build holder addresses from blockchain address %s (platform %s): %w", userBlockChainAddress, strVal(holderData.HolderPlatform), err)
 		}
-		userRank := rank + 1 - extraItemsEnriched
+		userRank := currentRank + blockchainOnlyHoldersAdded + 1
 		if userRank <= 0 {
 			userRank = 1
 		}
@@ -538,6 +540,7 @@ func buildTopHolderPositions(externalAddress string, rankings, rankingsByBlockch
 		}
 
 		holders = append(holders, holder)
+		blockchainOnlyHoldersAdded++
 	}
 
 	return holders, nil

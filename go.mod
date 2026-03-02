@@ -25,7 +25,7 @@ require (
 	github.com/georgysavva/scany/v2 v2.1.4
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-contrib/sse v1.1.0
-	github.com/gin-gonic/gin v1.11.0
+	github.com/gin-gonic/gin v1.12.0
 	github.com/gobwas/httphead v0.1.0
 	github.com/gobwas/ws v1.4.0
 	github.com/goccy/go-json v0.10.5
@@ -112,7 +112,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.30.11 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.15 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.41.7 // indirect
-	github.com/aws/smithy-go v1.24.1 // indirect
+	github.com/aws/smithy-go v1.24.2 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bitfield/gotestdox v0.2.2 // indirect
@@ -290,7 +290,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.67.5 // indirect
-	github.com/prometheus/procfs v0.20.0 // indirect
+	github.com/prometheus/procfs v0.20.1 // indirect
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/webtransport-go v0.10.0 // indirect
@@ -311,7 +311,7 @@ require (
 	github.com/sendgrid/sendgrid-go v3.16.1+incompatible // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
-	github.com/shirou/gopsutil/v4 v4.26.1 // indirect
+	github.com/shirou/gopsutil/v4 v4.26.2 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/sirkon/dst v0.26.4 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
@@ -341,6 +341,7 @@ require (
 	github.com/xrash/smetrics v0.0.0-20250705151800-55b8f293f342 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	github.com/zeebo/blake3 v0.2.4 // indirect
+	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.40.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.65.0 // indirect
