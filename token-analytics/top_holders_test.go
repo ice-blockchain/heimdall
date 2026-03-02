@@ -114,7 +114,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 		rowsWithBurned := append(rows, burnedRow)
 		rankingsWithBurned := append(rankings, redis.Z{Score: 0.05, Member: burnAddr})
 
-		result, err := buildTopHolderPositions(contractAddr, rankingsWithBurned, []redis.Z{}, rowsWithBurned, bondingCurveAddr, burnAddr, 1)
+		result, err := buildTopHolderPositions(contractAddr, rankingsWithBurned, []redis.Z{}, rowsWithBurned, bondingCurveAddr, burnAddr)
 		require.NoError(t, err)
 		require.Len(t, result, 4, "Profile token should include burned holder")
 		require.Equal(t, uint64(1), result[0].Position.Rank)
@@ -131,14 +131,14 @@ func Test_buildTopHolderPositions(t *testing.T) {
 		require.Equal(t, "creator_ext", result[0].Creator.Addresses.IonConnect)
 		require.True(t, *result[0].Creator.Verified)
 
-		require.Equal(t, uint64(1), result[1].Position.Rank)
+		require.Equal(t, uint64(2), result[1].Position.Rank)
 		require.Equal(t, "holder2", strVal(result[1].Position.Holder.Username))
 		require.Equal(t, "500250000000000000", result[1].Position.Amount) // 0.50025 tokens * 1e18
 		require.Equal(t, 0.750375, result[1].Position.AmountUSD)          // 0.50025 tokens * 1.5 USD
 		require.Equal(t, 0.50025, result[1].Position.SupplyShare)         // 0.50025 / 100 * 100
 		require.False(t, *result[1].Position.Holder.Verified)
 
-		require.Equal(t, uint64(2), result[2].Position.Rank)
+		require.Equal(t, uint64(3), result[2].Position.Rank)
 		require.Equal(t, "holder3", strVal(result[2].Position.Holder.Username))
 		require.Equal(t, "100000000000000000", result[2].Position.Amount)   // 0.1 tokens * 1e18
 		require.Equal(t, 0.15000000000000002, result[2].Position.AmountUSD) // 0.1 tokens * 1.5 USD
@@ -154,7 +154,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 		t.Parallel()
 		rankings := []redis.Z{}
 		rows := []*holderWithTokenData{}
-		result, err := buildTopHolderPositions(contractAddr, rankings, []redis.Z{}, rows, "", "", 0)
+		result, err := buildTopHolderPositions(contractAddr, rankings, []redis.Z{}, rows, "", "")
 		require.NoError(t, err)
 		require.Empty(t, result)
 	})
@@ -182,7 +182,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderPlatform:         strPtr("ionconnect"),
 			},
 		}
-		result, err := buildTopHolderPositions(contractAddr, rankings, []redis.Z{}, rows, "", burnAddr, 0)
+		result, err := buildTopHolderPositions(contractAddr, rankings, []redis.Z{}, rows, "", burnAddr)
 		require.NoError(t, err)
 		require.Len(t, result, 1, "IonConnect content token should NOT include burned holder")
 
@@ -223,7 +223,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderPlatform:         strPtr("xcom"),
 			},
 		}
-		result, err := buildTopHolderPositions(contractAddr, rankings, []redis.Z{}, rows, "", "", 0)
+		result, err := buildTopHolderPositions(contractAddr, rankings, []redis.Z{}, rows, "", "")
 		require.NoError(t, err)
 		require.Len(t, result, 1, "Should build position even when holder not in users table for X.com token")
 
@@ -304,7 +304,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 			},
 		}
 
-		result, err := buildTopHolderPositions(contractAddr, rankings, []redis.Z{}, rows, "", "", 0)
+		result, err := buildTopHolderPositions(contractAddr, rankings, []redis.Z{}, rows, "", "")
 		require.NoError(t, err)
 		require.Len(t, result, 3)
 
@@ -347,7 +347,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 			},
 		}
 
-		result, err := buildTopHolderPositions(contractAddr, rankings, []redis.Z{}, rows, "", "", 0)
+		result, err := buildTopHolderPositions(contractAddr, rankings, []redis.Z{}, rows, "", "")
 		require.NoError(t, err)
 		require.Len(t, result, 1)
 		require.Equal(t, 0.0, result[0].Position.AmountUSD)
@@ -427,7 +427,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 			},
 		}
 
-		result, err := buildTopHolderPositions(contractAddr, rankings, []redis.Z{}, rows, "", "", 0)
+		result, err := buildTopHolderPositions(contractAddr, rankings, []redis.Z{}, rows, "", "")
 		require.NoError(t, err)
 
 		require.Len(t, result, 3)
@@ -528,7 +528,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 			},
 		}
 
-		result, err := buildTopHolderPositions(contractAddr, rankings, rankingsByBlockchain, rows, "", "", 0)
+		result, err := buildTopHolderPositions(contractAddr, rankings, rankingsByBlockchain, rows, "", "")
 		require.NoError(t, err)
 		require.Len(t, result, 4)
 
@@ -1163,6 +1163,140 @@ func TestGetTopHolders(t *testing.T) {
 		require.Empty(t, result[5].Position.Holder.Addresses.IonConnect)
 		require.Nil(t, result[5].Position.Holder.Username)
 		require.Equal(t, "20000000000000000000", result[5].Position.Amount)
+	})
+
+	t.Run("should respect limit=5 with bonding curve and burned", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		db, release := helperCreateDB(t)
+		defer release()
+
+		bondingGoal, _ := new(big.Int).SetString("1000000000000000000000", 10)
+		soldTokens, _ := new(big.Int).SetString("500000000000000000000", 10)
+		config := &bondingcurvefixture.MockBackendConfig{
+			BuyPrice:          big.NewInt(950000000000000000),
+			SellPrice:         big.NewInt(1050000000000000000),
+			SoldTokens:        soldTokens,
+			TokensRaised:      big.NewInt(0),
+			StartPrice:        big.NewInt(100000000000000000),
+			EndPrice:          big.NewInt(200000000000000000),
+			BondingTokensGoal: bondingGoal,
+			CurrentPrice:      big.NewInt(150000000000000000),
+			Migrated:          false,
+		}
+		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, config)
+		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+
+		ta := helperNewForTest(t, db, WithBondingCurve(mockBC))
+		defer ta.Close()
+
+		creatorMasterPubkey := "creator_limit"
+		creatorBlockchainAddr := "0x1111222222222222222222222222222222222222"
+		tokenContractAddr := "0xaaaa222222222222222222222222222222222222"
+		tokenExternalAddr := "0:creator_limit:token_limit"
+		baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+		pairID := "0x0000000000000000000000000000000000000000000000000000000000000088"
+
+		helperInsertTestUser(t, ctx, db, creatorMasterPubkey, "creator_limit", "Creator Limit", creatorBlockchainAddr, false, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db, tokenContractAddr, tokenExternalAddr, "LIMIT", TokenTypeProfile, creatorMasterPubkey, "1000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperInsertBaseTokenPrice(t, ctx, db, baseToken, "ION", 0.5)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddr, pairID, baseToken)
+		helperUpdateTokenPrice(t, ctx, db, tokenExternalAddr, 2.0)
+
+		for i := 1; i <= 10; i++ {
+			holderMasterPubkey := fmt.Sprintf("holder_limit_%d", i)
+			holderExternalAddr := fmt.Sprintf("0:holder_limit_%d:", i)
+			holderBlockchainAddr := fmt.Sprintf("0x%040d", 1000+i)
+			helperInsertTestUser(t, ctx, db, holderMasterPubkey, fmt.Sprintf("holder_limit_%d", i), fmt.Sprintf("Holder Limit %d", i), holderBlockchainAddr, false, PlatformGroupIonConnect)
+			helperInsertUserTokenPosition(t, ctx, db, holderMasterPubkey, tokenContractAddr, tokenExternalAddr, holderExternalAddr, fmt.Sprintf("%d000000000000000000", 11-i), 2.0, float64((11-i)*2))
+
+			userPositionKey := keyUserPositionOfToken(tokenExternalAddr)
+			err := ta.processedDataDB.ZAdd(ctx, userPositionKey, redis.Z{Score: float64(11 - i), Member: holderExternalAddr}).Err()
+			require.NoError(t, err)
+
+			userPositionKeyBlockchain := keyUserPositionOfTokenByUserBlockchainAddress(tokenExternalAddr)
+			err = ta.processedDataDB.ZAdd(ctx, userPositionKeyBlockchain, redis.Z{Score: float64(11 - i), Member: holderBlockchainAddr}).Err()
+			require.NoError(t, err)
+		}
+
+		result, err := ta.GetTopHolders(ctx, tokenExternalAddr, 5)
+		require.NoError(t, err)
+		require.Equal(t, 5, len(result), "Should return exactly 5 holders when limit=5")
+
+		require.Equal(t, uint64(0), result[0].Position.Rank, "First should be bonding curve with rank 0")
+		require.Equal(t, "Bonding Curve", strVal(result[0].Position.Holder.Display))
+
+		require.Equal(t, uint64(0), result[1].Position.Rank, "Second should be burned with rank 0")
+		require.Equal(t, "Burned", strVal(result[1].Position.Holder.Display))
+
+		require.Equal(t, uint64(1), result[2].Position.Rank, "Third should be holder with rank 1")
+		require.Equal(t, "holder_limit_1", strVal(result[2].Position.Holder.Username))
+
+		require.Equal(t, uint64(2), result[3].Position.Rank, "Fourth should be holder with rank 2")
+		require.Equal(t, "holder_limit_2", strVal(result[3].Position.Holder.Username))
+
+		require.Equal(t, uint64(3), result[4].Position.Rank, "Fifth should be holder with rank 3")
+		require.Equal(t, "holder_limit_3", strVal(result[4].Position.Holder.Username))
+	})
+
+	t.Run("should respect limit=1 returning only bonding curve", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		db, release := helperCreateDB(t)
+		defer release()
+
+		bondingGoal, _ := new(big.Int).SetString("1000000000000000000000", 10)
+		soldTokens, _ := new(big.Int).SetString("500000000000000000000", 10)
+		config := &bondingcurvefixture.MockBackendConfig{
+			BuyPrice:          big.NewInt(950000000000000000),
+			SellPrice:         big.NewInt(1050000000000000000),
+			SoldTokens:        soldTokens,
+			TokensRaised:      big.NewInt(0),
+			StartPrice:        big.NewInt(100000000000000000),
+			EndPrice:          big.NewInt(200000000000000000),
+			BondingTokensGoal: bondingGoal,
+			CurrentPrice:      big.NewInt(150000000000000000),
+			Migrated:          false,
+		}
+		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, config)
+		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+
+		ta := helperNewForTest(t, db, WithBondingCurve(mockBC))
+		defer ta.Close()
+
+		creatorMasterPubkey := "creator_limit1"
+		creatorBlockchainAddr := "0x1111333333333333333333333333333333333333"
+		tokenContractAddr := "0xaaaa333333333333333333333333333333333333"
+		tokenExternalAddr := "0:creator_limit1:token_limit1"
+		baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+		pairID := "0x0000000000000000000000000000000000000000000000000000000000000077"
+
+		helperInsertTestUser(t, ctx, db, creatorMasterPubkey, "creator_limit1", "Creator Limit1", creatorBlockchainAddr, false, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db, tokenContractAddr, tokenExternalAddr, "LIM1", TokenTypeProfile, creatorMasterPubkey, "1000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperInsertBaseTokenPrice(t, ctx, db, baseToken, "ION", 0.5)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddr, pairID, baseToken)
+		helperUpdateTokenPrice(t, ctx, db, tokenExternalAddr, 2.0)
+
+		holderMasterPubkey := "holder_limit1_1"
+		holderExternalAddr := "0:holder_limit1_1:"
+		holderBlockchainAddr := "0x2222333333333333333333333333333333333333"
+		helperInsertTestUser(t, ctx, db, holderMasterPubkey, "holder_limit1_1", "Holder Limit1 1", holderBlockchainAddr, false, PlatformGroupIonConnect)
+		helperInsertUserTokenPosition(t, ctx, db, holderMasterPubkey, tokenContractAddr, tokenExternalAddr, holderExternalAddr, "50000000000000000000", 2.0, 100.0)
+
+		userPositionKey := keyUserPositionOfToken(tokenExternalAddr)
+		err := ta.processedDataDB.ZAdd(ctx, userPositionKey, redis.Z{Score: 50.0, Member: holderExternalAddr}).Err()
+		require.NoError(t, err)
+
+		userPositionKeyBlockchain := keyUserPositionOfTokenByUserBlockchainAddress(tokenExternalAddr)
+		err = ta.processedDataDB.ZAdd(ctx, userPositionKeyBlockchain, redis.Z{Score: 50.0, Member: holderBlockchainAddr}).Err()
+		require.NoError(t, err)
+
+		result, err := ta.GetTopHolders(ctx, tokenExternalAddr, 1)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(result), "Should return exactly 1 holder when limit=1")
+
+		require.Equal(t, uint64(0), result[0].Position.Rank)
+		require.Equal(t, "Bonding Curve", strVal(result[0].Position.Holder.Display))
 	})
 }
 
