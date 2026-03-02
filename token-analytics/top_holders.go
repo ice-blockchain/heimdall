@@ -18,7 +18,7 @@ import (
 
 func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress string, limit int64) ([]*TopHolderPosition, error) {
 	key := keyUserPositionOfToken(externalAddress)
-	result, err := t.processedDataDB.ZRevRangeWithScores(ctx, key, 0, limit).Result()
+	result, err := t.processedDataDB.ZRevRangeWithScores(ctx, key, 0, limit-1).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return []*TopHolderPosition{}, nil
@@ -172,7 +172,6 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 	}
 
 	creatorPosition := t.creatorPosition(ctx, externalAddress, creatorAddresses)
-	extraItemsEnriched := 0
 	if creatorPosition == 0 { // When creator has position fees are included in it as we read balance from blockchain
 		creatorPosition = weiToFloat64FromBigString(rows[0].CreatorFees)
 		for idx, z := range result {
@@ -213,7 +212,6 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 					CreatorVerified:        creator.Verified,
 					HolderVerified:         creator.Verified,
 				})
-				extraItemsEnriched += 1
 				break
 			}
 		}
@@ -223,19 +221,20 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 		if rows, result, resultBlockChainAddresses, err = t.enrichTopHoldersWithBongingCurve(ctx, pairId, externalAddress, rows, creator, limit, result, resultBlockChainAddresses); err != nil {
 			return nil, errors.Wrapf(err, "failed to enrich top holders with bonging curve for token %v", externalAddress)
 		}
-		extraItemsEnriched += 1
 	}
 	isIonConnectContentToken := rows[0].TokenType != TokenTypeProfile && rows[0].TokenPlatform == PlatformGroupIonConnect
 	if !isIonConnectContentToken {
 		if rows, result, resultBlockChainAddresses, err = t.enrichTopHoldersWithBurned(ctx, externalAddress, rows, creator, limit, result, resultBlockChainAddresses); err != nil {
 			return nil, errors.Wrapf(err, "failed to enrich top holders with burned for token %v", externalAddress)
 		}
-		extraItemsEnriched += 1
 	}
 
-	positions, err := buildTopHolderPositions(externalAddress, result, resultBlockChainAddresses, rows, t.cfg.BondingCurve.SmartContractAddress, t.cfg.BondingCurve.BurnAddress, extraItemsEnriched)
+	positions, err := buildTopHolderPositions(externalAddress, result, resultBlockChainAddresses, rows, t.cfg.BondingCurve.SmartContractAddress, t.cfg.BondingCurve.BurnAddress)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build top holder positions")
+	}
+	if int64(len(positions)) > limit {
+		positions = positions[:limit]
 	}
 
 	return positions, nil
@@ -372,7 +371,7 @@ func (t *tokenAnalytics) enrichTopHoldersWithBongingCurve(ctx context.Context, p
 	return rows, result, resultByBlockchain, nil
 }
 
-func buildTopHolderPositions(externalAddress string, rankings, rankingsByBlockchainAddress []redis.Z, rows []*holderWithTokenData, bondingCurveContractAddress, burnAddress string, extraItemsEnriched int) ([]*TopHolderPosition, error) {
+func buildTopHolderPositions(externalAddress string, rankings, rankingsByBlockchainAddress []redis.Z, rows []*holderWithTokenData, bondingCurveContractAddress, burnAddress string) ([]*TopHolderPosition, error) {
 	holderDataMap := make(map[string]*holderWithTokenData)
 	matching := make(map[string]string)
 	for i := range rows {
@@ -386,45 +385,51 @@ func buildTopHolderPositions(externalAddress string, rankings, rankingsByBlockch
 			holderDataMap[*rows[i].HolderBnbBscAddress] = rows[i]
 		}
 	}
-	byBlockchainAddress := make(map[string]float64)
-	for _, z := range rankingsByBlockchainAddress {
-		byBlockchainAddress[z.Member.(string)] = z.Score
-	}
-	holders := make([]*TopHolderPosition, 0, len(rankings))
-	for rank, z := range rankings {
-		userExternalAddress, ok := z.Member.(string)
-		if !ok {
-			log.Warn(fmt.Sprintf("Could not convert member to string for external_address: %v", userExternalAddress))
+	mergedRankings := mergeRankings(rankings, rankingsByBlockchainAddress, matching, bondingCurveContractAddress, burnAddress)
 
-			continue
-		}
-		blockchainAddress, ok := matching[userExternalAddress]
-		if ok {
-			delete(byBlockchainAddress, blockchainAddress)
-		}
-		holderData, exists := holderDataMap[userExternalAddress]
-		if !exists {
-			if len(rows) == 0 || blockchainAddress == "" {
+	holders := make([]*TopHolderPosition, 0, len(mergedRankings))
+	currentUserRank := 0
+	for _, rh := range mergedRankings {
+		var holderData *holderWithTokenData
+		var userExternalAddress string
+		var exists bool
+		if rh.hasFullUserData {
+			userExternalAddress = rh.address
+			holderData, exists = holderDataMap[userExternalAddress]
+			if !exists {
+				blockchainAddress, ok := matching[userExternalAddress]
+				if len(rows) == 0 || !ok || blockchainAddress == "" {
+					continue
+				}
+				holderData = &holderWithTokenData{
+					ContentAuthorID:        rows[0].ContentAuthorID,
+					CreatorUsername:        rows[0].CreatorUsername,
+					CreatorDisplay:         rows[0].CreatorDisplay,
+					CreatorAvatar:          rows[0].CreatorAvatar,
+					CreatorExternalAddress: rows[0].CreatorExternalAddress,
+					CreatorPlatform:        rows[0].CreatorPlatform,
+					CreatorBnbBscAddress:   rows[0].CreatorBnbBscAddress,
+					TotalSupply:            rows[0].TotalSupply,
+					BondingCurveMigrated:   rows[0].BondingCurveMigrated,
+					PairId:                 rows[0].PairId,
+					BaseToken:              rows[0].BaseToken,
+					TokenType:              rows[0].TokenType,
+					TokenPlatform:          rows[0].TokenPlatform,
+					PriceUSD:               rows[0].PriceUSD,
+					CreatorVerified:        rows[0].CreatorVerified,
+					HolderBnbBscAddress:    &blockchainAddress,
+				}
+			}
+		} else {
+			userBlockchainAddress := rh.address
+			holderData, exists = holderDataMap[userBlockchainAddress]
+			if !exists {
 				continue
 			}
-			holderData = &holderWithTokenData{
-				ContentAuthorID:        rows[0].ContentAuthorID,
-				CreatorUsername:        rows[0].CreatorUsername,
-				CreatorDisplay:         rows[0].CreatorDisplay,
-				CreatorAvatar:          rows[0].CreatorAvatar,
-				CreatorExternalAddress: rows[0].CreatorExternalAddress,
-				CreatorPlatform:        rows[0].CreatorPlatform,
-				CreatorBnbBscAddress:   rows[0].CreatorBnbBscAddress,
-				TotalSupply:            rows[0].TotalSupply,
-				BondingCurveMigrated:   rows[0].BondingCurveMigrated,
-				PairId:                 rows[0].PairId,
-				BaseToken:              rows[0].BaseToken,
-				TokenType:              rows[0].TokenType,
-				TokenPlatform:          rows[0].TokenPlatform,
-				PriceUSD:               rows[0].PriceUSD,
-				CreatorVerified:        rows[0].CreatorVerified,
-
-				HolderBnbBscAddress: &blockchainAddress,
+			if holderData.HolderExternalAddress != nil {
+				userExternalAddress = *holderData.HolderExternalAddress
+			} else {
+				userExternalAddress = ""
 			}
 		}
 
@@ -433,7 +438,7 @@ func buildTopHolderPositions(externalAddress string, rankings, rankingsByBlockch
 			log.Warn(fmt.Sprintf("Failed to parse total supply for token %v: %v", externalAddress, err))
 			totalSupplyFloat = 0
 		}
-		amountTokens := z.Score
+		amountTokens := rh.score
 		amountWei := tokensToWeiBigInt(amountTokens)
 		amountUSD := amountTokens * holderData.PriceUSD
 		supplyShare := calculateSupplyShare(amountTokens, totalSupplyFloat)
@@ -446,14 +451,17 @@ func buildTopHolderPositions(externalAddress string, rankings, rankingsByBlockch
 		if err != nil {
 			return nil, fmt.Errorf("failed to build holder addresses from external_address %s (platform %s): %w", userExternalAddress, strVal(holderData.HolderPlatform), err)
 		}
-		userRank := rank + 1 - extraItemsEnriched
-		if userRank <= 0 {
-			userRank = 1
-		}
-		r := uint64(userRank)
-		if userExternalAddress == bondingCurveContractAddress || userExternalAddress == burnAddress {
+		isHolderSpecial := (rh.hasFullUserData && (userExternalAddress == bondingCurveContractAddress || userExternalAddress == burnAddress)) ||
+			(!rh.hasFullUserData && (rh.address == bondingCurveContractAddress || rh.address == burnAddress))
+
+		var r uint64
+		if isHolderSpecial {
 			r = 0
+		} else {
+			currentUserRank++
+			r = uint64(currentUserRank)
 		}
+
 		holder := &TopHolderPosition{
 			Creator: User{
 				Username:  holderData.CreatorUsername,
@@ -479,69 +487,106 @@ func buildTopHolderPositions(externalAddress string, rankings, rankingsByBlockch
 		}
 
 		holders = append(holders, holder)
-	}
-	currentRank := len(holders) - extraItemsEnriched
-	blockchainOnlyHoldersAdded := 0
-	for _, z := range rankingsByBlockchainAddress {
-		userBlockChainAddress := z.Member.(string)
-		if _, ok := byBlockchainAddress[z.Member.(string)]; !ok {
-			continue
-		}
-		holderData, exists := holderDataMap[userBlockChainAddress]
-		if !exists {
-			continue
-		}
-
-		totalSupplyFloat, err := parseTotalSupply(holderData.TotalSupply, externalAddress)
-		if err != nil {
-			log.Warn(fmt.Sprintf("Failed to parse total supply for token %v: %v", externalAddress, err))
-			totalSupplyFloat = 0
-		}
-		amountTokens := z.Score
-		amountWei := tokensToWeiBigInt(amountTokens)
-		amountUSD := amountTokens * holderData.PriceUSD
-		supplyShare := calculateSupplyShare(amountTokens, totalSupplyFloat)
-
-		creatorAddresses, err := buildUserAddressesFromExternalAddressAndPlatform(strVal(holderData.CreatorExternalAddress), strVal(holderData.CreatorPlatform), strVal(holderData.CreatorBnbBscAddress))
-		if err != nil {
-			return nil, fmt.Errorf("failed to build creator addresses from external_address %s (platform %s): %w", strVal(holderData.CreatorExternalAddress), strVal(holderData.CreatorPlatform), err)
-		}
-		holderAddresses, err := buildUserAddressesFromExternalAddressAndPlatform("", strVal(holderData.HolderPlatform), strVal(holderData.HolderBnbBscAddress))
-		if err != nil {
-			return nil, fmt.Errorf("failed to build holder addresses from blockchain address %s (platform %s): %w", userBlockChainAddress, strVal(holderData.HolderPlatform), err)
-		}
-		userRank := currentRank + blockchainOnlyHoldersAdded + 1
-		if userRank <= 0 {
-			userRank = 1
-		}
-		r := uint64(userRank)
-		holder := &TopHolderPosition{
-			Creator: User{
-				Username:  holderData.CreatorUsername,
-				Display:   holderData.CreatorDisplay,
-				Verified:  holderData.CreatorVerified,
-				Avatar:    holderData.CreatorAvatar,
-				Addresses: creatorAddresses,
-			},
-			Position: HolderPosition{
-				Holder: User{
-					MasterPubkey: holderData.HolderMasterPubkey,
-					Username:     holderData.HolderUsername,
-					Display:      holderData.HolderDisplay,
-					Verified:     holderData.HolderVerified,
-					Avatar:       holderData.HolderAvatar,
-					Addresses:    holderAddresses,
-				},
-				Rank:        r,
-				Amount:      amountWei.String(),
-				AmountUSD:   amountUSD,
-				SupplyShare: supplyShare,
-			},
-		}
-
-		holders = append(holders, holder)
-		blockchainOnlyHoldersAdded++
 	}
 
 	return holders, nil
+}
+
+func isSpecialAddress(addr, bondingCurve, burn string) bool {
+	return addr == bondingCurve || addr == burn
+}
+
+func mergeRankings(rankings, rankingsByBlockchain []redis.Z, matching map[string]string, bondingCurve, burn string) []rankedHolder {
+	merged := make([]rankedHolder, 0, len(rankings)+len(rankingsByBlockchain))
+	processedBlockchain := make(map[string]bool)
+
+	specialInRankings := make(map[string]bool)
+	for _, z := range rankings {
+		if addr, ok := z.Member.(string); ok && isSpecialAddress(addr, bondingCurve, burn) {
+			specialInRankings[addr] = true
+		}
+	}
+	i, j := 0, 0
+	for i < len(rankings) || j < len(rankingsByBlockchain) {
+		if i >= len(rankings) {
+			blockchainAddr := rankingsByBlockchain[j].Member.(string)
+			if !processedBlockchain[blockchainAddr] {
+				merged = append(merged, rankedHolder{
+					address:         blockchainAddr,
+					score:           rankingsByBlockchain[j].Score,
+					hasFullUserData: false,
+				})
+			}
+			j++
+
+			continue
+		}
+
+		if j >= len(rankingsByBlockchain) {
+			if addr, ok := rankings[i].Member.(string); ok {
+				merged = append(merged, rankedHolder{
+					address:         addr,
+					score:           rankings[i].Score,
+					hasFullUserData: true,
+				})
+				if blockchainAddr, exists := matching[addr]; exists {
+					processedBlockchain[blockchainAddr] = true
+				}
+				if isSpecialAddress(addr, bondingCurve, burn) {
+					processedBlockchain[addr] = true
+				}
+			}
+			i++
+
+			continue
+		}
+
+		addr, _ := rankings[i].Member.(string)
+		blockchainAddr := rankingsByBlockchain[j].Member.(string)
+		if isSpecialAddress(blockchainAddr, bondingCurve, burn) && specialInRankings[blockchainAddr] {
+			processedBlockchain[blockchainAddr] = true
+			j++
+
+			continue
+		}
+		pickFromRankings := shouldPickFromRankings(addr, rankings[i].Score, blockchainAddr, rankingsByBlockchain[j].Score, bondingCurve, burn)
+		if pickFromRankings {
+			merged = append(merged, rankedHolder{
+				address:         addr,
+				score:           rankings[i].Score,
+				hasFullUserData: true,
+			})
+			if blockchainAddr, exists := matching[addr]; exists {
+				processedBlockchain[blockchainAddr] = true
+			}
+			if isSpecialAddress(addr, bondingCurve, burn) {
+				processedBlockchain[addr] = true
+			}
+			i++
+		} else {
+			if !processedBlockchain[blockchainAddr] {
+				merged = append(merged, rankedHolder{
+					address:         blockchainAddr,
+					score:           rankingsByBlockchain[j].Score,
+					hasFullUserData: false,
+				})
+			}
+			j++
+		}
+	}
+
+	return merged
+}
+
+func shouldPickFromRankings(addrWithUserData string, scoreWithUserData float64, blockchainOnlyAddr string, blockchainOnlyScore float64, bondingCurve, burn string) bool {
+	isAddrSpecial := isSpecialAddress(addrWithUserData, bondingCurve, burn)
+	isBlockchainSpecial := isSpecialAddress(blockchainOnlyAddr, bondingCurve, burn)
+	if isAddrSpecial {
+		return true
+	}
+	if isBlockchainSpecial {
+		return false
+	}
+
+	return scoreWithUserData >= blockchainOnlyScore
 }
