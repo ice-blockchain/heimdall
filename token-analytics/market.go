@@ -298,14 +298,63 @@ func (t *tokenAnalytics) fetchTradingStats(ctx context.Context, now stdlibtime.T
                   COALESCE(first(price_in_usd), 0)                                                                          AS price_ago
            FROM trades
            WHERE timestamp >= dateadd('h', -24, $2) AND external_address = $1
-       )`
+       )
+       UNION ALL (
+       		SELECT
+                  'is_first_swap' 																							AS aggregation_interval,
+                  0::DECIMAL(76,18)  																						AS buys_total_amount_usd,
+                  0::DECIMAL(76,18)  																						AS sells_total_amount_usd,
+                  COALESCE(SUM(CASE WHEN trade_type = 'buy' THEN 1 ELSE 0 END),0)                                           AS number_of_buys,
+                  COALESCE(SUM(CASE WHEN trade_type = 'sell' THEN 1 ELSE 0 END),0)                                          AS number_of_sells,
+                  0::DECIMAL(76,18)                                               											AS volume_usd,
+                  0::DECIMAL(76,18)                                                                           				AS current_price,
+                  0::DECIMAL(76,18)                                                                           				AS price_ago
+           FROM trades
+           WHERE external_address = $1 LIMIT 2
+       );`
+
 	aggregates, err := questdb.Select[TradeStatsAggregate](ctx, t.questDB, sql, externalAddress, time.New(now))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to fetch trading stats for %v", externalAddress)
 	}
 	res = new(TradeStats)
+	var firstSwap bool
+	for i := range aggregates {
+		if aggregates[i].AggregationInterval != "is_first_swap" {
+			continue
+		}
+		if aggregates[i].NumberOfBuys == 1 && aggregates[i].NumberOfSells == 0 {
+			firstSwap = true
+			break
+		}
+	}
+	var startingPrice float64
+	if firstSwap {
+		token, err := storage.Get[tokenAndUserInfo](ctx, t.ingestedDataDB, `
+			SELECT tokens."type" as token_type, tokens.base_token, tokens.platform from tokens where tokens.external_address = $1
+		`, externalAddress)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to fetch pg token info for %v", externalAddress)
+		}
+		startedTokensParams, _, _, err := defaultStartTokenParamsForBase(ctx, t.cfg, t.creatorTokenPricesION, t.ingestedDataDB, t.bondingCurve,
+			token.BaseToken, token.Type, token.Platform, nil, nil)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to fetch start token params for %v", externalAddress)
+		}
+		initialPriceBig, ok := new(big.Int).SetString(startedTokensParams.InitialPrice, 10)
+		if !ok {
+			return nil, errors.Errorf("failed to parse initial price for %v %v", externalAddress, startedTokensParams.InitialPrice)
+		}
+		startingPrice, _, err = t.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(initialPriceBig), token.BaseToken)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to calculate price usd for starting price of %v (%v), base %v", externalAddress, startedTokensParams.InitialPrice, token.BaseToken)
+		}
+	}
 	for i := range aggregates {
 		aggregates[i].NetBuy = aggregates[i].BuysTotalAmountUSD - aggregates[i].SellsTotalAmountUSD
+		if firstSwap && startingPrice > 0 && aggregates[i].CurrentPrice > 0 {
+			aggregates[i].PriceAgo = startingPrice
+		}
 		if aggregates[i].PriceAgo > 0 {
 			aggregates[i].PriceDiff = ((aggregates[i].CurrentPrice - aggregates[i].PriceAgo) / aggregates[i].PriceAgo) * 100
 		}
@@ -318,6 +367,8 @@ func (t *tokenAnalytics) fetchTradingStats(ctx context.Context, now stdlibtime.T
 			res.Bucket6Hours = aggregates[i]
 		case "24h":
 			res.Bucket24Hours = aggregates[i]
+		default:
+			continue
 		}
 	}
 	return res, nil
