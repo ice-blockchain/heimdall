@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"strings"
 	stdlibtime "time"
 
 	"github.com/cockroachdb/errors"
@@ -67,7 +68,12 @@ func (t *trade) Marshal(client questdb.LineSender) questdb.At {
 		DecimalColumnFromString("market_cap_usd", t.MarketcapUsd.Text('f', 18))
 }
 
-func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, direction bool, inputAmount, outputAmount *big.Int, contractAddress, userAddress, externalAddress, baseToken string, pairId []byte, totalSupply, burned *big.Int, priceInUSD, marketCapUSD float64) error {
+func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, direction bool, inputAmount, outputAmount *big.Int, contractAddress, userAddress, externalAddress, baseToken string, pairId []byte, totalSupply, burned *big.Int, priceInUSD, marketCapUSD float64) (bool, error) {
+	dedupKey := strings.ToLower(tx.TransactionHash) + ":" + strings.ToLower(contractAddress) + ":" + strings.ToLower(userAddress)
+	if _, alreadyProcessed := t.recentlyRegisteredTrades.LoadOrStore(dedupKey, stdlibtime.Now().UnixNano()); alreadyProcessed {
+		return false, nil
+	}
+
 	tradeTyp, baseAmount, amount, priceInBase := buyOrSell(direction, inputAmount, outputAmount)
 	priceInBaseF, _ := priceInBase.Float64()
 	basePrice := priceInUSD / priceInBaseF
@@ -87,7 +93,9 @@ func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, directi
 	}
 
 	if err := questdb.Write(ctx, t.questDB, tradeData); err != nil {
-		return errors.Wrapf(err, "failed to insert trading data into questdb")
+		t.recentlyRegisteredTrades.Delete(dedupKey)
+
+		return false, errors.Wrapf(err, "failed to insert trading data into questdb")
 	}
 	for interval := range validIntervals {
 		candleStick, _ := t.ohclvRecentData.LoadOrCompute(interval.String()+"_"+externalAddress, func() (newValue *recentCandlestick, cancel bool) {
@@ -99,7 +107,7 @@ func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, directi
 		recentTradingStats.update(tx.BlockTimestamp.UnixNano(), priceInUSD, tradeTyp == TradeTypeSell)
 	}
 
-	return nil
+	return true, nil
 }
 
 func buyOrSell(direction bool, inputAmount, outputAmount *big.Int) (trade TradeType, baseTokenAmount, creatorOrContentTokenAmount questdb.Decimal, priceInBase *big.Float) {

@@ -149,6 +149,7 @@ func New(ctx context.Context, coinImport CoinImport) TokenAnalytics {
 		riverClient:                 riverClient,
 		ohclvRecentData:             xsync.NewMap[string, *recentCandlestick](),
 		tradingStatsRecentData:      xsync.NewMap[string, *recentTradeStats](),
+		recentlyRegisteredTrades:    xsync.NewMap[string, int64](),
 		subscriptions:               newSubscriptions(ctx),
 		identityClient:              newIdentityClient(cfg.IdentityServiceURL, cfg.IdentityServiceAPIKey),
 		llmClient:                   llm.New(cfg.LLM),
@@ -401,6 +402,7 @@ func (t *tokenAnalytics) MustStart(ctx context.Context) {
 	go t.runVolumeWorker(ctx)
 	go t.runPeriodicRepopulationWorker(ctx)
 	go t.runAnalyticsSnapshotWorker(ctx)
+	go t.runRecentlyRegisteredTradesCleaner(ctx)
 }
 
 func (t *tokenAnalytics) runEventsProcessor(ctx context.Context, workerIdx uint) {
@@ -881,6 +883,26 @@ func (dummyUserRepository) ValidateTransaction(ctx context.Context, txPayload ac
 }
 func randInt(n int) int {
 	return rand.Intn(n)
+}
+
+func (t *tokenAnalytics) runRecentlyRegisteredTradesCleaner(ctx context.Context) {
+	ticker := stdlibtime.NewTicker(1 * stdlibtime.Minute)
+	defer ticker.Stop()
+
+	for ctx.Err() == nil {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			cutoff := stdlibtime.Now().Add(-recentlyRegisteredTradesTTL).UnixNano()
+			t.recentlyRegisteredTrades.Range(func(key string, registeredAt int64) bool {
+				if registeredAt < cutoff {
+					t.recentlyRegisteredTrades.Delete(key)
+				}
+				return true
+			})
+		}
+	}
 }
 
 func (t *tokenAnalytics) runPeriodicRepopulationWorker(ctx context.Context) {
