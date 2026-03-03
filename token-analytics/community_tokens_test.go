@@ -17,13 +17,14 @@ import (
 )
 
 func TestUpdateLoggedInUserProfile_TwoStepUpdate(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 
 	t.Run("two step update: first profile info, then BSC address", func(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		xcomUserID := "1234567890123"
 		externalAddress := "1234567890123"
@@ -112,7 +113,7 @@ func TestUpdateLoggedInUserProfile(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 		ctx := context.Background()
 
 		xcomUserID := "9876543210"
@@ -163,7 +164,7 @@ func TestUpdateLoggedInUserProfile(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 		ctx := context.Background()
 
 		xcomUserID := "5555555555"
@@ -198,7 +199,7 @@ func TestUpdateLoggedInUserProfile(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 		ctx := context.Background()
 
 		xcomUserID := "7777777777"
@@ -235,7 +236,7 @@ func TestUpdateLoggedInUserProfile(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 		ctx := context.Background()
 
 		bscWallet := "0x4444444444444444444444444444444444444444"
@@ -276,7 +277,7 @@ func TestUpdateLoggedInUserProfile(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 		ctx := context.Background()
 
 		xcomUserID := "8888888888"
@@ -417,13 +418,14 @@ func TestCalculatePnL(t *testing.T) {
 }
 
 func TestDetermineBaseTokenFromExternalAddress(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	db, release := helperCreateDB(t)
 	defer release()
 
-	taImpl := helperNewForTest(t, db)
+	taImpl := helperNewForTest(t, db, WithoutQuestDB())
 
 	t.Run("xcom_numeric_id_returns_ion", func(t *testing.T) {
 		baseToken, _, err := determineBaseTokenFromExternalAddress(ctx, taImpl.cfg, taImpl.ingestedDataDB, "1234567890")
@@ -543,7 +545,7 @@ func TestUpdateTokenExternalData(t *testing.T) {
 		}))
 		defer mockIdentitySvc.Close()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 		ta.identityClient = newIdentityClient(mockIdentitySvc.URL, "test-api-key")
 		ctx := context.Background()
 
@@ -622,7 +624,7 @@ func TestUpdateTokenExternalData(t *testing.T) {
 		}))
 		defer mockIdentitySvc.Close()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 		ta.identityClient = newIdentityClient(mockIdentitySvc.URL, "test-api-key")
 		ctx := context.Background()
 
@@ -659,7 +661,7 @@ func TestUpdateTokenExternalData(t *testing.T) {
 		}))
 		defer mockIdentitySvc.Close()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 		ta.identityClient = newIdentityClient(mockIdentitySvc.URL, "test-api-key")
 		ctx := context.Background()
 
@@ -718,7 +720,7 @@ func TestUpdateTokenExternalData(t *testing.T) {
 		}))
 		defer mockIdentitySvc.Close()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 		ta.identityClient = newIdentityClient(mockIdentitySvc.URL, "test-api-key")
 		ctx := context.Background()
 
@@ -766,7 +768,7 @@ func TestUpdateTokenExternalData(t *testing.T) {
 		}))
 		defer mockIdentitySvc.Close()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 		ta.identityClient = newIdentityClient(mockIdentitySvc.URL, "test-api-key")
 		ctx := context.Background()
 

@@ -11,11 +11,12 @@ import (
 )
 
 func TestGetBondingCurveProgress(t *testing.T) {
+	t.Parallel()
 	t.Run("returns bonding curve progress from RPC", func(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 		tokenExternalAddr := "0:test_token_progress:"
 		pairID := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
 		baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8" // ION
@@ -43,7 +44,7 @@ func TestGetBondingCurveProgress(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		progress, err := ta.GetBondingCurveProgress(t.Context(), "0:non_existent_token:")
 
@@ -55,7 +56,7 @@ func TestGetBondingCurveProgress(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		tokenExternalAddr := "0:test_token_no_pair:"
 		contractAddr := "0x2234567890123456789012345678901234567890"
@@ -72,11 +73,12 @@ func TestGetBondingCurveProgress(t *testing.T) {
 }
 
 func TestSubscribeBondingCurveProgress(t *testing.T) {
+	t.Parallel()
 	t.Run("sends initial progress", func(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		tokenExternalAddr := "0:test_token_subscribe:"
 		pairID := "0x3234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
@@ -119,7 +121,7 @@ func TestSubscribeBondingCurveProgress(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		addToStream := func(progress *BondingCurveProgress, err error) {
 			t.Fatal("should not be called")

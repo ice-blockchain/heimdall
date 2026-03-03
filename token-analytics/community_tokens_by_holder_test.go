@@ -17,7 +17,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := helperNewForTest(t, db)
+	ta := helperNewForTest(t, db, WithoutQuestDB())
 
 	t.Run("empty_holder_returns_empty_result", func(t *testing.T) {
 		tokens, totalHoldings, err := ta.GetCommunityTokensByHolder(ctx, "", "requestor_empty", 10, 0)
@@ -46,7 +46,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 
 		helperInsertTestToken(t, ctx, db, contractAddr, tokenExt, "H1TK", "profile", "creator_h1", "1000000000000000000000000", 100.0, 0.0001, 5, PlatformGroupIonConnect)
 		helperInsertUserTokenPosition(t, ctx, db, "holder_h1", contractAddr, tokenExt, holderExtAddr, "5000000000000000000000", 0.0001, 0.5)
-		helperSetupRedisPositionData(t, ctx, testRedis, tokenExt, map[string]float64{
+		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
 			holderExtAddr: 5000.0,
 		})
 
@@ -93,7 +93,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		for _, tk := range tokens {
 			helperInsertTestToken(t, ctx, db, tk.contractAddr, tk.tokenExt, tk.ticker, "profile", "creator_multi", "100000000000000000000000", 100.0, 0.001, 5, PlatformGroupIonConnect)
 			helperInsertUserTokenPosition(t, ctx, db, "holder_multi", tk.contractAddr, tk.tokenExt, holderExtAddr, tk.amount, 0.001, 0.5)
-			helperSetupRedisPositionData(t, ctx, testRedis, tk.tokenExt, map[string]float64{
+			helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tk.tokenExt, map[string]float64{
 				holderExtAddr: tk.amountFloat,
 			})
 		}
@@ -126,7 +126,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 
 			helperInsertTestToken(t, ctx, db, contractAddr, tokenExt, ticker, "profile", "creator_page", "100000000000000000000000", 100.0, 0.001, 5, PlatformGroupIonConnect)
 			helperInsertUserTokenPosition(t, ctx, db, "holder_page", contractAddr, tokenExt, holderExtAddr, amount, 0.001, 0.5)
-			helperSetupRedisPositionData(t, ctx, testRedis, tokenExt, map[string]float64{
+			helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
 				holderExtAddr: float64((8 - i) * 1000),
 			})
 		}
@@ -171,7 +171,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 
 			helperInsertTestToken(t, ctx, db, contractAddr, tokenExt, ticker, "profile", "creator_overlap", "100000000000000000000000", 100.0, 0.001, 5, PlatformGroupIonConnect)
 			helperInsertUserTokenPosition(t, ctx, db, "holder_overlap", contractAddr, tokenExt, holderExtAddr, amount, 0.001, 0.5)
-			helperSetupRedisPositionData(t, ctx, testRedis, tokenExt, map[string]float64{
+			helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
 				holderExtAddr: float64((6 - i) * 1000),
 			})
 		}
@@ -211,7 +211,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		helperInsertUserTokenPosition(t, ctx, db, "holder_full", contractAddr, tokenExt, holderExtAddr, "8000000000000000000000", 0.00015, 1.2)
 		helperCreateSwapForVolume(t, ctx, db, contractAddr, tokenExt, "0x0000000000000000000000000000000000000001", false, "100000000000000000000", "1000000000000000000000", 0.00015)
 		helperRefreshVolumeView(t, ctx, db)
-		helperSetupRedisPositionData(t, ctx, testRedis, tokenExt, map[string]float64{
+		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
 			holderExtAddr: 8000.0,
 		})
 
@@ -266,7 +266,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 
 		helperInsertTestToken(t, ctx, db, contractAddr, tokenExt, "POSD", "profile", "creator_pos_data", "1000000000000000000000000", 100.0, 0.0001, 5, PlatformGroupIonConnect)
 		helperInsertUserTokenPosition(t, ctx, db, "holder_pos_data", contractAddr, tokenExt, holderExtAddr, "3000000000000000000000", 0.0001, 0.3)
-		helperSetupRedisPositionData(t, ctx, testRedis, tokenExt, map[string]float64{
+		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
 			"0:top_holder:":   5000.0,
 			holderExtAddr:     3000.0,
 			"0:other_holder:": 2000.0,
@@ -295,7 +295,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 
 		helperInsertTestToken(t, ctx, db, contractAddr, tokenExt, "IONC", "profile", "ion_creator", "1000000000000000000000000", 100.0, 0.0001, 5, PlatformGroupIonConnect)
 		helperInsertUserTokenPosition(t, ctx, db, "ion_holder", contractAddr, tokenExt, holderExtAddr, "2000000000000000000000", 0.0001, 0.2)
-		helperSetupRedisPositionData(t, ctx, testRedis, tokenExt, map[string]float64{
+		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
 			holderExtAddr: 2000.0,
 		})
 
@@ -328,7 +328,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		contractAddr := "0xXCOMXCOM111111111111111111111111111"
 		helperInsertTestToken(t, ctx, db, contractAddr, xcomCreator, "XCOM", "profile", "xcom_creator_master", "1000000000000000000000000", 100.0, 0.0001, 5, PlatformGroupXCom)
 		helperInsertUserTokenPosition(t, ctx, db, "xcom_holder_master", contractAddr, xcomCreator, xcomHolder, "3000000000000000000000", 0.0001, 0.3)
-		helperSetupRedisPositionData(t, ctx, testRedis, xcomCreator, map[string]float64{
+		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, xcomCreator, map[string]float64{
 			xcomHolder: 3000.0,
 		})
 
@@ -364,14 +364,14 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		ionContractAddr := "0xMIXEDION111111111111111111111111111"
 		helperInsertTestToken(t, ctx, db, ionContractAddr, ionTokenExt, "MION", "profile", "mixed_ion_creator", "1000000000000000000000000", 100.0, 0.0001, 5, PlatformGroupIonConnect)
 		helperInsertUserTokenPosition(t, ctx, db, "mixed_holder", ionContractAddr, ionTokenExt, holderExtAddr, "5000000000000000000000", 0.0001, 0.5)
-		helperSetupRedisPositionData(t, ctx, testRedis, ionTokenExt, map[string]float64{
+		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, ionTokenExt, map[string]float64{
 			holderExtAddr: 5000.0,
 		})
 
 		xcomContractAddr := "0xMIXEDXCOM11111111111111111111111111"
 		helperInsertTestToken(t, ctx, db, xcomContractAddr, xcomCreatorExt, "MXCOM", "profile", "mixed_xcom_creator", "1000000000000000000000000", 200.0, 0.0002, 10, PlatformGroupXCom)
 		helperInsertUserTokenPosition(t, ctx, db, "mixed_holder", xcomContractAddr, xcomCreatorExt, holderExtAddr, "2000000000000000000000", 0.0002, 0.4)
-		helperSetupRedisPositionData(t, ctx, testRedis, xcomCreatorExt, map[string]float64{
+		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, xcomCreatorExt, map[string]float64{
 			holderExtAddr: 2000.0,
 		})
 
@@ -411,7 +411,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		contract1Addr := "0xZERO1111111111111111111111111111111111"
 		helperInsertTestToken(t, ctx, db, contract1Addr, token1Ext, "ZERO1", "profile", "creator_zero", "1000000000000000000000000", 100.0, 0.0001, 5, PlatformGroupIonConnect)
 		helperInsertUserTokenPosition(t, ctx, db, "holder_zero", contract1Addr, token1Ext, holderExtAddr, "1000000000000000000000", 0.0001, 0.1)
-		helperSetupRedisPositionData(t, ctx, testRedis, token1Ext, map[string]float64{
+		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, token1Ext, map[string]float64{
 			holderExtAddr: 1000.0,
 		})
 
@@ -442,7 +442,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		helperSetTokenBaseToken(t, ctx, db, contentTokenExt, creatorProfileContract)
 
 		helperInsertUserTokenPosition(t, ctx, db, "holder_hcontent", contentTokenContract, contentTokenExt, holderExtAddr, "4000000000000000000000", 0.0002, 0.8)
-		helperSetupRedisPositionData(t, ctx, testRedis, contentTokenExt, map[string]float64{
+		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, contentTokenExt, map[string]float64{
 			holderExtAddr: 4000.0,
 		})
 
@@ -476,7 +476,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 
 		helperInsertTestToken(t, ctx, db, contractAddr, tokenExt, "BYND", "profile", "creator_beyond", "1000000000000000000000000", 100.0, 0.0001, 5, PlatformGroupIonConnect)
 		helperInsertUserTokenPosition(t, ctx, db, "holder_beyond", contractAddr, tokenExt, holderExtAddr, "1000000000000000000000", 0.0001, 0.1)
-		helperSetupRedisPositionData(t, ctx, testRedis, tokenExt, map[string]float64{
+		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
 			holderExtAddr: 1000.0,
 		})
 

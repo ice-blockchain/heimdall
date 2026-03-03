@@ -4,6 +4,8 @@ package tokenanalytics
 
 import (
 	"context"
+	"sync/atomic"
+	"testing"
 
 	"github.com/cockroachdb/errors"
 	"github.com/redis/go-redis/v9"
@@ -18,7 +20,9 @@ const (
 )
 
 var (
-	testRedis *redis.Client
+	testRedis        *redis.Client
+	testDragonflyURL string
+	testRedisDBNum   atomic.Int32
 )
 
 type testRedisDB struct {
@@ -34,7 +38,7 @@ func mustStartDragonflyContainer(ctx context.Context) (testcontainers.Container,
 		Image:        dragonflyImage,
 		ExposedPorts: []string{"6379/tcp"},
 		WaitingFor:   wait.ForListeningPort("6379/tcp"),
-		Cmd:          []string{"--maxmemory", "512mb", "--proactor_threads", "2"},
+		Cmd:          []string{"--maxmemory", "512mb", "--proactor_threads", "2", "--dbnum", "256"},
 	}
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -74,6 +78,30 @@ func mustConnectDragonfly(ctx context.Context, addr string) *redis.Client {
 	if err := client.Ping(ctx).Err(); err != nil {
 		log.Panic(errors.Wrap(err, "failed to ping dragonfly"))
 	}
+
+	return client
+}
+
+func mustNewIsolatedRedisForTest(t testing.TB) *redis.Client {
+	t.Helper()
+
+	dbNum := int(testRedisDBNum.Add(1))
+
+	opt, err := redis.ParseURL(testDragonflyURL)
+	if err != nil {
+		t.Fatalf("failed to parse dragonfly url for isolated redis: %v", err)
+	}
+	opt.DB = dbNum
+
+	client := redis.NewClient(opt)
+	if err := client.Ping(t.Context()).Err(); err != nil {
+		t.Fatalf("failed to ping isolated redis db %d: %v", dbNum, err)
+	}
+
+	t.Cleanup(func() {
+		_ = client.FlushDB(context.Background()).Err()
+		_ = client.Close()
+	})
 
 	return client
 }

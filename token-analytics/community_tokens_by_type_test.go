@@ -28,11 +28,12 @@ type testTradeEntry struct {
 }
 
 func TestGetCommunityTokensByLatest_WithAndWithoutKeyword(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := helperNewForTest(t, db)
+	ta := helperNewForTest(t, db, WithoutQuestDB())
 
 	helperInsertTestUser(t, ctx, db, "creator_latest1", "latest_one", "Latest One", "", true, PlatformGroupIonConnect)
 	helperInsertTestUser(t, ctx, db, "creator_latest2", "latest_two", "Latest Two", "", false, PlatformGroupIonConnect)
@@ -220,11 +221,12 @@ func TestGetCommunityTokensByLatest_WithAndWithoutKeyword(t *testing.T) {
 }
 
 func TestGetCommunityTokensByFeatured(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := helperNewForTest(t, db)
+	ta := helperNewForTest(t, db, WithoutQuestDB())
 
 	helperInsertTestUser(t, ctx, db, "creator_featured1", "featured_one", "Featured One", "", true, PlatformGroupIonConnect)
 	helperInsertTestUser(t, ctx, db, "creator_featured2", "featured_two", "Featured Two", "", false, PlatformGroupIonConnect)
@@ -422,11 +424,12 @@ func TestGetCommunityTokensByFeatured(t *testing.T) {
 }
 
 func TestGetCommunityTokensByLatest_CreatorNotRegistered(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := helperNewForTest(t, db)
+	ta := helperNewForTest(t, db, WithoutQuestDB())
 
 	unregisteredCreatorPubkey := "unregistered_creator_pubkey_not_in_db"
 	unregisteredCreatorAddr := "0xUNREGISTERED1234567890123456789012345678"
@@ -569,7 +572,7 @@ func TestGetCommunityTokensByRewardsDistribution(t *testing.T) {
 	helperCreateSwapAtTime(t, ctx, db, "0xXCOM1111111111111111111111111111111111111", xcomTokenExt, "0xLAUNCHER111", false,
 		"1000000000000000000000", "10000000000000000000000", 3.0, swapTime)
 
-	helperSetupGlobalSet(t, ctx, globalTopSetKey, map[string]float64{
+	helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopSetKey, map[string]float64{
 		token1Ext:    500.0,
 		token2Ext:    300.0,
 		token3Ext:    800.0,

@@ -14,7 +14,7 @@ func TestGetHolderPositions(t *testing.T) {
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := helperNewForTest(t, db)
+	ta := helperNewForTest(t, db, WithoutQuestDB())
 
 	t.Run("returns positions for specified holders", func(t *testing.T) {
 		helperInsertTestUser(t, ctx, db, "creator_holder", "creator", "Creator", "", false, PlatformGroupIonConnect)
@@ -54,7 +54,7 @@ func TestGetHolderPositions(t *testing.T) {
 			0.24,
 		)
 
-		helperSetupRedisPositionData(t, ctx, testRedis, tokenExt, map[string]float64{
+		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
 			"0:holder_a:": 5000.0,
 			"0:holder_b:": 3000.0,
 		})
@@ -132,7 +132,7 @@ func TestGetHolderPositions(t *testing.T) {
 			0.45,                    // total_realized_usd (revenue from sale)
 		)
 
-		helperSetupRedisPositionData(t, ctx, testRedis, tokenExt, map[string]float64{
+		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
 			"0:holder_pnl_test:": 150.0,
 		})
 
@@ -179,7 +179,7 @@ func TestGetHolderPositions(t *testing.T) {
 			60.0,                    // total_realized_usd
 		)
 
-		helperSetupRedisPositionData(t, ctx, testRedis, tokenExt, map[string]float64{
+		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
 			"0:holder_profit_test:": 100.0,
 		})
 
@@ -226,7 +226,7 @@ func TestGetHolderPositions(t *testing.T) {
 			40.0,                    // total_realized_usd
 		)
 
-		helperSetupRedisPositionData(t, ctx, testRedis, tokenExt, map[string]float64{
+		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
 			"0:holder_loss_test:": 100.0,
 		})
 

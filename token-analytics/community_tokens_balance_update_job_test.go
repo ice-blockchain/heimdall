@@ -26,7 +26,7 @@ func TestBalanceUpdateJob_WithDummyBalance(t *testing.T) {
 	mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
 	mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
-	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC))
+	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC), WithoutQuestDB())
 	defer ta.Close()
 
 	userBlockchainAddr := "0x1234567890123456789012345678901234567890"
@@ -86,7 +86,7 @@ func TestBalanceUpdateJob_WithRPC(t *testing.T) {
 	mockBackend.SetBalanceOfResponse(big.NewInt(5000000000000000000)) // 5 tokens
 	mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
-	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC))
+	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC), WithoutQuestDB())
 	defer ta.Close()
 
 	userBlockchainAddr := "0x1234567890123456789012345678901234567890"
@@ -155,7 +155,7 @@ func TestBalanceUpdateJob_ZeroBalance(t *testing.T) {
 	mockBackend.SetBalanceOfResponse(big.NewInt(0)) // 0 tokens
 	mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
-	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC))
+	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC), WithoutQuestDB())
 	defer ta.Close()
 
 	userBlockchainAddr := "0x2345678901234567890123456789012345678901"
@@ -217,7 +217,7 @@ func TestBalanceUpdateJob_XcomPlatform(t *testing.T) {
 	mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
 	mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
-	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC))
+	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC), WithoutQuestDB())
 	defer ta.Close()
 
 	userBlockchainAddr := "0xXCOMBALANCE000000000000000000000000001"

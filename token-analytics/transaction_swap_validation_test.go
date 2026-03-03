@@ -15,6 +15,7 @@ import (
 )
 
 func TestTransactionValidation(t *testing.T) {
+	t.Parallel()
 	tu := &tokenAnalyticsUsers{
 		cfg: &config{BondingCurve: struct {
 			SmartContractAddress                string                         `yaml:"smartContractAddress"`

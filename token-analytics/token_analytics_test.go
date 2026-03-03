@@ -33,6 +33,8 @@ var (
 	testPgContainer      *fixture.Container
 	testQuestDBContainer *questdbfixture.Container
 	questDBInitOnce      sync.Once
+	sharedQuestDBConn    *questdb.DB
+	sharedQuestDBOnce    sync.Once
 )
 
 func TestMain(m *testing.M) {
@@ -40,6 +42,7 @@ func TestMain(m *testing.M) {
 	testPgContainer = fixture.New(ctx)
 
 	dragonflyContainer, dragonflyAddr, releaseDragonfly := mustStartDragonflyContainer(ctx)
+	testDragonflyURL = dragonflyAddr
 	testRedis = mustConnectDragonfly(ctx, dragonflyAddr)
 
 	var err error
@@ -52,6 +55,9 @@ func TestMain(m *testing.M) {
 
 	if testRedis != nil {
 		_ = testRedis.Close()
+	}
+	if sharedQuestDBConn != nil {
+		_ = sharedQuestDBConn.Close(ctx)
 	}
 	if testQuestDBContainer != nil {
 		_ = testQuestDBContainer.Terminate(ctx)
@@ -115,6 +121,7 @@ type helperTestOptions struct {
 	withRealRiverQueue bool
 	connString         string
 	bondingCurve       bondingcurve.BondingCurve
+	withoutQuestDB     bool
 }
 
 type HelperTestOption func(*helperTestOptions)
@@ -132,10 +139,16 @@ func WithBondingCurve(bc bondingcurve.BondingCurve) HelperTestOption {
 	}
 }
 
-func helperNewForTestWithConnString(t testing.TB, db *storage.DB, connString string) *tokenAnalytics {
+func WithoutQuestDB() HelperTestOption {
+	return func(o *helperTestOptions) {
+		o.withoutQuestDB = true
+	}
+}
+
+func helperNewForTestWithConnString(t testing.TB, db *storage.DB, connString string, opts ...HelperTestOption) *tokenAnalytics {
 	t.Helper()
 
-	return helperNewForTest(t, db, WithRealRiverQueue(connString))
+	return helperNewForTest(t, db, append([]HelperTestOption{WithRealRiverQueue(connString)}, opts...)...)
 }
 
 func mustConnectQuestDBForTest(ctx context.Context) *questdb.DB {
@@ -157,16 +170,20 @@ func mustConnectQuestDBForTest(ctx context.Context) *questdb.DB {
 		_ = conn.Close(ctx)
 	})
 
-	return questdb.MustConnectWithConfig(ctx, &questdb.ConnectionConfig{
-		WriteURL: testQuestDBContainer.AddressHTTP,
-		PostgresConn: &storage.Cfg{
-			PrimaryURL:               testQuestDBContainer.AddressPG,
-			ReplicaURLs:              []string{testQuestDBContainer.AddressPG},
-			RunDDL:                   false,
-			IgnoreGlobal:             true,
-			SkipSettingsVerification: true,
-		},
+	sharedQuestDBOnce.Do(func() {
+		sharedQuestDBConn = questdb.MustConnectWithConfig(ctx, &questdb.ConnectionConfig{
+			WriteURL: testQuestDBContainer.AddressHTTP,
+			PostgresConn: &storage.Cfg{
+				PrimaryURL:               testQuestDBContainer.AddressPG,
+				ReplicaURLs:              []string{testQuestDBContainer.AddressPG},
+				RunDDL:                   false,
+				IgnoreGlobal:             true,
+				SkipSettingsVerification: true,
+			},
+		})
 	})
+
+	return sharedQuestDBConn
 }
 
 func helperCreateDB(t *testing.T) (*storage.DB, func()) {
@@ -262,18 +279,18 @@ func helperNewForTest(t testing.TB, db *storage.DB, opts ...HelperTestOption) *t
 		riverClient = &mockRiverClient{}
 	}
 
-	questDBConn := mustConnectQuestDBForTest(t.Context())
-	shutdownFuncs = append(shutdownFuncs, func() error {
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*stdtime.Second)
-		defer cancel()
-		return questDBConn.Close(shutdownCtx)
-	})
+	var questDBConn *questdb.DB
+	if !options.withoutQuestDB {
+		questDBConn = mustConnectQuestDBForTest(t.Context())
+	}
+
+	isolatedRedis := mustNewIsolatedRedisForTest(t)
 
 	ta := &tokenAnalytics{
 		bondingCurveContractAddress: cfg.BondingCurve.SmartContractAddress,
 		tokenFactoryContractAddress: cfg.BondingCurve.TokenFactorySmartContractAddress,
 		ingestedDataDB:              db,
-		processedDataDB:             &testRedisDB{Client: testRedis},
+		processedDataDB:             &testRedisDB{Client: isolatedRedis},
 		questDB:                     questDBConn,
 		wg:                          new(sync.WaitGroup),
 		cfg:                         &cfg,

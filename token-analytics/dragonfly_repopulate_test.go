@@ -11,13 +11,14 @@ import (
 )
 
 func TestRepopulateBondingCurve(t *testing.T) {
+	t.Parallel()
 	t.Run("repopulates outdated bonding curve data in Redis", func(t *testing.T) {
 		ctx := t.Context()
 
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		tokenExternalAddr := "0:repopulate_test_1:"
 		contractAddr := "0x1111111111111111111111111111111111111111"
@@ -55,13 +56,14 @@ func TestRepopulateBondingCurve(t *testing.T) {
 }
 
 func TestRepopulateBondingCurve_SkipsUpToDate(t *testing.T) {
+	t.Parallel()
 	t.Run("skips tokens that are already up to date in Redis", func(t *testing.T) {
 		ctx := t.Context()
 
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		tokenExternalAddr := "0:repopulate_test_2:"
 		contractAddr := "0x2222222222222222222222222222222222222222"
@@ -89,13 +91,14 @@ func TestRepopulateBondingCurve_SkipsUpToDate(t *testing.T) {
 }
 
 func TestRepopulateBondingCurveHandlesMigration(t *testing.T) {
+	t.Parallel()
 	t.Run("removes migrated tokens from Redis", func(t *testing.T) {
 		ctx := t.Context()
 
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		tokenExternalAddr := "0:repopulate_test_3:"
 		contractAddr := "0x3333333333333333333333333333333333333333"
@@ -127,13 +130,14 @@ func TestRepopulateBondingCurveHandlesMigration(t *testing.T) {
 }
 
 func TestRepopulateUserBalances_Basic(t *testing.T) {
+	t.Parallel()
 	t.Run("repopulates outdated user balance data in Redis", func(t *testing.T) {
 		ctx := t.Context()
 
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		tokenExternalAddr := "0:balance_repop_test:"
 		contractAddr := "0x4444444444444444444444444444444444444444"
@@ -174,7 +178,7 @@ func TestRepopulateUserBalances_RemovesZero(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		tokenExternalAddr := "0:zero_balance_test:"
 		contractAddr := "0x6666666666666666666666666666666666666666"
@@ -208,13 +212,14 @@ func TestRepopulateUserBalances_RemovesZero(t *testing.T) {
 }
 
 func TestRepopulateRedisFromPostgres_Full(t *testing.T) {
+	t.Parallel()
 	t.Run("repopulates both bonding curve and user balances", func(t *testing.T) {
 		ctx := t.Context()
 
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		tokenExternalAddr := "0:full_repop_test:"
 		contractAddr := "0x8888888888888888888888888888888888888888"

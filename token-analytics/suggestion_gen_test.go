@@ -82,7 +82,7 @@ func TestGenerateTokenSuggestion(t *testing.T) {
 	db, connString, release := helperCreateDBWithConnString(t)
 	defer release()
 
-	ta := helperNewForTestWithConnString(t, db, connString)
+	ta := helperNewForTestWithConnString(t, db, connString, WithoutQuestDB())
 	cdnClient := &mockedCDNClient{StateObserver: ta, TB: t, Ready: make(chan string, 1)}
 	llmClient := &mockedLLMClient{TB: t}
 

@@ -29,6 +29,7 @@ func absDiff(a, b *big.Int) *big.Int {
 }
 
 func TestCreatorModel(t *testing.T) {
+	t.Parallel()
 	totalSupply := new(big.Int).Mul(big.NewInt(1_000_000_000), WAD)
 	startPrice := mustBig("583400000000000") // WAD
 	endPrice := mustBig("9749900000000000")  // WAD

@@ -22,7 +22,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 	mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
 	mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
-	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC))
+	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC), WithoutQuestDB())
 	defer ta.Close()
 	contractAddress := "0xTEST0000000000000000000000000000000001"
 	tokenExternalAddress := "0:test_token:"
@@ -48,9 +48,9 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 	helperInsertBaseTokenPrice(t, ctx, db, "0x2c73996babf1a06c2c057177353293f7ca0907c8", "ION", 0.01)
 
 	t.Run("calculates_market_cap_correctly_for_buy", func(t *testing.T) {
-		_ = testRedis.Del(ctx, keyUserPositionOfToken(tokenExternalAddress))
-		_ = testRedis.Del(ctx, globalTopSetKey)
-		_ = testRedis.Del(ctx, globalTopProfileSetKey)
+		_ = ta.processedDataDB.Del(ctx, keyUserPositionOfToken(tokenExternalAddress))
+		_ = ta.processedDataDB.Del(ctx, globalTopSetKey)
+		_ = ta.processedDataDB.Del(ctx, globalTopProfileSetKey)
 
 		tx := &txEvent{
 			TransactionHash: "0xtestbuy001",
@@ -85,14 +85,14 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
 
-		userScore, err := testRedis.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddress), userExternalAddress).Result()
+		userScore, err := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddress), userExternalAddress).Result()
 		require.NoError(t, err)
 		require.InDelta(t, 10.0, userScore, 0.001, "User should have 10 tokens")
 	})
 
 	t.Run("updates_market_cap_on_price_change", func(t *testing.T) {
-		_ = testRedis.Del(ctx, keyUserPositionOfToken(tokenExternalAddress))
-		_ = testRedis.Del(ctx, globalTopSetKey)
+		_ = ta.processedDataDB.Del(ctx, keyUserPositionOfToken(tokenExternalAddress))
+		_ = ta.processedDataDB.Del(ctx, globalTopSetKey)
 
 		tx := &txEvent{
 			TransactionHash: "0xtestbuy002",
@@ -154,8 +154,8 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 	})
 
 	t.Run("handles_sell_correctly", func(t *testing.T) {
-		_ = testRedis.Del(ctx, keyUserPositionOfToken(tokenExternalAddress))
-		_ = testRedis.Del(ctx, globalTopSetKey)
+		_ = ta.processedDataDB.Del(ctx, keyUserPositionOfToken(tokenExternalAddress))
+		_ = ta.processedDataDB.Del(ctx, globalTopSetKey)
 
 		// First: buy 20 tokens
 		tx1 := &txEvent{
@@ -187,7 +187,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
 
-		userScore1, _ := testRedis.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddress), userExternalAddress).Result()
+		userScore1, _ := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddress), userExternalAddress).Result()
 		require.InDelta(t, 20.0, userScore1, 0.001)
 
 		// Then: sell 5 tokens
@@ -224,13 +224,13 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
 
-		userScore2, err := testRedis.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddress), userExternalAddress).Result()
+		userScore2, err := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddress), userExternalAddress).Result()
 		require.NoError(t, err)
 		require.InDelta(t, 15.0, userScore2, 0.001, "User position should be 15 tokens after selling 5")
 	})
 
 	t.Run("removes_user_position_when_sold_all", func(t *testing.T) {
-		_ = testRedis.Del(ctx, keyUserPositionOfToken(tokenExternalAddress))
+		_ = ta.processedDataDB.Del(ctx, keyUserPositionOfToken(tokenExternalAddress))
 
 		tx1 := &txEvent{TransactionHash: "0xtestbuy005"}
 		buyInput := new(big.Int)
@@ -278,7 +278,7 @@ func TestCalculateTokenMarketDataAndUserPosition(t *testing.T) {
 
 		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
 
-		_, err = testRedis.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddress), userExternalAddress).Result()
+		_, err = ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddress), userExternalAddress).Result()
 		require.Equal(t, redis.Nil, err, "User should be removed from position set when balance is 0")
 	})
 }

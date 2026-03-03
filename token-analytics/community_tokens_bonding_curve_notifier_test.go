@@ -14,13 +14,14 @@ import (
 )
 
 func TestBondingCurveNotifier(t *testing.T) {
+	t.Parallel()
 	t.Run("handles bonding curve update via handleBondingCurveUpdate", func(t *testing.T) {
 		ctx := t.Context()
 
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		tokenExternalAddr := "0:price_notifier_test:"
 		contractAddr := "0x1111222233334444555566667777888899990000"
@@ -90,7 +91,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		tokenExternalAddr := "0:migration_test:"
 		contractAddr := "0x2222333344445555666677778888999900001111"
@@ -157,7 +158,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		tokenExternalAddr := "0:new_token_auto_add:"
 		contractAddr := "0x3333444455556666777788889999000011112222"
@@ -202,7 +203,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		tokenExternalAddr := "0:unit_test:"
 
@@ -243,7 +244,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		payload := `{"invalid json`
 
@@ -256,7 +257,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		payload := `{
 			"external_address": "0:test:",
@@ -286,7 +287,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		tokenExternalAddr := "0:post_bc_test:"
 		contractAddr := "0x4444555566667777888899990000111122223333"
@@ -335,7 +336,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		tokenExternalAddr := "0:video_bc_test:"
 		contractAddr := "0x5555666677778888999900001111222233334444"
@@ -380,7 +381,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		tokenExternalAddr := "0:article_bc_test:"
 		contractAddr := "0x6666777788889999000011112222333344445555"
@@ -425,7 +426,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		tokenExternalAddr := "0:profile_not_anypost:"
 		contractAddr := "0x7777888899990000111122223333444455556666"
@@ -469,7 +470,7 @@ func TestBondingCurveNotifier(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		tokenExternalAddr := "0:post_migration_test:"
 		contractAddr := "0x8888999900001111222233334444555566667777"

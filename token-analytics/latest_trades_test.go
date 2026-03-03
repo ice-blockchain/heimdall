@@ -10,11 +10,12 @@ import (
 )
 
 func TestGetLatestTrades(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := helperNewForTest(t, db)
+	ta := helperNewForTest(t, db, WithoutQuestDB())
 
 	t.Run("returns empty for non-existent token", func(t *testing.T) {
 		trades, maxTs, err := ta.GetLatestTrades(ctx, "a0:nonexistent:", 10, 0, nil)

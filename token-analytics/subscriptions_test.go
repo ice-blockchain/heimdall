@@ -13,6 +13,7 @@ import (
 )
 
 func TestNotifySwap(t *testing.T) {
+	t.Parallel()
 	t.Run("single_subscriber_receives_all_notifications", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*stdlibtime.Second)
 		defer cancel()
