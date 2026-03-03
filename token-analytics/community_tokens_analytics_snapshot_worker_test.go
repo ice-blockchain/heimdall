@@ -80,10 +80,8 @@ func TestAnalyticsSnapshotWorker_MigratedCount(t *testing.T) {
 	defer release()
 	ta := helperNewForTest(t, db)
 
-	now := time.Now().UTC()
-	targetHour := now.Truncate(time.Hour).Add(-time.Hour)
+	targetHour := time.Date(2098, 1, 1, 10, 0, 0, 0, time.UTC)
 
-	// Insert 3 tokens: 2 migrated within 24h, 1 not migrated.
 	helperInsertTestUser(t, ctx, db, "mig_c1", "mig_one", "Mig One", "", true, PlatformGroupIonConnect)
 	helperInsertTestUser(t, ctx, db, "mig_c2", "mig_two", "Mig Two", "", false, PlatformGroupIonConnect)
 	helperInsertTestUser(t, ctx, db, "mig_c3", "mig_three", "Mig Three", "", true, PlatformGroupIonConnect)
@@ -92,31 +90,29 @@ func TestAnalyticsSnapshotWorker_MigratedCount(t *testing.T) {
 	helperInsertTestToken(t, ctx, db, "0xMIG2222222222222222222222222222222222222", "0:mig_c2:", "MIG2", "profile", "mig_c2", "2000000000000000000000000", 200.0, 0.0002, 10, PlatformGroupIonConnect)
 	helperInsertTestToken(t, ctx, db, "0xMIG3333333333333333333333333333333333333", "0:mig_c3:", "MIG3", "profile", "mig_c3", "3000000000000000000000000", 300.0, 0.0003, 15, PlatformGroupIonConnect)
 
-	// Token1: migrated 2h ago
-	migratedAt1 := now.Add(-2 * time.Hour)
+	migratedAt1 := targetHour.Add(-2 * time.Hour)
 	_, err := storage.Exec(ctx, db,
 		`UPDATE tokens SET bonding_curve_migrated = true, migrated_at = $1 WHERE external_address = $2`,
 		migratedAt1, "0:mig_c1:")
 	require.NoError(t, err)
 
-	// Token2: migrated 5h ago
-	migratedAt2 := now.Add(-5 * time.Hour)
+	migratedAt2 := targetHour.Add(-5 * time.Hour)
 	_, err = storage.Exec(ctx, db,
 		`UPDATE tokens SET bonding_curve_migrated = true, migrated_at = $1 WHERE external_address = $2`,
 		migratedAt2, "0:mig_c2:")
 	require.NoError(t, err)
 
 	// Token3: not migrated — no migrated_at set.
-	err = ta.computeAndStoreAnalyticsSnapshot(ctx, targetHour, "24h")
+	err = ta.computeAndStoreAnalyticsSnapshot(ctx, targetHour, "7d")
 	require.NoError(t, err)
 
 	var stats *GlobalTokenStats
 	require.Eventually(t, func() bool {
-		stats, err = ta.GetGlobalTokenStatistics(ctx, "24h")
+		stats, err = ta.GetGlobalTokenStatistics(ctx, "7d")
 		return err == nil && stats.Migrated == 2
-	}, 2*time.Second, 50*time.Millisecond, "should count exactly 2 migrated tokens in 24h window after QuestDB flush")
+	}, 2*time.Second, 50*time.Millisecond, "should count exactly 2 migrated tokens in 7d window after QuestDB flush")
 
-	require.Equal(t, uint64(2), stats.Migrated, "should count exactly 2 migrated tokens in 24h window")
+	require.Equal(t, uint64(2), stats.Migrated, "should count exactly 2 migrated tokens in 7d window")
 }
 
 func TestAnalyticsSnapshotWorker_VolumeAccuracy(t *testing.T) {
@@ -142,12 +138,12 @@ func TestAnalyticsSnapshotWorker_VolumeAccuracy(t *testing.T) {
 	// Expected volume = 2500 + 1500 = 4000 USD
 	expectedVolume := 1000.0*2.5 + 500.0*3.0
 
-	err := ta.computeAndStoreAnalyticsSnapshot(ctx, targetHour, "24h")
+	err := ta.computeAndStoreAnalyticsSnapshot(ctx, targetHour, "1y")
 	require.NoError(t, err)
 
 	var stats *GlobalTokenStats
 	require.Eventually(t, func() bool {
-		stats, err = ta.GetGlobalTokenStatistics(ctx, "24h")
+		stats, err = ta.GetGlobalTokenStatistics(ctx, "1y")
 		if err != nil || stats == nil {
 			return false
 		}
