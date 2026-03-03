@@ -14,11 +14,12 @@ import (
 )
 
 func TestGetTokenPricing(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	db, connString, dbCleanup := helperCreateDBWithConnString(t)
 	defer dbCleanup()
 
-	ta := helperNewForTestWithConnString(t, db, connString)
+	ta := helperNewForTestWithConnString(t, db, connString, WithoutQuestDB())
 
 	mockBackend, bondingCurveAddr, bondingCurveCaller := fixture.SetupMockedBondingCurveBackend(t, &fixture.MockBackendConfig{
 		BuyPrice:  big.NewInt(950000000000000000),  // 0.95 tokens

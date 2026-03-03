@@ -27,7 +27,7 @@ func TestOnTransfer(t *testing.T) {
 	mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
 	mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
-	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC))
+	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC), WithoutQuestDB())
 	defer ta.Close()
 
 	t.Run("processes_p2p_transfer_successfully", func(t *testing.T) {

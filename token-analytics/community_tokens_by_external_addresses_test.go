@@ -21,7 +21,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := helperNewForTest(t, db)
+	ta := helperNewForTest(t, db, WithoutQuestDB())
 
 	t.Run("empty addresses returns empty result", func(t *testing.T) {
 		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{}, "requestor123", nil, "", 0, 0)
@@ -224,7 +224,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		)
 		helperRefreshVolumeView(t, ctx, db)
 
-		helperSetupRedisPositionData(t, ctx, testRedis, tokenExt, map[string]float64{
+		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
 			"0:top1:":          5000.0,
 			"0:top2:":          4000.0,
 			"0:requestor_pos:": 3500.0,
@@ -300,7 +300,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			0.45,                    // total_realized_usd = $0.45 (revenue from sale)
 		)
 
-		helperSetupRedisPositionData(t, ctx, testRedis, tokenExt, map[string]float64{
+		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
 			"0:holder_pnl:": 150.0,
 		})
 
@@ -351,7 +351,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			60.0,                    // total_realized_usd = $60 (revenue from sale)
 		)
 
-		helperSetupRedisPositionData(t, ctx, testRedis, tokenExt, map[string]float64{
+		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
 			"0:holder_profit:": 100.0,
 		})
 
@@ -402,7 +402,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			40.0,                    // total_realized_usd = $40 (revenue from sale)
 		)
 
-		helperSetupRedisPositionData(t, ctx, testRedis, tokenExt, map[string]float64{
+		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
 			"0:holder_loss:": 100.0,
 		})
 
@@ -698,7 +698,7 @@ func TestGetCommunityTokensByExternalAddresses_WithKeyword(t *testing.T) {
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := helperNewForTest(t, db)
+	ta := helperNewForTest(t, db, WithoutQuestDB())
 
 	t.Run("search by keyword returns simplified response", func(t *testing.T) {
 		helperInsertTestUser(t, ctx, db, "creator_search", "satoshi_search", "Satoshi Search", "", false, PlatformGroupIonConnect)
@@ -827,11 +827,12 @@ func TestGetCommunityTokensByExternalAddresses_WithKeyword(t *testing.T) {
 }
 
 func TestGetCommunityTokensByExternalAddresses_WithAndWithoutKeyword(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := helperNewForTest(t, db)
+	ta := helperNewForTest(t, db, WithoutQuestDB())
 
 	// Setup test data
 	helperInsertTestUser(t, ctx, db, "creator_kw1", "alice_kw1", "Alice Keyword One", "", true, PlatformGroupIonConnect, "https://avatar1.png")
@@ -972,11 +973,12 @@ func TestGetCommunityTokensByExternalAddresses_WithAndWithoutKeyword(t *testing.
 }
 
 func TestGetCommunityTokensWithTopPlatformHolders_WithAndWithoutKeyword(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := helperNewForTest(t, db)
+	ta := helperNewForTest(t, db, WithoutQuestDB())
 
 	helperInsertTestUser(t, ctx, db, "creator_tph1", "creator_tph1", "Creator TPH One", "", true, PlatformGroupIonConnect)
 	helperInsertTestUser(t, ctx, db, "creator_tph2", "creator_tph2", "Creator TPH Two", "", false, PlatformGroupIonConnect)
@@ -994,7 +996,7 @@ func TestGetCommunityTokensWithTopPlatformHolders_WithAndWithoutKeyword(t *testi
 	helperInsertUserTokenPosition(t, ctx, db, "holder_tph2", "0xTPH1111111111111111111111111111111111111", token1Ext, "0:holder_tph2:", "3000000000000000000000", 0.00009, 0.27)
 	helperInsertUserTokenPosition(t, ctx, db, "requestor_tph", "0xTPH1111111111111111111111111111111111111", token1Ext, "0:requestor_tph:", "1000000000000000000000", 0.00009, 0.09)
 
-	helperSetupRedisPositionData(t, ctx, testRedis, token1Ext, map[string]float64{
+	helperSetupRedisPositionData(t, ctx, ta.processedDataDB, token1Ext, map[string]float64{
 		"0:holder_tph1:":   5000.0,
 		"0:holder_tph2:":   3000.0,
 		"0:requestor_tph:": 1000.0,
@@ -1093,7 +1095,7 @@ func TestGetCommunityTokensByExternalAddresses_WithTopPlatformHolders(t *testing
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := helperNewForTest(t, db)
+	ta := helperNewForTest(t, db, WithoutQuestDB())
 
 	t.Run("returns top platform holders", func(t *testing.T) {
 		helperInsertTestUser(t, ctx, db, "creator_top", "alice_top", "Alice Top", "", true, PlatformGroupIonConnect)
@@ -1119,7 +1121,7 @@ func TestGetCommunityTokensByExternalAddresses_WithTopPlatformHolders(t *testing
 		helperInsertUserTokenPosition(t, ctx, db, "holder2_top", "0xTOP111111111111111111111111111111111", tokenExt, "0:holder2_top:", "3000000000000000000000", 0.00009, 0.27)
 		helperInsertUserTokenPosition(t, ctx, db, "requestor_top", "0xTOP111111111111111111111111111111111", tokenExt, "0:requestor_top:", "1000000000000000000000", 0.00009, 0.09)
 
-		helperSetupRedisPositionData(t, ctx, testRedis, tokenExt, map[string]float64{
+		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
 			"0:holder1_top:":   5000.0,
 			"0:holder2_top:":   3000.0,
 			"0:requestor_top:": 1000.0,
@@ -1168,7 +1170,7 @@ func TestGetCommunityTokensByPlatform(t *testing.T) {
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := helperNewForTest(t, db)
+	ta := helperNewForTest(t, db, WithoutQuestDB())
 
 	t.Run("xcom_platform_with_bnb_bsc_address", func(t *testing.T) {
 		xcomMasterPubkey := "1234567890"

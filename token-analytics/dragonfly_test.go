@@ -4,6 +4,8 @@ package tokenanalytics
 
 import (
 	"context"
+	"sync"
+	"testing"
 
 	"github.com/cockroachdb/errors"
 	"github.com/redis/go-redis/v9"
@@ -14,11 +16,18 @@ import (
 )
 
 const (
-	dragonflyImage = "docker.dragonflydb.io/dragonflydb/dragonfly:latest"
+	dragonflyImage  = "docker.dragonflydb.io/dragonflydb/dragonfly:latest"
+	dragonflyMaxDBs = 256
 )
 
 var (
-	testRedis *redis.Client
+	testRedis        *redis.Client
+	testDragonflyURL string
+	redisDBPool      struct {
+		mu   sync.Mutex
+		free []int
+		next int
+	}
 )
 
 type testRedisDB struct {
@@ -34,7 +43,7 @@ func mustStartDragonflyContainer(ctx context.Context) (testcontainers.Container,
 		Image:        dragonflyImage,
 		ExposedPorts: []string{"6379/tcp"},
 		WaitingFor:   wait.ForListeningPort("6379/tcp"),
-		Cmd:          []string{"--maxmemory", "512mb", "--proactor_threads", "2"},
+		Cmd:          []string{"--maxmemory", "512mb", "--proactor_threads", "2", "--dbnum", "256"},
 	}
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -76,4 +85,56 @@ func mustConnectDragonfly(ctx context.Context, addr string) *redis.Client {
 	}
 
 	return client
+}
+
+func mustNewIsolatedRedisForTest(t testing.TB) *redis.Client {
+	t.Helper()
+
+	dbNum := acquireRedisDB(t)
+
+	opt, err := redis.ParseURL(testDragonflyURL)
+	if err != nil {
+		t.Fatalf("failed to parse dragonfly url for isolated redis: %v", err)
+	}
+	opt.DB = dbNum
+
+	client := redis.NewClient(opt)
+	if err := client.Ping(t.Context()).Err(); err != nil {
+		t.Fatalf("failed to ping isolated redis db %d: %v", dbNum, err)
+	}
+
+	t.Cleanup(func() {
+		_ = client.FlushDB(context.Background()).Err()
+		_ = client.Close()
+		releaseRedisDB(dbNum)
+	})
+
+	return client
+}
+
+func acquireRedisDB(t testing.TB) int {
+	t.Helper()
+	redisDBPool.mu.Lock()
+	defer redisDBPool.mu.Unlock()
+
+	if len(redisDBPool.free) > 0 {
+		db := redisDBPool.free[len(redisDBPool.free)-1]
+		redisDBPool.free = redisDBPool.free[:len(redisDBPool.free)-1]
+
+		return db
+	}
+
+	db := redisDBPool.next
+	if db >= dragonflyMaxDBs {
+		t.Fatalf("exhausted all %d DragonflyDB databases; too many concurrent tests", dragonflyMaxDBs)
+	}
+	redisDBPool.next++
+
+	return db
+}
+
+func releaseRedisDB(db int) {
+	redisDBPool.mu.Lock()
+	defer redisDBPool.mu.Unlock()
+	redisDBPool.free = append(redisDBPool.free, db)
 }

@@ -16,6 +16,7 @@ import (
 )
 
 func TestRepopulateQuestDBTrades(t *testing.T) {
+	t.Parallel()
 	t.Run("repopulates_swaps_into_questdb", func(t *testing.T) {
 		ctx := t.Context()
 		db, connString, release := helperCreateDBWithConnString(t)
@@ -60,7 +61,7 @@ func TestRepopulateQuestDBTrades(t *testing.T) {
 				`SELECT external_address, trade_type, trader_address, transaction_hash FROM trades WHERE transaction_hash = $1`,
 				"0xrepop_questdb_tx_001")
 			return err == nil && row != nil
-		}, 15*stdlibtime.Second, 200*stdlibtime.Millisecond, "QuestDB should contain repopulated trade")
+		}, 30*stdlibtime.Second, 200*stdlibtime.Millisecond, "QuestDB should contain repopulated trade")
 
 		require.Equal(t, extAddr, row.ExternalAddress)
 		require.Equal(t, "buy", row.TradeType)
@@ -126,7 +127,7 @@ func TestRepopulateQuestDBTrades(t *testing.T) {
 				`SELECT transaction_hash FROM trades WHERE transaction_hash = $1`,
 				"0xrepop_dedup_tx_001")
 			return err == nil && row != nil
-		}, 15*stdlibtime.Second, 200*stdlibtime.Millisecond, "QuestDB should contain the trade after first run")
+		}, 30*stdlibtime.Second, 200*stdlibtime.Millisecond, "QuestDB should contain the trade after first run")
 
 		// Reset sync marker to force second pass over the same swaps.
 		err = ta.processedDataDB.Del(ctx, redisKeyLastQuestDBSync).Err()
@@ -144,7 +145,7 @@ func TestRepopulateQuestDBTrades(t *testing.T) {
 				`SELECT count(*) as cnt FROM trades WHERE transaction_hash = $1`,
 				"0xrepop_dedup_tx_001")
 			return err == nil && cntRow != nil
-		}, 15*stdlibtime.Second, 200*stdlibtime.Millisecond, "QuestDB count query should succeed")
+		}, 30*stdlibtime.Second, 200*stdlibtime.Millisecond, "QuestDB count query should succeed")
 
 		require.Equal(t, int64(1), cntRow.Cnt, "QuestDB DEDUP should prevent duplicate rows")
 	})
@@ -197,7 +198,7 @@ func TestRepopulateQuestDBTrades(t *testing.T) {
 				`SELECT transaction_hash FROM trades WHERE transaction_hash = $1`,
 				"0xrepop_sync_new_tx")
 			return err == nil && row != nil
-		}, 15*stdlibtime.Second, 200*stdlibtime.Millisecond, "QuestDB should contain the new trade")
+		}, 30*stdlibtime.Second, 200*stdlibtime.Millisecond, "QuestDB should contain the new trade")
 
 		_, err = questdb.Get[tradeRow](ctx, ta.questDB,
 			`SELECT transaction_hash FROM trades WHERE transaction_hash = $1`,
@@ -250,7 +251,7 @@ func TestRepopulateQuestDBTrades(t *testing.T) {
 				`SELECT count(*) as cnt FROM trades WHERE external_address = $1`,
 				extAddr)
 			return err == nil && cntRow != nil && cntRow.Cnt == 5
-		}, 15*stdlibtime.Second, 200*stdlibtime.Millisecond,
+		}, 30*stdlibtime.Second, 200*stdlibtime.Millisecond,
 			"QuestDB should contain all 5 trades")
 
 		require.Equal(t, int64(5), cntRow.Cnt)

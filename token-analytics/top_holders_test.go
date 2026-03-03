@@ -16,7 +16,7 @@ import (
 )
 
 func Test_buildTopHolderPositions(t *testing.T) {
-
+	t.Parallel()
 	contractAddr := "0xcontract123"
 
 	t.Run("should build positions with complete data", func(t *testing.T) {
@@ -575,7 +575,7 @@ func TestGetTopHolders(t *testing.T) {
 		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, config)
 		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
-		ta := helperNewForTest(t, db, WithBondingCurve(mockBC))
+		ta := helperNewForTest(t, db, WithBondingCurve(mockBC), WithoutQuestDB())
 		defer ta.Close()
 
 		creatorMasterPubkey := "creator123"
@@ -703,7 +703,7 @@ func TestGetTopHolders(t *testing.T) {
 		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, config)
 		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
-		ta := helperNewForTest(t, db, WithBondingCurve(mockBC))
+		ta := helperNewForTest(t, db, WithBondingCurve(mockBC), WithoutQuestDB())
 		defer ta.Close()
 
 		creatorMasterPubkey := "creator_content"
@@ -791,7 +791,7 @@ func TestGetTopHolders(t *testing.T) {
 		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
 		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
-		ta := helperNewForTest(t, db, WithBondingCurve(mockBC))
+		ta := helperNewForTest(t, db, WithBondingCurve(mockBC), WithoutQuestDB())
 		defer ta.Close()
 
 		tokenExternalAddr := "0:nonexistent:token"
@@ -810,7 +810,7 @@ func TestGetTopHolders(t *testing.T) {
 		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
 		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
-		ta := helperNewForTest(t, db, WithBondingCurve(mockBC))
+		ta := helperNewForTest(t, db, WithBondingCurve(mockBC), WithoutQuestDB())
 		defer ta.Close()
 
 		creatorMasterPubkey := "creator456"
@@ -869,7 +869,7 @@ func TestGetTopHolders(t *testing.T) {
 		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
 		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
-		ta := helperNewForTest(t, db, WithBondingCurve(mockBC))
+		ta := helperNewForTest(t, db, WithBondingCurve(mockBC), WithoutQuestDB())
 		defer ta.Close()
 
 		creatorMasterPubkey := "creator789"
@@ -931,7 +931,7 @@ func TestGetTopHolders(t *testing.T) {
 		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
 		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
-		ta := helperNewForTest(t, db, WithBondingCurve(mockBC))
+		ta := helperNewForTest(t, db, WithBondingCurve(mockBC), WithoutQuestDB())
 		defer ta.Close()
 
 		creatorMasterPubkey := "123456789"
@@ -1001,7 +1001,7 @@ func TestGetTopHolders(t *testing.T) {
 		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
 		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
-		ta := helperNewForTest(t, db, WithBondingCurve(mockBC))
+		ta := helperNewForTest(t, db, WithBondingCurve(mockBC), WithoutQuestDB())
 		defer ta.Close()
 
 		creatorMasterPubkey := "creator_usd"
@@ -1079,7 +1079,7 @@ func TestGetTopHolders(t *testing.T) {
 		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, config)
 		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
-		ta := helperNewForTest(t, db, WithBondingCurve(mockBC))
+		ta := helperNewForTest(t, db, WithBondingCurve(mockBC), WithoutQuestDB())
 		defer ta.Close()
 
 		creatorMasterPubkey := "creator_rank"
@@ -1187,7 +1187,7 @@ func TestGetTopHolders(t *testing.T) {
 		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, config)
 		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
-		ta := helperNewForTest(t, db, WithBondingCurve(mockBC))
+		ta := helperNewForTest(t, db, WithBondingCurve(mockBC), WithoutQuestDB())
 		defer ta.Close()
 
 		creatorMasterPubkey := "creator_limit"
@@ -1261,7 +1261,7 @@ func TestGetTopHolders(t *testing.T) {
 		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, config)
 		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
-		ta := helperNewForTest(t, db, WithBondingCurve(mockBC))
+		ta := helperNewForTest(t, db, WithBondingCurve(mockBC), WithoutQuestDB())
 		defer ta.Close()
 
 		creatorMasterPubkey := "creator_limit1"

@@ -16,10 +16,10 @@ func TestCreateViewingSession(t *testing.T) {
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := helperNewForTest(t, db)
+	ta := helperNewForTest(t, db, WithoutQuestDB())
 
 	t.Run("creates session for top type", func(t *testing.T) {
-		helperSetupGlobalSet(t, ctx, globalTopSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopSetKey, map[string]float64{
 			"0:token1:": 1000.0,
 			"0:token2:": 500.0,
 		})
@@ -30,13 +30,13 @@ func TestCreateViewingSession(t *testing.T) {
 		require.Equal(t, uint64(300), ttl)
 
 		sessKey := sessionKey(sessionTypeTop, sessionID)
-		exists, err := testRedis.Exists(ctx, sessKey).Result()
+		exists, err := ta.processedDataDB.Exists(ctx, sessKey).Result()
 		require.NoError(t, err)
 		require.Equal(t, int64(1), exists)
 	})
 
 	t.Run("creates session for trending type", func(t *testing.T) {
-		helperSetupGlobalSet(t, ctx, globalTrendingSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTrendingSetKey, map[string]float64{
 			"0:trending1:": 2000.0,
 			"0:trending2:": 1500.0,
 		})
@@ -48,7 +48,7 @@ func TestCreateViewingSession(t *testing.T) {
 	})
 
 	t.Run("creates session for bonding curve progress type", func(t *testing.T) {
-		helperSetupGlobalSet(t, ctx, globalBondingCurveProgressSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalBondingCurveProgressSetKey, map[string]float64{
 			"0:bonding1:": 75.0,
 			"0:bonding2:": 50.0,
 		})
@@ -60,7 +60,7 @@ func TestCreateViewingSession(t *testing.T) {
 	})
 
 	t.Run("creates session with token type filter", func(t *testing.T) {
-		helperSetupGlobalSet(t, ctx, globalTopProfileSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopProfileSetKey, map[string]float64{
 			"0:profile1:": 3000.0,
 		})
 
@@ -72,7 +72,7 @@ func TestCreateViewingSession(t *testing.T) {
 	})
 
 	t.Run("creates session for anyPost type in top", func(t *testing.T) {
-		helperSetupGlobalSet(t, ctx, globalTopAnyPostSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopAnyPostSetKey, map[string]float64{
 			"30175:anypost1:content": 5000.0,
 			"30023:anypost2:content": 4000.0,
 		})
@@ -84,13 +84,13 @@ func TestCreateViewingSession(t *testing.T) {
 		require.Equal(t, uint64(300), ttl)
 
 		sessKey := sessionKey(sessionTypeTop, sessionID)
-		exists, err := testRedis.Exists(ctx, sessKey).Result()
+		exists, err := ta.processedDataDB.Exists(ctx, sessKey).Result()
 		require.NoError(t, err)
 		require.Equal(t, int64(1), exists)
 	})
 
 	t.Run("creates session for anyPost type in trending", func(t *testing.T) {
-		helperSetupGlobalSet(t, ctx, globalTrendingAnyPostSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTrendingAnyPostSetKey, map[string]float64{
 			"30175:trendpost1:content": 10000.0,
 			"30023:trendpost2:content": 8000.0,
 		})
@@ -103,7 +103,7 @@ func TestCreateViewingSession(t *testing.T) {
 	})
 
 	t.Run("creates session for anyPost type in bonding curve progress", func(t *testing.T) {
-		helperSetupGlobalSet(t, ctx, globalBondingCurveProgressAnyPostSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalBondingCurveProgressAnyPostSetKey, map[string]float64{
 			"30175:bcpost1:content": 85.0,
 			"30023:bcpost2:content": 60.0,
 		})
@@ -116,7 +116,7 @@ func TestCreateViewingSession(t *testing.T) {
 	})
 
 	t.Run("replaces existing session for same user", func(t *testing.T) {
-		helperSetupGlobalSet(t, ctx, globalTopSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopSetKey, map[string]float64{
 			"0:token1:": 1000.0,
 		})
 
@@ -130,7 +130,7 @@ func TestCreateViewingSession(t *testing.T) {
 
 		// Old session should be deleted
 		sessKey1 := sessionKey(sessionTypeTop, sessionID1)
-		exists, err := testRedis.Exists(ctx, sessKey1).Result()
+		exists, err := ta.processedDataDB.Exists(ctx, sessKey1).Result()
 		require.NoError(t, err)
 		require.Equal(t, int64(0), exists)
 	})
@@ -142,7 +142,7 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := helperNewForTest(t, db)
+	ta := helperNewForTest(t, db, WithoutQuestDB())
 
 	t.Run("returns error for non-existent session", func(t *testing.T) {
 		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTop, "nonexistent-session-id", "", 10, 0)
@@ -188,11 +188,11 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 			5,
 			PlatformGroupIonConnect,
 		)
-		helperSetupGlobalSet(t, ctx, globalTopSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopSetKey, map[string]float64{
 			"0:vs_creator1:": 500.0,
 			"0:vs_creator2:": 300.0,
 		})
-		helperSetupGlobalSet(t, ctx, globalTrendingSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTrendingSetKey, map[string]float64{
 			"0:vs_creator1:": 1000.0 * 1e18,
 			"0:vs_creator2:": 800.0 * 1e18,
 		})
@@ -263,7 +263,7 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 			PlatformGroupIonConnect,
 		)
 
-		helperSetupGlobalSet(t, ctx, globalTopSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopSetKey, map[string]float64{
 			"0:vs_creator_kw:": 200.0,
 		})
 
@@ -277,7 +277,7 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 	})
 
 	t.Run("respects pagination", func(t *testing.T) {
-		_ = testRedis.Del(ctx, globalTopSetKey, globalTrendingSetKey).Err()
+		_ = ta.processedDataDB.Del(ctx, globalTopSetKey, globalTrendingSetKey).Err()
 
 		for i := 0; i < 5; i++ {
 			creator := helperTestUniqueID(t, "vs_page_creator", i)
@@ -296,7 +296,7 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 			)
 		}
 
-		helperSetupGlobalSet(t, ctx, globalTopSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopSetKey, map[string]float64{
 			"0:" + helperTestUniqueID(t, "vs_page_creator", 0) + ":": 100.0,
 			"0:" + helperTestUniqueID(t, "vs_page_creator", 1) + ":": 150.0,
 			"0:" + helperTestUniqueID(t, "vs_page_creator", 2) + ":": 200.0,
@@ -317,7 +317,7 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 	})
 
 	t.Run("anyPost session returns only non-profile tokens", func(t *testing.T) {
-		_ = testRedis.Del(ctx, globalTopAnyPostSetKey, globalTrendingAnyPostSetKey).Err()
+		_ = ta.processedDataDB.Del(ctx, globalTopAnyPostSetKey, globalTrendingAnyPostSetKey).Err()
 
 		helperInsertTestUser(t, ctx, db, "anypost_profile_creator", "anypost_profile", "AnyPost Profile", "", false, PlatformGroupIonConnect)
 		helperInsertTestToken(t, ctx, db,
@@ -414,13 +414,13 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 		)
 		helperSetTokenBaseToken(t, ctx, db, "30023:anypost_article_id:content", "0xAPARTPROFILE1111111111111111111111111")
 
-		helperSetupGlobalSet(t, ctx, globalTopAnyPostSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopAnyPostSetKey, map[string]float64{
 			"30175:anypost_post_id:content":    2000.0,
 			"30175:anypost_video_id:content":   3000.0,
 			"30023:anypost_article_id:content": 4000.0,
 		})
 
-		helperSetupGlobalSet(t, ctx, globalTrendingAnyPostSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTrendingAnyPostSetKey, map[string]float64{
 			"30175:anypost_post_id:content":    500.0 * 1e18,
 			"30175:anypost_video_id:content":   600.0 * 1e18,
 			"30023:anypost_article_id:content": 700.0 * 1e18,
@@ -460,7 +460,7 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 	})
 
 	t.Run("anyPost session in trending type works correctly", func(t *testing.T) {
-		_ = testRedis.Del(ctx, globalTrendingAnyPostSetKey, globalTopAnyPostSetKey).Err()
+		_ = ta.processedDataDB.Del(ctx, globalTrendingAnyPostSetKey, globalTopAnyPostSetKey).Err()
 
 		helperInsertTestUser(t, ctx, db, "trend_post_creator", "trend_post", "Trending Post", "", false, PlatformGroupIonConnect)
 		helperInsertTestToken(t, ctx, db,
@@ -476,11 +476,11 @@ func TestGetTokensFromViewingSession(t *testing.T) {
 			PlatformGroupIonConnect,
 		)
 
-		helperSetupGlobalSet(t, ctx, globalTrendingAnyPostSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTrendingAnyPostSetKey, map[string]float64{
 			"30175:trend_post_id:content": 8000.0 * 1e18, // Volume
 		})
 
-		helperSetupGlobalSet(t, ctx, globalTopAnyPostSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopAnyPostSetKey, map[string]float64{
 			"30175:trend_post_id:content": 5000.0, // Market cap
 		})
 
@@ -559,10 +559,10 @@ func TestCreateViewingSessionWithEmptyGlobalSet(t *testing.T) {
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := helperNewForTest(t, db)
+	ta := helperNewForTest(t, db, WithoutQuestDB())
 
 	t.Run("creates_and_retrieves_session_with_empty_xcom_top_set", func(t *testing.T) {
-		_ = testRedis.Del(ctx, globalTopXcomSetKey, globalTrendingXcomSetKey).Err()
+		_ = ta.processedDataDB.Del(ctx, globalTopXcomSetKey, globalTrendingXcomSetKey).Err()
 
 		tokenType := TokenTypeXcom
 		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.20.1", "device_empty_xcom", &tokenType)
@@ -576,7 +576,7 @@ func TestCreateViewingSessionWithEmptyGlobalSet(t *testing.T) {
 	})
 
 	t.Run("creates_and_retrieves_session_with_empty_global_top_set", func(t *testing.T) {
-		_ = testRedis.Del(ctx, globalTopSetKey, globalTrendingSetKey).Err()
+		_ = ta.processedDataDB.Del(ctx, globalTopSetKey, globalTrendingSetKey).Err()
 
 		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.20.2", "device_empty_global", nil)
 		require.NoError(t, err)
@@ -595,10 +595,10 @@ func TestViewingSessionsXcomSupport(t *testing.T) {
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := helperNewForTest(t, db)
+	ta := helperNewForTest(t, db, WithoutQuestDB())
 
 	t.Run("creates_and_retrieves_xcom_session_for_top", func(t *testing.T) {
-		_ = testRedis.Del(ctx, globalTopXcomSetKey, globalTrendingXcomSetKey).Err()
+		_ = ta.processedDataDB.Del(ctx, globalTopXcomSetKey, globalTrendingXcomSetKey).Err()
 
 		helperInsertTestUser(t, ctx, db, "xcom_top_creator", "xcom_top", "XCom Top", "", true, PlatformGroupXCom)
 		helperInsertTestToken(t, ctx, db,
@@ -614,10 +614,10 @@ func TestViewingSessionsXcomSupport(t *testing.T) {
 			PlatformGroupXCom,
 		)
 
-		helperSetupGlobalSet(t, ctx, globalTopXcomSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopXcomSetKey, map[string]float64{
 			"xcom_top_token": 500.0,
 		})
-		helperSetupGlobalSet(t, ctx, globalTrendingXcomSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTrendingXcomSetKey, map[string]float64{
 			"xcom_top_token": 1000.0 * 1e18,
 		})
 
@@ -638,7 +638,7 @@ func TestViewingSessionsXcomSupport(t *testing.T) {
 	})
 
 	t.Run("creates_and_retrieves_xcom_session_for_trending", func(t *testing.T) {
-		_ = testRedis.Del(ctx, globalTrendingXcomSetKey, globalTopXcomSetKey).Err()
+		_ = ta.processedDataDB.Del(ctx, globalTrendingXcomSetKey, globalTopXcomSetKey).Err()
 
 		helperInsertTestUser(t, ctx, db, "xcom_trend_creator", "xcom_trend", "XCom Trend", "", false, PlatformGroupXCom)
 		helperInsertTestToken(t, ctx, db,
@@ -654,10 +654,10 @@ func TestViewingSessionsXcomSupport(t *testing.T) {
 			PlatformGroupXCom,
 		)
 
-		helperSetupGlobalSet(t, ctx, globalTrendingXcomSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTrendingXcomSetKey, map[string]float64{
 			"xcom_trend_token": 2000.0 * 1e18,
 		})
-		helperSetupGlobalSet(t, ctx, globalTopXcomSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopXcomSetKey, map[string]float64{
 			"xcom_trend_token": 300.0,
 		})
 
@@ -676,7 +676,7 @@ func TestViewingSessionsXcomSupport(t *testing.T) {
 	})
 
 	t.Run("creates_and_retrieves_xcom_session_for_bonding_curve", func(t *testing.T) {
-		_ = testRedis.Del(ctx, globalBondingCurveProgressXcomSetKey, globalTrendingXcomSetKey).Err()
+		_ = ta.processedDataDB.Del(ctx, globalBondingCurveProgressXcomSetKey, globalTrendingXcomSetKey).Err()
 
 		helperInsertTestUser(t, ctx, db, "xcom_bc_creator", "xcom_bc", "XCom BC", "", false, PlatformGroupXCom)
 		helperInsertTestToken(t, ctx, db,
@@ -696,10 +696,10 @@ func TestViewingSessionsXcomSupport(t *testing.T) {
 			"90000000000000000000", "200000000000000000000",
 			1.5, 3.5, "12000000000000000000", false)
 
-		helperSetupGlobalSet(t, ctx, globalBondingCurveProgressXcomSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalBondingCurveProgressXcomSetKey, map[string]float64{
 			"xcom_bc_token": 90000000000000000000.0,
 		})
-		helperSetupGlobalSet(t, ctx, globalTrendingXcomSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTrendingXcomSetKey, map[string]float64{
 			"xcom_bc_token": 1500.0 * 1e18,
 		})
 
@@ -719,7 +719,7 @@ func TestViewingSessionsXcomSupport(t *testing.T) {
 	})
 
 	t.Run("xcom_session_does_not_mix_with_ionconnect", func(t *testing.T) {
-		_ = testRedis.Del(ctx, globalTopXcomSetKey, globalTopProfileSetKey, globalTopSetKey).Err()
+		_ = ta.processedDataDB.Del(ctx, globalTopXcomSetKey, globalTopProfileSetKey, globalTopSetKey).Err()
 
 		helperInsertTestUser(t, ctx, db, "xcom_mix_creator", "xcom_mix", "XCom Mix", "", true, PlatformGroupXCom)
 		helperInsertTestToken(t, ctx, db,
@@ -749,10 +749,10 @@ func TestViewingSessionsXcomSupport(t *testing.T) {
 			PlatformGroupIonConnect,
 		)
 
-		helperSetupGlobalSet(t, ctx, globalTopXcomSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopXcomSetKey, map[string]float64{
 			"xcom_mix_token": 1000.0,
 		})
-		helperSetupGlobalSet(t, ctx, globalTopProfileSetKey, map[string]float64{
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopProfileSetKey, map[string]float64{
 			"0:ion_mix_creator:": 2000.0,
 		})
 
@@ -776,7 +776,7 @@ func TestViewingSessionsXcomSupport(t *testing.T) {
 	})
 }
 
-func helperSetupGlobalSet(t *testing.T, ctx context.Context, key string, data map[string]float64) {
+func helperSetupGlobalSet(t *testing.T, ctx context.Context, rdb redis.Cmdable, key string, data map[string]float64) {
 	t.Helper()
 	if len(data) == 0 {
 		return
@@ -785,7 +785,7 @@ func helperSetupGlobalSet(t *testing.T, ctx context.Context, key string, data ma
 	for member, score := range data {
 		members = append(members, redis.Z{Score: score, Member: member})
 	}
-	err := testRedis.ZAdd(ctx, key, members...).Err()
+	err := rdb.ZAdd(ctx, key, members...).Err()
 	require.NoError(t, err, "failed to setup global set: %s", key)
 }
 

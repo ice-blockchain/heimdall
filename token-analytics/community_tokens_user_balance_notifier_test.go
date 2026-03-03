@@ -13,13 +13,14 @@ import (
 )
 
 func TestUserBalanceNotifier(t *testing.T) {
+	t.Parallel()
 	t.Run("handles user balance update via handleUserBalanceUpdate", func(t *testing.T) {
 		ctx := t.Context()
 
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		tokenExternalAddr := "0:balance_test_token:"
 		contractAddr := "0x1111222233334444555566667777888899990000"
@@ -69,7 +70,7 @@ func TestUserBalanceNotifier(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		tokenExternalAddr := "0:balance_zero_token:"
 		contractAddr := "0x2222333344445555666677778888999900001111"
@@ -121,7 +122,7 @@ func TestUserBalanceNotifier(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		tokenExternalAddr := "0:multi_user_token:"
 		contractAddr := "0x3333444455556666777788889999000011112222"
@@ -194,7 +195,7 @@ func TestUserBalanceNotifier(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		payload := `{
 			"user_blockchain_address": "0x0000000000000000000000000000000000000001",
@@ -214,7 +215,7 @@ func TestUserBalanceNotifier(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		tokenExternalAddr := "0:null_user_token:"
 		contractAddr := "0x3333444455556666777788889999000011112222"
@@ -254,7 +255,7 @@ func TestUserBalanceNotifier(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		tokenExternalAddr := "0:empty_user_token:"
 		contractAddr := "0x4444555566667777888899990000111122223333"

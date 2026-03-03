@@ -14,12 +14,12 @@ import (
 )
 
 func TestUpdateTrendingVolumes(t *testing.T) {
-
+	t.Parallel()
 	t.Run("updates tokens with volume and removes tokens without volume", func(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 		ctx := context.Background()
 
 		err := ta.processedDataDB.FlushDB(ctx).Err()
@@ -78,7 +78,7 @@ func TestUpdateTrendingVolumes(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 		ctx := context.Background()
 
 		_ = ta.processedDataDB.FlushDB(ctx).Err()
@@ -110,7 +110,7 @@ func TestUpdateTrendingVolumes(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 		ctx := context.Background()
 
 		_ = ta.processedDataDB.FlushDB(ctx).Err()
@@ -155,7 +155,7 @@ func TestUpdateTrendingVolumes(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 		ctx := context.Background()
 
 		_ = ta.processedDataDB.FlushDB(ctx).Err()
@@ -173,10 +173,11 @@ func TestUpdateTrendingVolumes(t *testing.T) {
 }
 
 func TestGetAllTrendingSetKeys(t *testing.T) {
+	t.Parallel()
 	db, release := helperCreateDB(t)
 	defer release()
 
-	ta := helperNewForTest(t, db)
+	ta := helperNewForTest(t, db, WithoutQuestDB())
 
 	keys := ta.getAllTrendingSetKeys()
 
@@ -192,12 +193,12 @@ func TestGetAllTrendingSetKeys(t *testing.T) {
 }
 
 func TestAddTokenToTrendingSets(t *testing.T) {
-
+	t.Parallel()
 	t.Run("adds xcom token to xcom set", func(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 		ctx := context.Background()
 
 		_ = ta.processedDataDB.FlushDB(ctx).Err()
@@ -229,7 +230,7 @@ func TestAddTokenToTrendingSets(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 		ctx := context.Background()
 
 		_ = ta.processedDataDB.FlushDB(ctx).Err()
@@ -266,7 +267,7 @@ func TestAddTokenToTrendingSets(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 		ctx := context.Background()
 
 		_ = ta.processedDataDB.FlushDB(ctx).Err()
@@ -301,11 +302,12 @@ func TestAddTokenToTrendingSets(t *testing.T) {
 }
 
 func TestRemoveNonExistentTokens(t *testing.T) {
+	t.Parallel()
 	t.Run("removes tokens not in temp set", func(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 		ctx := context.Background()
 
 		_ = ta.processedDataDB.FlushDB(ctx).Err()
@@ -348,7 +350,7 @@ func TestRemoveNonExistentTokens(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 
-		ta := helperNewForTest(t, db)
+		ta := helperNewForTest(t, db, WithoutQuestDB())
 		ctx := context.Background()
 
 		_ = ta.processedDataDB.FlushDB(ctx).Err()
