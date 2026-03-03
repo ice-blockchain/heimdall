@@ -133,8 +133,12 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 	pairId := common.HexToHash(result.PairId)
 	mCapUSDF := marketCap(priceUSD, totalSupplyBig, burnedBig)
 	mCapUSD, _ := mCapUSDF.Float64()
-	if _, err = t.registerTrade(ctx, tx, direction, inputAmount, outputAmount, result.ContractAddress, userAddress.Hex(), result.TokenExternalAddress, strings.ToLower(result.BaseToken), pairId.Bytes(), totalSupplyBig, burnedBig, priceUSD, mCapUSD); err != nil {
+	registered, err := t.registerTrade(ctx, tx, direction, inputAmount, outputAmount, result.ContractAddress, userAddress.Hex(), result.TokenExternalAddress, strings.ToLower(result.BaseToken), pairId.Bytes(), totalSupplyBig, burnedBig, priceUSD, mCapUSD)
+	if err != nil {
 		return errors.Wrapf(err, "failed to save trade in questdb %v %v tx %v", userAddress, user.UserExternalAddress, tx.TransactionHash)
+	}
+	if !registered {
+		return nil
 	}
 	if result.TokenType == TokenTypeProfile {
 		t.creatorTokenPricesUSD.Store(strings.ToLower(result.ContractAddress), priceUSD)

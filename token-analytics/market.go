@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"strings"
 	stdlibtime "time"
 
 	"github.com/cockroachdb/errors"
@@ -68,11 +69,10 @@ func (t *trade) Marshal(client questdb.LineSender) questdb.At {
 }
 
 func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, direction bool, inputAmount, outputAmount *big.Int, contractAddress, userAddress, externalAddress, baseToken string, pairId []byte, totalSupply, burned *big.Int, priceInUSD, marketCapUSD float64) (bool, error) {
-	dedupKey := tx.TransactionHash + ":" + contractAddress + ":" + userAddress
-	if _, alreadyProcessed := t.recentlyRegisteredTrades.Load(dedupKey); alreadyProcessed {
+	dedupKey := strings.ToLower(tx.TransactionHash) + ":" + strings.ToLower(contractAddress) + ":" + strings.ToLower(userAddress)
+	if _, alreadyProcessed := t.recentlyRegisteredTrades.LoadOrStore(dedupKey, stdlibtime.Now().UnixNano()); alreadyProcessed {
 		return false, nil
 	}
-	t.recentlyRegisteredTrades.Store(dedupKey, stdlibtime.Now().UnixNano())
 
 	tradeTyp, baseAmount, amount, priceInBase := buyOrSell(direction, inputAmount, outputAmount)
 	priceInBaseF, _ := priceInBase.Float64()
@@ -93,6 +93,8 @@ func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, directi
 	}
 
 	if err := questdb.Write(ctx, t.questDB, tradeData); err != nil {
+		t.recentlyRegisteredTrades.Delete(dedupKey)
+
 		return false, errors.Wrapf(err, "failed to insert trading data into questdb")
 	}
 	for interval := range validIntervals {
