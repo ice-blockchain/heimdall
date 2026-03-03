@@ -173,13 +173,10 @@ func (t *tokenAnalytics) SubscribeTradingStats(ctx context.Context, now stdlibti
 	recentStats, _ := t.tradingStatsRecentData.LoadOrCompute(externalAddress, func() (*recentTradeStats, bool) {
 		return newRecentTradingStats(initialStats, now), false
 	})
-	recentStats.startExpirationTicker(ctx, func() {
-		rec, ok := t.tradingStatsRecentData.Load(externalAddress)
-		if ok {
-			stats := rec.TradeStats()
-			addToStream(stats, nil)
-		}
+	recentStats.setOnExpired(func() {
+		t.subscriptions.NotifySwap(&Trade{TokenExternalAddress: externalAddress})
 	})
+	recentStats.ensureTickerRunning()
 
 	go func() {
 		for {
@@ -462,7 +459,6 @@ func (t *recentTradeStats) updateBucket(b *TradeStatsAggregate, priceInUSD float
 
 func (t *recentTradeStats) update(now int64, priceInUSD float64, sell bool) {
 	t.mx.Lock()
-	defer t.mx.Unlock()
 	diff := TradeStatsAggregate{}
 	if sell {
 		diff.SellsTotalAmountUSD = priceInUSD
@@ -488,6 +484,8 @@ func (t *recentTradeStats) update(now int64, priceInUSD float64, sell bool) {
 	t.expire(now, t.expirations1H, t.stats.Bucket1Hour)
 	t.expire(now, t.expirations6H, t.stats.Bucket6Hours)
 	t.expire(now, t.expirations24H, t.stats.Bucket24Hours)
+	t.mx.Unlock()
+	t.ensureTickerRunning()
 }
 
 func (t *recentTradeStats) expireValueInBucket(now, ts int64, valToExpire TradeStatsAggregate, bucket *TradeStatsAggregate) (expired bool) {
@@ -504,19 +502,20 @@ func (t *recentTradeStats) expireValueInBucket(now, ts int64, valToExpire TradeS
 }
 
 func (t *recentTradeStats) expire(now int64, expirations *orderedmap.OrderedMap[int64, TradeStatsAggregate], bucket *TradeStatsAggregate) bool {
-	hasExpired := false
+	var keysToDelete []int64
 	for ts, valToExpire := range expirations.AllFromFront() {
 		if ts >= now {
 			break
 		}
-		expired := t.expireValueInBucket(now, ts, valToExpire, bucket)
-		if expired {
-			expirations.Delete(ts)
-			hasExpired = true
+		if t.expireValueInBucket(now, ts, valToExpire, bucket) {
+			keysToDelete = append(keysToDelete, ts)
 		}
 	}
+	for _, key := range keysToDelete {
+		expirations.Delete(key)
+	}
 
-	if hasExpired {
+	if len(keysToDelete) > 0 {
 		hasOldest := false
 		oldestPrice := 0.0
 		for _, val := range expirations.AllFromFront() {
@@ -539,7 +538,7 @@ func (t *recentTradeStats) expire(now int64, expirations *orderedmap.OrderedMap[
 		}
 	}
 
-	return hasExpired
+	return len(keysToDelete) > 0
 }
 
 func bucketsEqual(a, b *TradeStatsAggregate) bool {
@@ -591,34 +590,45 @@ func (t *recentTradeStats) TradeStats() *TradeStats {
 	return cpy
 }
 
-func (t *recentTradeStats) startExpirationTicker(ctx context.Context, onChanged func()) {
-	t.onceStartTicker.Do(func() {
-		ticker := stdlibtime.NewTicker(30 * stdlibtime.Second)
-		go func() {
-			defer ticker.Stop()
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-ticker.C:
-					t.mx.Lock()
-					oldStats := t.stats.cpy()
-					now := stdlibtime.Now().UnixNano()
-					expired5M := t.expire(now, t.expirations5M, t.stats.Bucket5Min)
-					expired1H := t.expire(now, t.expirations1H, t.stats.Bucket1Hour)
-					expired6H := t.expire(now, t.expirations6H, t.stats.Bucket6Hours)
-					expired24H := t.expire(now, t.expirations24H, t.stats.Bucket24Hours)
+func (t *recentTradeStats) setOnExpired(fn func()) {
+	t.onExpired.Store(&fn)
+}
 
-					anyExpired := expired5M || expired1H || expired6H || expired24H
-					newStats := t.stats.cpy()
-					t.mx.Unlock()
-					if anyExpired && !oldStats.equal(newStats) {
-						onChanged()
-					}
+func (t *recentTradeStats) ensureTickerRunning() {
+	if !t.tickerRunning.CompareAndSwap(false, true) {
+		return
+	}
+	ticker := stdlibtime.NewTicker(30 * stdlibtime.Second)
+	go func() {
+		defer func() {
+			ticker.Stop()
+			t.tickerRunning.Store(false)
+		}()
+		for range ticker.C {
+			t.mx.Lock()
+			if t.expirations5M.Len() == 0 && t.expirations1H.Len() == 0 &&
+				t.expirations6H.Len() == 0 && t.expirations24H.Len() == 0 {
+				t.mx.Unlock()
+
+				return
+			}
+			oldStats := t.stats.cpy()
+			now := stdlibtime.Now().UnixNano()
+			expired5M := t.expire(now, t.expirations5M, t.stats.Bucket5Min)
+			expired1H := t.expire(now, t.expirations1H, t.stats.Bucket1Hour)
+			expired6H := t.expire(now, t.expirations6H, t.stats.Bucket6Hours)
+			expired24H := t.expire(now, t.expirations24H, t.stats.Bucket24Hours)
+
+			anyExpired := expired5M || expired1H || expired6H || expired24H
+			newStats := t.stats.cpy()
+			t.mx.Unlock()
+			if anyExpired && !oldStats.equal(newStats) {
+				if cb := t.onExpired.Load(); cb != nil {
+					(*cb)()
 				}
 			}
-		}()
-	})
+		}
+	}()
 }
 
 func newRecentTradingStats(initialStats *TradeStats, now stdlibtime.Time) *recentTradeStats {
