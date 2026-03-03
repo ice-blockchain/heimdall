@@ -392,10 +392,15 @@ func (t *tokenAnalytics) GetTokenPricing(ctx context.Context, externalAddress st
 	}
 	var creatorPrice float64
 	amountForUSDCalculation := amount
+	baseTokenForUSDCalculation := result.BaseToken
+	if tradeType == TradeTypeBuy && amountION != nil {
+		baseTokenForUSDCalculation = t.cfg.IONTokenAddress
+		amountForUSDCalculation = amountION
+	}
 	if tradeType == TradeTypeSell {
 		amountForUSDCalculation = resAmount
 	}
-	amountUsd, creatorPrice, err := t.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(amountForUSDCalculation), result.BaseToken)
+	amountUsd, creatorPrice, err := t.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(amountForUSDCalculation), baseTokenForUSDCalculation)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get usd price for token %v (%v base %v): %w", externalAddress, result.ContractAddress, result.BaseToken, err)
 	}
