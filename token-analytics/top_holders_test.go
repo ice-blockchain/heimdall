@@ -16,7 +16,7 @@ import (
 )
 
 func Test_buildTopHolderPositions(t *testing.T) {
-
+	t.Parallel()
 	contractAddr := "0xcontract123"
 
 	t.Run("should build positions with complete data", func(t *testing.T) {

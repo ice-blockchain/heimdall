@@ -827,6 +827,7 @@ func TestGetCommunityTokensByExternalAddresses_WithKeyword(t *testing.T) {
 }
 
 func TestGetCommunityTokensByExternalAddresses_WithAndWithoutKeyword(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	db, release := helperCreateDB(t)
 	defer release()
@@ -972,6 +973,7 @@ func TestGetCommunityTokensByExternalAddresses_WithAndWithoutKeyword(t *testing.
 }
 
 func TestGetCommunityTokensWithTopPlatformHolders_WithAndWithoutKeyword(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	db, release := helperCreateDB(t)
 	defer release()

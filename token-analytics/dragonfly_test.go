@@ -4,7 +4,7 @@ package tokenanalytics
 
 import (
 	"context"
-	"sync/atomic"
+	"sync"
 	"testing"
 
 	"github.com/cockroachdb/errors"
@@ -16,13 +16,18 @@ import (
 )
 
 const (
-	dragonflyImage = "docker.dragonflydb.io/dragonflydb/dragonfly:latest"
+	dragonflyImage  = "docker.dragonflydb.io/dragonflydb/dragonfly:latest"
+	dragonflyMaxDBs = 256
 )
 
 var (
 	testRedis        *redis.Client
 	testDragonflyURL string
-	testRedisDBNum   atomic.Int32
+	redisDBPool      struct {
+		mu   sync.Mutex
+		free []int
+		next int
+	}
 )
 
 type testRedisDB struct {
@@ -85,7 +90,7 @@ func mustConnectDragonfly(ctx context.Context, addr string) *redis.Client {
 func mustNewIsolatedRedisForTest(t testing.TB) *redis.Client {
 	t.Helper()
 
-	dbNum := int(testRedisDBNum.Add(1))
+	dbNum := acquireRedisDB(t)
 
 	opt, err := redis.ParseURL(testDragonflyURL)
 	if err != nil {
@@ -101,7 +106,35 @@ func mustNewIsolatedRedisForTest(t testing.TB) *redis.Client {
 	t.Cleanup(func() {
 		_ = client.FlushDB(context.Background()).Err()
 		_ = client.Close()
+		releaseRedisDB(dbNum)
 	})
 
 	return client
+}
+
+func acquireRedisDB(t testing.TB) int {
+	t.Helper()
+	redisDBPool.mu.Lock()
+	defer redisDBPool.mu.Unlock()
+
+	if len(redisDBPool.free) > 0 {
+		db := redisDBPool.free[len(redisDBPool.free)-1]
+		redisDBPool.free = redisDBPool.free[:len(redisDBPool.free)-1]
+
+		return db
+	}
+
+	db := redisDBPool.next
+	if db >= dragonflyMaxDBs {
+		t.Fatalf("exhausted all %d DragonflyDB databases; too many concurrent tests", dragonflyMaxDBs)
+	}
+	redisDBPool.next++
+
+	return db
+}
+
+func releaseRedisDB(db int) {
+	redisDBPool.mu.Lock()
+	defer redisDBPool.mu.Unlock()
+	redisDBPool.free = append(redisDBPool.free, db)
 }
