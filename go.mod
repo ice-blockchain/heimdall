@@ -20,7 +20,7 @@ require (
 	github.com/dfns/dfns-sdk-go v1.0.2
 	github.com/eliukblau/pixterm v1.3.2
 	github.com/elliotchance/orderedmap/v3 v3.1.0
-	github.com/ethereum/go-ethereum v1.17.0
+	github.com/ethereum/go-ethereum v1.17.1
 	github.com/fingerprintjs/fingerprint-pro-server-api-go-sdk/v7 v7.9.0
 	github.com/georgysavva/scany/v2 v2.1.4
 	github.com/gin-contrib/cors v1.7.6
