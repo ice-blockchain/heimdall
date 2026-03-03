@@ -542,6 +542,24 @@ func (t *recentTradeStats) expire(now int64, expirations *orderedmap.OrderedMap[
 	return hasExpired
 }
 
+func bucketsEqual(a, b *TradeStatsAggregate) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+
+	return *a == *b
+}
+
+func (s *TradeStats) equal(other *TradeStats) bool {
+	return bucketsEqual(s.Bucket5Min, other.Bucket5Min) &&
+		bucketsEqual(s.Bucket1Hour, other.Bucket1Hour) &&
+		bucketsEqual(s.Bucket6Hours, other.Bucket6Hours) &&
+		bucketsEqual(s.Bucket24Hours, other.Bucket24Hours)
+}
+
 func (src *TradeStats) cpy() *TradeStats {
 	if src == nil {
 		return nil
@@ -594,15 +612,8 @@ func (t *recentTradeStats) startExpirationTicker(ctx context.Context, onChanged 
 					anyExpired := expired5M || expired1H || expired6H || expired24H
 					newStats := t.stats.cpy()
 					t.mx.Unlock()
-					if anyExpired {
-						changed := (oldStats.Bucket5Min != nil && newStats.Bucket5Min != nil && oldStats.Bucket5Min.PriceDiff != newStats.Bucket5Min.PriceDiff) ||
-							(oldStats.Bucket1Hour != nil && newStats.Bucket1Hour != nil && oldStats.Bucket1Hour.PriceDiff != newStats.Bucket1Hour.PriceDiff) ||
-							(oldStats.Bucket6Hours != nil && newStats.Bucket6Hours != nil && oldStats.Bucket6Hours.PriceDiff != newStats.Bucket6Hours.PriceDiff) ||
-							(oldStats.Bucket24Hours != nil && newStats.Bucket24Hours != nil && oldStats.Bucket24Hours.PriceDiff != newStats.Bucket24Hours.PriceDiff)
-
-						if changed {
-							onChanged()
-						}
+					if anyExpired && !oldStats.equal(newStats) {
+						onChanged()
 					}
 				}
 			}
