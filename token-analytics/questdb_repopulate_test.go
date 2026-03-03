@@ -16,6 +16,7 @@ import (
 )
 
 func TestRepopulateQuestDBTrades(t *testing.T) {
+	t.Parallel()
 	t.Run("repopulates_swaps_into_questdb", func(t *testing.T) {
 		ctx := t.Context()
 		db, connString, release := helperCreateDBWithConnString(t)

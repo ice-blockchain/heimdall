@@ -515,6 +515,7 @@ func TestGetCommunityTokensByLatest_CreatorNotRegistered(t *testing.T) {
 }
 
 func TestGetCommunityTokensByRewardsDistribution(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	db, release := helperCreateDB(t)
 	defer release()

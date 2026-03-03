@@ -14,12 +14,13 @@ import (
 )
 
 func TestAnalyticsSnapshotWorker_Interval24h(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	db, release := helperCreateDB(t)
 	defer release()
 	ta := helperNewForTest(t, db)
 
-	targetHour := setupAnalyticsTestData(t, db, ta)
+	targetHour := setupAnalyticsTestData(t, db, ta, "snap24h")
 	stats := helperComputeAndVerifySnapshot(t, ctx, ta, targetHour, "24h", 1, 1)
 
 	require.Equal(t, uint64(1), stats.Launched, "24h: only token_24h created within window")
@@ -28,12 +29,13 @@ func TestAnalyticsSnapshotWorker_Interval24h(t *testing.T) {
 }
 
 func TestAnalyticsSnapshotWorker_Interval7d(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	db, release := helperCreateDB(t)
 	defer release()
 	ta := helperNewForTest(t, db)
 
-	targetHour := setupAnalyticsTestData(t, db, ta)
+	targetHour := setupAnalyticsTestData(t, db, ta, "snap7d")
 	stats := helperComputeAndVerifySnapshot(t, ctx, ta, targetHour, "7d", 2, 2)
 
 	require.Equal(t, uint64(2), stats.Launched, "7d: token_24h + token_7d created within window")
@@ -42,12 +44,13 @@ func TestAnalyticsSnapshotWorker_Interval7d(t *testing.T) {
 }
 
 func TestAnalyticsSnapshotWorker_Interval30d(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	db, release := helperCreateDB(t)
 	defer release()
 	ta := helperNewForTest(t, db)
 
-	targetHour := setupAnalyticsTestData(t, db, ta)
+	targetHour := setupAnalyticsTestData(t, db, ta, "snap30d")
 	stats := helperComputeAndVerifySnapshot(t, ctx, ta, targetHour, "30d", 3, 3)
 
 	require.Equal(t, uint64(3), stats.Launched, "30d: 3 tokens created within window")
@@ -56,12 +59,13 @@ func TestAnalyticsSnapshotWorker_Interval30d(t *testing.T) {
 }
 
 func TestAnalyticsSnapshotWorker_Interval1y(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	db, release := helperCreateDB(t)
 	defer release()
 	ta := helperNewForTest(t, db)
 
-	targetHour := setupAnalyticsTestData(t, db, ta)
+	targetHour := setupAnalyticsTestData(t, db, ta, "snap1y")
 	stats := helperComputeAndVerifySnapshot(t, ctx, ta, targetHour, "1y", 4, 4)
 
 	require.Equal(t, uint64(4), stats.Launched, "1y: all 4 tokens created within window")
@@ -70,6 +74,7 @@ func TestAnalyticsSnapshotWorker_Interval1y(t *testing.T) {
 }
 
 func TestAnalyticsSnapshotWorker_MigratedCount(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	db, release := helperCreateDB(t)
 	defer release()
@@ -115,6 +120,7 @@ func TestAnalyticsSnapshotWorker_MigratedCount(t *testing.T) {
 }
 
 func TestAnalyticsSnapshotWorker_VolumeAccuracy(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	db, release := helperCreateDB(t)
 	defer release()
@@ -153,6 +159,7 @@ func TestAnalyticsSnapshotWorker_VolumeAccuracy(t *testing.T) {
 }
 
 func TestAnalyticsSnapshotWorker_IdempotentProcessing(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	db, release := helperCreateDB(t)
 	defer release()
@@ -168,6 +175,7 @@ func TestAnalyticsSnapshotWorker_IdempotentProcessing(t *testing.T) {
 }
 
 func TestGetGlobalTokenStatistics_NoData(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	db, release := helperCreateDB(t)
 	defer release()
@@ -182,6 +190,7 @@ func TestGetGlobalTokenStatistics_NoData(t *testing.T) {
 }
 
 func TestGetGlobalTokenStatistics_ReturnsLatestSnapshot(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	db, release := helperCreateDB(t)
 	defer release()
@@ -229,61 +238,55 @@ func TestGetGlobalTokenStatistics_ReturnsLatestSnapshot(t *testing.T) {
 	require.GreaterOrEqual(t, result.Launched, uint64(2), "newer snapshot should reflect data from both tokens")
 }
 
-func setupAnalyticsTestData(t *testing.T, db *storage.DB, ta *tokenAnalytics) time.Time {
+func setupAnalyticsTestData(t *testing.T, db *storage.DB, ta *tokenAnalytics, prefix string) time.Time {
 	t.Helper()
 	ctx := t.Context()
 
 	targetHour := time.Now().UTC().Truncate(time.Hour).Add(-time.Hour)
 
-	helperInsertTestUser(t, ctx, db, "snap_c1", "snap_one", "Snap One", "", true, PlatformGroupIonConnect)
-	helperInsertTestUser(t, ctx, db, "snap_c2", "snap_two", "Snap Two", "", false, PlatformGroupIonConnect)
-	helperInsertTestUser(t, ctx, db, "snap_c3", "snap_three", "Snap Three", "", true, PlatformGroupIonConnect)
-	helperInsertTestUser(t, ctx, db, "snap_c4", "snap_four", "Snap Four", "", false, PlatformGroupIonConnect)
+	c1, c2, c3, c4 := prefix+"_c1", prefix+"_c2", prefix+"_c3", prefix+"_c4"
+	ext1, ext2, ext3, ext4 := "0:"+c1+":", "0:"+c2+":", "0:"+c3+":", "0:"+c4+":"
 
-	helperInsertTestToken(t, ctx, db, "0xSNAP1111111111111111111111111111111111", "0:snap_c1:", "SN1", "profile", "snap_c1", "1000000000000000000000000", 100.0, 0.0001, 5, PlatformGroupIonConnect)
-	helperInsertTestToken(t, ctx, db, "0xSNAP2222222222222222222222222222222222", "0:snap_c2:", "SN2", "profile", "snap_c2", "2000000000000000000000000", 200.0, 0.0002, 10, PlatformGroupIonConnect)
-	helperInsertTestToken(t, ctx, db, "0xSNAP3333333333333333333333333333333333", "0:snap_c3:", "SN3", "profile", "snap_c3", "3000000000000000000000000", 300.0, 0.0003, 15, PlatformGroupIonConnect)
-	helperInsertTestToken(t, ctx, db, "0xSNAP4444444444444444444444444444444444", "0:snap_c4:", "SN4", "profile", "snap_c4", "4000000000000000000000000", 400.0, 0.0004, 20, PlatformGroupIonConnect)
+	helperInsertTestUser(t, ctx, db, c1, prefix+"_one", prefix+" One", "", true, PlatformGroupIonConnect)
+	helperInsertTestUser(t, ctx, db, c2, prefix+"_two", prefix+" Two", "", false, PlatformGroupIonConnect)
+	helperInsertTestUser(t, ctx, db, c3, prefix+"_three", prefix+" Three", "", true, PlatformGroupIonConnect)
+	helperInsertTestUser(t, ctx, db, c4, prefix+"_four", prefix+" Four", "", false, PlatformGroupIonConnect)
 
-	// token_24h: created and migrated within 24h.
+	helperInsertTestToken(t, ctx, db, "0x"+prefix+"1111111111111111111111111111111111", ext1, prefix+"1", "profile", c1, "1000000000000000000000000", 100.0, 0.0001, 5, PlatformGroupIonConnect)
+	helperInsertTestToken(t, ctx, db, "0x"+prefix+"2222222222222222222222222222222222", ext2, prefix+"2", "profile", c2, "2000000000000000000000000", 200.0, 0.0002, 10, PlatformGroupIonConnect)
+	helperInsertTestToken(t, ctx, db, "0x"+prefix+"3333333333333333333333333333333333", ext3, prefix+"3", "profile", c3, "3000000000000000000000000", 300.0, 0.0003, 15, PlatformGroupIonConnect)
+	helperInsertTestToken(t, ctx, db, "0x"+prefix+"4444444444444444444444444444444444", ext4, prefix+"4", "profile", c4, "4000000000000000000000000", 400.0, 0.0004, 20, PlatformGroupIonConnect)
+
 	createdAt24h := targetHour.Add(-2 * time.Hour)
 	migratedAt24h := targetHour.Add(-3 * time.Hour)
 	_, err := storage.Exec(ctx, db, `UPDATE tokens SET created_at = $1, bonding_curve_migrated = true, migrated_at = $2 WHERE external_address = $3`,
-		createdAt24h, migratedAt24h, "0:snap_c1:")
+		createdAt24h, migratedAt24h, ext1)
 	require.NoError(t, err)
 
-	// token_7d: created 3 days ago, migrated 4 days ago.
 	createdAt7d := targetHour.Add(-3 * 24 * time.Hour)
 	migratedAt7d := targetHour.Add(-4 * 24 * time.Hour)
 	_, err = storage.Exec(ctx, db, `UPDATE tokens SET created_at = $1, bonding_curve_migrated = true, migrated_at = $2 WHERE external_address = $3`,
-		createdAt7d, migratedAt7d, "0:snap_c2:")
+		createdAt7d, migratedAt7d, ext2)
 	require.NoError(t, err)
 
-	// token_30d: created 15 days ago, migrated 16 days ago.
 	createdAt30d := targetHour.Add(-15 * 24 * time.Hour)
 	migratedAt30d := targetHour.Add(-16 * 24 * time.Hour)
 	_, err = storage.Exec(ctx, db, `UPDATE tokens SET created_at = $1, bonding_curve_migrated = true, migrated_at = $2 WHERE external_address = $3`,
-		createdAt30d, migratedAt30d, "0:snap_c3:")
+		createdAt30d, migratedAt30d, ext3)
 	require.NoError(t, err)
 
-	// token_1y: created 60 days ago, migrated 61 days ago.
 	createdAt1y := targetHour.Add(-60 * 24 * time.Hour)
 	migratedAt1y := targetHour.Add(-61 * 24 * time.Hour)
 	_, err = storage.Exec(ctx, db, `UPDATE tokens SET created_at = $1, bonding_curve_migrated = true, migrated_at = $2 WHERE external_address = $3`,
-		createdAt1y, migratedAt1y, "0:snap_c4:")
+		createdAt1y, migratedAt1y, ext4)
 	require.NoError(t, err)
 
-	// volume_1h = amount / 1e18 * price_in_usd
-	// token_24h: 1e21/1e18 * 1.0 = 1000 USD
-	helperWriteTradeToQuestDB(t, ctx, ta, "0:snap_c1:", "1000000000000000000000", "1.0", TradeTypeBuy, createdAt24h)
-	// token_7d: 2e21/1e18 * 1.5 = 3000 USD
-	helperWriteTradeToQuestDB(t, ctx, ta, "0:snap_c2:", "2000000000000000000000", "1.5", TradeTypeBuy, createdAt7d)
-	// token_30d: 3e21/1e18 * 2.0 = 6000 USD
-	helperWriteTradeToQuestDB(t, ctx, ta, "0:snap_c3:", "3000000000000000000000", "2.0", TradeTypeBuy, createdAt30d)
-	// token_1y: 4e21/1e18 * 2.5 = 10000 USD
-	helperWriteTradeToQuestDB(t, ctx, ta, "0:snap_c4:", "4000000000000000000000", "2.5", TradeTypeBuy, createdAt1y)
+	helperWriteTradeToQuestDB(t, ctx, ta, ext1, "1000000000000000000000", "1.0", TradeTypeBuy, createdAt24h)
+	helperWriteTradeToQuestDB(t, ctx, ta, ext2, "2000000000000000000000", "1.5", TradeTypeBuy, createdAt7d)
+	helperWriteTradeToQuestDB(t, ctx, ta, ext3, "3000000000000000000000", "2.0", TradeTypeBuy, createdAt30d)
+	helperWriteTradeToQuestDB(t, ctx, ta, ext4, "4000000000000000000000", "2.5", TradeTypeBuy, createdAt1y)
 
-	snapAddresses := []string{"0:snap_c1:", "0:snap_c2:", "0:snap_c3:", "0:snap_c4:"}
+	snapAddresses := []string{ext1, ext2, ext3, ext4}
 	require.Eventually(t, func() bool {
 		rows, err := questdb.Select[struct {
 			Cnt int64 `db:"cnt"`
@@ -292,7 +295,7 @@ func setupAnalyticsTestData(t *testing.T, db *storage.DB, ta *tokenAnalytics) ti
 			snapAddresses[0], snapAddresses[1], snapAddresses[2], snapAddresses[3])
 
 		return err == nil && len(rows) > 0 && rows[0].Cnt >= 4
-	}, 30*time.Second, 200*time.Millisecond, "all 4 snap trades should be in QuestDB trades table")
+	}, 30*time.Second, 200*time.Millisecond, "all 4 "+prefix+" trades should be in QuestDB trades table")
 
 	matCheck, _ := questdb.Select[struct {
 		Cnt int64 `db:"cnt"`
@@ -312,7 +315,7 @@ func setupAnalyticsTestData(t *testing.T, db *storage.DB, ta *tokenAnalytics) ti
 			snapAddresses[0], snapAddresses[1], snapAddresses[2], snapAddresses[3])
 
 		return err == nil && len(rows) > 0 && rows[0].Cnt >= 4
-	}, 30*time.Second, 300*time.Millisecond, "token_volume_1h should have 4 rows for snap tokens")
+	}, 30*time.Second, 300*time.Millisecond, "token_volume_1h should have 4 rows for "+prefix+" tokens")
 
 	return targetHour
 }
