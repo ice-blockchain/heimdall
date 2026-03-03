@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	stdlibtime "time"
 
@@ -160,7 +161,7 @@ func (s *service) validateDeviceEvent(ctx context.Context, device *model.Event) 
 	if err != nil {
 		return nil, errors.Wrapf(err, "malformed 21750")
 	}
-	if attestationEvent.Address() != attestationAddr {
+	if !slices.Contains(attestationAddr, attestationEvent.Address()) {
 		return nil, errors.Wrapf(err, "21750 does not point to attestation event")
 	}
 	if err = s.validation.Validate(ctx, []*model.Event{device}, validation.RuleWithSkipDeviceIdentificationProofEventsVerify()); err != nil {
