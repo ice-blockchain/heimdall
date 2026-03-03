@@ -127,12 +127,18 @@ func (t *tokenAnalytics) handleTokenSwapUpdate(ctx context.Context, payload stri
 
 	tx := &txEvent{
 		TransactionHash: update.TransactionHash,
-		BlockTimestamp:  time.New(stdlibtime.Unix(update.CreatedAt, 0)),
+		BlockTimestamp:  time.New(stdlibtime.UnixMicro(update.CreatedAt)),
 	}
-	if err := t.registerTrade(ctx, tx, update.Direction, inputAmount, outputAmount,
+	registered, regErr := t.registerTrade(ctx, tx, update.Direction, inputAmount, outputAmount,
 		update.ContractAddress, update.UserBlockchainAddress, update.ExternalAddress,
-		update.BaseToken, pairIdBytes, totalSupply, burned, update.CurvePriceUSD, mCapUSD); err != nil {
-		return errors.Wrapf(err, "failed to register trade for tx %s", update.TransactionHash)
+		update.BaseToken, pairIdBytes, totalSupply, burned, update.CurvePriceUSD, mCapUSD)
+	if regErr != nil {
+		return errors.Wrapf(regErr, "failed to register trade for tx %s", update.TransactionHash)
+	}
+	if !registered {
+		log.Debug(fmt.Sprintf("[PG_NOTIFY] skipping duplicate trade for tx=%s, contract=%s", update.TransactionHash, update.ContractAddress))
+
+		return nil
 	}
 	if err = t.updateTokenRankingsInRedis(ctx, mCapUSD, update.ExternalAddress, update.Platform, update.Type); err != nil {
 		return errors.Wrapf(err, "failed to update redis ranking for tx %v contract %v %v user %v to notify subscribers",

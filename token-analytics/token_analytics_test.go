@@ -280,6 +280,7 @@ func helperNewForTest(t testing.TB, db *storage.DB, opts ...HelperTestOption) *t
 		metrics:                     metrics.NewRegistry(),
 		ohclvRecentData:             xsync.NewMap[string, *recentCandlestick](),
 		tradingStatsRecentData:      xsync.NewMap[string, *recentTradeStats](),
+		recentlyRegisteredTrades:    xsync.NewMap[string, int64](),
 		subscriptions:               newSubscriptions(t.Context()),
 		creatorTokenPricesUSD:       xsync.NewMap[string, float64](),
 		creatorTokenPricesION:       xsync.NewMap[string, *big.Int](),

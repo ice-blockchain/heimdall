@@ -434,10 +434,16 @@ func (w *balanceUpdateWorker) registerTradeFromJob(ctx context.Context, args Bal
 		BlockNumber:     args.BlockNumber,
 		BlockTimestamp:  time.New(swap.CreatedAt),
 	}
-	if err := w.ta.registerTrade(ctx, tx, swap.Direction, inputAmount, outputAmount,
+	registered, regErr := w.ta.registerTrade(ctx, tx, swap.Direction, inputAmount, outputAmount,
 		args.ContractAddress, args.UserBlockchainAddress, args.TokenExternalAddress,
-		args.BaseToken, pairIdBytes, totalSupply, burned, priceUSD, marketCapUSD); err != nil {
-		return err
+		args.BaseToken, pairIdBytes, totalSupply, burned, priceUSD, marketCapUSD)
+	if regErr != nil {
+		return errors.Wrapf(regErr, "failed to register trade for tx %s", args.TransactionHash)
+	}
+	if !registered {
+		log.Debug(fmt.Sprintf("[BALANCE_JOB] skipping duplicate trade for tx=%s, contract=%s", args.TransactionHash, args.ContractAddress))
+
+		return nil
 	}
 	tradeInfo, err := w.ta.fetchTradeInfoFromSwap(ctx, args.TransactionHash, args.ContractAddress, args.UserBlockchainAddress)
 	if err != nil {

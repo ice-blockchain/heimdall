@@ -135,18 +135,17 @@ func (t *tokenAnalytics) RepopulateQuestDBTrades(ctx context.Context) error {
 			TransactionHash: swap.TransactionHash,
 			BlockNumber:     0,
 		}
-		if err := t.registerTrade(ctx, tx, swap.Direction, inputAmount, outputAmount,
+		registered, regErr := t.registerTrade(ctx, tx, swap.Direction, inputAmount, outputAmount,
 			swap.ContractAddress, swap.UserBlockchainAddress, swap.ExternalAddress,
-			swap.BaseToken, pairIdBytes, totalSupply, burned, swap.CurvePriceUSD, mCapUSD); err != nil {
-			log.Error(errors.Wrapf(err, "failed to register trade for tx %s", swap.TransactionHash))
+			swap.BaseToken, pairIdBytes, totalSupply, burned, swap.CurvePriceUSD, mCapUSD)
+		if regErr != nil {
+			log.Error(errors.Wrapf(regErr, "failed to register trade for tx %s", swap.TransactionHash))
 			errorCount++
 
 			continue
 		}
-
-		if err = t.updateTokenRankingsInRedis(ctx, mCapUSD, swap.ExternalAddress, swap.Platform, swap.Type); err != nil {
-			return errors.Wrapf(err, "failed to update redis ranking for tx %v contract %v %v user %v",
-				swap.TransactionHash, swap.ContractAddress, swap.ExternalAddress, swap.UserBlockchainAddress)
+		if !registered {
+			continue
 		}
 		processedCount++
 		if processedCount%100 == 0 {

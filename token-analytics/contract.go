@@ -178,6 +178,8 @@ const (
 	volumeUpdateInterval                     = 1 * stdlibtime.Minute
 	volume24hMaterializedViewRefreshInterval = 30 * stdlibtime.Second
 
+	recentlyRegisteredTradesTTL = 10 * stdlibtime.Minute
+
 	analyticsSnapshotCheckInterval = 1 * stdlibtime.Minute
 	HourlyRankingTopN              = 100
 
@@ -303,6 +305,7 @@ type (
 		tokenFactoryContractAddress string
 		ohclvRecentData             *xsync.Map[string, *recentCandlestick]
 		tradingStatsRecentData      *xsync.Map[string, *recentTradeStats]
+		recentlyRegisteredTrades    *xsync.Map[string, int64]
 		subscriptions               interface {
 			Subscriptions
 			Notifier
