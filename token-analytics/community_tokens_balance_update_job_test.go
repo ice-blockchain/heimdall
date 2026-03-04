@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 
@@ -85,6 +86,15 @@ func TestBalanceUpdateJob_WithRPC(t *testing.T) {
 
 	mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
 	mockBackend.SetBalanceOfResponse(big.NewInt(5000000000000000000)) // 5 tokens
+	mockBackend.SetBondingCurveResponse(bondingcurve.BondingCurveBondingInfo{
+		CurrentPrice:      big.NewInt(500000000000000000), // 0.5 base
+		SoldTokens:        big.NewInt(int64(1e18)),
+		BondingTokensGoal: big.NewInt(int64(5e18)),
+		TokensRaised:      big.NewInt(int64(1e18)),
+		EndPrice:          big.NewInt(int64(1e17)),
+		StartPrice:        big.NewInt(int64(1e18)),
+		Migrated:          false,
+	})
 	mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
 
 	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC), WithoutQuestDB())
@@ -102,7 +112,8 @@ func TestBalanceUpdateJob_WithRPC(t *testing.T) {
 
 	helperInsertBaseTokenPrice(t, ctx, db, "0x2c73996babf1a06c2c057177353293f7ca0907c8", "ION", 0.01)
 	helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddr, "0x0000000000000000000000000000000000000000000000000000000000000001", "0x2c73996babf1a06c2c057177353293f7ca0907c8")
-
+	helperInsertTokenSwap(t, ctx, db, tokenContractAddr, tokenExternalAddr, userBlockchainAddr,
+		txHash, false, "1000000000000000000", "5000000000000000000", 0.10)
 	err := ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
 		UserBlockchainAddress: userBlockchainAddr,
 		UserExternalAddress:   userExternalAddr,
@@ -120,15 +131,18 @@ func TestBalanceUpdateJob_WithRPC(t *testing.T) {
 	helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
 
 	type position struct {
-		Amount string `db:"amount"`
+		Amount           string  `db:"amount"`
+		TotalInvestedUSD float64 `db:"total_invested_usd"`
+		TotalRealizedUSD float64 `db:"total_realized_usd"`
 	}
 	pos, err := storage.Get[position](ctx, db, `
-		SELECT amount FROM user_token_positions
+		SELECT amount, total_invested_usd, total_realized_usd FROM user_token_positions
 		WHERE user_blockchain_address = $1 AND contract_address = $2
 	`, strings.ToLower(userBlockchainAddr), strings.ToLower(tokenContractAddr))
 	require.NoError(t, err)
 	require.Equal(t, "5000000000000000000", pos.Amount, "Balance should be updated to 5 tokens")
-
+	require.InDelta(t, 2.875, pos.TotalInvestedUSD, 0.0001, "Total invested USD should be updated with current price (1.15 per ion * 0.5 base per token * 5 tokens)")
+	require.Equal(t, float64(0), pos.TotalRealizedUSD, "Total realized USD should be 0 as it was buy")
 	t.Logf("Checking Redis for key=%s, member=%s", keyUserPositionOfToken(tokenExternalAddr), userExternalAddr)
 	score, err := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddr), userExternalAddr).Result()
 	require.NoError(t, err, "Redis entry should exist for user position")
@@ -255,10 +269,12 @@ func TestBalanceUpdateJob_XcomPlatform(t *testing.T) {
 	helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
 
 	type position struct {
-		Amount string `db:"amount"`
+		Amount           string  `db:"amount"`
+		TotalInvestedUSD float64 `db:"total_invested_usd"`
+		TotalRealizedUSD float64 `db:"total_realized_usd"`
 	}
 	pos, err := storage.Get[position](ctx, db, `
-		SELECT amount FROM user_token_positions 
+		SELECT amount, total_invested_usd, total_realized_usd FROM user_token_positions 
 		WHERE user_blockchain_address = $1 AND contract_address = $2
 	`, userBlockchainAddr, contractAddr)
 	require.NoError(t, err)

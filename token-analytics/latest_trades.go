@@ -31,7 +31,7 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, externalAddress st
 		    token_swaps.direction,
 		    token_swaps.input_amount,
 		    token_swaps.output_amount,
-		    token_swaps.price_usd,
+		    token_swaps.curve_price_usd as price_usd,
 		    tokens.content_author_id as content_author_id,
 			creator.username as creator_username,
 			creator.display_name as creator_display,

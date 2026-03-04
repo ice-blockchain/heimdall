@@ -37,6 +37,7 @@ type (
 	}
 	CoinImport interface {
 		ImportTokenizedCommunitiesCoin(ctx context.Context, coin TokenAnalyticsToken) (*Coin, error)
+		SetPriceUSD(ctx context.Context, symbolGroup string, priceUSD float64) error
 	}
 	Sync interface {
 		io.Closer

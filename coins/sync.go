@@ -378,7 +378,16 @@ func (s *coinSync) fetchSyncableCoins(ctx context.Context, now *time.Time) (map[
 	}
 	res := make(map[string]*coinToSync, len(coins))
 	for _, c := range coins {
-		res[c.Network] = c
+		if _, ok := res[c.Network]; !ok {
+			res[c.Network] = &coinToSync{}
+		}
+		res[c.Network] = &coinToSync{
+			Network:                    c.Network,
+			ContractAddresses:          append(res[c.Network].ContractAddresses, c.ContractAddresses...),
+			TokenizedCommunitiesTokens: append(res[c.Network].TokenizedCommunitiesTokens, c.TokenizedCommunitiesTokens...),
+			CoinGeckoCoinIDs:           append(res[c.Network].CoinGeckoCoinIDs, c.CoinGeckoCoinIDs...),
+			SyncTokenFullData:          res[c.Network].SyncTokenFullData || c.SyncTokenFullData,
+		}
 	}
 	return res, nil
 }
