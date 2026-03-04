@@ -569,12 +569,17 @@ func convertFromION(ctx context.Context, cfg *config, ionPriceCache *xsync.Map[s
 						return nil, errors.Wrapf(err, "failed to get bonding curve current progress state for %v", pairId.String())
 					}
 					currentBondingCurvePosition = progress.SoldTokens
-					leftOnCurve = progress.BondingTokensGoal.Sub(progress.BondingTokensGoal, progress.SoldTokens)
+					leftOnCurve = new(big.Int).Sub(progress.BondingTokensGoal, progress.SoldTokens)
 				}
 				err = nil
 				model := &creatorModel{}
 				finalAmountAfterIONInvestment := model.QuoteBuyOut(amountOfIONForFirstBuy, currentBondingCurvePosition, leftOnCurve, profileInitial, profileFinal)
 				profilePrice = model.CurrentPrice(new(big.Int).Add(currentBondingCurvePosition, finalAmountAfterIONInvestment), new(big.Int).Sub(leftOnCurve, finalAmountAfterIONInvestment), profileInitial, profileFinal)
+				if pairId != nil {
+					log.Debug(fmt.Sprintf("profile price: %v, current position %v investment %v pair %v", profilePrice, currentBondingCurvePosition, amountOfIONForFirstBuy.String(), pairId.String()))
+				} else {
+					log.Debug(fmt.Sprintf("profile price: %v, current position %v investment %v pair not exist yet", profilePrice, currentBondingCurvePosition, amountOfIONForFirstBuy.String()))
+				}
 			} else {
 				profile := cfg.BondingCurve.CreateTokenDefaults[TokenTypeProfile]
 				profilePrice, ok = new(big.Int).SetString(extract(profile), 10)
