@@ -1,6 +1,6 @@
 {
   "en": {
-    "_version": 10,
+    "_version": 11,
     "reply": {
       "title": "Online+",
       "body": "\uD83D\uDCAC @{{username}} replied to your post"
@@ -52,6 +52,14 @@
     "likeStory": {
       "title": "Online+",
       "body": "\u2764\uFE0F @{{username}} liked your story"
+    },
+    "reactToStory": {
+      "title": "Online+",
+      "body": "\"{{reactionContent}}\" @{{username}} reacted your story"
+    },
+    "replyToStory": {
+      "title": "Online+",
+      "body": "\uD83D\uDCAC @{{username}} replied to your story"
     },
     "likeComment": {
       "title": "Online+",
@@ -211,7 +219,7 @@
     }
   },
   "es": {
-    "_version": 10,
+    "_version": 11,
     "reply": {
       "title": "Online+",
       "body": "[ES] \uD83D\uDCAC @{{username}} replied to your post"
@@ -263,6 +271,14 @@
     "likeStory": {
       "title": "Online+",
       "body": "[ES] \u2764\uFE0F @{{username}} liked your story"
+    },
+    "reactToStory": {
+      "title": "Online+",
+      "body": "[ES] \"{{reactionContent}}\" @{{username}} reacted your story"
+    },
+    "replyToStory": {
+      "title": "Online+",
+      "body": "[ES] \uD83D\uDCAC @{{username}} replied to your story"
     },
     "likeComment": {
       "title": "Online+",
@@ -422,7 +438,7 @@
     }
   },
   "fr": {
-    "_version": 10,
+    "_version": 11,
     "reply": {
       "title": "Online+",
       "body": "[FR] \uD83D\uDCAC @{{username}} replied to your post"
@@ -474,6 +490,14 @@
     "likeStory": {
       "title": "Online+",
       "body": "[FR] \u2764\uFE0F @{{username}} liked your story"
+    },
+    "reactToStory": {
+      "title": "Online+",
+      "body": "[FR] \"{{reactionContent}}\" @{{username}} reacted your story"
+    },
+    "replyToStory": {
+      "title": "Online+",
+      "body": "[FR] \uD83D\uDCAC @{{username}} replied to your story"
     },
     "likeComment": {
       "title": "Online+",
