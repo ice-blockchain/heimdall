@@ -442,6 +442,9 @@ func OverwriteCoinWithStaticContent(c *Coin) {
 		if overwrite.IconUrl != "" {
 			c.IconUrl = overwrite.IconUrl
 		}
+		if overwrite.ID != "" { // to overwrite symbol group (taken from id if presented)
+			c.ID = overwrite.ID
+		}
 	} else if overwrite, hasOverwrite = coinOverwrites["symbol:"+strings.ToLower(c.Symbol)]; hasOverwrite {
 		if overwrite.Name != "" {
 			c.Name = overwrite.Name
