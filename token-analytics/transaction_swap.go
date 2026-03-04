@@ -773,6 +773,20 @@ func (t *tokenAnalyticsUsers) ValidateTransaction(ctx context.Context, txPayload
 			var basePairId *common.Hash
 			if len(allTokens) > 1 && token.Platform == PlatformGroupIonConnect && token.Type != TokenTypeProfile {
 				base = baseForTwistedSwapIsNotExistYet
+				var swapAmount *big.Int
+				amountIn, ok := swapParams["amountIn"]
+				if !ok {
+					return fmt.Errorf("amountIn param not found in swap event")
+				}
+				if swapAmount, ok = amountIn.(*big.Int); !ok {
+					if str, ok := amountIn.(string); ok {
+						swapAmount, _ = new(big.Int).SetString(str, 10)
+					}
+				}
+				if swapAmount == nil {
+					return fmt.Errorf("failed to decode amountIn param")
+				}
+				ionAmount = swapAmount
 			} else {
 				var baseTokenErr error
 				base, basePairId, baseTokenErr = determineBaseTokenFromExternalAddress(ctx, t.cfg, t.ingestedDataDB, token.ExternalAddress)
@@ -785,19 +799,6 @@ func (t *tokenAnalyticsUsers) ValidateTransaction(ctx context.Context, txPayload
 						return fmt.Errorf("failed to determine base token for %s (from Fat Address %x): %w", token.ExternalAddress, toTokenBytes, baseTokenErr)
 					}
 				}
-			}
-			var swapAmount *big.Int
-			amountIn, ok := swapParams["amountIn"]
-			if !ok {
-				return fmt.Errorf("minReturn param not found in swap event")
-			}
-			if swapAmount, ok = amountIn.(*big.Int); !ok {
-				if str, ok := amountIn.(string); ok {
-					swapAmount, _ = new(big.Int).SetString(str, 10)
-				}
-			}
-			if swapAmount == nil {
-				return fmt.Errorf("failed to decode minReturn param")
 			}
 			expectedParams, _, _, err := defaultStartTokenParamsForBase(ctx, t.cfg, xsync.NewMap[string, *big.Int](), t.ingestedDataDB, t.bondingCurve, base, token.Type, token.Platform, ionAmount, basePairId)
 			if err != nil {
@@ -823,7 +824,7 @@ func (t *tokenAnalyticsUsers) ValidateTransaction(ctx context.Context, txPayload
 				expectedBig, _ := new(big.Int).SetString(expectedParams.FinalPrice, 10)
 				delta, _ := new(big.Float).Mul(new(big.Float).SetInt(expectedBig), big.NewFloat(slippage)).Int(nil)
 				if token.EndPrice.Cmp(new(big.Int).Sub(expectedBig, delta)) < 0 || token.StartPrice.Cmp(new(big.Int).Add(expectedBig, delta)) > 0 {
-					return errors.Wrapf(ErrValidationFailed, "start price mismatch for %v: expected %v, got %s", i, expectedParams.FinalPrice, token.EndPrice)
+					return errors.Wrapf(ErrValidationFailed, "end price mismatch for %v: expected %v, got %s", i, expectedParams.FinalPrice, token.EndPrice)
 				}
 			}
 		}
