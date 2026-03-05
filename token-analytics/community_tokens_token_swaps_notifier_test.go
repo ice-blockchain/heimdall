@@ -286,5 +286,51 @@ func TestHandleTokenSwapUpdate(t *testing.T) {
 		scoreProfile, err := ta.processedDataDB.ZScore(ctx, globalTopProfileSetKey, tokenExternalAddr).Result()
 		require.NoError(t, err)
 		require.InDelta(t, 0.005*(1000000.0-100000.0), scoreProfile, 0.001, "market cap should be populated in redis")
+
+		scoreCombined, err := ta.processedDataDB.ZScore(ctx, globalTopXcomCombinedSetKey, tokenExternalAddr).Result()
+		require.NoError(t, err)
+		require.InDelta(t, 0.005*(1000000.0-100000.0), scoreCombined, 0.001, "profile token should be in combined set")
+	})
+}
+
+func TestUpdateTokenRankingsInRedis_CombinedSet(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	db, release := helperCreateDB(t)
+	defer release()
+
+	ta := helperNewForTest(t, db, WithoutQuestDB())
+
+	t.Run("xcom_token_populates_combined_set", func(t *testing.T) {
+		_ = ta.processedDataDB.Del(ctx, globalTopXcomCombinedSetKey).Err()
+
+		err := ta.updateTokenRankingsInRedis(ctx, 1000.0, "xcom_top_combined_1", PlatformGroupXCom, TokenTypeProfile)
+		require.NoError(t, err)
+
+		score, err := ta.processedDataDB.ZScore(ctx, globalTopXcomCombinedSetKey, "xcom_top_combined_1").Result()
+		require.NoError(t, err)
+		require.InDelta(t, 1000.0, score, 0.001)
+	})
+
+	t.Run("ionconnect_profile_populates_combined_set", func(t *testing.T) {
+		_ = ta.processedDataDB.Del(ctx, globalTopXcomCombinedSetKey).Err()
+
+		err := ta.updateTokenRankingsInRedis(ctx, 500.0, "0:ion_profile_combined:", PlatformGroupIonConnect, TokenTypeProfile)
+		require.NoError(t, err)
+
+		score, err := ta.processedDataDB.ZScore(ctx, globalTopXcomCombinedSetKey, "0:ion_profile_combined:").Result()
+		require.NoError(t, err)
+		require.InDelta(t, 500.0, score, 0.001)
+	})
+
+	t.Run("ionconnect_post_does_not_populate_combined_set", func(t *testing.T) {
+		_ = ta.processedDataDB.Del(ctx, globalTopXcomCombinedSetKey).Err()
+
+		err := ta.updateTokenRankingsInRedis(ctx, 300.0, "30175:ion_post_combined:content", PlatformGroupIonConnect, TokenTypePost)
+		require.NoError(t, err)
+
+		exists, err := ta.processedDataDB.ZScore(ctx, globalTopXcomCombinedSetKey, "30175:ion_post_combined:content").Result()
+		require.Error(t, err, "post token should not be in combined set")
+		require.Equal(t, float64(0), exists)
 	})
 }

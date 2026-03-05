@@ -85,6 +85,8 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 				whereClause += ` AND t.type IN ('post', 'video', 'article')`
 			case TokenTypeXcom:
 				whereClause += ` AND t.platform = 'xcom'`
+			case TokenTypeXcomCombined:
+				whereClause += ` AND (t.platform = 'xcom' OR (t.platform = 'ionconnect' AND t.type = 'profile'))`
 			default:
 				whereClause += fmt.Sprintf(` AND t.type = $%d`, argIndex)
 				args = append(args, *tokenType)
@@ -151,6 +153,8 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 				query += ` AND t.type IN ('post', 'video', 'article')`
 			case TokenTypeXcom:
 				query += ` AND t.platform = 'xcom'`
+			case TokenTypeXcomCombined:
+				query += ` AND (t.platform = 'xcom' OR (t.platform = 'ionconnect' AND t.type = 'profile'))`
 			default:
 				query += fmt.Sprintf(` AND t.type = $%d`, argIndex)
 				args = append(args, *tokenType)

@@ -193,6 +193,14 @@ func (t *tokenAnalytics) updateTokenRankingsInRedis(ctx context.Context, mCapUSD
 				}
 			}
 		}
+		if platform == PlatformGroupXCom || tokenType == TokenTypeProfile {
+			if pErr := pipeliner.ZAdd(ctx, globalTopXcomCombinedSetKey, redis.Z{
+				Score:  mCapUSD,
+				Member: externalAddress,
+			}).Err(); pErr != nil {
+				return pErr
+			}
+		}
 		return nil
 	}); txErr != nil {
 		return txErr

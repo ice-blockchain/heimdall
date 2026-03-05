@@ -454,6 +454,8 @@ func getGlobalSetKey(sessionType string, tokenType *string) (string, error) {
 				return globalTopAnyPostSetKey, nil
 			case TokenTypeXcom:
 				return globalTopXcomSetKey, nil
+			case TokenTypeXcomCombined:
+				return globalTopXcomCombinedSetKey, nil
 			default:
 				return "", fmt.Errorf("unsupported token type: %s", *tokenType)
 			}
@@ -474,6 +476,8 @@ func getGlobalSetKey(sessionType string, tokenType *string) (string, error) {
 				return globalTrendingAnyPostSetKey, nil
 			case TokenTypeXcom:
 				return globalTrendingXcomSetKey, nil
+			case TokenTypeXcomCombined:
+				return globalTrendingXcomCombinedSetKey, nil
 			default:
 				return "", fmt.Errorf("unsupported token type: %s", *tokenType)
 			}
@@ -494,6 +498,8 @@ func getGlobalSetKey(sessionType string, tokenType *string) (string, error) {
 				return globalBondingCurveProgressAnyPostSetKey, nil
 			case TokenTypeXcom:
 				return globalBondingCurveProgressXcomSetKey, nil
+			case TokenTypeXcomCombined:
+				return globalBondingCurveProgressXcomCombinedSetKey, nil
 			default:
 				return "", fmt.Errorf("unsupported token type: %s", *tokenType)
 			}

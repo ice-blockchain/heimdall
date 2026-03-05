@@ -514,6 +514,131 @@ func TestGetCommunityTokensByLatest_CreatorNotRegistered(t *testing.T) {
 	})
 }
 
+func TestGetCommunityTokensByLatest_XcomCombinedFilter(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	db, release := helperCreateDB(t)
+	defer release()
+
+	ta := helperNewForTest(t, db, WithoutQuestDB())
+
+	helperInsertTestUser(t, ctx, db, "xcf_xcom_creator", "xcf_xcom", "XCF XCom", "", true, PlatformGroupXCom)
+	helperInsertTestToken(t, ctx, db,
+		"0xXCFXCOM11111111111111111111111111111111",
+		"xcf_xcom_token",
+		"XCFX",
+		TokenTypeProfile,
+		"xcf_xcom_creator",
+		"1000000000000000000000000",
+		500.0, 0.001, 10, PlatformGroupXCom,
+	)
+
+	helperInsertTestUser(t, ctx, db, "xcf_profile_creator", "xcf_profile", "XCF Profile", "", true, PlatformGroupIonConnect)
+	helperInsertTestToken(t, ctx, db,
+		"0xXCFPROFILE111111111111111111111111111111",
+		"0:xcf_profile_creator:",
+		"XCFPROF",
+		TokenTypeProfile,
+		"xcf_profile_creator",
+		"2000000000000000000000000",
+		300.0, 0.002, 5, PlatformGroupIonConnect,
+	)
+
+	helperInsertTestUser(t, ctx, db, "xcf_post_creator", "xcf_post", "XCF Post", "", false, PlatformGroupIonConnect)
+	helperInsertTestToken(t, ctx, db,
+		"0xXCFPOSTCREATOR11111111111111111111111111",
+		"0:xcf_post_creator:",
+		"XCFPOSTC",
+		TokenTypeProfile,
+		"xcf_post_creator",
+		"500000000000000000000000",
+		50.0, 0.00005, 2, PlatformGroupIonConnect,
+	)
+	helperInsertTestToken(t, ctx, db,
+		"0xXCFPOSTTOKEN1111111111111111111111111111",
+		"30175:xcf_post_id:content",
+		"XCFPOST",
+		"post",
+		"xcf_post_creator",
+		"3000000000000000000000000",
+		3000.0, 0.03, 30, PlatformGroupIonConnect,
+	)
+
+	helperInsertTestUser(t, ctx, db, "xcf_video_creator", "xcf_video", "XCF Video", "", false, PlatformGroupIonConnect)
+	helperInsertTestToken(t, ctx, db,
+		"0xXCFVIDEOCREATOR111111111111111111111111",
+		"0:xcf_video_creator:",
+		"XCFVIDC",
+		TokenTypeProfile,
+		"xcf_video_creator",
+		"600000000000000000000000",
+		60.0, 0.00006, 3, PlatformGroupIonConnect,
+	)
+	helperInsertTestToken(t, ctx, db,
+		"0xXCFVIDEOTOKEN11111111111111111111111111",
+		"30175:xcf_video_id:content",
+		"XCFVID",
+		"video",
+		"xcf_video_creator",
+		"4000000000000000000000000",
+		4000.0, 0.04, 40, PlatformGroupIonConnect,
+	)
+
+	t.Run("xcomCombined_without_keyword_returns_only_xcom_and_profile", func(t *testing.T) {
+		combined := TokenTypeXcomCombined
+		tokens, err := ta.getCommunityTokensByLatest(ctx, "", 50, 0, &combined)
+		require.NoError(t, err)
+
+		for _, tok := range tokens {
+			require.NotEqual(t, "post", tok.Type, "xcomCombined should not contain post tokens")
+			require.NotEqual(t, "video", tok.Type, "xcomCombined should not contain video tokens")
+			require.NotEqual(t, "article", tok.Type, "xcomCombined should not contain article tokens")
+		}
+
+		foundXcom := false
+		foundIonProfile := false
+		for _, tok := range tokens {
+			if tok.Addresses != nil {
+				if tok.Addresses.Twitter == "xcf_xcom_token" {
+					foundXcom = true
+				}
+				if tok.Addresses.IonConnect == "0:xcf_profile_creator:" {
+					foundIonProfile = true
+				}
+			}
+		}
+		require.True(t, foundXcom, "Should find xcom token")
+		require.True(t, foundIonProfile, "Should find ionconnect profile token")
+	})
+
+	t.Run("xcomCombined_excludes_post_and_video", func(t *testing.T) {
+		combined := TokenTypeXcomCombined
+		tokens, err := ta.getCommunityTokensByLatest(ctx, "", 50, 0, &combined)
+		require.NoError(t, err)
+
+		for _, tok := range tokens {
+			require.NotEqual(t, "post", tok.Type, "xcomCombined should not contain post tokens")
+			require.NotEqual(t, "video", tok.Type, "xcomCombined should not contain video tokens")
+			require.NotEqual(t, "article", tok.Type, "xcomCombined should not contain article tokens")
+		}
+	})
+
+	t.Run("xcomCombined_with_keyword", func(t *testing.T) {
+		combined := TokenTypeXcomCombined
+		tokens, err := ta.getCommunityTokensByLatest(ctx, "xcf_xcom", 10, 0, &combined)
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, len(tokens), 1)
+
+		found := false
+		for _, tok := range tokens {
+			if tok.Addresses != nil && tok.Addresses.Twitter == "xcf_xcom_token" {
+				found = true
+			}
+		}
+		require.True(t, found, "Should find xcom token by keyword")
+	})
+}
+
 func TestGetCommunityTokensByRewardsDistribution(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()

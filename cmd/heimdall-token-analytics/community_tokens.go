@@ -190,7 +190,11 @@ func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[To
 		return nil, server.BadRequest(errors.New("limit and offset can only be used with keyword parameter"), invalidPropertiesErrorCode)
 	}
 
-	tokens, err := s.tokenAnalytics.GetCommunityTokensByExternalAddresses(ctx, req.Data.ExternalAddresses, req.Token.GetMasterPublicKey(), req.Data.IncludeTopPlatformHolders, req.Data.Keyword, req.Data.Limit, req.Data.Offset)
+	platformFilter := ""
+	if req.Token.Platform() == server.TokenTypeXCom {
+		platformFilter = ta.TokenTypeXcomCombined
+	}
+	tokens, err := s.tokenAnalytics.GetCommunityTokensByExternalAddresses(ctx, req.Data.ExternalAddresses, req.Token.GetMasterPublicKey(), req.Data.IncludeTopPlatformHolders, req.Data.Keyword, req.Data.Limit, req.Data.Offset, platformFilter)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get community tokens: %w", err)
 	}
@@ -232,7 +236,12 @@ func (s *service) GetCommunityTokensByType(ctx context.Context, req *server.Requ
 		if req.Token == nil {
 			return nil, server.Unauthorized(fmt.Errorf("authentication required for latest view type"))
 		}
-		tokens, err := s.tokenAnalytics.GetCommunityTokensByType(ctx, req.Data.ViewType, req.Data.Type, req.Data.Keyword, limit, req.Data.Offset)
+		tokenType := req.Data.Type
+		if req.Token.Platform() == server.TokenTypeXCom && (tokenType == nil || *tokenType == "") {
+			combined := ta.TokenTypeXcomCombined
+			tokenType = &combined
+		}
+		tokens, err := s.tokenAnalytics.GetCommunityTokensByType(ctx, req.Data.ViewType, tokenType, req.Data.Keyword, limit, req.Data.Offset)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get community tokens by type: %w", err)
 		}
@@ -318,7 +327,12 @@ func (s *service) CreateCommunityTokensSessionView(ctx context.Context, req *ser
 	}
 	clientIP := req.Context.ClientIP()
 	deviceKey := req.Token.GetDevicePublicKey()
-	sessionID, ttl, err := s.tokenAnalytics.CreateViewingSession(ctx, req.Data.ViewType, clientIP, deviceKey, req.Data.Type)
+	tokenType := req.Data.Type
+	if req.Token.Platform() == server.TokenTypeXCom && (tokenType == nil || *tokenType == "") {
+		combined := ta.TokenTypeXcomCombined
+		tokenType = &combined
+	}
+	sessionID, ttl, err := s.tokenAnalytics.CreateViewingSession(ctx, req.Data.ViewType, clientIP, deviceKey, tokenType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create viewing session: %w", err)
 	}
@@ -724,7 +738,7 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 		}
 
 		sendData := func() bool {
-			tokens, err := s.tokenAnalytics.GetCommunityTokensByExternalAddresses(ctx, req.Data.ExternalAddresses, req.Token.GetMasterPublicKey(), req.Data.IncludeTopPlatformHolders, req.Data.Keyword, req.Data.Limit, req.Data.Offset)
+			tokens, err := s.tokenAnalytics.GetCommunityTokensByExternalAddresses(ctx, req.Data.ExternalAddresses, req.Token.GetMasterPublicKey(), req.Data.IncludeTopPlatformHolders, req.Data.Keyword, req.Data.Limit, req.Data.Offset, "")
 			if err != nil {
 				slog.ErrorContext(ctx, "failed to get community tokens for streaming", "error", err, "addresses", req.Data.ExternalAddresses)
 				sendEvent(server.StreamEvent[ta.CommunityToken]{

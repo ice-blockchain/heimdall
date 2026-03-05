@@ -24,13 +24,13 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 	ta := helperNewForTest(t, db, WithoutQuestDB())
 
 	t.Run("empty addresses returns empty result", func(t *testing.T) {
-		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{}, "requestor123", nil, "", 0, 0)
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{}, "requestor123", nil, "", 0, 0, "")
 		require.NoError(t, err)
 		require.Empty(t, tokens)
 	})
 
 	t.Run("non-existent addresses returns empty result", func(t *testing.T) {
-		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{"0:nonexistent:"}, "requestor123", nil, "", 0, 0)
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{"0:nonexistent:"}, "requestor123", nil, "", 0, 0, "")
 		require.NoError(t, err)
 		require.Empty(t, tokens)
 	})
@@ -54,7 +54,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			PlatformGroupIonConnect,
 		)
 
-		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{token1Ext}, "requestor_basic", nil, "", 0, 0)
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{token1Ext}, "requestor_basic", nil, "", 0, 0, "")
 		require.NoError(t, err)
 		require.Len(t, tokens, 1)
 
@@ -126,7 +126,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		)
 		helperSetTokenBaseToken(t, ctx, db, contentTokenExt, creatorProfileContract)
 
-		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{contentTokenExt}, "requestor_basic", nil, "", 0, 0)
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{contentTokenExt}, "requestor_basic", nil, "", 0, 0, "")
 		require.NoError(t, err)
 		require.Len(t, tokens, 1)
 
@@ -171,7 +171,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			false,
 		)
 
-		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "requestor_basic", nil, "", 10, 0)
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "requestor_basic", nil, "", 10, 0, "")
 		require.NoError(t, err)
 		require.Len(t, tokens, 1)
 
@@ -229,7 +229,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			"0:other:":         2000.0,
 		})
 
-		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "requestor_pos", nil, "", 0, 0)
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "requestor_pos", nil, "", 0, 0, "")
 		require.NoError(t, err)
 		require.Len(t, tokens, 1)
 
@@ -299,7 +299,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			"0:holder_pnl:": 150.0,
 		})
 
-		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "holder_pnl", nil, "", 0, 0)
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "holder_pnl", nil, "", 0, 0, "")
 		require.NoError(t, err)
 		require.Len(t, tokens, 1)
 
@@ -347,7 +347,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			"0:holder_profit:": 100.0,
 		})
 
-		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "holder_profit", nil, "", 0, 0)
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "holder_profit", nil, "", 0, 0, "")
 		require.NoError(t, err)
 		require.Len(t, tokens, 1)
 
@@ -395,7 +395,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			"0:holder_loss:": 100.0,
 		})
 
-		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "holder_loss", nil, "", 0, 0)
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "holder_loss", nil, "", 0, 0, "")
 		require.NoError(t, err)
 		require.Len(t, tokens, 1)
 
@@ -435,7 +435,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			tokenIonConnectAddr, tokenExternalAddr)
 		require.NoError(t, err)
 
-		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExternalAddr}, "requestor123", nil, "", 0, 0)
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExternalAddr}, "requestor123", nil, "", 0, 0, "")
 		require.NoError(t, err)
 		require.Len(t, tokens, 1)
 
@@ -494,7 +494,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			0.001,
 		)
 
-		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{creatorExtAddr}, "requestor_launcher", nil, "", 0, 0)
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{creatorExtAddr}, "requestor_launcher", nil, "", 0, 0, "")
 		require.NoError(t, err)
 		require.Len(t, tokens, 1)
 
@@ -542,7 +542,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			PlatformGroupXCom,
 		)
 
-		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{creatorExtAddr}, "requestor_no_swap", nil, "", 0, 0)
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{creatorExtAddr}, "requestor_no_swap", nil, "", 0, 0, "")
 		require.NoError(t, err)
 		require.Len(t, tokens, 1)
 
@@ -579,7 +579,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			0.0008,
 		)
 
-		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "requestor_ion", nil, "", 0, 0)
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "requestor_ion", nil, "", 0, 0, "")
 		require.NoError(t, err)
 		require.Len(t, tokens, 1)
 
@@ -652,7 +652,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			baseTime.Add(10*stdtime.Minute),
 		)
 
-		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{creatorExtAddr}, "requestor_order", nil, "", 0, 0)
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{creatorExtAddr}, "requestor_order", nil, "", 0, 0, "")
 		require.NoError(t, err)
 		require.Len(t, tokens, 1)
 
@@ -716,7 +716,7 @@ func TestGetCommunityTokensByExternalAddresses_WithKeyword(t *testing.T) {
 		)
 		helperRefreshVolumeView(t, ctx, db)
 
-		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "requestor_search", nil, "SAT", 10, 0)
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "requestor_search", nil, "SAT", 10, 0, "")
 		require.NoError(t, err)
 		require.Len(t, tokens, 1)
 
@@ -774,6 +774,7 @@ func TestGetCommunityTokensByExternalAddresses_WithKeyword(t *testing.T) {
 			"testknn",
 			10,
 			0,
+			"",
 		)
 		require.NoError(t, err)
 		require.Equal(t, 10, len(tokens), "Should return exactly 10 results with limit=10")
@@ -789,6 +790,7 @@ func TestGetCommunityTokensByExternalAddresses_WithKeyword(t *testing.T) {
 			"testknn",
 			2,
 			0,
+			"",
 		)
 		require.NoError(t, err)
 		require.LessOrEqual(t, len(tokens1), 2)
@@ -800,6 +802,7 @@ func TestGetCommunityTokensByExternalAddresses_WithKeyword(t *testing.T) {
 			"testknn",
 			2,
 			2,
+			"",
 		)
 		require.NoError(t, err)
 		require.LessOrEqual(t, len(tokens2), 2)
@@ -843,7 +846,7 @@ func TestGetCommunityTokensByExternalAddresses_WithAndWithoutKeyword(t *testing.
 	helperRefreshVolumeView(t, ctx, db)
 
 	t.Run("without keyword - returns full data with ticker", func(t *testing.T) {
-		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{token1Ext, token2Ext, token3Ext}, "requestor_kw", nil, "", 0, 0)
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{token1Ext, token2Ext, token3Ext}, "requestor_kw", nil, "", 0, 0, "")
 		require.NoError(t, err)
 		require.Len(t, tokens, 3)
 
@@ -889,7 +892,7 @@ func TestGetCommunityTokensByExternalAddresses_WithAndWithoutKeyword(t *testing.
 	})
 
 	t.Run("with keyword - returns simplified data with ticker", func(t *testing.T) {
-		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{token1Ext, token2Ext, token3Ext}, "requestor_kw", nil, "alice", 10, 0)
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{token1Ext, token2Ext, token3Ext}, "requestor_kw", nil, "alice", 10, 0, "")
 		require.NoError(t, err)
 		require.Len(t, tokens, 1)
 
@@ -914,7 +917,7 @@ func TestGetCommunityTokensByExternalAddresses_WithAndWithoutKeyword(t *testing.
 	})
 
 	t.Run("with keyword - uses KNN search and similarity ranking", func(t *testing.T) {
-		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{token1Ext, token2Ext, token3Ext}, "requestor_kw", nil, "keyword", 10, 0)
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{token1Ext, token2Ext, token3Ext}, "requestor_kw", nil, "keyword", 10, 0, "")
 		require.NoError(t, err)
 		require.Equal(t, 3, len(tokens), "Should find all 3 tokens with 'keyword' in lookup")
 
@@ -947,11 +950,11 @@ func TestGetCommunityTokensByExternalAddresses_WithAndWithoutKeyword(t *testing.
 	})
 
 	t.Run("with keyword - pagination works correctly", func(t *testing.T) {
-		tokens1, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{token1Ext, token2Ext, token3Ext}, "requestor_kw", nil, "k", 2, 0)
+		tokens1, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{token1Ext, token2Ext, token3Ext}, "requestor_kw", nil, "k", 2, 0, "")
 		require.NoError(t, err)
 		require.LessOrEqual(t, len(tokens1), 2)
 
-		tokens2, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{token1Ext, token2Ext, token3Ext}, "requestor_kw", nil, "k", 2, 2)
+		tokens2, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{token1Ext, token2Ext, token3Ext}, "requestor_kw", nil, "k", 2, 2, "")
 		require.NoError(t, err)
 		require.LessOrEqual(t, len(tokens2), 2)
 
@@ -1117,7 +1120,7 @@ func TestGetCommunityTokensByExternalAddresses_WithTopPlatformHolders(t *testing
 		})
 
 		topHolders := uint32(2)
-		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "requestor_top", &topHolders, "", 0, 0)
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "requestor_top", &topHolders, "", 0, 0, "")
 		require.NoError(t, err)
 		require.Len(t, tokens, 1)
 
@@ -1190,7 +1193,7 @@ func TestGetCommunityTokensByPlatform(t *testing.T) {
 		`, bscAddress, contractAddr)
 		require.NoError(t, err)
 
-		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "requestor_xcom", nil, "", 0, 0)
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "requestor_xcom", nil, "", 0, 0, "")
 		require.NoError(t, err)
 		require.Len(t, tokens, 1)
 
@@ -1235,7 +1238,7 @@ func TestGetCommunityTokensByPlatform(t *testing.T) {
 			PlatformGroupIonConnect,
 		)
 
-		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "requestor_ion", nil, "", 0, 0)
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "requestor_ion", nil, "", 0, 0, "")
 		require.NoError(t, err)
 		require.Len(t, tokens, 1)
 
@@ -1297,7 +1300,7 @@ func TestGetCommunityTokensByPlatform(t *testing.T) {
 			PlatformGroupIonConnect,
 		)
 
-		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{xcomTokenExt, ionTokenExt}, "requestor_mixed", nil, "", 0, 0)
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{xcomTokenExt, ionTokenExt}, "requestor_mixed", nil, "", 0, 0, "")
 		require.NoError(t, err)
 		require.Len(t, tokens, 2)
 
@@ -1321,6 +1324,105 @@ func TestGetCommunityTokensByPlatform(t *testing.T) {
 		require.Equal(t, "0x000000000000000000000000000ion_mixed_456", ionToken.Creator.Addresses.Blockchain)
 		require.Empty(t, ionToken.Addresses.Twitter)
 		require.NotEmpty(t, ionToken.Addresses.IonConnect)
+	})
+}
+
+func TestSearchCommunityTokens_XcomPlatformFilter(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	db, release := helperCreateDB(t)
+	defer release()
+
+	ta := helperNewForTest(t, db, WithoutQuestDB())
+
+	helperInsertTestUser(t, ctx, db, "spf_xcom_creator", "spf_xcom", "SPF XCom User", "", true, PlatformGroupXCom)
+	helperInsertTestToken(t, ctx, db,
+		"0xSPFXCOM11111111111111111111111111111111",
+		"spf_xcom_token",
+		"SPFX",
+		TokenTypeProfile,
+		"spf_xcom_creator",
+		"1000000000000000000000000",
+		500.0, 0.001, 10, PlatformGroupXCom,
+	)
+
+	helperInsertTestUser(t, ctx, db, "spf_profile_creator", "spf_profile", "SPF Profile User", "", true, PlatformGroupIonConnect)
+	helperInsertTestToken(t, ctx, db,
+		"0xSPFPROFILE1111111111111111111111111111111",
+		"0:spf_profile_creator:",
+		"SPFPROF",
+		TokenTypeProfile,
+		"spf_profile_creator",
+		"2000000000000000000000000",
+		300.0, 0.002, 5, PlatformGroupIonConnect,
+	)
+
+	helperInsertTestUser(t, ctx, db, "spf_post_creator", "spf_post", "SPF Post User", "", false, PlatformGroupIonConnect)
+	helperInsertTestToken(t, ctx, db,
+		"0xSPFPOSTCREATOR1111111111111111111111111",
+		"0:spf_post_creator:",
+		"SPFPOSTC",
+		TokenTypeProfile,
+		"spf_post_creator",
+		"500000000000000000000000",
+		50.0, 0.00005, 2, PlatformGroupIonConnect,
+	)
+	helperInsertTestToken(t, ctx, db,
+		"0xSPFPOSTTOKEN11111111111111111111111111111",
+		"30175:spf_post_id:content",
+		"SPFPOST",
+		"post",
+		"spf_post_creator",
+		"3000000000000000000000000",
+		3000.0, 0.03, 30, PlatformGroupIonConnect,
+	)
+
+	t.Run("xcom_platform_filter_returns_only_xcom_and_profile", func(t *testing.T) {
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, nil, "spf_requestor", nil, "spf", 50, 0, TokenTypeXcomCombined)
+		require.NoError(t, err)
+
+		for _, tok := range tokens {
+			require.NotEqual(t, "post", tok.Type, "xcom filter should not include post tokens")
+			require.NotEqual(t, "video", tok.Type, "xcom filter should not include video tokens")
+			require.NotEqual(t, "article", tok.Type, "xcom filter should not include article tokens")
+		}
+
+		foundXcom := false
+		foundIonProfile := false
+		for _, tok := range tokens {
+			if tok.Addresses != nil {
+				if tok.Addresses.Twitter == "spf_xcom_token" {
+					foundXcom = true
+				}
+				if tok.Addresses.IonConnect == "0:spf_profile_creator:" {
+					foundIonProfile = true
+				}
+			}
+		}
+		require.True(t, foundXcom, "Should find xcom token")
+		require.True(t, foundIonProfile, "Should find ionconnect profile token")
+	})
+
+	t.Run("xcom_platform_filter_excludes_post_tokens", func(t *testing.T) {
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, nil, "spf_requestor", nil, "spf", 50, 0, TokenTypeXcomCombined)
+		require.NoError(t, err)
+
+		for _, tok := range tokens {
+			require.NotEqual(t, "post", tok.Type, "xcom filter should not include post tokens")
+		}
+	})
+
+	t.Run("empty_platform_filter_returns_all", func(t *testing.T) {
+		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, nil, "spf_requestor", nil, "spf", 50, 0, "")
+		require.NoError(t, err)
+
+		foundPost := false
+		for _, tok := range tokens {
+			if tok.Type == "post" {
+				foundPost = true
+			}
+		}
+		require.True(t, foundPost, "Without platform filter, post tokens should be included")
 	})
 }
 
