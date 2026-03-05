@@ -15,9 +15,9 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
-func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Context, externalAddresses []string, requestorMasterPubkey string, includeTopPlatformHolders *uint32, keyword string, limit, offset uint64) ([]*CommunityToken, error) {
+func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Context, externalAddresses []string, requestorMasterPubkey string, includeTopPlatformHolders *uint32, keyword string, limit, offset uint64, platformFilter string) ([]*CommunityToken, error) {
 	if keyword != "" {
-		return t.searchCommunityTokens(ctx, externalAddresses, requestorMasterPubkey, keyword, limit, offset)
+		return t.searchCommunityTokens(ctx, externalAddresses, requestorMasterPubkey, keyword, limit, offset, platformFilter)
 	}
 	if len(externalAddresses) == 0 {
 		return []*CommunityToken{}, nil
@@ -125,7 +125,7 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 	return t.buildCommunityTokensFromRows(ctx, rows, requestorExternalAddress)
 }
 
-func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddresses []string, requestorMasterPubkey string, keyword string, limit, offset uint64) ([]*CommunityToken, error) {
+func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddresses []string, requestorMasterPubkey string, keyword string, limit, offset uint64, platformFilter string) ([]*CommunityToken, error) {
 	kw := strings.ToLower(keyword)
 	var whereClause string
 	args := []interface{}{}
@@ -139,6 +139,9 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 		whereClause = `WHERE t.lookup LIKE '%%' || $` + strconv.Itoa(argIndex) + ` || '%%' AND t.ticker IS NOT NULL`
 		args = append(args, kw)
 		argIndex++
+	}
+	if platformFilter == TokenTypeXcomCombined {
+		whereClause += ` AND (t.platform = 'xcom' OR (t.platform = 'ionconnect' AND t.type = 'profile'))`
 	}
 
 	kwParam := strconv.Itoa(argIndex - 1)

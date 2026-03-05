@@ -205,6 +205,13 @@ func (t *tokenAnalytics) addTokenToTrendingSets(ctx context.Context, pipe redis.
 	} else if vol.TokenType != "" {
 		t.addTokenToTypeSpecificSets(ctx, pipe, vol)
 	}
+
+	if (vol.Platform != nil && *vol.Platform == PlatformGroupXCom) || vol.TokenType == TokenTypeProfile {
+		pipe.ZAdd(ctx, globalTrendingXcomCombinedSetKey, redis.Z{
+			Score:  vol.Volume24h,
+			Member: vol.ExternalAddress,
+		})
+	}
 }
 
 func (t *tokenAnalytics) addTokenToTypeSpecificSets(ctx context.Context, pipe redis.Pipeliner, vol *volumeWithType) {
@@ -246,6 +253,7 @@ func (t *tokenAnalytics) getAllTrendingSetKeys() []string {
 	return []string{
 		globalTrendingSetKey,
 		globalTrendingXcomSetKey,
+		globalTrendingXcomCombinedSetKey,
 		globalTrendingAnyPostSetKey,
 		getTrendingSetKeyByType(TokenTypeProfile),
 		getTrendingSetKeyByType(TokenTypePost),

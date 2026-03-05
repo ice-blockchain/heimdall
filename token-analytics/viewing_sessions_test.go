@@ -515,6 +515,11 @@ func TestGetGlobalSetKey(t *testing.T) {
 		key, err = getGlobalSetKey(sessionTypeTop, &postType)
 		require.NoError(t, err)
 		require.Equal(t, globalTopPostSetKey, key)
+
+		combinedType := TokenTypeXcomCombined
+		key, err = getGlobalSetKey(sessionTypeTop, &combinedType)
+		require.NoError(t, err)
+		require.Equal(t, globalTopXcomCombinedSetKey, key)
 	})
 
 	t.Run("returns correct keys for trending session type", func(t *testing.T) {
@@ -526,6 +531,11 @@ func TestGetGlobalSetKey(t *testing.T) {
 		key, err = getGlobalSetKey(sessionTypeTrending, &videoType)
 		require.NoError(t, err)
 		require.Equal(t, globalTrendingVideoSetKey, key)
+
+		combinedType := TokenTypeXcomCombined
+		key, err = getGlobalSetKey(sessionTypeTrending, &combinedType)
+		require.NoError(t, err)
+		require.Equal(t, globalTrendingXcomCombinedSetKey, key)
 	})
 
 	t.Run("returns correct keys for bonding curve progress session type", func(t *testing.T) {
@@ -537,6 +547,11 @@ func TestGetGlobalSetKey(t *testing.T) {
 		key, err = getGlobalSetKey(sessionTypeBondingCurveProgress, &articleType)
 		require.NoError(t, err)
 		require.Equal(t, globalBondingCurveProgressArticleSetKey, key)
+
+		combinedType := TokenTypeXcomCombined
+		key, err = getGlobalSetKey(sessionTypeBondingCurveProgress, &combinedType)
+		require.NoError(t, err)
+		require.Equal(t, globalBondingCurveProgressXcomCombinedSetKey, key)
 	})
 
 	t.Run("returns error for unsupported session type", func(t *testing.T) {
@@ -773,6 +788,170 @@ func TestViewingSessionsXcomSupport(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, profileTokens, 1, "Profile session should only contain ionconnect profile tokens")
 		require.Equal(t, "ion_mix", profileTokens[0].Title)
+	})
+
+	t.Run("combined_session_returns_xcom_and_ionconnect_profile_for_top", func(t *testing.T) {
+		_ = ta.processedDataDB.Del(ctx, globalTopXcomCombinedSetKey, globalTrendingXcomCombinedSetKey).Err()
+
+		helperInsertTestUser(t, ctx, db, "xcomb_xcom_creator", "xcomb_xcom", "XComb XCom", "", true, PlatformGroupXCom)
+		helperInsertTestToken(t, ctx, db,
+			"0xXCOMBXCOM1111111111111111111111111111111",
+			"xcomb_xcom_token",
+			"XCXCOM",
+			TokenTypeProfile,
+			"xcomb_xcom_creator",
+			"1000000000000000000000000",
+			800.0, 0.001, 10, PlatformGroupXCom,
+		)
+
+		helperInsertTestUser(t, ctx, db, "xcomb_profile_creator", "xcomb_profile", "XComb Profile", "", true, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db,
+			"0xXCOMBPROFILE11111111111111111111111111111",
+			"0:xcomb_profile_creator:",
+			"XCPROF",
+			TokenTypeProfile,
+			"xcomb_profile_creator",
+			"2000000000000000000000000",
+			600.0, 0.002, 5, PlatformGroupIonConnect,
+		)
+
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopXcomCombinedSetKey, map[string]float64{
+			"xcomb_xcom_token":         800.0,
+			"0:xcomb_profile_creator:": 600.0,
+		})
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTrendingXcomCombinedSetKey, map[string]float64{
+			"xcomb_xcom_token":         2000.0 * 1e18,
+			"0:xcomb_profile_creator:": 1500.0 * 1e18,
+		})
+
+		tokenType := TokenTypeXcomCombined
+		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.30.1", "device_xcomb_top", &tokenType)
+		require.NoError(t, err)
+		require.NotEmpty(t, sessionID)
+		require.Equal(t, uint64(300), ttl)
+
+		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTop, sessionID, "", 10, 0)
+		require.NoError(t, err)
+		require.Len(t, tokens, 2, "Combined session should return both xcom and ionconnect profile tokens")
+
+		titles := map[string]bool{}
+		for _, tok := range tokens {
+			titles[tok.Title] = true
+		}
+		require.True(t, titles["xcomb_xcom"], "Should contain xcom token")
+		require.True(t, titles["xcomb_profile"], "Should contain ionconnect profile token")
+	})
+
+	t.Run("combined_session_excludes_ionconnect_post_tokens", func(t *testing.T) {
+		_ = ta.processedDataDB.Del(ctx, globalTopXcomCombinedSetKey, globalTrendingXcomCombinedSetKey).Err()
+
+		helperInsertTestUser(t, ctx, db, "xcomb_post_creator", "xcomb_post", "XComb Post", "", false, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db,
+			"0xXCOMBPOSTCREATOR1111111111111111111111111",
+			"0:xcomb_post_creator:",
+			"XCPCREATOR",
+			TokenTypeProfile,
+			"xcomb_post_creator",
+			"500000000000000000000000",
+			50.0, 0.00005, 2, PlatformGroupIonConnect,
+		)
+		helperInsertTestToken(t, ctx, db,
+			"0xXCOMBPOSTTOKEN111111111111111111111111111",
+			"30175:xcomb_post_id:content",
+			"XCPOST",
+			"post",
+			"xcomb_post_creator",
+			"3000000000000000000000000",
+			3000.0, 0.03, 30, PlatformGroupIonConnect,
+		)
+
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopXcomCombinedSetKey, map[string]float64{
+			"0:xcomb_profile_creator:": 600.0,
+		})
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTrendingXcomCombinedSetKey, map[string]float64{
+			"0:xcomb_profile_creator:": 1500.0 * 1e18,
+		})
+
+		tokenType := TokenTypeXcomCombined
+		sessionID, _, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.30.2", "device_xcomb_excl", &tokenType)
+		require.NoError(t, err)
+
+		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTop, sessionID, "", 10, 0)
+		require.NoError(t, err)
+
+		for _, tok := range tokens {
+			require.NotEqual(t, "post", tok.Type, "Combined session should not contain post tokens")
+		}
+	})
+
+	t.Run("combined_session_for_trending", func(t *testing.T) {
+		_ = ta.processedDataDB.Del(ctx, globalTrendingXcomCombinedSetKey, globalTopXcomCombinedSetKey).Err()
+
+		helperInsertTestUser(t, ctx, db, "xcomb_trend_creator", "xcomb_trend", "XComb Trend", "", false, PlatformGroupXCom)
+		helperInsertTestToken(t, ctx, db,
+			"0xXCOMBTREND111111111111111111111111111111",
+			"xcomb_trend_token",
+			"XCTREND",
+			TokenTypeProfile,
+			"xcomb_trend_creator",
+			"4000000000000000000000000",
+			400.0, 0.004, 15, PlatformGroupXCom,
+		)
+
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTrendingXcomCombinedSetKey, map[string]float64{
+			"xcomb_trend_token": 5000.0 * 1e18,
+		})
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopXcomCombinedSetKey, map[string]float64{
+			"xcomb_trend_token": 400.0,
+		})
+
+		tokenType := TokenTypeXcomCombined
+		sessionID, _, err := ta.CreateViewingSession(ctx, sessionTypeTrending, "192.168.30.3", "device_xcomb_trend", &tokenType)
+		require.NoError(t, err)
+
+		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTrending, sessionID, "", 10, 0)
+		require.NoError(t, err)
+		require.Len(t, tokens, 1)
+		require.Equal(t, "xcomb_trend", tokens[0].Title)
+		require.InDelta(t, 5000.0, tokens[0].MarketData.Volume, 1.0)
+		require.InDelta(t, 400.0, tokens[0].MarketData.MarketCap, 1.0)
+	})
+
+	t.Run("combined_session_for_bonding_curve_progress", func(t *testing.T) {
+		_ = ta.processedDataDB.Del(ctx, globalBondingCurveProgressXcomCombinedSetKey, globalTrendingXcomCombinedSetKey).Err()
+
+		helperInsertTestUser(t, ctx, db, "xcomb_bc_creator", "xcomb_bc", "XComb BC", "", false, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db,
+			"0xXCOMBBC1111111111111111111111111111111111",
+			"0:xcomb_bc_creator:",
+			"XCBC",
+			TokenTypeProfile,
+			"xcomb_bc_creator",
+			"5000000000000000000000000",
+			250.0, 0.005, 7, PlatformGroupIonConnect,
+		)
+
+		helperUpdateTokenBondingCurve(t, ctx, db, "0:xcomb_bc_creator:",
+			"50000000000000000000", "100000000000000000000",
+			1.0, 2.0, "8000000000000000000", false)
+
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalBondingCurveProgressXcomCombinedSetKey, map[string]float64{
+			"0:xcomb_bc_creator:": 50000000000000000000.0,
+		})
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTrendingXcomCombinedSetKey, map[string]float64{
+			"0:xcomb_bc_creator:": 3000.0 * 1e18,
+		})
+
+		tokenType := TokenTypeXcomCombined
+		sessionID, _, err := ta.CreateViewingSession(ctx, sessionTypeBondingCurveProgress, "192.168.30.4", "device_xcomb_bc", &tokenType)
+		require.NoError(t, err)
+
+		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeBondingCurveProgress, sessionID, "", 10, 0)
+		require.NoError(t, err)
+		require.Len(t, tokens, 1)
+		require.NotNil(t, tokens[0].MarketData.BondingCurveProgress)
+		require.Equal(t, "50000000000000000000", tokens[0].MarketData.BondingCurveProgress.CurrentAmount)
+		require.InDelta(t, 3000.0, tokens[0].MarketData.Volume, 1.0)
 	})
 }
 

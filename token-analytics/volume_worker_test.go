@@ -181,10 +181,11 @@ func TestGetAllTrendingSetKeys(t *testing.T) {
 
 	keys := ta.getAllTrendingSetKeys()
 
-	require.Equal(t, 7, len(keys), "should have global, xcom, anyPost, and 4 token type keys")
+	require.Equal(t, 8, len(keys), "should have global, xcom, xcom_combined, anyPost, and 4 token type keys")
 
 	require.Contains(t, keys, globalTrendingSetKey)
 	require.Contains(t, keys, globalTrendingXcomSetKey)
+	require.Contains(t, keys, globalTrendingXcomCombinedSetKey)
 	require.Contains(t, keys, globalTrendingAnyPostSetKey)
 	require.Contains(t, keys, getTrendingSetKeyByType(TokenTypeProfile))
 	require.Contains(t, keys, getTrendingSetKeyByType(TokenTypePost))
@@ -298,6 +299,90 @@ func TestAddTokenToTrendingSets(t *testing.T) {
 		_, err = ta.processedDataDB.ZScore(ctx, globalTrendingAnyPostSetKey, vol.ExternalAddress).Result()
 		require.Error(t, err)
 		require.Equal(t, redis.Nil, err)
+	})
+
+	t.Run("xcom_token_populates_combined_set", func(t *testing.T) {
+		db, release := helperCreateDB(t)
+		defer release()
+
+		ta := helperNewForTest(t, db, WithoutQuestDB())
+		ctx := context.Background()
+
+		_ = ta.processedDataDB.FlushDB(ctx).Err()
+
+		pipe := ta.processedDataDB.TxPipeline()
+		platform := PlatformGroupXCom
+		vol := &volumeWithType{
+			Platform:        &platform,
+			TokenAddress:    "0xtoken_xcomb",
+			Volume24h:       400.0,
+			ExternalAddress: "ext_xcom_combined",
+			TokenType:       TokenTypeProfile,
+		}
+
+		ta.addTokenToTrendingSets(ctx, pipe, vol)
+		_, err := pipe.Exec(ctx)
+		require.NoError(t, err)
+
+		combinedScore, err := ta.processedDataDB.ZScore(ctx, globalTrendingXcomCombinedSetKey, vol.ExternalAddress).Result()
+		require.NoError(t, err)
+		require.Equal(t, vol.Volume24h, combinedScore)
+	})
+
+	t.Run("ionconnect_profile_populates_combined_set", func(t *testing.T) {
+		db, release := helperCreateDB(t)
+		defer release()
+
+		ta := helperNewForTest(t, db, WithoutQuestDB())
+		ctx := context.Background()
+
+		_ = ta.processedDataDB.FlushDB(ctx).Err()
+
+		pipe := ta.processedDataDB.TxPipeline()
+		platform := PlatformGroupIonConnect
+		vol := &volumeWithType{
+			Platform:        &platform,
+			TokenAddress:    "0xtoken_ion_prof",
+			Volume24h:       500.0,
+			ExternalAddress: "ext_ion_profile_combined",
+			TokenType:       TokenTypeProfile,
+		}
+
+		ta.addTokenToTrendingSets(ctx, pipe, vol)
+		_, err := pipe.Exec(ctx)
+		require.NoError(t, err)
+
+		combinedScore, err := ta.processedDataDB.ZScore(ctx, globalTrendingXcomCombinedSetKey, vol.ExternalAddress).Result()
+		require.NoError(t, err)
+		require.Equal(t, vol.Volume24h, combinedScore)
+	})
+
+	t.Run("ionconnect_post_does_not_populate_combined_set", func(t *testing.T) {
+		db, release := helperCreateDB(t)
+		defer release()
+
+		ta := helperNewForTest(t, db, WithoutQuestDB())
+		ctx := context.Background()
+
+		_ = ta.processedDataDB.FlushDB(ctx).Err()
+
+		pipe := ta.processedDataDB.TxPipeline()
+		platform := PlatformGroupIonConnect
+		vol := &volumeWithType{
+			Platform:        &platform,
+			TokenAddress:    "0xtoken_ion_post",
+			Volume24h:       600.0,
+			ExternalAddress: "ext_ion_post_not_combined",
+			TokenType:       TokenTypePost,
+		}
+
+		ta.addTokenToTrendingSets(ctx, pipe, vol)
+		_, err := pipe.Exec(ctx)
+		require.NoError(t, err)
+
+		_, err = ta.processedDataDB.ZScore(ctx, globalTrendingXcomCombinedSetKey, vol.ExternalAddress).Result()
+		require.Error(t, err)
+		require.Equal(t, redis.Nil, err, "post token should not be in combined set")
 	})
 }
 

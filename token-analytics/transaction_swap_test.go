@@ -39,6 +39,7 @@ type QuestDBTrade struct {
 }
 
 func TestContentPoolPosition(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	ionPrice := 0.1 // $0.1 per ION
 	db, connString, release := helperCreateDBWithConnString(t)

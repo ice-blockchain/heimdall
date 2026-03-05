@@ -301,6 +301,10 @@ func TestBalanceUpdateJob_XcomPlatform(t *testing.T) {
 	anyPostBcScore, err := ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressAnyPostSetKey, tokenExternalAddr).Result()
 	require.NoError(t, err)
 	require.NotEqual(t, 0.0, anyPostBcScore, "Xcom post token should be in anyPost bonding curve set")
+
+	combinedBcScore, err := ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressXcomCombinedSetKey, tokenExternalAddr).Result()
+	require.NoError(t, err)
+	require.NotEqual(t, 0.0, combinedBcScore, "Xcom token should be in combined bonding curve set")
 }
 
 func TestBalanceUpdateJob_MultiAddressAggregateRedis(t *testing.T) {
@@ -482,6 +486,66 @@ func TestBalanceUpdateJob_RegistersTradeInQuestDB(t *testing.T) {
 	require.Equal(t, contractAddress, trades[0].ContractAddress)
 	require.Equal(t, "buy", trades[0].TradeType)
 	require.Greater(t, trades[0].PriceInUsd, 0.0, "Price should be > 0")
+}
+
+func TestUpdateBondingCurveInRedis_CombinedSet(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	db, release := helperCreateDB(t)
+	defer release()
+
+	ta := helperNewForTest(t, db, WithoutQuestDB())
+
+	t.Run("xcom_token_added_to_combined_set", func(t *testing.T) {
+		_ = ta.processedDataDB.Del(ctx, globalBondingCurveProgressXcomCombinedSetKey).Err()
+
+		err := ta.updateBondingCurveInRedis(ctx, "xcom_bc_combined_1", TokenTypeProfile, PlatformGroupXCom, 75.0, false)
+		require.NoError(t, err)
+
+		score, err := ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressXcomCombinedSetKey, "xcom_bc_combined_1").Result()
+		require.NoError(t, err)
+		require.InDelta(t, 75.0, score, 0.001)
+	})
+
+	t.Run("ionconnect_profile_added_to_combined_set", func(t *testing.T) {
+		_ = ta.processedDataDB.Del(ctx, globalBondingCurveProgressXcomCombinedSetKey).Err()
+
+		err := ta.updateBondingCurveInRedis(ctx, "0:ion_bc_combined:", TokenTypeProfile, PlatformGroupIonConnect, 50.0, false)
+		require.NoError(t, err)
+
+		score, err := ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressXcomCombinedSetKey, "0:ion_bc_combined:").Result()
+		require.NoError(t, err)
+		require.InDelta(t, 50.0, score, 0.001)
+	})
+
+	t.Run("ionconnect_post_not_in_combined_set", func(t *testing.T) {
+		_ = ta.processedDataDB.Del(ctx, globalBondingCurveProgressXcomCombinedSetKey).Err()
+
+		err := ta.updateBondingCurveInRedis(ctx, "30175:ion_bc_post:content", TokenTypePost, PlatformGroupIonConnect, 60.0, false)
+		require.NoError(t, err)
+
+		_, err = ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressXcomCombinedSetKey, "30175:ion_bc_post:content").Result()
+		require.Error(t, err)
+		require.Equal(t, redis.Nil, err, "post token should not be in combined set")
+	})
+
+	t.Run("migrated_xcom_token_removed_from_combined_set", func(t *testing.T) {
+		_ = ta.processedDataDB.Del(ctx, globalBondingCurveProgressXcomCombinedSetKey).Err()
+
+		err := ta.updateBondingCurveInRedis(ctx, "xcom_bc_migrated", TokenTypeProfile, PlatformGroupXCom, 80.0, false)
+		require.NoError(t, err)
+
+		score, err := ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressXcomCombinedSetKey, "xcom_bc_migrated").Result()
+		require.NoError(t, err)
+		require.InDelta(t, 80.0, score, 0.001)
+
+		err = ta.updateBondingCurveInRedis(ctx, "xcom_bc_migrated", TokenTypeProfile, PlatformGroupXCom, 0, true)
+		require.NoError(t, err)
+
+		_, err = ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressXcomCombinedSetKey, "xcom_bc_migrated").Result()
+		require.Error(t, err)
+		require.Equal(t, redis.Nil, err, "migrated token should be removed from combined set")
+	})
 }
 
 func helperCreateUser(t testing.TB, ctx context.Context, db *storage.DB, userID, masterPubkey, externalAddr, username, displayName, avatar, platform string) {

@@ -62,7 +62,7 @@ type (
 		Close() error
 		HealthCheck(ctx context.Context) error
 		MustStart(ctx context.Context)
-		GetCommunityTokensByExternalAddresses(ctx context.Context, externalAddresses []string, requestorMasterPubkey string, includeTopPlatformHolders *uint32, keyword string, limit, offset uint64) ([]*CommunityToken, error)
+		GetCommunityTokensByExternalAddresses(ctx context.Context, externalAddresses []string, requestorMasterPubkey string, includeTopPlatformHolders *uint32, keyword string, limit, offset uint64, platformFilter string) ([]*CommunityToken, error)
 		GetCommunityTokensByHolder(ctx context.Context, holderExternalAddress, requestorMasterPubkey string, limit, offset uint64) ([]*CommunityToken, uint64, error)
 		GetCommunityTokensByType(ctx context.Context, viewType string, tokenType *string, keyword string, limit, offset uint64) ([]*CommunityToken, error)
 		GetLatestTrades(ctx context.Context, externalAddress string, limit, offset uint64, startFrom *stdlibtime.Time) (trades []*Trade, maxTs stdlibtime.Time, err error)
@@ -135,12 +135,13 @@ type (
 )
 
 const (
-	TokenTypeProfile = "profile"
-	TokenTypePost    = "post"
-	TokenTypeArticle = "article"
-	TokenTypeVideo   = "video"
-	TokenTypeAnyPost = "anyPost"
-	TokenTypeXcom    = "xcom"
+	TokenTypeProfile      = "profile"
+	TokenTypePost         = "post"
+	TokenTypeArticle      = "article"
+	TokenTypeVideo        = "video"
+	TokenTypeAnyPost      = "anyPost"
+	TokenTypeXcom         = "xcom"
+	TokenTypeXcomCombined = "xcomCombined"
 
 	TokenTypeLatest               = "latest"
 	TokenTypeFeatured             = "featured"
@@ -215,6 +216,10 @@ const (
 	globalBondingCurveProgressArticleSetKey = "token_analytics:global:bonding_curve_progress:article"
 	globalBondingCurveProgressAnyPostSetKey = "token_analytics:global:bonding_curve_progress:anyPost"
 	globalBondingCurveProgressXcomSetKey    = "token_analytics:global:bonding_curve_progress:xcom"
+
+	globalTopXcomCombinedSetKey                  = "token_analytics:global:top:xcom_combined"
+	globalTrendingXcomCombinedSetKey             = "token_analytics:global:trending:xcom_combined"
+	globalBondingCurveProgressXcomCombinedSetKey = "token_analytics:global:bonding_curve_progress:xcom_combined"
 
 	userSessionKeyPrefix    = "token_analytics:session:%s:%s"  // {type}:{sessionID}
 	userIdentifierMapPrefix = "token_analytics:user_map:%s:%s" // {type}:{IP:DeviceKey} -> sessionID
