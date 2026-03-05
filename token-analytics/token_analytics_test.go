@@ -337,6 +337,56 @@ func helperNewForTest(t testing.TB, db *storage.DB, opts ...HelperTestOption) *t
 	return ta
 }
 
+type mockConfigurableBondingCurve struct {
+	mu       sync.Mutex
+	balances map[string]*big.Int // key: "lowerTokenAddr:lowerUserAddr"
+}
+
+func newMockConfigurableBondingCurve() *mockConfigurableBondingCurve {
+	return &mockConfigurableBondingCurve{
+		balances: make(map[string]*big.Int),
+	}
+}
+
+func (m *mockConfigurableBondingCurve) SetBalance(tokenAddr, userAddr string, bal *big.Int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	key := strings.ToLower(tokenAddr) + ":" + strings.ToLower(userAddr)
+	m.balances[key] = new(big.Int).Set(bal)
+}
+
+func (m *mockConfigurableBondingCurve) GetTokenBalance(_ context.Context, tokenAddr common.Address, userAddr common.Address) (*big.Int, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	key := strings.ToLower(tokenAddr.Hex()) + ":" + strings.ToLower(userAddr.Hex())
+	if bal, ok := m.balances[key]; ok {
+		return new(big.Int).Set(bal), nil
+	}
+	return big.NewInt(0), nil
+}
+
+func (m *mockConfigurableBondingCurve) Progress(_ context.Context, _ common.Hash) (*bondingcurve.BondingCurveProgress, error) {
+	soldTokens, _ := new(big.Int).SetString("100000000000000000000", 10)
+	tokensRaised, _ := new(big.Int).SetString("10000000000000000000", 10)
+	bondingTokensGoal, _ := new(big.Int).SetString("200000000000000000000", 10)
+	return &bondingcurve.BondingCurveProgress{
+		BondingCurveBondingInfo: &bondingcurve.BondingCurveBondingInfo{
+			SoldTokens:        soldTokens,
+			TokensRaised:      tokensRaised,
+			StartPrice:        big.NewInt(10000),
+			EndPrice:          big.NewInt(100000),
+			CurrentPrice:      big.NewInt(10000),
+			BondingTokensGoal: bondingTokensGoal,
+			Migrated:          false,
+		},
+		Liquidity: big.NewInt(0),
+	}, nil
+}
+
+func (m *mockConfigurableBondingCurve) Pricing(_ context.Context, _ common.Address, _ []byte, _ *big.Int, _ bool) (*big.Int, error) {
+	return big.NewInt(1000000000000000), nil
+}
+
 type mockRiverClient struct{}
 
 func (m *mockRiverClient) Register() *riverqueue.Register {
@@ -2406,6 +2456,223 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 		require.NotNil(t, tr.ImageURL)
 		require.Equal(t, customImageURL, *tr.ImageURL, "image_url should NOT be overwritten on subsequent buys")
 	})
+	t.Run("fee_accumulates_on_buy", func(t *testing.T) {
+		feeUserAddr := "0xfeeaccum0000000000000000000000000000001"
+		feeUserPubkey := "feeaccum0001pubkey0000000000000000000000000000000000000000000001"
+		feeUserExtAddr := "0:" + feeUserPubkey + ":"
+
+		_, err := storage.Exec(ctx, db, `
+			WITH ins AS (
+				INSERT INTO users (id, master_pubkey, external_address, username, display_name, avatar, platform_group, created_at, updated_at)
+				VALUES ('fee-user-001', $1, $2, 'feeuser1', 'Fee User 1', 'x', 'ionconnect', NOW(), NOW())
+				RETURNING id
+			)
+			INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
+			SELECT id, LOWER($3), NOW() FROM ins
+		`, feeUserPubkey, feeUserExtAddr, feeUserAddr)
+		require.NoError(t, err)
+
+		// Buy: input=100 ION, output=98 tokens, fee=2 ION
+		// v_fee_usd = (2e18 / 1e18) * 0.003 = 0.006
+		// v_cost_usd = (100e18 / 1e18) * 0.003 = 0.3
+		_, err = storage.Exec(ctx, db, `
+			SELECT update_market_cap_and_position($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		`,
+			"2024-02-01 10:00:00",
+			feeUserAddr,
+			testTokenAddr,
+			testTokenExtAddr,
+			false,                   // BUY
+			"100000000000000000000", // 100 ION input
+			"98000000000000000000",  // 98 tokens output
+			0.003061224489795918,
+			ionPriceUSD,
+			totalSupply,
+			"2000000000000000000", // 2 ION fee
+		)
+		require.NoError(t, err)
+
+		type posRow struct {
+			TotalInvestedUSD float64 `db:"total_invested_usd"`
+			TotalFeesUSD     float64 `db:"total_fees_usd"`
+		}
+		pos, err := storage.Get[posRow](ctx, db, `
+			SELECT total_invested_usd, total_fees_usd
+			FROM user_token_positions
+			WHERE user_blockchain_address = $1 AND contract_address = $2
+		`, feeUserAddr, testTokenAddr)
+		require.NoError(t, err)
+		// cost = 100 * 0.003 = 0.3 USD; fee = 2 * 0.003 = 0.006 USD
+		require.InDelta(t, 0.3, pos.TotalInvestedUSD, 0.001, "invested should be 100 * 0.003 = 0.3 USD")
+		require.InDelta(t, 0.006, pos.TotalFeesUSD, 0.0001, "fee should be 2 * 0.003 = 0.006 USD")
+
+		// Second buy with fee — fees must accumulate.
+		_, err = storage.Exec(ctx, db, `
+			SELECT update_market_cap_and_position($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		`,
+			"2024-02-01 11:00:00",
+			feeUserAddr,
+			testTokenAddr,
+			testTokenExtAddr,
+			false,                  // BUY
+			"50000000000000000000", // 50 ION input
+			"49000000000000000000", // 49 tokens output
+			0.003061224489795918,
+			ionPriceUSD,
+			totalSupply,
+			"1000000000000000000", // 1 ION fee
+		)
+		require.NoError(t, err)
+
+		pos2, err := storage.Get[posRow](ctx, db, `
+			SELECT total_invested_usd, total_fees_usd
+			FROM user_token_positions
+			WHERE user_blockchain_address = $1 AND contract_address = $2
+		`, feeUserAddr, testTokenAddr)
+		require.NoError(t, err)
+		// accumulated: invested = 0.3 + 0.15 = 0.45; fees = 0.006 + 0.003 = 0.009
+		require.InDelta(t, 0.45, pos2.TotalInvestedUSD, 0.001, "invested should accumulate: 0.3+0.15=0.45 USD")
+		require.InDelta(t, 0.009, pos2.TotalFeesUSD, 0.0001, "fees should accumulate: 0.006+0.003=0.009 USD")
+	})
+
+	t.Run("fee_accumulates_on_sell", func(t *testing.T) {
+		feeUserAddr := "0xfeeaccum0000000000000000000000000000001"
+
+		// Sell: input=49 tokens, output=48 ION, fee=1 ION
+		// v_fee_usd = (1e18 / 1e18) * 0.003 = 0.003
+		_, err := storage.Exec(ctx, db, `
+			SELECT update_market_cap_and_position($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		`,
+			"2024-02-01 12:00:00",
+			feeUserAddr,
+			testTokenAddr,
+			testTokenExtAddr,
+			true,                   // SELL
+			"49000000000000000000", // 49 tokens input
+			"48000000000000000000", // 48 ION output
+			0.00293877,
+			ionPriceUSD,
+			totalSupply,
+			"1000000000000000000", // 1 ION fee
+		)
+		require.NoError(t, err)
+
+		type posRow struct {
+			TotalRealizedUSD float64 `db:"total_realized_usd"`
+			TotalFeesUSD     float64 `db:"total_fees_usd"`
+		}
+		pos, err := storage.Get[posRow](ctx, db, `
+			SELECT total_realized_usd, total_fees_usd
+			FROM user_token_positions
+			WHERE user_blockchain_address = $1 AND contract_address = $2
+		`, feeUserAddr, testTokenAddr)
+		require.NoError(t, err)
+		// realized = 48 * 0.003 = 0.144 USD; fees = 0.009 (prev) + 0.003 = 0.012 USD
+		require.InDelta(t, 0.144, pos.TotalRealizedUSD, 0.001, "realized should be 48 * 0.003 = 0.144 USD")
+		require.InDelta(t, 0.012, pos.TotalFeesUSD, 0.0001, "sell fees should accumulate onto buy fees")
+	})
+	t.Run("pool_self_buy_creates_position_with_token_ext_address", func(t *testing.T) {
+		poolTokenAddr := "0xpooltoken0000000000000000000000000001"
+		poolTokenExtAddr := "30175:poolpubkey001:poolpost001"
+
+		_, err := storage.Exec(ctx, db, `
+			INSERT INTO tokens (
+				contract_address, external_address, title, ticker, base_token, pair_id,
+				total_supply, type, platform, created_at, updated_at, content_author_id
+			)
+			VALUES ($1, $2, 'Pool Token', 'POOL', $3, $4, $5, 'post', 'ionconnect', NOW(), NOW(), '0xcreatorpool')
+		`,
+			strings.ToLower(poolTokenAddr), poolTokenExtAddr,
+			strings.ToLower(ionAddress), // base_token = ION (simplified; content token normally uses profile)
+			"0xpoolpair0000000000000000000000000000001",
+			"500000000000000000000000",
+		)
+		require.NoError(t, err)
+
+		_, err = storage.Exec(ctx, db, `
+			SELECT update_market_cap_and_position($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		`,
+			"2024-03-01 10:00:00",
+			strings.ToLower(poolTokenAddr), // swapper = pool = token address
+			strings.ToLower(poolTokenAddr), // token address
+			poolTokenExtAddr,
+			false,                   // BUY
+			"200000000000000000000", // 200 units input
+			"196000000000000000000", // 196 units output
+			0.003061224,
+			ionPriceUSD,
+			"500000000000000000000000",
+		)
+		require.NoError(t, err)
+
+		type posRow struct {
+			UserExternalAddress string  `db:"user_external_address"`
+			TotalInvestedUSD    float64 `db:"total_invested_usd"`
+		}
+		pos, err := storage.Get[posRow](ctx, db, `
+			SELECT COALESCE(user_external_address, '') AS user_external_address, total_invested_usd
+			FROM user_token_positions
+			WHERE user_blockchain_address = $1 AND contract_address = $2
+		`, strings.ToLower(poolTokenAddr), strings.ToLower(poolTokenAddr))
+		require.NoError(t, err)
+		require.Equal(t, poolTokenExtAddr, pos.UserExternalAddress,
+			"pool self-buy must set user_external_address = token_external_address")
+		require.InDelta(t, 0.6, pos.TotalInvestedUSD, 0.001, "pool invested = 200 * 0.003 = 0.6 USD")
+
+		type aggRow struct {
+			Count int `db:"count"`
+		}
+		agg, err := storage.Get[aggRow](ctx, db, `
+			SELECT COUNT(*) AS count FROM user_aggregate_positions
+			WHERE user_external_address = $1 AND external_address = $2
+		`, poolTokenExtAddr, poolTokenExtAddr)
+		require.NoError(t, err)
+		require.Equal(t, 1, agg.Count, "aggregate position must be created for pool via trigger")
+	})
+
+	t.Run("unknown_user_position_created_without_aggregate", func(t *testing.T) {
+		// Address not registered anywhere.
+		unknownAddr := "0xdeadbeef0000000000000000000000000000cafe"
+
+		_, err := storage.Exec(ctx, db, `
+			SELECT update_market_cap_and_position($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		`,
+			"2024-04-01 10:00:00",
+			unknownAddr,
+			testTokenAddr,
+			testTokenExtAddr,
+			false,                  // BUY
+			"10000000000000000000", // 10 ION
+			"9800000000000000000",  // 9.8 tokens
+			0.003061224,
+			ionPriceUSD,
+			totalSupply,
+		)
+		require.NoError(t, err)
+
+		// Position row exists (with NULL user_external_address).
+		type posRow struct {
+			UserExternalAddress string `db:"user_external_address"`
+		}
+		pos, err := storage.Get[posRow](ctx, db, `
+			SELECT COALESCE(user_external_address, '') AS user_external_address
+			FROM user_token_positions
+			WHERE user_blockchain_address = $1 AND contract_address = $2
+		`, unknownAddr, testTokenAddr)
+		require.NoError(t, err)
+		require.Empty(t, pos.UserExternalAddress,
+			"unknown user should have NULL user_external_address in position")
+
+		type aggRow struct {
+			Count int `db:"count"`
+		}
+		agg, err := storage.Get[aggRow](ctx, db, `
+			SELECT COUNT(*) AS count FROM user_aggregate_positions
+			WHERE user_external_address = '' OR user_external_address IS NULL
+		`)
+		require.NoError(t, err)
+		require.Equal(t, 0, agg.Count, "no aggregate for unknown user (trigger skips NULL ext addr)")
+	})
 }
 
 func TestToInt256(t *testing.T) {
@@ -2721,4 +2988,63 @@ func helperWaitForRiverQueueJobs(t *testing.T, ctx context.Context, ta *tokenAna
 
 		return results[0].Count == 0
 	}, timeout, 100*stdtime.Millisecond, "All River queue jobs should complete")
+}
+func TestDecodeRecordsCountFromInput(t *testing.T) {
+	t.Parallel()
+
+	db, release := helperCreateDB(t)
+	defer release()
+	ctx := t.Context()
+
+	helperDecodeRCC := func(t *testing.T, txInput *string) int {
+		t.Helper()
+		type row struct {
+			V int `db:"v"`
+		}
+		r, err := storage.Get[row](ctx, db, `SELECT decode_records_count_from_input($1) AS v`, txInput)
+		require.NoError(t, err)
+		return r.V
+	}
+	t.Run("null_input_returns_1", func(t *testing.T) {
+		require.Equal(t, 1, helperDecodeRCC(t, nil))
+	})
+
+	t.Run("empty_input_returns_1", func(t *testing.T) {
+		s := "0x"
+		require.Equal(t, 1, helperDecodeRCC(t, &s))
+	})
+
+	t.Run("short_input_returns_1", func(t *testing.T) {
+		s := "0x1234"
+		require.Equal(t, 1, helperDecodeRCC(t, &s))
+	})
+	t.Run("thin_address_direct_swap_returns_1", func(t *testing.T) {
+		s := testDirectSwapInput
+		require.Equal(t, 1, helperDecodeRCC(t, &s))
+	})
+	t.Run("thin_address_handleops_returns_1", func(t *testing.T) {
+		s := testHandleOpsInput
+		require.Equal(t, 1, helperDecodeRCC(t, &s))
+	})
+
+	t.Run("non_v2_version_returns_1", func(t *testing.T) {
+		s := testHandleOpsWithFatAddress
+		require.Equal(t, 1, helperDecodeRCC(t, &s))
+	})
+	const dummyBase = "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+
+	t.Run("fat_address_v2_records_count_1", func(t *testing.T) {
+		s := buildFullFlowTxInput(dummyBase, 1)
+		require.Equal(t, 1, helperDecodeRCC(t, &s))
+	})
+
+	t.Run("fat_address_v2_records_count_2", func(t *testing.T) {
+		s := buildFullFlowTxInput(dummyBase, 2)
+		require.Equal(t, 2, helperDecodeRCC(t, &s))
+	})
+
+	t.Run("fat_address_v2_records_count_3", func(t *testing.T) {
+		s := buildFullFlowTxInput(dummyBase, 3)
+		require.Equal(t, 3, helperDecodeRCC(t, &s))
+	})
 }

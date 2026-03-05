@@ -160,6 +160,48 @@ CREATE TRIGGER aggregate_balance_notify_update_trigger
     WHEN (OLD.amount IS DISTINCT FROM NEW.amount)
     EXECUTE FUNCTION notify_aggregate_balance_update();
 
+CREATE OR REPLACE FUNCTION decode_records_count_from_input(p_tx_input TEXT)
+RETURNS INT AS $$
+DECLARE
+    v_swap_calldata TEXT;
+    v_hex_clean TEXT;
+    v_to_token_offset_bytes INT;
+    v_to_token_length_bytes INT;
+    v_to_token_hex TEXT;
+    v_data_start_pos INT;
+    v_version INT;
+    v_records_count INT;
+BEGIN
+    IF p_tx_input IS NULL OR length(p_tx_input) < 10 THEN
+        RETURN 1;
+    END IF;
+
+    v_swap_calldata := extract_swap_calldata_from_custom_handleops(p_tx_input);
+    v_hex_clean := REPLACE(v_swap_calldata, '0x', '');
+    v_hex_clean := substring(v_hex_clean from 9); -- skip function selector (4 bytes = 8 hex chars)
+
+    v_to_token_offset_bytes := decode_uint256('0x' || v_hex_clean, 1)::INT;
+    IF v_to_token_offset_bytes = 0 THEN RETURN 1; END IF;
+
+    v_to_token_length_bytes := decode_uint256('0x' || v_hex_clean, v_to_token_offset_bytes / 32)::INT;
+    IF v_to_token_length_bytes = 0 THEN RETURN 1; END IF;
+
+    v_data_start_pos := (v_to_token_offset_bytes + 32) * 2 + 1;
+    v_to_token_hex := substring(v_hex_clean from v_data_start_pos for (v_to_token_length_bytes * 2));
+
+    -- Thin address (≤ 20 bytes) means a single subsequent swap — not a twisted swap.
+    IF length(v_to_token_hex) <= 40 THEN RETURN 1; END IF;
+
+    v_version := ('x' || substring(v_to_token_hex from 1 for 2))::bit(8)::int;
+    IF v_version != 2 THEN RETURN 1; END IF;
+
+    v_records_count := ('x' || substring(v_to_token_hex from 3 for 2))::bit(8)::int;
+    RETURN COALESCE(v_records_count, 1);
+EXCEPTION WHEN OTHERS THEN
+    RETURN 1;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
 DROP FUNCTION IF EXISTS update_market_cap_and_position(TIMESTAMP, TEXT, TEXT, TEXT, BOOLEAN, NUMERIC, NUMERIC, usd_amount, usd_amount, NUMERIC);
 
 CREATE OR REPLACE FUNCTION update_market_cap_and_position(
@@ -192,6 +234,10 @@ BEGIN
     FROM user_bsc_addresses uba
     JOIN users u ON u.id = uba.user_id
     WHERE uba.bsc_address = LOWER(p_user_blockchain_address);
+
+    IF v_user_external_address IS NULL AND LOWER(p_user_blockchain_address) = LOWER(p_token_address) THEN
+        v_user_external_address := p_token_external_address;
+    END IF;
 
     v_market_cap_ion := (p_total_supply / 1e18) * p_price_usd / p_ion_price_usd;
     v_market_cap_usd := (p_total_supply / 1e18) * p_price_usd;
@@ -311,10 +357,11 @@ BEGIN
     RAISE NOTICE '[EVENT_PROCESSOR] Swapped: Processing tx=% | swapper=% | pair_id=% | direction=% | input=% | output=% | fee=%',
         p_transaction_hash, v_swapper, v_pair_id, v_direction, v_input_amount, v_output_amount, v_fee;
 
+    v_records_count := decode_records_count_from_input(p_tx_input);
+
     BEGIN
         v_token_external_address := decode_to_token_from_input(p_tx_input);
         v_base_token := decode_base_token_from_input(p_tx_input);
-        v_records_count := (p_tx_input->>'recordsCount')::INT;
 
         RAISE NOTICE '[EVENT_PROCESSOR] Swapped: Decoded from tx input | tx=% | token_external=% | base_token=% | records_count=%',
             p_transaction_hash, v_token_external_address, v_base_token, v_records_count;
@@ -322,7 +369,6 @@ BEGIN
         RAISE NOTICE '[EVENT_PROCESSOR] Swapped: Failed to decode from tx input | tx=% | error=%', p_transaction_hash, SQLERRM;
         v_token_external_address := NULL;
         v_base_token := NULL;
-        v_records_count := 1;
     END;
 
     -- Try to find token by external_address + pair_id first
