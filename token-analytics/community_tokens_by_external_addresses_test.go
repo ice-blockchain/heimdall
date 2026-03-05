@@ -204,13 +204,12 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			4,
 			PlatformGroupIonConnect,
 		)
-		helperInsertUserTokenPosition(t, ctx, db,
-			"requestor_pos",
+		helperInsertAggregatePosition(t, ctx, db,
+			"0:requestor_pos:",
 			"0xPOS11111111111111111111111111111111111",
 			tokenExt,
-			"0:requestor_pos:",
-			"3500000000000000000000", // 3500 tokens in wei (3500 * 1e18,
-			0.315,
+			"3500000000000000000000", // 3500 tokens in wei
+			0.315, 0, 0,
 		)
 		helperCreateSwapForVolume(t, ctx, db,
 			"0xPOS11111111111111111111111111111111111",
@@ -256,7 +255,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		require.InDelta(t, 100.0, token.MarketData.MarketCap, 0.01)
 		require.InDelta(t, 0.1, token.MarketData.Volume, 0.001, "Volume = 1000 tokens * 0.0001 USD = 0.1 USD")
 		require.InDelta(t, 0.0001, token.MarketData.PriceUSD, 0.00001)
-		require.Equal(t, uint64(5), token.MarketData.Holders, "Holders count includes all user_blockchain_addresses")
+		require.Equal(t, uint64(4), token.MarketData.Holders, "Holders count from tokens table (aggregate insert does not trigger holders_count)")
 		require.Nil(t, token.Creator.Token, "Profile token should not have creator.token")
 
 		require.NotNil(t, token.MarketData.Position, "Position should be present for user with holdings")
@@ -288,14 +287,12 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		)
 
 		// User bought 300 tokens (100 + 200) for total $0.9, sold 150 for $0.45, holding 150 worth $0.45
-		helperInsertUserTokenPosition(t, ctx, db,
-			"holder_pnl",
+		helperInsertAggregatePosition(t, ctx, db,
+			"0:holder_pnl:",
 			contractAddr,
 			tokenExt,
-			"0:holder_pnl:",
 			"150000000000000000000", // 150 tokens remaining in wei
-			0.9,                     // total_invested_usd = $0.9 (constant)
-			0.45,                    // total_realized_usd = $0.45 (revenue from sale)
+			0.9, 0.45, 0,            // invested=$0.9, realized=$0.45, fees=0
 		)
 
 		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
@@ -338,14 +335,12 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			PlatformGroupIonConnect,
 		)
 
-		helperInsertUserTokenPosition(t, ctx, db,
-			"holder_profit",
+		helperInsertAggregatePosition(t, ctx, db,
+			"0:holder_profit:",
 			contractAddr,
 			tokenExt,
-			"0:holder_profit:",
 			"100000000000000000000", // 100 tokens remaining
-			100.0,                   // total_invested_usd = $100
-			60.0,                    // total_realized_usd = $60 (revenue from sale)
+			100.0, 60.0, 0,          // invested=$100, realized=$60, fees=0
 		)
 
 		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
@@ -388,14 +383,12 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			PlatformGroupIonConnect,
 		)
 
-		helperInsertUserTokenPosition(t, ctx, db,
-			"holder_loss",
+		helperInsertAggregatePosition(t, ctx, db,
+			"0:holder_loss:",
 			contractAddr,
 			tokenExt,
-			"0:holder_loss:",
 			"100000000000000000000", // 100 tokens remaining
-			100.0,                   // total_invested_usd = $100
-			40.0,                    // total_realized_usd = $40 (revenue from sale)
+			100.0, 40.0, 0,          // invested=$100, realized=$40, fees=0
 		)
 
 		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
@@ -1548,6 +1541,26 @@ func helperInsertUserTokenPosition(t *testing.T, ctx context.Context, db *storag
 		realized,
 	)
 	require.NoError(t, err, "failed to insert user token position")
+}
+
+func helperInsertAggregatePosition(t *testing.T, ctx context.Context, db *storage.DB,
+	userExternalAddress, contractAddress, externalAddress string,
+	amount string, totalInvestedUSD, totalRealizedUSD, totalFeesUSD float64) {
+	t.Helper()
+	_, err := storage.Exec(ctx, db, `
+		INSERT INTO user_aggregate_positions (
+			user_external_address, external_address, contract_address,
+			amount, total_invested_usd, total_realized_usd, total_fees_usd, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+		ON CONFLICT (user_external_address, external_address) DO UPDATE SET
+			amount = EXCLUDED.amount,
+			total_invested_usd = EXCLUDED.total_invested_usd,
+			total_realized_usd = EXCLUDED.total_realized_usd,
+			total_fees_usd = EXCLUDED.total_fees_usd,
+			updated_at = NOW()
+	`, userExternalAddress, externalAddress, contractAddress, amount,
+		totalInvestedUSD, totalRealizedUSD, totalFeesUSD)
+	require.NoError(t, err, "failed to insert aggregate position")
 }
 
 func helperInsertTokenSwap(t *testing.T, ctx context.Context, db *storage.DB,

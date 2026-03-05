@@ -519,6 +519,7 @@ type (
 		expirations24H *orderedmap.OrderedMap[int64, TradeStatsAggregate]
 		tickerRunning  atomic.Bool
 		onExpired      atomic.Pointer[func()]
+		tickerInterval stdlibtime.Duration
 	}
 	holderMetadata struct {
 		HolderMasterPubkey    *string `json:"holder_master_pubkey"`
