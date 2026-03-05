@@ -135,11 +135,11 @@ type (
 )
 
 const (
-	TokenTypeProfile = "profile"
-	TokenTypePost    = "post"
-	TokenTypeArticle = "article"
-	TokenTypeVideo   = "video"
-	TokenTypeAnyPost = "anyPost"
+	TokenTypeProfile      = "profile"
+	TokenTypePost         = "post"
+	TokenTypeArticle      = "article"
+	TokenTypeVideo        = "video"
+	TokenTypeAnyPost      = "anyPost"
 	TokenTypeXcom         = "xcom"
 	TokenTypeXcomCombined = "xcomCombined"
 
@@ -218,7 +218,7 @@ const (
 	globalBondingCurveProgressXcomSetKey    = "token_analytics:global:bonding_curve_progress:xcom"
 
 	globalTopXcomCombinedSetKey                  = "token_analytics:global:top:xcom_combined"
-	globalTrendingXcomCombinedSetKey              = "token_analytics:global:trending:xcom_combined"
+	globalTrendingXcomCombinedSetKey             = "token_analytics:global:trending:xcom_combined"
 	globalBondingCurveProgressXcomCombinedSetKey = "token_analytics:global:bonding_curve_progress:xcom_combined"
 
 	userSessionKeyPrefix    = "token_analytics:session:%s:%s"  // {type}:{sessionID}
