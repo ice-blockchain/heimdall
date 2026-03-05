@@ -714,22 +714,33 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 	return func(ctx context.Context) (<-chan server.StreamEvent[ta.CommunityToken], error) {
 		events := make(chan server.StreamEvent[ta.CommunityToken], 100)
 
+		sendEvent := func(event server.StreamEvent[ta.CommunityToken]) bool {
+			select {
+			case <-ctx.Done():
+				return false
+			case events <- event:
+				return true
+			}
+		}
+
 		sendData := func() bool {
 			tokens, err := s.tokenAnalytics.GetCommunityTokensByExternalAddresses(ctx, req.Data.ExternalAddresses, req.Token.GetMasterPublicKey(), req.Data.IncludeTopPlatformHolders, req.Data.Keyword, req.Data.Limit, req.Data.Offset)
 			if err != nil {
 				slog.ErrorContext(ctx, "failed to get community tokens for streaming", "error", err, "addresses", req.Data.ExternalAddresses)
-				events <- server.StreamEvent[ta.CommunityToken]{
+				sendEvent(server.StreamEvent[ta.CommunityToken]{
 					Type: "error",
 					Data: nil,
 					Err:  err,
-				}
+				})
 
 				return false
 			}
 			for _, token := range tokens {
-				events <- server.StreamEvent[ta.CommunityToken]{
+				if !sendEvent(server.StreamEvent[ta.CommunityToken]{
 					Type: "message",
 					Data: token,
+				}) {
+					return false
 				}
 			}
 			slog.DebugContext(ctx, "sent community tokens update", "count", len(tokens))
@@ -795,6 +806,15 @@ func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.R
 	return func(ctx context.Context) (<-chan server.StreamEvent[ta.CommunityToken], error) {
 		events := make(chan server.StreamEvent[ta.CommunityToken], limit)
 
+		sendEvent := func(event server.StreamEvent[ta.CommunityToken]) bool {
+			select {
+			case <-ctx.Done():
+				return false
+			case events <- event:
+				return true
+			}
+		}
+
 		sendData := func() bool {
 			var tokens []*ta.CommunityToken
 			var err error
@@ -806,18 +826,20 @@ func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.R
 
 			if err != nil {
 				slog.ErrorContext(ctx, "failed to get community tokens for streaming", "error", err, "type", req.Data.Type, "sessionID", req.Data.ViewingSessionID)
-				events <- server.StreamEvent[ta.CommunityToken]{
+				sendEvent(server.StreamEvent[ta.CommunityToken]{
 					Type: "error",
 					Err:  err,
-				}
+				})
 
 				return false
 			}
 
 			for _, token := range tokens {
-				events <- server.StreamEvent[ta.CommunityToken]{
+				if !sendEvent(server.StreamEvent[ta.CommunityToken]{
 					Type: "message",
 					Data: token,
+				}) {
+					return false
 				}
 			}
 

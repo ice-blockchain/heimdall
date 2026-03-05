@@ -104,7 +104,12 @@ func (t *tokenAnalytics) registerTrade(ctx context.Context, tx *txEvent, directi
 		candleStick.Update(priceInUSD, totalSupply, burned)
 	}
 	if recentTradingStats, ok := t.tradingStatsRecentData.Load(externalAddress); ok {
-		recentTradingStats.update(tx.BlockTimestamp.UnixNano(), priceInUSD, tradeTyp == TradeTypeSell)
+		communityTokenAmount := outputAmount
+		if direction {
+			communityTokenAmount = inputAmount
+		}
+		volumeUSD := weiToFloat64FromBigInt(communityTokenAmount) * priceInUSD
+		recentTradingStats.update(tx.BlockTimestamp.UnixNano(), priceInUSD, volumeUSD, tradeTyp == TradeTypeSell)
 	}
 
 	return true, nil
@@ -441,15 +446,15 @@ func (r *recentCandlestick) reset(now stdlibtime.Time) {
 	r.o.Store(&OHLCV{Open: 0, High: 0, Low: 0, Close: 0, Volume: 0, Timestamp: uint64(now.Truncate(r.interval.Duration()).UnixNano())})
 }
 
-func (t *recentTradeStats) updateBucket(b *TradeStatsAggregate, priceInUSD float64, sell bool) {
+func (t *recentTradeStats) updateBucket(b *TradeStatsAggregate, priceInUSD, volumeUSD float64, sell bool) {
 	if sell {
-		b.SellsTotalAmountUSD += priceInUSD
+		b.SellsTotalAmountUSD += volumeUSD
 		b.NumberOfSells += 1
 	} else {
-		b.BuysTotalAmountUSD += priceInUSD
+		b.BuysTotalAmountUSD += volumeUSD
 		b.NumberOfBuys += 1
 	}
-	b.VolumeUSD += priceInUSD
+	b.VolumeUSD += volumeUSD
 	b.NetBuy = b.BuysTotalAmountUSD - b.SellsTotalAmountUSD
 	b.CurrentPrice = priceInUSD
 	if b.PriceAgo > 0 {
@@ -457,29 +462,29 @@ func (t *recentTradeStats) updateBucket(b *TradeStatsAggregate, priceInUSD float
 	}
 }
 
-func (t *recentTradeStats) update(now int64, priceInUSD float64, sell bool) {
+func (t *recentTradeStats) update(now int64, priceInUSD, volumeUSD float64, sell bool) {
 	t.mx.Lock()
 	diff := TradeStatsAggregate{}
 	if sell {
-		diff.SellsTotalAmountUSD = priceInUSD
+		diff.SellsTotalAmountUSD = volumeUSD
 		diff.NumberOfSells = 1
-		diff.NetBuy = -priceInUSD
+		diff.NetBuy = -volumeUSD
 	} else {
-		diff.BuysTotalAmountUSD = priceInUSD
+		diff.BuysTotalAmountUSD = volumeUSD
 		diff.NumberOfBuys = 1
-		diff.NetBuy = priceInUSD
+		diff.NetBuy = volumeUSD
 	}
-	diff.VolumeUSD = priceInUSD
+	diff.VolumeUSD = volumeUSD
 	diff.CurrentPrice = priceInUSD
 
 	t.expirations5M.Set(now+int64(5*stdlibtime.Minute), diff)
 	t.expirations1H.Set(now+int64(1*stdlibtime.Hour), diff)
 	t.expirations6H.Set(now+int64(6*stdlibtime.Hour), diff)
 	t.expirations24H.Set(now+int64(24*stdlibtime.Hour), diff)
-	t.updateBucket(t.stats.Bucket5Min, priceInUSD, sell)
-	t.updateBucket(t.stats.Bucket1Hour, priceInUSD, sell)
-	t.updateBucket(t.stats.Bucket6Hours, priceInUSD, sell)
-	t.updateBucket(t.stats.Bucket24Hours, priceInUSD, sell)
+	t.updateBucket(t.stats.Bucket5Min, priceInUSD, volumeUSD, sell)
+	t.updateBucket(t.stats.Bucket1Hour, priceInUSD, volumeUSD, sell)
+	t.updateBucket(t.stats.Bucket6Hours, priceInUSD, volumeUSD, sell)
+	t.updateBucket(t.stats.Bucket24Hours, priceInUSD, volumeUSD, sell)
 	t.expire(now, t.expirations5M, t.stats.Bucket5Min)
 	t.expire(now, t.expirations1H, t.stats.Bucket1Hour)
 	t.expire(now, t.expirations6H, t.stats.Bucket6Hours)
@@ -598,7 +603,11 @@ func (t *recentTradeStats) ensureTickerRunning() {
 	if !t.tickerRunning.CompareAndSwap(false, true) {
 		return
 	}
-	ticker := stdlibtime.NewTicker(30 * stdlibtime.Second)
+	interval := t.tickerInterval
+	if interval == 0 {
+		interval = 30 * stdlibtime.Second
+	}
+	ticker := stdlibtime.NewTicker(interval)
 	go func() {
 		defer func() {
 			ticker.Stop()
