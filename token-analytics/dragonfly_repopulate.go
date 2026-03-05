@@ -235,6 +235,7 @@ func (t *tokenAnalytics) repopulateUserBalances(ctx context.Context) (int, error
 func (t *tokenAnalytics) repopulateIndividualBalances(ctx context.Context, since time.Time) (int, time.Time, error) {
 	totalProcessed := 0
 	var maxSyncedAt time.Time
+	cursor := since
 
 	for {
 		positions, err := storage.Select[userPositionData](ctx, t.ingestedDataDB, `
@@ -247,9 +248,9 @@ func (t *tokenAnalytics) repopulateIndividualBalances(ctx context.Context, since
 			FROM user_token_positions
 			WHERE balance_notified_at >= $1
 			OR balance_notified_at IS NULL
-			ORDER BY balance_notified_at ASC NULLS FIRST
+			ORDER BY balance_notified_at ASC NULLS FIRST, user_blockchain_address ASC, contract_address ASC
 			LIMIT $2
-		`, since, repopulateBatchSize)
+		`, cursor, repopulateBatchSize)
 		if err != nil {
 			return totalProcessed, maxSyncedAt, errors.Wrap(err, "failed to query user positions")
 		}
@@ -259,6 +260,7 @@ func (t *tokenAnalytics) repopulateIndividualBalances(ctx context.Context, since
 		log.Debug(fmt.Sprintf("User balance (individual): processing batch of %d positions", len(positions)))
 
 		updatedCount := 0
+		var lastBalanceNotifiedAt *time.Time
 
 		for _, pos := range positions {
 			amountBig, ok := new(big.Int).SetString(pos.Amount, 10)
@@ -272,6 +274,7 @@ func (t *tokenAnalytics) repopulateIndividualBalances(ctx context.Context, since
 			if pos.BalanceNotifiedAt != nil && pos.BalanceNotifiedAt.After(maxSyncedAt) {
 				maxSyncedAt = *pos.BalanceNotifiedAt
 			}
+			lastBalanceNotifiedAt = pos.BalanceNotifiedAt
 			byBlockchainKey := keyUserPositionOfTokenByUserBlockchainAddress(pos.ExternalAddress)
 			if individualAmount <= 0 {
 				if err := t.processedDataDB.ZRem(ctx, byBlockchainKey, pos.UserBlockchainAddress).Err(); err != nil {
@@ -300,6 +303,10 @@ func (t *tokenAnalytics) repopulateIndividualBalances(ctx context.Context, since
 		if len(positions) < repopulateBatchSize {
 			break
 		}
+		if lastBalanceNotifiedAt != nil {
+			cursor = *lastBalanceNotifiedAt
+		}
+
 		select {
 		case <-ctx.Done():
 			return totalProcessed, maxSyncedAt, ctx.Err()
@@ -320,7 +327,7 @@ func (t *tokenAnalytics) repopulateAggregateBalances(ctx context.Context, since 
 
 	totalProcessed := 0
 	var maxSyncedAt time.Time
-	offset := 0
+	cursor := since
 
 	for {
 		rows, err := storage.Select[aggregateRow](ctx, t.ingestedDataDB, `
@@ -331,9 +338,9 @@ func (t *tokenAnalytics) repopulateAggregateBalances(ctx context.Context, since 
 				updated_at
 			FROM user_aggregate_positions
 			WHERE updated_at >= $1
-			ORDER BY updated_at ASC
-			LIMIT $2 OFFSET $3
-		`, since, repopulateBatchSize, offset)
+			ORDER BY updated_at ASC, user_external_address ASC, external_address ASC
+			LIMIT $2
+		`, cursor, repopulateBatchSize)
 		if err != nil {
 			return totalProcessed, maxSyncedAt, errors.Wrap(err, "failed to query aggregate positions")
 		}
@@ -343,10 +350,13 @@ func (t *tokenAnalytics) repopulateAggregateBalances(ctx context.Context, since 
 		log.Debug(fmt.Sprintf("User balance (aggregate): processing batch of %d positions", len(rows)))
 
 		updatedCount := 0
+		var lastUpdatedAt *time.Time
 		for _, row := range rows {
 			if row.UpdatedAt != nil && row.UpdatedAt.After(maxSyncedAt) {
 				maxSyncedAt = *row.UpdatedAt
 			}
+			lastUpdatedAt = row.UpdatedAt
+
 			amountBig, ok := new(big.Int).SetString(row.Amount, 10)
 			if !ok {
 				log.Error(errors.Errorf("Aggregate balance: invalid amount for user=%s, token=%s, amount=%s",
@@ -375,7 +385,6 @@ func (t *tokenAnalytics) repopulateAggregateBalances(ctx context.Context, since 
 			}
 		}
 		totalProcessed += len(rows)
-		offset += len(rows)
 
 		if updatedCount > 0 {
 			log.Debug(fmt.Sprintf("User balance (aggregate) batch: updated=%d, total=%d", updatedCount, len(rows)))
@@ -384,6 +393,10 @@ func (t *tokenAnalytics) repopulateAggregateBalances(ctx context.Context, since 
 		if len(rows) < repopulateBatchSize {
 			break
 		}
+		if lastUpdatedAt != nil {
+			cursor = *lastUpdatedAt
+		}
+
 		select {
 		case <-ctx.Done():
 			return totalProcessed, maxSyncedAt, ctx.Err()

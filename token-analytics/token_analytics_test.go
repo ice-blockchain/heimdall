@@ -4,6 +4,7 @@ package tokenanalytics
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"os"
@@ -335,56 +336,6 @@ func helperNewForTest(t testing.TB, db *storage.DB, opts ...HelperTestOption) *t
 	}
 
 	return ta
-}
-
-type mockConfigurableBondingCurve struct {
-	mu       sync.Mutex
-	balances map[string]*big.Int // key: "lowerTokenAddr:lowerUserAddr"
-}
-
-func newMockConfigurableBondingCurve() *mockConfigurableBondingCurve {
-	return &mockConfigurableBondingCurve{
-		balances: make(map[string]*big.Int),
-	}
-}
-
-func (m *mockConfigurableBondingCurve) SetBalance(tokenAddr, userAddr string, bal *big.Int) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	key := strings.ToLower(tokenAddr) + ":" + strings.ToLower(userAddr)
-	m.balances[key] = new(big.Int).Set(bal)
-}
-
-func (m *mockConfigurableBondingCurve) GetTokenBalance(_ context.Context, tokenAddr common.Address, userAddr common.Address) (*big.Int, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	key := strings.ToLower(tokenAddr.Hex()) + ":" + strings.ToLower(userAddr.Hex())
-	if bal, ok := m.balances[key]; ok {
-		return new(big.Int).Set(bal), nil
-	}
-	return big.NewInt(0), nil
-}
-
-func (m *mockConfigurableBondingCurve) Progress(_ context.Context, _ common.Hash) (*bondingcurve.BondingCurveProgress, error) {
-	soldTokens, _ := new(big.Int).SetString("100000000000000000000", 10)
-	tokensRaised, _ := new(big.Int).SetString("10000000000000000000", 10)
-	bondingTokensGoal, _ := new(big.Int).SetString("200000000000000000000", 10)
-	return &bondingcurve.BondingCurveProgress{
-		BondingCurveBondingInfo: &bondingcurve.BondingCurveBondingInfo{
-			SoldTokens:        soldTokens,
-			TokensRaised:      tokensRaised,
-			StartPrice:        big.NewInt(10000),
-			EndPrice:          big.NewInt(100000),
-			CurrentPrice:      big.NewInt(10000),
-			BondingTokensGoal: bondingTokensGoal,
-			Migrated:          false,
-		},
-		Liquidity: big.NewInt(0),
-	}, nil
-}
-
-func (m *mockConfigurableBondingCurve) Pricing(_ context.Context, _ common.Address, _ []byte, _ *big.Int, _ bool) (*big.Int, error) {
-	return big.NewInt(1000000000000000), nil
 }
 
 type mockRiverClient struct{}
@@ -3047,4 +2998,86 @@ func TestDecodeRecordsCountFromInput(t *testing.T) {
 		s := buildFullFlowTxInput(dummyBase, 3)
 		require.Equal(t, 3, helperDecodeRCC(t, &s))
 	})
+}
+
+func pad32(hexStr string) string {
+	hexStr = strings.TrimPrefix(hexStr, "0x")
+	if len(hexStr) < 64 {
+		return strings.Repeat("0", 64-len(hexStr)) + hexStr
+	}
+
+	return hexStr[:64]
+}
+
+func buildSwappedEventData(direction bool, inputAmt, outputAmt, fee *big.Int) string {
+	dirWord := "0"
+	if direction {
+		dirWord = "1"
+	}
+	return "0x" +
+		pad32(dirWord) +
+		pad32(fmt.Sprintf("%x", inputAmt)) +
+		pad32(fmt.Sprintf("%x", outputAmt)) +
+		pad32(fmt.Sprintf("%x", fee))
+}
+
+func buildProperFatAddrV2(recordsCount byte) []byte {
+	const dummyExtAddr = "0:full-flow-test-dummy:"
+	extBytes := []byte(dummyExtAddr)
+
+	// header: version(1) + recordsCount(1) + presenceMask(2) = 4 bytes
+	fatAddr := []byte{0x02, recordsCount, 0x00, 0x00}
+	for i := 0; i < int(recordsCount); i++ {
+		// token record header: 8 bytes
+		// nameLen(1) + symbolLen(1) + extAddrLen(1) + tokenTypeByte(1) + tokenMask(4)
+		tokenHdr := []byte{
+			0x00,                   // nameLen = 0
+			0x00,                   // symbolLen = 0
+			byte(len(extBytes)),    // extAddrLen
+			'a',                    // tokenTypeByte = IonConnect Profile (parseTokenType succeeds)
+			0x00, 0x00, 0x00, 0x00, // tokenMask = 0 (no optional bonding prices/supply)
+		}
+		fatAddr = append(fatAddr, tokenHdr...)
+		fatAddr = append(fatAddr, make([]byte, 20)...) // bondingAddress (20 zero bytes)
+		fatAddr = append(fatAddr, extBytes...)         // externalAddress
+	}
+	return fatAddr
+}
+
+func buildFullFlowTxInput(baseTokenAddr string, recordsCount byte) string {
+	base := strings.ToLower(strings.TrimPrefix(baseTokenAddr, "0x"))
+	if len(base) < 40 {
+		base = strings.Repeat("0", 40-len(base)) + base
+	}
+	base = base[:40]
+
+	baseBytes, _ := hex.DecodeString(base)
+	fatAddr := buildProperFatAddrV2(recordsCount)
+
+	w := func(v uint64) string { return fmt.Sprintf("%064x", v) }
+
+	// ABI-encode a bytes parameter: length word + data padded to 32 bytes
+	encBytes := func(b []byte) string {
+		ln := w(uint64(len(b)))
+		data := fmt.Sprintf("%x", b)
+		if rem := len(data) % 64; rem != 0 {
+			data += strings.Repeat("0", 64-rem)
+		}
+		return ln + data
+	}
+
+	baseEnc := encBytes(baseBytes)  // 64+64 = 128 hex chars = 64 bytes
+	fatAddrEnc := encBytes(fatAddr) // variable
+
+	// Offsets from start of ABI args:
+	//   baseToken starts at byte 64 (2 × 32-byte slots for offsets)
+	//   toToken starts at byte 64 + len(baseEnc)/2
+	toTokenOffset := 64 + len(baseEnc)/2
+
+	return "0x" +
+		"83362e17" + // selector: swap(bytes,bytes,uint256,uint256)
+		w(64) + // offset to baseToken
+		w(uint64(toTokenOffset)) + // offset to toToken
+		baseEnc + // baseToken data (length + bytes)
+		fatAddrEnc // toToken data (length + bytes)
 }

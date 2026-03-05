@@ -88,7 +88,12 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 		FROM tokens t
 		LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
 		LEFT JOIN users creator ON creator.id = creator_addr.user_id
-		LEFT JOIN user_aggregate_positions uap ON uap.external_address = t.external_address AND uap.user_external_address = (SELECT u.external_address FROM users u WHERE u.master_pubkey = $2)
+		LEFT JOIN user_aggregate_positions uap ON uap.external_address = t.external_address AND uap.user_external_address = (
+			SELECT u.external_address
+			FROM users u
+			WHERE u.master_pubkey = $2
+			LIMIT 1
+		)
 		LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 		LEFT JOIN token_platform_holders tph ON tph.external_address = t.external_address 
 			AND tph.platform_group = (SELECT platform_group FROM users WHERE master_pubkey = $2 LIMIT 1)
