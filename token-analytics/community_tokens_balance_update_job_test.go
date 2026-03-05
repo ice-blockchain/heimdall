@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 
+	bondingcurve "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve/fixture"
 	bondingcurvefixture "github.com/ice-blockchain/heimdall/token-analytics/internal/bonding_curve/fixture"
 	"github.com/ice-blockchain/heimdall/token-analytics/internal/questdb"
