@@ -1579,9 +1579,9 @@ func helperInsertTokenSwap(t *testing.T, ctx context.Context, db *storage.DB,
 	query := `
 		INSERT INTO token_swaps (
 			created_at, transaction_hash, contract_address, external_address,
-			user_blockchain_address, direction, input_amount, output_amount, price_usd, fee
+			user_blockchain_address, direction, input_amount, output_amount, price_usd, fee, curve_price_usd
 		)
-		VALUES ($1, $2, $3, $4, LOWER($5), $6, $7, $8, $9, 0)
+		VALUES ($1, $2, $3, $4, LOWER($5), $6, $7, $8, $9, 0, $9)
 		ON CONFLICT (transaction_hash, contract_address, user_blockchain_address) DO NOTHING
 	`
 	_, err := storage.Exec(ctx, db, query,

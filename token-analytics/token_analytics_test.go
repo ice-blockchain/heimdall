@@ -78,6 +78,9 @@ type mockCoinImport struct{}
 func (m *mockCoinImport) ImportTokenizedCommunitiesCoin(ctx context.Context, coin coins.TokenAnalyticsToken) (*coins.Coin, error) {
 	return nil, nil
 }
+func (m mockCoinImport) SetPriceUSD(ctx context.Context, symbolGroup string, priceUSD float64) error {
+	return nil
+}
 
 type mockBondingCurveForBalanceUpdater struct {
 	pricing *big.Int

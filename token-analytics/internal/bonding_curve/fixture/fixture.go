@@ -190,6 +190,9 @@ func (m *mockBondingCurveForTests) GetTokenBalance(ctx context.Context, tokenAdd
 func (m *MockContractBackend) SetBalanceOfResponse(balance *big.Int) {
 	m.balanceOfResponse = balance
 }
+func (m *MockContractBackend) SetBondingCurveResponse(progress bondingcurve.BondingCurveBondingInfo) {
+	m.bondingProgressResponse = progress
+}
 
 func CreateMockedBondingCurveForBalanceTests(mock *MockContractBackend) bondingcurve.BondingCurve {
 	return &mockBondingCurveWithRealBalance{

@@ -584,6 +584,11 @@ func tokenizedCommunityTokenToCoin(token TokenAnalyticsToken) *coingecko.Coin {
 	}
 }
 
+func (c *coinsRepository) SetPriceUSD(ctx context.Context, symbolGroup string, priceUSD float64) error {
+	_, err := storage.Exec(ctx, c.db, `UPDATE coins SET price_usd = $1 WHERE symbol_group = $2;`, priceUSD, symbolGroup)
+	return errors.Wrapf(err, "failed to set price usd for coin %v", symbolGroup)
+}
+
 func (c *coinsRepository) Search(ctx context.Context, keyword string, limit, offset uint64) ([]*Coin, error) {
 	coinsList, err := storage.Select[coin](ctx, c.db, `
 				WITH candidates AS (SELECT  coins.*, 

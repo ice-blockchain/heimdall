@@ -52,6 +52,7 @@ type (
 	}
 	CoinImport interface {
 		ImportTokenizedCommunitiesCoin(ctx context.Context, coin coins.TokenAnalyticsToken) (*coins.Coin, error)
+		SetPriceUSD(ctx context.Context, symbolGroup string, priceUSD float64) error
 	}
 	PriceSync interface {
 		UpdateBNBPrice(ctx context.Context, price float64) error
