@@ -152,8 +152,7 @@ func TestRepopulateUserBalances_Basic(t *testing.T) {
 			userExternalAddr, correctAmount, 0, 0)
 
 		userPositionKey := keyUserPositionOfToken(tokenExternalAddr)
-		oldAmount := 300.0 // Outdated
-
+		oldAmount := 300.0 // Outdated aggregate value
 		err := ta.processedDataDB.ZAdd(ctx, userPositionKey, redis.Z{Score: oldAmount, Member: userExternalAddr}).Err()
 		require.NoError(t, err)
 
@@ -163,11 +162,11 @@ func TestRepopulateUserBalances_Basic(t *testing.T) {
 
 		count, err := ta.repopulateUserBalances(ctx)
 		require.NoError(t, err)
-		require.Equal(t, 1, count, "should repopulate 1 position")
+		require.Equal(t, 2, count, "should repopulate 1 individual + 1 aggregate position")
 
 		actualAmount, err := ta.processedDataDB.ZScore(ctx, userPositionKey, userExternalAddr).Result()
 		require.NoError(t, err)
-		require.InDelta(t, 500.0, actualAmount, 0.01, "Redis should be updated to correct amount")
+		require.InDelta(t, 500.0, actualAmount, 0.01, "Redis aggregate key should be updated to correct amount")
 	})
 }
 
@@ -191,6 +190,8 @@ func TestRepopulateUserBalances_RemovesZero(t *testing.T) {
 		userExternalAddr := "test_user_external_zero"
 
 		helperInsertUserTokenPosition(t, ctx, db, masterPubkey, contractAddr, tokenExternalAddr,
+			userExternalAddr, "100000000000000000000", 0, 0)
+		helperInsertUserTokenPosition(t, ctx, db, masterPubkey, contractAddr, tokenExternalAddr,
 			userExternalAddr, "0", 0, 0)
 
 		userPositionKey := keyUserPositionOfToken(tokenExternalAddr)
@@ -204,10 +205,10 @@ func TestRepopulateUserBalances_RemovesZero(t *testing.T) {
 
 		count, err := ta.repopulateUserBalances(ctx)
 		require.NoError(t, err)
-		require.Equal(t, 1, count, "should process 1 position")
+		require.Equal(t, 2, count, "should process 1 individual + 1 aggregate position")
 
 		_, err = ta.processedDataDB.ZScore(ctx, userPositionKey, userExternalAddr).Result()
-		require.ErrorIs(t, err, redis.Nil, "zero balance should be removed from Redis")
+		require.ErrorIs(t, err, redis.Nil, "zero balance should be removed from aggregate Redis key")
 	})
 }
 

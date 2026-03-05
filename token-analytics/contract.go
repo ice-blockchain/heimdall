@@ -383,6 +383,8 @@ type (
 		PositionAmountUSD             float64    `db:"position_amount_usd"`
 		PositionTotalInvestedUSD      float64    `db:"position_total_invested_usd"`
 		PositionTotalRealizedUSD      float64    `db:"position_total_realized_usd"`
+		PositionTotalFeesUSD          float64    `db:"position_total_fees_usd"`
+		RequestorExternalAddress      *string    `db:"requestor_external_address"`
 		HoldersCount                  int64      `db:"holders_count"`
 		PlatformHoldersCount          int64      `db:"platform_holders_count"`
 		BondingCurveCurrentAmount     string     `db:"bonding_curve_current_amount"`
@@ -428,6 +430,7 @@ type (
 		Amount           string  `db:"amount"`
 		TotalInvestedUSD float64 `db:"total_invested_usd"`
 		TotalRealizedUSD float64 `db:"total_realized_usd"`
+		TotalFeesUSD     float64 `db:"total_fees_usd"`
 		PriceUSD         float64 `db:"price_usd"`
 	}
 

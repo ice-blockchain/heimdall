@@ -26,17 +26,18 @@ func (t *tokenAnalytics) GetHolderPositions(ctx context.Context, tokenExternalAd
 			u.display_name as display_name,
 			u.avatar as avatar,
 			u.verified as verified,
-			utp.user_external_address as external_address,
+			uap.user_external_address as external_address,
 			u.platform_group as platform,
-			utp.amount as amount,
-			COALESCE(utp.total_invested_usd, 0) as total_invested_usd,
-			COALESCE(utp.total_realized_usd, 0) as total_realized_usd,
+			uap.amount as amount,
+			COALESCE(uap.total_invested_usd, 0) as total_invested_usd,
+			COALESCE(uap.total_realized_usd, 0) as total_realized_usd,
+			COALESCE(uap.total_fees_usd, 0) as total_fees_usd,
 			COALESCE(t.price_usd, 0) as price_usd
-		FROM user_token_positions utp
-		LEFT JOIN users u ON u.external_address = utp.user_external_address
-		INNER JOIN tokens t ON t.external_address = utp.external_address
-		WHERE utp.external_address = $1 
-		  AND utp.user_external_address = ANY($2)
+		FROM user_aggregate_positions uap
+		LEFT JOIN users u ON u.external_address = uap.user_external_address
+		INNER JOIN tokens t ON t.external_address = uap.external_address
+		WHERE uap.external_address = $1 
+		  AND uap.user_external_address = ANY($2)
 	`
 
 	rows, err := storage.Select[holderPositionRow](ctx, t.ingestedDataDB, query, tokenExternalAddress, holderExternalAddresses)
@@ -70,7 +71,7 @@ func (t *tokenAnalytics) GetHolderPositions(ctx context.Context, tokenExternalAd
 
 		amountTokensFloat := weiToFloat64FromBigInt(amountWeiBigInt)
 		amountUSD := amountTokensFloat * row.PriceUSD
-		pnl, pnlPercentage := calculatePnL(amountUSD, row.TotalInvestedUSD, row.TotalRealizedUSD)
+		pnl, pnlPercentage := calculatePnL(amountUSD, row.TotalInvestedUSD, row.TotalRealizedUSD, row.TotalFeesUSD)
 
 		rank := uint64(1)
 		if r, ok := rankings[extAddr]; ok {

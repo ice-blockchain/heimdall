@@ -690,15 +690,15 @@ func (t *tokenAnalytics) fetchTradeInfoFromSwap(ctx context.Context, txHash stri
 			holder.external_address as holder_external_address,
 			holder.platform_group as holder_platform,
 			
-			COALESCE(utp.amount, '0') as balance,
-			COALESCE(((utp.amount::NUMERIC / 1e18) * tokens.price_usd), 0) as balance_usd
+			COALESCE(uap.amount, '0') as balance,
+			COALESCE(((uap.amount::NUMERIC / 1e18) * tokens.price_usd), 0) as balance_usd
 		FROM token_swaps
 		JOIN tokens ON token_swaps.contract_address = tokens.contract_address
 		LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = tokens.content_author_id
 		LEFT JOIN users creator ON creator.id = creator_addr.user_id
 		LEFT JOIN user_bsc_addresses 	holder_addr ON holder_addr.bsc_address = token_swaps.user_blockchain_address
 		LEFT JOIN users holder ON holder.id = holder_addr.user_id
-		LEFT JOIN user_token_positions utp ON utp.external_address = token_swaps.external_address AND utp.user_blockchain_address = token_swaps.user_blockchain_address
+		LEFT JOIN user_aggregate_positions uap ON uap.external_address = token_swaps.external_address AND uap.user_external_address = holder.external_address
 		WHERE token_swaps.transaction_hash = $1 AND token_swaps.contract_address = $2 AND token_swaps.user_blockchain_address = $3
 	`
 	swap, err := storage.Get[tokenSwap](ctx, t.ingestedDataDB, sql, txHash, contractAddress, userBlockchainAddress)

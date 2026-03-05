@@ -289,4 +289,59 @@ func TestUserBalanceNotifier(t *testing.T) {
 			require.NotEmpty(t, member, "Should not add empty member to external address ZSET")
 		}
 	})
+
+	t.Run("handles aggregate position for multi-address user", func(t *testing.T) {
+		ctx := t.Context()
+		db, release := helperCreateDB(t)
+		defer release()
+
+		ta := helperNewForTest(t, db)
+
+		tokenExternalAddr := "0:aggregate_test_token:"
+		contractAddr := "0x5555666677778888999900001111222233334444"
+		userExternalAddr := "0:aggregate_test_user:"
+		userBscAddr1 := "0x0000000000000000000000000000000000000020"
+		userBscAddr2 := "0x0000000000000000000000000000000000000021"
+		userID := "aggregate_test_user_id"
+
+		helperCreateUser(t, ctx, db, userID, "aggregate_test_master", userExternalAddr, "aggregate_user", "Aggregate User", "avatar.png", "ionconnect")
+		helperAddUserBscAddress(t, ctx, db, userID, userBscAddr1)
+		helperAddUserBscAddress(t, ctx, db, userID, userBscAddr2)
+		helperInsertTestToken(t, ctx, db,
+			contractAddr, tokenExternalAddr, "AGGTEST", "profile", userExternalAddr,
+			"1000000000000000000000000", 0.001, 1000, 10, PlatformGroupIonConnect)
+
+		_, err := storage.Exec(ctx, db, `
+			INSERT INTO user_token_positions (
+				user_blockchain_address, user_external_address, 
+				contract_address, external_address, amount, updated_at
+			) VALUES 
+				($1, $2, $3, $4, $5, NOW()),
+				($6, $2, $3, $4, $7, NOW())`,
+			userBscAddr1, userExternalAddr, contractAddr, tokenExternalAddr, "5000000000000000000", // 5 tokens
+			userBscAddr2, "8000000000000000000") // 8 tokens
+		require.NoError(t, err)
+
+		payload := fmt.Sprintf(`{
+			"user_blockchain_address": "%s",
+			"user_external_address": "%s",
+			"contract_address": "%s",
+			"external_address": "%s",
+			"amount": "13000000000000000000",
+			"updated_at": 1234567890
+		}`, userBscAddr1, userExternalAddr, contractAddr, tokenExternalAddr)
+
+		err = ta.handleUserBalanceUpdate(ctx, payload)
+		require.NoError(t, err)
+
+		userPositionKey := keyUserPositionOfToken(tokenExternalAddr)
+		score, err := ta.processedDataDB.ZScore(ctx, userPositionKey, userExternalAddr).Result()
+		require.NoError(t, err)
+		require.InDelta(t, 13.0, score, 0.001, "Aggregate position should be 13 tokens (5+8)")
+
+		userPositionKeyByBlockchain := keyUserPositionOfTokenByUserBlockchainAddress(tokenExternalAddr)
+		score1, err := ta.processedDataDB.ZScore(ctx, userPositionKeyByBlockchain, userBscAddr1).Result()
+		require.NoError(t, err)
+		require.InDelta(t, 13.0, score1, 0.001, "Individual position for addr1 should be updated")
+	})
 }

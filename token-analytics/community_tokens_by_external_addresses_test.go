@@ -210,7 +210,6 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			tokenExt,
 			"0:requestor_pos:",
 			"3500000000000000000000", // 3500 tokens in wei (3500 * 1e18,
-			0.0001,
 			0.315,
 		)
 		helperCreateSwapForVolume(t, ctx, db,
@@ -295,7 +294,6 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			tokenExt,
 			"0:holder_pnl:",
 			"150000000000000000000", // 150 tokens remaining in wei
-			0.003,                   // avg_buy_price_usd = $0.003
 			0.9,                     // total_invested_usd = $0.9 (constant)
 			0.45,                    // total_realized_usd = $0.45 (revenue from sale)
 		)
@@ -346,7 +344,6 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			tokenExt,
 			"0:holder_profit:",
 			"100000000000000000000", // 100 tokens remaining
-			0.5,                     // avg_buy_price_usd = $0.5
 			100.0,                   // total_invested_usd = $100
 			60.0,                    // total_realized_usd = $60 (revenue from sale)
 		)
@@ -397,7 +394,6 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			tokenExt,
 			"0:holder_loss:",
 			"100000000000000000000", // 100 tokens remaining
-			0.5,                     // avg_buy_price_usd = $0.5
 			100.0,                   // total_invested_usd = $100
 			40.0,                    // total_realized_usd = $40 (revenue from sale)
 		)
@@ -992,9 +988,9 @@ func TestGetCommunityTokensWithTopPlatformHolders_WithAndWithoutKeyword(t *testi
 	helperInsertTestToken(t, ctx, db, "0xTPH1111111111111111111111111111111111111", token1Ext, "TPH1", "profile", "creator_tph1", "1000000000000000000000000", 100.0, 0.0001, 2, PlatformGroupIonConnect)
 	helperInsertTestToken(t, ctx, db, "0xTPH2222222222222222222222222222222222222", token2Ext, "TPH2", "profile", "creator_tph2", "2000000000000000000000000", 200.0, 0.0002, 2, PlatformGroupIonConnect)
 
-	helperInsertUserTokenPosition(t, ctx, db, "holder_tph1", "0xTPH1111111111111111111111111111111111111", token1Ext, "0:holder_tph1:", "5000000000000000000000", 0.00009, 0.45)
-	helperInsertUserTokenPosition(t, ctx, db, "holder_tph2", "0xTPH1111111111111111111111111111111111111", token1Ext, "0:holder_tph2:", "3000000000000000000000", 0.00009, 0.27)
-	helperInsertUserTokenPosition(t, ctx, db, "requestor_tph", "0xTPH1111111111111111111111111111111111111", token1Ext, "0:requestor_tph:", "1000000000000000000000", 0.00009, 0.09)
+	helperInsertUserTokenPosition(t, ctx, db, "holder_tph1", "0xTPH1111111111111111111111111111111111111", token1Ext, "0:holder_tph1:", "5000000000000000000000", 0.45)
+	helperInsertUserTokenPosition(t, ctx, db, "holder_tph2", "0xTPH1111111111111111111111111111111111111", token1Ext, "0:holder_tph2:", "3000000000000000000000", 0.27)
+	helperInsertUserTokenPosition(t, ctx, db, "requestor_tph", "0xTPH1111111111111111111111111111111111111", token1Ext, "0:requestor_tph:", "1000000000000000000000", 0.09)
 
 	helperSetupRedisPositionData(t, ctx, ta.processedDataDB, token1Ext, map[string]float64{
 		"0:holder_tph1:":   5000.0,
@@ -1117,9 +1113,9 @@ func TestGetCommunityTokensByExternalAddresses_WithTopPlatformHolders(t *testing
 			PlatformGroupIonConnect,
 		)
 
-		helperInsertUserTokenPosition(t, ctx, db, "holder1_top", "0xTOP111111111111111111111111111111111", tokenExt, "0:holder1_top:", "5000000000000000000000", 0.00009, 0.45)
-		helperInsertUserTokenPosition(t, ctx, db, "holder2_top", "0xTOP111111111111111111111111111111111", tokenExt, "0:holder2_top:", "3000000000000000000000", 0.00009, 0.27)
-		helperInsertUserTokenPosition(t, ctx, db, "requestor_top", "0xTOP111111111111111111111111111111111", tokenExt, "0:requestor_top:", "1000000000000000000000", 0.00009, 0.09)
+		helperInsertUserTokenPosition(t, ctx, db, "holder1_top", "0xTOP111111111111111111111111111111111", tokenExt, "0:holder1_top:", "5000000000000000000000", 0.45)
+		helperInsertUserTokenPosition(t, ctx, db, "holder2_top", "0xTOP111111111111111111111111111111111", tokenExt, "0:holder2_top:", "3000000000000000000000", 0.27)
+		helperInsertUserTokenPosition(t, ctx, db, "requestor_top", "0xTOP111111111111111111111111111111111", tokenExt, "0:requestor_top:", "1000000000000000000000", 0.09)
 
 		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
 			"0:holder1_top:":   5000.0,
@@ -1500,7 +1496,7 @@ func helperUpdateTokenBondingCurve(t *testing.T, ctx context.Context, db *storag
 }
 
 func helperInsertUserTokenPosition(t *testing.T, ctx context.Context, db *storage.DB,
-	masterPubkey, contractAddress, externalAddress, userExternalAddress string, amount string, avgBuyPriceUSD, totalInvestedUSD float64, totalRealizedUSD ...float64) {
+	masterPubkey, contractAddress, externalAddress, userExternalAddress string, amount string, totalInvestedUSD float64, totalRealizedUSD ...float64) {
 	t.Helper()
 
 	type userAddr struct {
@@ -1531,14 +1527,13 @@ func helperInsertUserTokenPosition(t *testing.T, ctx context.Context, db *storag
 	query := `
 		INSERT INTO user_token_positions (
 			updated_at, user_blockchain_address, contract_address, external_address, user_external_address,
-			amount, avg_buy_price_usd, total_invested_usd, total_realized_usd
+			amount, total_invested_usd, total_realized_usd, total_fees_usd
 		)
-		VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, $8)
+		VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, 0)
 		ON CONFLICT (user_blockchain_address, contract_address) DO UPDATE SET
 			amount = EXCLUDED.amount,
 			external_address = EXCLUDED.external_address,
 			user_external_address = EXCLUDED.user_external_address,
-		    avg_buy_price_usd = EXCLUDED.avg_buy_price_usd,
 		    total_invested_usd = EXCLUDED.total_invested_usd,
 		    total_realized_usd = EXCLUDED.total_realized_usd,
 		    updated_at = NOW()
@@ -1549,7 +1544,6 @@ func helperInsertUserTokenPosition(t *testing.T, ctx context.Context, db *storag
 		externalAddress,
 		userExternalAddress,
 		amount,
-		avgBuyPriceUSD,
 		totalInvestedUSD,
 		realized,
 	)

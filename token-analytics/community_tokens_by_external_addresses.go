@@ -63,10 +63,12 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 			COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd,
 			COALESCE(t.bonding_curve_migrated, FALSE) as bonding_curve_migrated,
 			COALESCE(t.bonding_curve_raised_amount, 0) as bonding_curve_raised_amount,
-			COALESCE(utp.amount, '0') as position_amount,
-			COALESCE((utp.amount::NUMERIC / 1e18) * t.price_usd, 0) as position_amount_usd,
-			COALESCE(utp.total_invested_usd, 0) as position_total_invested_usd,
-			COALESCE(utp.total_realized_usd, 0) as position_total_realized_usd,
+			COALESCE(uap.amount, '0') as position_amount,
+			COALESCE((uap.amount::NUMERIC / 1e18) * t.price_usd, 0) as position_amount_usd,
+			COALESCE(uap.total_invested_usd, 0) as position_total_invested_usd,
+			COALESCE(uap.total_realized_usd, 0) as position_total_realized_usd,
+			COALESCE(uap.total_fees_usd, 0) as position_total_fees_usd,
+			(SELECT u.external_address FROM users u WHERE u.master_pubkey = $2 LIMIT 1) as requestor_external_address,
 			launcher.username as launcher_username,
 			launcher.display_name as launcher_display,
 			launcher.verified as launcher_verified,
@@ -86,7 +88,12 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 		FROM tokens t
 		LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
 		LEFT JOIN users creator ON creator.id = creator_addr.user_id
-		LEFT JOIN user_token_positions utp ON utp.external_address = t.external_address AND utp.user_blockchain_address = (SELECT uba.bsc_address FROM user_bsc_addresses uba JOIN users u ON u.id = uba.user_id WHERE u.master_pubkey = $2 LIMIT 1)
+		LEFT JOIN user_aggregate_positions uap ON uap.external_address = t.external_address AND uap.user_external_address = (
+			SELECT u.external_address
+			FROM users u
+			WHERE u.master_pubkey = $2
+			LIMIT 1
+		)
 		LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 		LEFT JOIN token_platform_holders tph ON tph.external_address = t.external_address 
 			AND tph.platform_group = (SELECT platform_group FROM users WHERE master_pubkey = $2 LIMIT 1)
@@ -109,7 +116,11 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch community tokens")
 	}
-	requestorExternalAddress := BuildProfileExternalAddress(requestorMasterPubkey)
+
+	var requestorExternalAddress string
+	if len(rows) > 0 && rows[0].RequestorExternalAddress != nil {
+		requestorExternalAddress = *rows[0].RequestorExternalAddress
+	}
 
 	return t.buildCommunityTokensFromRows(ctx, rows, requestorExternalAddress)
 }
@@ -358,7 +369,7 @@ func (t *tokenAnalytics) buildCommunityTokensFromRows(ctx context.Context, rows 
 		}
 
 		if row.PositionAmount != "" && row.PositionAmount != "0" && positionHolderExternalAddress != "" {
-			position, err := t.getUserTokenPositionRanking(ctx, positionHolderExternalAddress, row.ExternalAddress, row.PositionAmount, row.PositionAmountUSD, row.PositionTotalInvestedUSD, row.PositionTotalRealizedUSD)
+			position, err := t.getUserTokenPositionRanking(ctx, positionHolderExternalAddress, row.ExternalAddress, row.PositionAmount, row.PositionAmountUSD, row.PositionTotalInvestedUSD, row.PositionTotalRealizedUSD, row.PositionTotalFeesUSD)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get user position ranking for token %v", row.ExternalAddress)
 			}
@@ -465,10 +476,12 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 				COALESCE(t.bonding_curve_goal_amount, '0') as bonding_curve_goal_amount,
 				COALESCE(t.bonding_curve_current_amount_usd, 0) as bonding_curve_current_amount_usd,
 				COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd,
-				COALESCE(utp.amount, '0') as position_amount,
-				COALESCE((utp.amount::NUMERIC / 1e18) * t.price_usd, 0) as position_amount_usd,
-				COALESCE(utp.total_invested_usd, 0) as position_total_invested_usd,
-				COALESCE(utp.total_realized_usd, 0) as position_total_realized_usd,
+				COALESCE(uap.amount, '0') as position_amount,
+				COALESCE((uap.amount::NUMERIC / 1e18) * t.price_usd, 0) as position_amount_usd,
+				COALESCE(uap.total_invested_usd, 0) as position_total_invested_usd,
+				COALESCE(uap.total_realized_usd, 0) as position_total_realized_usd,
+				COALESCE(uap.total_fees_usd, 0) as position_total_fees_usd,
+				(SELECT u.external_address FROM users u WHERE u.master_pubkey = $2 LIMIT 1) as requestor_external_address,
 				launcher.username as launcher_username,
 				launcher.display_name as launcher_display,
 				launcher.verified as launcher_verified,
@@ -523,7 +536,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 			LEFT JOIN requestor_platform rp ON true
 			LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
 			LEFT JOIN users creator ON creator.id = creator_addr.user_id
-			LEFT JOIN user_token_positions utp ON utp.external_address = t.external_address AND utp.user_blockchain_address = (SELECT uba.bsc_address FROM user_bsc_addresses uba JOIN users u ON u.id = uba.user_id WHERE u.master_pubkey = $2 LIMIT 1)
+			LEFT JOIN user_aggregate_positions uap ON uap.external_address = t.external_address AND uap.user_external_address = (SELECT u.external_address FROM users u WHERE u.master_pubkey = $2)
 			LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 			LEFT JOIN token_platform_holders tph ON tph.external_address = t.external_address
 				AND (rp.platform_group IS NULL OR tph.platform_group = rp.platform_group)
@@ -655,8 +668,11 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 			BondingCurveProgress: bondingCurveProgress,
 		}
 		if row.PositionAmount != "" && row.PositionAmount != "0" {
-			externalAddress := BuildProfileExternalAddress(requestorMasterPubkey)
-			position, err := t.getUserTokenPositionRanking(ctx, externalAddress, row.ExternalAddress, row.PositionAmount, row.PositionAmountUSD, row.PositionTotalInvestedUSD, row.PositionTotalRealizedUSD)
+			var externalAddress string
+			if row.RequestorExternalAddress != nil {
+				externalAddress = *row.RequestorExternalAddress
+			}
+			position, err := t.getUserTokenPositionRanking(ctx, externalAddress, row.ExternalAddress, row.PositionAmount, row.PositionAmountUSD, row.PositionTotalInvestedUSD, row.PositionTotalRealizedUSD, row.PositionTotalFeesUSD)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get user position ranking for token %v", row.ExternalAddress)
 			}
@@ -698,7 +714,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 	return tokens, nil
 }
 
-func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, userExternalAddress, tokenExternalAddress, amountWei string, amountUSD, totalInvested, totalRealized float64) (*Position, error) {
+func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, userExternalAddress, tokenExternalAddress, amountWei string, amountUSD, totalInvested, totalRealized, totalFees float64) (*Position, error) {
 	key := keyUserPositionOfToken(tokenExternalAddress)
 	balanceFloat, err := t.processedDataDB.ZScore(ctx, key, userExternalAddress).Result()
 	if err != nil {
@@ -722,7 +738,7 @@ func (t *tokenAnalytics) getUserTokenPositionRanking(ctx context.Context, userEx
 			return nil, errors.Wrap(err, "failed to get rank from DragonflyDB")
 		}
 	}
-	pnl, pnlPercentage := calculatePnL(amountUSD, totalInvested, totalRealized)
+	pnl, pnlPercentage := calculatePnL(amountUSD, totalInvested, totalRealized, totalFees)
 
 	return &Position{
 		Rank:          uint64(rank + 1),

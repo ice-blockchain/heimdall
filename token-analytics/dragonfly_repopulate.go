@@ -205,7 +205,38 @@ func (t *tokenAnalytics) repopulateUserBalances(ctx context.Context) (int, error
 		}
 		log.Debug(fmt.Sprintf("User balance repopulation: checking positions updated since %v", since.Format(time.RFC3339)))
 	}
+
+	totalProcessed, maxSyncedAt, err := t.repopulateIndividualBalances(ctx, since)
+	if err != nil {
+		return totalProcessed, errors.Wrap(err, "failed to repopulate individual balances")
+	}
+	aggregateProcessed, aggregateMaxSyncedAt, err := t.repopulateAggregateBalances(ctx, since)
+	if err != nil {
+		return totalProcessed + aggregateProcessed, errors.Wrap(err, "failed to repopulate aggregate balances")
+	}
+	totalProcessed += aggregateProcessed
+
+	if aggregateMaxSyncedAt.After(maxSyncedAt) {
+		maxSyncedAt = aggregateMaxSyncedAt
+	}
+
+	if !maxSyncedAt.IsZero() {
+		if err := t.processedDataDB.Set(ctx, redisKeyLastBalanceSync,
+			maxSyncedAt.Format(time.RFC3339Nano), 0).Err(); err != nil {
+			log.Error(errors.Wrap(err, "failed to update last balance sync timestamp"))
+		} else {
+			log.Debug(fmt.Sprintf("User balance: updated last_sync_timestamp to %s", maxSyncedAt.Format(time.RFC3339)))
+		}
+	}
+
+	return totalProcessed, nil
+}
+
+func (t *tokenAnalytics) repopulateIndividualBalances(ctx context.Context, since time.Time) (int, time.Time, error) {
 	totalProcessed := 0
+	var maxSyncedAt time.Time
+	cursor := since
+
 	for {
 		positions, err := storage.Select[userPositionData](ctx, t.ingestedDataDB, `
 			SELECT 
@@ -217,106 +248,161 @@ func (t *tokenAnalytics) repopulateUserBalances(ctx context.Context) (int, error
 			FROM user_token_positions
 			WHERE balance_notified_at >= $1
 			OR balance_notified_at IS NULL
-			ORDER BY balance_notified_at ASC NULLS FIRST
+			ORDER BY balance_notified_at ASC NULLS FIRST, user_blockchain_address ASC, contract_address ASC
 			LIMIT $2
-		`, since, repopulateBatchSize)
+		`, cursor, repopulateBatchSize)
 		if err != nil {
-			return totalProcessed, errors.Wrap(err, "failed to query user positions")
+			return totalProcessed, maxSyncedAt, errors.Wrap(err, "failed to query user positions")
 		}
 		if len(positions) == 0 {
 			break
 		}
-		log.Debug(fmt.Sprintf("User balance repopulation: processing batch of %d positions", len(positions)))
+		log.Debug(fmt.Sprintf("User balance (individual): processing batch of %d positions", len(positions)))
 
-		var maxSyncedAt time.Time
 		updatedCount := 0
-		skippedCount := 0
-		zeroBalanceCount := 0
+		var lastBalanceNotifiedAt *time.Time
 
 		for _, pos := range positions {
-			notifiedAt := "NULL"
-			if pos.BalanceNotifiedAt != nil {
-				notifiedAt = pos.BalanceNotifiedAt.Format(time.RFC3339)
-			}
-
 			amountBig, ok := new(big.Int).SetString(pos.Amount, 10)
 			if !ok {
-				log.Error(errors.Errorf("User balance: skipping position with invalid amount: user=%s, token=%s, amount=%s, notified_at=%s",
-					pos.UserBlockchainAddress, pos.ExternalAddress, pos.Amount, notifiedAt))
-
+				log.Error(errors.Errorf("User balance: skipping position with invalid amount: user=%s, token=%s, amount=%s",
+					pos.UserBlockchainAddress, pos.ExternalAddress, pos.Amount))
 				continue
 			}
-			expectedAmount := weiToFloat64FromBigInt(amountBig)
+			individualAmount := weiToFloat64FromBigInt(amountBig)
 
 			if pos.BalanceNotifiedAt != nil && pos.BalanceNotifiedAt.After(maxSyncedAt) {
 				maxSyncedAt = *pos.BalanceNotifiedAt
 			}
-
-			userExternal := ""
-			if pos.UserExternalAddress != nil {
-				userExternal = *pos.UserExternalAddress
-			}
-			userPositionKey := keyUserPositionOfToken(pos.ExternalAddress)
-			actualAmount, err := t.processedDataDB.ZScore(ctx, userPositionKey, userExternal).Result()
-
-			if expectedAmount == 0 {
-				if !errors.Is(err, redis.Nil) {
-					if err := t.updateUserPositionInRedis(ctx, pos.UserBlockchainAddress, userExternal, pos.ExternalAddress, 0); err != nil {
-						log.Error(errors.Wrapf(err, "failed to remove zero balance from Redis: user=%s (external=%s), token=%s",
-							pos.UserBlockchainAddress, userExternal, pos.ExternalAddress))
-					} else {
-						zeroBalanceCount++
-					}
-				}
-
-				continue
-			}
-			log.Debug(fmt.Sprintf("User balance: processing position | user=%s (external=%s), token=%s, amount_wei=%s, amount_float=%.2f, notified_at=%s",
-				pos.UserBlockchainAddress, userExternal, pos.ExternalAddress, pos.Amount, expectedAmount, notifiedAt))
-
-			if errors.Is(err, redis.Nil) || actualAmount != expectedAmount {
-				if err := t.updateUserPositionInRedis(ctx, pos.UserBlockchainAddress, userExternal, pos.ExternalAddress, expectedAmount); err != nil {
-					log.Error(errors.Wrapf(err, "failed to update user position in Redis: user=%s (external=%s), token=%s, expected_balance=%.2f, notified_at=%s",
-						pos.UserBlockchainAddress, userExternal, pos.ExternalAddress, expectedAmount, notifiedAt))
-				} else {
-					action := "updated"
-					if errors.Is(err, redis.Nil) {
-						action = "created"
-					}
-					log.Debug(fmt.Sprintf("User balance: %s position in Redis: user=%s (external=%s), token=%s, balance: %.2f → %.2f, notified_at=%s",
-						action, pos.UserBlockchainAddress, userExternal, pos.ExternalAddress, actualAmount, expectedAmount, notifiedAt))
-					updatedCount++
+			lastBalanceNotifiedAt = pos.BalanceNotifiedAt
+			byBlockchainKey := keyUserPositionOfTokenByUserBlockchainAddress(pos.ExternalAddress)
+			if individualAmount <= 0 {
+				if err := t.processedDataDB.ZRem(ctx, byBlockchainKey, pos.UserBlockchainAddress).Err(); err != nil {
+					log.Error(errors.Wrapf(err, "Individual balance: failed to remove from Redis for user=%s, token=%s",
+						pos.UserBlockchainAddress, pos.ExternalAddress))
+					continue
 				}
 			} else {
-				skippedCount++
+				if err := t.processedDataDB.ZAdd(ctx, byBlockchainKey, redis.Z{
+					Score:  individualAmount,
+					Member: pos.UserBlockchainAddress,
+				}).Err(); err != nil {
+					log.Error(errors.Wrapf(err, "Individual balance: failed to add to Redis for user=%s, token=%s",
+						pos.UserBlockchainAddress, pos.ExternalAddress))
+					continue
+				}
+				updatedCount++
 			}
-		}
-
-		if updatedCount > 0 || skippedCount > 0 || zeroBalanceCount > 0 {
-			log.Debug(fmt.Sprintf("User balance batch summary: updated=%d, skipped=%d (already up-to-date), zero_balance=%d (removed), total=%d",
-				updatedCount, skippedCount, zeroBalanceCount, len(positions)))
 		}
 		totalProcessed += len(positions)
-		if !maxSyncedAt.IsZero() {
-			since = maxSyncedAt
-			if err := t.processedDataDB.Set(ctx, redisKeyLastBalanceSync,
-				maxSyncedAt.Format(time.RFC3339Nano), 0).Err(); err != nil {
 
-				log.Error(errors.Wrap(err, "failed to update last balance sync timestamp"))
-			} else {
-				log.Debug(fmt.Sprintf("User balance: updated last_sync_timestamp to %s", maxSyncedAt.Format(time.RFC3339)))
-			}
+		if updatedCount > 0 {
+			log.Debug(fmt.Sprintf("User balance (individual) batch: updated=%d, total=%d", updatedCount, len(positions)))
 		}
+
 		if len(positions) < repopulateBatchSize {
 			break
+		}
+		if lastBalanceNotifiedAt != nil {
+			cursor = *lastBalanceNotifiedAt
 		}
 
 		select {
 		case <-ctx.Done():
-			return totalProcessed, ctx.Err()
+			return totalProcessed, maxSyncedAt, ctx.Err()
 		case <-time.After(10 * time.Millisecond):
 		}
 	}
 
-	return totalProcessed, nil
+	return totalProcessed, maxSyncedAt, nil
+}
+
+func (t *tokenAnalytics) repopulateAggregateBalances(ctx context.Context, since time.Time) (int, time.Time, error) {
+	type aggregateRow struct {
+		UserExternalAddress string     `db:"user_external_address"`
+		ExternalAddress     string     `db:"external_address"`
+		Amount              string     `db:"amount"`
+		UpdatedAt           *time.Time `db:"updated_at"`
+	}
+
+	totalProcessed := 0
+	var maxSyncedAt time.Time
+	cursor := since
+
+	for {
+		rows, err := storage.Select[aggregateRow](ctx, t.ingestedDataDB, `
+			SELECT 
+				user_external_address,
+				external_address,
+				amount::text,
+				updated_at
+			FROM user_aggregate_positions
+			WHERE updated_at >= $1
+			ORDER BY updated_at ASC, user_external_address ASC, external_address ASC
+			LIMIT $2
+		`, cursor, repopulateBatchSize)
+		if err != nil {
+			return totalProcessed, maxSyncedAt, errors.Wrap(err, "failed to query aggregate positions")
+		}
+		if len(rows) == 0 {
+			break
+		}
+		log.Debug(fmt.Sprintf("User balance (aggregate): processing batch of %d positions", len(rows)))
+
+		updatedCount := 0
+		var lastUpdatedAt *time.Time
+		for _, row := range rows {
+			if row.UpdatedAt != nil && row.UpdatedAt.After(maxSyncedAt) {
+				maxSyncedAt = *row.UpdatedAt
+			}
+			lastUpdatedAt = row.UpdatedAt
+
+			amountBig, ok := new(big.Int).SetString(row.Amount, 10)
+			if !ok {
+				log.Error(errors.Errorf("Aggregate balance: invalid amount for user=%s, token=%s, amount=%s",
+					row.UserExternalAddress, row.ExternalAddress, row.Amount))
+				continue
+			}
+			aggregateAmount := weiToFloat64FromBigInt(amountBig)
+			aggregateKey := keyUserPositionOfToken(row.ExternalAddress)
+
+			if aggregateAmount <= 0 {
+				if err := t.processedDataDB.ZRem(ctx, aggregateKey, row.UserExternalAddress).Err(); err != nil {
+					log.Error(errors.Wrapf(err, "Aggregate balance: failed to remove from Redis for user=%s, token=%s",
+						row.UserExternalAddress, row.ExternalAddress))
+					continue
+				}
+			} else {
+				if err := t.processedDataDB.ZAdd(ctx, aggregateKey, redis.Z{
+					Score:  aggregateAmount,
+					Member: row.UserExternalAddress,
+				}).Err(); err != nil {
+					log.Error(errors.Wrapf(err, "Aggregate balance: failed to add to Redis for user=%s, token=%s",
+						row.UserExternalAddress, row.ExternalAddress))
+					continue
+				}
+				updatedCount++
+			}
+		}
+		totalProcessed += len(rows)
+
+		if updatedCount > 0 {
+			log.Debug(fmt.Sprintf("User balance (aggregate) batch: updated=%d, total=%d", updatedCount, len(rows)))
+		}
+
+		if len(rows) < repopulateBatchSize {
+			break
+		}
+		if lastUpdatedAt != nil {
+			cursor = *lastUpdatedAt
+		}
+
+		select {
+		case <-ctx.Done():
+			return totalProcessed, maxSyncedAt, ctx.Err()
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+
+	return totalProcessed, maxSyncedAt, nil
 }

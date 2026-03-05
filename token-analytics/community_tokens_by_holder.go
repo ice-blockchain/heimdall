@@ -51,10 +51,11 @@ func (t *tokenAnalytics) GetCommunityTokensByHolder(ctx context.Context, holderE
 			COALESCE(t.bonding_curve_goal_amount_usd, 0) as bonding_curve_goal_amount_usd,
 			COALESCE(t.bonding_curve_migrated, FALSE) as bonding_curve_migrated,
 			COALESCE(t.bonding_curve_raised_amount, 0) as bonding_curve_raised_amount,
-			COALESCE(utp.amount, '0') as position_amount,
-			COALESCE((utp.amount::NUMERIC / 1e18) * t.price_usd, 0) as position_amount_usd,
-			COALESCE(utp.total_invested_usd, 0) as position_total_invested_usd,
-			COALESCE(utp.total_realized_usd, 0) as position_total_realized_usd,
+			COALESCE(uap.amount, '0') as position_amount,
+			COALESCE((uap.amount::NUMERIC / 1e18) * t.price_usd, 0) as position_amount_usd,
+			COALESCE(uap.total_invested_usd, 0) as position_total_invested_usd,
+			COALESCE(uap.total_realized_usd, 0) as position_total_realized_usd,
+			COALESCE(uap.total_fees_usd, 0) as position_total_fees_usd,
 			launcher.username as launcher_username,
 			launcher.display_name as launcher_display,
 			launcher.verified as launcher_verified,
@@ -72,8 +73,8 @@ func (t *tokenAnalytics) GetCommunityTokensByHolder(ctx context.Context, holderE
 			creator_token.external_address as creator_token_external_address,
 			creator_token.platform as creator_token_platform,
 			creator_token.ion_connect_address as creator_token_ion_connect_address
-		FROM user_token_positions utp
-		INNER JOIN tokens t ON t.external_address = utp.external_address
+		FROM user_aggregate_positions uap
+		INNER JOIN tokens t ON t.external_address = uap.external_address
 		LEFT JOIN users holder_user ON holder_user.external_address = $1
 		LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
 		LEFT JOIN users creator ON creator.id = creator_addr.user_id
@@ -91,10 +92,10 @@ func (t *tokenAnalytics) GetCommunityTokensByHolder(ctx context.Context, holderE
 		LEFT JOIN user_bsc_addresses launcher_addr ON launcher_addr.bsc_address = first_swap.user_blockchain_address
 		LEFT JOIN users launcher ON launcher.id = launcher_addr.user_id
 		LEFT JOIN tokens creator_token ON creator_token.contract_address = t.base_token AND creator_token.type = 'profile'
-		WHERE utp.user_external_address = $1
-		  AND utp.amount > '0'
+		WHERE uap.user_external_address = $1
+		  AND uap.amount > 0
 		  AND t.ticker IS NOT NULL
-		ORDER BY utp.amount DESC
+		ORDER BY uap.amount DESC
 		LIMIT $2 OFFSET $3
 	`
 

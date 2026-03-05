@@ -41,7 +41,6 @@ func TestGetHolderPositions(t *testing.T) {
 			tokenExt,
 			"0:holder_a:",
 			"5000000000000000000000", // 5000 tokens
-			0.00009,
 			0.45,
 		)
 		helperInsertUserTokenPosition(t, ctx, db,
@@ -50,7 +49,6 @@ func TestGetHolderPositions(t *testing.T) {
 			tokenExt,
 			"0:holder_b:",
 			"3000000000000000000000", // 3000 tokens
-			0.00008,
 			0.24,
 		)
 
@@ -127,7 +125,6 @@ func TestGetHolderPositions(t *testing.T) {
 			tokenExt,
 			"0:holder_pnl_test:",
 			"150000000000000000000", // 150 tokens
-			0.003,                   // avg_buy_price_usd
 			0.9,                     // total_invested_usd
 			0.45,                    // total_realized_usd (revenue from sale)
 		)
@@ -174,7 +171,6 @@ func TestGetHolderPositions(t *testing.T) {
 			tokenExt,
 			"0:holder_profit_test:",
 			"100000000000000000000", // 100 tokens
-			0.5,                     // avg_buy_price_usd
 			100.0,                   // total_invested_usd
 			60.0,                    // total_realized_usd
 		)
@@ -221,7 +217,6 @@ func TestGetHolderPositions(t *testing.T) {
 			tokenExt,
 			"0:holder_loss_test:",
 			"100000000000000000000", // 100 tokens
-			0.5,                     // avg_buy_price_usd
 			100.0,                   // total_invested_usd
 			40.0,                    // total_realized_usd
 		)
