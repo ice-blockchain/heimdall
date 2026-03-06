@@ -1,3 +1,5 @@
+-- SPDX-License-Identifier: ice License 1.0
+
 CREATE OR REPLACE FUNCTION update_market_cap_and_position(
     p_block_timestamp TIMESTAMP,
     p_user_blockchain_address TEXT,
