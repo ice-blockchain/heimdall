@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/rcrowley/go-metrics"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -205,6 +206,7 @@ type (
 		ionApi                  ton.APIClientWrapped
 		erc20ABI                abi.ABI
 		coinFeesProvider        CoinFeesProvider
+		metrics                 metrics.Registry
 	}
 	config struct {
 		DFNS dfnsCfg `yaml:"delegated_relying_party" mapstructure:"delegated_relying_party"`
@@ -344,5 +346,7 @@ var (
 			return c.broadcastTONTransaction(ctx, c.ionApi, networkION, walletID, walletPubKey, txPayload)
 		},
 	}
-	errNoSerialize = errors.New("no serialize")
+	errNoSerialize   = errors.New("no serialize")
+	dfnsUserRegexp   = regexp.MustCompile(`us-[0-9a-z\\-]+($|/)`)
+	dfnsWalletRegexp = regexp.MustCompile(`wa-[0-9a-z\\-]+($|/)`)
 )

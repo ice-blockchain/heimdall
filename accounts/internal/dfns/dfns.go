@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	stdlog "log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -24,6 +25,7 @@ import (
 	"github.com/dfns/dfns-sdk-go/dfnsapiclient"
 	ethabi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/goccy/go-json"
+	"github.com/rcrowley/go-metrics"
 	"github.com/twilio/twilio-go/client/form"
 
 	"github.com/ice-blockchain/heimdall/server"
@@ -54,6 +56,7 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 		tonApi:                mustInitTONClient(ctx, cfg.DFNS.TON.GlobalConfigURL),
 		ionApi:                mustInitTONClient(ctx, cfg.DFNS.ION.GlobalConfigURL),
 		coinFeesProvider:      coinFeesProvider,
+		metrics:               metrics.NewRegistry(),
 	}
 	var err error
 	cl.erc20ABI, err = ethabi.JSON(strings.NewReader(erc20ABI))
@@ -106,7 +109,12 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 		"200:" + networkFeesUrl: cl.extendFees(),
 		"400:" + networkFeesUrl: cl.extendFees(),
 	}
+	go metrics.LogScaled(cl.metrics, 1*stdlibtime.Minute, 1*stdlibtime.Millisecond, cl)
 	return cl
+}
+
+func (c *dfnsClient) Printf(format string, args ...interface{}) {
+	stdlog.Printf(format, args...)
 }
 
 func (c *dfnsClient) extendFees() func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
@@ -434,6 +442,7 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 		return extendErrBody.HTTPStatus, bytes.NewBuffer(resp)
 	}
 	rb := &proxyResponseBody{ResponseWriter: rw, Body: respBody}
+	start := stdlibtime.Now()
 	if c.urlRequiresServiceAccountSignature(req.URL.Path, req.Method) {
 		cl := c.serviceAccountClient()
 		pr := c.proxy("service")
@@ -446,6 +455,13 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 		bodyData, _ := io.ReadAll(respBody)
 		log.Error(errors.Wrapf(buildDfnsError(rb.Status, req.Method, bodyData), "dfns req to %v %v ended up with %v", req.Method, req.URL.Path, rb.Status))
 	}
+	duration := stdlibtime.Since(start)
+	to := c.metrics.GetOrRegister("to:"+escapeUriForMetrics(req.URL.Path), metrics.NewTimer()).(metrics.Timer)
+	to.Update(duration)
+	from := c.metrics.GetOrRegister("from:"+escapeUriForMetrics(req.URL.Path), metrics.NewTimer()).(metrics.Timer)
+	from.Update(duration)
+	all := c.metrics.GetOrRegister("all", metrics.NewTimer()).(metrics.Timer)
+	all.Update(duration)
 
 	return rb.Status, respBody
 }
@@ -925,6 +941,7 @@ func dfnsCall[REQ any, RESP any](ctx context.Context, c *dfnsClient, params *REQ
 		}
 		postData = []byte(s)
 	}
+	start := stdlibtime.Now()
 	status, body, err := c.clientCall(ctx, method, uri, headers, postData, noBackoffStatusCodes...)
 	if err != nil {
 		if dfnsErr := ParseErrAsDfnsInternalErr(err); dfnsErr != nil {
@@ -935,6 +952,17 @@ func dfnsCall[REQ any, RESP any](ctx context.Context, c *dfnsClient, params *REQ
 		err = buildDfnsError(status, uri, body)
 		return nil, errors.Wrapf(err, "failed to call %v %v", method, uri)
 	}
+	duration := stdlibtime.Since(start)
+	to := c.metrics.GetOrRegister("to:"+escapeUriForMetrics(uri), metrics.NewTimer()).(metrics.Timer)
+	to.Update(duration)
+	calledFromEndpointV := ctx.Value(server.EndpointUrlCtxValueKey)
+	if calledFromEndpointV != nil {
+		from := c.metrics.GetOrRegister("from:"+escapeUriForMetrics(calledFromEndpointV.(string)), metrics.NewTimer()).(metrics.Timer)
+		from.Update(duration)
+	}
+
+	all := c.metrics.GetOrRegister("all", metrics.NewTimer()).(metrics.Timer)
+	all.Update(duration)
 	var resp RESP
 	if err = json.UnmarshalContext(ctx, body, &resp); err != nil {
 		return nil, errors.Wrapf(err, "failed to unmarshal response %v for call %v %v", string(body), method, uri)
@@ -1041,4 +1069,9 @@ func (*dfnsClient) overwriteHostProxy(remote *url.URL) func(req *http.Request) {
 		req.URL.Scheme = remote.Scheme
 		req.URL.Host = remote.Host
 	}
+}
+
+func escapeUriForMetrics(uri string) string {
+	replacedUser := dfnsUserRegexp.ReplaceAllString(uri, "user_id/")
+	return dfnsWalletRegexp.ReplaceAllString(replacedUser, "wallet_id/")
 }
