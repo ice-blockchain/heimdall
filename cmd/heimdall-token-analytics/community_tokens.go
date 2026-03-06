@@ -737,8 +737,13 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 			}
 		}
 
+		platformFilter := ""
+		if req.Token.Platform() == server.TokenTypeXCom {
+			platformFilter = ta.TokenTypeXcomCombined
+		}
+
 		sendData := func() bool {
-			tokens, err := s.tokenAnalytics.GetCommunityTokensByExternalAddresses(ctx, req.Data.ExternalAddresses, req.Token.GetMasterPublicKey(), req.Data.IncludeTopPlatformHolders, req.Data.Keyword, req.Data.Limit, req.Data.Offset, "")
+			tokens, err := s.tokenAnalytics.GetCommunityTokensByExternalAddresses(ctx, req.Data.ExternalAddresses, req.Token.GetMasterPublicKey(), req.Data.IncludeTopPlatformHolders, req.Data.Keyword, req.Data.Limit, req.Data.Offset, platformFilter)
 			if err != nil {
 				slog.ErrorContext(ctx, "failed to get community tokens for streaming", "error", err, "addresses", req.Data.ExternalAddresses)
 				sendEvent(server.StreamEvent[ta.CommunityToken]{
@@ -829,13 +834,19 @@ func (s *service) StreamCommunityTokensByType(ctx context.Context, req *server.R
 			}
 		}
 
+		tokenType := req.Data.Type
+		if req.Data.ViewType == ta.TokenTypeLatest && req.Token.Platform() == server.TokenTypeXCom && (tokenType == nil || *tokenType == "") {
+			combined := ta.TokenTypeXcomCombined
+			tokenType = &combined
+		}
+
 		sendData := func() bool {
 			var tokens []*ta.CommunityToken
 			var err error
 			if (req.Data.ViewType == ta.TokenTypeTop || req.Data.ViewType == ta.TokenTypeTrending || req.Data.ViewType == ta.TokenTypeBondingCurveProgress) && req.Data.ViewingSessionID != "" {
 				tokens, err = s.tokenAnalytics.GetTokensFromViewingSession(ctx, req.Data.ViewType, req.Data.ViewingSessionID, "", limit, 0)
 			} else {
-				tokens, err = s.tokenAnalytics.GetCommunityTokensByType(ctx, req.Data.ViewType, req.Data.Type, "", limit, 0)
+				tokens, err = s.tokenAnalytics.GetCommunityTokensByType(ctx, req.Data.ViewType, tokenType, "", limit, 0)
 			}
 
 			if err != nil {
