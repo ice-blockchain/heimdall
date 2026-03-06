@@ -11,7 +11,7 @@ replace (
 
 require (
 	dario.cat/mergo v1.0.2
-	github.com/alitto/pond/v2 v2.6.2
+	github.com/alitto/pond/v2 v2.7.0
 	github.com/btcsuite/btcd v0.25.0
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.10
 	github.com/caddyserver/certmagic v0.25.2
@@ -95,7 +95,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0 // indirect
 	github.com/MicahParks/keyfunc v1.9.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20260303081205-342d20cce05a // indirect
+	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20260306153642-7af605dba7e9 // indirect
 	github.com/VictoriaMetrics/fastcache v1.13.3 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.41.3 // indirect
