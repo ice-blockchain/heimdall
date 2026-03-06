@@ -109,12 +109,56 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 		"200:" + networkFeesUrl: cl.extendFees(),
 		"400:" + networkFeesUrl: cl.extendFees(),
 	}
-	go metrics.LogScaled(cl.metrics, 1*stdlibtime.Minute, 1*stdlibtime.Millisecond, cl)
+	go cl.logMetrics(ctx)
 	return cl
 }
 
-func (c *dfnsClient) Printf(format string, args ...interface{}) {
-	stdlog.Printf(format, args...)
+func (c *dfnsClient) logMetrics(ctx context.Context) {
+	ticks := make(chan struct{}, 1)
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() {
+		ticker := stdlibtime.NewTicker(60 * stdlibtime.Second)
+		defer ticker.Stop()
+		defer close(ticks)
+
+		for {
+			select {
+			case <-ticker.C:
+				select {
+				case ticks <- struct{}{}:
+				default:
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	i := uint64(0)
+	for range ticks {
+		c.metrics.Each(func(name string, i interface{}) {
+			switch metric := i.(type) {
+			case metrics.Meter:
+				m := metric.Snapshot()
+				stdlog.Printf(
+					"meter %s, count: %d, 1-min rate: %.2f, 5-min rate: %.2f, 15-min rate: %.2f, mean rate: %.2f\n",
+					name,
+					m.Count(),
+					m.Rate1(),
+					m.Rate5(),
+					m.Rate15(),
+					m.RateMean(),
+				)
+			default:
+				log.Warn("Unsupported metric in custom logger: %v %T", metric, metric)
+			}
+		})
+		if i%15 == 0 {
+			c.metrics.UnregisterAll()
+		}
+		i += 1
+	}
 }
 
 func (c *dfnsClient) extendFees() func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error {
@@ -442,7 +486,6 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 		return extendErrBody.HTTPStatus, bytes.NewBuffer(resp)
 	}
 	rb := &proxyResponseBody{ResponseWriter: rw, Body: respBody}
-	start := stdlibtime.Now()
 	if c.urlRequiresServiceAccountSignature(req.URL.Path, req.Method) {
 		cl := c.serviceAccountClient()
 		pr := c.proxy("service")
@@ -455,13 +498,12 @@ func (c *dfnsClient) ProxyCall(ctx context.Context, rw http.ResponseWriter, req 
 		bodyData, _ := io.ReadAll(respBody)
 		log.Error(errors.Wrapf(buildDfnsError(rb.Status, req.Method, bodyData), "dfns req to %v %v ended up with %v", req.Method, req.URL.Path, rb.Status))
 	}
-	duration := stdlibtime.Since(start)
-	to := c.metrics.GetOrRegister("to:"+escapeUriForMetrics(req.URL.Path), metrics.NewTimer()).(metrics.Timer)
-	to.Update(duration)
-	from := c.metrics.GetOrRegister("from:"+escapeUriForMetrics(req.URL.Path), metrics.NewTimer()).(metrics.Timer)
-	from.Update(duration)
-	all := c.metrics.GetOrRegister("all", metrics.NewTimer()).(metrics.Timer)
-	all.Update(duration)
+	to := c.metrics.GetOrRegister("to:"+escapeUriForMetrics(req.URL.Path), metrics.NewMeter()).(metrics.Meter)
+	to.Mark(1)
+	from := c.metrics.GetOrRegister("from:"+escapeUriForMetrics(req.URL.Path), metrics.NewMeter()).(metrics.Meter)
+	from.Mark(1)
+	all := c.metrics.GetOrRegister("all", metrics.NewMeter()).(metrics.Meter)
+	all.Mark(1)
 
 	return rb.Status, respBody
 }
@@ -941,7 +983,6 @@ func dfnsCall[REQ any, RESP any](ctx context.Context, c *dfnsClient, params *REQ
 		}
 		postData = []byte(s)
 	}
-	start := stdlibtime.Now()
 	status, body, err := c.clientCall(ctx, method, uri, headers, postData, noBackoffStatusCodes...)
 	if err != nil {
 		if dfnsErr := ParseErrAsDfnsInternalErr(err); dfnsErr != nil {
@@ -952,17 +993,16 @@ func dfnsCall[REQ any, RESP any](ctx context.Context, c *dfnsClient, params *REQ
 		err = buildDfnsError(status, uri, body)
 		return nil, errors.Wrapf(err, "failed to call %v %v", method, uri)
 	}
-	duration := stdlibtime.Since(start)
-	to := c.metrics.GetOrRegister("to:"+escapeUriForMetrics(uri), metrics.NewTimer()).(metrics.Timer)
-	to.Update(duration)
+	to := c.metrics.GetOrRegister("to:"+escapeUriForMetrics(uri), metrics.NewMeter()).(metrics.Meter)
+	to.Mark(1)
 	calledFromEndpointV := ctx.Value(server.EndpointUrlCtxValueKey)
 	if calledFromEndpointV != nil {
-		from := c.metrics.GetOrRegister("from:"+escapeUriForMetrics(calledFromEndpointV.(string)), metrics.NewTimer()).(metrics.Timer)
-		from.Update(duration)
+		from := c.metrics.GetOrRegister("from:"+escapeUriForMetrics(calledFromEndpointV.(string)), metrics.NewMeter()).(metrics.Meter)
+		from.Mark(1)
 	}
 
-	all := c.metrics.GetOrRegister("all", metrics.NewTimer()).(metrics.Timer)
-	all.Update(duration)
+	all := c.metrics.GetOrRegister("all", metrics.NewMeter()).(metrics.Meter)
+	all.Mark(1)
 	var resp RESP
 	if err = json.UnmarshalContext(ctx, body, &resp); err != nil {
 		return nil, errors.Wrapf(err, "failed to unmarshal response %v for call %v %v", string(body), method, uri)
