@@ -2180,23 +2180,21 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 			Amount           string  `db:"amount"`
 			TotalInvestedUSD float64 `db:"total_invested_usd"`
 			TotalRealizedUSD float64 `db:"total_realized_usd"`
+			TotalFeesUSD     float64 `db:"total_fees_usd"`
 		}
 		pr, err := storage.Get[positionResult](ctx, db, `
-			SELECT amount::TEXT, total_invested_usd, total_realized_usd
+			SELECT amount::TEXT, total_invested_usd, total_realized_usd, total_fees_usd
 			FROM user_token_positions
 			WHERE user_blockchain_address = $1 AND contract_address = $2
 		`, testUserAddr, testTokenAddr)
 		require.NoError(t, err)
-		require.NotNil(t, pr)
-		require.Equal(t, "0", pr.Amount, "Position amount is now updated asynchronously via River queue, trigger sets it to 0")
-		// v_cost_usd := (p_input_amount / 1e18) * p_ion_price_usd
-		// v_cost_usd = (1000000000000000000000 / 1e18) * 0.003 = 1000 * 0.003 = 3 USD
-		require.InDelta(t, 3.0, pr.TotalInvestedUSD, 0.000001, "Total invested = (1000 * 10^18 / 1e18) * 0.003 USD = 3 USD")
-		require.Equal(t, 0.0, pr.TotalRealizedUSD, "Realized USD should be 0 for buy")
+		require.Equal(t, "0", pr.Amount, "Trigger creates position with zero amount (Go worker sets it later)")
+		require.Equal(t, 0.0, pr.TotalInvestedUSD, "Trigger no longer sets total_invested_usd (Go worker handles it)")
+		require.Equal(t, 0.0, pr.TotalRealizedUSD, "Trigger no longer sets total_realized_usd")
+		require.Equal(t, 0.0, pr.TotalFeesUSD, "Trigger no longer sets total_fees_usd")
 	})
 
-	t.Run("second_buy_updates_position", func(t *testing.T) {
-		// Second BUY: user buys another 490 tokens for 500 ION
+	t.Run("second_buy_updates_token_price", func(t *testing.T) {
 		blockTimestamp := "2024-01-01 13:00:00"
 		direction := false                      // BUY
 		inputAmount := "500000000000000000000"  // 500 ION
@@ -2219,24 +2217,15 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		type positionResult struct {
-			Amount           string  `db:"amount"`
-			TotalInvestedUSD float64 `db:"total_invested_usd"`
+		type tokenResult struct {
+			PriceUSD float64 `db:"price_usd"`
 		}
-		pr, err := storage.Get[positionResult](ctx, db, `
-			SELECT amount::TEXT, total_invested_usd
-			FROM user_token_positions
-			WHERE user_blockchain_address = $1 AND contract_address = $2
-		`, testUserAddr, testTokenAddr)
+		tr, err := storage.Get[tokenResult](ctx, db, `SELECT price_usd FROM tokens WHERE contract_address = $1`, testTokenAddr)
 		require.NoError(t, err)
-		require.NotNil(t, pr)
-		require.Equal(t, "0", pr.Amount, "Position amount is now updated asynchronously via River queue")
-		// Total invested = 3 + 1.5 = 4.5 USD
-		require.InDelta(t, 4.5, pr.TotalInvestedUSD, 0.000001, "Total invested should accumulate: 3 + 1.5 = 4.5 USD")
+		require.InDelta(t, priceUSD, tr.PriceUSD, 0.000001, "Token price should be updated on second buy")
 	})
 
-	t.Run("sell_updates_position_and_realizes_pnl", func(t *testing.T) {
-		// SELL: user sells 500 tokens for 520 ION (profit!)
+	t.Run("sell_updates_token_price", func(t *testing.T) {
 		blockTimestamp := "2024-01-01 14:00:00"
 		direction := true                       // SELL
 		inputAmount := "500000000000000000000"  // 500 tokens
@@ -2259,24 +2248,15 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		type positionResult struct {
-			Amount           string  `db:"amount"`
-			TotalRealizedUSD float64 `db:"total_realized_usd"`
+		type tokenResult struct {
+			PriceUSD float64 `db:"price_usd"`
 		}
-		pr, err := storage.Get[positionResult](ctx, db, `
-			SELECT amount::TEXT, total_realized_usd
-			FROM user_token_positions
-			WHERE user_blockchain_address = $1 AND contract_address = $2
-		`, testUserAddr, testTokenAddr)
+		tr, err := storage.Get[tokenResult](ctx, db, `SELECT price_usd FROM tokens WHERE contract_address = $1`, testTokenAddr)
 		require.NoError(t, err)
-		require.NotNil(t, pr)
-		require.Equal(t, "0", pr.Amount, "Position amount is now updated asynchronously via River queue")
-		// Realized = (520 * 10^18 / 1e18) * 0.003 USD = 520 * 0.003 = 1.56 USD
-		require.InDelta(t, 1.56, pr.TotalRealizedUSD, 0.000001, "Realized USD should be (520 * 10^18 / 1e18) * 0.003 = 1.56 USD")
+		require.InDelta(t, priceUSD, tr.PriceUSD, 0.000001, "Token price should be updated on sell")
 	})
 
-	t.Run("sell_all_zeros_position", func(t *testing.T) {
-		// SELL ALL: user sells remaining 970 tokens
+	t.Run("sell_all_updates_token_price", func(t *testing.T) {
 		blockTimestamp := "2024-01-01 15:00:00"
 		direction := true                        // SELL
 		inputAmount := "970000000000000000000"   // 970 tokens
@@ -2299,20 +2279,12 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		type positionResult struct {
-			Amount           string  `db:"amount"`
-			TotalRealizedUSD float64 `db:"total_realized_usd"`
+		type tokenResult struct {
+			PriceUSD float64 `db:"price_usd"`
 		}
-		pr, err := storage.Get[positionResult](ctx, db, `
-			SELECT amount::TEXT, total_realized_usd
-			FROM user_token_positions
-			WHERE user_blockchain_address = $1 AND contract_address = $2
-		`, testUserAddr, testTokenAddr)
+		tr, err := storage.Get[tokenResult](ctx, db, `SELECT price_usd FROM tokens WHERE contract_address = $1`, testTokenAddr)
 		require.NoError(t, err)
-		require.NotNil(t, pr)
-		require.Equal(t, "0", pr.Amount, "Position should be zero after selling all")
-		// Total realized = 1.56 + 3.0 = 4.56 USD
-		require.InDelta(t, 4.56, pr.TotalRealizedUSD, 0.000001, "Total realized should accumulate: 1.56 + 3.0 = 4.56 USD")
+		require.InDelta(t, priceUSD, tr.PriceUSD, 0.000001, "Token price should be updated after sell all")
 	})
 
 	t.Run("profile_token_updates_base_token_price", func(t *testing.T) {
@@ -2410,7 +2382,7 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 		require.NotNil(t, tr.ImageURL)
 		require.Equal(t, customImageURL, *tr.ImageURL, "image_url should NOT be overwritten on subsequent buys")
 	})
-	t.Run("fee_accumulates_on_buy", func(t *testing.T) {
+	t.Run("trigger_creates_position_with_zero_totals", func(t *testing.T) {
 		feeUserAddr := "0xfeeaccum0000000000000000000000000000001"
 		feeUserPubkey := "feeaccum0001pubkey0000000000000000000000000000000000000000000001"
 		feeUserExtAddr := "0:" + feeUserPubkey + ":"
@@ -2426,9 +2398,6 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 		`, feeUserPubkey, feeUserExtAddr, feeUserAddr)
 		require.NoError(t, err)
 
-		// Buy: input=100 ION, output=98 tokens, fee=2 ION
-		// v_fee_usd = (2e18 / 1e18) * 0.003 = 0.006
-		// v_cost_usd = (100e18 / 1e18) * 0.003 = 0.3
 		_, err = storage.Exec(ctx, db, `
 			SELECT update_market_cap_and_position($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		`,
@@ -2436,13 +2405,13 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 			feeUserAddr,
 			testTokenAddr,
 			testTokenExtAddr,
-			false,                   // BUY
-			"100000000000000000000", // 100 ION input
-			"98000000000000000000",  // 98 tokens output
+			false,
+			"100000000000000000000",
+			"98000000000000000000",
 			0.003061224489795918,
 			ionPriceUSD,
 			totalSupply,
-			"2000000000000000000", // 2 ION fee
+			"2000000000000000000",
 		)
 		require.NoError(t, err)
 
@@ -2456,76 +2425,10 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 			WHERE user_blockchain_address = $1 AND contract_address = $2
 		`, feeUserAddr, testTokenAddr)
 		require.NoError(t, err)
-		// cost = 100 * 0.003 = 0.3 USD; fee = 2 * 0.003 = 0.006 USD
-		require.InDelta(t, 0.3, pos.TotalInvestedUSD, 0.001, "invested should be 100 * 0.003 = 0.3 USD")
-		require.InDelta(t, 0.006, pos.TotalFeesUSD, 0.0001, "fee should be 2 * 0.003 = 0.006 USD")
-
-		// Second buy with fee — fees must accumulate.
-		_, err = storage.Exec(ctx, db, `
-			SELECT update_market_cap_and_position($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-		`,
-			"2024-02-01 11:00:00",
-			feeUserAddr,
-			testTokenAddr,
-			testTokenExtAddr,
-			false,                  // BUY
-			"50000000000000000000", // 50 ION input
-			"49000000000000000000", // 49 tokens output
-			0.003061224489795918,
-			ionPriceUSD,
-			totalSupply,
-			"1000000000000000000", // 1 ION fee
-		)
-		require.NoError(t, err)
-
-		pos2, err := storage.Get[posRow](ctx, db, `
-			SELECT total_invested_usd, total_fees_usd
-			FROM user_token_positions
-			WHERE user_blockchain_address = $1 AND contract_address = $2
-		`, feeUserAddr, testTokenAddr)
-		require.NoError(t, err)
-		// accumulated: invested = 0.3 + 0.15 = 0.45; fees = 0.006 + 0.003 = 0.009
-		require.InDelta(t, 0.45, pos2.TotalInvestedUSD, 0.001, "invested should accumulate: 0.3+0.15=0.45 USD")
-		require.InDelta(t, 0.009, pos2.TotalFeesUSD, 0.0001, "fees should accumulate: 0.006+0.003=0.009 USD")
+		require.Equal(t, 0.0, pos.TotalInvestedUSD, "Trigger creates position but does NOT set invested (Go worker handles it)")
+		require.Equal(t, 0.0, pos.TotalFeesUSD, "Trigger creates position but does NOT set fees (Go worker handles it)")
 	})
-
-	t.Run("fee_accumulates_on_sell", func(t *testing.T) {
-		feeUserAddr := "0xfeeaccum0000000000000000000000000000001"
-
-		// Sell: input=49 tokens, output=48 ION, fee=1 ION
-		// v_fee_usd = (1e18 / 1e18) * 0.003 = 0.003
-		_, err := storage.Exec(ctx, db, `
-			SELECT update_market_cap_and_position($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-		`,
-			"2024-02-01 12:00:00",
-			feeUserAddr,
-			testTokenAddr,
-			testTokenExtAddr,
-			true,                   // SELL
-			"49000000000000000000", // 49 tokens input
-			"48000000000000000000", // 48 ION output
-			0.00293877,
-			ionPriceUSD,
-			totalSupply,
-			"1000000000000000000", // 1 ION fee
-		)
-		require.NoError(t, err)
-
-		type posRow struct {
-			TotalRealizedUSD float64 `db:"total_realized_usd"`
-			TotalFeesUSD     float64 `db:"total_fees_usd"`
-		}
-		pos, err := storage.Get[posRow](ctx, db, `
-			SELECT total_realized_usd, total_fees_usd
-			FROM user_token_positions
-			WHERE user_blockchain_address = $1 AND contract_address = $2
-		`, feeUserAddr, testTokenAddr)
-		require.NoError(t, err)
-		// realized = 48 * 0.003 = 0.144 USD; fees = 0.009 (prev) + 0.003 = 0.012 USD
-		require.InDelta(t, 0.144, pos.TotalRealizedUSD, 0.001, "realized should be 48 * 0.003 = 0.144 USD")
-		require.InDelta(t, 0.012, pos.TotalFeesUSD, 0.0001, "sell fees should accumulate onto buy fees")
-	})
-	t.Run("pool_self_buy_creates_position_with_token_ext_address", func(t *testing.T) {
+	t.Run("pool_self_buy_creates_position_with_ext_address", func(t *testing.T) {
 		poolTokenAddr := "0xpooltoken0000000000000000000000000001"
 		poolTokenExtAddr := "30175:poolpubkey001:poolpost001"
 
@@ -2537,7 +2440,7 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 			VALUES ($1, $2, 'Pool Token', 'POOL', $3, $4, $5, 'post', 'ionconnect', NOW(), NOW(), '0xcreatorpool')
 		`,
 			strings.ToLower(poolTokenAddr), poolTokenExtAddr,
-			strings.ToLower(ionAddress), // base_token = ION (simplified; content token normally uses profile)
+			strings.ToLower(ionAddress),
 			"0xpoolpair0000000000000000000000000000001",
 			"500000000000000000000000",
 		)
@@ -2547,12 +2450,12 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 			SELECT update_market_cap_and_position($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		`,
 			"2024-03-01 10:00:00",
-			strings.ToLower(poolTokenAddr), // swapper = pool = token address
-			strings.ToLower(poolTokenAddr), // token address
+			strings.ToLower(poolTokenAddr),
+			strings.ToLower(poolTokenAddr),
 			poolTokenExtAddr,
-			false,                   // BUY
-			"200000000000000000000", // 200 units input
-			"196000000000000000000", // 196 units output
+			false,
+			"200000000000000000000",
+			"196000000000000000000",
 			0.003061224,
 			ionPriceUSD,
 			"500000000000000000000000",
@@ -2571,21 +2474,10 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, poolTokenExtAddr, pos.UserExternalAddress,
 			"pool self-buy must set user_external_address = token_external_address")
-		require.InDelta(t, 0.6, pos.TotalInvestedUSD, 0.001, "pool invested = 200 * 0.003 = 0.6 USD")
-
-		type aggRow struct {
-			Count int `db:"count"`
-		}
-		agg, err := storage.Get[aggRow](ctx, db, `
-			SELECT COUNT(*) AS count FROM user_aggregate_positions
-			WHERE user_external_address = $1 AND external_address = $2
-		`, poolTokenExtAddr, poolTokenExtAddr)
-		require.NoError(t, err)
-		require.Equal(t, 1, agg.Count, "aggregate position must be created for pool via trigger")
+		require.Equal(t, 0.0, pos.TotalInvestedUSD, "Trigger creates position with zero totals")
 	})
 
 	t.Run("unknown_user_position_created_without_aggregate", func(t *testing.T) {
-		// Address not registered anywhere.
 		unknownAddr := "0xdeadbeef0000000000000000000000000000cafe"
 
 		_, err := storage.Exec(ctx, db, `
@@ -2595,16 +2487,15 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 			unknownAddr,
 			testTokenAddr,
 			testTokenExtAddr,
-			false,                  // BUY
-			"10000000000000000000", // 10 ION
-			"9800000000000000000",  // 9.8 tokens
+			false,
+			"10000000000000000000",
+			"9800000000000000000",
 			0.003061224,
 			ionPriceUSD,
 			totalSupply,
 		)
 		require.NoError(t, err)
 
-		// Position row exists (with NULL user_external_address).
 		type posRow struct {
 			UserExternalAddress string `db:"user_external_address"`
 		}

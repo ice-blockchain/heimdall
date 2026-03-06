@@ -112,8 +112,8 @@ func TestBalanceUpdateJob_WithRPC(t *testing.T) {
 
 	helperInsertBaseTokenPrice(t, ctx, db, "0x2c73996babf1a06c2c057177353293f7ca0907c8", "ION", 0.01)
 	helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddr, "0x0000000000000000000000000000000000000000000000000000000000000001", "0x2c73996babf1a06c2c057177353293f7ca0907c8")
-	helperInsertTokenSwap(t, ctx, db, tokenContractAddr, tokenExternalAddr, userBlockchainAddr,
-		txHash, false, "1000000000000000000", "5000000000000000000", 0.10)
+	helperInsertUnprocessedSwap(t, ctx, db, tokenContractAddr, tokenExternalAddr, userBlockchainAddr,
+		txHash, false, "1000000000000000000", "5000000000000000000", 0.10, "0")
 	err := ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
 		UserBlockchainAddress: userBlockchainAddr,
 		UserExternalAddress:   userExternalAddr,
@@ -436,8 +436,8 @@ func TestBalanceUpdateJob_RegistersTradeInQuestDB(t *testing.T) {
 	helperInsertTestToken(t, ctx, db, contractAddress, tokenExternalAddress, "TEST", TokenTypeProfile, "test_user", totalSupply, 0, 0, 0, PlatformGroupIonConnect)
 	helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddress, pairID, baseToken)
 
-	helperInsertTokenSwap(t, ctx, db, contractAddress, tokenExternalAddress, userBlockchainAddress,
-		txHash, false, "1000000000000000000", "10000000000000000000", 0.10)
+	helperInsertUnprocessedSwap(t, ctx, db, contractAddress, tokenExternalAddress, userBlockchainAddress,
+		txHash, false, "1000000000000000000", "10000000000000000000", 0.10, "0")
 
 	helperInsertUserPosition(t, ctx, db, userBlockchainAddress, contractAddress, tokenExternalAddress, userExternalAddress, "10000000000000000000")
 
@@ -562,5 +562,321 @@ func helperAddUserBscAddress(t testing.TB, ctx context.Context, db *storage.DB, 
 	_, err := storage.Exec(ctx, db, `
 		INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at) VALUES ($1, LOWER($2), NOW())
 	`, userID, bscAddress)
+	require.NoError(t, err)
+}
+
+func TestBalanceUpdateJob_TwistedBuyInvested(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	db, connString, release := helperCreateDBWithConnString(t)
+	defer release()
+
+	mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
+	twistedBalance, _ := new(big.Int).SetString("50000000000000000000", 10)
+	mockBackend.SetBalanceOfResponse(twistedBalance) // 50 tokens remaining after twisted
+	mockBackend.SetBondingCurveResponse(bondingcurve.BondingCurveBondingInfo{
+		CurrentPrice:      big.NewInt(500000000000000000), // 0.5 base
+		SoldTokens:        big.NewInt(int64(1e18)),
+		BondingTokensGoal: big.NewInt(int64(5e18)),
+		TokensRaised:      big.NewInt(int64(1e18)),
+		EndPrice:          big.NewInt(int64(1e17)),
+		StartPrice:        big.NewInt(int64(1e18)),
+		Migrated:          false,
+	})
+	mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+
+	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC), WithoutQuestDB())
+	defer ta.Close()
+
+	userBlockchainAddr := "0xaa00000000000000000000000000000000000001"
+	userExternalAddr := "0:twisted_user:"
+	contractAddr := "0xbb00000000000000000000000000000000000001"
+	tokenExternalAddr := "0:twisted_user:profile"
+	txHash := "0xtwisted_tx_001"
+	pairID := "0x0000000000000000000000000000000000000000000000000000000000000099"
+	baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+
+	helperInsertTestUser(t, ctx, db, userExternalAddr, "twisted_user", "Twisted User", userBlockchainAddr, false, PlatformGroupIonConnect)
+	helperInsertTestToken(t, ctx, db, contractAddr, tokenExternalAddr, "TPROF", "profile", userExternalAddr, "1000000000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+	helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddr, pairID, baseToken)
+	helperInsertBaseTokenPrice(t, ctx, db, baseToken, "ION", 0.01)
+	helperInsertUserPosition(t, ctx, db, userBlockchainAddr, contractAddr, tokenExternalAddr, userExternalAddr, "0")
+
+	// Swap bought 1000 profile tokens, but 950 spent on content → RPC returns 50 remaining.
+	helperInsertUnprocessedSwap(t, ctx, db, contractAddr, tokenExternalAddr, userBlockchainAddr,
+		txHash, false, "10000000000000000000", "1000000000000000000000", 0.01, "0")
+
+	err := ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
+		UserBlockchainAddress: userBlockchainAddr,
+		UserExternalAddress:   userExternalAddr,
+		ContractAddress:       contractAddr,
+		TokenExternalAddress:  tokenExternalAddr,
+		TransactionHash:       txHash,
+		BlockNumber:           12345,
+		PairID:                pairID,
+		BaseToken:             baseToken,
+		TokenType:             "profile",
+		Platform:              PlatformGroupIonConnect,
+	})
+	require.NoError(t, err)
+
+	helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
+
+	type position struct {
+		Amount           string  `db:"amount"`
+		TotalInvestedUSD float64 `db:"total_invested_usd"`
+	}
+	pos, err := storage.Get[position](ctx, db, `
+		SELECT amount, total_invested_usd FROM user_token_positions
+		WHERE user_blockchain_address = $1 AND contract_address = $2
+	`, strings.ToLower(userBlockchainAddr), strings.ToLower(contractAddr))
+	require.NoError(t, err)
+	require.Equal(t, "50000000000000000000", pos.Amount, "Balance should reflect 50 remaining tokens")
+
+	// curve_price_usd = 0.5 base * 1.15 ION price = 0.575 per token (ION price from helperNewForTest = 1.15)
+	// LEAST(output_amount=1000e18, amount=50e18) = 50e18
+	// invested = 0.575 * 50 = 28.75
+	require.InDelta(t, 28.75, pos.TotalInvestedUSD, 0.01, "Twisted buy invested should use LEAST(output, amount)")
+}
+
+func TestBalanceUpdateJob_FeeInOtherToken(t *testing.T) {
+	t.Parallel()
+
+	t.Run("fee_in_base_token", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		db, connString, release := helperCreateDBWithConnString(t)
+		defer release()
+
+		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
+		mockBackend.SetBalanceOfResponse(big.NewInt(5000000000000000000)) // 5 tokens
+		mockBackend.SetBondingCurveResponse(bondingcurve.BondingCurveBondingInfo{
+			CurrentPrice:      big.NewInt(500000000000000000), // 0.5 base
+			SoldTokens:        big.NewInt(int64(1e18)),
+			BondingTokensGoal: big.NewInt(int64(5e18)),
+			TokensRaised:      big.NewInt(int64(1e18)),
+			EndPrice:          big.NewInt(int64(1e17)),
+			StartPrice:        big.NewInt(int64(1e18)),
+			Migrated:          false,
+		})
+		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+
+		ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC), WithoutQuestDB())
+		defer ta.Close()
+
+		userAddr := "0xcc00000000000000000000000000000000000001"
+		userExtAddr := "0:fee_base_user:"
+		contractAddr := "0xdd00000000000000000000000000000000000001"
+		tokenExtAddr := "0:fee_base_user:token"
+		txHash := "0xfee_base_tx_001"
+		pairID := "0x0000000000000000000000000000000000000000000000000000000000000011"
+		baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+
+		helperInsertTestUser(t, ctx, db, userExtAddr, "fee_base_user", "Fee Base User", userAddr, false, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db, contractAddr, tokenExtAddr, "FBT", "profile", userExtAddr, "1000000000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExtAddr, pairID, baseToken)
+		helperInsertBaseTokenPrice(t, ctx, db, baseToken, "ION", 0.5)
+		helperSetFeeInOtherToken(t, ctx, db, contractAddr, false)
+		helperInsertUserPosition(t, ctx, db, userAddr, contractAddr, tokenExtAddr, userExtAddr, "0")
+
+		// fee = 2e18 in base token (ION). fee_in_other_token = false → fee_usd = 2 * 0.5 = 1.0
+		helperInsertUnprocessedSwap(t, ctx, db, contractAddr, tokenExtAddr, userAddr,
+			txHash, false, "10000000000000000000", "5000000000000000000", 0.01, "2000000000000000000")
+
+		err := ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
+			UserBlockchainAddress: userAddr,
+			UserExternalAddress:   userExtAddr,
+			ContractAddress:       contractAddr,
+			TokenExternalAddress:  tokenExtAddr,
+			TransactionHash:       txHash,
+			BlockNumber:           100,
+			PairID:                pairID,
+			BaseToken:             baseToken,
+			TokenType:             "profile",
+			Platform:              PlatformGroupIonConnect,
+		})
+		require.NoError(t, err)
+		helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
+
+		type position struct {
+			TotalFeesUSD float64 `db:"total_fees_usd"`
+		}
+		pos, err := storage.Get[position](ctx, db, `
+			SELECT total_fees_usd FROM user_token_positions
+			WHERE user_blockchain_address = $1 AND contract_address = $2
+		`, strings.ToLower(userAddr), strings.ToLower(contractAddr))
+		require.NoError(t, err)
+		// fee_in_other_token=FALSE: fee_usd = (2e18 / 1e18) * base_token_price = 2 * 0.5 = 1.0
+		require.InDelta(t, 1.0, pos.TotalFeesUSD, 0.001, "Fee in base token: fee * base_price")
+	})
+
+	t.Run("fee_in_other_token_true", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		db, connString, release := helperCreateDBWithConnString(t)
+		defer release()
+
+		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
+		mockBackend.SetBalanceOfResponse(big.NewInt(5000000000000000000)) // 5 tokens
+		mockBackend.SetBondingCurveResponse(bondingcurve.BondingCurveBondingInfo{
+			CurrentPrice:      big.NewInt(500000000000000000), // 0.5 base
+			SoldTokens:        big.NewInt(int64(1e18)),
+			BondingTokensGoal: big.NewInt(int64(5e18)),
+			TokensRaised:      big.NewInt(int64(1e18)),
+			EndPrice:          big.NewInt(int64(1e17)),
+			StartPrice:        big.NewInt(int64(1e18)),
+			Migrated:          false,
+		})
+		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+
+		ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC), WithoutQuestDB())
+		defer ta.Close()
+
+		userAddr := "0xee00000000000000000000000000000000000001"
+		userExtAddr := "0:fee_other_user:"
+		contractAddr := "0xff00000000000000000000000000000000000001"
+		tokenExtAddr := "0:fee_other_user:token"
+		txHash := "0xfee_other_tx_001"
+		pairID := "0x0000000000000000000000000000000000000000000000000000000000000012"
+		baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+
+		helperInsertTestUser(t, ctx, db, userExtAddr, "fee_other_user", "Fee Other User", userAddr, false, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db, contractAddr, tokenExtAddr, "FOT", "post", userExtAddr, "1000000000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExtAddr, pairID, baseToken)
+		helperInsertBaseTokenPrice(t, ctx, db, baseToken, "ION", 0.5)
+		helperSetFeeInOtherToken(t, ctx, db, contractAddr, true)
+		helperInsertUserPosition(t, ctx, db, userAddr, contractAddr, tokenExtAddr, userExtAddr, "0")
+
+		// fee = 3e18 in the token itself. fee_in_other_token = true → fee_usd = 3 * curve_price
+		// curve_price = 0.5 base * 1.15 ion = 0.575 USD
+		// fee_usd = 3 * 0.575 = 1.725
+		helperInsertUnprocessedSwap(t, ctx, db, contractAddr, tokenExtAddr, userAddr,
+			txHash, false, "10000000000000000000", "5000000000000000000", 0.01, "3000000000000000000")
+
+		err := ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
+			UserBlockchainAddress: userAddr,
+			UserExternalAddress:   userExtAddr,
+			ContractAddress:       contractAddr,
+			TokenExternalAddress:  tokenExtAddr,
+			TransactionHash:       txHash,
+			BlockNumber:           100,
+			PairID:                pairID,
+			BaseToken:             baseToken,
+			TokenType:             TokenTypePost,
+			Platform:              PlatformGroupIonConnect,
+		})
+		require.NoError(t, err)
+		helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
+
+		type position struct {
+			TotalFeesUSD float64 `db:"total_fees_usd"`
+		}
+		pos, err := storage.Get[position](ctx, db, `
+			SELECT total_fees_usd FROM user_token_positions
+			WHERE user_blockchain_address = $1 AND contract_address = $2
+		`, strings.ToLower(userAddr), strings.ToLower(contractAddr))
+		require.NoError(t, err)
+		// fee_in_other_token=TRUE: fee_usd = (3e18 / 1e18) * curve_price = 3 * 0.575 = 1.725
+		require.InDelta(t, 1.725, pos.TotalFeesUSD, 0.001, "Fee in other token: fee * curve_price")
+	})
+}
+
+func TestBalanceUpdateJob_GuardIdempotency(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	db, connString, release := helperCreateDBWithConnString(t)
+	defer release()
+
+	mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
+	mockBackend.SetBalanceOfResponse(big.NewInt(5000000000000000000)) // 5 tokens
+	mockBackend.SetBondingCurveResponse(bondingcurve.BondingCurveBondingInfo{
+		CurrentPrice:      big.NewInt(500000000000000000), // 0.5 base
+		SoldTokens:        big.NewInt(int64(1e18)),
+		BondingTokensGoal: big.NewInt(int64(5e18)),
+		TokensRaised:      big.NewInt(int64(1e18)),
+		EndPrice:          big.NewInt(int64(1e17)),
+		StartPrice:        big.NewInt(int64(1e18)),
+		Migrated:          false,
+	})
+	mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+
+	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC), WithoutQuestDB())
+	defer ta.Close()
+
+	userAddr := "0xab00000000000000000000000000000000000001"
+	userExtAddr := "0:idempotent_user:"
+	contractAddr := "0xac00000000000000000000000000000000000001"
+	tokenExtAddr := "0:idempotent_user:token"
+	txHash := "0xidempotent_tx_001"
+	pairID := "0x0000000000000000000000000000000000000000000000000000000000000055"
+	baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+
+	helperInsertTestUser(t, ctx, db, userExtAddr, "idempotent_user", "Idempotent User", userAddr, false, PlatformGroupIonConnect)
+	helperInsertTestToken(t, ctx, db, contractAddr, tokenExtAddr, "IDEM", "profile", userExtAddr, "1000000000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+	helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExtAddr, pairID, baseToken)
+	helperInsertBaseTokenPrice(t, ctx, db, baseToken, "ION", 0.01)
+	helperInsertUserPosition(t, ctx, db, userAddr, contractAddr, tokenExtAddr, userExtAddr, "0")
+
+	helperInsertUnprocessedSwap(t, ctx, db, contractAddr, tokenExtAddr, userAddr,
+		txHash, false, "1000000000000000000", "5000000000000000000", 0.10, "0")
+
+	jobArgs := BalanceUpdateJobArgs{
+		UserBlockchainAddress: userAddr,
+		UserExternalAddress:   userExtAddr,
+		ContractAddress:       contractAddr,
+		TokenExternalAddress:  tokenExtAddr,
+		TransactionHash:       txHash,
+		BlockNumber:           12345,
+		PairID:                pairID,
+		BaseToken:             baseToken,
+		TokenType:             "profile",
+		Platform:              PlatformGroupIonConnect,
+	}
+
+	err := ta.riverClient.Push(ctx, jobArgs)
+	require.NoError(t, err)
+	helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
+
+	type position struct {
+		TotalInvestedUSD float64 `db:"total_invested_usd"`
+	}
+	pos1, err := storage.Get[position](ctx, db, `
+		SELECT total_invested_usd FROM user_token_positions
+		WHERE user_blockchain_address = $1 AND contract_address = $2
+	`, strings.ToLower(userAddr), strings.ToLower(contractAddr))
+	require.NoError(t, err)
+	require.Greater(t, pos1.TotalInvestedUSD, 0.0, "First job should set invested")
+
+	// Push the same job again — guard (curve_price_usd = 0) prevents double-count.
+	err = ta.riverClient.Push(ctx, jobArgs)
+	require.NoError(t, err)
+	helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
+
+	pos2, err := storage.Get[position](ctx, db, `
+		SELECT total_invested_usd FROM user_token_positions
+		WHERE user_blockchain_address = $1 AND contract_address = $2
+	`, strings.ToLower(userAddr), strings.ToLower(contractAddr))
+	require.NoError(t, err)
+	require.InDelta(t, pos1.TotalInvestedUSD, pos2.TotalInvestedUSD, 0.0001, "Second job must NOT increment invested again")
+}
+
+func helperInsertUnprocessedSwap(t testing.TB, ctx context.Context, db *storage.DB,
+	contractAddr, externalAddr, userAddr, txHash string,
+	direction bool, inputAmount, outputAmount string, priceUSD float64, fee string) {
+	t.Helper()
+	_, err := storage.Exec(ctx, db, `
+		INSERT INTO token_swaps (
+			created_at, transaction_hash, contract_address, external_address,
+			user_blockchain_address, direction, input_amount, output_amount, price_usd, fee, curve_price_usd
+		)
+		VALUES (NOW(), $1, $2, $3, LOWER($4), $5, $6, $7, $8, $9, 0)
+		ON CONFLICT (transaction_hash, contract_address, user_blockchain_address) DO NOTHING
+	`, txHash, contractAddr, externalAddr, userAddr, direction, inputAmount, outputAmount, priceUSD, fee)
+	require.NoError(t, err)
+}
+
+func helperSetFeeInOtherToken(t testing.TB, ctx context.Context, db *storage.DB, contractAddr string, feeInOther bool) {
+	t.Helper()
+	_, err := storage.Exec(ctx, db, `UPDATE tokens SET fee_in_other_token = $1 WHERE contract_address = $2`, feeInOther, contractAddr)
 	require.NoError(t, err)
 }

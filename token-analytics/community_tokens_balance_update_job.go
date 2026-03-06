@@ -85,17 +85,27 @@ func (w *balanceUpdateWorker) Work(ctx context.Context, job *riverqueue.Job[Bala
 	} else {
 		if _, err := storage.Exec(ctx, w.ta.ingestedDataDB, `
 			WITH swap_update AS (
-			UPDATE token_swaps
-			SET curve_price_usd = $1,
-				notified_at = NOW()
-			WHERE transaction_hash = $2 AND contract_address = $3 AND user_blockchain_address = $4 and curve_price_usd != $1
-			RETURNING *
+				UPDATE token_swaps
+				SET curve_price_usd = $1,
+					notified_at = NOW()
+				WHERE transaction_hash = $2 AND contract_address = $3
+				  AND user_blockchain_address = $4 AND curve_price_usd = 0
+				RETURNING *
 			)
 			UPDATE user_token_positions SET
-				total_invested_usd = (CASE WHEN NOT swap_update.direction THEN user_token_positions.total_invested_usd +  $1*(swap_update.output_amount/1e18)  ELSE user_token_positions.total_invested_usd END),
-				total_realized_usd = (CASE WHEN swap_update.direction THEN COALESCE(user_token_positions.total_realized_usd, 0) + $1*(swap_update.input_amount/1e18) ELSE user_token_positions.total_realized_usd END)
+				total_invested_usd = (CASE WHEN NOT swap_update.direction THEN user_token_positions.total_invested_usd + $1 * (LEAST(swap_update.output_amount, user_token_positions.amount::NUMERIC) / 1e18) ELSE user_token_positions.total_invested_usd END),
+				total_realized_usd = (CASE WHEN swap_update.direction THEN COALESCE(user_token_positions.total_realized_usd, 0) + $1 * (swap_update.input_amount / 1e18) ELSE user_token_positions.total_realized_usd END),
+				total_fees_usd = COALESCE(user_token_positions.total_fees_usd, 0) + (
+					CASE WHEN t.fee_in_other_token
+						THEN (swap_update.fee::NUMERIC / 1e18) * $1
+						ELSE (swap_update.fee::NUMERIC / 1e18) * COALESCE(bp.price_usd, 0)
+					END
+				)
 			FROM swap_update
-			WHERE user_token_positions.user_blockchain_address = swap_update.user_blockchain_address AND user_token_positions.contract_address = swap_update.contract_address
+			JOIN tokens t ON t.contract_address = swap_update.contract_address
+			LEFT JOIN base_token_prices bp ON lower(bp.token_address) = lower(t.base_token)
+			WHERE user_token_positions.user_blockchain_address = swap_update.user_blockchain_address
+			  AND user_token_positions.contract_address = swap_update.contract_address
 		`, priceUSD, args.TransactionHash, args.ContractAddress, args.UserBlockchainAddress); err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
 			log.Error(errors.Wrapf(err, "failed to update curve_price_usd for tx %s", args.TransactionHash))
 		} else {
