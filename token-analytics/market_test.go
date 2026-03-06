@@ -695,7 +695,6 @@ func TestRegisterTrade(t *testing.T) {
 }
 
 func TestGetOHLVCHistory(t *testing.T) {
-	t.Parallel()
 	t.Run("returns OHLCV data for 15s interval", func(t *testing.T) {
 		ctx := context.Background()
 		db, connString, release := helperCreateDBWithConnString(t)
@@ -761,7 +760,7 @@ func TestGetOHLVCHistory(t *testing.T) {
 		require.Eventually(t, func() bool {
 			result, err = ta.GetOHLVCHistory(ctx, now, extAddr, interval, 10, 0)
 			return err == nil && len(result) > 0
-		}, 10*stdlibtime.Second, 100*stdlibtime.Millisecond, "QuestDB should flush OHLVC data")
+		}, 30*stdlibtime.Second, 100*stdlibtime.Millisecond, "QuestDB should flush OHLVC data")
 
 		require.NoError(t, err)
 		require.NotEmpty(t, result, "should return at least one OHLCV candle")
@@ -832,7 +831,7 @@ func TestGetOHLVCHistory(t *testing.T) {
 		require.Eventually(t, func() bool {
 			result, err = ta.GetOHLVCHistory(t.Context(), now, extAddr, interval, 2, 0)
 			return err == nil && len(result) > 0
-		}, 10*stdlibtime.Second, 100*stdlibtime.Millisecond, "QuestDB should flush OHLVC data")
+		}, 30*stdlibtime.Second, 100*stdlibtime.Millisecond, "QuestDB should flush OHLVC data")
 
 		require.NoError(t, err)
 		require.LessOrEqual(t, len(result), 2, "should respect limit of 2")

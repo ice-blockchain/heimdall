@@ -210,8 +210,8 @@ func (t *tokenAnalytics) SubscribeOHLVC(ctx context.Context, now stdlibtime.Time
 		o := candleStick.OHLCV()
 		if o.Empty() {
 			recentCandle, err := t.GetOHLVCHistory(ctx, now.Add(interval.Duration()), externalAddress, interval, 1, 0)
-			if len(recentCandle) == 0 || err != nil {
-				if len(recentCandle) == 0 || storage.IsErr(err, storage.ErrNotFound) {
+			if (len(recentCandle) == 0 && err == nil) || err != nil {
+				if (len(recentCandle) == 0 && err == nil) || storage.IsErr(err, storage.ErrNotFound) {
 					recentCandle = append(recentCandle, &OHLCV{})
 					err = nil
 				}
@@ -234,14 +234,17 @@ func (t *tokenAnalytics) SubscribeOHLVC(ctx context.Context, now stdlibtime.Time
 			for _ = range swaps {
 				rec, ok := t.ohclvRecentData.Load(interval.String() + "_" + externalAddress)
 				if ok {
-					addToStream(rec.OHLCV(), nil)
+					o := rec.OHLCV()
+					if !o.Empty() {
+						addToStream(o, nil)
+					}
 				}
 			}
 		}()
 	} else {
 		recentCandle, err := t.GetOHLVCHistory(ctx, now.Add(interval.Duration()), externalAddress, interval, 1, 0)
-		if len(recentCandle) == 0 || err != nil {
-			if len(recentCandle) == 0 || storage.IsErr(err, storage.ErrNotFound) {
+		if (len(recentCandle) == 0 && err == nil) || err != nil {
+			if (len(recentCandle) == 0 && err == nil) || storage.IsErr(err, storage.ErrNotFound) {
 				recentCandle = append(recentCandle, &OHLCV{})
 				err = nil
 			}
@@ -604,7 +607,7 @@ func (t *recentTradeStats) ensureTickerRunning() {
 		return
 	}
 	interval := t.tickerInterval
-	if interval == 0 {
+	if interval <= 0 {
 		interval = 30 * stdlibtime.Second
 	}
 	ticker := stdlibtime.NewTicker(interval)

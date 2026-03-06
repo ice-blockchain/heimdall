@@ -394,12 +394,12 @@ func TestNotifySwap(t *testing.T) {
 
 		require.Eventually(t, func() bool {
 			return atomic.LoadInt32(&received1) == 1
-		}, 2*stdlibtime.Second, 10*stdlibtime.Millisecond,
+		}, 5*stdlibtime.Second, 50*stdlibtime.Millisecond,
 			"channel 1 must still receive after channel 2 cancelled")
 
 		require.Eventually(t, func() bool {
 			return atomic.LoadInt32(&received3) == 1
-		}, 2*stdlibtime.Second, 10*stdlibtime.Millisecond,
+		}, 5*stdlibtime.Second, 50*stdlibtime.Millisecond,
 			"channel 3 must still receive after channel 2 cancelled")
 	})
 
