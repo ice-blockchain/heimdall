@@ -100,8 +100,8 @@ const (
 const (
 	requestingUserCtxValueKey = "requestingUserCtxValueKey"
 	clientIPCtxValueKey       = "clientIPCtxValueKey"
-
-	authClientCtxValueKey = "authClientCtxValueKey"
+	EndpointUrlCtxValueKey    = "EndpointUrlCtxValueKey"
+	authClientCtxValueKey     = "authClientCtxValueKey"
 )
 
 var (
