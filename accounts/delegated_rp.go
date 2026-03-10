@@ -82,7 +82,7 @@ func (a *accounts) GetLoginChallenge(ctx context.Context, username string, codes
 }
 
 func (a *accounts) SecurePaymentConfirmation(ctx context.Context, userID, walletId string, body map[string]string) (tmplData any, err error) {
-	wallet, err := a.delegatedRPClient.GetWallet(ctx, walletId)
+	wallet, err := a.getWallet(ctx, walletId)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get wallet %v, cannot init payment confirmation", walletId)
 	}

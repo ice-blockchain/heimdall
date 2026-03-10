@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"reflect"
 	"strings"
+	stdlibtime "time"
 
 	"github.com/pkg/errors"
 )
@@ -255,4 +256,55 @@ func (c *dfnsClient) GetNetworkFees(ctx context.Context, network string) (*FeeWi
 	}
 	fees, err := dfnsCall[feeParam, FeeWithPriority](ctx, c, &feeParam{Network: network}, "GET", "/networks/fees", http.Header{}, []int{http.StatusBadRequest})
 	return fees, err
+}
+
+func (wallet Wallet) ID() (id string) {
+	if idI, hasId := wallet["id"]; hasId && idI != nil {
+		var ok bool
+		if id, ok = idI.(string); !ok {
+			return ""
+		}
+	}
+	return id
+}
+func (wallet Wallet) Network() (network string) {
+	if networkI, hasNetwork := wallet["network"]; hasNetwork && networkI != nil {
+		var ok bool
+		if network, ok = networkI.(string); !ok {
+			return ""
+		}
+	}
+	return network
+}
+func (wallet Wallet) Address() string {
+	return wallet["address"].(string)
+}
+func (wallet Wallet) Name() (name string) {
+	if nameI, hasName := wallet["name"]; hasName && nameI != nil {
+		var ok bool
+		if name, ok = nameI.(string); !ok {
+			return ""
+		}
+	}
+	return name
+}
+func (wallet Wallet) PublicKey() (walletPubKey string) {
+	if keyI, hasKey := wallet["signingKey"]; hasKey && keyI != nil {
+		key := keyI.(map[string]any)
+		if pubkey, hasPk := key["publicKey"]; hasPk {
+			walletPubKey = pubkey.(string)
+		}
+	}
+	return walletPubKey
+}
+func (wallet Wallet) CreatedAt() (*stdlibtime.Time, error) {
+	var dateCreated string
+	if dateCreatedI, hasDateCreated := wallet["dateCreated"]; hasDateCreated && dateCreatedI != nil {
+		var ok bool
+		if dateCreated, ok = dateCreatedI.(string); !ok {
+			return nil, errors.Errorf("invalid dateCreated %v: must be a string but %T", dateCreatedI, dateCreatedI)
+		}
+	}
+	t, err := stdlibtime.Parse(stdlibtime.RFC3339Nano, dateCreated)
+	return &t, err
 }
