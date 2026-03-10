@@ -12,12 +12,13 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/cockroachdb/errors"
 	"github.com/goccy/go-json"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/coins"
+	"github.com/ice-blockchain/heimdall/server"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/time"
@@ -588,6 +589,80 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 	return coinGroups, allNftsFromWalletView, nextPage, nil
 }
 
+func (a *accounts) storeUserWallet(ctx context.Context, userID string, wallet Wallet) error {
+	createdAt, err := wallet.CreatedAt()
+	if err != nil {
+		return errors.Wrapf(err, "failed to parse wallet dateCreated: %v", wallet["dateCreated"])
+	}
+	var walletUserId, keyId, keyCurve, keyScheme string
+	if keyI, hasKey := wallet["signingKey"]; hasKey && keyI != nil {
+		key := keyI.(map[string]any)
+		if delegated, hasDelegated := key["delegatedTo"]; hasDelegated {
+			walletUserId = delegated.(string)
+		}
+		if keyIdI, hasKeyId := key["id"]; hasKeyId {
+			keyId = keyIdI.(string)
+		}
+		if keyCurveI, has := key["curve"]; has {
+			keyCurve = keyCurveI.(string)
+		}
+		if keySchemeI, has := key["scheme"]; has {
+			keyScheme = keySchemeI.(string)
+		}
+	}
+	if userID != "" && walletUserId != "" && userID != walletUserId {
+		return errors.Errorf("wallet %v delegated to %v but tried to save for user %v", wallet.ID(), walletUserId, userID)
+	}
+	_, err = storage.Exec(ctx, a.db, `INSERT INTO 
+          wallets(created_at, id, name, address,network, pubkey, key_id, key_scheme, key_curve, user_id) VALUES
+                 ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          ON CONFLICT(id) DO NOTHING;`,
+		time.New(*createdAt), wallet.ID(), wallet.Name(), wallet.Address(), wallet.Network(), wallet.PublicKey(), keyId, keyScheme, keyCurve, userID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to store wallet %v on user %v", wallet.ID(), userID)
+	}
+	return nil
+}
+
+func (a *accounts) listWallets(ctx context.Context, userID string) ([]Wallet, error) {
+	wallets, err := storage.Select[wallet](ctx, a.db, `SELECT * FROM wallets WHERE user_id = $1;`, userID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to list wallets for user id: %v", userID)
+	}
+	res := make([]Wallet, 0, len(wallets))
+	for _, w := range wallets {
+		res = append(res, *toWallet(w))
+	}
+	return res, nil
+}
+
+func (a *accounts) getWallet(ctx context.Context, walletID string) (*Wallet, error) {
+	w, err := storage.Get[wallet](ctx, a.db, `SELECT * FROM wallets WHERE id = $1;`, walletID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get wallet by id: %v", walletID)
+	}
+	return toWallet(w), nil
+}
+
+func toWallet(w *wallet) *Wallet {
+	return new(Wallet(map[string]any{
+		"id":        w.ID,
+		"name":      w.Name,
+		"address":   w.Address,
+		"network":   w.Network,
+		"status":    "Active",
+		"custodial": false,
+		"tags":      []any{},
+		"signingKey": map[string]any{
+			"id":          w.KeyID,
+			"publicKey":   w.PublicKey,
+			"scheme":      w.KeyScheme,
+			"delegatedTo": w.UserID,
+			"curve":       w.KeyCurve,
+		},
+	}))
+}
+
 func (a *accounts) GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGroup string) ([]*CoinWithWalletInfo, error) {
 	views, err := storage.Select[WalletView](ctx, a.db, `SELECT 
     created_at, updated_at, name, user_id, array_to_json(coins) as coins, symbol_groups, id
@@ -606,7 +681,7 @@ func (a *accounts) GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGrou
 			wallets[*walletCoinMapping.WalletID] = nil
 		}
 	}
-	allWallets, err := a.delegatedRPClient.ListWallets(ctx, userID)
+	allWallets, err := a.listWallets(ctx, userID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to list all wallets for user %v", userID)
 	}
@@ -621,7 +696,7 @@ func (a *accounts) GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGrou
 		for _, wallet := range allWallets {
 			walletID := wallet["id"].(string)
 			walletNetwork := strings.ToLower(wallet["network"].(string))
-			if _, has := wallets[walletID]; (has || hasAllWallets) && c.Network == walletNetwork {
+			if _, has := wallets[walletID]; (has || hasAllWallets) && strings.EqualFold(c.Network, walletNetwork) {
 				wallets[walletID] = wallet
 				coinsByNetwork[walletNetwork] = c
 				walletMatched = true
@@ -691,7 +766,7 @@ func (a *accounts) GetNFTs(ctx context.Context, walletID, paginationToken string
 				if delegatedParsedErr.HTTPStatus == http.StatusBadRequest && strings.Contains(delegatedParsedErr.Message, dfns.ErrMessageNFTNotSupported) &&
 					(strings.Contains(delegatedParsedErr.Message, dfns.DefaultWalletNetworkMainNet) || strings.Contains(delegatedParsedErr.Message, dfns.DefaultWalletNetworkTestNet)) {
 					var w *dfns.Wallet
-					w, err = a.delegatedRPClient.GetWallet(ctx, walletID)
+					w, err = a.getWallet(ctx, walletID)
 					if err != nil {
 						return nil, "", nil, errors.Wrapf(err, "failed to get wallet %v", walletID)
 					}
@@ -771,9 +846,14 @@ func (a *accounts) CreateWalletForWalletView(ctx context.Context, userID, networ
 			CoinID:   walletView.Coins[idx].CoinID,
 		}
 	}
+	if err = a.storeUserWallet(ctx, userID, *wallet); err != nil {
+		return nil, errors.Wrapf(err, "failed to store user wallet %v for user %v", walletID, userID)
+	}
 	_, err = a.ModifyWalletView(ctx, userID, walletViewID, walletView.Name, walletView.Coins, walletView.SymbolGroups)
-
-	return wallet, errors.Wrapf(err, "failed to modify walletview after wallet creation")
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to modify walletview after wallet creation")
+	}
+	return wallet, nil
 }
 
 func (a *accounts) FetchMainWallet(ctx context.Context, masterKey string) (Wallet, error) {
@@ -781,18 +861,33 @@ func (a *accounts) FetchMainWallet(ctx context.Context, masterKey string) (Walle
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to match user by master key %v", masterKey)
 	}
-	userWallets, err := a.delegatedRPClient.ListWallets(ctx, usr.ID)
+	userWallets, err := a.listWallets(ctx, usr.ID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to wallet list for user %v", usr.ID)
 	}
-	var mainWallet Wallet
+	var mainWallet *Wallet
 	for _, wallet := range userWallets {
 		if walletID, walletPubKey := dfns.CheckMainWallet(wallet); walletID != "" && walletPubKey != "" {
-			mainWallet = wallet
+			mainWallet = &wallet
 			break
 		}
 	}
-	return mainWallet, nil
+	if mainWallet == nil {
+		userWallets, err = a.delegatedRPClient.ListWallets(ctx, usr.ID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to wallet list for user %v", usr.ID)
+		}
+		for _, wallet := range userWallets {
+			if walletID, walletPubKey := dfns.CheckMainWallet(wallet); walletID != "" && walletPubKey != "" {
+				mainWallet = &wallet
+				break
+			}
+		}
+	}
+	if mainWallet == nil {
+		return nil, errors.Wrapf(err, "failed to find main wallet for user %v", usr.ID)
+	}
+	return *mainWallet, nil
 }
 
 func pagination(ctx context.Context) (map[string]string, uint64, error) {
@@ -820,9 +915,22 @@ func pagination(ctx context.Context) (map[string]string, uint64, error) {
 }
 
 func (a *accounts) GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint64) ([]WalletHistoryItem, string, *string, error) {
-	wallet, err := a.delegatedRPClient.GetWallet(ctx, walletID)
+	wallet, err := a.getWallet(ctx, walletID)
 	if err != nil {
-		return nil, "", nil, errors.Wrapf(err, "failed to get wallet %v", walletID)
+		if errors.Is(err, storage.ErrNotFound) {
+			wallet, err = a.delegatedRPClient.GetWallet(ctx, walletID)
+			if err != nil {
+				return nil, "", nil, errors.Wrapf(err, "failed to get wallet %v from 3rd party", walletID)
+			}
+			userID := ""
+			if user := server.LoggedInUser(ctx); user != nil {
+				userID = user.UserID()
+			}
+			err = a.storeUserWallet(ctx, userID, *wallet)
+		}
+		if err != nil {
+			return nil, "", nil, errors.Wrapf(err, "failed to get wallet %v from db", walletID)
+		}
 	}
 	network := (*wallet)["network"].(string)
 	if strings.EqualFold(network, dfns.DefaultWalletNetworkTestNet) || strings.EqualFold(network, dfns.DefaultWalletNetworkMainNet) {
@@ -855,7 +963,7 @@ func (a *accounts) GetWalletAssets(ctx context.Context, walletID string) (*Asset
 		}
 	}
 	if walletNetwork == "" || walletAddress == "" {
-		wallet, err := a.delegatedRPClient.GetWallet(ctx, walletID)
+		wallet, err := a.getWallet(ctx, walletID)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get wallet %v", walletID)
 		}

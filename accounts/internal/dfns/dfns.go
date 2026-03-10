@@ -1112,6 +1112,7 @@ func (*dfnsClient) overwriteHostProxy(remote *url.URL) func(req *http.Request) {
 }
 
 func escapeUriForMetrics(uri string) string {
-	replacedUser := dfnsUserRegexp.ReplaceAllString(uri, "user_id/")
-	return dfnsWalletRegexp.ReplaceAllString(replacedUser, "wallet_id/")
+	replaced := dfnsUserRegexp.ReplaceAllString(uri, "user_id/")
+	replaced = dfnsWalletRegexp.ReplaceAllString(replaced, "wallet_id/")
+	return coinsBySymbolGroupRegexp.ReplaceAllString(replaced, "coins/symbolGroup")
 }

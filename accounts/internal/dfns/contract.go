@@ -346,7 +346,8 @@ var (
 			return c.broadcastTONTransaction(ctx, c.ionApi, networkION, walletID, walletPubKey, txPayload)
 		},
 	}
-	errNoSerialize   = errors.New("no serialize")
-	dfnsUserRegexp   = regexp.MustCompile(`us-[0-9a-z\\-]+($|/)`)
-	dfnsWalletRegexp = regexp.MustCompile(`wa-[0-9a-z\\-]+($|/)`)
+	errNoSerialize           = errors.New("no serialize")
+	dfnsUserRegexp           = regexp.MustCompile(`us-[0-9a-z\\-]+($|/)`)
+	dfnsWalletRegexp         = regexp.MustCompile(`wa-[0-9a-z\\-]+($|/)`)
+	coinsBySymbolGroupRegexp = regexp.MustCompile(`coins/[0-9a-zA-Z\\-]+$`)
 )

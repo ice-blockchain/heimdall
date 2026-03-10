@@ -46,9 +46,6 @@ type (
 		GetIONConnectIndexerRelays(ctx context.Context, userID string) (indexers []string, err error)
 		GetUser(ctx context.Context, userID string) (usr *User, err error)
 		SecurePaymentConfirmation(ctx context.Context, userID, walletID string, body map[string]string) (templateData any, err error)
-		GetNFTs(ctx context.Context, walletID, paginationToken string, limit uint64) ([]*NFT, string, *string, error)
-		GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint64) ([]WalletHistoryItem, string, *string, error)
-		GetWalletAssets(ctx context.Context, walletID string) (*Assets, error)
 		DeleteUser(ctx context.Context, userID string) error
 		GetContentCreators(ctx context.Context, limit uint64, excludeMasterPubKeys []string) ([]*LiteUser, error)
 		IsUserVerified(ctx context.Context, masterPubKey string) (bool, []*model.Event, error)
@@ -92,6 +89,9 @@ type (
 		FetchMainWallet(ctx context.Context, masterKey string) (Wallet, error)
 		SetProviderForUnsupportedNFTs(nft indexer.Indexer)
 		BroadcastTransactionFromWallet(ctx context.Context, walletId string, transactionData *TransactionPayload) (*TransactionResponse, error)
+		GetNFTs(ctx context.Context, walletID, paginationToken string, limit uint64) ([]*NFT, string, *string, error)
+		GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint64) ([]WalletHistoryItem, string, *string, error)
+		GetWalletAssets(ctx context.Context, walletID string) (*Assets, error)
 	}
 	Coins interface {
 		GetCoinsOfSymbolGroup(ctx context.Context, symbolGroups []string) ([]*coins.Coin, error)
@@ -341,6 +341,19 @@ type (
 		ReplaceOldValue *string `db:"replace"`
 		Code            string
 	}
+	wallet struct {
+		CreatedAt *time.Time
+		ID        string `db:"id"`
+		Name      string `db:"name"`
+		Address   string `db:"address"`
+		Network   string `db:"network"`
+		PublicKey string `db:"pubkey"`
+		KeyID     string `db:"key_id"`
+		KeyScheme string `db:"key_scheme"`
+		KeyCurve  string `db:"key_curve"`
+		UserID    string `db:"user_id"`
+	}
+
 	config struct {
 		EmailExpiration                  stdlibtime.Duration `yaml:"emailExpiration" mapstructure:"emailExpiration"`
 		SMSExpiration                    stdlibtime.Duration `yaml:"smsExpiration" mapstructure:"smsExpiration"`

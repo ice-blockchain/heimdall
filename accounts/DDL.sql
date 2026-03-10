@@ -55,6 +55,22 @@ DO $$ BEGIN
     END IF;
 END$$;
 
+CREATE TABLE IF NOT EXISTS wallets (
+    created_at    TIMESTAMP NOT NULL,
+    id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    address TEXT NOT NULL,
+    network TEXT NOT NULL,
+    pubkey TEXT NOT NULL,
+    key_id TEXT NOT NULL,
+    key_scheme TEXT NOT NULL,
+    key_curve TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    primary key (id)
+) WITH (FILLFACTOR = 70);
+
+CREATE INDEX IF NOT EXISTS wallets_user_id ON wallets (user_id);
+
 CREATE TABLE IF NOT EXISTS wallet_views (
     created_at    TIMESTAMP NOT NULL,
     updated_at    TIMESTAMP NOT NULL,
