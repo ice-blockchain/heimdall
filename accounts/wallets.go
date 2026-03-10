@@ -413,6 +413,7 @@ func (a *accounts) fetchWalletInfoForCoins(ctx context.Context, userID string, c
 			walletAssets, err := a.GetWalletAssets(ctx, walletID)
 			if err != nil {
 				assets <- assetsInfo{err: errors.Wrapf(err, "failed to list assets for wallet %v", walletID)}
+				return
 			}
 			assets <- assetsInfo{
 				linkedSymbols: linkedSymbols,
@@ -613,6 +614,9 @@ func (a *accounts) storeUserWallet(ctx context.Context, userID string, wallet Wa
 	if userID != "" && walletUserId != "" && userID != walletUserId {
 		return errors.Errorf("wallet %v delegated to %v but tried to save for user %v", wallet.ID(), walletUserId, userID)
 	}
+	if userID == "" {
+		userID = walletUserId
+	}
 	_, err = storage.Exec(ctx, a.db, `INSERT INTO 
           wallets(created_at, id, name, address,network, pubkey, key_id, key_scheme, key_curve, user_id) VALUES
                  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -684,6 +688,12 @@ func (a *accounts) GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGrou
 	allWallets, err := a.listWallets(ctx, userID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to list all wallets for user %v", userID)
+	}
+	if len(allWallets) == 0 {
+		allWallets, err = a.delegatedRPClient.ListWallets(ctx, userID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to list all wallets for user %v from 3rd party", userID)
+		}
 	}
 	listCoins, err := a.coinsRepo.GetCoinsOfSymbolGroup(ctx, []string{symbolGroup})
 	if err != nil {
@@ -885,7 +895,7 @@ func (a *accounts) FetchMainWallet(ctx context.Context, masterKey string) (Walle
 		}
 	}
 	if mainWallet == nil {
-		return nil, errors.Wrapf(err, "failed to find main wallet for user %v", usr.ID)
+		return nil, errors.Errorf("failed to find main wallet for user %v", usr.ID)
 	}
 	return *mainWallet, nil
 }
@@ -956,7 +966,7 @@ func (a *accounts) GetWalletHistory(ctx context.Context, walletID, paginationTok
 func (a *accounts) GetWalletAssets(ctx context.Context, walletID string) (*Assets, error) {
 	walletNetwork := ""
 	walletAddress := ""
-	if ctxNetwork := ctx.Value("wallet"); ctxNetwork != nil { // We already fetched if while building wallet view
+	if ctxNetwork := ctx.Value("walletNetwork"); ctxNetwork != nil { // We already fetched if while building wallet view
 		walletNetwork = ctxNetwork.(string)
 		if addr := ctx.Value("walletAddress"); addr != nil {
 			walletAddress = addr.(string)
@@ -965,6 +975,17 @@ func (a *accounts) GetWalletAssets(ctx context.Context, walletID string) (*Asset
 	if walletNetwork == "" || walletAddress == "" {
 		wallet, err := a.getWallet(ctx, walletID)
 		if err != nil {
+			if errors.Is(err, storage.ErrNotFound) {
+				wallet, err = a.delegatedRPClient.GetWallet(ctx, walletID)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to get wallet %v from 3rd party", walletID)
+				}
+				userID := ""
+				if user := server.LoggedInUser(ctx); user != nil {
+					userID = user.UserID()
+				}
+				err = a.storeUserWallet(ctx, userID, *wallet)
+			}
 			return nil, errors.Wrapf(err, "failed to get wallet %v", walletID)
 		}
 		var ok bool

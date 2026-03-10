@@ -7,6 +7,7 @@ import (
 	"io"
 	"math/big"
 	"net/http"
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -19,6 +20,8 @@ import (
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/coins"
 	indexer "github.com/ice-blockchain/heimdall/ion-indexer"
+	"github.com/ice-blockchain/wintr/connectors/storage/v2"
+	"github.com/ice-blockchain/wintr/connectors/storage/v2/fixture"
 	"github.com/ice-blockchain/wintr/time"
 )
 
@@ -37,12 +40,17 @@ func newMockedWalletClient() interface {
 } {
 	wallets := map[string]dfns.Wallet{
 		"wa-wallet1": map[string]any{
-			"id":      "wa-wallet1",
-			"network": "EthereumSepolia",
-			"address": "addr1",
-			"name":    "test wallet1",
+			"id":          "wa-wallet1",
+			"network":     "EthereumSepolia",
+			"address":     "addr1",
+			"name":        "test wallet1",
+			"dateCreated": "2026-02-10T14:51:00.790Z",
 			"signingKey": map[string]any{
-				"publicKey": "e2375c8c9e87bfcd0be8f29d76c818cabacd51584f72cb2222d49a13b036d84d3d",
+				"publicKey":   "e2375c8c9e87bfcd0be8f29d76c818cabacd51584f72cb2222d49a13b036d84d3d",
+				"id":          "key",
+				"scheme":      "ECDSA",
+				"delegatedTo": "userID",
+				"curve":       "secp256k1",
 			},
 			"assets": []dfns.Asset{
 				map[string]any{
@@ -73,12 +81,17 @@ func newMockedWalletClient() interface {
 			},
 		},
 		"wa-wallet2": map[string]any{
-			"id":      "wa-wallet2",
-			"network": "BscTestnet",
-			"address": "addr2",
-			"name":    "test wallet2",
+			"id":          "wa-wallet2",
+			"network":     "BscTestnet",
+			"address":     "addr2",
+			"name":        "test wallet2",
+			"dateCreated": "2026-02-10T14:51:00.790Z",
 			"signingKey": map[string]any{
-				"publicKey": "e2375c8c9e87bfcd0be8f29d76c818cabacd51584f72cb2222d49a13b036d84d3d",
+				"publicKey":   "e2375c8c9e87bfcd0be8f29d76c818cabacd51584f72cb2222d49a13b036d84d3d",
+				"id":          "key",
+				"scheme":      "ECDSA",
+				"delegatedTo": "userID",
+				"curve":       "secp256k1",
 			},
 			"assets": []dfns.Asset{
 				map[string]any{
@@ -109,12 +122,17 @@ func newMockedWalletClient() interface {
 			},
 		},
 		"wa-wallet3": map[string]any{
-			"id":      "wa-wallet3",
-			"network": "IonTestnet",
-			"address": "addr3",
-			"name":    "test wallet3",
+			"id":          "wa-wallet3",
+			"network":     "IonTestnet",
+			"address":     "addr3",
+			"name":        "test wallet3",
+			"dateCreated": "2026-02-10T14:51:00.790Z",
 			"signingKey": map[string]any{
-				"publicKey": "masterKey",
+				"id":          "key",
+				"publicKey":   "masterkey",
+				"scheme":      "ECDSA",
+				"delegatedTo": "userID",
+				"curve":       "secp256k1",
 			},
 			"assets": []dfns.Asset{
 				map[string]any{
@@ -128,12 +146,17 @@ func newMockedWalletClient() interface {
 			"nfts": []dfns.NFT{},
 		},
 		"wa-tokenized-community": map[string]any{
-			"id":      "wa-tokenized-community",
-			"network": "BscTestnet",
-			"address": "addr-tokenized-community",
-			"name":    "tokenized community wallet",
+			"id":          "wa-tokenized-community",
+			"network":     "BscTestnet",
+			"address":     "addr-tokenized-community",
+			"name":        "tokenized community wallet",
+			"dateCreated": "2026-02-10T14:51:00.790Z",
 			"signingKey": map[string]any{
-				"publicKey": "pubkey",
+				"id":          "key",
+				"publicKey":   "pubkey",
+				"scheme":      "ECDSA",
+				"delegatedTo": "userID",
+				"curve":       "secp256k1",
 			},
 			"assets": []dfns.Asset{
 				map[string]any{
@@ -185,7 +208,6 @@ func (m *mockWalletClient) RegisterPostProxyCallback(url string, cb func(req *ht
 func (m *mockWalletClient) ListWallets(ctx context.Context, userID string) ([]dfns.Wallet, error) {
 	res := []dfns.Wallet{}
 	for _, w := range m.mockedWallets {
-		delete(w, "assets")
 		res = append(res, w)
 	}
 	return res, nil
@@ -280,21 +302,63 @@ func (m *mockIONIndexer) GetBalance(ctx context.Context, walletAddr string) ([]i
 	}}, nil
 }
 
+var testPgContainer *fixture.Container
+
+func helperCreateDBWithConnString(t *testing.T) (*storage.DB, string, func()) {
+	t.Helper()
+
+	connString, release := testPgContainer.MustTempDB(t.Context())
+	db := storage.MustConnectWithCfg(t.Context(),
+		&storage.Cfg{
+			PrimaryURL:   connString,
+			ReplicaURLs:  []string{connString},
+			RunDDL:       true,
+			IgnoreGlobal: true,
+		},
+		storage.NewStringDDL(ddl),
+	)
+	require.NotNil(t, db)
+
+	return db, connString, func() {
+		db.Close()
+		release()
+	}
+}
+func TestMain(m *testing.M) {
+	ctx, cancel := context.WithCancel(context.Background())
+	testPgContainer = fixture.New(ctx)
+	code := m.Run()
+	testPgContainer.Close(ctx)
+	cancel()
+
+	if code != 0 {
+		os.Exit(code)
+	}
+}
+
 func TestFetchWalletInfoForCoinsAggregation(t *testing.T) {
 	cl := newMockedWalletClient()
 	ionIndexer := &mockIONIndexer{
 		balanceTriggered: map[string]struct{}{},
 	}
+	db, _, release := helperCreateDBWithConnString(t)
+	defer release()
 	a := &accounts{
 		delegatedRPClient: cl,
 		coinsRepo:         cl,
 		indexer:           ionIndexer,
+		db:                db,
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 4*stdlibtime.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*stdlibtime.Second)
 	defer cancel()
 	wallet1, wallet2, wallet3 := "wa-wallet1", "wa-wallet2", "wa-wallet3"
 	tcAddress := "0:abcd:"
 	tcType := "profile"
+	wallets, err := cl.ListWallets(ctx, "userID")
+	require.NoError(t, err)
+	for _, w := range wallets {
+		require.NoError(t, a.storeUserWallet(ctx, "userID", w))
+	}
 	aggregatedCoins, nfts, _, err := a.fetchWalletInfoForCoins(ctx, "userID", []*CoinMapping{
 		{
 			Coin: &coins.Coin{
