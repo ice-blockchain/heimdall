@@ -511,9 +511,11 @@ type (
 		HolderVerified         *bool   `db:"holder_verified"`
 	}
 	recentCandlestick struct {
-		o               atomic.Pointer[OHLCV]
-		interval        Interval
-		onceStartTicker sync.Once
+		o             atomic.Pointer[OHLCV]
+		lastCompleted atomic.Pointer[OHLCV]
+		interval      Interval
+		tickerRunning atomic.Bool
+		onReset       atomic.Pointer[func()]
 	}
 	recentTradeStats struct {
 		stats          *TradeStats
