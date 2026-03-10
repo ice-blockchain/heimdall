@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"math/big"
 	stdlibsync "sync"
+	"sync/atomic"
 	"testing"
 	stdlibtime "time"
 
@@ -1397,6 +1398,116 @@ func TestSubscribeOHLVC(t *testing.T) {
 			t.Fatalf("expected no OHLCV event when there is no data, but got: %+v", ohlcv)
 		case <-stdlibtime.After(200 * stdlibtime.Millisecond):
 		}
+	})
+
+	t.Run("ticker restarts after context cancel and reconnect", func(t *testing.T) {
+		cs := newRecentCandlestick()
+		cs.interval = Interval("1s")
+
+		var resetCount atomic.Int32
+		cs.setOnReset(func() {
+			resetCount.Add(1)
+		})
+
+		ctx1, cancel1 := context.WithCancel(context.Background())
+		cs.Update(0.10, mustBigInt("1000000000000000000000000000"), big.NewInt(0))
+		cs.ensureTickerRunning(ctx1)
+
+		require.Eventually(t, func() bool {
+			return resetCount.Load() >= 1
+		}, 5*stdlibtime.Second, 100*stdlibtime.Millisecond, "ticker should fire at least once")
+
+		cancel1()
+
+		require.Eventually(t, func() bool {
+			return !cs.tickerRunning.Load()
+		}, 3*stdlibtime.Second, 50*stdlibtime.Millisecond, "ticker should stop after context cancel")
+
+		resetBefore := resetCount.Load()
+		cs.Update(0.20, mustBigInt("1000000000000000000000000000"), big.NewInt(0))
+
+		ctx2, cancel2 := context.WithCancel(context.Background())
+		defer cancel2()
+		cs.ensureTickerRunning(ctx2)
+
+		require.Eventually(t, func() bool {
+			return resetCount.Load() > resetBefore
+		}, 5*stdlibtime.Second, 100*stdlibtime.Millisecond, "ticker should restart and fire onReset with new context")
+	})
+
+	t.Run("sends closed candle to subscriber when interval expires", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*stdlibtime.Second)
+		defer cancel()
+
+		db, connString, release := helperCreateDBWithConnString(t)
+		defer release()
+		ta := helperNewForTestWithConnString(t, db, connString)
+
+		extAddr := "ext_candle_close_notify"
+		interval := Interval("1s")
+		now := stdlibtime.Now().UTC()
+
+		cs := newRecentCandlestick()
+		cs.Update(0.50, mustBigInt("1000000000000000000000000000"), big.NewInt(0))
+		ta.ohclvRecentData.Store(interval.String()+"_"+extAddr, cs)
+
+		received := make(chan *OHLCV, 10)
+		err := ta.SubscribeOHLVC(ctx, now, extAddr, "test-user", interval, func(ohlcv *OHLCV, err error) {
+			if err == nil && ohlcv != nil {
+				received <- ohlcv
+			}
+		})
+		require.NoError(t, err)
+
+		select {
+		case <-received:
+		case <-stdlibtime.After(5 * stdlibtime.Second):
+			t.Fatal("did not receive initial candle")
+		}
+
+		var closedCandle *OHLCV
+		require.Eventually(t, func() bool {
+			select {
+			case ohlcv := <-received:
+				closedCandle = ohlcv
+				return true
+			default:
+				return false
+			}
+		}, 5*stdlibtime.Second, 100*stdlibtime.Millisecond,
+			"subscriber should receive the closed candle via onReset -> NotifySwap when interval expires")
+
+		require.NotNil(t, closedCandle)
+		require.InDelta(t, 0.50, closedCandle.Close, 0.01)
+	})
+
+	t.Run("SetInterval resets and notifies when candle expired", func(t *testing.T) {
+		cs := newRecentCandlestick()
+		cs.interval = Interval("1s")
+		cs.Update(0.30, mustBigInt("1000000000000000000000000000"), big.NewInt(0))
+
+		old := cs.o.Load()
+		expired := *old
+		expired.Timestamp = uint64(stdlibtime.Now().Add(-5 * stdlibtime.Second).UnixNano())
+		cs.o.Store(&expired)
+
+		var notified atomic.Bool
+		cs.setOnReset(func() {
+			notified.Store(true)
+		})
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		cs.SetInterval(ctx, Interval("1s"))
+
+		require.True(t, notified.Load(), "onReset should be called when SetInterval detects expired candle")
+
+		current := cs.o.Load()
+		require.True(t, current.Empty(), "candle should be reset after SetInterval detects expiration")
+
+		lc := cs.LastCompleted()
+		require.NotNil(t, lc, "lastCompleted should store the closed candle")
+		require.InDelta(t, 0.30, lc.Close, 0.01, "lastCompleted should preserve the close price")
 	})
 }
 
