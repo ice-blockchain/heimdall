@@ -208,7 +208,7 @@ func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[To
 //	@Description	Returns community tokens by view type. "latest" requires authentication; "rewardsDistribution" is public and requires referenceDate.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			externalAddressOrViewType	path		string	true	"View type"											Enums(latest, rewardsDistribution)				example("latest")
+//	@Param			externalAddressOrViewType	path		string	true	"View type"											Enums(latest, rewardsDistribution)														example("latest")
 //	@Param			type						query		string	false	"Token type filter"									Enums(profile,post,video,article,anyPost,xcom,onlineplus_creator,onlineplus_content)	example("profile")
 //	@Param			keyword						query		string	false	"Search keyword"									example("bitcoin")
 //	@Param			referenceDate				query		string	false	"Reference date (required for rewardsDistribution)"	example("2025-01-03T16:00:00Z")
@@ -304,7 +304,7 @@ func parseFlexibleDate(s string) (time.Time, error) {
 //	@Description	Creates a new session view for community tokens analytics.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			externalAddressOrViewType	path		string	true	"View type"			Enums(top,trending,bondingCurveProgress)		example("top")
+//	@Param			externalAddressOrViewType	path		string	true	"View type"			Enums(top,trending,bondingCurveProgress)												example("top")
 //	@Param			type						query		string	false	"Token type filter"	Enums(profile,post,video,article,anyPost,xcom,onlineplus_creator,onlineplus_content)	example("profile")
 //	@Success		200							{object}	SessionViewCreateResponse
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
