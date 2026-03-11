@@ -40,7 +40,7 @@ var (
 
 func TestMain(m *testing.M) {
 	ctx, cancel := context.WithCancel(context.Background())
-	testPgContainer = fixture.New(ctx)
+	testPgContainer = fixture.New(ctx, fixture.WithConfigData("listen_addresses = '*'\nmax_connections = 500\n"))
 
 	dragonflyContainer, dragonflyAddr, releaseDragonfly := mustStartDragonflyContainer(ctx)
 	testDragonflyURL = dragonflyAddr

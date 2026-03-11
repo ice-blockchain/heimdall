@@ -232,7 +232,7 @@ func (t *tokenAnalytics) SubscribeOHLVC(ctx context.Context, now stdlibtime.Time
 		candleStick.setOnReset(func() {
 			t.subscriptions.NotifySwap(&Trade{TokenExternalAddress: externalAddress})
 		})
-		candleStick.SetInterval(ctx, interval)
+		candleStick.SetInterval(interval)
 		go func() {
 			for _ = range swaps {
 				rec, ok := t.ohclvRecentData.Load(interval.String() + "_" + externalAddress)
@@ -395,7 +395,9 @@ func (t *tokenAnalytics) fetchTradingStats(ctx context.Context, now stdlibtime.T
 }
 
 func newRecentCandlestick() *recentCandlestick {
-	r := &recentCandlestick{}
+	r := &recentCandlestick{
+		done: make(chan struct{}),
+	}
 	r.reset(stdlibtime.Now().In(stdlibtime.UTC))
 	return r
 }
@@ -404,14 +406,14 @@ func (o *OHLCV) Empty() bool {
 	return o.Open == 0 && o.High == 0 && o.Low == 0 && o.Close == 0 && o.Volume == 0
 }
 
-func (r *recentCandlestick) SetInterval(ctx context.Context, interval Interval) {
+func (r *recentCandlestick) SetInterval(interval Interval) {
 	r.interval = interval
 	now := stdlibtime.Now().In(stdlibtime.UTC)
 	current := r.o.Load()
 	if uint64(now.UnixNano())-current.Timestamp >= uint64(interval.Duration()) {
 		r.reset(now)
 	}
-	r.ensureTickerRunning(ctx)
+	r.ensureTickerRunning()
 }
 
 func (r *recentCandlestick) Update(priceInUsd float64, totalSupply, burned *big.Int) {
@@ -437,11 +439,15 @@ func (r *recentCandlestick) OHLCV() *OHLCV {
 	return r.o.Load()
 }
 
-func (r *recentCandlestick) ensureTickerRunning(ctx context.Context) {
+func (r *recentCandlestick) ensureTickerRunning() {
+	d := r.interval.Duration()
+	if d <= 0 {
+		return
+	}
 	if !r.tickerRunning.CompareAndSwap(false, true) {
 		return
 	}
-	ticker := stdlibtime.NewTicker(r.interval.Duration())
+	ticker := stdlibtime.NewTicker(d)
 	go func() {
 		defer func() {
 			ticker.Stop()
@@ -449,16 +455,32 @@ func (r *recentCandlestick) ensureTickerRunning(ctx context.Context) {
 		}()
 		for {
 			select {
-			case <-ctx.Done():
+			case <-r.done:
 				return
 			case <-ticker.C:
 				r.reset(stdlibtime.Now().In(stdlibtime.UTC))
+				if r.o.Load().Empty() {
+					return
+				}
 			}
 		}
 	}()
 }
 
+func (r *recentCandlestick) Stop() {
+	select {
+	case <-r.done:
+	default:
+		close(r.done)
+	}
+}
+
 func (r *recentCandlestick) setOnReset(fn func()) {
+	if fn == nil {
+		r.onReset.Store(nil)
+
+		return
+	}
 	r.onReset.Store(&fn)
 }
 
@@ -467,10 +489,11 @@ func (r *recentCandlestick) LastCompleted() *OHLCV {
 }
 
 func (r *recentCandlestick) reset(now stdlibtime.Time) {
-	old := r.o.Swap(&OHLCV{Open: 0, High: 0, Low: 0, Close: 0, Volume: 0, Timestamp: uint64(now.Truncate(r.interval.Duration()).UnixNano())})
+	ts := uint64(now.Truncate(r.interval.Duration()).UnixNano())
+	old := r.o.Swap(&OHLCV{Timestamp: ts})
 	if old != nil && !old.Empty() {
 		r.lastCompleted.Store(old)
-		if cb := r.onReset.Load(); cb != nil {
+		if cb := r.onReset.Load(); cb != nil && *cb != nil {
 			(*cb)()
 		}
 	}
