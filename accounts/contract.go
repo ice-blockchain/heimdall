@@ -25,6 +25,7 @@ import (
 	relaymanagement "github.com/ice-blockchain/heimdall/relay-management"
 	"github.com/ice-blockchain/subzero/model"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
+	"github.com/ice-blockchain/wintr/riverqueue"
 	"github.com/ice-blockchain/wintr/time"
 	"github.com/ice-blockchain/wintr/totp"
 )
@@ -36,6 +37,8 @@ type (
 		io.Closer
 		Wallets
 		ProxyDelegatedRelyingParty(ctx context.Context, rw http.ResponseWriter, r *http.Request)
+		ProcessWebhookFromDelegatedRelyingParty(ctx context.Context, kind string, data map[string]any) error
+		VerifyWebhook(ctx context.Context, signature string, payload []byte) error
 		Verify2FA(ctx context.Context, userID string, codes map[TwoFAOptionWithAddr]string) error
 		Delete2FA(ctx context.Context, userID string, codes map[TwoFAOptionWithAddr]string, twoFAToDel TwoFAOptionEnum, toDel string) error
 		Send2FA(ctx context.Context, userID string, channel TwoFAOptionEnum, deliverTo *string, language string, verificationUsingExisting2FA map[TwoFAOptionWithAddr]string, replaceOldValue *string) (authenticatorUri *string, err error)
@@ -91,6 +94,7 @@ type (
 		BroadcastTransactionFromWallet(ctx context.Context, walletId string, transactionData *TransactionPayload) (*TransactionResponse, error)
 		GetNFTs(ctx context.Context, walletID, paginationToken string, limit uint64) ([]*NFT, string, *string, error)
 		GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint64) ([]WalletHistoryItem, string, *string, error)
+		GetWalletTransfers(ctx context.Context, walletID, paginationToken string, limit uint64) ([]dfns.TransferItem, string, *string, error)
 		GetWalletAssets(ctx context.Context, walletID string) (*Assets, error)
 	}
 	Coins interface {
@@ -181,6 +185,7 @@ type (
 	NFT               = coins.NFT
 	Wallet            = dfns.Wallet
 	WalletHistoryItem = dfns.WalletHistoryItem
+	TransferItem      = dfns.TransferItem
 	LiteUser          struct {
 		MasterPubKey     string                             `json:"masterPubKey" db:"master_pubkey"`
 		Username         string                             `json:"username,omitempty" db:"username"`
@@ -196,6 +201,7 @@ type (
 	TransactionPayload    = dfns.TransactionPayload
 	TransactionResponse   = dfns.TransactionResponse
 	Fee                   = dfns.Fee
+	WebhookData           = dfns.WebhookData
 )
 
 const (
@@ -222,6 +228,15 @@ const (
 
 	SearchTypeContains   SearchType = "contains"
 	SearchTypeStartsWith SearchType = "startsWith"
+
+	webhookTransactionConfirmed   = "wallet.transaction.confirmed"
+	webhookTransactionBroadcasted = "wallet.transaction.broadcasted"
+	webhookTransferConfirmed      = "wallet.transfer.confirmed"
+	webhookTransferBroadcasted    = "wallet.transfer.broadcasted"
+	webhookTransferRequested      = "wallet.transfer.requested"
+	webhookTransferFailed         = "wallet.transfer.failed"
+	webhookTransferRejected       = "wallet.transfer.rejected"
+	webhookWalletBlockchainEvent  = "wallet.blockchainevent.detected"
 )
 
 var (
@@ -253,6 +268,7 @@ var (
 	ErrRegistrationsDisabled                 = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "registrations disabled"}
 	ErrEmailNotAllowedForEarlyAccess         = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "email not allowed for early access"}
 	ErrEmailUsed                             = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "email used"}
+	ErrNotOwned                              = &dfns.DfnsInternalError{HTTPStatus: http.StatusForbidden, Message: "not owned"}
 	ErrValidationFailed                      = errors.New("validation failed")
 	verifiedBadgeImage1024X1024Tag           = nostr.Tag{"image", "https://api.iconify.design/bi:patch-check.svg?width=512&height=512", "512x512"}
 	verifiedBadgeThumbnail256X256Tag         = nostr.Tag{"thumb", "https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/icons/patch-check.svg", "16x16"}
@@ -283,6 +299,7 @@ type (
 		delegatedRPClient          dfns.DfnsClient
 		totpProvider               totp.TOTP
 		db                         *storage.DB
+		riverClient                riverqueue.Client
 		coinsRepo                  Coins
 		relaysRepo                 Relays
 		shutdown                   func() error
@@ -363,6 +380,8 @@ type (
 		IdentityKeypairs                 []string            `yaml:"identityKeypairs" mapstructure:"identityKeypairs"`
 		CommunityTokenAPIKey             string              `yaml:"communityTokenAPIKey" mapstructure:"communityTokenAPIKey"`
 		TransactionValidationFeeSlippage float64             `yaml:"transactionValidationFeeSlippage"`
+
+		WintrStorage storage.Cfg `yaml:"wintr/connectors/storage/v2" mapstructure:"wintr/connectors/storage/v2"`
 	}
 
 	AppsRuntimeConfig struct {
@@ -395,5 +414,211 @@ type (
 		AllowNewRegistrations                      bool    `yaml:"allowNewRegistrations" mapstructure:"allowNewRegistrations" json:"allowNewRegistrations"`
 		EnableEarlyAccessRegistrations             bool    `yaml:"enableEarlyAccessRegistrations" mapstructure:"enableEarlyAccessRegistrations" json:"enableEarlyAccessRegistrations"`
 		MaxEarlyAccessRegistrationsAllowedPerEmail int     `yaml:"maxEarlyAccessRegistrationsAllowedPerEmail" mapstructure:"maxEarlyAccessRegistrationsAllowedPerEmail" json:"maxEarlyAccessRegistrationsAllowedPerEmail"`
+	}
+
+	webhookTransferRequest struct {
+		DateBroadcasted string                         `mapstructure:"dateBroadcasted" json:"dateBroadcasted"`
+		DateConfirmed   string                         `mapstructure:"dateConfirmed" json:"dateConfirmed"`
+		DateRequested   string                         `mapstructure:"dateRequested" json:"dateRequested"`
+		Fee             string                         `mapstructure:"fee" json:"fee"`
+		ID              string                         `mapstructure:"id" json:"id"`
+		Memo            string                         `mapstructure:"memo" json:"memo"`
+		Metadata        webhookTransferRequestMetadata `mapstructure:"metadata" json:"metadata"`
+		Network         string                         `mapstructure:"network" json:"network"`
+		RequestBody     webhookTransferRequestBody     `mapstructure:"requestBody" json:"requestBody"`
+		Requester       webhookRequester               `mapstructure:"requester" json:"requester"`
+		Status          string                         `mapstructure:"status" json:"status"`
+		TxHash          string                         `mapstructure:"txHash" json:"txHash"`
+		WalletID        string                         `mapstructure:"walletId" json:"walletId"`
+
+		Issuer    string `mapstructure:"issuer" json:"issuer"`       // Sep41, to contract in db
+		AssetCode string `mapstructure:"assetCode" json:"assetCode"` // Sep41, to tokenId in db
+		Master    string `mapstructure:"master" json:"master"`       // tep74 to contract in db
+		Mint      string `mapstructure:"mint" json:"mint"`           // spl, to contract in db
+		AssetID   string `mapstructure:"assetId" json:"assetId"`     // asa, to tokenId in db
+		TokenID   string `mapstructure:"tokenId" json:"tokenId"`     // trc10,721
+
+	}
+	webhookTransactionRequest struct {
+		DateBroadcasted string             `mapstructure:"dateBroadcasted"`
+		DateConfirmed   string             `mapstructure:"dateConfirmed"`
+		DateRequested   string             `mapstructure:"dateRequested"`
+		Fee             string             `mapstructure:"fee"`
+		ID              string             `mapstructure:"id"`
+		Network         string             `mapstructure:"network"`
+		RequestBody     TransactionPayload `mapstructure:"requestBody"`
+		Requester       webhookRequester   `mapstructure:"requester"`
+		Status          string             `mapstructure:"status"`
+		TxHash          string             `mapstructure:"txHash"`
+		WalletID        string             `mapstructure:"walletId"`
+	}
+	webhookBlockchainEvent struct {
+		BlockNumber  uint64                                `mapstructure:"blockNumber" json:"blockNumber"`
+		Contract     string                                `mapstructure:"contract" json:"contract"`
+		TokenId      string                                `mapstructure:"tokenId" json:"tokenId"`
+		Decimals     int                                   `mapstructure:"decimals" json:"decimals"`
+		Direction    string                                `mapstructure:"direction" json:"direction"`
+		Fee          string                                `mapstructure:"fee" json:"fee"`
+		From         string                                `mapstructure:"from" json:"from"`
+		Index        string                                `mapstructure:"index" json:"index"`
+		Kind         string                                `mapstructure:"kind" json:"kind"`
+		Metadata     webhookBlockchainEventPayloadMetadata `mapstructure:"metadata" json:"metadata"`
+		Network      string                                `mapstructure:"network" json:"network"`
+		OrgID        string                                `mapstructure:"orgId" json:"orgId"`
+		Symbol       string                                `mapstructure:"symbol" json:"symbol"`
+		Timestamp    string                                `mapstructure:"timestamp" json:"timestamp"`
+		To           string                                `mapstructure:"to" json:"to"`
+		TxHash       string                                `mapstructure:"txHash" json:"txHash"`
+		ExternalHash string                                `mapstructure:"externalHash" json:"externalHash"`
+		Value        string                                `mapstructure:"value" json:"value"`
+		Memo         string                                `mapstructure:"memo" json:"memo"`
+		WalletID     string                                `mapstructure:"walletId" json:"walletId"`
+	}
+	webhookBlockchainEventWallet struct {
+		Address     string                                 `mapstructure:"address"`
+		Custodial   bool                                   `mapstructure:"custodial"`
+		DateCreated string                                 `mapstructure:"dateCreated"`
+		ID          string                                 `mapstructure:"id"`
+		Name        string                                 `mapstructure:"name"`
+		Network     string                                 `mapstructure:"network"`
+		SigningKey  webhookBlockchainEventWalletSigningKey `mapstructure:"signingKey"`
+		Status      string                                 `mapstructure:"status"`
+		Tags        []string                               `mapstructure:"tags"`
+	}
+
+	webhookBlockchainEventWalletSigningKey struct {
+		Curve       string `mapstructure:"curve"`
+		DelegatedTo string `mapstructure:"delegatedTo"`
+		ID          string `mapstructure:"id"`
+		PublicKey   string `mapstructure:"publicKey"`
+		Scheme      string `mapstructure:"scheme"`
+	}
+
+	webhookBlockchainEventPayloadMetadata struct {
+		Asset webhookAsset `mapstructure:"asset"`
+		Fee   webhookAsset `mapstructure:"fee"`
+	}
+	webhookTransferRequestMetadata struct {
+		Asset webhookAsset `mapstructure:"asset" json:"asset"`
+	}
+
+	webhookAsset struct {
+		Decimals int            `mapstructure:"decimals" json:"decimals"`
+		Quotes   map[string]any `mapstructure:"quotes" json:"quotes"`
+		Symbol   string         `mapstructure:"symbol" json:"symbol"`
+	}
+
+	webhookTransferRequestBody struct {
+		Amount   string `mapstructure:"amount" json:"amount"`
+		Contract string `mapstructure:"contract" json:"contract"`
+		Kind     string `mapstructure:"kind" json:"kind"`
+		Priority string `mapstructure:"priority" json:"priority"`
+		To       string `mapstructure:"to" json:"to"`
+	}
+	webhookRequester struct {
+		UserID string `mapstructure:"userId" json:"userId"`
+	}
+	webhookSyncAssetsJobParams struct {
+		UserID   string `json:"userId"`
+		WalletID string `json:"walletId"`
+		Payload  any    `json:"payload,omitempty"`
+	}
+
+	webhookSyncAssetsWorker struct {
+		a *accounts
+		riverqueue.WorkerDefaults[webhookSyncAssetsJobParams]
+	}
+	webhookSyncHistoryJobParams struct {
+		UserID   string `json:"userId"`
+		WalletID string `json:"walletId"`
+		Payload  any    `json:"payload,omitempty"`
+	}
+
+	webhookSyncHistoryWorker struct {
+		a *accounts
+		riverqueue.WorkerDefaults[webhookSyncHistoryJobParams]
+	}
+
+	webhookTransferUpsertJobParams struct {
+		UserID   string                  `json:"userId"`
+		WalletID string                  `json:"walletId"`
+		Payload  *webhookTransferRequest `json:"payload,omitempty"`
+	}
+
+	webhookTransferUpsertWorker struct {
+		a *accounts
+		riverqueue.WorkerDefaults[webhookTransferUpsertJobParams]
+	}
+
+	webhookWalletInsertJobParams struct {
+		UserID   string                        `json:"userId"`
+		WalletID string                        `json:"walletId"`
+		Wallet   *webhookBlockchainEventWallet `json:"wallet"`
+	}
+
+	webhookWalletInsertWorker struct {
+		a *accounts
+		riverqueue.WorkerDefaults[webhookWalletInsertJobParams]
+	}
+	asset struct {
+		UpdatedAt *time.Time     `db:"updated_at"`
+		UserID    string         `db:"user_id" mapstructure:"-"`
+		WalletID  string         `db:"wallet_id" mapstructure:"-"`
+		Balance   string         `db:"balance" mapstructure:"balance"`
+		Kind      string         `db:"kind" mapstructure:"kind"`
+		Decimals  int64          `db:"decimals" mapstructure:"decimals"`
+		Contract  string         `db:"contract" mapstructure:"contract,omitempty"`
+		Symbol    *string        `db:"symbol" mapstructure:"symbol,omitempty"`
+		TokenID   string         `db:"token_id" mapstructure:"tokenId,omitempty"`
+		Verified  bool           `db:"verified" json:"verified"`
+		Raw       map[string]any `db:"raw" mapstructure:"-"`
+		Network   string         `db:"network" mapstructure:"-"`
+	}
+	history struct {
+		I            uint64         `db:"i"` // for offset / pagination
+		CreatedAt    time.Time      `db:"created_at"`
+		UserID       string         `db:"user_id"`
+		WalletID     string         `db:"wallet_id"`
+		TxHash       string         `db:"tx_hash"`
+		ExternalHash *string        `db:"external_hash"`
+		LogIndex     string         `db:"log_index"`
+		BlockNumber  int64          `db:"block_number"`
+		Timestamp    *time.Time     `db:"timestamp"`
+		Network      string         `db:"network"`
+		Kind         string         `db:"kind"`
+		Direction    string         `db:"direction"`
+		Contract     *string        `db:"contract"`
+		Symbol       *string        `db:"symbol"`
+		Decimals     int64          `db:"decimals"`
+		Value        string         `db:"value"`
+		Fee          *string        `db:"fee"`
+		FromAddress  string         `db:"from_address"`
+		ToAddress    string         `db:"to_address"`
+		OrgID        string         `db:"org_id"`
+		Metadata     map[string]any `db:"metadata"`
+		Memo         *string        `db:"memo"`
+		TokenId      *string        `db:"token_id"`
+	}
+	transfer struct {
+		CreatedAt       *time.Time     `db:"created_at"`
+		UpdatedAt       *time.Time     `db:"updated_at"`
+		UserID          string         `db:"user_id"`
+		WalletID        string         `db:"wallet_id"`
+		ID              string         `db:"id"`
+		Network         string         `db:"network"`
+		Kind            string         `db:"kind"`
+		Status          string         `db:"status"`
+		Contract        string         `db:"contract"`
+		TokenID         string         `db:"token_id"`
+		Amount          string         `db:"amount"`
+		Fee             string         `db:"fee"`
+		FromAddress     string         `db:"from_address"`
+		ToAddress       string         `db:"to_address"`
+		TxHash          string         `db:"tx_hash"`
+		RequesterUserID string         `db:"requester_user_id"`
+		DateRequested   *time.Time     `db:"date_requested"`
+		DateBroadcasted *time.Time     `db:"date_broadcasted"`
+		DateConfirmed   *time.Time     `db:"date_confirmed"`
+		Raw             map[string]any `db:"raw"`
 	}
 )

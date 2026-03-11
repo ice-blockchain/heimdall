@@ -120,7 +120,6 @@ func (c *dfnsClient) CreateWallet(ctx context.Context, network, name string) (*W
 
 func (c *dfnsClient) GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint64) (*WalletHistory, error) {
 	header := http.Header{}
-	header.Add(authDfnsHeader, dfnsAuthHeader(ctx))
 	resp, err := dfnsCall[struct {
 		PaginationToken string `form:"paginationToken,omitempty"`
 		Limit           uint64 `form:"limit"`
@@ -132,7 +131,26 @@ func (c *dfnsClient) GetWalletHistory(ctx context.Context, walletID, paginationT
 		Limit:           limit,
 	}, "GET", fmt.Sprintf("/wallets/%v/history", walletID), header)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to list NFTs on wallet %v", walletID)
+		return nil, errors.Wrapf(err, "failed to list history on wallet %v", walletID)
+	}
+
+	return resp, nil
+}
+
+func (c *dfnsClient) GetWalletTransfers(ctx context.Context, walletID, paginationToken string, limit uint64) (*Transfers, error) {
+	header := http.Header{}
+	resp, err := dfnsCall[struct {
+		PaginationToken string `form:"paginationToken,omitempty"`
+		Limit           uint64 `form:"limit"`
+	}, Transfers](ctx, c, &struct {
+		PaginationToken string `form:"paginationToken,omitempty"`
+		Limit           uint64 `form:"limit"`
+	}{
+		PaginationToken: paginationToken,
+		Limit:           limit,
+	}, "GET", fmt.Sprintf("/wallets/%v/transfers", walletID), header)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to list transfers on wallet %v", walletID)
 	}
 
 	return resp, nil

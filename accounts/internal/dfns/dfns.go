@@ -5,9 +5,13 @@ package dfns
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	stdlog "log"
+	"math"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -35,7 +39,7 @@ import (
 	"github.com/ice-blockchain/wintr/time"
 )
 
-func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey string, coinFeesProvider CoinFeesProvider) DfnsClient {
+func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey string, coinFeesProvider CoinFeesProvider, missedWebhookEvents chan<- map[string]any) DfnsClient {
 	var cfg config
 	cfg.loadCfg(applicationYamlKey)
 	serviceAccountSigner := credentials.NewAsymmetricKeySigner(&credentials.AsymmetricKeySignerConfig{
@@ -63,7 +67,7 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 	if err != nil {
 		log.Panic(errors.Wrap(err, "failed to parse ABI for ERC20"))
 	}
-	cl.mustSetupWebhookOrLoadSecret(ctx, db, &cfg)
+	cl.mustSetupWebhookOrLoadSecret(ctx, db, &cfg, missedWebhookEvents)
 	if _, hasWebFE := cl.cfg.DFNS.AllowedApplications[cl.cfg.DFNS.WebFEAppID]; !hasWebFE {
 		log.Panic(errors.Errorf("webFEAppId is not listed in allowed applications"))
 	}
@@ -303,7 +307,7 @@ func (c *dfnsClient) userClient() *http.Client {
 	return uClient
 }
 
-func (c *dfnsClient) mustSetupWebhookOrLoadSecret(ctx context.Context, db *storage.DB, cfg *config) {
+func (c *dfnsClient) mustSetupWebhookOrLoadSecret(ctx context.Context, db *storage.DB, cfg *config, missedWebhookEvents chan<- map[string]any) {
 	var err error
 	whCtx, whCancel := context.WithTimeout(ctx, 30*stdlibtime.Second)
 	defer whCancel()
@@ -336,14 +340,23 @@ func (c *dfnsClient) mustSetupWebhookOrLoadSecret(ctx context.Context, db *stora
 			}
 			registeredHooks = []webhook{}
 		}
-
+		var hookId string
 		if len(registeredHooks) == 0 {
-			c.webhookSecret = c.mustRegisterAllEventsWebhook(ctx)
+			c.webhookSecret, hookId = c.mustRegisterAllEventsWebhook(ctx)
 			log.Panic(c.storeWebhookSecret(whCtx, db, c.webhookSecret))
 		} else {
+			for _, hook := range registeredHooks {
+				if hook.Url == cfg.DFNS.WebhookURL {
+					hookId = hook.Id
+					break
+				}
+			}
 			if c.webhookSecret, err = c.loadWebhookSecret(whCtx, db); err != nil {
 				log.Panic(errors.Wrapf(err, "failed to read stored webhook secret, must re-create webhook"))
 			}
+		}
+		if hookId != "" {
+			go c.readMissedWebhookEvents(ctx, hookId, missedWebhookEvents)
 		}
 	}
 
@@ -388,10 +401,73 @@ func (c *dfnsClient) proxy(typ string) *httputil.ReverseProxy {
 	return proxy
 }
 
-func (c *dfnsClient) VerifyWebhookSecret(fromWebhook string) bool {
-	return c.webhookSecret != "" && c.webhookSecret == fromWebhook
+func (c *dfnsClient) VerifyWebhookSecret(now *time.Time, eventSignature string, payload []byte) error {
+	if c.webhookSecret == "" {
+		return errors.New("webhook not configured")
+	}
+
+	mac := hmac.New(sha256.New, []byte(c.webhookSecret))
+	mac.Write(payload)
+
+	expectedSignature := "sha256=" + hex.EncodeToString(mac.Sum(nil))
+	isSignatureValid := hmac.Equal([]byte(expectedSignature), []byte(eventSignature))
+	if !isSignatureValid {
+		return ErrInvalidToken
+	}
+	var eventPayload map[string]any
+	if err := json.Unmarshal(payload, &eventPayload); err != nil {
+		return errors.Wrapf(err, "failed to unmarshal webhook payload, invalid json: %v", string(payload))
+	}
+	timestampSentI, ok := eventPayload["timestampSent"]
+	if !ok {
+		return errors.Wrapf(ErrInvalidToken, "failed to extract timestampSent: %+v", eventPayload)
+	}
+	timestampSent, ok := eventPayload["timestampSent"].(float64)
+	if !ok {
+		return errors.Wrapf(ErrInvalidToken, "failed to decode timestampSent: %v", timestampSentI)
+	}
+
+	isTimestampValid := int64(math.Abs(float64(now.Unix()-int64(timestampSent)))) < int64(webhookReplayWindow/stdlibtime.Second)
+	if !isTimestampValid {
+		return errors.Wrapf(ErrExpiredToken, "timestamp sent is too old, current: %d, sent: %d", now.Unix(), timestampSent)
+	}
+
+	return nil
 }
-func (c *dfnsClient) mustRegisterAllEventsWebhook(ctx context.Context) (whSecret string) {
+
+func (wh *WebhookData) SetBytes(b []byte) {
+	wh.Raw = b
+}
+
+func (c *dfnsClient) readMissedWebhookEvents(ctx context.Context, hookId string, missedWebhookEvents chan<- map[string]any) {
+	defer close(missedWebhookEvents)
+	type params struct {
+		PaginationToken string `form:"paginationToken,omitempty"`
+		Limit           uint64 `form:"limit"`
+		DeliveryFailed  bool   `form:"deliveryFailed"`
+	}
+	type webhookEvents struct {
+		Events        []WebhookData `json:"items"`
+		NextPageToken *string       `json:"nextPageToken,omitempty"`
+	}
+	empty := ""
+	var paginationToken *string = &empty
+	for ctx.Err() == nil && paginationToken != nil {
+		events, err := dfnsCall[params, webhookEvents](ctx, c, &params{DeliveryFailed: true, Limit: 200, PaginationToken: *paginationToken}, "GET", fmt.Sprintf("/webhooks/%v/events", hookId), http.Header{})
+		if err != nil {
+			log.Error(errors.Wrapf(err, "failed to fetch missed webhook events"))
+			break
+		}
+		paginationToken = events.NextPageToken
+		for _, event := range events.Events {
+			event.Data["whKind"] = event.Kind
+			missedWebhookEvents <- event.Data
+		}
+	}
+	return
+}
+
+func (c *dfnsClient) mustRegisterAllEventsWebhook(ctx context.Context) (whSecret, whID string) {
 	jData, err := json.MarshalContext(ctx, struct {
 		Url         string   `json:"url"`
 		Description string   `json:"description"`
@@ -414,9 +490,9 @@ func (c *dfnsClient) mustRegisterAllEventsWebhook(ctx context.Context) (whSecret
 		log.Panic(errors.Wrapf(err, "failed to unmarshal webhook response %v into %#v", string(resp), wh))
 	}
 	if wh.Secret != nil {
-		return *wh.Secret
+		return *wh.Secret, wh.Id
 	}
-	return ""
+	return "", wh.Id
 }
 
 func (c *dfnsClient) mustListWebhooks(ctx context.Context) []webhook {

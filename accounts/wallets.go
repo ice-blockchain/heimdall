@@ -9,12 +9,14 @@ import (
 	"math/big"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/cockroachdb/errors"
 	"github.com/goccy/go-json"
 	"github.com/google/uuid"
+	"github.com/mitchellh/mapstructure"
 
 	"github.com/ice-blockchain/heimdall/accounts/internal/dfns"
 	"github.com/ice-blockchain/heimdall/coins"
@@ -667,6 +669,26 @@ func toWallet(w *wallet) *Wallet {
 	}))
 }
 
+func webhookToWallet(w *webhookBlockchainEventWallet) Wallet {
+	return Wallet(map[string]any{
+		"id":          w.ID,
+		"dateCreated": w.DateCreated,
+		"name":        w.Name,
+		"address":     w.Address,
+		"network":     w.Network,
+		"status":      "Active",
+		"custodial":   false,
+		"tags":        []any{},
+		"signingKey": map[string]any{
+			"id":          w.SigningKey.ID,
+			"publicKey":   w.SigningKey.PublicKey,
+			"scheme":      w.SigningKey.Scheme,
+			"delegatedTo": w.SigningKey.DelegatedTo,
+			"curve":       w.SigningKey.Curve,
+		},
+	})
+}
+
 func (a *accounts) GetCoinsOfSymbolGroup(ctx context.Context, userID, symbolGroup string) ([]*CoinWithWalletInfo, error) {
 	views, err := storage.Select[WalletView](ctx, a.db, `SELECT 
     created_at, updated_at, name, user_id, array_to_json(coins) as coins, symbol_groups, id
@@ -929,7 +951,125 @@ func pagination(ctx context.Context) (map[string]string, uint64, error) {
 	return map[string]string{}, 100, nil
 }
 
-func (a *accounts) GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint64) ([]WalletHistoryItem, string, *string, error) {
+func (a *accounts) GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint64) (histories []WalletHistoryItem, network string, newPagination *string, err error) {
+	if limit == 0 {
+		limit = 100
+	}
+	var offset uint64
+	if paginationToken == "" {
+		offset = 0
+	} else {
+		offset, err = strconv.ParseUint(paginationToken, 10, 64)
+		if err != nil {
+			return nil, "", nil, errors.Wrapf(err, "failed to parse pagination token: %v", paginationToken)
+		}
+	}
+	historyForWallet, err := storage.Select[history](ctx, a.db, `SELECT * FROM wallet_history WHERE wallet_id = $1 AND i <= $3 ORDER BY block_number, i, log_index DESC LIMIT $2`, walletID, limit+1, offset)
+	if err != nil {
+		if storage.IsErr(err, storage.ErrNotFound) {
+			err = nil
+		}
+		if err != nil {
+			return nil, "", nil, errors.Wrapf(err, "failed to get wallet history for wallet %v", walletID)
+		}
+	}
+
+	if len(historyForWallet) == 0 {
+		userID := server.LoggedInUser(ctx).UserID()
+		histories, network, newPagination, err = a.getWalletHistory(ctx, walletID, paginationToken, limit)
+		if err != nil {
+			return nil, "", nil, errors.Wrapf(err, "failed to get wallet history for wallet %v %v from 3rd party", walletID, userID)
+		}
+		historiesToSave := make([]*webhookBlockchainEvent, 0, len(histories))
+		for _, newHistoryMap := range histories {
+			var newHistoryItem webhookBlockchainEvent
+			if err = mapstructure.Decode(newHistoryMap, &newHistoryItem); err != nil {
+				return nil, "", nil, errors.Wrapf(err, "failed to decode history item for %v user %v", walletID, userID)
+			}
+			historiesToSave = append(historiesToSave, &newHistoryItem)
+		}
+		if err = a.insertHistory(ctx, userID, walletID, historiesToSave); err != nil {
+			return nil, "", nil, errors.Wrapf(err, "failed to insert history for wallet %v user %v", walletID, userID)
+		}
+		return histories, network, newPagination, nil
+	}
+	res := make([]WalletHistoryItem, 0, len(historyForWallet))
+	for _, h := range historyForWallet {
+		res = append(res, WalletHistoryItem{
+			"kind":         h.Kind,
+			"walletId":     h.WalletID,
+			"network":      h.Network,
+			"direction":    h.Direction,
+			"blockNumber":  h.BlockNumber,
+			"timestamp":    h.Timestamp,
+			"txHash":       h.TxHash,
+			"externalHash": h.ExternalHash,
+			"index":        h.LogIndex,
+			"contract":     h.Contract,
+			"symbol":       h.Symbol,
+			"tokenId":      h.TokenId,
+			"from":         h.FromAddress,
+			"to":           h.ToAddress,
+			"value":        h.Value,
+			"decimals":     h.Decimals,
+			"fee":          h.Fee,
+			"metadata":     h.Metadata,
+			"memo":         h.Memo,
+		})
+	}
+	if uint64(len(res)) >= limit {
+		newPagination = new(fmt.Sprintf("%v", historyForWallet[len(res)-1].I))
+		res = res[:limit]
+	} else {
+		newPagination = nil
+	}
+	return res, historyForWallet[0].Network, newPagination, nil
+}
+
+func (a *accounts) GetWalletTransfers(ctx context.Context, walletID, paginationToken string, limit uint64) (transfers []dfns.TransferItem, network string, newPagination *string, err error) {
+	if limit == 0 {
+		limit = 100
+	}
+	var offset uint64
+	if paginationToken == "" {
+		offset = 0
+	} else {
+		offset, err = strconv.ParseUint(paginationToken, 10, 64)
+		if err != nil {
+			return nil, "", nil, errors.Wrapf(err, "failed to parse pagination token: %v", paginationToken)
+		}
+	}
+	transfersForWallet, err := storage.Select[transfer](ctx, a.db, `SELECT * FROM wallet_transfers WHERE wallet_id = $1 ORDER BY date_requested DESC LIMIT $2 OFFSET $3`, walletID, limit+1, offset)
+	if err != nil {
+		if storage.IsErr(err, storage.ErrNotFound) {
+			err = nil
+		}
+		if err != nil {
+			return nil, "", nil, errors.Wrapf(err, "failed to get wallet history for wallet %v", walletID)
+		}
+	}
+
+	if len(transfersForWallet) == 0 {
+		transfersFrom3rdParty, err := a.delegatedRPClient.GetWalletTransfers(ctx, walletID, paginationToken, limit)
+		if err != nil {
+			return nil, "", nil, errors.Wrapf(err, "failed to get wallet history for wallet %v from 3rd party", walletID)
+		}
+		return transfersFrom3rdParty.Items, transfersFrom3rdParty.Network, transfersFrom3rdParty.NextPageToken, nil
+	}
+	res := make([]dfns.TransferItem, 0, len(transfersForWallet))
+	for _, t := range transfersForWallet {
+		res = append(res, dfns.TransferItem(t.Raw))
+	}
+	if uint64(len(res)) >= limit {
+		newPagination = new(fmt.Sprintf("%v", len(res)-1))
+		res = res[:limit]
+	} else {
+		newPagination = nil
+	}
+	return res, transfersForWallet[0].Network, newPagination, nil
+}
+
+func (a *accounts) getWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint64) ([]WalletHistoryItem, string, *string, error) {
 	wallet, err := a.getWallet(ctx, walletID)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
@@ -937,11 +1077,8 @@ func (a *accounts) GetWalletHistory(ctx context.Context, walletID, paginationTok
 			if err != nil {
 				return nil, "", nil, errors.Wrapf(err, "failed to get wallet %v from 3rd party", walletID)
 			}
-			userID := ""
-			if user := server.LoggedInUser(ctx); user != nil {
-				userID = user.UserID()
-			}
-			err = a.storeUserWallet(ctx, userID, *wallet)
+			userID := server.LoggedInUser(ctx).UserID()
+			err = errors.Wrapf(a.storeUserWallet(ctx, userID, *wallet), "failed to store user wallet %v for %v", walletID, userID)
 		}
 		if err != nil {
 			return nil, "", nil, errors.Wrapf(err, "failed to get wallet %v from db", walletID)
@@ -968,7 +1105,49 @@ func (a *accounts) GetWalletHistory(ctx context.Context, walletID, paginationTok
 	return history.Items, history.Network, history.NextPageToken, nil
 }
 
-func (a *accounts) GetWalletAssets(ctx context.Context, walletID string) (*Assets, error) {
+func (a *accounts) GetWalletAssets(ctx context.Context, walletID string) (assets *Assets, err error) {
+	//return a.getWalletAssets(ctx, walletID)
+	assetsForWallet, err := storage.Select[asset](ctx, a.db, `SELECT 
+   		 wallet_assets.*, wallets.network as network
+	FROM wallet_assets
+	JOIN wallets ON wallet_assets.wallet_id = wallets.id
+	WHERE wallet_id = $1`, walletID)
+	if err != nil {
+		if storage.IsErr(err, storage.ErrNotFound) {
+			err = nil
+		}
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to read assets for wallet %v")
+		}
+	}
+	if len(assetsForWallet) == 0 {
+		assets, err = a.getWalletAssets(ctx, walletID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get assets for wallet %v from 3rd party", walletID)
+		}
+		userID := server.LoggedInUser(ctx).UserID()
+		err = a.upsertWalletAsset(ctx, userID, walletID, assets.Assets)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to upsert wallet assets %v %v", userID, walletID)
+		}
+		return assets, nil
+	}
+	if assetsForWallet[0].UserID != server.LoggedInUser(ctx).UserID() {
+		return nil, ErrNotOwned
+	}
+	res := &Assets{
+		Assets:   make([]dfns.Asset, 0, len(assetsForWallet)),
+		Network:  assetsForWallet[0].Network,
+		WalletID: assetsForWallet[0].WalletID,
+	}
+	for _, assetItem := range assetsForWallet {
+		res.Assets = append(res.Assets, assetItem.Raw)
+	}
+
+	return res, nil
+}
+
+func (a *accounts) getWalletAssets(ctx context.Context, walletID string) (*Assets, error) {
 	walletNetwork := ""
 	walletAddress := ""
 	if ctxNetwork := ctx.Value("walletNetwork"); ctxNetwork != nil { // We already fetched if while building wallet view

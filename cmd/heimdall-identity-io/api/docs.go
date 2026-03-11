@@ -3001,6 +3001,74 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/wallets/{walletId}/transfers": {
+            "get": {
+                "description": "Gets transfer history from the wallet",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Wallets"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "ap-",
+                        "description": "App ID",
+                        "name": "X-Client-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003cAdd token here\u003e",
+                        "description": "Auth token from delegated relying party",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID of the wallet",
+                        "name": "walletId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "custom limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "pagination token to continue from",
+                        "name": "paginationToken",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.WalletTransfersCollection"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "if request times out",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -3129,6 +3197,10 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "accounts.TransferItem": {
+            "type": "object",
+            "additionalProperties": {}
         },
         "accounts.TwoFAOptionEnum": {
             "type": "string",
@@ -3844,6 +3916,26 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/accounts.WalletHistoryItem"
+                    }
+                },
+                "network": {
+                    "type": "string"
+                },
+                "paginationToken": {
+                    "type": "string"
+                },
+                "walletId": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.WalletTransfersCollection": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/accounts.TransferItem"
                     }
                 },
                 "network": {

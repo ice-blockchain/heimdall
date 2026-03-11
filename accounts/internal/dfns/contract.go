@@ -41,7 +41,7 @@ type (
 		InitRegistration(ctx context.Context, identityKeyName string) (*RegistrationChallenge, error)
 		CompleteRegistrationWithWallets(ctx context.Context, credentials *Credentials) (CompletedRegistration, error)
 		GetUser(ctx context.Context, userID string) (*User, error)
-		VerifyWebhookSecret(fromWebhook string) bool
+		VerifyWebhookSecret(now *time.Time, eventSignature string, payload []byte) error
 		RegisterPostProxyCallback(url string, cb func(req *http.Request, now *time.Time, res map[string]any) error)
 		ListWallets(ctx context.Context, userID string) ([]Wallet, error)
 		GetWallet(ctx context.Context, userID string) (*Wallet, error)
@@ -49,6 +49,7 @@ type (
 		ListAssets(ctx context.Context, walletID string) (*Assets, error)
 		ListNFTs(ctx context.Context, walletID string) (*NFTs, error)
 		GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint64) (*WalletHistory, error)
+		GetWalletTransfers(ctx context.Context, walletID, paginationToken string, limit uint64) (*Transfers, error)
 		SecurePaymentConfirmation(ctx context.Context, userID, network string, wallet Wallet, body map[string]string) (tmplData any, err error)
 		BroadcastTransactionFromWallet(ctx context.Context, walletId string, transactionData *TransactionPayload) (*TransactionResponse, error)
 		GetNetworkFees(ctx context.Context, network string) (*FeeWithPriority, error)
@@ -81,6 +82,13 @@ type (
 		Network       string              `json:"network"`
 		WalletID      string              `json:"walletId"`
 		NextPageToken *string             `json:"nextPageToken,omitempty"`
+	}
+	TransferItem = map[string]any
+	Transfers    struct {
+		Items         []TransferItem `json:"items"`
+		Network       string         `json:"network"`
+		WalletID      string         `json:"walletId"`
+		NextPageToken *string        `json:"nextPageToken,omitempty"`
 	}
 	BroadcastTxResponse struct {
 		Id        string `json:"id"`
@@ -115,19 +123,19 @@ type (
 
 	TransactionPayload struct {
 		// Used for tc
-		UserOperations       []UserOperation `json:"userOperations"`
-		FeeSponsorId         string          `json:"feeSponsorId"`
-		MaxFeePerGas         *string         `json:"maxFeePerGas,omitempty"`
-		MaxPriorityFeePerGas *string         `json:"maxPriorityFeePerGas,omitempty"`
+		UserOperations       []UserOperation `json:"userOperations" mapstructure:"userOperations"`
+		FeeSponsorId         string          `json:"feeSponsorId" mapstructure:"feeSponsorId"`
+		MaxFeePerGas         *string         `json:"maxFeePerGas,omitempty" mapstructure:"maxFeePerGas"`
+		MaxPriorityFeePerGas *string         `json:"maxPriorityFeePerGas,omitempty" mapstructure:"maxPriorityFeePerGas"`
 		// used for regular transactions, rest of the fields, ie data, to, etc
 		Payload map[string]any `json:"-"`
 		// Avoid re-marshalling to 100% match signature
 		rawPayload []byte `json:"-"`
 	}
 	UserOperation struct {
-		To    string `json:"to"`
-		Value string `json:"value,omitempty"`
-		Data  string `json:"data"`
+		To    string `json:"to" mapstructure:"to"`
+		Value string `json:"value,omitempty" mapstructure:"value"`
+		Data  string `json:"data" mapstructure:"data"`
 	}
 	TransactionResponse = map[string]any
 
@@ -139,6 +147,14 @@ type (
 	Fee struct {
 		MaxFeePerGas         string `json:"maxFeePerGas"`
 		MaxPriorityFeePerGas string `json:"maxPriorityFeePerGas"`
+	}
+	WebhookData struct {
+		Raw       []byte         `json:"-" plain:"bogus"`
+		Date      *time.Time     `json:"date"`
+		Data      map[string]any `json:"data"`
+		ID        string         `json:"id" allowUnauthorized:"true"`
+		Signature string         `header:"X-DFNS-WEBHOOK-SIGNATURE"`
+		Kind      string         `json:"kind"`
 	}
 )
 
@@ -178,6 +194,7 @@ const (
 	networkIONTestnet         = "iontestnet"
 	erc20ABI                  = `[{"constant":true,"inputs":[{"name":"","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"from","type":"address"},{"indexed":true,"name":"to","type":"address"},{"indexed":false,"name":"value","type":"uint256"}],"name":"Transfer","type":"event"}]`
 	ErrMessageNFTNotSupported = `does not support NFT balances`
+	webhookReplayWindow       = 30 * stdlibtime.Second
 )
 
 var (

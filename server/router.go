@@ -131,6 +131,9 @@ func (req *Request[REQ, RESP]) processTags() {
 		if tag.Get("formMultipart") != "" {
 			req.bindings[formMultipart] = struct{}{}
 		}
+		if tag.Get("plain") != "" {
+			req.bindings[plain] = struct{}{}
+		}
 	}
 }
 
@@ -140,7 +143,7 @@ func (req *Request[REQ, RESP]) processRequest() *ErrResponse[*ErrorResponse] {
 	for b := range req.bindings {
 		switch b {
 		case json:
-			errs = append(errs, req.ginCtx.ShouldBindJSON(req.Data))
+			errs = append(errs, req.ginCtx.ShouldBindBodyWithJSON(req.Data))
 		case uri:
 			errs = append(errs, req.ginCtx.ShouldBindUri(req.Data))
 		case query:
@@ -149,6 +152,15 @@ func (req *Request[REQ, RESP]) processRequest() *ErrResponse[*ErrorResponse] {
 			errs = append(errs, req.ginCtx.ShouldBindHeader(req.Data))
 		case formMultipart:
 			errs = append(errs, req.ginCtx.ShouldBindWith(req.Data, binding.FormMultipart))
+		case plain:
+			type SetBytes interface{ SetBytes([]byte) }
+			if setBytes, ok := any(req.Data).(SetBytes); ok {
+				var payloadBytes []byte
+				errs = append(errs, req.ginCtx.ShouldBindBodyWithPlain(&payloadBytes))
+				setBytes.SetBytes(payloadBytes)
+			} else {
+				log.Warn(fmt.Sprintf("Data type %T does not implement SetBytes, but used with plain binding", req.Data))
+			}
 		}
 	}
 	if err := multierror.Append(nil, errs...).ErrorOrNil(); err != nil {

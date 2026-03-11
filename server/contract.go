@@ -93,6 +93,7 @@ const (
 	query
 	header
 	formMultipart
+	plain
 
 	languageHeader = "X-Language"
 )
