@@ -135,13 +135,15 @@ type (
 )
 
 const (
-	TokenTypeProfile      = "profile"
-	TokenTypePost         = "post"
-	TokenTypeArticle      = "article"
-	TokenTypeVideo        = "video"
-	TokenTypeAnyPost      = "anyPost"
-	TokenTypeXcom         = "xcom"
-	TokenTypeXcomCombined = "xcomCombined"
+	TokenTypeProfile           = "profile"
+	TokenTypePost              = "post"
+	TokenTypeArticle           = "article"
+	TokenTypeVideo             = "video"
+	TokenTypeAnyPost           = "anyPost"
+	TokenTypeXcom              = "xcom"
+	TokenTypeXcomCombined      = "xcomCombined"
+	TokenTypeOnlinePlusCreator = "onlineplus_creator"
+	TokenTypeOnlinePlusContent = "onlineplus_content"
 
 	TokenTypeLatest               = "latest"
 	TokenTypeFeatured             = "featured"
@@ -220,6 +222,15 @@ const (
 	globalTopXcomCombinedSetKey                  = "token_analytics:global:top:xcom_combined"
 	globalTrendingXcomCombinedSetKey             = "token_analytics:global:trending:xcom_combined"
 	globalBondingCurveProgressXcomCombinedSetKey = "token_analytics:global:bonding_curve_progress:xcom_combined"
+
+	globalTopOnlinePlusCreatorSetKey = "token_analytics:global:top:onlineplus_creator"
+	globalTopOnlinePlusContentSetKey = "token_analytics:global:top:onlineplus_content"
+
+	globalTrendingOnlinePlusCreatorSetKey = "token_analytics:global:trending:onlineplus_creator"
+	globalTrendingOnlinePlusContentSetKey = "token_analytics:global:trending:onlineplus_content"
+
+	globalBondingCurveProgressOnlinePlusCreatorSetKey = "token_analytics:global:bonding_curve_progress:onlineplus_creator"
+	globalBondingCurveProgressOnlinePlusContentSetKey = "token_analytics:global:bonding_curve_progress:onlineplus_content"
 
 	userSessionKeyPrefix    = "token_analytics:session:%s:%s"  // {type}:{sessionID}
 	userIdentifierMapPrefix = "token_analytics:user_map:%s:%s" // {type}:{IP:DeviceKey} -> sessionID

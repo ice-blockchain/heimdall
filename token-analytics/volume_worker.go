@@ -212,6 +212,20 @@ func (t *tokenAnalytics) addTokenToTrendingSets(ctx context.Context, pipe redis.
 			Member: vol.ExternalAddress,
 		})
 	}
+	if vol.Platform != nil && *vol.Platform == PlatformGroupIonConnect {
+		if vol.TokenType == TokenTypeProfile {
+			pipe.ZAdd(ctx, globalTrendingOnlinePlusCreatorSetKey, redis.Z{
+				Score:  vol.Volume24h,
+				Member: vol.ExternalAddress,
+			})
+		}
+		if IsContentType(vol.TokenType) {
+			pipe.ZAdd(ctx, globalTrendingOnlinePlusContentSetKey, redis.Z{
+				Score:  vol.Volume24h,
+				Member: vol.ExternalAddress,
+			})
+		}
+	}
 }
 
 func (t *tokenAnalytics) addTokenToTypeSpecificSets(ctx context.Context, pipe redis.Pipeliner, vol *volumeWithType) {
@@ -255,6 +269,8 @@ func (t *tokenAnalytics) getAllTrendingSetKeys() []string {
 		globalTrendingXcomSetKey,
 		globalTrendingXcomCombinedSetKey,
 		globalTrendingAnyPostSetKey,
+		globalTrendingOnlinePlusCreatorSetKey,
+		globalTrendingOnlinePlusContentSetKey,
 		getTrendingSetKeyByType(TokenTypeProfile),
 		getTrendingSetKeyByType(TokenTypePost),
 		getTrendingSetKeyByType(TokenTypeVideo),

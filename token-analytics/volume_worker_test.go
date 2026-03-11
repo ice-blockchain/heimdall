@@ -181,12 +181,14 @@ func TestGetAllTrendingSetKeys(t *testing.T) {
 
 	keys := ta.getAllTrendingSetKeys()
 
-	require.Equal(t, 8, len(keys), "should have global, xcom, xcom_combined, anyPost, and 4 token type keys")
+	require.Equal(t, 10, len(keys), "should have global, xcom, xcom_combined, anyPost, onlineplus_creator, onlineplus_content, and 4 token type keys")
 
 	require.Contains(t, keys, globalTrendingSetKey)
 	require.Contains(t, keys, globalTrendingXcomSetKey)
 	require.Contains(t, keys, globalTrendingXcomCombinedSetKey)
 	require.Contains(t, keys, globalTrendingAnyPostSetKey)
+	require.Contains(t, keys, globalTrendingOnlinePlusCreatorSetKey)
+	require.Contains(t, keys, globalTrendingOnlinePlusContentSetKey)
 	require.Contains(t, keys, getTrendingSetKeyByType(TokenTypeProfile))
 	require.Contains(t, keys, getTrendingSetKeyByType(TokenTypePost))
 	require.Contains(t, keys, getTrendingSetKeyByType(TokenTypeVideo))
@@ -383,6 +385,166 @@ func TestAddTokenToTrendingSets(t *testing.T) {
 		_, err = ta.processedDataDB.ZScore(ctx, globalTrendingXcomCombinedSetKey, vol.ExternalAddress).Result()
 		require.Error(t, err)
 		require.Equal(t, redis.Nil, err, "post token should not be in combined set")
+	})
+
+	t.Run("ionconnect_profile_populates_onlineplus_creator_set", func(t *testing.T) {
+		db, release := helperCreateDB(t)
+		defer release()
+
+		ta := helperNewForTest(t, db, WithoutQuestDB())
+		ctx := context.Background()
+
+		_ = ta.processedDataDB.FlushDB(ctx).Err()
+
+		pipe := ta.processedDataDB.TxPipeline()
+		platform := PlatformGroupIonConnect
+		vol := &volumeWithType{
+			Platform:        &platform,
+			TokenAddress:    "0xtoken_opc_prof",
+			Volume24h:       700.0,
+			ExternalAddress: "ext_opc_profile",
+			TokenType:       TokenTypeProfile,
+		}
+
+		ta.addTokenToTrendingSets(ctx, pipe, vol)
+		_, err := pipe.Exec(ctx)
+		require.NoError(t, err)
+
+		score, err := ta.processedDataDB.ZScore(ctx, globalTrendingOnlinePlusCreatorSetKey, vol.ExternalAddress).Result()
+		require.NoError(t, err)
+		require.Equal(t, vol.Volume24h, score)
+
+		_, err = ta.processedDataDB.ZScore(ctx, globalTrendingOnlinePlusContentSetKey, vol.ExternalAddress).Result()
+		require.Error(t, err)
+		require.Equal(t, redis.Nil, err, "profile should not be in onlineplus_content set")
+	})
+
+	t.Run("ionconnect_post_populates_onlineplus_content_set", func(t *testing.T) {
+		db, release := helperCreateDB(t)
+		defer release()
+
+		ta := helperNewForTest(t, db, WithoutQuestDB())
+		ctx := context.Background()
+
+		_ = ta.processedDataDB.FlushDB(ctx).Err()
+
+		pipe := ta.processedDataDB.TxPipeline()
+		platform := PlatformGroupIonConnect
+		vol := &volumeWithType{
+			Platform:        &platform,
+			TokenAddress:    "0xtoken_opc_post",
+			Volume24h:       800.0,
+			ExternalAddress: "ext_opc_post",
+			TokenType:       TokenTypePost,
+		}
+
+		ta.addTokenToTrendingSets(ctx, pipe, vol)
+		_, err := pipe.Exec(ctx)
+		require.NoError(t, err)
+
+		score, err := ta.processedDataDB.ZScore(ctx, globalTrendingOnlinePlusContentSetKey, vol.ExternalAddress).Result()
+		require.NoError(t, err)
+		require.Equal(t, vol.Volume24h, score)
+
+		_, err = ta.processedDataDB.ZScore(ctx, globalTrendingOnlinePlusCreatorSetKey, vol.ExternalAddress).Result()
+		require.Error(t, err)
+		require.Equal(t, redis.Nil, err, "post should not be in onlineplus_creator set")
+	})
+
+	t.Run("ionconnect_video_populates_onlineplus_content_set", func(t *testing.T) {
+		db, release := helperCreateDB(t)
+		defer release()
+
+		ta := helperNewForTest(t, db, WithoutQuestDB())
+		ctx := context.Background()
+
+		_ = ta.processedDataDB.FlushDB(ctx).Err()
+
+		pipe := ta.processedDataDB.TxPipeline()
+		platform := PlatformGroupIonConnect
+		vol := &volumeWithType{
+			Platform:        &platform,
+			TokenAddress:    "0xtoken_opc_video",
+			Volume24h:       900.0,
+			ExternalAddress: "ext_opc_video",
+			TokenType:       TokenTypeVideo,
+		}
+
+		ta.addTokenToTrendingSets(ctx, pipe, vol)
+		_, err := pipe.Exec(ctx)
+		require.NoError(t, err)
+
+		score, err := ta.processedDataDB.ZScore(ctx, globalTrendingOnlinePlusContentSetKey, vol.ExternalAddress).Result()
+		require.NoError(t, err)
+		require.Equal(t, vol.Volume24h, score)
+
+		_, err = ta.processedDataDB.ZScore(ctx, globalTrendingOnlinePlusCreatorSetKey, vol.ExternalAddress).Result()
+		require.Error(t, err)
+		require.Equal(t, redis.Nil, err, "video should not be in onlineplus_creator set")
+	})
+
+	t.Run("xcom_token_does_not_populate_onlineplus_sets", func(t *testing.T) {
+		db, release := helperCreateDB(t)
+		defer release()
+
+		ta := helperNewForTest(t, db, WithoutQuestDB())
+		ctx := context.Background()
+
+		_ = ta.processedDataDB.FlushDB(ctx).Err()
+
+		pipe := ta.processedDataDB.TxPipeline()
+		platform := PlatformGroupXCom
+		vol := &volumeWithType{
+			Platform:        &platform,
+			TokenAddress:    "0xtoken_xcom_opc",
+			Volume24h:       1000.0,
+			ExternalAddress: "ext_xcom_not_opc",
+			TokenType:       TokenTypeProfile,
+		}
+
+		ta.addTokenToTrendingSets(ctx, pipe, vol)
+		_, err := pipe.Exec(ctx)
+		require.NoError(t, err)
+
+		_, err = ta.processedDataDB.ZScore(ctx, globalTrendingOnlinePlusCreatorSetKey, vol.ExternalAddress).Result()
+		require.Error(t, err)
+		require.Equal(t, redis.Nil, err, "xcom profile should not be in onlineplus_creator set")
+
+		_, err = ta.processedDataDB.ZScore(ctx, globalTrendingOnlinePlusContentSetKey, vol.ExternalAddress).Result()
+		require.Error(t, err)
+		require.Equal(t, redis.Nil, err, "xcom profile should not be in onlineplus_content set")
+	})
+
+	t.Run("ionconnect_article_populates_onlineplus_content_set", func(t *testing.T) {
+		db, release := helperCreateDB(t)
+		defer release()
+
+		ta := helperNewForTest(t, db, WithoutQuestDB())
+		ctx := context.Background()
+
+		_ = ta.processedDataDB.FlushDB(ctx).Err()
+
+		pipe := ta.processedDataDB.TxPipeline()
+		platform := PlatformGroupIonConnect
+		vol := &volumeWithType{
+			Platform:        &platform,
+			TokenAddress:    "0xtoken_opc_article",
+			Volume24h:       1100.0,
+			ExternalAddress: "ext_opc_article",
+			TokenType:       TokenTypeArticle,
+		}
+
+		ta.addTokenToTrendingSets(ctx, pipe, vol)
+		_, err := pipe.Exec(ctx)
+		require.NoError(t, err)
+
+		score, err := ta.processedDataDB.ZScore(ctx, globalTrendingOnlinePlusContentSetKey, vol.ExternalAddress).Result()
+		require.NoError(t, err)
+		require.Equal(t, vol.Volume24h, score)
+
+		_, err = ta.processedDataDB.ZScore(ctx, globalTrendingOnlinePlusCreatorSetKey, vol.ExternalAddress).Result()
+		require.Error(t, err)
+		require.Equal(t, redis.Nil, err, "article should not be in onlineplus_creator set")
 	})
 }
 

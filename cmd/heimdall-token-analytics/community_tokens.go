@@ -31,7 +31,7 @@ type (
 	}
 	LatestTokensRequest struct {
 		server.NoAuthRequired
-		Type          *string `form:"type" binding:"omitempty,oneof=profile post video article anyPost xcom" swaggerignore:"true"`
+		Type          *string `form:"type" binding:"omitempty,oneof=profile post video article anyPost xcom onlineplus_creator onlineplus_content" swaggerignore:"true"`
 		ViewType      string  `uri:"externalAddressOrViewType" swaggerignore:"true"`
 		Keyword       string  `form:"keyword" swaggerignore:"true"`
 		ReferenceDate *string `form:"referenceDate" swaggerignore:"true"`
@@ -46,12 +46,12 @@ type (
 	TokenInfoStreamTypeAndSessionQuery struct {
 		ViewType         string  `uri:"externalAddressOrViewType" swaggerignore:"true"`
 		ViewingSessionID string  `form:"viewingSessionId" swaggerignore:"true"`
-		Type             *string `form:"type" binding:"omitempty,oneof=profile post video article anyPost xcom" swaggerignore:"true"`
+		Type             *string `form:"type" binding:"omitempty,oneof=profile post video article anyPost xcom onlineplus_creator onlineplus_content" swaggerignore:"true"`
 		PaginationRequest
 	}
 	CreateViewingSessionRequest struct {
 		ViewType string  `uri:"externalAddressOrViewType" swaggerignore:"true"`
-		Type     *string `form:"type" binding:"omitempty,oneof=profile post video article anyPost xcom" swaggerignore:"true"`
+		Type     *string `form:"type" binding:"omitempty,oneof=profile post video article anyPost xcom onlineplus_creator onlineplus_content" swaggerignore:"true"`
 	}
 	SessionViewCreateResponse struct {
 		ID  string `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
@@ -208,8 +208,8 @@ func (s *service) GetCommunityTokens(ctx context.Context, req *server.Request[To
 //	@Description	Returns community tokens by view type. "latest" requires authentication; "rewardsDistribution" is public and requires referenceDate.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			externalAddressOrViewType	path		string	true	"View type"											Enums(latest, rewardsDistribution)				example("latest")
-//	@Param			type						query		string	false	"Token type filter"									Enums(profile,post,video,article,anyPost,xcom)	example("profile")
+//	@Param			externalAddressOrViewType	path		string	true	"View type"											Enums(latest, rewardsDistribution)														example("latest")
+//	@Param			type						query		string	false	"Token type filter"									Enums(profile,post,video,article,anyPost,xcom,onlineplus_creator,onlineplus_content)	example("profile")
 //	@Param			keyword						query		string	false	"Search keyword"									example("bitcoin")
 //	@Param			referenceDate				query		string	false	"Reference date (required for rewardsDistribution)"	example("2025-01-03T16:00:00Z")
 //	@Param			limit						query		uint32	false	"Number of items to return"							example(10)
@@ -304,8 +304,8 @@ func parseFlexibleDate(s string) (time.Time, error) {
 //	@Description	Creates a new session view for community tokens analytics.
 //	@Tags			Tokens
 //	@Produce		json
-//	@Param			externalAddressOrViewType	path		string	true	"View type"			Enums(top,trending,bondingCurveProgress)		example("top")
-//	@Param			type						query		string	false	"Token type filter"	Enums(profile,post,video,article,anyPost,xcom)	example("profile")
+//	@Param			externalAddressOrViewType	path		string	true	"View type"			Enums(top,trending,bondingCurveProgress)												example("top")
+//	@Param			type						query		string	false	"Token type filter"	Enums(profile,post,video,article,anyPost,xcom,onlineplus_creator,onlineplus_content)	example("profile")
 //	@Success		200							{object}	SessionViewCreateResponse
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
 //	@Failure		500							{object}	server.ResponseErrorBody
@@ -807,7 +807,7 @@ func (s *service) StreamCommunityTokens(ctx context.Context, req *server.Request
 //	@Produce		json
 //	@Param			externalAddressOrViewType	path		string	true	"View type (latest, featured, top, trending, or bondingCurveProgress)"	example("latest","featured","top","trending","bondingCurveProgress")
 //	@Param			viewingSessionId			query		string	false	"Viewing session ID (required for top/trending/bondingCurveProgress)"	example("550e8400-e29b-41d4-a716-446655440000")
-//	@Param			type						query		string	false	"Token type filter"														Enums(profile,post,video,article,anyPost,xcom)	example("profile")
+//	@Param			type						query		string	false	"Token type filter"														Enums(profile,post,video,article,anyPost,xcom,onlineplus_creator,onlineplus_content)	example("profile")
 //	@Success		200							{object}	ta.CommunityToken
 //	@Failure		400							{object}	server.ResponseErrorBody
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"

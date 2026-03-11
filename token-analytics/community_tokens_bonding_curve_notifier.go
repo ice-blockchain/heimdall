@@ -142,6 +142,22 @@ func (t *tokenAnalytics) handleBondingCurveUpdate(ctx context.Context, payload s
 					}
 				}
 			}
+			if update.Platform == PlatformGroupIonConnect && update.Type == TokenTypeProfile {
+				if err := t.processedDataDB.ZAdd(ctx, globalBondingCurveProgressOnlinePlusCreatorSetKey, redis.Z{
+					Score:  currentAmountScore,
+					Member: update.ExternalAddress,
+				}).Err(); err != nil {
+					return errors.Wrap(err, "failed to update onlineplus_creator bonding curve progress in Redis")
+				}
+			}
+			if update.Platform == PlatformGroupIonConnect && IsContentType(update.Type) {
+				if err := t.processedDataDB.ZAdd(ctx, globalBondingCurveProgressOnlinePlusContentSetKey, redis.Z{
+					Score:  currentAmountScore,
+					Member: update.ExternalAddress,
+				}).Err(); err != nil {
+					return errors.Wrap(err, "failed to update onlineplus_content bonding curve progress in Redis")
+				}
+			}
 		}
 	} else {
 		if err := t.processedDataDB.ZRem(ctx, globalBondingCurveProgressSetKey, update.ExternalAddress).Err(); err != nil {
@@ -162,6 +178,16 @@ func (t *tokenAnalytics) handleBondingCurveUpdate(ctx context.Context, payload s
 				if err := t.processedDataDB.ZRem(ctx, globalBondingCurveProgressAnyPostSetKey, update.ExternalAddress).Err(); err != nil {
 					return errors.Wrap(err, "failed to remove token from anyPost bonding curve progress in Redis")
 				}
+			}
+		}
+		if update.Platform == PlatformGroupIonConnect && update.Type == TokenTypeProfile {
+			if err := t.processedDataDB.ZRem(ctx, globalBondingCurveProgressOnlinePlusCreatorSetKey, update.ExternalAddress).Err(); err != nil {
+				return errors.Wrap(err, "failed to remove token from onlineplus_creator bonding curve progress in Redis")
+			}
+		}
+		if update.Platform == PlatformGroupIonConnect && IsContentType(update.Type) {
+			if err := t.processedDataDB.ZRem(ctx, globalBondingCurveProgressOnlinePlusContentSetKey, update.ExternalAddress).Err(); err != nil {
+				return errors.Wrap(err, "failed to remove token from onlineplus_content bonding curve progress in Redis")
 			}
 		}
 	}

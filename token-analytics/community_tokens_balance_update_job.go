@@ -406,6 +406,22 @@ func (t *tokenAnalytics) updateBondingCurveInRedis(ctx context.Context, external
 				return errors.Wrap(err, "failed to update xcom combined bonding curve progress in Redis")
 			}
 		}
+		if platform == PlatformGroupIonConnect && tokenType == TokenTypeProfile {
+			if err := t.processedDataDB.ZAdd(ctx, globalBondingCurveProgressOnlinePlusCreatorSetKey, redis.Z{
+				Score:  currentAmountScore,
+				Member: externalAddress,
+			}).Err(); err != nil {
+				return errors.Wrap(err, "failed to update onlineplus_creator bonding curve progress in Redis")
+			}
+		}
+		if platform == PlatformGroupIonConnect && IsContentType(tokenType) {
+			if err := t.processedDataDB.ZAdd(ctx, globalBondingCurveProgressOnlinePlusContentSetKey, redis.Z{
+				Score:  currentAmountScore,
+				Member: externalAddress,
+			}).Err(); err != nil {
+				return errors.Wrap(err, "failed to update onlineplus_content bonding curve progress in Redis")
+			}
+		}
 	} else {
 		if err := t.processedDataDB.ZRem(ctx, globalBondingCurveProgressSetKey, externalAddress).Err(); err != nil {
 			return errors.Wrap(err, "failed to remove token from bonding curve progress in Redis")
@@ -430,6 +446,16 @@ func (t *tokenAnalytics) updateBondingCurveInRedis(ctx context.Context, external
 		if platform == PlatformGroupXCom || tokenType == TokenTypeProfile {
 			if err := t.processedDataDB.ZRem(ctx, globalBondingCurveProgressXcomCombinedSetKey, externalAddress).Err(); err != nil {
 				return errors.Wrap(err, "failed to remove token from xcom combined bonding curve progress in Redis")
+			}
+		}
+		if platform == PlatformGroupIonConnect && tokenType == TokenTypeProfile {
+			if err := t.processedDataDB.ZRem(ctx, globalBondingCurveProgressOnlinePlusCreatorSetKey, externalAddress).Err(); err != nil {
+				return errors.Wrap(err, "failed to remove token from onlineplus_creator bonding curve progress in Redis")
+			}
+		}
+		if platform == PlatformGroupIonConnect && IsContentType(tokenType) {
+			if err := t.processedDataDB.ZRem(ctx, globalBondingCurveProgressOnlinePlusContentSetKey, externalAddress).Err(); err != nil {
+				return errors.Wrap(err, "failed to remove token from onlineplus_content bonding curve progress in Redis")
 			}
 		}
 	}

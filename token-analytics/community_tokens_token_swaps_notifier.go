@@ -201,6 +201,22 @@ func (t *tokenAnalytics) updateTokenRankingsInRedis(ctx context.Context, mCapUSD
 				return pErr
 			}
 		}
+		if platform == PlatformGroupIonConnect && tokenType == TokenTypeProfile {
+			if pErr := pipeliner.ZAdd(ctx, globalTopOnlinePlusCreatorSetKey, redis.Z{
+				Score:  mCapUSD,
+				Member: externalAddress,
+			}).Err(); pErr != nil {
+				return pErr
+			}
+		}
+		if platform == PlatformGroupIonConnect && IsContentType(tokenType) {
+			if pErr := pipeliner.ZAdd(ctx, globalTopOnlinePlusContentSetKey, redis.Z{
+				Score:  mCapUSD,
+				Member: externalAddress,
+			}).Err(); pErr != nil {
+				return pErr
+			}
+		}
 		return nil
 	}); txErr != nil {
 		return txErr
