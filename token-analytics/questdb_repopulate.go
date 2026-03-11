@@ -147,6 +147,9 @@ func (t *tokenAnalytics) RepopulateQuestDBTrades(ctx context.Context) error {
 		if !registered {
 			continue
 		}
+		if swap.Type == TokenTypeProfile {
+			t.updateInMemoryPrices(swap.ContractAddress, swap.CurvePriceUSD)
+		}
 		processedCount++
 		if processedCount%100 == 0 {
 			stdlibtime.Sleep(100 * stdlibtime.Millisecond)

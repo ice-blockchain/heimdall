@@ -530,6 +530,11 @@ func (w *balanceUpdateWorker) registerTradeFromJob(ctx context.Context, args Bal
 
 		return nil
 	}
+
+	if args.TokenType == TokenTypeProfile {
+		w.ta.updateInMemoryPrices(args.ContractAddress, priceUSD)
+	}
+
 	tradeInfo, err := w.ta.fetchTradeInfoFromSwap(ctx, args.TransactionHash, args.ContractAddress, args.UserBlockchainAddress)
 	if err != nil {
 		log.Error(errors.Wrapf(err, "failed to fetch trade info for tx %v contract %v user %v to notify subscribers",

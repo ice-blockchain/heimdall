@@ -140,6 +140,11 @@ func (t *tokenAnalytics) handleTokenSwapUpdate(ctx context.Context, payload stri
 
 		return nil
 	}
+
+	if update.Type == TokenTypeProfile {
+		t.updateInMemoryPrices(update.ContractAddress, update.CurvePriceUSD)
+	}
+
 	if err = t.updateTokenRankingsInRedis(ctx, mCapUSD, update.ExternalAddress, update.Platform, update.Type); err != nil {
 		return errors.Wrapf(err, "failed to update redis ranking for tx %v contract %v %v user %v to notify subscribers",
 			update.TransactionHash, update.ContractAddress, update.ExternalAddress, update.UserBlockchainAddress)
