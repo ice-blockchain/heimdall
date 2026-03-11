@@ -140,6 +140,17 @@ func (t *tokenAnalytics) handleTokenSwapUpdate(ctx context.Context, payload stri
 
 		return nil
 	}
+
+	if update.Type == TokenTypeProfile {
+		t.creatorTokenPricesUSD.Store(strings.ToLower(update.ContractAddress), update.CurvePriceUSD)
+		ionPriceUSD := t.ionPriceUSD.Load()
+		if ionPriceUSD != nil && *ionPriceUSD > 0 {
+			priceInION := update.CurvePriceUSD / *ionPriceUSD
+			priceInIONWei := new(big.Int).SetUint64(uint64(priceInION * 1e18))
+			t.creatorTokenPricesION.Store(strings.ToLower(update.ContractAddress), priceInIONWei)
+		}
+	}
+
 	if err = t.updateTokenRankingsInRedis(ctx, mCapUSD, update.ExternalAddress, update.Platform, update.Type); err != nil {
 		return errors.Wrapf(err, "failed to update redis ranking for tx %v contract %v %v user %v to notify subscribers",
 			update.TransactionHash, update.ContractAddress, update.ExternalAddress, update.UserBlockchainAddress)

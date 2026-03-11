@@ -147,6 +147,15 @@ func (t *tokenAnalytics) RepopulateQuestDBTrades(ctx context.Context) error {
 		if !registered {
 			continue
 		}
+		if swap.Type == TokenTypeProfile {
+			t.creatorTokenPricesUSD.Store(strings.ToLower(swap.ContractAddress), swap.CurvePriceUSD)
+			ionPriceUSD := t.ionPriceUSD.Load()
+			if ionPriceUSD != nil && *ionPriceUSD > 0 {
+				priceInION := swap.CurvePriceUSD / *ionPriceUSD
+				priceInIONWei := new(big.Int).SetUint64(uint64(priceInION * 1e18))
+				t.creatorTokenPricesION.Store(strings.ToLower(swap.ContractAddress), priceInIONWei)
+			}
+		}
 		processedCount++
 		if processedCount%100 == 0 {
 			stdlibtime.Sleep(100 * stdlibtime.Millisecond)
