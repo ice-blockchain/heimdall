@@ -1333,9 +1333,10 @@ func TestSubscribeOHLVC(t *testing.T) {
 		interval := Interval("15s")
 
 		cs := newRecentCandlestick()
+		defer cs.Stop()
 		cs.Update(0.10, mustBigInt("1000000000000000000000000000"), big.NewInt(0))
 		ta.ohclvRecentData.Store(interval.String()+"_"+extAddr, cs)
-		cs.SetInterval(ctx, interval)
+		cs.SetInterval(interval)
 
 		received := make(chan *OHLCV, 10)
 		err := ta.SubscribeOHLVC(ctx, now, extAddr, "test-user", interval, func(ohlcv *OHLCV, err error) {
@@ -1400,39 +1401,34 @@ func TestSubscribeOHLVC(t *testing.T) {
 		}
 	})
 
-	t.Run("ticker restarts after context cancel and reconnect", func(t *testing.T) {
+	t.Run("ticker self-stops when no data and restarts", func(t *testing.T) {
 		cs := newRecentCandlestick()
+		defer cs.Stop()
 		cs.interval = Interval("1s")
+
+		cs.ensureTickerRunning()
+
+		require.Eventually(t, func() bool {
+			return !cs.tickerRunning.Load()
+		}, 5*stdlibtime.Second, 100*stdlibtime.Millisecond, "ticker should self-stop when no data exists")
 
 		var resetCount atomic.Int32
 		cs.setOnReset(func() {
 			resetCount.Add(1)
 		})
-
-		ctx1, cancel1 := context.WithCancel(context.Background())
 		cs.Update(0.10, mustBigInt("1000000000000000000000000000"), big.NewInt(0))
-		cs.ensureTickerRunning(ctx1)
+		cs.ensureTickerRunning()
 
 		require.Eventually(t, func() bool {
 			return resetCount.Load() >= 1
-		}, 5*stdlibtime.Second, 100*stdlibtime.Millisecond, "ticker should fire at least once")
-
-		cancel1()
+		}, 5*stdlibtime.Second, 100*stdlibtime.Millisecond, "ticker should fire onReset after data is added")
 
 		require.Eventually(t, func() bool {
 			return !cs.tickerRunning.Load()
-		}, 3*stdlibtime.Second, 50*stdlibtime.Millisecond, "ticker should stop after context cancel")
+		}, 5*stdlibtime.Second, 100*stdlibtime.Millisecond, "ticker should self-stop after closing the real candle")
 
-		resetBefore := resetCount.Load()
-		cs.Update(0.20, mustBigInt("1000000000000000000000000000"), big.NewInt(0))
-
-		ctx2, cancel2 := context.WithCancel(context.Background())
-		defer cancel2()
-		cs.ensureTickerRunning(ctx2)
-
-		require.Eventually(t, func() bool {
-			return resetCount.Load() > resetBefore
-		}, 5*stdlibtime.Second, 100*stdlibtime.Millisecond, "ticker should restart and fire onReset with new context")
+		require.NotNil(t, cs.LastCompleted(), "lastCompleted should hold the closed candle")
+		require.InDelta(t, 0.10, cs.LastCompleted().Close, 0.01)
 	})
 
 	t.Run("sends closed candle to subscriber when interval expires", func(t *testing.T) {
@@ -1448,6 +1444,7 @@ func TestSubscribeOHLVC(t *testing.T) {
 		now := stdlibtime.Now().UTC()
 
 		cs := newRecentCandlestick()
+		defer cs.Stop()
 		cs.Update(0.50, mustBigInt("1000000000000000000000000000"), big.NewInt(0))
 		ta.ohclvRecentData.Store(interval.String()+"_"+extAddr, cs)
 
@@ -1483,6 +1480,7 @@ func TestSubscribeOHLVC(t *testing.T) {
 
 	t.Run("SetInterval resets and notifies when candle expired", func(t *testing.T) {
 		cs := newRecentCandlestick()
+		defer cs.Stop()
 		cs.interval = Interval("1s")
 		cs.Update(0.30, mustBigInt("1000000000000000000000000000"), big.NewInt(0))
 
@@ -1496,9 +1494,7 @@ func TestSubscribeOHLVC(t *testing.T) {
 			notified.Store(true)
 		})
 
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		cs.SetInterval(ctx, Interval("1s"))
+		cs.SetInterval(Interval("1s"))
 
 		require.True(t, notified.Load(), "onReset should be called when SetInterval detects expired candle")
 
@@ -1509,6 +1505,7 @@ func TestSubscribeOHLVC(t *testing.T) {
 		require.NotNil(t, lc, "lastCompleted should store the closed candle")
 		require.InDelta(t, 0.30, lc.Close, 0.01, "lastCompleted should preserve the close price")
 	})
+
 }
 
 func mustDecimal(bi *big.Int) questdb.Decimal {

@@ -516,6 +516,7 @@ type (
 		interval      Interval
 		tickerRunning atomic.Bool
 		onReset       atomic.Pointer[func()]
+		done          chan struct{}
 	}
 	recentTradeStats struct {
 		stats          *TradeStats
