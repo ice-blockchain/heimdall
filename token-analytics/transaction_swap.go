@@ -587,6 +587,10 @@ func getTopSetKeyByType(tokenType string) string {
 		return globalTopAnyPostSetKey
 	case TokenTypeXcom:
 		return globalTopXcomSetKey
+	case TokenTypeOnlinePlusCreator:
+		return globalTopOnlinePlusCreatorSetKey
+	case TokenTypeOnlinePlusContent:
+		return globalTopOnlinePlusContentSetKey
 	default:
 		return ""
 	}
@@ -606,6 +610,10 @@ func getTrendingSetKeyByType(tokenType string) string {
 		return globalTrendingAnyPostSetKey
 	case TokenTypeXcom:
 		return globalTrendingXcomSetKey
+	case TokenTypeOnlinePlusCreator:
+		return globalTrendingOnlinePlusCreatorSetKey
+	case TokenTypeOnlinePlusContent:
+		return globalTrendingOnlinePlusContentSetKey
 	default:
 		return ""
 	}
@@ -625,6 +633,10 @@ func getBondingCurveProgressSetKeyByType(tokenType string) string {
 		return globalBondingCurveProgressAnyPostSetKey
 	case TokenTypeXcom:
 		return globalBondingCurveProgressXcomSetKey
+	case TokenTypeOnlinePlusCreator:
+		return globalBondingCurveProgressOnlinePlusCreatorSetKey
+	case TokenTypeOnlinePlusContent:
+		return globalBondingCurveProgressOnlinePlusContentSetKey
 	default:
 		return ""
 	}

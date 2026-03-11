@@ -288,7 +288,9 @@ const docTemplate = `{
                             "video",
                             "article",
                             "anyPost",
-                            "xcom"
+                            "xcom",
+                            "onlineplus_creator",
+                            "onlineplus_content"
                         ],
                         "type": "string",
                         "example": "\"profile\"",
@@ -863,7 +865,9 @@ const docTemplate = `{
                             "video",
                             "article",
                             "anyPost",
-                            "xcom"
+                            "xcom",
+                            "onlineplus_creator",
+                            "onlineplus_content"
                         ],
                         "type": "string",
                         "example": "\"profile\"",
@@ -1101,7 +1105,9 @@ const docTemplate = `{
                             "video",
                             "article",
                             "anyPost",
-                            "xcom"
+                            "xcom",
+                            "onlineplus_creator",
+                            "onlineplus_content"
                         ],
                         "type": "string",
                         "example": "\"profile\"",
@@ -1542,7 +1548,9 @@ const docTemplate = `{
                             "video",
                             "article",
                             "anyPost",
-                            "xcom"
+                            "xcom",
+                            "onlineplus_creator",
+                            "onlineplus_content"
                         ],
                         "type": "string",
                         "example": "\"profile\"",

@@ -87,6 +87,10 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 				whereClause += ` AND t.platform = 'xcom'`
 			case TokenTypeXcomCombined:
 				whereClause += ` AND (t.platform = 'xcom' OR (t.platform = 'ionconnect' AND t.type = 'profile'))`
+			case TokenTypeOnlinePlusCreator:
+				whereClause += ` AND t.platform = 'ionconnect' AND t.type = 'profile'`
+			case TokenTypeOnlinePlusContent:
+				whereClause += ` AND t.platform = 'ionconnect' AND t.type IN ('post', 'video', 'article')`
 			default:
 				whereClause += fmt.Sprintf(` AND t.type = $%d`, argIndex)
 				args = append(args, *tokenType)
@@ -155,6 +159,10 @@ func (t *tokenAnalytics) getCommunityTokensByLatest(ctx context.Context, keyword
 				query += ` AND t.platform = 'xcom'`
 			case TokenTypeXcomCombined:
 				query += ` AND (t.platform = 'xcom' OR (t.platform = 'ionconnect' AND t.type = 'profile'))`
+			case TokenTypeOnlinePlusCreator:
+				query += ` AND t.platform = 'ionconnect' AND t.type = 'profile'`
+			case TokenTypeOnlinePlusContent:
+				query += ` AND t.platform = 'ionconnect' AND t.type IN ('post', 'video', 'article')`
 			default:
 				query += fmt.Sprintf(` AND t.type = $%d`, argIndex)
 				args = append(args, *tokenType)
@@ -286,6 +294,10 @@ func (t *tokenAnalytics) getCommunityTokensByFeatured(ctx context.Context, limit
 			query += ` AND t.type IN ('post', 'video', 'article')`
 		case TokenTypeXcom:
 			query += ` AND t.platform = 'xcom'`
+		case TokenTypeOnlinePlusCreator:
+			query += ` AND t.platform = 'ionconnect' AND t.type = 'profile'`
+		case TokenTypeOnlinePlusContent:
+			query += ` AND t.platform = 'ionconnect' AND t.type IN ('post', 'video', 'article')`
 		default:
 			query += fmt.Sprintf(` AND t.type = $%d`, argIndex)
 			args = append(args, *tokenType)

@@ -591,6 +591,8 @@ paths:
         - article
         - anyPost
         - xcom
+        - onlineplus_creator
+        - onlineplus_content
         example: '"profile"'
         in: query
         name: type
@@ -970,6 +972,8 @@ paths:
         - article
         - anyPost
         - xcom
+        - onlineplus_creator
+        - onlineplus_content
         example: '"profile"'
         in: query
         name: type
@@ -1169,6 +1173,8 @@ paths:
         - article
         - anyPost
         - xcom
+        - onlineplus_creator
+        - onlineplus_content
         example: '"profile"'
         in: query
         name: type
@@ -1452,6 +1458,8 @@ paths:
         - article
         - anyPost
         - xcom
+        - onlineplus_creator
+        - onlineplus_content
         example: '"profile"'
         in: query
         name: type

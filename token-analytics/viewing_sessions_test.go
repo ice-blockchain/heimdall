@@ -520,6 +520,16 @@ func TestGetGlobalSetKey(t *testing.T) {
 		key, err = getGlobalSetKey(sessionTypeTop, &combinedType)
 		require.NoError(t, err)
 		require.Equal(t, globalTopXcomCombinedSetKey, key)
+
+		creatorType := TokenTypeOnlinePlusCreator
+		key, err = getGlobalSetKey(sessionTypeTop, &creatorType)
+		require.NoError(t, err)
+		require.Equal(t, globalTopOnlinePlusCreatorSetKey, key)
+
+		contentType := TokenTypeOnlinePlusContent
+		key, err = getGlobalSetKey(sessionTypeTop, &contentType)
+		require.NoError(t, err)
+		require.Equal(t, globalTopOnlinePlusContentSetKey, key)
 	})
 
 	t.Run("returns correct keys for trending session type", func(t *testing.T) {
@@ -536,6 +546,16 @@ func TestGetGlobalSetKey(t *testing.T) {
 		key, err = getGlobalSetKey(sessionTypeTrending, &combinedType)
 		require.NoError(t, err)
 		require.Equal(t, globalTrendingXcomCombinedSetKey, key)
+
+		creatorType := TokenTypeOnlinePlusCreator
+		key, err = getGlobalSetKey(sessionTypeTrending, &creatorType)
+		require.NoError(t, err)
+		require.Equal(t, globalTrendingOnlinePlusCreatorSetKey, key)
+
+		contentType := TokenTypeOnlinePlusContent
+		key, err = getGlobalSetKey(sessionTypeTrending, &contentType)
+		require.NoError(t, err)
+		require.Equal(t, globalTrendingOnlinePlusContentSetKey, key)
 	})
 
 	t.Run("returns correct keys for bonding curve progress session type", func(t *testing.T) {
@@ -552,6 +572,16 @@ func TestGetGlobalSetKey(t *testing.T) {
 		key, err = getGlobalSetKey(sessionTypeBondingCurveProgress, &combinedType)
 		require.NoError(t, err)
 		require.Equal(t, globalBondingCurveProgressXcomCombinedSetKey, key)
+
+		creatorType := TokenTypeOnlinePlusCreator
+		key, err = getGlobalSetKey(sessionTypeBondingCurveProgress, &creatorType)
+		require.NoError(t, err)
+		require.Equal(t, globalBondingCurveProgressOnlinePlusCreatorSetKey, key)
+
+		contentType := TokenTypeOnlinePlusContent
+		key, err = getGlobalSetKey(sessionTypeBondingCurveProgress, &contentType)
+		require.NoError(t, err)
+		require.Equal(t, globalBondingCurveProgressOnlinePlusContentSetKey, key)
 	})
 
 	t.Run("returns error for unsupported session type", func(t *testing.T) {
@@ -952,6 +982,196 @@ func TestViewingSessionsXcomSupport(t *testing.T) {
 		require.NotNil(t, tokens[0].MarketData.BondingCurveProgress)
 		require.Equal(t, "50000000000000000000", tokens[0].MarketData.BondingCurveProgress.CurrentAmount)
 		require.InDelta(t, 3000.0, tokens[0].MarketData.Volume, 1.0)
+	})
+}
+
+func TestViewingSessionsOnlinePlusSupport(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	db, release := helperCreateDB(t)
+	defer release()
+
+	ta := helperNewForTest(t, db, WithoutQuestDB())
+
+	helperInsertTestUser(t, ctx, db, "opc_ion_profile_creator", "opc_ion_profile", "OPC Ion Profile", "", true, PlatformGroupIonConnect)
+	helperInsertTestToken(t, ctx, db,
+		"0xOPCIONPROFILE111111111111111111111111111",
+		"0:opc_ion_profile_creator:",
+		"OPCIP",
+		TokenTypeProfile,
+		"opc_ion_profile_creator",
+		"1000000000000000000000000",
+		500.0, 0.001, 10, PlatformGroupIonConnect,
+	)
+
+	helperInsertTestUser(t, ctx, db, "opc_xcom_profile_creator", "opc_xcom_profile", "OPC XCom Profile", "", true, PlatformGroupXCom)
+	helperInsertTestToken(t, ctx, db,
+		"0xOPCXCOMPROFILE11111111111111111111111111",
+		"opc_xcom_profile_token",
+		"OPCXP",
+		TokenTypeProfile,
+		"opc_xcom_profile_creator",
+		"2000000000000000000000000",
+		800.0, 0.002, 15, PlatformGroupXCom,
+	)
+
+	helperInsertTestUser(t, ctx, db, "opc_ion_post_creator", "opc_ion_post", "OPC Ion Post", "", false, PlatformGroupIonConnect)
+	helperInsertTestToken(t, ctx, db,
+		"0xOPCIONPOSTCRE1111111111111111111111111111",
+		"0:opc_ion_post_creator:",
+		"OPCIPC",
+		TokenTypeProfile,
+		"opc_ion_post_creator",
+		"500000000000000000000000",
+		50.0, 0.00005, 2, PlatformGroupIonConnect,
+	)
+	helperInsertTestToken(t, ctx, db,
+		"0xOPCIONPOSTTOK111111111111111111111111111",
+		"30175:opc_ion_post_id:content",
+		"OPCPOST",
+		"post",
+		"opc_ion_post_creator",
+		"3000000000000000000000000",
+		3000.0, 0.03, 30, PlatformGroupIonConnect,
+	)
+	helperSetTokenBaseToken(t, ctx, db, "30175:opc_ion_post_id:content", "0xOPCIONPOSTCRE1111111111111111111111111111")
+
+	t.Run("onlineplus_creator_session_returns_only_ionconnect_profiles", func(t *testing.T) {
+		_ = ta.processedDataDB.Del(ctx, globalTopOnlinePlusCreatorSetKey, globalTrendingOnlinePlusCreatorSetKey).Err()
+
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopOnlinePlusCreatorSetKey, map[string]float64{
+			"0:opc_ion_profile_creator:": 500.0,
+		})
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTrendingOnlinePlusCreatorSetKey, map[string]float64{
+			"0:opc_ion_profile_creator:": 1000.0 * 1e18,
+		})
+
+		tokenType := TokenTypeOnlinePlusCreator
+		sessionID, _, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.50.1", "device_opc_creator", &tokenType)
+		require.NoError(t, err)
+
+		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTop, sessionID, "", 10, 0)
+		require.NoError(t, err)
+		require.Len(t, tokens, 1, "onlineplus_creator should contain only ionconnect profiles")
+		require.Equal(t, "opc_ion_profile", tokens[0].Title)
+		require.Equal(t, TokenTypeProfile, tokens[0].Type)
+		require.InDelta(t, 500.0, tokens[0].MarketData.MarketCap, 1.0)
+		require.InDelta(t, 1000.0, tokens[0].MarketData.Volume, 1.0)
+	})
+
+	t.Run("onlineplus_content_session_returns_only_ionconnect_content", func(t *testing.T) {
+		_ = ta.processedDataDB.Del(ctx, globalTopOnlinePlusContentSetKey, globalTrendingOnlinePlusContentSetKey).Err()
+
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopOnlinePlusContentSetKey, map[string]float64{
+			"30175:opc_ion_post_id:content": 3000.0,
+		})
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTrendingOnlinePlusContentSetKey, map[string]float64{
+			"30175:opc_ion_post_id:content": 500.0 * 1e18,
+		})
+
+		tokenType := TokenTypeOnlinePlusContent
+		sessionID, _, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.50.2", "device_opc_content", &tokenType)
+		require.NoError(t, err)
+
+		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTop, sessionID, "", 10, 0)
+		require.NoError(t, err)
+		require.Len(t, tokens, 1)
+		require.Equal(t, "post", tokens[0].Type)
+		require.Equal(t, "opc_ion_post", tokens[0].Title)
+		require.NotNil(t, tokens[0].Creator.Token, "Content token should have creator.token")
+	})
+
+	t.Run("onlineplus_creator_session_for_trending", func(t *testing.T) {
+		_ = ta.processedDataDB.Del(ctx, globalTrendingOnlinePlusCreatorSetKey, globalTopOnlinePlusCreatorSetKey).Err()
+
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTrendingOnlinePlusCreatorSetKey, map[string]float64{
+			"0:opc_ion_profile_creator:": 3000.0 * 1e18,
+		})
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopOnlinePlusCreatorSetKey, map[string]float64{
+			"0:opc_ion_profile_creator:": 500.0,
+		})
+
+		tokenType := TokenTypeOnlinePlusCreator
+		sessionID, _, err := ta.CreateViewingSession(ctx, sessionTypeTrending, "192.168.50.3", "device_opc_creator_trend", &tokenType)
+		require.NoError(t, err)
+
+		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTrending, sessionID, "", 10, 0)
+		require.NoError(t, err)
+		require.Len(t, tokens, 1, "onlineplus_creator trending should contain only ionconnect profiles")
+		require.Equal(t, "opc_ion_profile", tokens[0].Title)
+		require.InDelta(t, 3000.0, tokens[0].MarketData.Volume, 1.0)
+		require.InDelta(t, 500.0, tokens[0].MarketData.MarketCap, 1.0)
+	})
+
+	t.Run("onlineplus_creator_with_empty_set", func(t *testing.T) {
+		_ = ta.processedDataDB.Del(ctx, globalTopOnlinePlusCreatorSetKey, globalTrendingOnlinePlusCreatorSetKey).Err()
+
+		tokenType := TokenTypeOnlinePlusCreator
+		sessionID, ttl, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.50.4", "device_opc_empty", &tokenType)
+		require.NoError(t, err)
+		require.NotEmpty(t, sessionID)
+		require.Equal(t, uint64(300), ttl)
+
+		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTop, sessionID, "", 10, 0)
+		require.NoError(t, err)
+		require.Empty(t, tokens)
+	})
+
+	t.Run("onlineplus_creator_keyword_search_returns_ionconnect_profiles", func(t *testing.T) {
+		_ = ta.processedDataDB.Del(ctx, globalTopOnlinePlusCreatorSetKey, globalTrendingOnlinePlusCreatorSetKey).Err()
+
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopOnlinePlusCreatorSetKey, map[string]float64{
+			"0:opc_ion_profile_creator:": 500.0,
+		})
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTrendingOnlinePlusCreatorSetKey, map[string]float64{
+			"0:opc_ion_profile_creator:": 1000.0 * 1e18,
+		})
+
+		tokenType := TokenTypeOnlinePlusCreator
+		sessionID, _, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.50.5", "device_opc_kw_creator", &tokenType)
+		require.NoError(t, err)
+
+		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTop, sessionID, "opc", 10, 0)
+		require.NoError(t, err)
+		require.Len(t, tokens, 1, "keyword search with onlineplus_creator should return ionconnect profiles")
+		require.Equal(t, "opc_ion_profile", tokens[0].Title)
+	})
+
+	t.Run("onlineplus_content_keyword_search_returns_ionconnect_content", func(t *testing.T) {
+		_ = ta.processedDataDB.Del(ctx, globalTopOnlinePlusContentSetKey, globalTrendingOnlinePlusContentSetKey).Err()
+
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopOnlinePlusContentSetKey, map[string]float64{
+			"30175:opc_ion_post_id:content": 3000.0,
+		})
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTrendingOnlinePlusContentSetKey, map[string]float64{
+			"30175:opc_ion_post_id:content": 500.0 * 1e18,
+		})
+
+		tokenType := TokenTypeOnlinePlusContent
+		sessionID, _, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.50.6", "device_opc_kw_content", &tokenType)
+		require.NoError(t, err)
+
+		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTop, sessionID, "opcpost", 10, 0)
+		require.NoError(t, err)
+		require.Len(t, tokens, 1, "keyword search with onlineplus_content should return ionconnect content")
+		require.Equal(t, "post", tokens[0].Type)
+		require.Equal(t, "opc_ion_post", tokens[0].Title)
+	})
+
+	t.Run("onlineplus_creator_keyword_no_match_returns_empty", func(t *testing.T) {
+		_ = ta.processedDataDB.Del(ctx, globalTopOnlinePlusCreatorSetKey, globalTrendingOnlinePlusCreatorSetKey).Err()
+
+		helperSetupGlobalSet(t, ctx, ta.processedDataDB, globalTopOnlinePlusCreatorSetKey, map[string]float64{
+			"0:opc_ion_profile_creator:": 500.0,
+		})
+
+		tokenType := TokenTypeOnlinePlusCreator
+		sessionID, _, err := ta.CreateViewingSession(ctx, sessionTypeTop, "192.168.50.7", "device_opc_kw_nomatch", &tokenType)
+		require.NoError(t, err)
+
+		tokens, err := ta.GetTokensFromViewingSession(ctx, sessionTypeTop, sessionID, "zzz_nonexistent_zzz", 10, 0)
+		require.NoError(t, err)
+		require.Empty(t, tokens, "keyword with no match should return empty")
 	})
 }
 

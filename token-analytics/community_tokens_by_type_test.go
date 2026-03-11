@@ -912,6 +912,150 @@ func helperWaitForQuestDBVolume(t *testing.T, ctx context.Context, ta *tokenAnal
 	}, 30*stdtime.Second, 300*stdtime.Millisecond, "token_volume_1h at %v should have >= %d rows with volume > 0", hourTimestamp, minRows)
 }
 
+func TestGetCommunityTokensByLatest_OnlinePlusFilters(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	db, release := helperCreateDB(t)
+	defer release()
+
+	ta := helperNewForTest(t, db, WithoutQuestDB())
+
+	helperInsertTestUser(t, ctx, db, "opf_ion_prof_creator", "opf_ion_prof", "OPF Ion Profile", "", true, PlatformGroupIonConnect)
+	helperInsertTestToken(t, ctx, db,
+		"0xOPFIONPROF11111111111111111111111111111",
+		"0:opf_ion_prof_creator:",
+		"OPFIP",
+		TokenTypeProfile,
+		"opf_ion_prof_creator",
+		"1000000000000000000000000",
+		500.0, 0.001, 10, PlatformGroupIonConnect,
+	)
+
+	helperInsertTestUser(t, ctx, db, "opf_xcom_prof_creator", "opf_xcom_prof", "OPF XCom Profile", "", true, PlatformGroupXCom)
+	helperInsertTestToken(t, ctx, db,
+		"0xOPFXCOMPROF1111111111111111111111111111",
+		"opf_xcom_prof_token",
+		"OPFXP",
+		TokenTypeProfile,
+		"opf_xcom_prof_creator",
+		"2000000000000000000000000",
+		800.0, 0.002, 15, PlatformGroupXCom,
+	)
+
+	helperInsertTestUser(t, ctx, db, "opf_ion_post_creator", "opf_ion_post", "OPF Ion Post", "", false, PlatformGroupIonConnect)
+	helperInsertTestToken(t, ctx, db,
+		"0xOPFIONPOSTCRE111111111111111111111111111",
+		"0:opf_ion_post_creator:",
+		"OPFIPC",
+		TokenTypeProfile,
+		"opf_ion_post_creator",
+		"500000000000000000000000",
+		50.0, 0.00005, 2, PlatformGroupIonConnect,
+	)
+	helperInsertTestToken(t, ctx, db,
+		"0xOPFIONPOSTTOK11111111111111111111111111",
+		"30175:opf_ion_post_id:content",
+		"OPFPOST",
+		"post",
+		"opf_ion_post_creator",
+		"3000000000000000000000000",
+		3000.0, 0.03, 30, PlatformGroupIonConnect,
+	)
+	helperSetTokenBaseToken(t, ctx, db, "30175:opf_ion_post_id:content", "0xOPFIONPOSTCRE111111111111111111111111111")
+
+	helperInsertTestUser(t, ctx, db, "opf_ion_vid_creator", "opf_ion_vid", "OPF Ion Video", "", false, PlatformGroupIonConnect)
+	helperInsertTestToken(t, ctx, db,
+		"0xOPFIONVIDCRE1111111111111111111111111111",
+		"0:opf_ion_vid_creator:",
+		"OPFIVC",
+		TokenTypeProfile,
+		"opf_ion_vid_creator",
+		"600000000000000000000000",
+		60.0, 0.00006, 3, PlatformGroupIonConnect,
+	)
+	helperInsertTestToken(t, ctx, db,
+		"0xOPFIONVIDTOK11111111111111111111111111111",
+		"30175:opf_ion_video_id:content",
+		"OPFVID",
+		"video",
+		"opf_ion_vid_creator",
+		"4000000000000000000000000",
+		4000.0, 0.04, 40, PlatformGroupIonConnect,
+	)
+	helperSetTokenBaseToken(t, ctx, db, "30175:opf_ion_video_id:content", "0xOPFIONVIDCRE1111111111111111111111111111")
+
+	t.Run("onlineplus_creator_without_keyword_returns_only_ionconnect_profiles", func(t *testing.T) {
+		creatorType := TokenTypeOnlinePlusCreator
+		tokens, err := ta.getCommunityTokensByLatest(ctx, "", 50, 0, &creatorType)
+		require.NoError(t, err)
+
+		for _, tok := range tokens {
+			require.Equal(t, TokenTypeProfile, tok.Type, "onlineplus_creator should only return profile tokens")
+		}
+
+		foundIonProfile := false
+		foundXcomProfile := false
+		for _, tok := range tokens {
+			if tok.Addresses != nil {
+				if tok.Addresses.IonConnect == "0:opf_ion_prof_creator:" {
+					foundIonProfile = true
+				}
+				if tok.Addresses.Twitter == "opf_xcom_prof_token" {
+					foundXcomProfile = true
+				}
+			}
+		}
+		require.True(t, foundIonProfile, "Should find ionconnect profile token")
+		require.False(t, foundXcomProfile, "Should NOT find xcom profile token")
+	})
+
+	t.Run("onlineplus_content_without_keyword_returns_only_ionconnect_content", func(t *testing.T) {
+		contentType := TokenTypeOnlinePlusContent
+		tokens, err := ta.getCommunityTokensByLatest(ctx, "", 50, 0, &contentType)
+		require.NoError(t, err)
+
+		for _, tok := range tokens {
+			require.NotEqual(t, TokenTypeProfile, tok.Type, "onlineplus_content should NOT return profile tokens")
+			require.Contains(t, []string{"post", "video", "article"}, tok.Type, "Should only return content types")
+		}
+
+		foundPost := false
+		foundVideo := false
+		for _, tok := range tokens {
+			if tok.Addresses != nil {
+				if tok.Addresses.IonConnect == "30175:opf_ion_post_id:content" {
+					foundPost = true
+				}
+				if tok.Addresses.IonConnect == "30175:opf_ion_video_id:content" {
+					foundVideo = true
+				}
+			}
+		}
+		require.True(t, foundPost, "Should find ionconnect post token")
+		require.True(t, foundVideo, "Should find ionconnect video token")
+	})
+
+	t.Run("onlineplus_creator_with_keyword", func(t *testing.T) {
+		creatorType := TokenTypeOnlinePlusCreator
+		tokens, err := ta.getCommunityTokensByLatest(ctx, "opf_ion_prof", 10, 0, &creatorType)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(tokens))
+		require.NotNil(t, tokens[0].Addresses)
+		require.Equal(t, "0:opf_ion_prof_creator:", tokens[0].Addresses.IonConnect)
+		require.Equal(t, TokenTypeProfile, tokens[0].Type)
+	})
+
+	t.Run("onlineplus_content_with_keyword", func(t *testing.T) {
+		contentType := TokenTypeOnlinePlusContent
+		tokens, err := ta.getCommunityTokensByLatest(ctx, "opfpost", 10, 0, &contentType)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(tokens))
+		require.NotNil(t, tokens[0].Addresses)
+		require.Equal(t, "30175:opf_ion_post_id:content", tokens[0].Addresses.IonConnect)
+		require.Equal(t, "post", tokens[0].Type)
+	})
+}
+
 func (e *testTradeEntry) Marshal(client questdb.LineSender) questdb.At {
 	return client.Table("trades").
 		Symbol("external_address", e.externalAddress).

@@ -281,7 +281,9 @@
                             "video",
                             "article",
                             "anyPost",
-                            "xcom"
+                            "xcom",
+                            "onlineplus_creator",
+                            "onlineplus_content"
                         ],
                         "type": "string",
                         "example": "\"profile\"",
@@ -856,7 +858,9 @@
                             "video",
                             "article",
                             "anyPost",
-                            "xcom"
+                            "xcom",
+                            "onlineplus_creator",
+                            "onlineplus_content"
                         ],
                         "type": "string",
                         "example": "\"profile\"",
@@ -1094,7 +1098,9 @@
                             "video",
                             "article",
                             "anyPost",
-                            "xcom"
+                            "xcom",
+                            "onlineplus_creator",
+                            "onlineplus_content"
                         ],
                         "type": "string",
                         "example": "\"profile\"",
@@ -1535,7 +1541,9 @@
                             "video",
                             "article",
                             "anyPost",
-                            "xcom"
+                            "xcom",
+                            "onlineplus_creator",
+                            "onlineplus_content"
                         ],
                         "type": "string",
                         "example": "\"profile\"",
