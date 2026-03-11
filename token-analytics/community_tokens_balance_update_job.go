@@ -532,13 +532,7 @@ func (w *balanceUpdateWorker) registerTradeFromJob(ctx context.Context, args Bal
 	}
 
 	if args.TokenType == TokenTypeProfile {
-		w.ta.creatorTokenPricesUSD.Store(strings.ToLower(args.ContractAddress), priceUSD)
-		ionPriceUSD := w.ta.ionPriceUSD.Load()
-		if ionPriceUSD != nil && *ionPriceUSD > 0 {
-			priceInION := priceUSD / *ionPriceUSD
-			priceInIONWei := new(big.Int).SetUint64(uint64(priceInION * 1e18))
-			w.ta.creatorTokenPricesION.Store(strings.ToLower(args.ContractAddress), priceInIONWei)
-		}
+		w.ta.updateInMemoryPrices(args.ContractAddress, priceUSD)
 	}
 
 	tradeInfo, err := w.ta.fetchTradeInfoFromSwap(ctx, args.TransactionHash, args.ContractAddress, args.UserBlockchainAddress)

@@ -6,6 +6,7 @@ import (
 	"context"
 	"math/big"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -201,5 +202,16 @@ func fetchIONPrice(ctx context.Context) (*ionPricingStats, error) {
 		} else {
 			return &stats, nil
 		}
+	}
+}
+
+func (ta *tokenAnalytics) updateInMemoryPrices(contractAddress string, priceUSD float64) {
+	ta.creatorTokenPricesUSD.Store(strings.ToLower(contractAddress), priceUSD)
+	ionPriceUSD := ta.ionPriceUSD.Load()
+	if ionPriceUSD != nil && *ionPriceUSD > 0 {
+		priceInION := priceUSD / *ionPriceUSD
+		priceIONWeiF := new(big.Float).Mul(big.NewFloat(1e18), big.NewFloat(priceInION))
+		priceInIONWei, _ := priceIONWeiF.Int(nil)
+		ta.creatorTokenPricesION.Store(strings.ToLower(contractAddress), priceInIONWei)
 	}
 }
