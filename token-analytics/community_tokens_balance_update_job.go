@@ -73,53 +73,70 @@ func (w *balanceUpdateWorker) Work(ctx context.Context, job *riverqueue.Job[Bala
 				args.UserBlockchainAddress, args.ContractAddress)
 		}
 	}
-	if err = w.ta.setUserPosition(ctx, args.UserBlockchainAddress, args.ContractAddress, args.TokenExternalAddress, args.UserExternalAddress, balance, args.BlockNumber, args.TransactionHash); err != nil {
-		return errors.Wrapf(err, "failed to update user token position for user %s token %s %s",
-			args.UserBlockchainAddress, args.ContractAddress, args.TokenExternalAddress)
-	}
 	if args.PairID == "" || args.BaseToken == "" {
 		log.Debug(fmt.Sprintf("Skipping bonding curve update for token=%s: missing pairID (%q) or baseToken (%q)",
 			args.TokenExternalAddress, args.PairID, args.BaseToken))
-	} else if priceUSD, marketCapUSD, err := w.updateBondingCurveProgress(ctx, args.ContractAddress, args.TokenExternalAddress, args.PairID, args.BaseToken, args.TokenType, args.Platform, args.Ticker, args.Burned, args.DummyBalance != nil); err != nil {
-		log.Error(errors.Wrapf(err, "failed to update bonding curve for token %s (balance update succeeded)", args.TokenExternalAddress))
-	} else {
-		if _, err := storage.Exec(ctx, w.ta.ingestedDataDB, `
-			WITH swap_update AS (
-				UPDATE token_swaps
-				SET curve_price_usd = $1,
-					notified_at = NOW()
-				WHERE transaction_hash = $2 AND contract_address = $3
-				  AND user_blockchain_address = $4 AND curve_price_usd = 0
-				RETURNING *
-			)
-			UPDATE user_token_positions SET
-				total_invested_usd = (CASE WHEN NOT swap_update.direction THEN user_token_positions.total_invested_usd + $1 * (LEAST(swap_update.output_amount, user_token_positions.amount::NUMERIC) / 1e18) ELSE user_token_positions.total_invested_usd END),
-				total_realized_usd = (CASE WHEN swap_update.direction THEN COALESCE(user_token_positions.total_realized_usd, 0) + $1 * (swap_update.input_amount / 1e18) ELSE user_token_positions.total_realized_usd END),
-				total_fees_usd = COALESCE(user_token_positions.total_fees_usd, 0) + (
-					CASE WHEN t.fee_in_other_token
-						THEN (swap_update.fee::NUMERIC / 1e18) * $1
-						ELSE (swap_update.fee::NUMERIC / 1e18) * COALESCE(bp.price_usd, 0)
-					END
-				)
-			FROM swap_update
-			JOIN tokens t ON t.contract_address = swap_update.contract_address
-			LEFT JOIN base_token_prices bp ON lower(bp.token_address) = lower(t.base_token)
-			WHERE user_token_positions.user_blockchain_address = swap_update.user_blockchain_address
-			  AND user_token_positions.contract_address = swap_update.contract_address
-		`, priceUSD, args.TransactionHash, args.ContractAddress, args.UserBlockchainAddress); err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
-			log.Error(errors.Wrapf(err, "failed to update curve_price_usd for tx %s", args.TransactionHash))
-		} else {
-			log.Debug(fmt.Sprintf("Updated position with curve price for token %s user %s: %.18f USD", args.TokenExternalAddress, args.UserBlockchainAddress, priceUSD))
-			if err = w.ta.coins.SetPriceUSD(ctx, args.ContractAddress, priceUSD); err != nil {
-				log.Error(errors.Wrapf(err, "failed to update wallet price USD for token %s %s", args.TokenExternalAddress, args.ContractAddress))
-			}
 
-		}
-		if err := w.registerTradeFromJob(ctx, args, priceUSD, marketCapUSD); err != nil {
-			log.Error(errors.Wrapf(err, "failed to register trade for tx %s", args.TransactionHash))
+		return w.ta.setUserPosition(ctx, args.UserBlockchainAddress, args.ContractAddress, args.TokenExternalAddress, args.UserExternalAddress, balance, args.BlockNumber, args.TransactionHash)
+	}
+
+	priceUSD, basePriceUSD, marketCapUSD, err := w.updateBondingCurveProgress(ctx, args.ContractAddress, args.TokenExternalAddress, args.PairID, args.BaseToken, args.TokenType, args.Platform, args.Ticker, args.Burned, args.DummyBalance != nil)
+	if err != nil {
+		log.Error(errors.Wrapf(err, "failed to update bonding curve for token %s", args.TokenExternalAddress))
+
+		return w.ta.setUserPosition(ctx, args.UserBlockchainAddress, args.ContractAddress, args.TokenExternalAddress, args.UserExternalAddress, balance, args.BlockNumber, args.TransactionHash)
+	}
+	if _, err := storage.Exec(ctx, w.ta.ingestedDataDB, `
+		WITH old_pos AS (
+			SELECT COALESCE(amount, '0') AS old_amount
+			FROM user_token_positions
+			WHERE user_blockchain_address = $5 AND contract_address = $4
+		),
+		swap_update AS (
+			UPDATE token_swaps
+			SET curve_price_usd = $1,
+				notified_at = NOW()
+			WHERE transaction_hash = $3 AND contract_address = $4
+			  AND user_blockchain_address = $5 AND curve_price_usd = 0
+			RETURNING *
+		)
+		UPDATE user_token_positions SET
+			total_invested_usd = (CASE WHEN NOT swap_update.direction
+				THEN user_token_positions.total_invested_usd +
+					(LEAST(swap_update.output_amount::NUMERIC, $6::NUMERIC)
+					 / NULLIF(swap_update.output_amount::NUMERIC, 0))
+					* (swap_update.input_amount::NUMERIC / 1e18) * $2
+				ELSE user_token_positions.total_invested_usd END),
+			total_realized_usd = (CASE WHEN swap_update.direction
+				THEN COALESCE(user_token_positions.total_realized_usd, 0) +
+					(GREATEST(0, (SELECT old_amount FROM old_pos)::NUMERIC - $6::NUMERIC)
+					 / NULLIF(swap_update.input_amount::NUMERIC, 0))
+					* (swap_update.output_amount::NUMERIC / 1e18) * $2
+				ELSE user_token_positions.total_realized_usd END),
+			total_fees_usd = COALESCE(user_token_positions.total_fees_usd, 0) + (
+				CASE WHEN t.fee_in_other_token
+					THEN (swap_update.fee::NUMERIC / 1e18) * $1
+					ELSE (swap_update.fee::NUMERIC / 1e18) * $2
+				END
+			)
+		FROM swap_update
+		JOIN tokens t ON t.contract_address = swap_update.contract_address
+		WHERE user_token_positions.user_blockchain_address = swap_update.user_blockchain_address
+		  AND user_token_positions.contract_address = swap_update.contract_address
+	`, priceUSD, basePriceUSD, args.TransactionHash, args.ContractAddress, args.UserBlockchainAddress,
+		balance.String()); err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
+		log.Error(errors.Wrapf(err, "failed to update curve_price_usd for tx %s", args.TransactionHash))
+	} else {
+		log.Debug(fmt.Sprintf("Updated position with curve price for token %s user %s: %.18f USD", args.TokenExternalAddress, args.UserBlockchainAddress, priceUSD))
+		if err = w.ta.coins.SetPriceUSD(ctx, args.ContractAddress, priceUSD); err != nil {
+			log.Error(errors.Wrapf(err, "failed to update wallet price USD for token %s %s", args.TokenExternalAddress, args.ContractAddress))
 		}
 	}
-	return nil
+	if err := w.registerTradeFromJob(ctx, args, priceUSD, marketCapUSD); err != nil {
+		log.Error(errors.Wrapf(err, "failed to register trade for tx %s", args.TransactionHash))
+	}
+
+	return w.ta.setUserPosition(ctx, args.UserBlockchainAddress, args.ContractAddress, args.TokenExternalAddress, args.UserExternalAddress, balance, args.BlockNumber, args.TransactionHash)
 }
 
 func (t *tokenAnalytics) setUserPosition(ctx context.Context, userBlockchainAddress, contractAddress,
@@ -252,7 +269,7 @@ func (t *tokenAnalytics) setOrIncrUserPosition(ctx context.Context, userBlockcha
 	return nil
 }
 
-func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, contractAddress, externalAddress, pairID, baseToken, tokenType, platform, symbol string, burned *big.Int, isDummy bool) (float64, float64, error) {
+func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, contractAddress, externalAddress, pairID, baseToken, tokenType, platform, symbol string, burned *big.Int, isDummy bool) (float64, float64, float64, error) {
 	var progress *bondingcurve.BondingCurveProgress
 	var err error
 
@@ -280,20 +297,20 @@ func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, co
 	} else {
 		progress, err = w.ta.bondingCurve.Progress(ctx, common.HexToHash(pairID))
 		if err != nil {
-			return 0, 0, fmt.Errorf("failed to get curve progress for token %v (pair %v): %w", externalAddress, pairID, err)
+			return 0, 0, 0, fmt.Errorf("failed to get curve progress for token %v (pair %v): %w", externalAddress, pairID, err)
 		}
 	}
 	goalUSD, currentRaisedUSD, err := w.ta.progressToUSD(ctx, progress, baseToken)
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to calculate progress USD for token %v: %w", externalAddress, err)
+		return 0, 0, 0, fmt.Errorf("failed to calculate progress USD for token %v: %w", externalAddress, err)
 	}
 	liquidityUSD, _, err := w.ta.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(progress.Liquidity), baseToken)
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to calculate liquidity USD for token %v: %w", externalAddress, err)
+		return 0, 0, 0, fmt.Errorf("failed to calculate liquidity USD for token %v: %w", externalAddress, err)
 	}
-	currentPriceUSD, _, err := w.ta.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(progress.CurrentPrice), baseToken)
+	currentPriceUSD, basePriceUSD, err := w.ta.calculatePriceInUSD(ctx, weiToFloat64FromBigInt(progress.CurrentPrice), baseToken)
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to calculate current price USD for token %v (base %v): %w", externalAddress, baseToken, err)
+		return 0, 0, 0, fmt.Errorf("failed to calculate current price USD for token %v (base %v): %w", externalAddress, baseToken, err)
 	}
 
 	burnedAmount := burned
@@ -339,14 +356,14 @@ func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, co
 	)
 
 	if err != nil && !storage.IsErr(err, storage.ErrReadOnly) {
-		return 0, 0, fmt.Errorf("failed to update bonding curve for token %v: %w", externalAddress, err)
+		return 0, 0, 0, fmt.Errorf("failed to update bonding curve for token %v: %w", externalAddress, err)
 	}
 
 	currentAmountWei := new(big.Float).SetInt(progress.SoldTokens)
 	currentAmountScore, _ := currentAmountWei.Float64()
 
 	if err := w.ta.updateBondingCurveInRedis(ctx, externalAddress, tokenType, platform, currentAmountScore, progress.Migrated); err != nil {
-		return 0, 0, errors.Wrapf(err, "failed to update bonding curve in Redis for token %s", externalAddress)
+		return 0, 0, 0, errors.Wrapf(err, "failed to update bonding curve in Redis for token %s", externalAddress)
 	}
 	progressPercent := 0.0
 	if goalUSD > 0 {
@@ -354,13 +371,13 @@ func (w *balanceUpdateWorker) updateBondingCurveProgress(ctx context.Context, co
 	}
 	if tokenType == TokenTypeProfile {
 		if err = saveBaseTokenPriceToDatabase(ctx, w.ta.ingestedDataDB, symbol, contractAddress, currentPriceUSD, progress.CurrentPrice); err != nil {
-			return 0, 0, errors.Wrapf(err, "failed to save base token price to database for token %s", externalAddress)
+			return 0, 0, 0, errors.Wrapf(err, "failed to save base token price to database for token %s", externalAddress)
 		}
 	}
 	log.Debug(fmt.Sprintf("Updated bonding curve for token %s: progress=%.1f%%, liquidity=$%.2f, current=%s, goal=%s",
 		externalAddress, progressPercent, liquidityUSD, progress.SoldTokens.String(), progress.BondingTokensGoal.String()))
 
-	return currentPriceUSD, mCapUSD, nil
+	return currentPriceUSD, basePriceUSD, mCapUSD, nil
 }
 
 func (t *tokenAnalytics) updateBondingCurveInRedis(ctx context.Context, externalAddress, tokenType, platform string, currentAmountScore float64, migrated bool) error {
