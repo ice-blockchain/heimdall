@@ -141,7 +141,9 @@ func TestBalanceUpdateJob_WithRPC(t *testing.T) {
 	`, strings.ToLower(userBlockchainAddr), strings.ToLower(tokenContractAddr))
 	require.NoError(t, err)
 	require.Equal(t, "5000000000000000000", pos.Amount, "Balance should be updated to 5 tokens")
-	require.InDelta(t, 2.875, pos.TotalInvestedUSD, 0.0001, "Total invested USD should be updated with current price (1.15 per ion * 0.5 base per token * 5 tokens)")
+	// invested = input_amount × basePriceUSD = (1e18 / 1e18) × 1.15 = 1.15
+	// input_amount=1e18 (1 ION), basePriceUSD=ionPrice=1.15
+	require.InDelta(t, 1.15, pos.TotalInvestedUSD, 0.0001, "Total invested USD should be input_amount * basePriceUSD (1 ION * 1.15)")
 	require.Equal(t, float64(0), pos.TotalRealizedUSD, "Total realized USD should be 0 as it was buy")
 	t.Logf("Checking Redis for key=%s, member=%s", keyUserPositionOfToken(tokenExternalAddr), userExternalAddr)
 	score, err := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(tokenExternalAddr), userExternalAddr).Result()
@@ -565,78 +567,588 @@ func helperAddUserBscAddress(t testing.TB, ctx context.Context, db *storage.DB, 
 	require.NoError(t, err)
 }
 
-func TestBalanceUpdateJob_TwistedBuyInvested(t *testing.T) {
+func TestBalanceUpdateJob_ContentProfileInteraction(t *testing.T) {
 	t.Parallel()
-	ctx := t.Context()
-	db, connString, release := helperCreateDBWithConnString(t)
-	defer release()
 
-	mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
-	twistedBalance, _ := new(big.Int).SetString("50000000000000000000", 10)
-	mockBackend.SetBalanceOfResponse(twistedBalance) // 50 tokens remaining after twisted
-	mockBackend.SetBondingCurveResponse(bondingcurve.BondingCurveBondingInfo{
-		CurrentPrice:      big.NewInt(500000000000000000), // 0.5 base
-		SoldTokens:        big.NewInt(int64(1e18)),
-		BondingTokensGoal: big.NewInt(int64(5e18)),
-		TokensRaised:      big.NewInt(int64(1e18)),
-		EndPrice:          big.NewInt(int64(1e17)),
-		StartPrice:        big.NewInt(int64(1e18)),
-		Migrated:          false,
-	})
-	mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+	const (
+		ionAddress = "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+		// Profile bonding curve: currentPrice=0.5 ION × ionPriceUSD=1.15 → priceUSD=0.575 per token.
+		profileCurvePrice = 500000000000000000 // 0.5 base in wei
+		// Content bonding curve: currentPrice=1.0 profile; with profile priceUSD=0.575 → 0.575 per token.
+		contentCurvePrice = 1000000000000000000 // 1.0 base in wei
+	)
 
-	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC), WithoutQuestDB())
-	defer ta.Close()
-
-	userBlockchainAddr := "0xaa00000000000000000000000000000000000001"
-	userExternalAddr := "0:twisted_user:"
-	contractAddr := "0xbb00000000000000000000000000000000000001"
-	tokenExternalAddr := "0:twisted_user:profile"
-	txHash := "0xtwisted_tx_001"
-	pairID := "0x0000000000000000000000000000000000000000000000000000000000000099"
-	baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
-
-	helperInsertTestUser(t, ctx, db, userExternalAddr, "twisted_user", "Twisted User", userBlockchainAddr, false, PlatformGroupIonConnect)
-	helperInsertTestToken(t, ctx, db, contractAddr, tokenExternalAddr, "TPROF", "profile", userExternalAddr, "1000000000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
-	helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExternalAddr, pairID, baseToken)
-	helperInsertBaseTokenPrice(t, ctx, db, baseToken, "ION", 0.01)
-	helperInsertUserPosition(t, ctx, db, userBlockchainAddr, contractAddr, tokenExternalAddr, userExternalAddr, "0")
-
-	// Swap bought 1000 profile tokens, but 950 spent on content → RPC returns 50 remaining.
-	helperInsertUnprocessedSwap(t, ctx, db, contractAddr, tokenExternalAddr, userBlockchainAddr,
-		txHash, false, "10000000000000000000", "1000000000000000000000", 0.01, "0")
-
-	err := ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
-		UserBlockchainAddress: userBlockchainAddr,
-		UserExternalAddress:   userExternalAddr,
-		ContractAddress:       contractAddr,
-		TokenExternalAddress:  tokenExternalAddr,
-		TransactionHash:       txHash,
-		BlockNumber:           12345,
-		PairID:                pairID,
-		BaseToken:             baseToken,
-		TokenType:             "profile",
-		Platform:              PlatformGroupIonConnect,
-	})
-	require.NoError(t, err)
-
-	helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
-
-	type position struct {
-		Amount           string  `db:"amount"`
-		TotalInvestedUSD float64 `db:"total_invested_usd"`
+	helperMakeMock := func(t *testing.T, balanceWei string, currentPriceWei int64) bondingcurve.BondingCurve {
+		t.Helper()
+		backend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
+		bal, _ := new(big.Int).SetString(balanceWei, 10)
+		backend.SetBalanceOfResponse(bal)
+		backend.SetBondingCurveResponse(bondingcurve.BondingCurveBondingInfo{
+			CurrentPrice:      big.NewInt(currentPriceWei),
+			SoldTokens:        big.NewInt(int64(1e18)),
+			BondingTokensGoal: big.NewInt(int64(5e18)),
+			TokensRaised:      big.NewInt(int64(1e18)),
+			EndPrice:          big.NewInt(int64(1e17)),
+			StartPrice:        big.NewInt(int64(1e18)),
+			Migrated:          false,
+		})
+		return bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(backend)
 	}
-	pos, err := storage.Get[position](ctx, db, `
-		SELECT amount, total_invested_usd FROM user_token_positions
-		WHERE user_blockchain_address = $1 AND contract_address = $2
-	`, strings.ToLower(userBlockchainAddr), strings.ToLower(contractAddr))
-	require.NoError(t, err)
-	require.Equal(t, "50000000000000000000", pos.Amount, "Balance should reflect 50 remaining tokens")
 
-	// curve_price_usd = 0.5 base * 1.15 ION price = 0.575 per token (ION price from helperNewForTest = 1.15)
-	// LEAST(output_amount=1000e18, amount=50e18) = 50e18
-	// invested = 0.575 * 50 = 28.75
-	require.InDelta(t, 28.75, pos.TotalInvestedUSD, 0.01, "Twisted buy invested should use LEAST(output, amount)")
+	// profilePriceUSD = profileCurvePrice(0.5 ION) × ionPriceUSD(1.15) = 0.575
+	// contentPriceUSD  = contentCurvePrice(1.0 profile) × profilePriceUSD(0.575) = 0.575
+	const profilePriceUSD = 0.575
+
+	// 1. Twisted buy (ION → content via FatAddress V2, profile auto-created)
+	t.Run("twisted_buy_first_content_purchase", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		db, connString, release := helperCreateDBWithConnString(t)
+		defer release()
+
+		ta := helperNewForTest(t, db, WithRealRiverQueue(connString),
+			WithBondingCurve(helperMakeMock(t, "50000000000000000000", profileCurvePrice)),
+			WithoutQuestDB())
+		defer ta.Close()
+
+		userAddr := "0xaa00000000000000000000000000000000000011"
+		userExt := "0:twisted_first_user:"
+		txHash := "0xtwisted_first_tx_001"
+
+		profileContract := "0xbb00000000000000000000000000000000000011"
+		profileTokenExt := "0:twisted_first_user:profile"
+		profilePairID := "0x0000000000000000000000000000000000000000000000000000000000000199"
+
+		contentContract := "0xcc00000000000000000000000000000000000011"
+		contentTokenExt := "0:twisted_first_user:post"
+		contentPairID := "0x0000000000000000000000000000000000000000000000000000000000000198"
+
+		helperInsertTestUser(t, ctx, db, userExt, "twisted_first_user", "Twisted First User", userAddr, false, PlatformGroupIonConnect)
+
+		helperInsertTestToken(t, ctx, db, profileContract, profileTokenExt, "TPROF1", TokenTypeProfile, userExt, "1000000000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, profileTokenExt, profilePairID, ionAddress)
+		helperInsertBaseTokenPrice(t, ctx, db, ionAddress, "ION", 0.01)
+		helperInsertUserPosition(t, ctx, db, userAddr, profileContract, profileTokenExt, userExt, "0")
+
+		helperInsertTestToken(t, ctx, db, contentContract, contentTokenExt, "TCONT1", TokenTypePost, userExt, "1000000000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, contentTokenExt, contentPairID, profileContract)
+		helperInsertBaseTokenPrice(t, ctx, db, profileContract, "TPROF1", profilePriceUSD)
+		helperInsertUserPosition(t, ctx, db, userAddr, contentContract, contentTokenExt, userExt, "0")
+		// Only content token_swaps entry exists (twisted swap via FatAddress V2).
+		// User paid 10 ION (via profile intermediary), received 50 content tokens.
+		// No profile token_swaps entry — profile is just a pass-through.
+		helperInsertUnprocessedSwap(t, ctx, db, contentContract, contentTokenExt, userAddr,
+			txHash, false, "950000000000000000000", "50000000000000000000", profilePriceUSD, "0")
+
+		// Job 1: content invested (from twisted swap)
+		require.NoError(t, ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
+			UserBlockchainAddress: userAddr,
+			UserExternalAddress:   userExt,
+			ContractAddress:       contentContract,
+			TokenExternalAddress:  contentTokenExt,
+			TransactionHash:       txHash,
+			BlockNumber:           12345,
+			PairID:                contentPairID,
+			BaseToken:             profileContract,
+			TokenType:             TokenTypePost,
+			Platform:              PlatformGroupIonConnect,
+		}))
+		// Job 2: baseJobArgs for profile balance (no token_swaps entry for profile → PnL no-op)
+		require.NoError(t, ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
+			UserBlockchainAddress: userAddr,
+			UserExternalAddress:   userExt,
+			ContractAddress:       profileContract,
+			TokenExternalAddress:  profileTokenExt,
+			TransactionHash:       txHash,
+			BlockNumber:           12345,
+			PairID:                profilePairID,
+			BaseToken:             ionAddress,
+			TokenType:             TokenTypeProfile,
+			Platform:              PlatformGroupIonConnect,
+		}))
+		helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
+
+		type pos struct {
+			Amount           string  `db:"amount"`
+			TotalInvestedUSD float64 `db:"total_invested_usd"`
+			TotalRealizedUSD float64 `db:"total_realized_usd"`
+		}
+		// Content: invested = LEAST(50, 50)/50 × 950 × profilePriceUSD = 1 × 950 × 0.575 = 546.25
+		contGot, err := storage.Get[pos](ctx, db, `
+			SELECT amount, total_invested_usd, total_realized_usd FROM user_token_positions
+			WHERE user_blockchain_address = $1 AND contract_address = $2
+		`, strings.ToLower(userAddr), strings.ToLower(contentContract))
+		require.NoError(t, err)
+		require.InDelta(t, 546.25, contGot.TotalInvestedUSD, 1.0, "content invested = input_profile * profilePriceUSD (950 * 0.575)")
+		require.InDelta(t, 0.0, contGot.TotalRealizedUSD, 0.001, "content realized must be zero on buy")
+
+		// Profile: invested and realized must remain zero (no token_swaps entry for profile).
+		// baseJobArgs only updates balance; PnL SQL finds no swap_update rows → no-op.
+		profGot, err := storage.Get[pos](ctx, db, `
+			SELECT amount, total_invested_usd, total_realized_usd FROM user_token_positions
+			WHERE user_blockchain_address = $1 AND contract_address = $2
+		`, strings.ToLower(userAddr), strings.ToLower(profileContract))
+		require.NoError(t, err)
+		require.Equal(t, "50000000000000000000", profGot.Amount, "profile balance should be 50 remaining tokens")
+		require.InDelta(t, 0.0, profGot.TotalInvestedUSD, 0.001, "profile invested must be zero: no token_swaps entry for profile (twisted buy via FatAddress V2)")
+		require.InDelta(t, 0.0, profGot.TotalRealizedUSD, 0.001, "profile realized must be zero: profile is just a pass-through")
+	})
+
+	// 2. Double buy (ION → profile, then profile → content in same tx): verifies that profile.invested
+	//    only reflects the proportional cost of the REMAINING profile tokens (LEAST formula), not the
+	//    full ION paid, and that profile.realized is zero (spending profile on content is NOT a realization).
+	t.Run("double_buy_profile_invested_proportional_to_remaining", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		db, connString, release := helperCreateDBWithConnString(t)
+		defer release()
+
+		ta := helperNewForTest(t, db, WithRealRiverQueue(connString),
+			WithBondingCurve(helperMakeMock(t, "50000000000000000000", profileCurvePrice)), // 50 tokens
+			WithoutQuestDB())
+		defer ta.Close()
+
+		userAddr := "0xaa00000000000000000000000000000000000001"
+		userExt := "0:twisted_user:"
+		txHash := "0xtwisted_tx_001"
+
+		profileContract := "0xbb00000000000000000000000000000000000001"
+		profileTokenExt := "0:twisted_user:profile"
+		profilePairID := "0x0000000000000000000000000000000000000000000000000000000000000099"
+
+		contentContract := "0xcc00000000000000000000000000000000000001"
+		contentTokenExt := "0:twisted_user:post"
+		contentPairID := "0x0000000000000000000000000000000000000000000000000000000000000098"
+
+		helperInsertTestUser(t, ctx, db, userExt, "twisted_user", "Twisted User", userAddr, false, PlatformGroupIonConnect)
+
+		// Profile token (base=ION): user paid 10 ION and got 1000 profile tokens.
+		helperInsertTestToken(t, ctx, db, profileContract, profileTokenExt, "TPROF", TokenTypeProfile, userExt, "1000000000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, profileTokenExt, profilePairID, ionAddress)
+		helperInsertBaseTokenPrice(t, ctx, db, ionAddress, "ION", 0.01)
+		helperInsertUserPosition(t, ctx, db, userAddr, profileContract, profileTokenExt, userExt, "0")
+		helperInsertUnprocessedSwap(t, ctx, db, profileContract, profileTokenExt, userAddr,
+			txHash, false, "10000000000000000000", "1000000000000000000000", 0.01, "0")
+
+		// Content token (base=profile): 950 of those profile tokens were immediately spent on content.
+		// output=50e18 matches mock balance (50 tokens), so LEAST(output, balance)=output → full invested.
+		helperInsertTestToken(t, ctx, db, contentContract, contentTokenExt, "TCONT", TokenTypePost, userExt, "1000000000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, contentTokenExt, contentPairID, profileContract)
+		helperInsertBaseTokenPrice(t, ctx, db, profileContract, "TPROF", profilePriceUSD) // profile price for content's basePriceUSD lookup
+		helperInsertUserPosition(t, ctx, db, userAddr, contentContract, contentTokenExt, userExt, "0")
+		helperInsertUnprocessedSwap(t, ctx, db, contentContract, contentTokenExt, userAddr,
+			txHash, false, "950000000000000000000", "50000000000000000000", profilePriceUSD, "0")
+
+		// Job 1: profile invested (from ION→profile swap)
+		require.NoError(t, ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
+			UserBlockchainAddress: userAddr,
+			UserExternalAddress:   userExt,
+			ContractAddress:       profileContract,
+			TokenExternalAddress:  profileTokenExt,
+			TransactionHash:       txHash,
+			BlockNumber:           12345,
+			PairID:                profilePairID,
+			BaseToken:             ionAddress,
+			TokenType:             TokenTypeProfile,
+			Platform:              PlatformGroupIonConnect,
+		}))
+		// Job 2: content invested (from profile→content swap)
+		require.NoError(t, ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
+			UserBlockchainAddress: userAddr,
+			UserExternalAddress:   userExt,
+			ContractAddress:       contentContract,
+			TokenExternalAddress:  contentTokenExt,
+			TransactionHash:       txHash,
+			BlockNumber:           12345,
+			PairID:                contentPairID,
+			BaseToken:             profileContract,
+			TokenType:             TokenTypePost,
+			Platform:              PlatformGroupIonConnect,
+		}))
+		helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
+
+		type pos struct {
+			Amount           string  `db:"amount"`
+			TotalInvestedUSD float64 `db:"total_invested_usd"`
+			TotalRealizedUSD float64 `db:"total_realized_usd"`
+		}
+		// Profile: invested = LEAST(output=1000, balance=50)/1000 × input=10 × ionPriceUSD=1.15
+		//          = 50/1000 × 10 × 1.15 = 0.575  (only the cost of the 50 remaining tokens)
+		//          realized = 0  (exchanging profile for content is NOT a realization event)
+		profGot, err := storage.Get[pos](ctx, db, `
+			SELECT amount, total_invested_usd, total_realized_usd FROM user_token_positions
+			WHERE user_blockchain_address = $1 AND contract_address = $2
+		`, strings.ToLower(userAddr), strings.ToLower(profileContract))
+		require.NoError(t, err)
+		require.Equal(t, "50000000000000000000", profGot.Amount, "profile balance should be 50 remaining tokens")
+		require.InDelta(t, 0.575, profGot.TotalInvestedUSD, 0.01, "profile invested = (remaining/total) * input_ION * ionPriceUSD = (50/1000)*10*1.15")
+		require.InDelta(t, 0.0, profGot.TotalRealizedUSD, 0.001, "profile realized must be zero: exchange is not a realization")
+
+		// Content: invested = LEAST(output=50, balance=50)/50 × input=950 × profilePriceUSD=0.575
+		//          = 1 × 950 × 0.575 = 546.25
+		contGot, err := storage.Get[pos](ctx, db, `
+			SELECT amount, total_invested_usd, total_realized_usd FROM user_token_positions
+			WHERE user_blockchain_address = $1 AND contract_address = $2
+		`, strings.ToLower(userAddr), strings.ToLower(contentContract))
+		require.NoError(t, err)
+		require.InDelta(t, 546.25, contGot.TotalInvestedUSD, 1.0, "content invested = input_profile * profilePriceUSD (950 * 0.575)")
+		require.InDelta(t, 0.0, contGot.TotalRealizedUSD, 0.001, "content realized must be zero on buy")
+	})
+
+	// 3. profile → ION (1+ sell): user sells profile tokens and receives ION.
+	//    profile.total_realized_usd must increase by output_ION × basePriceUSD (ionPriceUSD).
+	t.Run("profile_sell_updates_realized", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		db, connString, release := helperCreateDBWithConnString(t)
+		defer release()
+
+		ta := helperNewForTest(t, db, WithRealRiverQueue(connString),
+			WithBondingCurve(helperMakeMock(t, "95000000000000000000", profileCurvePrice)), // 95 remaining
+			WithoutQuestDB())
+		defer ta.Close()
+
+		userAddr := "0xba00000000000000000000000000000000000001"
+		userExt := "0:profile_sell_user:"
+		contract := "0xcb00000000000000000000000000000000000001"
+		tokenExt := "0:profile_sell_user:profile"
+		txHash := "0xprofile_sell_tx_001"
+		pairID := "0x000000000000000000000000000000000000000000000000000000000000cccc"
+
+		helperInsertTestUser(t, ctx, db, userExt, "profile_sell_user", "Profile Sell User", userAddr, false, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db, contract, tokenExt, "PSELL", "profile", userExt, "1000000000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExt, pairID, ionAddress)
+		helperInsertBaseTokenPrice(t, ctx, db, ionAddress, "ION", 0.01)
+		// Initial balance = 100 tokens (user held 100 profile before selling 5).
+		// prevBalance formula: GREATEST(0, 100-95)/5 = 1 → full realized.
+		helperInsertUserPosition(t, ctx, db, userAddr, contract, tokenExt, userExt, "100000000000000000000")
+		// direction=true (sell): user sends 5 profile tokens, receives 2.5 ION
+		helperInsertUnprocessedSwap(t, ctx, db, contract, tokenExt, userAddr,
+			txHash, true, "5000000000000000000", "2500000000000000000", 0.575, "0")
+
+		require.NoError(t, ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
+			UserBlockchainAddress: userAddr,
+			UserExternalAddress:   userExt,
+			ContractAddress:       contract,
+			TokenExternalAddress:  tokenExt,
+			TransactionHash:       txHash,
+			BlockNumber:           20000,
+			PairID:                pairID,
+			BaseToken:             ionAddress,
+			TokenType:             TokenTypeProfile,
+			Platform:              PlatformGroupIonConnect,
+		}))
+		helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
+
+		type pos struct {
+			TotalInvestedUSD float64 `db:"total_invested_usd"`
+			TotalRealizedUSD float64 `db:"total_realized_usd"`
+		}
+		got, err := storage.Get[pos](ctx, db, `
+			SELECT total_invested_usd, total_realized_usd FROM user_token_positions
+			WHERE user_blockchain_address = $1 AND contract_address = $2
+		`, strings.ToLower(userAddr), strings.ToLower(contract))
+		require.NoError(t, err)
+		require.InDelta(t, 0.0, got.TotalInvestedUSD, 0.001, "sell must not affect invested")
+		// realized = output_ION × ionPriceUSD = 2.5 × 1.15 = 2.875
+		require.InDelta(t, 2.875, got.TotalRealizedUSD, 0.01, "realized = output_ION * ionPriceUSD (2.5 * 1.15)")
+	})
+
+	// 4. profile → content (buy): user spends 50 profile tokens to buy content tokens.
+	//    content.invested += 50_profile × profilePriceUSD.
+	t.Run("content_buy_with_profile_base", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		db, connString, release := helperCreateDBWithConnString(t)
+		defer release()
+
+		profileContractAddr := "0xdc00000000000000000000000000000000000001"
+		profileTokenExt := "0:content_buy_user:profile"
+		profileOwnPairID := "0x000000000000000000000000000000000000000000000000000000000000cccc"
+
+		contentContractAddr := "0xed00000000000000000000000000000000000001"
+		contentTokenExt := "0:content_buy_user:post"
+		contentPairID := "0x000000000000000000000000000000000000000000000000000000000000dddd"
+
+		// contentPriceUSD = 0.5 × profilePriceUSD = 0.2875 (unused for invested/realized here).
+		ta := helperNewForTest(t, db, WithRealRiverQueue(connString),
+			WithBondingCurve(helperMakeMock(t, "50000000000000000000", profileCurvePrice)),
+			WithoutQuestDB())
+		defer ta.Close()
+
+		userAddr := "0xcb00000000000000000000000000000000000002"
+		userExt := "0:content_buy_user:"
+		txHash := "0xcontent_buy_tx_001"
+
+		helperInsertTestUser(t, ctx, db, userExt, "content_buy_user", "Content Buy User", userAddr, false, PlatformGroupIonConnect)
+
+		// Profile token (base=ION)
+		helperInsertTestToken(t, ctx, db, profileContractAddr, profileTokenExt, "PBUY", TokenTypeProfile, userExt, "1000000000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, profileTokenExt, profileOwnPairID, ionAddress)
+		helperInsertUserPosition(t, ctx, db, userAddr, profileContractAddr, profileTokenExt, userExt, "0")
+
+		// Content token (base=profile)
+		helperInsertTestToken(t, ctx, db, contentContractAddr, contentTokenExt, "CBUY", TokenTypePost, userExt, "1000000000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, contentTokenExt, contentPairID, profileContractAddr)
+		helperInsertBaseTokenPrice(t, ctx, db, profileContractAddr, "PBUY", profilePriceUSD)
+		helperInsertUserPosition(t, ctx, db, userAddr, contentContractAddr, contentTokenExt, userExt, "0")
+		// direction=false (buy): user spends 50 profile tokens, receives 50 content tokens
+		helperInsertUnprocessedSwap(t, ctx, db, contentContractAddr, contentTokenExt, userAddr,
+			txHash, false, "50000000000000000000", "50000000000000000000", profilePriceUSD, "0")
+
+		// Job 1: content invested.
+		require.NoError(t, ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
+			UserBlockchainAddress: userAddr,
+			UserExternalAddress:   userExt,
+			ContractAddress:       contentContractAddr,
+			TokenExternalAddress:  contentTokenExt,
+			TransactionHash:       txHash,
+			BlockNumber:           30000,
+			PairID:                contentPairID,
+			BaseToken:             profileContractAddr,
+			TokenType:             TokenTypePost,
+			Platform:              PlatformGroupIonConnect,
+		}))
+		// baseJobArgs: profile balance update only (no PnL fields); must not alter profile invested/realized
+		require.NoError(t, ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
+			UserBlockchainAddress: userAddr,
+			UserExternalAddress:   userExt,
+			ContractAddress:       profileContractAddr,
+			TokenExternalAddress:  profileTokenExt,
+			TransactionHash:       txHash,
+			BlockNumber:           30000,
+			PairID:                profileOwnPairID,
+			BaseToken:             ionAddress,
+			TokenType:             TokenTypeProfile,
+			Platform:              PlatformGroupIonConnect,
+		}))
+		helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
+
+		type pos struct {
+			TotalInvestedUSD float64 `db:"total_invested_usd"`
+			TotalRealizedUSD float64 `db:"total_realized_usd"`
+		}
+		// Content: invested = LEAST(50, 50)/50 × 50 × profilePriceUSD = 1 × 50 × 0.575 = 28.75
+		contGot, err := storage.Get[pos](ctx, db, `
+			SELECT total_invested_usd, total_realized_usd FROM user_token_positions
+			WHERE user_blockchain_address = $1 AND contract_address = $2
+		`, strings.ToLower(userAddr), strings.ToLower(contentContractAddr))
+		require.NoError(t, err)
+		require.InDelta(t, 28.75, contGot.TotalInvestedUSD, 0.1, "content invested = input_profile * profilePriceUSD (50 * 0.575)")
+		require.InDelta(t, 0.0, contGot.TotalRealizedUSD, 0.001, "content realized must be zero on buy")
+
+		// Profile: invested and realized must remain zero.
+		profGot, err := storage.Get[pos](ctx, db, `
+			SELECT total_invested_usd, total_realized_usd FROM user_token_positions
+			WHERE user_blockchain_address = $1 AND contract_address = $2
+		`, strings.ToLower(userAddr), strings.ToLower(profileContractAddr))
+		require.NoError(t, err)
+		require.InDelta(t, 0.0, profGot.TotalInvestedUSD, 0.001, "profile invested must not change: spending profile on content is not a cost-basis event here")
+		require.InDelta(t, 0.0, profGot.TotalRealizedUSD, 0.001, "profile realized must not change: exchange for content is not a realization")
+	})
+
+	// 5. content → profile (sell): user sells content and receives profile tokens (no further sell).
+	//    content.realized += profile_received × profilePriceUSD.
+	t.Run("content_sell_with_profile_base", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		db, connString, release := helperCreateDBWithConnString(t)
+		defer release()
+
+		profileContractAddr := "0xfe00000000000000000000000000000000000001"
+		profileTokenExt := "0:content_sell_user:profile"
+		profileOwnPairID := "0x000000000000000000000000000000000000000000000000000000000000ffff"
+
+		contentContractAddr := "0x0f00000000000000000000000000000000000001"
+		contentTokenExt := "0:content_sell_user:post"
+		contentPairID := "0x000000000000000000000000000000000000000000000000000000000000eeee"
+
+		ta := helperNewForTest(t, db, WithRealRiverQueue(connString),
+			WithBondingCurve(helperMakeMock(t, "20000000000000000000", profileCurvePrice)),
+			WithoutQuestDB())
+		defer ta.Close()
+
+		userAddr := "0xdc00000000000000000000000000000000000002"
+		userExt := "0:content_sell_user:"
+		txHash := "0xcontent_sell_tx_001"
+
+		helperInsertTestUser(t, ctx, db, userExt, "content_sell_user", "Content Sell User", userAddr, false, PlatformGroupIonConnect)
+
+		helperInsertTestToken(t, ctx, db, profileContractAddr, profileTokenExt, "PSELL", TokenTypeProfile, userExt, "1000000000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, profileTokenExt, profileOwnPairID, ionAddress)
+		helperInsertUserPosition(t, ctx, db, userAddr, profileContractAddr, profileTokenExt, userExt, "0")
+
+		helperInsertTestToken(t, ctx, db, contentContractAddr, contentTokenExt, "CSELL", TokenTypePost, userExt, "1000000000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, contentTokenExt, contentPairID, profileContractAddr)
+		helperInsertBaseTokenPrice(t, ctx, db, profileContractAddr, "PSELL", profilePriceUSD)
+		// Initial content balance = 50e18 (user held 50 before selling 30; mock returns 20e18 remaining).
+		// prevBalance formula: GREATEST(50-20, 0)/30 = 1 → full realized.
+		helperInsertUserPosition(t, ctx, db, userAddr, contentContractAddr, contentTokenExt, userExt, "50000000000000000000")
+		// direction=true (sell): user sends 30 content tokens, receives 100 profile tokens
+		helperInsertUnprocessedSwap(t, ctx, db, contentContractAddr, contentTokenExt, userAddr,
+			txHash, true, "30000000000000000000", "100000000000000000000", profilePriceUSD, "0")
+
+		// Job 1: content realized.
+		require.NoError(t, ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
+			UserBlockchainAddress: userAddr,
+			UserExternalAddress:   userExt,
+			ContractAddress:       contentContractAddr,
+			TokenExternalAddress:  contentTokenExt,
+			TransactionHash:       txHash,
+			BlockNumber:           30001,
+			PairID:                contentPairID,
+			BaseToken:             profileContractAddr,
+			TokenType:             TokenTypePost,
+			Platform:              PlatformGroupIonConnect,
+		}))
+		require.NoError(t, ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
+			UserBlockchainAddress: userAddr,
+			UserExternalAddress:   userExt,
+			ContractAddress:       profileContractAddr,
+			TokenExternalAddress:  profileTokenExt,
+			TransactionHash:       txHash,
+			BlockNumber:           30001,
+			PairID:                profileOwnPairID,
+			BaseToken:             ionAddress,
+			TokenType:             TokenTypeProfile,
+			Platform:              PlatformGroupIonConnect,
+		}))
+		helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
+
+		type pos struct {
+			TotalInvestedUSD float64 `db:"total_invested_usd"`
+			TotalRealizedUSD float64 `db:"total_realized_usd"`
+		}
+		// Content: realized = output_profile × profilePriceUSD = 100 × 0.575 = 57.5
+		contGot, err := storage.Get[pos](ctx, db, `
+			SELECT total_invested_usd, total_realized_usd FROM user_token_positions
+			WHERE user_blockchain_address = $1 AND contract_address = $2
+		`, strings.ToLower(userAddr), strings.ToLower(contentContractAddr))
+		require.NoError(t, err)
+		require.InDelta(t, 0.0, contGot.TotalInvestedUSD, 0.001, "content invested must be zero on sell")
+		require.InDelta(t, 57.5, contGot.TotalRealizedUSD, 0.1, "content realized = output_profile * profilePriceUSD (100 * 0.575)")
+
+		// Profile: invested and realized must remain zero.
+		profGot, err := storage.Get[pos](ctx, db, `
+			SELECT total_invested_usd, total_realized_usd FROM user_token_positions
+			WHERE user_blockchain_address = $1 AND contract_address = $2
+		`, strings.ToLower(userAddr), strings.ToLower(profileContractAddr))
+		require.NoError(t, err)
+		require.InDelta(t, 0.0, profGot.TotalInvestedUSD, 0.001, "profile invested must not change: receiving profile from content sell is not a cost-basis event")
+		require.InDelta(t, 0.0, profGot.TotalRealizedUSD, 0.001, "profile realized must not change: no ION→profile swap in this tx")
+	})
+
+	// 6. Full double sell (content → profile → ION)
+	t.Run("double_sell_profile_realized_is_zero", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		db, connString, release := helperCreateDBWithConnString(t)
+		defer release()
+
+		profileContract := "0xaa10000000000000000000000000000000000001"
+		profileTokenExt := "0:double_sell_user:profile"
+		profilePairID := "0x0000000000000000000000000000000000000000000000000000000000001111"
+
+		contentContract := "0xbb10000000000000000000000000000000000001"
+		contentTokenExt := "0:double_sell_user:post"
+		contentPairID := "0x0000000000000000000000000000000000000000000000000000000000002222"
+
+		// Profile final balance = 50e18 (had 50 originally; received 100 from content sell,
+		// immediately sold 100 for ION → net change = 0).
+		// Content balance after sell = 50e18 (had 80, sold 30 → 50 remaining).
+		ta := helperNewForTest(t, db, WithRealRiverQueue(connString),
+			WithBondingCurve(helperMakeMock(t, "50000000000000000000", profileCurvePrice)),
+			WithoutQuestDB())
+		defer ta.Close()
+
+		userAddr := "0xcc10000000000000000000000000000000000001"
+		userExt := "0:double_sell_user:"
+		txHash := "0xdouble_sell_tx_001"
+
+		helperInsertTestUser(t, ctx, db, userExt, "double_sell_user", "Double Sell User", userAddr, false, PlatformGroupIonConnect)
+
+		// Profile token (base=ION): user had 50 profile before this double-sell transaction.
+		helperInsertTestToken(t, ctx, db, profileContract, profileTokenExt, "DPROF", TokenTypeProfile, userExt, "1000000000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, profileTokenExt, profilePairID, ionAddress)
+		helperInsertBaseTokenPrice(t, ctx, db, ionAddress, "ION", 0.01)
+		helperInsertUserPosition(t, ctx, db, userAddr, profileContract, profileTokenExt, userExt, "50000000000000000000")
+		// Profile→ION sell (intermediate step): user sells 100 profile (received from content sell), gets 2.5 ION.
+		helperInsertUnprocessedSwap(t, ctx, db, profileContract, profileTokenExt, userAddr,
+			txHash, true, "100000000000000000000", "2500000000000000000", 0.575, "0")
+
+		// Content token (base=profile): user had 80 content before selling 30.
+		helperInsertTestToken(t, ctx, db, contentContract, contentTokenExt, "DCONT", TokenTypePost, userExt, "1000000000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, contentTokenExt, contentPairID, profileContract)
+		helperInsertBaseTokenPrice(t, ctx, db, profileContract, "DPROF", profilePriceUSD)
+		helperInsertUserPosition(t, ctx, db, userAddr, contentContract, contentTokenExt, userExt, "80000000000000000000")
+		// Content→profile sell: user sends 30 content, receives 100 profile tokens.
+		helperInsertUnprocessedSwap(t, ctx, db, contentContract, contentTokenExt, userAddr,
+			txHash, true, "30000000000000000000", "100000000000000000000", profilePriceUSD, "0")
+
+		require.NoError(t, ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
+			UserBlockchainAddress: userAddr,
+			UserExternalAddress:   userExt,
+			ContractAddress:       contentContract,
+			TokenExternalAddress:  contentTokenExt,
+			TransactionHash:       txHash,
+			BlockNumber:           40000,
+			PairID:                contentPairID,
+			BaseToken:             profileContract,
+			TokenType:             TokenTypePost,
+			Platform:              PlatformGroupIonConnect,
+		}))
+		// Since prevBalance(=50) == finalBalance(=50), realized = 0.
+		require.NoError(t, ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
+			UserBlockchainAddress: userAddr,
+			UserExternalAddress:   userExt,
+			ContractAddress:       profileContract,
+			TokenExternalAddress:  profileTokenExt,
+			TransactionHash:       txHash,
+			BlockNumber:           40000,
+			PairID:                profilePairID,
+			BaseToken:             ionAddress,
+			TokenType:             TokenTypeProfile,
+			Platform:              PlatformGroupIonConnect,
+		}))
+		// Profile job (from profile→ION event): curve_price_usd already set by baseJobArgs → no-op.
+		require.NoError(t, ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
+			UserBlockchainAddress: userAddr,
+			UserExternalAddress:   userExt,
+			ContractAddress:       profileContract,
+			TokenExternalAddress:  profileTokenExt,
+			TransactionHash:       txHash,
+			BlockNumber:           40000,
+			PairID:                profilePairID,
+			BaseToken:             ionAddress,
+			TokenType:             TokenTypeProfile,
+			Platform:              PlatformGroupIonConnect,
+		}))
+		helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
+
+		type pos struct {
+			TotalInvestedUSD float64 `db:"total_invested_usd"`
+			TotalRealizedUSD float64 `db:"total_realized_usd"`
+		}
+		// Content: realized = GREATEST(80-50, 0)/30 × 100 × profilePriceUSD = 1 × 100 × 0.575 = 57.5
+		contGot, err := storage.Get[pos](ctx, db, `
+			SELECT total_invested_usd, total_realized_usd FROM user_token_positions
+			WHERE user_blockchain_address = $1 AND contract_address = $2
+		`, strings.ToLower(userAddr), strings.ToLower(contentContract))
+		require.NoError(t, err)
+		require.InDelta(t, 0.0, contGot.TotalInvestedUSD, 0.001, "content invested must be zero on sell")
+		require.InDelta(t, 57.5, contGot.TotalRealizedUSD, 0.1, "content realized = (80-50)/30 * 100 * profilePriceUSD = 57.5")
+
+		// Profile: realized = GREATEST(50-50, 0)/100 × 2.5 × ionPriceUSD = 0
+		// baseJobArgs processes the profile→ION token_swaps first (same txHash), setting curve_price_usd.
+		// prevBalance (50) == finalBalance (50) → pass-through detected → no realized added.
+		profGot, err := storage.Get[pos](ctx, db, `
+			SELECT total_invested_usd, total_realized_usd FROM user_token_positions
+			WHERE user_blockchain_address = $1 AND contract_address = $2
+		`, strings.ToLower(userAddr), strings.ToLower(profileContract))
+		require.NoError(t, err)
+		require.InDelta(t, 0.0, profGot.TotalInvestedUSD, 0.001, "profile invested must not change")
+		require.InDelta(t, 0.0, profGot.TotalRealizedUSD, 0.001, "profile realized must be zero: pass-through detected (prevBalance == finalBalance = 50)")
+	})
 }
 
 func TestBalanceUpdateJob_FeeInOtherToken(t *testing.T) {
@@ -706,8 +1218,9 @@ func TestBalanceUpdateJob_FeeInOtherToken(t *testing.T) {
 			WHERE user_blockchain_address = $1 AND contract_address = $2
 		`, strings.ToLower(userAddr), strings.ToLower(contractAddr))
 		require.NoError(t, err)
-		// fee_in_other_token=FALSE: fee_usd = (2e18 / 1e18) * base_token_price = 2 * 0.5 = 1.0
-		require.InDelta(t, 1.0, pos.TotalFeesUSD, 0.001, "Fee in base token: fee * base_price")
+		// fee_in_other_token=FALSE: fee_usd = (2e18 / 1e18) * basePriceUSD = 2 * 1.15 = 2.3
+		// basePriceUSD = ionPriceUSD = 1.15 (from calculatePriceInUSD for ION base token)
+		require.InDelta(t, 2.3, pos.TotalFeesUSD, 0.001, "Fee in base token: fee * basePriceUSD (ionPrice)")
 	})
 
 	t.Run("fee_in_other_token_true", func(t *testing.T) {
