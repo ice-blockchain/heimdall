@@ -224,14 +224,8 @@ func buildUserAddressesFromExternalAddressAndPlatform(externalAddress, platform 
 			platform = PlatformGroupXCom
 		}
 	}
-	userExternalAddress := externalAddress
-	if platform == PlatformGroupIonConnect {
-		parts := strings.Split(externalAddress, ":")
-		if len(parts) >= 2 && parts[0] == "0" {
-			userExternalAddress = parts[1]
-		}
-	}
-	return buildAddressesFromExternalAddressAndPlatform(userExternalAddress, platform, bnbBscAddress, ionConnectAddress...)
+
+	return buildAddressesFromExternalAddressAndPlatform(externalAddress, platform, bnbBscAddress, ionConnectAddress...)
 }
 
 func buildAddressesFromExternalAddressAndPlatform(externalAddress, platform string, bnbBscAddress string, ionConnectAddress ...string) (*Addresses, error) {

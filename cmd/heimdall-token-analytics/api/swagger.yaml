@@ -504,8 +504,8 @@ paths:
           type: string
         name: externalAddresses
         type: array
-      - description: Holder external address to get tokens by holder
-        example: '"0:holder123:"'
+      - description: Master public key of the holder
+        example: '"holder123"'
         in: query
         name: holder
         type: string
@@ -851,8 +851,8 @@ paths:
         name: externalAddressOrViewType
         required: true
         type: string
-      - description: External addresses of holders
-        example: '"0:abc123:,0:def456:"'
+      - description: Master public keys of holders
+        example: '"abc123,def456"'
         in: query
         items:
           type: string

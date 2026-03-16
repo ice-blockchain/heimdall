@@ -105,8 +105,8 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "example": "\"0:holder123:\"",
-                        "description": "Holder external address to get tokens by holder",
+                        "example": "\"holder123\"",
+                        "description": "Master public key of the holder",
                         "name": "holder",
                         "in": "query"
                     },
@@ -689,8 +689,8 @@ const docTemplate = `{
                         "items": {
                             "type": "string"
                         },
-                        "example": "\"0:abc123:,0:def456:\"",
-                        "description": "External addresses of holders",
+                        "example": "\"abc123,def456\"",
+                        "description": "Master public keys of holders",
                         "name": "externalHolderAddresses",
                         "in": "query",
                         "required": true

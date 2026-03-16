@@ -34,7 +34,7 @@ func (t *tokenAnalytics) GetHolderPositions(ctx context.Context, tokenExternalAd
 			COALESCE(uap.total_fees_usd, 0) as total_fees_usd,
 			COALESCE(t.price_usd, 0) as price_usd
 		FROM user_aggregate_positions uap
-		LEFT JOIN users u ON u.external_address = uap.user_external_address
+		LEFT JOIN users u ON u.master_pubkey = uap.user_external_address
 		INNER JOIN tokens t ON t.external_address = uap.external_address
 		WHERE uap.external_address = $1 
 		  AND uap.user_external_address = ANY($2)

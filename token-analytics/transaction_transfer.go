@@ -110,10 +110,10 @@ func (t *tokenAnalytics) getTokenInfo(ctx context.Context, contractAddress strin
 
 func (t *tokenAnalytics) getUserExternalAddress(ctx context.Context, blockchainAddress string) (string, error) {
 	type userExternalAddressRow struct {
-		ExternalAddress string `db:"external_address"`
+		MasterPubkey string `db:"master_pubkey"`
 	}
 	query := `
-		SELECT u.external_address
+		SELECT u.master_pubkey
 		FROM user_bsc_addresses uba
 		JOIN users u ON u.id = uba.user_id
 		WHERE uba.bsc_address = $1
@@ -124,7 +124,7 @@ func (t *tokenAnalytics) getUserExternalAddress(ctx context.Context, blockchainA
 		return "", errors.Wrapf(err, "failed to get user external address for blockchain address %s", blockchainAddress)
 	}
 
-	return row.ExternalAddress, nil
+	return row.MasterPubkey, nil
 }
 
 func (t *tokenAnalytics) enqueueBalanceUpdate(ctx context.Context, tx *txEvent, userBlockchainAddress, tokenContractAddress string, tokenData *tokenInfo, transferAmount *big.Int, isAddition bool) error {

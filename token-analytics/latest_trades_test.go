@@ -49,7 +49,7 @@ func TestGetLatestTrades(t *testing.T) {
 			"buyer1_trades",
 			contractAddr,
 			tokenExt,
-			"0:buyer1_trades:",
+			"buyer1_trades",
 			"5000000000000000000000", // 5000 tokens
 			0.0001,
 			0.5,
@@ -58,7 +58,7 @@ func TestGetLatestTrades(t *testing.T) {
 			"seller1_trades",
 			contractAddr,
 			tokenExt,
-			"0:seller1_trades:",
+			"seller1_trades",
 			"3000000000000000000000", // 3000 tokens
 			0.0001,
 			0.3,
@@ -168,9 +168,9 @@ func TestGetLatestTrades(t *testing.T) {
 			PlatformGroupIonConnect,
 		)
 
-		helperInsertUserTokenPosition(t, ctx, db, "trader1_page", contractAddr, tokenExt, "0:trader1_page:", "1000000000000000000000", 0.0001, 0.1)
-		helperInsertUserTokenPosition(t, ctx, db, "trader2_page", contractAddr, tokenExt, "0:trader2_page:", "2000000000000000000000", 0.0001, 0.2)
-		helperInsertUserTokenPosition(t, ctx, db, "trader3_page", contractAddr, tokenExt, "0:trader3_page:", "3000000000000000000000", 0.0001, 0.3)
+		helperInsertUserTokenPosition(t, ctx, db, "trader1_page", contractAddr, tokenExt, "trader1_page", "1000000000000000000000", 0.0001, 0.1)
+		helperInsertUserTokenPosition(t, ctx, db, "trader2_page", contractAddr, tokenExt, "trader2_page", "2000000000000000000000", 0.0001, 0.2)
+		helperInsertUserTokenPosition(t, ctx, db, "trader3_page", contractAddr, tokenExt, "trader3_page", "3000000000000000000000", 0.0001, 0.3)
 
 		helperInsertTokenSwap(t, ctx, db, contractAddr, tokenExt, "0xtrader1000000000000000000000000000000001", "0xTX1000000000000000000000000000000000000000000000000000000000000001", false, "100000000000000000000", "1000000000000000000000", 0.0001)
 		time.Sleep(10 * time.Millisecond)
@@ -222,7 +222,7 @@ func TestGetLatestTrades(t *testing.T) {
 			"trader_time",
 			contractAddr,
 			tokenExt,
-			"0:trader_time:",
+			"trader_time",
 			"3000000000000000000000", // 3000 tokens total
 			0.0001,
 			0.3,

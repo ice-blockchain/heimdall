@@ -101,7 +101,7 @@ func TestBalanceUpdateJob_WithRPC(t *testing.T) {
 	defer ta.Close()
 
 	userBlockchainAddr := "0x1234567890123456789012345678901234567890"
-	userExternalAddr := "0:testuser1:"
+	userExternalAddr := "testuser1"
 	tokenContractAddr := "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
 	tokenExternalAddr := "0:testuser1:testtoken1"
 	txHash := "0xdeadbeef1"
@@ -176,7 +176,7 @@ func TestBalanceUpdateJob_ZeroBalance(t *testing.T) {
 	defer ta.Close()
 
 	userBlockchainAddr := "0x2345678901234567890123456789012345678901"
-	userExternalAddr := "0:testuser2:"
+	userExternalAddr := "testuser2"
 	tokenContractAddr := "0xbcdefabcdefabcdefabcdefabcdefabcdefabcde"
 	tokenExternalAddr := "0:testuser2:testtoken2"
 	txHash := "0xdeadbeef2"
@@ -321,12 +321,12 @@ func TestBalanceUpdateJob_MultiAddressAggregateRedis(t *testing.T) {
 	ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC))
 	defer ta.Close()
 
-	userExternalAddr := "0:multi_redis_user:"
+	userExternalAddr := "multi_redis_user"
 	userID := "multi-redis-user-id"
 	bscAddr1 := "0xMULTIREDIS_BSC_001"
 	bscAddr2 := "0xMULTIREDIS_BSC_002"
 
-	helperCreateUser(t, ctx, db, userID, "multi_redis_user", userExternalAddr, "multiredis", "Multi Redis User", "avatar.png", "ionconnect")
+	helperCreateUser(t, ctx, db, userID, "multi_redis_user", "multiredis", "Multi Redis User", "avatar.png", "ionconnect")
 	helperAddUserBscAddress(t, ctx, db, userID, bscAddr1)
 	helperAddUserBscAddress(t, ctx, db, userID, bscAddr2)
 
@@ -429,7 +429,7 @@ func TestBalanceUpdateJob_RegistersTradeInQuestDB(t *testing.T) {
 	contractAddress := "0xtest_contract_001"
 	tokenExternalAddress := "0:test_token_trade:"
 	userBlockchainAddress := "0x1234567890123456789012345678901234567890"
-	userExternalAddress := "0:user1:"
+	userExternalAddress := "user1"
 	pairID := "0x0000000000000000000000000000000000000000000000000000000000000001"
 	baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
 	txHash := "0xtest_trade_tx_001"
@@ -550,12 +550,12 @@ func TestUpdateBondingCurveInRedis_CombinedSet(t *testing.T) {
 	})
 }
 
-func helperCreateUser(t testing.TB, ctx context.Context, db *storage.DB, userID, masterPubkey, externalAddr, username, displayName, avatar, platform string) {
+func helperCreateUser(t testing.TB, ctx context.Context, db *storage.DB, userID, masterPubkey, username, displayName, avatar, platform string) {
 	t.Helper()
 	_, err := storage.Exec(ctx, db, `
-		INSERT INTO users (id, master_pubkey, external_address, username, display_name, avatar, platform_group, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-	`, userID, masterPubkey, externalAddr, username, displayName, avatar, platform)
+		INSERT INTO users (id, master_pubkey, username, display_name, avatar, platform_group, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+	`, userID, masterPubkey, username, displayName, avatar, platform)
 	require.NoError(t, err)
 }
 
@@ -612,7 +612,7 @@ func TestBalanceUpdateJob_ContentProfileInteraction(t *testing.T) {
 		defer ta.Close()
 
 		userAddr := "0xaa00000000000000000000000000000000000011"
-		userExt := "0:twisted_first_user:"
+		userExt := "twisted_first_user"
 		txHash := "0xtwisted_first_tx_001"
 
 		profileContract := "0xbb00000000000000000000000000000000000011"
@@ -709,7 +709,7 @@ func TestBalanceUpdateJob_ContentProfileInteraction(t *testing.T) {
 		defer ta.Close()
 
 		userAddr := "0xaa00000000000000000000000000000000000001"
-		userExt := "0:twisted_user:"
+		userExt := "twisted_user"
 		txHash := "0xtwisted_tx_001"
 
 		profileContract := "0xbb00000000000000000000000000000000000001"
@@ -809,7 +809,7 @@ func TestBalanceUpdateJob_ContentProfileInteraction(t *testing.T) {
 		defer ta.Close()
 
 		userAddr := "0xba00000000000000000000000000000000000001"
-		userExt := "0:profile_sell_user:"
+		userExt := "profile_sell_user"
 		contract := "0xcb00000000000000000000000000000000000001"
 		tokenExt := "0:profile_sell_user:profile"
 		txHash := "0xprofile_sell_tx_001"
@@ -877,7 +877,7 @@ func TestBalanceUpdateJob_ContentProfileInteraction(t *testing.T) {
 		defer ta.Close()
 
 		userAddr := "0xcb00000000000000000000000000000000000002"
-		userExt := "0:content_buy_user:"
+		userExt := "content_buy_user"
 		txHash := "0xcontent_buy_tx_001"
 
 		helperInsertTestUser(t, ctx, db, userExt, "content_buy_user", "Content Buy User", userAddr, false, PlatformGroupIonConnect)
@@ -969,7 +969,7 @@ func TestBalanceUpdateJob_ContentProfileInteraction(t *testing.T) {
 		defer ta.Close()
 
 		userAddr := "0xdc00000000000000000000000000000000000002"
-		userExt := "0:content_sell_user:"
+		userExt := "content_sell_user"
 		txHash := "0xcontent_sell_tx_001"
 
 		helperInsertTestUser(t, ctx, db, userExt, "content_sell_user", "Content Sell User", userAddr, false, PlatformGroupIonConnect)
@@ -1062,7 +1062,7 @@ func TestBalanceUpdateJob_ContentProfileInteraction(t *testing.T) {
 		defer ta.Close()
 
 		userAddr := "0xcc10000000000000000000000000000000000001"
-		userExt := "0:double_sell_user:"
+		userExt := "double_sell_user"
 		txHash := "0xdouble_sell_tx_001"
 
 		helperInsertTestUser(t, ctx, db, userExt, "double_sell_user", "Double Sell User", userAddr, false, PlatformGroupIonConnect)
@@ -1177,7 +1177,7 @@ func TestBalanceUpdateJob_FeeInOtherToken(t *testing.T) {
 		defer ta.Close()
 
 		userAddr := "0xcc00000000000000000000000000000000000001"
-		userExtAddr := "0:fee_base_user:"
+		userExtAddr := "fee_base_user"
 		contractAddr := "0xdd00000000000000000000000000000000000001"
 		tokenExtAddr := "0:fee_base_user:token"
 		txHash := "0xfee_base_tx_001"
@@ -1246,7 +1246,7 @@ func TestBalanceUpdateJob_FeeInOtherToken(t *testing.T) {
 		defer ta.Close()
 
 		userAddr := "0xee00000000000000000000000000000000000001"
-		userExtAddr := "0:fee_other_user:"
+		userExtAddr := "fee_other_user"
 		contractAddr := "0xff00000000000000000000000000000000000001"
 		tokenExtAddr := "0:fee_other_user:token"
 		txHash := "0xfee_other_tx_001"
@@ -1317,7 +1317,7 @@ func TestBalanceUpdateJob_GuardIdempotency(t *testing.T) {
 	defer ta.Close()
 
 	userAddr := "0xab00000000000000000000000000000000000001"
-	userExtAddr := "0:idempotent_user:"
+	userExtAddr := "idempotent_user"
 	contractAddr := "0xac00000000000000000000000000000000000001"
 	tokenExtAddr := "0:idempotent_user:token"
 	txHash := "0xidempotent_tx_001"

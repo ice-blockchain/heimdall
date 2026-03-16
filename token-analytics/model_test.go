@@ -278,7 +278,7 @@ func TestBuildTokenAndCreatorAddresses(t *testing.T) {
 		tokenPlatform := PlatformGroupIonConnect
 		var tokenIonConnectAddr *string = nil
 
-		creatorExternalAddr := "0:creator_pubkey:"
+		creatorExternalAddr := "creator_pubkey"
 		creatorPlatform := PlatformGroupIonConnect
 		var creatorBnbBscAddr *string = nil
 
@@ -313,7 +313,7 @@ func TestBuildTokenAndCreatorAddresses(t *testing.T) {
 		tokenPlatform := PlatformGroupIonConnect
 		var tokenIonConnectAddr *string = nil
 
-		creatorExternalAddr := "0:creator_pubkey:"
+		creatorExternalAddr := "creator_pubkey"
 		creatorPlatform := PlatformGroupIonConnect
 		var creatorBnbBscAddr *string = nil
 
@@ -419,7 +419,7 @@ func TestBuildTokenAndCreatorAddresses(t *testing.T) {
 		tokenPlatform := PlatformGroupIonConnect
 		var tokenIonConnectAddr *string = nil
 
-		creatorExternalAddr := "0:creator_pubkey:"
+		creatorExternalAddr := "creator_pubkey"
 		creatorPlatform := PlatformGroupIonConnect
 		bnbAddr := "0xdeadbeef"
 		creatorBnbBscAddr := &bnbAddr
@@ -453,7 +453,7 @@ func TestBuildTokenAndCreatorAddresses(t *testing.T) {
 		tokenPlatform := "unknown_platform"
 		var tokenIonConnectAddr *string = nil
 
-		creatorExternalAddr := "0:creator_pubkey:"
+		creatorExternalAddr := "creator_pubkey"
 		creatorPlatform := PlatformGroupIonConnect
 		var creatorBnbBscAddr *string = nil
 

@@ -31,7 +31,6 @@ type (
 	UserRecord struct {
 		ID               string   `db:"id"`
 		MasterPubkey     string   `db:"master_pubkey"`
-		ExternalAddress  string   `db:"external_address"`
 		Username         string   `db:"username"`
 		DisplayName      string   `db:"display_name"`
 		Avatar           string   `db:"avatar"`
@@ -75,7 +74,7 @@ type (
 		GetTopHolders(ctx context.Context, externalAddress string, limit int64) ([]*TopHolderPosition, error)
 		GetTokensFromViewingSession(ctx context.Context, sessionType, sessionID, keyword string, limit, offset uint64) ([]*CommunityToken, error)
 		UpdateLoggedInUserProfile(ctx context.Context,
-			masterPubkey, userExternalAddress, userUsername, userDisplayName, userAvatar string, userVerified bool,
+			masterPubkey, userUsername, userDisplayName, userAvatar string, userVerified bool,
 			userContentId string) error
 		UpdateTokenExternalData(ctx context.Context,
 			tokenExternalAddress, postAuthorExternalAddress, postAuthorUsername, postAuthorDisplayName, postAuthorAvatar string, postAuthorVerified bool,
@@ -249,7 +248,6 @@ const (
 	bondingCurveTopHolderAvatar = "https://cdn.ice.io/online+/assets/coins/bondingCurve.svg"
 	burnedTopHolderAvatar       = "https://cdn.ice.io/online+/assets/coins/burned.svg"
 
-	fatAddressHeaderSize    = 64
 	feeDestinationCreator   = "creator"
 	feeDestinationBurn      = "burn"
 	feeDestinationAffiliate = "affiliate"
@@ -431,11 +429,6 @@ type (
 		CreatorTokenPairId            *string    `db:"creator_token_pair_id"`
 	}
 
-	tokenVolume24h struct {
-		TokenAddress string  `db:"token_address"`
-		Volume24h    float64 `db:"volume_24h"`
-	}
-
 	holderPositionRow struct {
 		MasterPubkey     *string `db:"master_pubkey"`
 		Username         *string `db:"username"`
@@ -574,9 +567,6 @@ type (
 		BaseProfileExternalAddress *string `db:"base_profile_external_address"`
 		BaseProfilePairId          *string `db:"base_profile_pair_id"`
 		BaseProfileBaseToken       *string `db:"base_profile_base_token"`
-	}
-	fee struct {
-		Amount float64 `db:"amount"`
 	}
 	fatAddressToken struct {
 		Name            string

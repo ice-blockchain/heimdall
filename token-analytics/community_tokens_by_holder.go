@@ -33,7 +33,7 @@ func (t *tokenAnalytics) GetCommunityTokensByHolder(ctx context.Context, holderE
 			creator.display_name as creator_display,
 			creator.verified as creator_verified,
 			creator.avatar as creator_avatar,
-			creator.external_address as creator_external_address,
+			creator.master_pubkey as creator_external_address,
 			creator.platform_group as creator_platform,
 			t.content_author_id as creator_bnb_bsc_address,
 			COALESCE(t.market_cap_usd, 0) as market_cap_usd,
@@ -60,7 +60,7 @@ func (t *tokenAnalytics) GetCommunityTokensByHolder(ctx context.Context, holderE
 			launcher.display_name as launcher_display,
 			launcher.verified as launcher_verified,
 			launcher.avatar as launcher_avatar,
-			launcher.external_address as launcher_external_address,
+			launcher.master_pubkey as launcher_external_address,
 			launcher.platform_group as launcher_platform,
 			first_swap.user_blockchain_address as launcher_blockchain_address,
 			COALESCE(holder_user.token_holdings_count, 0) as token_holdings_count,
@@ -75,7 +75,7 @@ func (t *tokenAnalytics) GetCommunityTokensByHolder(ctx context.Context, holderE
 			creator_token.ion_connect_address as creator_token_ion_connect_address
 		FROM user_aggregate_positions uap
 		INNER JOIN tokens t ON t.external_address = uap.external_address
-		LEFT JOIN users holder_user ON holder_user.external_address = $1
+		LEFT JOIN users holder_user ON holder_user.master_pubkey = $1
 		LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
 		LEFT JOIN users creator ON creator.id = creator_addr.user_id
 		LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
@@ -110,7 +110,7 @@ func (t *tokenAnalytics) GetCommunityTokensByHolder(ctx context.Context, holderE
 		countQuery := `
 			SELECT COALESCE(token_holdings_count, 0) as count 
 			FROM users 
-			WHERE external_address = $1
+			WHERE master_pubkey = $1
 		`
 		countResult, countErr := storage.Get[struct{ Count uint64 }](ctx, t.ingestedDataDB, countQuery, holderExternalAddress)
 		if countErr != nil && !storage.IsErr(countErr, storage.ErrNotFound) {

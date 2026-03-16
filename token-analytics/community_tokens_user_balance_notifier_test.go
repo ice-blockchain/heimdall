@@ -24,7 +24,7 @@ func TestUserBalanceNotifier(t *testing.T) {
 
 		tokenExternalAddr := "0:balance_test_token:"
 		contractAddr := "0x1111222233334444555566667777888899990000"
-		userExternalAddr := "0:balance_test_user:"
+		userExternalAddr := "balance_test_user"
 		userBlockchainAddr := "0x0000000000000000000000000000000000000001"
 
 		helperInsertTestUser(t, ctx, db, userExternalAddr, "balance_test_user", "Balance Test User", "", false, PlatformGroupIonConnect)
@@ -74,7 +74,7 @@ func TestUserBalanceNotifier(t *testing.T) {
 
 		tokenExternalAddr := "0:balance_zero_token:"
 		contractAddr := "0x2222333344445555666677778888999900001111"
-		userExternalAddr := "0:balance_zero_user:"
+		userExternalAddr := "balance_zero_user"
 		userBlockchainAddr := "0x0000000000000000000000000000000000000002"
 
 		helperInsertTestUser(t, ctx, db, userExternalAddr, "balance_zero_user", "Zero Balance User", "", false, PlatformGroupIonConnect)
@@ -126,9 +126,9 @@ func TestUserBalanceNotifier(t *testing.T) {
 
 		tokenExternalAddr := "0:multi_user_token:"
 		contractAddr := "0x3333444455556666777788889999000011112222"
-		user1ExternalAddr := "0:multi_user_1:"
+		user1ExternalAddr := "multi_user_1"
 		user1BlockchainAddr := "0x0000000000000000000000000000000000000003"
-		user2ExternalAddr := "0:multi_user_2:"
+		user2ExternalAddr := "multi_user_2"
 		user2BlockchainAddr := "0x0000000000000000000000000000000000000004"
 
 		helperInsertTestUser(t, ctx, db, user1ExternalAddr, "multi_user_1", "Multi User 1", "", false, PlatformGroupIonConnect)
@@ -199,7 +199,7 @@ func TestUserBalanceNotifier(t *testing.T) {
 
 		payload := `{
 			"user_blockchain_address": "0x0000000000000000000000000000000000000001",
-			"user_external_address": "0:test:",
+			"user_external_address": "test",
 			"contract_address": "0x1234567890123456789012345678901234567890",
 			"external_address": "0:test_token:",
 			"amount": "invalid_number",
@@ -299,16 +299,16 @@ func TestUserBalanceNotifier(t *testing.T) {
 
 		tokenExternalAddr := "0:aggregate_test_token:"
 		contractAddr := "0x5555666677778888999900001111222233334444"
-		userExternalAddr := "0:aggregate_test_user:"
+		userMasterPubkey := "aggregate_test_master"
 		userBscAddr1 := "0x0000000000000000000000000000000000000020"
 		userBscAddr2 := "0x0000000000000000000000000000000000000021"
 		userID := "aggregate_test_user_id"
 
-		helperCreateUser(t, ctx, db, userID, "aggregate_test_master", userExternalAddr, "aggregate_user", "Aggregate User", "avatar.png", "ionconnect")
+		helperCreateUser(t, ctx, db, userID, userMasterPubkey, "aggregate_user", "Aggregate User", "avatar.png", "ionconnect")
 		helperAddUserBscAddress(t, ctx, db, userID, userBscAddr1)
 		helperAddUserBscAddress(t, ctx, db, userID, userBscAddr2)
 		helperInsertTestToken(t, ctx, db,
-			contractAddr, tokenExternalAddr, "AGGTEST", "profile", userExternalAddr,
+			contractAddr, tokenExternalAddr, "AGGTEST", "profile", userBscAddr1,
 			"1000000000000000000000000", 0.001, 1000, 10, PlatformGroupIonConnect)
 
 		_, err := storage.Exec(ctx, db, `
@@ -318,7 +318,7 @@ func TestUserBalanceNotifier(t *testing.T) {
 			) VALUES 
 				($1, $2, $3, $4, $5, NOW()),
 				($6, $2, $3, $4, $7, NOW())`,
-			userBscAddr1, userExternalAddr, contractAddr, tokenExternalAddr, "5000000000000000000", // 5 tokens
+			userBscAddr1, userMasterPubkey, contractAddr, tokenExternalAddr, "5000000000000000000", // 5 tokens
 			userBscAddr2, "8000000000000000000") // 8 tokens
 		require.NoError(t, err)
 
@@ -329,13 +329,13 @@ func TestUserBalanceNotifier(t *testing.T) {
 			"external_address": "%s",
 			"amount": "13000000000000000000",
 			"updated_at": 1234567890
-		}`, userBscAddr1, userExternalAddr, contractAddr, tokenExternalAddr)
+		}`, userBscAddr1, userMasterPubkey, contractAddr, tokenExternalAddr)
 
 		err = ta.handleUserBalanceUpdate(ctx, payload)
 		require.NoError(t, err)
 
 		userPositionKey := keyUserPositionOfToken(tokenExternalAddr)
-		score, err := ta.processedDataDB.ZScore(ctx, userPositionKey, userExternalAddr).Result()
+		score, err := ta.processedDataDB.ZScore(ctx, userPositionKey, userMasterPubkey).Result()
 		require.NoError(t, err)
 		require.InDelta(t, 13.0, score, 0.001, "Aggregate position should be 13 tokens (5+8)")
 

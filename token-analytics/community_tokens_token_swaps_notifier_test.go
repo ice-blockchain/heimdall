@@ -48,7 +48,7 @@ func TestHandleTokenSwapUpdate(t *testing.T) {
 		userPubkey := "user_pubkey"
 		helperInsertTestUser(t, ctx, db, userPubkey, "testuser", "Test User", userAddr, false, PlatformGroupIonConnect)
 
-		helperInsertUserPosition(t, ctx, db, userAddr, contractAddr, tokenExternalAddr, helperBuildProfileExternalAddress(userPubkey), "1000000000000000000")
+		helperInsertUserPosition(t, ctx, db, userAddr, contractAddr, tokenExternalAddr, userPubkey, "1000000000000000000")
 
 		update := tokenSwapUpdate{
 			TransactionHash:       txHash,
@@ -199,7 +199,7 @@ func TestHandleTokenSwapUpdate(t *testing.T) {
 		userPubkey := "user2_pubkey"
 		helperInsertTestUser(t, ctx, db, userPubkey, "testuser2", "Test User 2", userAddr, false, PlatformGroupIonConnect)
 
-		helperInsertUserPosition(t, ctx, db, userAddr, contractAddr, tokenExternalAddr, helperBuildProfileExternalAddress(userPubkey), "1000000000000000000")
+		helperInsertUserPosition(t, ctx, db, userAddr, contractAddr, tokenExternalAddr, userPubkey, "1000000000000000000")
 
 		burnedAmount := "100000000000000000000000"
 		update := tokenSwapUpdate{
