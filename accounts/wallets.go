@@ -778,7 +778,12 @@ func (a *accounts) GetNFTs(ctx context.Context, walletID, paginationToken string
 					var w *dfns.Wallet
 					w, err = a.getWallet(ctx, walletID)
 					if err != nil {
-						return nil, "", nil, errors.Wrapf(err, "failed to get wallet %v", walletID)
+						if storage.IsErr(err, storage.ErrNotFound) {
+							w, err = a.delegatedRPClient.GetWallet(ctx, walletID)
+						}
+						if err != nil {
+							return nil, "", nil, errors.Wrapf(err, "failed to get wallet %v", walletID)
+						}
 					}
 					var nftsList []coins.WalletNFT
 					nftsList, newPaginationToken, err = a.indexer.ListNFTs(ctx, (*w)["address"].(string), paginationToken, limit)
@@ -984,9 +989,11 @@ func (a *accounts) GetWalletAssets(ctx context.Context, walletID string) (*Asset
 				if user := server.LoggedInUser(ctx); user != nil {
 					userID = user.UserID()
 				}
-				err = a.storeUserWallet(ctx, userID, *wallet)
+				err = errors.Wrapf(a.storeUserWallet(ctx, userID, *wallet), "failed to store wallet %+v for user %v", wallet, userID)
 			}
-			return nil, errors.Wrapf(err, "failed to get wallet %v", walletID)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to get wallet %v", walletID)
+			}
 		}
 		var ok bool
 		walletNetwork, ok = (*wallet)["network"].(string)
