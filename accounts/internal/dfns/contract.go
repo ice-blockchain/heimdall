@@ -9,6 +9,7 @@ import (
 	"net/http/httputil"
 	"regexp"
 	"sync"
+	"sync/atomic"
 	stdlibtime "time"
 
 	"github.com/cockroachdb/errors"
@@ -41,7 +42,7 @@ type (
 		InitRegistration(ctx context.Context, identityKeyName string) (*RegistrationChallenge, error)
 		CompleteRegistrationWithWallets(ctx context.Context, credentials *Credentials) (CompletedRegistration, error)
 		GetUser(ctx context.Context, userID string) (*User, error)
-		VerifyWebhookSecret(now *time.Time, eventSignature string, payload []byte) error
+		VerifyWebhookSecret(now, eventDateTime *time.Time, eventSignature string, payload []byte) error
 		RegisterPostProxyCallback(url string, cb func(req *http.Request, now *time.Time, res map[string]any) error)
 		ListWallets(ctx context.Context, userID string) ([]Wallet, error)
 		GetWallet(ctx context.Context, userID string) (*Wallet, error)
@@ -216,6 +217,8 @@ type (
 		callbacks               map[string][]func(req *http.Request, now *time.Time, res map[string]any) error
 		bodyModifiableCallbacks map[string]func(ctx context.Context, now *time.Time, res map[string]any, r *http.Response) error
 		webhookSecret           string
+		lastSyncedWHDate        *time.Time
+		missedWHEventsSynced    atomic.Bool
 		userMx                  sync.Mutex
 		serviceAccountMx        sync.Mutex
 		proxyMx                 sync.Mutex

@@ -38,7 +38,7 @@ type (
 		Wallets
 		ProxyDelegatedRelyingParty(ctx context.Context, rw http.ResponseWriter, r *http.Request)
 		ProcessWebhookFromDelegatedRelyingParty(ctx context.Context, kind string, data map[string]any) error
-		VerifyWebhook(ctx context.Context, signature string, payload []byte) error
+		VerifyWebhook(ctx context.Context, eventDateTime *time.Time, signature string, payload []byte) error
 		Verify2FA(ctx context.Context, userID string, codes map[TwoFAOptionWithAddr]string) error
 		Delete2FA(ctx context.Context, userID string, codes map[TwoFAOptionWithAddr]string, twoFAToDel TwoFAOptionEnum, toDel string) error
 		Send2FA(ctx context.Context, userID string, channel TwoFAOptionEnum, deliverTo *string, language string, verificationUsingExisting2FA map[TwoFAOptionWithAddr]string, replaceOldValue *string) (authenticatorUri *string, err error)

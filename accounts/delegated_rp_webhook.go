@@ -19,7 +19,7 @@ import (
 	"github.com/ice-blockchain/wintr/time"
 )
 
-func (a *accounts) VerifyWebhook(ctx context.Context, signature string, payload []byte) error {
+func (a *accounts) VerifyWebhook(ctx context.Context, eventDateTime *time.Time, signature string, payload []byte) error {
 	if signature == "" {
 		return errors.Wrap(dfns.ErrInvalidToken, "signature is empty")
 	}
@@ -27,7 +27,7 @@ func (a *accounts) VerifyWebhook(ctx context.Context, signature string, payload 
 		return errors.Wrap(dfns.ErrInvalidToken, "payload is empty")
 	}
 	now := time.Now()
-	return errors.Wrapf(a.delegatedRPClient.VerifyWebhookSecret(now, signature, payload), "failed to verify wh signature %v", signature)
+	return errors.Wrapf(a.delegatedRPClient.VerifyWebhookSecret(now, eventDateTime, signature, payload), "failed to verify wh signature %v", signature)
 }
 
 func (a *accounts) ProcessWebhookFromDelegatedRelyingParty(ctx context.Context, kind string, data map[string]any) error {

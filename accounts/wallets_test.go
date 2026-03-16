@@ -208,7 +208,7 @@ func (m *mockWalletClient) GetUser(ctx context.Context, userID string) (*dfns.Us
 	panic("TODO")
 }
 
-func (m *mockWalletClient) VerifyWebhookSecret(now *time.Time, eventSignature string, payload []byte) error {
+func (m *mockWalletClient) VerifyWebhookSecret(now, lastEventTS *time.Time, eventSignature string, payload []byte) error {
 	return nil
 }
 

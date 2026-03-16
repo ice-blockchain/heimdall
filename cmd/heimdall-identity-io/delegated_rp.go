@@ -570,7 +570,7 @@ func (s *service) EventWebhookFromDelegatedRP(
 	ctx context.Context,
 	req *server.Request[WebhookData, WebhookResp],
 ) (successResp *server.Response[WebhookResp], errorResp *server.ErrResponse[*server.ErrorResponse]) {
-	if err := s.accounts.VerifyWebhook(ctx, req.Data.Signature, req.Data.Raw); err != nil {
+	if err := s.accounts.VerifyWebhook(ctx, req.Data.Date, req.Data.Signature, req.Data.Raw); err != nil {
 		return nil, server.Forbidden(err)
 	}
 	log.Debug(fmt.Sprintf("Webhook call for %v %+v", req.Data.Kind, req.Data.Data))
