@@ -17,7 +17,7 @@ import (
 
 func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Context, externalAddresses []string, requestorMasterPubkey string, includeTopPlatformHolders *uint32, keyword string, limit, offset uint64, platformFilter string) ([]*CommunityToken, error) {
 	if keyword != "" {
-		return t.searchCommunityTokens(ctx, externalAddresses, requestorMasterPubkey, keyword, limit, offset, platformFilter)
+		return t.searchCommunityTokens(ctx, externalAddresses, keyword, limit, offset, platformFilter)
 	}
 	if len(externalAddresses) == 0 {
 		return []*CommunityToken{}, nil
@@ -45,7 +45,7 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 			creator.display_name as creator_display,
 			creator.verified as creator_verified,
 			creator.avatar as creator_avatar,
-			creator.external_address as creator_external_address,
+			creator.master_pubkey as creator_external_address,
 			creator.platform_group as creator_platform,
 			t.content_author_id as creator_bnb_bsc_address,
 			COALESCE(t.market_cap_usd, 0) as market_cap_usd,
@@ -68,12 +68,12 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 			COALESCE(uap.total_invested_usd, 0) as position_total_invested_usd,
 			COALESCE(uap.total_realized_usd, 0) as position_total_realized_usd,
 			COALESCE(uap.total_fees_usd, 0) as position_total_fees_usd,
-			(SELECT u.external_address FROM users u WHERE u.master_pubkey = $2 LIMIT 1) as requestor_external_address,
+			$2 as requestor_external_address,
 			launcher.username as launcher_username,
 			launcher.display_name as launcher_display,
 			launcher.verified as launcher_verified,
 			launcher.avatar as launcher_avatar,
-			launcher.external_address as launcher_external_address,
+			launcher.master_pubkey as launcher_external_address,
 			launcher.platform_group as launcher_platform,
 			first_swap.user_blockchain_address as launcher_blockchain_address,
 			creator_token.ticker as creator_token_ticker,
@@ -88,12 +88,7 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 		FROM tokens t
 		LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
 		LEFT JOIN users creator ON creator.id = creator_addr.user_id
-		LEFT JOIN user_aggregate_positions uap ON uap.external_address = t.external_address AND uap.user_external_address = (
-			SELECT u.external_address
-			FROM users u
-			WHERE u.master_pubkey = $2
-			LIMIT 1
-		)
+		LEFT JOIN user_aggregate_positions uap ON uap.external_address = t.external_address AND uap.user_external_address = $2
 		LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 		LEFT JOIN token_platform_holders tph ON tph.external_address = t.external_address 
 			AND tph.platform_group = (SELECT platform_group FROM users WHERE master_pubkey = $2 LIMIT 1)
@@ -125,7 +120,7 @@ func (t *tokenAnalytics) GetCommunityTokensByExternalAddresses(ctx context.Conte
 	return t.buildCommunityTokensFromRows(ctx, rows, requestorExternalAddress)
 }
 
-func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddresses []string, requestorMasterPubkey string, keyword string, limit, offset uint64, platformFilter string) ([]*CommunityToken, error) {
+func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddresses []string, keyword string, limit, offset uint64, platformFilter string) ([]*CommunityToken, error) {
 	kw := strings.ToLower(keyword)
 	var whereClause string
 	args := []interface{}{}
@@ -173,14 +168,14 @@ func (t *tokenAnalytics) searchCommunityTokens(ctx context.Context, externalAddr
 				creator.display_name as creator_display,
 				creator.verified as creator_verified,
 				creator.avatar as creator_avatar,
-				creator.external_address as creator_external_address,
+				creator.master_pubkey as creator_external_address,
 				creator.platform_group as creator_platform,
 				t.content_author_id as creator_bnb_bsc_address,
 				launcher.username as launcher_username,
 				launcher.display_name as launcher_display,
 				launcher.verified as launcher_verified,
 				launcher.avatar as launcher_avatar,
-				launcher.external_address as launcher_external_address,
+				launcher.master_pubkey as launcher_external_address,
 				launcher.platform_group as launcher_platform,
 				first_swap.user_blockchain_address as launcher_blockchain_address,
 				creator_token.ticker as creator_token_ticker,
@@ -466,7 +461,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 				creator.display_name as creator_display,
 				creator.verified as creator_verified,
 				creator.avatar as creator_avatar,
-				creator.external_address as creator_external_address,
+				creator.master_pubkey as creator_external_address,
 				creator.platform_group as creator_platform,
 				t.content_author_id as creator_bnb_bsc_address,
 				COALESCE(t.market_cap_usd, 0) as market_cap_usd,
@@ -484,12 +479,12 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 				COALESCE(uap.total_invested_usd, 0) as position_total_invested_usd,
 				COALESCE(uap.total_realized_usd, 0) as position_total_realized_usd,
 				COALESCE(uap.total_fees_usd, 0) as position_total_fees_usd,
-				(SELECT u.external_address FROM users u WHERE u.master_pubkey = $2 LIMIT 1) as requestor_external_address,
+				$2 as requestor_external_address,
 				launcher.username as launcher_username,
 				launcher.display_name as launcher_display,
 				launcher.verified as launcher_verified,
 				launcher.avatar as launcher_avatar,
-				launcher.external_address as launcher_external_address,
+				launcher.master_pubkey as launcher_external_address,
 				launcher.platform_group as launcher_platform,
 				first_swap.user_blockchain_address as launcher_blockchain_address,
 				creator_token.ticker as creator_token_ticker,
@@ -520,7 +515,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 							holder.display_name as holder_display,
 							holder.verified as holder_verified,
 							holder.avatar as holder_avatar,
-							holder.external_address as holder_external_address,
+							holder.master_pubkey as holder_external_address,
 							holder.platform_group as holder_platform,
 							utp_holders.amount as amount
 						FROM user_token_positions utp_holders
@@ -539,7 +534,7 @@ func (t *tokenAnalytics) getCommunityTokensWithTopPlatformHolders(ctx context.Co
 			LEFT JOIN requestor_platform rp ON true
 			LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
 			LEFT JOIN users creator ON creator.id = creator_addr.user_id
-			LEFT JOIN user_aggregate_positions uap ON uap.external_address = t.external_address AND uap.user_external_address = (SELECT u.external_address FROM users u WHERE u.master_pubkey = $2)
+			LEFT JOIN user_aggregate_positions uap ON uap.external_address = t.external_address AND uap.user_external_address = $2
 			LEFT JOIN token_volumes_24h tv ON tv.contract_address = t.contract_address
 			LEFT JOIN token_platform_holders tph ON tph.external_address = t.external_address
 				AND (rp.platform_group IS NULL OR tph.platform_group = rp.platform_group)

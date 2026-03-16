@@ -149,7 +149,7 @@ const (
 //	@Tags			Tokens
 //	@Produce		json
 //	@Param			externalAddresses			query		[]string					false	"External addresses of the tokens"					collectionFormat(multi)
-//	@Param			holder						query		string						false	"Holder external address to get tokens by holder"	example("0:holder123:")
+//	@Param			holder						query		string						false	"Master public key of the holder"					example("holder123")
 //	@Param			includeTopPlatformHolders	query		int							false	"Number of top platform holders to include (1-10)"	minimum(1)	maximum(10)	example(3)
 //	@Param			keyword						query		string						false	"Search keyword for filtering tokens"				example("bitcoin")
 //	@Param			limit						query		uint32						false	"Number of items to return (requires keyword)"		example(10)
@@ -429,7 +429,7 @@ func (s *service) GetCommunityTokensTradesByAddress(ctx context.Context, req *se
 //	@Tags			Tokens
 //	@Produce		json
 //	@Param			externalAddressOrViewType	path		string		true	"External address of the token"	example("0:9dbf3f196310fb4a1818f619a686b15e6ffa78d723e843973fcdc9125f15bc2f:")
-//	@Param			externalHolderAddresses		query		[]string	true	"External addresses of holders"	example("0:abc123:,0:def456:")
+//	@Param			externalHolderAddresses		query		[]string	true	"Master public keys of holders"	example("abc123,def456")
 //	@Success		200							{array}		ta.HolderPosition
 //	@Failure		400							{object}	server.ResponseErrorBody	"if request parameters are invalid"
 //	@Failure		401							{object}	server.ResponseErrorBody	"if auth token is missing or invalid"
@@ -594,14 +594,9 @@ func (s *service) SyncCommunityTokenExternalData(ctx context.Context, req *serve
 		if !hasUserData {
 			return nil, server.BadRequest(errors.New("at least one user field must be provided"), invalidPropertiesErrorCode)
 		}
-		userExternalAddress := req.Data.UserExternalAddress
-		if userExternalAddress == "" {
-			userExternalAddress = req.Token.GetMasterPublicKey()
-		}
 		if err := s.tokenAnalytics.UpdateLoggedInUserProfile(
 			ctx,
 			req.Token.GetMasterPublicKey(),
-			userExternalAddress,
 			req.Data.UserUsername,
 			req.Data.UserDisplayName,
 			req.Data.UserAvatar,

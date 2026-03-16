@@ -101,7 +101,7 @@ func (t *tokenAnalytics) onUniswapSwapped(ctx context.Context, tx *txEvent, ev *
 	}
 	user, err := storage.Get[userInfo](ctx, t.ingestedDataDB, `
 		SELECT
-			COALESCE(u.external_address, '') as user_external_address
+			COALESCE(u.master_pubkey, '') as user_external_address
 		FROM user_bsc_addresses uba
 		JOIN users u ON u.id = uba.user_id
 		WHERE uba.bsc_address = $1
@@ -177,7 +177,7 @@ func (t *tokenAnalytics) onSwap(ctx context.Context, tx *txEvent, ev *bondingcur
 			COALESCE(t.base_token, '') as base_token,
 			t.external_address as token_external_address,
 			COALESCE(t.pair_id, '') as pair_id,
-			COALESCE(u.external_address, '') as user_external_address,
+			COALESCE(u.master_pubkey, '') as user_external_address,
 			COALESCE(t.type, '') as token_type,
 			COALESCE(t.title,'') as title,
 			COALESCE(t.ticker,'') as ticker,
@@ -690,7 +690,7 @@ func (t *tokenAnalytics) fetchTradeInfoFromSwap(ctx context.Context, txHash stri
 			creator.display_name as creator_display,
 			creator.verified as creator_verified,
 			creator.avatar as creator_avatar,
-			creator.external_address as creator_external_address,
+			creator.master_pubkey as creator_external_address,
 			creator.platform_group as creator_platform,
 			tokens.content_author_id as creator_bnb_bsc_address,
 
@@ -699,7 +699,7 @@ func (t *tokenAnalytics) fetchTradeInfoFromSwap(ctx context.Context, txHash stri
 			holder.display_name as holder_display,
 			holder.verified as holder_verified,
 			holder.avatar as holder_avatar,
-			holder.external_address as holder_external_address,
+			holder.master_pubkey as holder_external_address,
 			holder.platform_group as holder_platform,
 			
 			COALESCE(uap.amount, '0') as balance,
@@ -710,7 +710,7 @@ func (t *tokenAnalytics) fetchTradeInfoFromSwap(ctx context.Context, txHash stri
 		LEFT JOIN users creator ON creator.id = creator_addr.user_id
 		LEFT JOIN user_bsc_addresses 	holder_addr ON holder_addr.bsc_address = token_swaps.user_blockchain_address
 		LEFT JOIN users holder ON holder.id = holder_addr.user_id
-		LEFT JOIN user_aggregate_positions uap ON uap.external_address = token_swaps.external_address AND uap.user_external_address = holder.external_address
+		LEFT JOIN user_aggregate_positions uap ON uap.external_address = token_swaps.external_address AND uap.user_external_address = holder.master_pubkey
 		WHERE token_swaps.transaction_hash = $1 AND token_swaps.contract_address = $2 AND token_swaps.user_blockchain_address = $3
 	`
 	swap, err := storage.Get[tokenSwap](ctx, t.ingestedDataDB, sql, txHash, contractAddress, userBlockchainAddress)

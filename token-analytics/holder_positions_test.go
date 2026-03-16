@@ -39,7 +39,7 @@ func TestGetHolderPositions(t *testing.T) {
 			"holder_a",
 			"0xHOLDER1111111111111111111111111111111",
 			tokenExt,
-			"0:holder_a:",
+			"holder_a",
 			"5000000000000000000000", // 5000 tokens
 			0.45,
 		)
@@ -47,17 +47,17 @@ func TestGetHolderPositions(t *testing.T) {
 			"holder_b",
 			"0xHOLDER1111111111111111111111111111111",
 			tokenExt,
-			"0:holder_b:",
+			"holder_b",
 			"3000000000000000000000", // 3000 tokens
 			0.24,
 		)
 
 		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
-			"0:holder_a:": 5000.0,
-			"0:holder_b:": 3000.0,
+			"holder_a": 5000.0,
+			"holder_b": 3000.0,
 		})
 
-		positions, err := ta.GetHolderPositions(ctx, tokenExt, []string{"0:holder_a:", "0:holder_b:"})
+		positions, err := ta.GetHolderPositions(ctx, tokenExt, []string{"holder_a", "holder_b"})
 		require.NoError(t, err)
 		require.Len(t, positions, 2)
 
@@ -123,17 +123,17 @@ func TestGetHolderPositions(t *testing.T) {
 			"holder_pnl_test",
 			contractAddr,
 			tokenExt,
-			"0:holder_pnl_test:",
+			"holder_pnl_test",
 			"150000000000000000000", // 150 tokens
 			0.9,                     // total_invested_usd
 			0.45,                    // total_realized_usd (revenue from sale)
 		)
 
 		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
-			"0:holder_pnl_test:": 150.0,
+			"holder_pnl_test": 150.0,
 		})
 
-		positions, err := ta.GetHolderPositions(ctx, tokenExt, []string{"0:holder_pnl_test:"})
+		positions, err := ta.GetHolderPositions(ctx, tokenExt, []string{"holder_pnl_test"})
 		require.NoError(t, err)
 		require.Len(t, positions, 1)
 
@@ -169,17 +169,17 @@ func TestGetHolderPositions(t *testing.T) {
 			"holder_profit_test",
 			contractAddr,
 			tokenExt,
-			"0:holder_profit_test:",
+			"holder_profit_test",
 			"100000000000000000000", // 100 tokens
 			100.0,                   // total_invested_usd
 			60.0,                    // total_realized_usd
 		)
 
 		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
-			"0:holder_profit_test:": 100.0,
+			"holder_profit_test": 100.0,
 		})
 
-		positions, err := ta.GetHolderPositions(ctx, tokenExt, []string{"0:holder_profit_test:"})
+		positions, err := ta.GetHolderPositions(ctx, tokenExt, []string{"holder_profit_test"})
 		require.NoError(t, err)
 		require.Len(t, positions, 1)
 
@@ -215,17 +215,17 @@ func TestGetHolderPositions(t *testing.T) {
 			"holder_loss_test",
 			contractAddr,
 			tokenExt,
-			"0:holder_loss_test:",
+			"holder_loss_test",
 			"100000000000000000000", // 100 tokens
 			100.0,                   // total_invested_usd
 			40.0,                    // total_realized_usd
 		)
 
 		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
-			"0:holder_loss_test:": 100.0,
+			"holder_loss_test": 100.0,
 		})
 
-		positions, err := ta.GetHolderPositions(ctx, tokenExt, []string{"0:holder_loss_test:"})
+		positions, err := ta.GetHolderPositions(ctx, tokenExt, []string{"holder_loss_test"})
 		require.NoError(t, err)
 		require.Len(t, positions, 1)
 

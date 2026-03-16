@@ -37,7 +37,7 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, externalAddress st
 			creator.display_name as creator_display,
 			creator.verified as creator_verified,
 			creator.avatar as creator_avatar,
-			creator.external_address as creator_external_address,
+			creator.master_pubkey as creator_external_address,
 			creator.platform_group as creator_platform,
 			tokens.content_author_id as creator_bnb_bsc_address,
 
@@ -46,7 +46,7 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, externalAddress st
 			holder.display_name as holder_display,
 			holder.verified as holder_verified,
 			holder.avatar as holder_avatar,
-			holder.external_address as holder_external_address,
+			holder.master_pubkey as holder_external_address,
 			holder.platform_group as holder_platform,
 			
 			COALESCE(uap.amount, '0') as balance,
@@ -57,7 +57,7 @@ func (t *tokenAnalytics) GetLatestTrades(ctx context.Context, externalAddress st
 		LEFT JOIN users creator ON creator.id = creator_addr.user_id
 		LEFT JOIN user_bsc_addresses holder_addr ON holder_addr.bsc_address = token_swaps.user_blockchain_address
 		LEFT JOIN users holder ON holder.id = holder_addr.user_id
-		LEFT JOIN user_aggregate_positions uap ON uap.external_address = token_swaps.external_address AND uap.user_external_address = holder.external_address
+		LEFT JOIN user_aggregate_positions uap ON uap.external_address = token_swaps.external_address AND uap.user_external_address = holder.master_pubkey
 		WHERE token_swaps.external_address = $1 %[3]v
 		ORDER BY token_swaps.created_at DESC
 		LIMIT %[1]v OFFSET %[2]v

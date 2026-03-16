@@ -40,7 +40,7 @@ var (
 
 func TestMain(m *testing.M) {
 	ctx, cancel := context.WithCancel(context.Background())
-	testPgContainer = fixture.New(ctx, fixture.WithConfigData("listen_addresses = '*'\nmax_connections = 500\n"))
+	testPgContainer = fixture.New(ctx, fixture.WithConfigFile(".testdata/postgresql.conf"))
 
 	dragonflyContainer, dragonflyAddr, releaseDragonfly := mustStartDragonflyContainer(ctx)
 	testDragonflyURL = dragonflyAddr
@@ -959,13 +959,13 @@ func TestFeeTransfer(t *testing.T) {
 
 	_, err = storage.Exec(ctx, db, `
 		WITH ins_user AS (
-			INSERT INTO users (id, master_pubkey, external_address, username, display_name, avatar, platform_group, created_at, updated_at)
-			VALUES ($1, $2, $3, 'testuser', 'Test User', 'https://example.com/avatar.jpg', 'ionconnect', NOW(), NOW())
+			INSERT INTO users (id, master_pubkey, username, display_name, avatar, platform_group, created_at, updated_at)
+			VALUES ($1, $2, 'testuser', 'Test User', 'https://example.com/avatar.jpg', 'ionconnect', NOW(), NOW())
 			RETURNING id
 		)
 		INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
-		SELECT id, LOWER($4), NOW() FROM ins_user
-	`, testUserID, testUserPubkey, testUserExtAddr, testUserAddr)
+		SELECT id, LOWER($3), NOW() FROM ins_user
+	`, testUserID, testUserPubkey, testUserAddr)
 	require.NoError(t, err)
 
 	testTokenAddr := "0xdeadbeef00000000000000000000000000000001"
@@ -2109,13 +2109,13 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 
 	_, err = storage.Exec(ctx, db, `
 		WITH ins_user AS (
-			INSERT INTO users (id, master_pubkey, external_address, username, display_name, avatar, platform_group, created_at, updated_at)
-			VALUES ($1, $2, $3, 'testuser', 'Test User', 'https://example.com/avatar.jpg', 'ionconnect', NOW(), NOW())
+			INSERT INTO users (id, master_pubkey, username, display_name, avatar, platform_group, created_at, updated_at)
+			VALUES ($1, $2, 'testuser', 'Test User', 'https://example.com/avatar.jpg', 'ionconnect', NOW(), NOW())
 			RETURNING id
 		)
 		INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
-		SELECT id, LOWER($4), NOW() FROM ins_user
-	`, testUserID, testUserPubkey, testUserExtAddr, testUserAddr)
+		SELECT id, LOWER($3), NOW() FROM ins_user
+	`, testUserID, testUserPubkey, testUserAddr)
 	require.NoError(t, err)
 
 	testTokenAddr := "0xdeadbeef00000000000000000000000000000001"
@@ -2333,18 +2333,17 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 
 		newUserAddr := "0xabcdef0000000000000000000000000000000000"
 		newUserPubkey := "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
-		newUserExtAddr := "0:" + newUserPubkey + ":"
 		newUserID := "new-user-id-456"
 
 		_, err = storage.Exec(ctx, db, `
 			WITH ins_user AS (
-				INSERT INTO users (id, master_pubkey, external_address, username, display_name, avatar, platform_group, created_at, updated_at)
-				VALUES ($1, $2, $3, 'newuser', 'New User', 'https://example.com/new-avatar.jpg', 'ionconnect', NOW(), NOW())
+				INSERT INTO users (id, master_pubkey, username, display_name, avatar, platform_group, created_at, updated_at)
+				VALUES ($1, $2, 'newuser', 'New User', 'https://example.com/new-avatar.jpg', 'ionconnect', NOW(), NOW())
 				RETURNING id
 			)
 			INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
-			SELECT id, LOWER($4), NOW() FROM ins_user
-		`, newUserID, newUserPubkey, newUserExtAddr, newUserAddr)
+			SELECT id, LOWER($3), NOW() FROM ins_user
+		`, newUserID, newUserPubkey, newUserAddr)
 		require.NoError(t, err)
 
 		blockTimestamp := "2024-01-01 16:00:00"
@@ -2385,17 +2384,16 @@ func TestUpdateMarketCapAndPosition(t *testing.T) {
 	t.Run("trigger_creates_position_with_zero_totals", func(t *testing.T) {
 		feeUserAddr := "0xfeeaccum0000000000000000000000000000001"
 		feeUserPubkey := "feeaccum0001pubkey0000000000000000000000000000000000000000000001"
-		feeUserExtAddr := "0:" + feeUserPubkey + ":"
 
 		_, err := storage.Exec(ctx, db, `
 			WITH ins AS (
-				INSERT INTO users (id, master_pubkey, external_address, username, display_name, avatar, platform_group, created_at, updated_at)
-				VALUES ('fee-user-001', $1, $2, 'feeuser1', 'Fee User 1', 'x', 'ionconnect', NOW(), NOW())
+				INSERT INTO users (id, master_pubkey, username, display_name, avatar, platform_group, created_at, updated_at)
+				VALUES ('fee-user-001', $1, 'feeuser1', 'Fee User 1', 'x', 'ionconnect', NOW(), NOW())
 				RETURNING id
 			)
 			INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
-			SELECT id, LOWER($3), NOW() FROM ins
-		`, feeUserPubkey, feeUserExtAddr, feeUserAddr)
+			SELECT id, LOWER($2), NOW() FROM ins
+		`, feeUserPubkey, feeUserAddr)
 		require.NoError(t, err)
 
 		_, err = storage.Exec(ctx, db, `
@@ -2892,27 +2890,6 @@ func TestDecodeRecordsCountFromInput(t *testing.T) {
 		s := buildFullFlowTxInput(dummyBase, 3)
 		require.Equal(t, 3, helperDecodeRCC(t, &s))
 	})
-}
-
-func pad32(hexStr string) string {
-	hexStr = strings.TrimPrefix(hexStr, "0x")
-	if len(hexStr) < 64 {
-		return strings.Repeat("0", 64-len(hexStr)) + hexStr
-	}
-
-	return hexStr[:64]
-}
-
-func buildSwappedEventData(direction bool, inputAmt, outputAmt, fee *big.Int) string {
-	dirWord := "0"
-	if direction {
-		dirWord = "1"
-	}
-	return "0x" +
-		pad32(dirWord) +
-		pad32(fmt.Sprintf("%x", inputAmt)) +
-		pad32(fmt.Sprintf("%x", outputAmt)) +
-		pad32(fmt.Sprintf("%x", fee))
 }
 
 func buildProperFatAddrV2(recordsCount byte) []byte {

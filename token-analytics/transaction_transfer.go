@@ -108,27 +108,27 @@ func (t *tokenAnalytics) getTokenInfo(ctx context.Context, contractAddress strin
 	return row, nil
 }
 
-func (t *tokenAnalytics) getUserExternalAddress(ctx context.Context, blockchainAddress string) (string, error) {
-	type userExternalAddressRow struct {
-		ExternalAddress string `db:"external_address"`
+func (t *tokenAnalytics) getUserMasterPubkey(ctx context.Context, blockchainAddress string) (string, error) {
+	type masterPubkeyRow struct {
+		MasterPubkey string `db:"master_pubkey"`
 	}
 	query := `
-		SELECT u.external_address
+		SELECT u.master_pubkey
 		FROM user_bsc_addresses uba
 		JOIN users u ON u.id = uba.user_id
 		WHERE uba.bsc_address = $1
 		LIMIT 1
 	`
-	row, err := storage.Get[userExternalAddressRow](ctx, t.ingestedDataDB, query, strings.ToLower(blockchainAddress))
+	row, err := storage.Get[masterPubkeyRow](ctx, t.ingestedDataDB, query, strings.ToLower(blockchainAddress))
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to get user external address for blockchain address %s", blockchainAddress)
+		return "", errors.Wrapf(err, "failed to get master_pubkey for blockchain address %s", blockchainAddress)
 	}
 
-	return row.ExternalAddress, nil
+	return row.MasterPubkey, nil
 }
 
 func (t *tokenAnalytics) enqueueBalanceUpdate(ctx context.Context, tx *txEvent, userBlockchainAddress, tokenContractAddress string, tokenData *tokenInfo, transferAmount *big.Int, isAddition bool) error {
-	userExternalAddress, err := t.getUserExternalAddress(ctx, userBlockchainAddress)
+	userExternalAddress, err := t.getUserMasterPubkey(ctx, userBlockchainAddress)
 	if err != nil {
 		if storage.IsErr(err, storage.ErrNotFound) {
 			log.Warn(fmt.Sprintf("User not found in user_bsc_addresses for blockchain address %s, skipping balance update", userBlockchainAddress))

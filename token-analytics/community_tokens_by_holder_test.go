@@ -7,8 +7,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
 func TestGetCommunityTokensByHolder(t *testing.T) {
@@ -28,7 +26,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 
 	t.Run("holder_without_positions_returns_empty", func(t *testing.T) {
 		helperInsertTestUser(t, ctx, db, "holder_no_pos", "holder_no_pos", "Holder No Pos", "", false, PlatformGroupIonConnect)
-		holderExtAddr := "0:holder_no_pos:"
+		holderExtAddr := "holder_no_pos"
 
 		tokens, totalHoldings, err := ta.GetCommunityTokensByHolder(ctx, holderExtAddr, "requestor123", 10, 0)
 		require.NoError(t, err)
@@ -41,7 +39,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		helperInsertTestUser(t, ctx, db, "holder_h1", "holder_h1", "Holder H1", "", false, PlatformGroupIonConnect)
 
 		tokenExt := "0:creator_h1:"
-		holderExtAddr := "0:holder_h1:"
+		holderExtAddr := "holder_h1"
 		contractAddr := "0xH1TOKEN111111111111111111111111111111"
 
 		helperInsertTestToken(t, ctx, db, contractAddr, tokenExt, "H1TK", "profile", "creator_h1", "1000000000000000000000000", 100.0, 0.0001, 5, PlatformGroupIonConnect)
@@ -74,7 +72,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		helperInsertTestUser(t, ctx, db, "creator_multi", "creator_multi", "Creator Multi", "", true, PlatformGroupIonConnect)
 		helperInsertTestUser(t, ctx, db, "holder_multi", "holder_multi", "Holder Multi", "", false, PlatformGroupIonConnect)
 
-		holderExtAddr := "0:holder_multi:"
+		holderExtAddr := "holder_multi"
 
 		tokens := []struct {
 			contractAddr string
@@ -115,7 +113,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		helperInsertTestUser(t, ctx, db, "creator_page", "creator_page", "Creator Page", "", true, PlatformGroupIonConnect)
 		helperInsertTestUser(t, ctx, db, "holder_page", "holder_page", "Holder Page", "", false, PlatformGroupIonConnect)
 
-		holderExtAddr := "0:holder_page:"
+		holderExtAddr := "holder_page"
 
 		// Create 7 tokens
 		for i := 1; i <= 7; i++ {
@@ -161,7 +159,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		helperInsertTestUser(t, ctx, db, "creator_overlap", "creator_overlap", "Creator Overlap", "", true, PlatformGroupIonConnect)
 		helperInsertTestUser(t, ctx, db, "holder_overlap", "holder_overlap", "Holder Overlap", "", false, PlatformGroupIonConnect)
 
-		holderExtAddr := "0:holder_overlap:"
+		holderExtAddr := "holder_overlap"
 
 		for i := 1; i <= 5; i++ {
 			contractAddr := fmt.Sprintf("0xOVER%02d111111111111111111111111111111", i)
@@ -195,7 +193,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 
 		tokenExt := "0:creator_full:"
 		creatorPubkey := "creator_full"
-		holderExtAddr := "0:holder_full:"
+		holderExtAddr := "holder_full"
 		contractAddr := "0xFULL1111111111111111111111111111111111"
 
 		helperInsertTestToken(t, ctx, db, contractAddr, tokenExt, "FULL", "profile", "creator_full", "1000000000000000000000000", 150.5, 0.00015, 10, PlatformGroupIonConnect)
@@ -261,15 +259,15 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		helperInsertTestUser(t, ctx, db, "holder_pos_data", "holder_pos_data", "Holder Pos Data", "", false, PlatformGroupIonConnect)
 
 		tokenExt := "0:creator_pos_data:"
-		holderExtAddr := "0:holder_pos_data:"
+		holderExtAddr := "holder_pos_data"
 		contractAddr := "0xPOSDATA11111111111111111111111111111"
 
 		helperInsertTestToken(t, ctx, db, contractAddr, tokenExt, "POSD", "profile", "creator_pos_data", "1000000000000000000000000", 100.0, 0.0001, 5, PlatformGroupIonConnect)
 		helperInsertUserTokenPosition(t, ctx, db, "holder_pos_data", contractAddr, tokenExt, holderExtAddr, "3000000000000000000000", 0.0001, 0.3)
 		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
-			"0:top_holder:":   5000.0,
-			holderExtAddr:     3000.0,
-			"0:other_holder:": 2000.0,
+			"top_holder":   5000.0,
+			holderExtAddr:  3000.0,
+			"other_holder": 2000.0,
 		})
 
 		tokens, totalHoldings, err := ta.GetCommunityTokensByHolder(ctx, holderExtAddr, "holder_pos_data", 10, 0)
@@ -289,7 +287,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		helperInsertTestUser(t, ctx, db, "ion_creator", "ion_creator", "ION Creator", "", true, PlatformGroupIonConnect)
 		helperInsertTestUser(t, ctx, db, "ion_holder", "ion_holder", "ION Holder", "", false, PlatformGroupIonConnect)
 
-		holderExtAddr := "0:ion_holder:"
+		holderExtAddr := "ion_holder"
 		tokenExt := "0:ion_creator:"
 		contractAddr := "0xIONION11111111111111111111111111111"
 
@@ -316,25 +314,19 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 
 	t.Run("xcom_holder_with_xcom_tokens", func(t *testing.T) {
 		xcomCreator := "111222333"
-		xcomHolder := "444555666"
 		helperInsertTestUser(t, ctx, db, "xcom_creator_master", "xcom_creator", "XCom Creator", "0xXCOMCREATOR111111111111111111111111", true, PlatformGroupXCom)
 		helperInsertTestUser(t, ctx, db, "xcom_holder_master", "xcom_holder", "XCom Holder", "0xXCOMHOLDER1111111111111111111111111", false, PlatformGroupXCom)
 
-		_, err := storage.Exec(ctx, db, `UPDATE users SET external_address = $1 WHERE master_pubkey = $2`, xcomCreator, "xcom_creator_master")
-		require.NoError(t, err)
-		_, err = storage.Exec(ctx, db, `UPDATE users SET external_address = $1 WHERE master_pubkey = $2`, xcomHolder, "xcom_holder_master")
-		require.NoError(t, err)
-
 		contractAddr := "0xXCOMXCOM111111111111111111111111111"
 		helperInsertTestToken(t, ctx, db, contractAddr, xcomCreator, "XCOM", "profile", "xcom_creator_master", "1000000000000000000000000", 100.0, 0.0001, 5, PlatformGroupXCom)
-		helperInsertUserTokenPosition(t, ctx, db, "xcom_holder_master", contractAddr, xcomCreator, xcomHolder, "3000000000000000000000", 0.0001, 0.3)
+		helperInsertUserTokenPosition(t, ctx, db, "xcom_holder_master", contractAddr, xcomCreator, "xcom_holder_master", "3000000000000000000000", 0.0001, 0.3)
 		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, xcomCreator, map[string]float64{
-			xcomHolder: 3000.0,
+			"xcom_holder_master": 3000.0,
 		})
 
 		helperInsertTokenSwap(t, ctx, db, contractAddr, xcomCreator, "0xXCOMLAUNCHER11111111111111111111111", "0xtxhash123", false, "100000000000000000000", "1000000000000000000000", 0.0001)
 
-		tokens, totalHoldings, err := ta.GetCommunityTokensByHolder(ctx, xcomHolder, "xcom_holder_master", 10, 0)
+		tokens, totalHoldings, err := ta.GetCommunityTokensByHolder(ctx, "xcom_holder_master", "xcom_holder_master", 10, 0)
 		require.NoError(t, err)
 		require.Len(t, tokens, 1)
 		require.Equal(t, uint64(1), totalHoldings)
@@ -355,10 +347,8 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		helperInsertTestUser(t, ctx, db, "mixed_holder", "mixed_holder", "Mixed Holder", "", false, PlatformGroupIonConnect)
 
 		xcomCreatorExt := "789012345"
-		_, err := storage.Exec(ctx, db, `UPDATE users SET external_address = $1 WHERE master_pubkey = $2`, xcomCreatorExt, "mixed_xcom_creator")
-		require.NoError(t, err)
 
-		holderExtAddr := "0:mixed_holder:"
+		holderExtAddr := "mixed_holder"
 
 		ionTokenExt := "0:mixed_ion_creator:"
 		ionContractAddr := "0xMIXEDION111111111111111111111111111"
@@ -405,7 +395,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		helperInsertTestUser(t, ctx, db, "creator_zero", "creator_zero", "Creator Zero", "", true, PlatformGroupIonConnect)
 		helperInsertTestUser(t, ctx, db, "holder_zero", "holder_zero", "Holder Zero", "", false, PlatformGroupIonConnect)
 
-		holderExtAddr := "0:holder_zero:"
+		holderExtAddr := "holder_zero"
 
 		token1Ext := "0:creator_zero:token1"
 		contract1Addr := "0xZERO1111111111111111111111111111111111"
@@ -435,7 +425,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		creatorProfileContract := "0xHCONTPROFILE111111111111111111111111"
 		helperInsertTestToken(t, ctx, db, creatorProfileContract, creatorProfileExt, "HCPROF", "profile", "creator_hcontent", "800000000000000000000000", 80.0, 0.00008, 4, PlatformGroupIonConnect)
 
-		holderExtAddr := "0:holder_hcontent:"
+		holderExtAddr := "holder_hcontent"
 		contentTokenExt := "30175:hcontent_video_id:content"
 		contentTokenContract := "0xHCONTVIDEO1111111111111111111111111"
 		helperInsertTestToken(t, ctx, db, contentTokenContract, contentTokenExt, "HCVID", "video", "creator_hcontent", "2000000000000000000000000", 200.0, 0.0002, 8, PlatformGroupIonConnect)
@@ -470,7 +460,7 @@ func TestGetCommunityTokensByHolder(t *testing.T) {
 		helperInsertTestUser(t, ctx, db, "creator_beyond", "creator_beyond", "Creator Beyond", "", true, PlatformGroupIonConnect)
 		helperInsertTestUser(t, ctx, db, "holder_beyond", "holder_beyond", "Holder Beyond", "", false, PlatformGroupIonConnect)
 
-		holderExtAddr := "0:holder_beyond:"
+		holderExtAddr := "holder_beyond"
 		tokenExt := "0:creator_beyond:"
 		contractAddr := "0xBEYOND111111111111111111111111111111"
 

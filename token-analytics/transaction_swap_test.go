@@ -120,7 +120,7 @@ func TestContentPoolPosition(t *testing.T) {
 		require.InDelta(t, scoreOfContentPool, 2.0, 0.00001, "Should match with spent amount on CONTENT")
 
 		require.Eventually(t, func() bool {
-			score, err := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(ionConnectAddr), "0:"+masterPubkey+":").Result()
+			score, err := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(ionConnectAddr), masterPubkey).Result()
 			return err == nil && math.Trunc(score) == 1.0
 		}, 2*time.Second, 50*time.Millisecond, "User should get 1 CONTENT for 2 PROFILE")
 	})
@@ -304,7 +304,7 @@ func TestOnSwap(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Eventually(t, func() bool {
-			score, err := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(ionConnectAddr), "0:"+masterPubkey+":").Result()
+			score, err := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(ionConnectAddr), masterPubkey).Result()
 			return err == nil && score > 0
 		}, 2*time.Second, 50*time.Millisecond, "River queue should update Redis balance")
 
@@ -337,7 +337,7 @@ func TestOnSwap(t *testing.T) {
 		require.Equal(t, 0.1, position.TotalInvested)            // 1 ION * $0.1 = $0.1
 
 		redisKey := keyUserPositionOfToken(ionConnectAddr)
-		userIonConnect := "0:" + masterPubkey + ":" // kind=0 for user profile
+		userIonConnect := masterPubkey
 		score, err := ta.processedDataDB.ZScore(ctx, redisKey, userIonConnect).Result()
 		require.NoError(t, err)
 		require.Equal(t, float64(1), score) // 1 token from mock RPC
@@ -455,7 +455,7 @@ func TestOnSwap(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Eventually(t, func() bool {
-			score, err := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(ionConnectAddr), "0:"+masterPubkey+":").Result()
+			score, err := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(ionConnectAddr), masterPubkey).Result()
 			return err == nil && score > 0
 		}, 2*time.Second, 50*time.Millisecond, "River queue should update Redis balance after buy")
 
@@ -507,7 +507,7 @@ func TestOnSwap(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Eventually(t, func() bool {
-			score, err := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(ionConnectAddr), "0:"+masterPubkey+":").Result()
+			score, err := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(ionConnectAddr), masterPubkey).Result()
 			return err == nil && score >= 0
 		}, 2*time.Second, 50*time.Millisecond, "River queue should update Redis balance after sell")
 
@@ -544,7 +544,7 @@ func TestOnSwap(t *testing.T) {
 		require.InDelta(t, 0.2, position.TotalInvested, 0.001)   // 2 ION * $0.1
 
 		redisKey := keyUserPositionOfToken(ionConnectAddr)
-		userIonConnect := "0:" + masterPubkey + ":" // kind=0 for user profile
+		userIonConnect := masterPubkey
 		score, err := ta.processedDataDB.ZScore(ctx, redisKey, userIonConnect).Result()
 		require.NoError(t, err)
 		require.Equal(t, float64(1), score) // 1 token remaining
@@ -802,7 +802,7 @@ func TestOnSwap(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Eventually(t, func() bool {
-			score, err := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(contentExternalAddr), "0:"+buyerPubkey+":").Result()
+			score, err := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(contentExternalAddr), buyerPubkey).Result()
 			return err == nil && score > 0
 		}, 2*time.Second, 50*time.Millisecond, "River queue should update Redis balance for double fat address")
 
@@ -846,7 +846,7 @@ func TestOnSwap(t *testing.T) {
 		require.Equal(t, "1000000000000000000", position.Amount)
 
 		redisKey := keyUserPositionOfToken(contentExternalAddr)
-		userIonConnect := "0:" + buyerPubkey + ":"
+		userIonConnect := buyerPubkey
 		score, err := ta.processedDataDB.ZScore(ctx, redisKey, userIonConnect).Result()
 		require.NoError(t, err)
 		require.Equal(t, 1.0, score)
@@ -1125,7 +1125,7 @@ func TestOnSwap(t *testing.T) {
 		// Wait for River queue to process all jobs
 		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
 
-		score, err := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(contentExternalAddr), "0:"+buyerPubkey+":").Result()
+		score, err := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(contentExternalAddr), buyerPubkey).Result()
 		require.NoError(t, err)
 		require.Equal(t, 1.0, score)
 
@@ -1174,7 +1174,7 @@ func TestOnSwap(t *testing.T) {
 		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
 
 		// Verify second buy - RPC mock always returns 1 token balance
-		initialBalance, err := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(contentExternalAddr), "0:"+buyerPubkey+":").Result()
+		initialBalance, err := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(contentExternalAddr), buyerPubkey).Result()
 		require.NoError(t, err)
 		require.Equal(t, 1.0, initialBalance, "Balance should be 1.0 (mock RPC returns fixed 1 token)")
 
@@ -1223,7 +1223,7 @@ func TestOnSwap(t *testing.T) {
 		helperWaitForRiverQueueJobs(t, ctx, ta, 5*time.Second)
 
 		// Verify sell - RPC mock always returns 1 token balance
-		finalBalance, err := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(contentExternalAddr), "0:"+buyerPubkey+":").Result()
+		finalBalance, err := ta.processedDataDB.ZScore(ctx, keyUserPositionOfToken(contentExternalAddr), buyerPubkey).Result()
 		require.NoError(t, err)
 		require.Equal(t, 1.0, finalBalance)
 

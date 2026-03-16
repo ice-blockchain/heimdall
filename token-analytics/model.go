@@ -3,6 +3,7 @@
 package tokenanalytics
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strconv"
 	"strings"
@@ -218,20 +219,22 @@ func IsContentType(tokenType string) bool {
 
 func buildUserAddressesFromExternalAddressAndPlatform(externalAddress, platform string, bnbBscAddress string, ionConnectAddress ...string) (*Addresses, error) {
 	if platform == "" {
-		if strings.Count(externalAddress, ":") >= 2 {
-			platform = PlatformGroupIonConnect
-		} else {
-			platform = PlatformGroupXCom
+		platform = detectPlatformFromMasterPubkey(externalAddress)
+	}
+
+	return buildAddressesFromExternalAddressAndPlatform(externalAddress, platform, bnbBscAddress, ionConnectAddress...)
+}
+
+// IonConnect master_pubkey is a 64-char hex-encoded secp256k1 public key.
+// XCom master_pubkey is a numeric user ID or a UUID.
+func detectPlatformFromMasterPubkey(masterPubkey string) string {
+	if len(masterPubkey) == 64 {
+		if _, err := hex.DecodeString(masterPubkey); err == nil {
+			return PlatformGroupIonConnect
 		}
 	}
-	userExternalAddress := externalAddress
-	if platform == PlatformGroupIonConnect {
-		parts := strings.Split(externalAddress, ":")
-		if len(parts) >= 2 && parts[0] == "0" {
-			userExternalAddress = parts[1]
-		}
-	}
-	return buildAddressesFromExternalAddressAndPlatform(userExternalAddress, platform, bnbBscAddress, ionConnectAddress...)
+
+	return PlatformGroupXCom
 }
 
 func buildAddressesFromExternalAddressAndPlatform(externalAddress, platform string, bnbBscAddress string, ionConnectAddress ...string) (*Addresses, error) {

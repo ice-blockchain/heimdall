@@ -205,7 +205,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 			PlatformGroupIonConnect,
 		)
 		helperInsertAggregatePosition(t, ctx, db,
-			"0:requestor_pos:",
+			"requestor_pos",
 			"0xPOS11111111111111111111111111111111111",
 			tokenExt,
 			"3500000000000000000000", // 3500 tokens in wei
@@ -223,10 +223,10 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		helperRefreshVolumeView(t, ctx, db)
 
 		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
-			"0:top1:":          5000.0,
-			"0:top2:":          4000.0,
-			"0:requestor_pos:": 3500.0,
-			"0:other:":         2000.0,
+			"top1":          5000.0,
+			"top2":          4000.0,
+			"requestor_pos": 3500.0,
+			"other":         2000.0,
 		})
 
 		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "requestor_pos", nil, "", 0, 0, "")
@@ -288,7 +288,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 
 		// User bought 300 tokens (100 + 200) for total $0.9, sold 150 for $0.45, holding 150 worth $0.45
 		helperInsertAggregatePosition(t, ctx, db,
-			"0:holder_pnl:",
+			"holder_pnl",
 			contractAddr,
 			tokenExt,
 			"150000000000000000000", // 150 tokens remaining in wei
@@ -296,7 +296,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		)
 
 		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
-			"0:holder_pnl:": 150.0,
+			"holder_pnl": 150.0,
 		})
 
 		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "holder_pnl", nil, "", 0, 0, "")
@@ -336,7 +336,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		)
 
 		helperInsertAggregatePosition(t, ctx, db,
-			"0:holder_profit:",
+			"holder_profit",
 			contractAddr,
 			tokenExt,
 			"100000000000000000000", // 100 tokens remaining
@@ -344,7 +344,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		)
 
 		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
-			"0:holder_profit:": 100.0,
+			"holder_profit": 100.0,
 		})
 
 		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "holder_profit", nil, "", 0, 0, "")
@@ -384,7 +384,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		)
 
 		helperInsertAggregatePosition(t, ctx, db,
-			"0:holder_loss:",
+			"holder_loss",
 			contractAddr,
 			tokenExt,
 			"100000000000000000000", // 100 tokens remaining
@@ -392,7 +392,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		)
 
 		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
-			"0:holder_loss:": 100.0,
+			"holder_loss": 100.0,
 		})
 
 		tokens, err := ta.GetCommunityTokensByExternalAddresses(ctx, []string{tokenExt}, "holder_loss", nil, "", 0, 0, "")
@@ -454,17 +454,12 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 
 	t.Run("Twitter token with launcher field populated", func(t *testing.T) {
 		creatorExtAddr := "987654321"
-		launcherExtAddr := "111222333"
 		helperInsertTestUser(t, ctx, db, "creator_bsc_addr", "twitter_creator", "Twitter Creator", "0x0000000000000000000000000000000000CREATOR", true, PlatformGroupXCom)
 		helperInsertTestUser(t, ctx, db, "launcher_bsc_addr", "twitter_launcher", "Twitter Launcher", "0x0000000000000000000000000000000000LAUNCH", false, PlatformGroupXCom)
 
 		creatorBscAddress := "0xCREATOR1111111111111111111111111111"
 
-		_, err := storage.Exec(ctx, db, `UPDATE users SET external_address = $1 WHERE master_pubkey = $2`, creatorExtAddr, "creator_bsc_addr")
-		require.NoError(t, err)
-		_, err = storage.Exec(ctx, db, `INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at) VALUES ($1, LOWER($2), NOW()) ON CONFLICT (bsc_address) DO NOTHING`, "creator_bsc_addr", creatorBscAddress)
-		require.NoError(t, err)
-		_, err = storage.Exec(ctx, db, `UPDATE users SET external_address = $1 WHERE master_pubkey = $2`, launcherExtAddr, "launcher_bsc_addr")
+		_, err := storage.Exec(ctx, db, `INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at) VALUES ($1, LOWER($2), NOW()) ON CONFLICT (bsc_address) DO NOTHING`, "creator_bsc_addr", creatorBscAddress)
 		require.NoError(t, err)
 
 		contractAddr := "0xLAUNCH111111111111111111111111111111"
@@ -504,7 +499,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		require.True(t, token.Creator.Verified != nil && *token.Creator.Verified)
 		require.NotEmpty(t, strVal(token.Creator.Avatar), "Creator avatar should be present")
 		require.NotNil(t, token.Creator.Addresses, "Creator addresses should not be nil")
-		require.Equal(t, creatorExtAddr, token.Creator.Addresses.Twitter)
+		require.Equal(t, "creator_bsc_addr", token.Creator.Addresses.Twitter, "Creator Twitter should be master_pubkey")
 		require.Equal(t, strings.ToLower(creatorBscAddress), token.Creator.Addresses.Blockchain, "Creator blockchain address should be from content_author_id")
 		require.Empty(t, token.Creator.Addresses.IonConnect, "Creator IonConnect should be empty for xcom")
 
@@ -514,7 +509,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		require.True(t, token.Launcher.Verified == nil || !*token.Launcher.Verified)
 		require.NotEmpty(t, strVal(token.Launcher.Avatar), "Launcher avatar should be present")
 		require.NotNil(t, token.Launcher.Addresses, "Launcher addresses should not be nil")
-		require.Equal(t, launcherExtAddr, token.Launcher.Addresses.Twitter)
+		require.Equal(t, "launcher_bsc_addr", token.Launcher.Addresses.Twitter, "Launcher Twitter should be master_pubkey")
 		require.Equal(t, "0x0000000000000000000000000000000000launch", token.Launcher.Addresses.Blockchain)
 		require.Empty(t, token.Launcher.Addresses.IonConnect, "Launcher IonConnect should be empty")
 	})
@@ -522,11 +517,6 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 	t.Run("Twitter token without swaps - launcher is nil", func(t *testing.T) {
 		creatorExtAddr := "555666777"
 		helperInsertTestUser(t, ctx, db, "creator_no_swap", "twitter_no_swap", "Twitter No Swap", "0x0000000000000000000000000000000000NOSWAP", true, PlatformGroupXCom)
-		_, err := storage.Exec(ctx, db, `
-			UPDATE users SET external_address = $1
-			WHERE id IN (SELECT user_id FROM user_bsc_addresses WHERE bsc_address = $2)
-		`, creatorExtAddr, "0x0000000000000000000000000000000000noswap")
-		require.NoError(t, err)
 
 		contractAddr := "0xNOSWAP111111111111111111111111111111"
 		helperInsertTestToken(t, ctx, db,
@@ -589,8 +579,6 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 
 	t.Run("Twitter token - only first buy is considered for launcher", func(t *testing.T) {
 		creatorExtAddr := "888999000"
-		firstBuyerExtAddr := "111111111"
-		secondBuyerExtAddr := "222222222"
 
 		helperInsertTestUser(t, ctx, db, "first_buyer_master", "first_buyer", "First Buyer", "0x0000000000000000000000000000000000FIRST", false, PlatformGroupXCom)
 		helperInsertTestUser(t, ctx, db, "second_buyer_master", "second_buyer", "Second Buyer", "0x0000000000000000000000000000000000SECND", false, PlatformGroupXCom)
@@ -598,13 +586,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 
 		orderCreatorBscAddress := "0xORDERCREATOR1111111111111111111111"
 
-		_, err := storage.Exec(ctx, db, `UPDATE users SET external_address = $1 WHERE master_pubkey = $2`, firstBuyerExtAddr, "first_buyer_master")
-		require.NoError(t, err)
-		_, err = storage.Exec(ctx, db, `UPDATE users SET external_address = $1 WHERE master_pubkey = $2`, secondBuyerExtAddr, "second_buyer_master")
-		require.NoError(t, err)
-		_, err = storage.Exec(ctx, db, `UPDATE users SET external_address = $1 WHERE master_pubkey = $2`, creatorExtAddr, "order_creator_master")
-		require.NoError(t, err)
-		_, err = storage.Exec(ctx, db, `INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at) VALUES ($1, LOWER($2), NOW()) ON CONFLICT (bsc_address) DO NOTHING`, "order_creator_master", orderCreatorBscAddress)
+		_, err := storage.Exec(ctx, db, `INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at) VALUES ($1, LOWER($2), NOW()) ON CONFLICT (bsc_address) DO NOTHING`, "order_creator_master", orderCreatorBscAddress)
 		require.NoError(t, err)
 
 		contractAddr := "0xORDER1111111111111111111111111111111"
@@ -664,7 +646,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		require.True(t, token.Creator.Verified != nil && *token.Creator.Verified)
 		require.NotEmpty(t, strVal(token.Creator.Avatar), "Creator avatar should be present")
 		require.NotNil(t, token.Creator.Addresses, "Creator addresses should not be nil")
-		require.Equal(t, creatorExtAddr, token.Creator.Addresses.Twitter)
+		require.Equal(t, "order_creator_master", token.Creator.Addresses.Twitter, "Creator Twitter should be master_pubkey")
 		require.Equal(t, strings.ToLower(orderCreatorBscAddress), token.Creator.Addresses.Blockchain, "Creator blockchain address should be from content_author_id")
 		require.Empty(t, token.Creator.Addresses.IonConnect, "Creator IonConnect should be empty for xcom")
 
@@ -675,7 +657,7 @@ func TestGetCommunityTokensByExternalAddresses(t *testing.T) {
 		require.True(t, token.Launcher.Verified == nil || !*token.Launcher.Verified)
 		require.NotEmpty(t, strVal(token.Launcher.Avatar), "Launcher avatar should be present")
 		require.NotNil(t, token.Launcher.Addresses, "Launcher addresses should not be nil")
-		require.Equal(t, firstBuyerExtAddr, token.Launcher.Addresses.Twitter)
+		require.Equal(t, "first_buyer_master", token.Launcher.Addresses.Twitter, "Launcher Twitter should be master_pubkey")
 		require.Equal(t, "0x0000000000000000000000000000000000first", token.Launcher.Addresses.Blockchain)
 		require.Empty(t, token.Launcher.Addresses.IonConnect, "Launcher IonConnect should be empty")
 	})
@@ -984,14 +966,14 @@ func TestGetCommunityTokensWithTopPlatformHolders_WithAndWithoutKeyword(t *testi
 	helperInsertTestToken(t, ctx, db, "0xTPH1111111111111111111111111111111111111", token1Ext, "TPH1", "profile", "creator_tph1", "1000000000000000000000000", 100.0, 0.0001, 2, PlatformGroupIonConnect)
 	helperInsertTestToken(t, ctx, db, "0xTPH2222222222222222222222222222222222222", token2Ext, "TPH2", "profile", "creator_tph2", "2000000000000000000000000", 200.0, 0.0002, 2, PlatformGroupIonConnect)
 
-	helperInsertUserTokenPosition(t, ctx, db, "holder_tph1", "0xTPH1111111111111111111111111111111111111", token1Ext, "0:holder_tph1:", "5000000000000000000000", 0.45)
-	helperInsertUserTokenPosition(t, ctx, db, "holder_tph2", "0xTPH1111111111111111111111111111111111111", token1Ext, "0:holder_tph2:", "3000000000000000000000", 0.27)
-	helperInsertUserTokenPosition(t, ctx, db, "requestor_tph", "0xTPH1111111111111111111111111111111111111", token1Ext, "0:requestor_tph:", "1000000000000000000000", 0.09)
+	helperInsertUserTokenPosition(t, ctx, db, "holder_tph1", "0xTPH1111111111111111111111111111111111111", token1Ext, "holder_tph1", "5000000000000000000000", 0.45)
+	helperInsertUserTokenPosition(t, ctx, db, "holder_tph2", "0xTPH1111111111111111111111111111111111111", token1Ext, "holder_tph2", "3000000000000000000000", 0.27)
+	helperInsertUserTokenPosition(t, ctx, db, "requestor_tph", "0xTPH1111111111111111111111111111111111111", token1Ext, "requestor_tph", "1000000000000000000000", 0.09)
 
 	helperSetupRedisPositionData(t, ctx, ta.processedDataDB, token1Ext, map[string]float64{
-		"0:holder_tph1:":   5000.0,
-		"0:holder_tph2:":   3000.0,
-		"0:requestor_tph:": 1000.0,
+		"holder_tph1":   5000.0,
+		"holder_tph2":   3000.0,
+		"requestor_tph": 1000.0,
 	})
 
 	includeTop := uint32(2)
@@ -1109,14 +1091,14 @@ func TestGetCommunityTokensByExternalAddresses_WithTopPlatformHolders(t *testing
 			PlatformGroupIonConnect,
 		)
 
-		helperInsertUserTokenPosition(t, ctx, db, "holder1_top", "0xTOP111111111111111111111111111111111", tokenExt, "0:holder1_top:", "5000000000000000000000", 0.45)
-		helperInsertUserTokenPosition(t, ctx, db, "holder2_top", "0xTOP111111111111111111111111111111111", tokenExt, "0:holder2_top:", "3000000000000000000000", 0.27)
-		helperInsertUserTokenPosition(t, ctx, db, "requestor_top", "0xTOP111111111111111111111111111111111", tokenExt, "0:requestor_top:", "1000000000000000000000", 0.09)
+		helperInsertUserTokenPosition(t, ctx, db, "holder1_top", "0xTOP111111111111111111111111111111111", tokenExt, "holder1_top", "5000000000000000000000", 0.45)
+		helperInsertUserTokenPosition(t, ctx, db, "holder2_top", "0xTOP111111111111111111111111111111111", tokenExt, "holder2_top", "3000000000000000000000", 0.27)
+		helperInsertUserTokenPosition(t, ctx, db, "requestor_top", "0xTOP111111111111111111111111111111111", tokenExt, "requestor_top", "1000000000000000000000", 0.09)
 
 		helperSetupRedisPositionData(t, ctx, ta.processedDataDB, tokenExt, map[string]float64{
-			"0:holder1_top:":   5000.0,
-			"0:holder2_top:":   3000.0,
-			"0:requestor_top:": 1000.0,
+			"holder1_top":   5000.0,
+			"holder2_top":   3000.0,
+			"requestor_top": 1000.0,
 		})
 
 		topHolders := uint32(2)
@@ -1432,12 +1414,6 @@ func helperBuildProfileExternalAddress(masterPubkey string) string {
 
 func helperInsertTestUser(t *testing.T, ctx context.Context, db *storage.DB, masterPubkey, username, displayName, contentAuthorID string, verified bool, platformGroup string, avatar ...string) {
 	t.Helper()
-	var externalAddr string
-	if platformGroup == "xcom" {
-		externalAddr = masterPubkey
-	} else {
-		externalAddr = helperBuildProfileExternalAddress(masterPubkey)
-	}
 	if contentAuthorID == "" {
 		hexPubkey := fmt.Sprintf("%040s", masterPubkey)
 		hexPubkey = strings.ReplaceAll(hexPubkey, " ", "0")
@@ -1455,11 +1431,10 @@ func helperInsertTestUser(t *testing.T, ctx context.Context, db *storage.DB, mas
 
 	query := `
 		WITH upserted_user AS (
-			INSERT INTO users (created_at, updated_at, id, master_pubkey, external_address, username, display_name, avatar, lookup, verified, platform_group)
-			VALUES (NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9)
+			INSERT INTO users (created_at, updated_at, id, master_pubkey, username, display_name, avatar, lookup, verified, platform_group)
+			VALUES (NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8)
 			ON CONFLICT (id) DO UPDATE SET
 				master_pubkey = EXCLUDED.master_pubkey,
-				external_address = EXCLUDED.external_address,
 				username = EXCLUDED.username,
 				display_name = EXCLUDED.display_name,
 				avatar = EXCLUDED.avatar,
@@ -1470,12 +1445,11 @@ func helperInsertTestUser(t *testing.T, ctx context.Context, db *storage.DB, mas
 			RETURNING id
 		)
 		INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
-		SELECT id, LOWER($10::text), NOW() FROM upserted_user
+		SELECT id, LOWER($9::text), NOW() FROM upserted_user
 		ON CONFLICT (bsc_address) DO NOTHING`
 	_, err := storage.Exec(ctx, db, query,
 		masterPubkey,
 		masterPubkey,
-		externalAddr,
 		username,
 		displayName,
 		avatarURL,

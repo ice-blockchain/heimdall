@@ -25,19 +25,19 @@ import (
 )
 
 func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
-	masterPubkey, userExternalAddress, userUsername, userDisplayName, userAvatar string, userVerified bool,
+	masterPubkey, userUsername, userDisplayName, userAvatar string, userVerified bool,
 	userContentId string) error {
 	uuid, _ := uuid.NewV7()
 	id := uuid.String()
 	query := `
 		WITH upserted_user AS (
-			INSERT INTO users (id, master_pubkey, external_address, username,
+			INSERT INTO users (id, master_pubkey, username,
 							   display_name, avatar, verified, lookup, platform_group,
 							   created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7,
-					LOWER($4 || ' ' || COALESCE($5, '')),
+			VALUES ($1, $2, $3, $4, $5, $6,
+					LOWER($3 || ' ' || COALESCE($4, '')),
 					'xcom'::platform_type, NOW(), NOW())
-			ON CONFLICT (external_address)
+			ON CONFLICT (master_pubkey)
 			DO UPDATE SET
 				updated_at = NOW(),
 				username = COALESCE(NULLIF(EXCLUDED.username, ''), users.username),
@@ -51,15 +51,14 @@ func (t *tokenAnalytics) UpdateLoggedInUserProfile(ctx context.Context,
 			RETURNING id
 		)
 		INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
-		SELECT id, $8::TEXT, NOW() FROM upserted_user
-		WHERE $8::TEXT IS NOT NULL AND $8::TEXT != ''
+		SELECT id, $7::TEXT, NOW() FROM upserted_user
+		WHERE $7::TEXT IS NOT NULL AND $7::TEXT != ''
 		ON CONFLICT (bsc_address) DO NOTHING
 	`
 
 	_, err := storage.Exec(ctx, t.ingestedDataDB, query,
 		id,
 		masterPubkey,
-		userExternalAddress,
 		userUsername,
 		userDisplayName,
 		userAvatar,
@@ -92,14 +91,13 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 		WITH upserted_user AS (
 			INSERT INTO users (
 				created_at, updated_at, id, master_pubkey,
-				external_address, username, display_name, avatar, verified, lookup, platform_group
+				username, display_name, avatar, verified, lookup, platform_group
 			)
 			VALUES (
-				NOW(), NOW(), $1, $2, $4, $5, $6, $7, $8, LOWER($5 || ' ' || COALESCE($6, '')), 'xcom'::platform_type
+				NOW(), NOW(), $1, $2, $4, $5, $6, $7, LOWER($4 || ' ' || COALESCE($5, '')), 'xcom'::platform_type
 			)
-			ON CONFLICT (external_address)
+			ON CONFLICT (master_pubkey)
 			DO UPDATE SET
-				master_pubkey = CASE WHEN EXCLUDED.master_pubkey != '' THEN EXCLUDED.master_pubkey ELSE users.master_pubkey END,
 				username = COALESCE(NULLIF(EXCLUDED.username, ''), users.username),
 				display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name),
 				avatar = COALESCE(NULLIF(EXCLUDED.avatar, ''), users.avatar),
@@ -126,13 +124,13 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 		VALUES (
 			NOW(), NOW(),
 			NULL,
-			$11,
+			$10,
 			NULLIF($3, ''),
-			NULLIF($10, ''),
-			$9,
+			NULLIF($9, ''),
+			$8,
 			'xcom'::platform_type,
 			'post',
-			LOWER(TRIM(COALESCE($11, '') || ' ' || COALESCE($5, '') || ' ' || COALESCE($6, '')))
+			LOWER(TRIM(COALESCE($10, '') || ' ' || COALESCE($4, '') || ' ' || COALESCE($5, '')))
 		)
 		ON CONFLICT (external_address)
 		DO UPDATE SET
@@ -143,7 +141,7 @@ func (t *tokenAnalytics) UpdateTokenExternalData(ctx context.Context,
 	`
 
 	_, err = storage.Exec(ctx, t.ingestedDataDB, query,
-		userId, postAuthorExternalAddress, strings.ToLower(userContentId), postAuthorExternalAddress,
+		userId, postAuthorExternalAddress, strings.ToLower(userContentId),
 		postAuthorUsername, postAuthorDisplayName, postAuthorAvatar, postAuthorVerified,
 		ionConnectAddress, tokenImageUrl, tokenExternalAddress,
 	)
@@ -748,23 +746,6 @@ func weiToFloat64FromBigInt(weiAmount *big.Int) float64 {
 func weiToFloat64FromBigString(weiAmount string) float64 {
 	b, _ := new(big.Int).SetString(weiAmount, 10)
 	return weiToFloat64FromBigInt(b)
-}
-
-func toUSD(amount *big.Int, basePrice float64) float64 {
-	amountInTokens := new(big.Float).Quo(new(big.Float).SetInt(amount), big.NewFloat(1e18))
-	amountInUsdBig := new(big.Float).Mul(amountInTokens, big.NewFloat(basePrice))
-	amountUsd, _ := amountInUsdBig.Float64()
-	return amountUsd
-}
-
-func weiToFloat64FromBigFloat(weiAmount *big.Float) float64 {
-	if weiAmount == nil {
-		return 0
-	}
-	result := new(big.Float).Quo(weiAmount, big.NewFloat(1e18))
-	convertedResult, _ := result.Float64()
-
-	return convertedResult
 }
 
 func calculatePnL(amountUSD, totalInvestedUSD, totalRealizedUSD, totalFeesUSD float64) (pnl float64, pnlPercentage float64) {

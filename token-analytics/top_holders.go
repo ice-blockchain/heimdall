@@ -63,7 +63,7 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 		   creator.platform_group                         as creator_platform,
 		   COALESCE(creator_fees_transferred.amount, '0') as creator_fees,
 		   t.content_author_id                            as creator_bnb_bsc_address,
-		   creator.external_address                       as creator_external_address,
+		   creator.master_pubkey                          as creator_external_address,
 		   t.price_usd                                    as price_usd,
 		   t.total_supply                                 as total_supply,
 		   t.bonding_curve_migrated                       as bonding_curve_migrated,
@@ -82,7 +82,7 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 		FROM tokens t
 			 JOIN user_aggregate_positions uap ON uap.external_address = t.external_address
 					AND uap.user_external_address = ANY($2)
-			 LEFT JOIN users holder_user_agg ON holder_user_agg.external_address = uap.user_external_address
+			 LEFT JOIN users holder_user_agg ON holder_user_agg.master_pubkey = uap.user_external_address
 			 LEFT JOIN user_bsc_addresses creator_addr ON creator_addr.bsc_address = t.content_author_id
 			 LEFT JOIN users creator ON creator.id = creator_addr.user_id
 			 LEFT JOIN fees_transferred creator_fees_transferred
@@ -99,7 +99,7 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 		   creator.platform_group                         as creator_platform,
 		   COALESCE(creator_fees_transferred.amount, '0') as creator_fees,
 		   t.content_author_id                            as creator_bnb_bsc_address,
-		   creator.external_address                       as creator_external_address,
+		   creator.master_pubkey                          as creator_external_address,
 		   t.price_usd                                    as price_usd,
 		   t.total_supply                                 as total_supply,
 		   t.bonding_curve_migrated                       as bonding_curve_migrated,
@@ -155,7 +155,7 @@ func (t *tokenAnalytics) GetTopHolders(ctx context.Context, externalAddress stri
 		holder.avatar as holder_avatar,
 		holder.platform_group as holder_platform
     FROM token_info t
-        LEFT JOIN users holder ON holder.id = t.holder_id OR holder.external_address = t.holder_external_address
+        LEFT JOIN users holder ON holder.id = t.holder_id OR holder.master_pubkey = t.holder_external_address
 	UNION ALL (
 		    SELECT
         t.content_author_id,

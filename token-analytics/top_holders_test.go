@@ -23,9 +23,9 @@ func Test_buildTopHolderPositions(t *testing.T) {
 		t.Parallel()
 
 		rankings := []redis.Z{
-			{Score: 1.0005, Member: "0:pubkey1:"},  // 1.0005 tokens
-			{Score: 0.50025, Member: "0:pubkey2:"}, // 0.50025 tokens
-			{Score: 0.1, Member: "0:pubkey3:"},     // 0.1 tokens
+			{Score: 1.0005, Member: "pubkey1"},  // 1.0005 tokens
+			{Score: 0.50025, Member: "pubkey2"}, // 0.50025 tokens
+			{Score: 0.1, Member: "pubkey3"},     // 0.1 tokens
 		}
 
 		rows := []*holderWithTokenData{
@@ -35,7 +35,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				CreatorDisplay:         strPtr("Creator Name"),
 				CreatorVerified:        boolPtr(true),
 				CreatorAvatar:          strPtr("https://avatar.com/creator.jpg"),
-				CreatorExternalAddress: strPtr("0:creator_ext:"),
+				CreatorExternalAddress: strPtr("creator_ext"),
 				CreatorPlatform:        strPtr("ionconnect"),
 				PriceUSD:               1.5,
 				TotalSupply:            new(big.Int).Mul(big.NewInt(100), big.NewInt(1e18)).String(), // 100 tokens
@@ -46,7 +46,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderDisplay:          strPtr("Holder One"),
 				HolderVerified:         boolPtr(true),
 				HolderAvatar:           strPtr("https://avatar.com/holder1.jpg"),
-				HolderExternalAddress:  strPtr("0:pubkey1:"),
+				HolderExternalAddress:  strPtr("pubkey1"),
 				HolderPlatform:         strPtr("ionconnect"),
 			},
 			{
@@ -55,7 +55,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				CreatorDisplay:         strPtr("Creator Name"),
 				CreatorVerified:        boolPtr(true),
 				CreatorAvatar:          strPtr("https://avatar.com/creator.jpg"),
-				CreatorExternalAddress: strPtr("0:creator_ext:"),
+				CreatorExternalAddress: strPtr("creator_ext"),
 				CreatorPlatform:        strPtr("ionconnect"),
 				PriceUSD:               1.5,
 				TotalSupply:            new(big.Int).Mul(big.NewInt(100), big.NewInt(1e18)).String(),
@@ -66,7 +66,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderDisplay:          strPtr("Holder Two"),
 				HolderVerified:         boolPtr(false),
 				HolderAvatar:           strPtr("https://avatar.com/holder2.jpg"),
-				HolderExternalAddress:  strPtr("0:pubkey2:"),
+				HolderExternalAddress:  strPtr("pubkey2"),
 				HolderPlatform:         strPtr("ionconnect"),
 			},
 			{
@@ -75,7 +75,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				CreatorDisplay:         strPtr("Creator Name"),
 				CreatorVerified:        boolPtr(true),
 				CreatorAvatar:          strPtr("https://avatar.com/creator.jpg"),
-				CreatorExternalAddress: strPtr("0:creator_ext:"),
+				CreatorExternalAddress: strPtr("creator_ext"),
 				CreatorPlatform:        strPtr("ionconnect"),
 				PriceUSD:               1.5,
 				TotalSupply:            new(big.Int).Mul(big.NewInt(100), big.NewInt(1e18)).String(),
@@ -86,7 +86,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderDisplay:          strPtr("Holder Three"),
 				HolderVerified:         boolPtr(false),
 				HolderAvatar:           strPtr(""),
-				HolderExternalAddress:  strPtr("0:pubkey3:"),
+				HolderExternalAddress:  strPtr("pubkey3"),
 				HolderPlatform:         strPtr("ionconnect"),
 			},
 		}
@@ -99,7 +99,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 			CreatorDisplay:         strPtr("Creator Name"),
 			CreatorVerified:        boolPtr(true),
 			CreatorAvatar:          strPtr("https://avatar.com/creator.jpg"),
-			CreatorExternalAddress: strPtr("0:creator_ext:"),
+			CreatorExternalAddress: strPtr("creator_ext"),
 			CreatorPlatform:        strPtr("ionconnect"),
 			PriceUSD:               1.5,
 			TotalSupply:            new(big.Int).Mul(big.NewInt(100), big.NewInt(1e18)).String(),
@@ -163,7 +163,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 		t.Parallel()
 		burnAddr := "0xburn123"
 		rankings := []redis.Z{
-			{Score: 1.5, Member: "0:new_holder_pubkey:"},
+			{Score: 1.5, Member: "new_holder_pubkey"},
 		}
 		rows := []*holderWithTokenData{
 			{
@@ -172,13 +172,13 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				CreatorDisplay:         strPtr("Creator Name"),
 				CreatorVerified:        boolPtr(true),
 				CreatorAvatar:          strPtr("https://avatar.com/creator.jpg"),
-				CreatorExternalAddress: strPtr("0:creator_ext:"),
+				CreatorExternalAddress: strPtr("creator_ext"),
 				CreatorPlatform:        strPtr("ionconnect"),
 				PriceUSD:               2.0,
 				TotalSupply:            new(big.Int).Mul(big.NewInt(100), big.NewInt(1e18)).String(),
 				TokenType:              TokenTypePost,
 				TokenPlatform:          PlatformGroupIonConnect,
-				HolderExternalAddress:  strPtr("0:new_holder_pubkey:"),
+				HolderExternalAddress:  strPtr("new_holder_pubkey"),
 				HolderPlatform:         strPtr("ionconnect"),
 			},
 		}
@@ -246,16 +246,16 @@ func Test_buildTopHolderPositions(t *testing.T) {
 	t.Run("should handle mixed ionconnect and xcom holders", func(t *testing.T) {
 		t.Parallel()
 		rankings := []redis.Z{
-			{Score: 10.0, Member: "0:ionholder1:"},
+			{Score: 10.0, Member: "ionholder1"},
 			{Score: 5.0, Member: "123456789"},
-			{Score: 2.0, Member: "0:ionholder2:"},
+			{Score: 2.0, Member: "ionholder2"},
 		}
 		rows := []*holderWithTokenData{
 			{
 				ContentAuthorID:        strPtr("creator"),
 				CreatorUsername:        strPtr("creator"),
 				CreatorVerified:        boolPtr(false),
-				CreatorExternalAddress: strPtr("0:creator:"),
+				CreatorExternalAddress: strPtr("creator"),
 				CreatorPlatform:        strPtr("ionconnect"),
 				PriceUSD:               1.0,
 				TotalSupply:            new(big.Int).Mul(big.NewInt(100), big.NewInt(1e18)).String(),
@@ -265,14 +265,14 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderUsername:         strPtr("ion_user1"),
 				HolderDisplay:          strPtr("Ion User 1"),
 				HolderVerified:         boolPtr(true),
-				HolderExternalAddress:  strPtr("0:ionholder1:"),
+				HolderExternalAddress:  strPtr("ionholder1"),
 				HolderPlatform:         strPtr("ionconnect"),
 			},
 			{
 				ContentAuthorID:        strPtr("creator"),
 				CreatorUsername:        strPtr("creator"),
 				CreatorVerified:        boolPtr(false),
-				CreatorExternalAddress: strPtr("0:creator:"),
+				CreatorExternalAddress: strPtr("creator"),
 				CreatorPlatform:        strPtr("ionconnect"),
 				PriceUSD:               1.0,
 				TotalSupply:            new(big.Int).Mul(big.NewInt(100), big.NewInt(1e18)).String(),
@@ -289,7 +289,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				ContentAuthorID:        strPtr("creator"),
 				CreatorUsername:        strPtr("creator"),
 				CreatorVerified:        boolPtr(false),
-				CreatorExternalAddress: strPtr("0:creator:"),
+				CreatorExternalAddress: strPtr("creator"),
 				CreatorPlatform:        strPtr("ionconnect"),
 				PriceUSD:               1.0,
 				TotalSupply:            new(big.Int).Mul(big.NewInt(100), big.NewInt(1e18)).String(),
@@ -299,7 +299,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderUsername:         strPtr("ion_user2"),
 				HolderDisplay:          strPtr("Ion User 2"),
 				HolderVerified:         boolPtr(false),
-				HolderExternalAddress:  strPtr("0:ionholder2:"),
+				HolderExternalAddress:  strPtr("ionholder2"),
 				HolderPlatform:         strPtr("ionconnect"),
 			},
 		}
@@ -327,14 +327,14 @@ func Test_buildTopHolderPositions(t *testing.T) {
 	t.Run("should handle zero price correctly", func(t *testing.T) {
 		t.Parallel()
 		rankings := []redis.Z{
-			{Score: 10.0, Member: "0:holder1:"},
+			{Score: 10.0, Member: "holder1"},
 		}
 		rows := []*holderWithTokenData{
 			{
 				ContentAuthorID:        strPtr("creator"),
 				CreatorUsername:        strPtr("creator"),
 				CreatorVerified:        boolPtr(false),
-				CreatorExternalAddress: strPtr("0:creator:"),
+				CreatorExternalAddress: strPtr("creator"),
 				CreatorPlatform:        strPtr("ionconnect"),
 				TotalSupply:            new(big.Int).Mul(big.NewInt(100), big.NewInt(1e18)).String(),
 				TokenType:              TokenTypeProfile,
@@ -342,7 +342,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderMasterPubkey:     strPtr("pubkey1"),
 				HolderUsername:         strPtr("user1"),
 				HolderVerified:         boolPtr(false),
-				HolderExternalAddress:  strPtr("0:holder1:"),
+				HolderExternalAddress:  strPtr("holder1"),
 				HolderPlatform:         strPtr("ionconnect"),
 			},
 		}
@@ -359,9 +359,9 @@ func Test_buildTopHolderPositions(t *testing.T) {
 		totalSupply := new(big.Int).Mul(big.NewInt(10), big.NewInt(1e18)) // 10 tokens
 
 		rankings := []redis.Z{
-			{Score: 5.0, Member: "0:test_holder1:"}, // 5 tokens = 50%
-			{Score: 3.0, Member: "0:test_holder2:"}, // 3 tokens = 30%
-			{Score: 2.0, Member: "0:test_holder3:"}, // 2 tokens = 20%
+			{Score: 5.0, Member: "test_holder1"}, // 5 tokens = 50%
+			{Score: 3.0, Member: "test_holder2"}, // 3 tokens = 30%
+			{Score: 2.0, Member: "test_holder3"}, // 2 tokens = 20%
 		}
 
 		rows := []*holderWithTokenData{
@@ -371,7 +371,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				CreatorDisplay:         strPtr(""),
 				CreatorVerified:        boolPtr(false),
 				CreatorAvatar:          strPtr(""),
-				CreatorExternalAddress: strPtr("0:test_creator:"),
+				CreatorExternalAddress: strPtr("test_creator"),
 				CreatorPlatform:        strPtr("ionconnect"),
 				PriceUSD:               1.0,
 				TotalSupply:            totalSupply.String(),
@@ -382,7 +382,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderDisplay:          strPtr(""),
 				HolderVerified:         boolPtr(false),
 				HolderAvatar:           strPtr(""),
-				HolderExternalAddress:  strPtr("0:test_holder1:"),
+				HolderExternalAddress:  strPtr("test_holder1"),
 				HolderPlatform:         strPtr("ionconnect"),
 			},
 			{
@@ -391,7 +391,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				CreatorDisplay:         strPtr(""),
 				CreatorVerified:        boolPtr(false),
 				CreatorAvatar:          strPtr(""),
-				CreatorExternalAddress: strPtr("0:test_creator:"),
+				CreatorExternalAddress: strPtr("test_creator"),
 				CreatorPlatform:        strPtr("ionconnect"),
 				PriceUSD:               1.0,
 				TotalSupply:            totalSupply.String(),
@@ -402,7 +402,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderDisplay:          strPtr(""),
 				HolderVerified:         boolPtr(false),
 				HolderAvatar:           strPtr(""),
-				HolderExternalAddress:  strPtr("0:test_holder2:"),
+				HolderExternalAddress:  strPtr("test_holder2"),
 				HolderPlatform:         strPtr("ionconnect"),
 			},
 			{
@@ -411,7 +411,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				CreatorDisplay:         strPtr(""),
 				CreatorVerified:        boolPtr(false),
 				CreatorAvatar:          strPtr(""),
-				CreatorExternalAddress: strPtr("0:test_creator:"),
+				CreatorExternalAddress: strPtr("test_creator"),
 				CreatorPlatform:        strPtr("ionconnect"),
 				PriceUSD:               1.0,
 				TotalSupply:            totalSupply.String(),
@@ -422,7 +422,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderDisplay:          strPtr(""),
 				HolderVerified:         boolPtr(false),
 				HolderAvatar:           strPtr(""),
-				HolderExternalAddress:  strPtr("0:test_holder3:"),
+				HolderExternalAddress:  strPtr("test_holder3"),
 				HolderPlatform:         strPtr("ionconnect"),
 			},
 		}
@@ -442,8 +442,8 @@ func Test_buildTopHolderPositions(t *testing.T) {
 		totalSupply := new(big.Int).Mul(big.NewInt(100), big.NewInt(1e18))
 
 		rankings := []redis.Z{
-			{Score: 40.0, Member: "0:holder1:"},
-			{Score: 30.0, Member: "0:holder2:"},
+			{Score: 40.0, Member: "holder1"},
+			{Score: 30.0, Member: "holder2"},
 		}
 
 		rankingsByBlockchain := []redis.Z{
@@ -457,7 +457,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				CreatorUsername:        strPtr("creator"),
 				CreatorDisplay:         strPtr("Creator"),
 				CreatorVerified:        boolPtr(false),
-				CreatorExternalAddress: strPtr("0:creator:"),
+				CreatorExternalAddress: strPtr("creator"),
 				CreatorPlatform:        strPtr("ionconnect"),
 				PriceUSD:               1.0,
 				TotalSupply:            totalSupply.String(),
@@ -467,7 +467,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderUsername:         strPtr("user1"),
 				HolderDisplay:          strPtr("User 1"),
 				HolderVerified:         boolPtr(false),
-				HolderExternalAddress:  strPtr("0:holder1:"),
+				HolderExternalAddress:  strPtr("holder1"),
 				HolderBnbBscAddress:    strPtr("0xblockchain1"),
 				HolderPlatform:         strPtr("ionconnect"),
 			},
@@ -476,7 +476,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				CreatorUsername:        strPtr("creator"),
 				CreatorDisplay:         strPtr("Creator"),
 				CreatorVerified:        boolPtr(false),
-				CreatorExternalAddress: strPtr("0:creator:"),
+				CreatorExternalAddress: strPtr("creator"),
 				CreatorPlatform:        strPtr("ionconnect"),
 				PriceUSD:               1.0,
 				TotalSupply:            totalSupply.String(),
@@ -486,7 +486,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				HolderUsername:         strPtr("user2"),
 				HolderDisplay:          strPtr("User 2"),
 				HolderVerified:         boolPtr(false),
-				HolderExternalAddress:  strPtr("0:holder2:"),
+				HolderExternalAddress:  strPtr("holder2"),
 				HolderBnbBscAddress:    strPtr("0xblockchain2"),
 				HolderPlatform:         strPtr("ionconnect"),
 			},
@@ -495,7 +495,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				CreatorUsername:        strPtr("creator"),
 				CreatorDisplay:         strPtr("Creator"),
 				CreatorVerified:        boolPtr(false),
-				CreatorExternalAddress: strPtr("0:creator:"),
+				CreatorExternalAddress: strPtr("creator"),
 				CreatorPlatform:        strPtr("ionconnect"),
 				PriceUSD:               1.0,
 				TotalSupply:            totalSupply.String(),
@@ -513,7 +513,7 @@ func Test_buildTopHolderPositions(t *testing.T) {
 				CreatorUsername:        strPtr("creator"),
 				CreatorDisplay:         strPtr("Creator"),
 				CreatorVerified:        boolPtr(false),
-				CreatorExternalAddress: strPtr("0:creator:"),
+				CreatorExternalAddress: strPtr("creator"),
 				CreatorPlatform:        strPtr("ionconnect"),
 				PriceUSD:               1.0,
 				TotalSupply:            totalSupply.String(),
@@ -592,13 +592,13 @@ func TestGetTopHolders(t *testing.T) {
 		helperUpdateTokenPrice(t, ctx, db, tokenExternalAddr, 2.0)
 
 		holder1MasterPubkey := "holder1"
-		holder1ExternalAddr := "0:holder1:"
+		holder1ExternalAddr := "holder1"
 		holder1BlockchainAddr := "0x2222222222222222222222222222222222222222"
 		holder2MasterPubkey := "holder2"
-		holder2ExternalAddr := "0:holder2:"
+		holder2ExternalAddr := "holder2"
 		holder2BlockchainAddr := "0x3333333333333333333333333333333333333333"
 		holder3MasterPubkey := "holder3"
-		holder3ExternalAddr := "0:holder3:"
+		holder3ExternalAddr := "holder3"
 		holder3BlockchainAddr := "0x4444444444444444444444444444444444444444"
 
 		helperInsertTestUser(t, ctx, db, holder1MasterPubkey, "holder1", "Holder One", holder1BlockchainAddr, true, PlatformGroupIonConnect)
@@ -720,10 +720,10 @@ func TestGetTopHolders(t *testing.T) {
 		helperUpdateTokenPrice(t, ctx, db, tokenExternalAddr, 1.5)
 
 		holder1MasterPubkey := "holder_content1"
-		holder1ExternalAddr := "0:holder_content1:"
+		holder1ExternalAddr := "holder_content1"
 		holder1BlockchainAddr := "0xbbbb000000000000000000000000000000000000"
 		holder2MasterPubkey := "holder_content2"
-		holder2ExternalAddr := "0:holder_content2:"
+		holder2ExternalAddr := "holder_content2"
 		holder2BlockchainAddr := "0xcccc000000000000000000000000000000000000"
 
 		helperInsertTestUser(t, ctx, db, holder1MasterPubkey, "holder_content1", "Holder Content 1", holder1BlockchainAddr, false, PlatformGroupIonConnect)
@@ -829,7 +829,7 @@ func TestGetTopHolders(t *testing.T) {
 
 		for i := 1; i <= 10; i++ {
 			holderMasterPubkey := fmt.Sprintf("holder%d", i)
-			holderExternalAddr := fmt.Sprintf("0:holder%d:", i)
+			holderExternalAddr := fmt.Sprintf("holder%d", i)
 			holderBlockchainAddr := fmt.Sprintf("0x%040d", i)
 			helperInsertTestUser(t, ctx, db, holderMasterPubkey, fmt.Sprintf("holder%d", i), fmt.Sprintf("Holder %d", i), holderBlockchainAddr, false, PlatformGroupIonConnect)
 			helperInsertUserTokenPosition(t, ctx, db, holderMasterPubkey, tokenContractAddr, tokenExternalAddr, holderExternalAddr, "1000000000000000000", 1.0, 1.0)
@@ -887,7 +887,7 @@ func TestGetTopHolders(t *testing.T) {
 		helperUpdateTokenBondingCurveMigrated(t, ctx, db, tokenExternalAddr, true)
 
 		unknownHolderMasterPubkey := "unknown_holder"
-		unknownHolderExternalAddr := "0:unknown_holder:"
+		unknownHolderExternalAddr := "unknown_holder"
 		unknownHolderBlockchainAddr := "0x7777777777777777777777777777777777777777"
 
 		helperInsertUserTokenPosition(t, ctx, db, unknownHolderMasterPubkey, tokenContractAddr, tokenExternalAddr, unknownHolderExternalAddr, "3000000000000000000", 1.5, 4.5)
@@ -908,9 +908,9 @@ func TestGetTopHolders(t *testing.T) {
 		require.Nil(t, result[0].Position.Holder.Username)
 		require.Nil(t, result[0].Position.Holder.Display)
 		require.Nil(t, result[0].Position.Holder.Verified)
-		require.Equal(t, unknownHolderMasterPubkey, result[0].Position.Holder.Addresses.IonConnect)
+		require.Equal(t, unknownHolderMasterPubkey, result[0].Position.Holder.Addresses.Twitter)
 		require.NotEmpty(t, result[0].Position.Holder.Addresses.Blockchain)
-		require.Empty(t, result[0].Position.Holder.Addresses.Twitter)
+		require.Empty(t, result[0].Position.Holder.Addresses.IonConnect)
 		require.Equal(t, "3000000000000000000", result[0].Position.Amount)
 		require.InDelta(t, 4.5, result[0].Position.AmountUSD, 0.0001)
 		require.InDelta(t, 0.3, result[0].Position.SupplyShare, 0.0001)
@@ -1019,7 +1019,7 @@ func TestGetTopHolders(t *testing.T) {
 		helperUpdateTokenBondingCurveMigrated(t, ctx, db, tokenExternalAddr, true)
 
 		holderMasterPubkey := "holder_usd"
-		holderExternalAddr := "0:holder_usd:"
+		holderExternalAddr := "holder_usd"
 		holderBlockchainAddr := "0xbbbb000000000000000000000000000000000000"
 
 		helperInsertTestUser(t, ctx, db, holderMasterPubkey, "holder_usd", "Holder USD", holderBlockchainAddr, false, PlatformGroupIonConnect)
@@ -1096,10 +1096,10 @@ func TestGetTopHolders(t *testing.T) {
 		helperUpdateTokenPrice(t, ctx, db, tokenExternalAddr, 2.0)
 
 		holder1MasterPubkey := "holder_rank1"
-		holder1ExternalAddr := "0:holder_rank1:"
+		holder1ExternalAddr := "holder_rank1"
 		holder1BlockchainAddr := "0x2222000000000000000000000000000000000000"
 		holder2MasterPubkey := "holder_rank2"
-		holder2ExternalAddr := "0:holder_rank2:"
+		holder2ExternalAddr := "holder_rank2"
 		holder2BlockchainAddr := "0x3333000000000000000000000000000000000000"
 		holder3BlockchainAddr := "0x4444000000000000000000000000000000000000"
 		holder4BlockchainAddr := "0x5555000000000000000000000000000000000000"
@@ -1205,7 +1205,7 @@ func TestGetTopHolders(t *testing.T) {
 
 		for i := 1; i <= 10; i++ {
 			holderMasterPubkey := fmt.Sprintf("holder_limit_%d", i)
-			holderExternalAddr := fmt.Sprintf("0:holder_limit_%d:", i)
+			holderExternalAddr := fmt.Sprintf("holder_limit_%d", i)
 			holderBlockchainAddr := fmt.Sprintf("0x%040d", 1000+i)
 			helperInsertTestUser(t, ctx, db, holderMasterPubkey, fmt.Sprintf("holder_limit_%d", i), fmt.Sprintf("Holder Limit %d", i), holderBlockchainAddr, false, PlatformGroupIonConnect)
 			helperInsertUserTokenPosition(t, ctx, db, holderMasterPubkey, tokenContractAddr, tokenExternalAddr, holderExternalAddr, fmt.Sprintf("%d000000000000000000", 11-i), 2.0, float64((11-i)*2))
@@ -1278,7 +1278,7 @@ func TestGetTopHolders(t *testing.T) {
 		helperUpdateTokenPrice(t, ctx, db, tokenExternalAddr, 2.0)
 
 		holderMasterPubkey := "holder_limit1_1"
-		holderExternalAddr := "0:holder_limit1_1:"
+		holderExternalAddr := "holder_limit1_1"
 		holderBlockchainAddr := "0x2222333333333333333333333333333333333333"
 		helperInsertTestUser(t, ctx, db, holderMasterPubkey, "holder_limit1_1", "Holder Limit1 1", holderBlockchainAddr, false, PlatformGroupIonConnect)
 		helperInsertUserTokenPosition(t, ctx, db, holderMasterPubkey, tokenContractAddr, tokenExternalAddr, holderExternalAddr, "50000000000000000000", 2.0, 100.0)

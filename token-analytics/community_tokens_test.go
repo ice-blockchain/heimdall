@@ -27,13 +27,11 @@ func TestUpdateLoggedInUserProfile_TwoStepUpdate(t *testing.T) {
 		ta := helperNewForTest(t, db, WithoutQuestDB())
 
 		xcomUserID := "1234567890123"
-		externalAddress := "1234567890123"
 		bscWallet := "0xbsc_wallet_address"
 
 		err := ta.UpdateLoggedInUserProfile(
 			ctx,
 			xcomUserID,
-			externalAddress,
 			"john_doe",
 			"John Doe",
 			"https://avatar.com/john.png",
@@ -43,20 +41,17 @@ func TestUpdateLoggedInUserProfile_TwoStepUpdate(t *testing.T) {
 		require.NoError(t, err)
 
 		type userResult struct {
-			ID              string  `db:"id"`
-			MasterPubkey    string  `db:"master_pubkey"`
-			Username        string  `db:"username"`
-			ExternalAddress *string `db:"external_address"`
+			ID           string `db:"id"`
+			MasterPubkey string `db:"master_pubkey"`
+			Username     string `db:"username"`
 		}
 		result1, err := storage.Get[userResult](ctx, db,
-			"SELECT id, master_pubkey, username, external_address FROM users WHERE external_address = $1",
-			externalAddress)
+			"SELECT id, master_pubkey, username FROM users WHERE master_pubkey = $1",
+			xcomUserID)
 		require.NoError(t, err)
 
 		require.Equal(t, "john_doe", result1.Username)
 		require.Equal(t, xcomUserID, result1.MasterPubkey)
-		require.NotNil(t, result1.ExternalAddress, "external_address should be set")
-		require.Equal(t, externalAddress, *result1.ExternalAddress)
 
 		type bscResult struct {
 			Count int `db:"count"`
@@ -68,8 +63,7 @@ func TestUpdateLoggedInUserProfile_TwoStepUpdate(t *testing.T) {
 
 		err = ta.UpdateLoggedInUserProfile(
 			ctx,
-			externalAddress,
-			externalAddress,
+			xcomUserID,
 			"",
 			"",
 			"",
@@ -79,14 +73,12 @@ func TestUpdateLoggedInUserProfile_TwoStepUpdate(t *testing.T) {
 		require.NoError(t, err)
 
 		result2, err := storage.Get[userResult](ctx, db,
-			"SELECT id, master_pubkey, username, external_address FROM users WHERE external_address = $1",
-			externalAddress)
+			"SELECT id, master_pubkey, username FROM users WHERE master_pubkey = $1",
+			xcomUserID)
 		require.NoError(t, err)
 
 		require.Equal(t, xcomUserID, result2.MasterPubkey, "master_pubkey should remain X.com user ID (not changed)")
 		require.Equal(t, "john_doe", result2.Username, "username should be preserved")
-		require.NotNil(t, result2.ExternalAddress, "external_address should be preserved")
-		require.Equal(t, externalAddress, *result2.ExternalAddress, "external_address should be preserved")
 
 		type bscAddrResult struct {
 			BscAddress string `db:"bsc_address"`
@@ -99,7 +91,7 @@ func TestUpdateLoggedInUserProfile_TwoStepUpdate(t *testing.T) {
 		type countResult struct {
 			Count int `db:"count"`
 		}
-		countRes, err := storage.Get[countResult](ctx, db, "SELECT COUNT(*) as count FROM users WHERE external_address = $1", externalAddress)
+		countRes, err := storage.Get[countResult](ctx, db, "SELECT COUNT(*) as count FROM users WHERE master_pubkey = $1", xcomUserID)
 		require.NoError(t, err)
 		require.Equal(t, 1, countRes.Count, "should have exactly 1 user")
 	})
@@ -117,13 +109,11 @@ func TestUpdateLoggedInUserProfile(t *testing.T) {
 		ctx := context.Background()
 
 		xcomUserID := "9876543210"
-		externalAddress := "9876543210"
 		bscWallet := "0xABCDEF1234567890ABCDEF1234567890ABCDEF12"
 
 		err := ta.UpdateLoggedInUserProfile(
 			ctx,
 			xcomUserID,
-			externalAddress,
 			"alice",
 			"Alice Wonder",
 			"https://avatar.com/alice.png",
@@ -133,21 +123,19 @@ func TestUpdateLoggedInUserProfile(t *testing.T) {
 		require.NoError(t, err)
 
 		type userResult struct {
-			ID              string `db:"id"`
-			MasterPubkey    string `db:"master_pubkey"`
-			Username        string `db:"username"`
-			DisplayName     string `db:"display_name"`
-			ExternalAddress string `db:"external_address"`
-			PlatformGroup   string `db:"platform_group"`
+			ID            string `db:"id"`
+			MasterPubkey  string `db:"master_pubkey"`
+			Username      string `db:"username"`
+			DisplayName   string `db:"display_name"`
+			PlatformGroup string `db:"platform_group"`
 		}
 		user, err := storage.Get[userResult](ctx, db,
-			"SELECT id, master_pubkey, username, display_name, external_address, platform_group FROM users WHERE external_address = $1",
-			externalAddress)
+			"SELECT id, master_pubkey, username, display_name, platform_group FROM users WHERE master_pubkey = $1",
+			xcomUserID)
 		require.NoError(t, err)
 		require.Equal(t, xcomUserID, user.MasterPubkey)
 		require.Equal(t, "alice", user.Username)
 		require.Equal(t, "Alice Wonder", user.DisplayName)
-		require.Equal(t, externalAddress, user.ExternalAddress)
 		require.Equal(t, PlatformGroupXCom, user.PlatformGroup)
 
 		type bscAddrResult struct {
@@ -168,13 +156,12 @@ func TestUpdateLoggedInUserProfile(t *testing.T) {
 		ctx := context.Background()
 
 		xcomUserID := "5555555555"
-		externalAddress := "5555555555"
 		bscWallet := "0x1111111111111111111111111111111111111111"
 
-		err := ta.UpdateLoggedInUserProfile(ctx, xcomUserID, externalAddress, "bob", "Bob Builder", "", true, bscWallet)
+		err := ta.UpdateLoggedInUserProfile(ctx, xcomUserID, "bob", "Bob Builder", "", true, bscWallet)
 		require.NoError(t, err)
 
-		err = ta.UpdateLoggedInUserProfile(ctx, xcomUserID, externalAddress, "bob_updated", "Bob The Builder", "https://new-avatar.com/bob.png", false, bscWallet)
+		err = ta.UpdateLoggedInUserProfile(ctx, xcomUserID, "bob_updated", "Bob The Builder", "https://new-avatar.com/bob.png", false, bscWallet)
 		require.NoError(t, err, "idempotent call should not fail")
 
 		type userResult struct {
@@ -184,8 +171,8 @@ func TestUpdateLoggedInUserProfile(t *testing.T) {
 			Verified    bool    `db:"verified"`
 		}
 		user, err := storage.Get[userResult](ctx, db,
-			"SELECT username, display_name, avatar, verified FROM users WHERE external_address = $1",
-			externalAddress)
+			"SELECT username, display_name, avatar, verified FROM users WHERE master_pubkey = $1",
+			xcomUserID)
 		require.NoError(t, err)
 		require.Equal(t, "bob_updated", user.Username)
 		require.Equal(t, "Bob The Builder", user.DisplayName)
@@ -203,21 +190,20 @@ func TestUpdateLoggedInUserProfile(t *testing.T) {
 		ctx := context.Background()
 
 		xcomUserID := "7777777777"
-		externalAddress := "7777777777"
 		bscWallet1 := "0x2222222222222222222222222222222222222222"
 		bscWallet2 := "0x3333333333333333333333333333333333333333"
 
-		err := ta.UpdateLoggedInUserProfile(ctx, xcomUserID, externalAddress, "charlie", "Charlie", "", true, bscWallet1)
+		err := ta.UpdateLoggedInUserProfile(ctx, xcomUserID, "charlie", "Charlie", "", true, bscWallet1)
 		require.NoError(t, err)
 
-		err = ta.UpdateLoggedInUserProfile(ctx, xcomUserID, externalAddress, "", "", "", true, bscWallet2)
+		err = ta.UpdateLoggedInUserProfile(ctx, xcomUserID, "", "", "", true, bscWallet2)
 		require.NoError(t, err)
 
 		type userResult struct {
 			ID string `db:"id"`
 		}
 		user, err := storage.Get[userResult](ctx, db,
-			"SELECT id FROM users WHERE external_address = $1", externalAddress)
+			"SELECT id FROM users WHERE master_pubkey = $1", xcomUserID)
 		require.NoError(t, err)
 
 		type bscAddrResult struct {
@@ -241,10 +227,10 @@ func TestUpdateLoggedInUserProfile(t *testing.T) {
 
 		bscWallet := "0x4444444444444444444444444444444444444444"
 
-		err := ta.UpdateLoggedInUserProfile(ctx, "user1_master", "ext_addr_1", "user1", "User 1", "", true, bscWallet)
+		err := ta.UpdateLoggedInUserProfile(ctx, "user1_master", "user1", "User 1", "", true, bscWallet)
 		require.NoError(t, err)
 
-		err = ta.UpdateLoggedInUserProfile(ctx, "user2_master", "ext_addr_2", "user2", "User 2", "", true, bscWallet)
+		err = ta.UpdateLoggedInUserProfile(ctx, "user2_master", "user2", "User 2", "", true, bscWallet)
 		require.NoError(t, err, "should not return error, silently ignores duplicate BSC")
 
 		type userBSCResult struct {
@@ -256,8 +242,8 @@ func TestUpdateLoggedInUserProfile(t *testing.T) {
 			SELECT u.id as user_id, uba.bsc_address
 			FROM users u
 			LEFT JOIN user_bsc_addresses uba ON u.id = uba.user_id
-			WHERE u.external_address = $1
-		`, "ext_addr_1")
+			WHERE u.master_pubkey = $1
+		`, "user1_master")
 		require.NoError(t, err)
 		require.NotNil(t, user1.BSCAddress)
 		require.Equal(t, strings.ToLower(bscWallet), *user1.BSCAddress)
@@ -266,8 +252,8 @@ func TestUpdateLoggedInUserProfile(t *testing.T) {
 			SELECT u.id as user_id, uba.bsc_address
 			FROM users u
 			LEFT JOIN user_bsc_addresses uba ON u.id = uba.user_id
-			WHERE u.external_address = $1
-		`, "ext_addr_2")
+			WHERE u.master_pubkey = $1
+		`, "user2_master")
 		require.NoError(t, err)
 		require.Nil(t, user2.BSCAddress, "user2 should have no BSC address")
 	})
@@ -281,20 +267,19 @@ func TestUpdateLoggedInUserProfile(t *testing.T) {
 		ctx := context.Background()
 
 		xcomUserID := "8888888888"
-		externalAddress := "8888888888"
 		bscWallet := "0x5555555555555555555555555555555555555555"
 
-		err := ta.UpdateLoggedInUserProfile(ctx, xcomUserID, externalAddress, "dave", "Dave", "", true, bscWallet)
+		err := ta.UpdateLoggedInUserProfile(ctx, xcomUserID, "dave", "Dave", "", true, bscWallet)
 		require.NoError(t, err)
 
-		err = ta.UpdateLoggedInUserProfile(ctx, xcomUserID, externalAddress, "dave", "Dave", "", true, bscWallet)
+		err = ta.UpdateLoggedInUserProfile(ctx, xcomUserID, "dave", "Dave", "", true, bscWallet)
 		require.NoError(t, err, "idempotent call should not fail")
 
 		type userResult struct {
 			ID string `db:"id"`
 		}
 		user, err := storage.Get[userResult](ctx, db,
-			"SELECT id FROM users WHERE external_address = $1", externalAddress)
+			"SELECT id FROM users WHERE master_pubkey = $1", xcomUserID)
 		require.NoError(t, err)
 
 		type bscResult struct {
@@ -595,17 +580,15 @@ func TestUpdateTokenExternalData(t *testing.T) {
 		require.NoError(t, err)
 
 		type userResult struct {
-			ID              string `db:"id"`
-			MasterPubkey    string `db:"master_pubkey"`
-			ExternalAddress string `db:"external_address"`
-			Username        string `db:"username"`
+			ID           string `db:"id"`
+			MasterPubkey string `db:"master_pubkey"`
+			Username     string `db:"username"`
 		}
 		user, err := storage.Get[userResult](ctx, db,
-			"SELECT id, master_pubkey, external_address, username FROM users WHERE external_address = $1",
+			"SELECT id, master_pubkey, username FROM users WHERE master_pubkey = $1",
 			postAuthorExternalAddress)
 		require.NoError(t, err)
 		require.Equal(t, postAuthorExternalAddress, user.MasterPubkey)
-		require.Equal(t, postAuthorExternalAddress, user.ExternalAddress)
 		require.Equal(t, "author1", user.Username)
 
 		type bscAddrResult struct {
@@ -723,7 +706,7 @@ func TestUpdateTokenExternalData(t *testing.T) {
 			ID string `db:"id"`
 		}
 		user, err := storage.Get[userResult](ctx, db,
-			"SELECT id FROM users WHERE external_address = $1", postAuthorExternalAddress)
+			"SELECT id FROM users WHERE master_pubkey = $1", postAuthorExternalAddress)
 		require.NoError(t, err)
 
 		type bscResult struct {
@@ -767,7 +750,7 @@ func TestUpdateTokenExternalData(t *testing.T) {
 			SELECT u.id as user_id, uba.bsc_address
 			FROM users u
 			LEFT JOIN user_bsc_addresses uba ON u.id = uba.user_id
-			WHERE u.external_address = $1
+			WHERE u.master_pubkey = $1
 		`, "author_ext_1")
 		require.NoError(t, err)
 		require.NotNil(t, user1.BSCAddress)
@@ -777,7 +760,7 @@ func TestUpdateTokenExternalData(t *testing.T) {
 			SELECT u.id as user_id, uba.bsc_address
 			FROM users u
 			LEFT JOIN user_bsc_addresses uba ON u.id = uba.user_id
-			WHERE u.external_address = $1
+			WHERE u.master_pubkey = $1
 		`, "author_ext_2")
 		require.NoError(t, err)
 		require.Nil(t, user2.BSCAddress, "user2 should have no BSC address")
@@ -816,7 +799,7 @@ func TestUpdateTokenExternalData(t *testing.T) {
 			Verified    bool    `db:"verified"`
 		}
 		user, err := storage.Get[userResult](ctx, db,
-			"SELECT username, display_name, avatar, verified FROM users WHERE external_address = $1",
+			"SELECT username, display_name, avatar, verified FROM users WHERE master_pubkey = $1",
 			postAuthorExternalAddress)
 		require.NoError(t, err)
 		require.Equal(t, "new_name", user.Username)

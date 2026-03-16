@@ -261,7 +261,6 @@ func (t *tokenAnalytics) HealthCheck(ctx context.Context) error {
 
 func (t *tokenAnalyticsUsers) UpsertUser(ctx context.Context, id, masterPubkey, blockchainAddress, username, displayName, avatar string, verified *bool, ionConnectRelays []string) error {
 	lookup := strings.ToLower(strings.TrimSpace(username + " " + displayName))
-	externalAddress := BuildProfileExternalAddress(masterPubkey)
 	verifiedVal := false
 	if verified != nil {
 		verifiedVal = *verified
@@ -274,16 +273,15 @@ func (t *tokenAnalyticsUsers) UpsertUser(ctx context.Context, id, masterPubkey, 
 	_, err := storage.Exec(ctx, t.ingestedDataDB, `
 		WITH upserted_user AS (
 			INSERT INTO users (
-				created_at, updated_at, id, master_pubkey, external_address, username,
+				created_at, updated_at, id, master_pubkey, username,
 				display_name, avatar, lookup, ion_connect_relays, verified, platform_group
 			) VALUES (
-				NOW(), NOW(), $1, $2, $9, $3, $4, $5, $6, $7, $8, 'ionconnect'::platform_type
+				NOW(), NOW(), $1, $2, $3, $4, $5, $6, $7, $8, 'ionconnect'::platform_type
 			)
 			ON CONFLICT (id)
 			DO UPDATE SET
 				updated_at = NOW(),
 				master_pubkey = EXCLUDED.master_pubkey,
-				external_address = EXCLUDED.external_address,
 				username = COALESCE(NULLIF(EXCLUDED.username, ''), users.username),
 				display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name),
 				avatar = COALESCE(NULLIF(EXCLUDED.avatar, ''), users.avatar),
@@ -292,16 +290,16 @@ func (t *tokenAnalyticsUsers) UpsertUser(ctx context.Context, id, masterPubkey, 
 						LOWER(TRIM(COALESCE(NULLIF(EXCLUDED.username, ''), users.username) || ' ' || COALESCE(NULLIF(EXCLUDED.display_name, ''), users.display_name)))
 					ELSE users.lookup
 				END,
-				ion_connect_relays = CASE WHEN $11 THEN EXCLUDED.ion_connect_relays ELSE users.ion_connect_relays END,
-				verified = CASE WHEN $11 THEN EXCLUDED.verified ELSE users.verified END,
+				ion_connect_relays = CASE WHEN $10 THEN EXCLUDED.ion_connect_relays ELSE users.ion_connect_relays END,
+				verified = CASE WHEN $10 THEN EXCLUDED.verified ELSE users.verified END,
 				platform_group = EXCLUDED.platform_group
 			RETURNING id
 		)
 		INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
-		SELECT id, $10::text, NOW() FROM upserted_user
-		WHERE $10::text IS NOT NULL AND $10::text != ''
+		SELECT id, $9::text, NOW() FROM upserted_user
+		WHERE $9::text IS NOT NULL AND $9::text != ''
 		ON CONFLICT (bsc_address) DO NOTHING
-	`, id, masterPubkey, username, displayName, avatar, lookup, relays, verifiedVal, externalAddress, strings.ToLower(blockchainAddress), verified != nil && ionConnectRelays != nil)
+	`, id, masterPubkey, username, displayName, avatar, lookup, relays, verifiedVal, strings.ToLower(blockchainAddress), verified != nil && ionConnectRelays != nil)
 
 	log.Error(fmt.Errorf("failed to upsert user %v: %w", masterPubkey, err))
 	// TODO: return an error here later.
@@ -371,7 +369,7 @@ func (t *tokenAnalyticsUsers) UpdateUserProfileAndToken(ctx context.Context, mas
 
 func (t *tokenAnalyticsUsers) GetUser(ctx context.Context, masterPubkey string) (*UserRecord, error) {
 	user, err := storage.Get[UserRecord](ctx, t.ingestedDataDB,
-		`SELECT id, master_pubkey, external_address, username,
+		`SELECT id, master_pubkey, username,
 		        display_name, avatar, lookup, ion_connect_relays, verified, platform_group
 		 FROM users WHERE master_pubkey = $1`, masterPubkey)
 	if err != nil {

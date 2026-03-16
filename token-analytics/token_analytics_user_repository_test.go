@@ -231,8 +231,8 @@ func TestUpdateUserProfileAndToken(t *testing.T) {
 
 		_, err := storage.Exec(t.Context(), db, `
 			WITH ins_user AS (
-				INSERT INTO users (id, master_pubkey, external_address, username, display_name, avatar, platform_group, lookup, created_at, updated_at)
-				VALUES ($1, $1, $2, $3, $4, NULL, $5, LOWER(TRIM($3 || ' ' || $4)), NOW(), NOW())
+				INSERT INTO users (id, master_pubkey, username, display_name, avatar, platform_group, lookup, created_at, updated_at)
+				VALUES ($1, $1, $3, $4, NULL, $5, LOWER(TRIM($3 || ' ' || $4)), NOW(), NOW())
 				RETURNING id
 			)
 			INSERT INTO user_bsc_addresses (user_id, bsc_address, created_at)
