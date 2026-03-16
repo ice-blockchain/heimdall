@@ -120,7 +120,7 @@ func (a *accounts) enqueueTransferUpsert(ctx context.Context, walletID, userID s
 		WalletID: walletID,
 		Payload:  payload,
 	}); err != nil {
-		return errors.Wrapf(err, "failed to enqueue assets update for wallet %v user %v", walletID, userID)
+		return errors.Wrapf(err, "failed to enqueue transfer update for wallet %v user %v", walletID, userID)
 	}
 	return nil
 }
@@ -144,7 +144,7 @@ func (w *webhookSyncAssetsWorker) Work(ctx context.Context, job *riverqueue.Job[
 	args := job.Args
 	assets, err := w.a.getWalletAssets(ctx, args.WalletID)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get wallet assets for wallet %v user % from 3rd party", args.WalletID, args.UserID)
+		return errors.Wrapf(err, "failed to get wallet assets for wallet %v user %v from 3rd party", args.WalletID, args.UserID)
 	}
 
 	return errors.Wrapf(w.a.upsertWalletAsset(ctx, args.UserID, args.WalletID, assets.Assets), "failed to upsert wallet assets for wallet %v user %v", args.WalletID, args.UserID)

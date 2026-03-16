@@ -955,26 +955,35 @@ func (a *accounts) GetWalletHistory(ctx context.Context, walletID, paginationTok
 	if limit == 0 {
 		limit = 100
 	}
-	var offset uint64
+	var historyForWallet []*history
 	if paginationToken == "" {
-		offset = 0
+		historyForWallet, err = storage.Select[history](ctx, a.db, `SELECT * FROM wallet_history WHERE wallet_id = $1 ORDER BY (block_number, i, log_index) DESC LIMIT $2`, walletID, limit+1)
+		if err != nil {
+			if storage.IsErr(err, storage.ErrNotFound) {
+				err = nil
+			}
+			if err != nil {
+				return nil, "", nil, errors.Wrapf(err, "failed to get wallet history for wallet %v", walletID)
+			}
+		}
 	} else {
+		offset := uint64(0)
 		offset, err = strconv.ParseUint(paginationToken, 10, 64)
 		if err != nil {
 			return nil, "", nil, errors.Wrapf(err, "failed to parse pagination token: %v", paginationToken)
 		}
-	}
-	historyForWallet, err := storage.Select[history](ctx, a.db, `SELECT * FROM wallet_history WHERE wallet_id = $1 AND i <= $3 ORDER BY block_number, i, log_index DESC LIMIT $2`, walletID, limit+1, offset)
-	if err != nil {
-		if storage.IsErr(err, storage.ErrNotFound) {
-			err = nil
-		}
+		historyForWallet, err = storage.Select[history](ctx, a.db, `SELECT * FROM wallet_history WHERE wallet_id = $1 AND i <= $3 ORDER BY (block_number, i, log_index) DESC LIMIT $2`, walletID, limit+1, offset)
 		if err != nil {
-			return nil, "", nil, errors.Wrapf(err, "failed to get wallet history for wallet %v", walletID)
+			if storage.IsErr(err, storage.ErrNotFound) {
+				err = nil
+			}
+			if err != nil {
+				return nil, "", nil, errors.Wrapf(err, "failed to get wallet history for wallet %v", walletID)
+			}
 		}
 	}
 
-	if len(historyForWallet) == 0 {
+	if len(historyForWallet) == 0 && paginationToken == "" {
 		userID := server.LoggedInUser(ctx).UserID()
 		histories, network, newPagination, err = a.getWalletHistory(ctx, walletID, paginationToken, limit)
 		if err != nil {
@@ -992,6 +1001,9 @@ func (a *accounts) GetWalletHistory(ctx context.Context, walletID, paginationTok
 			return nil, "", nil, errors.Wrapf(err, "failed to insert history for wallet %v user %v", walletID, userID)
 		}
 		return histories, network, newPagination, nil
+	}
+	if historyForWallet[0].UserID != server.LoggedInUser(ctx).UserID() {
+		return nil, "", nil, ErrNotOwned
 	}
 	res := make([]WalletHistoryItem, 0, len(historyForWallet))
 	for _, h := range historyForWallet {
@@ -1017,7 +1029,7 @@ func (a *accounts) GetWalletHistory(ctx context.Context, walletID, paginationTok
 			"memo":         h.Memo,
 		})
 	}
-	if uint64(len(res)) >= limit {
+	if uint64(len(res)) > limit {
 		newPagination = new(fmt.Sprintf("%v", historyForWallet[len(res)-1].I))
 		res = res[:limit]
 	} else {
@@ -1045,23 +1057,26 @@ func (a *accounts) GetWalletTransfers(ctx context.Context, walletID, paginationT
 			err = nil
 		}
 		if err != nil {
-			return nil, "", nil, errors.Wrapf(err, "failed to get wallet history for wallet %v", walletID)
+			return nil, "", nil, errors.Wrapf(err, "failed to get wallet transfers for wallet %v", walletID)
 		}
 	}
 
 	if len(transfersForWallet) == 0 {
 		transfersFrom3rdParty, err := a.delegatedRPClient.GetWalletTransfers(ctx, walletID, paginationToken, limit)
 		if err != nil {
-			return nil, "", nil, errors.Wrapf(err, "failed to get wallet history for wallet %v from 3rd party", walletID)
+			return nil, "", nil, errors.Wrapf(err, "failed to get wallet transfers for wallet %v from 3rd party", walletID)
 		}
 		return transfersFrom3rdParty.Items, transfersFrom3rdParty.Network, transfersFrom3rdParty.NextPageToken, nil
+	}
+	if transfersForWallet[0].UserID != server.LoggedInUser(ctx).UserID() {
+		return nil, "", nil, ErrNotOwned
 	}
 	res := make([]dfns.TransferItem, 0, len(transfersForWallet))
 	for _, t := range transfersForWallet {
 		res = append(res, dfns.TransferItem(t.Raw))
 	}
 	if uint64(len(res)) >= limit {
-		newPagination = new(fmt.Sprintf("%v", len(res)-1))
+		newPagination = new(fmt.Sprintf("%v", offset+limit))
 		res = res[:limit]
 	} else {
 		newPagination = nil
@@ -1117,7 +1132,7 @@ func (a *accounts) GetWalletAssets(ctx context.Context, walletID string) (assets
 			err = nil
 		}
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to read assets for wallet %v")
+			return nil, errors.Wrapf(err, "failed to read assets for wallet %v", walletID)
 		}
 	}
 	if len(assetsForWallet) == 0 {

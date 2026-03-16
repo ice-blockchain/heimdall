@@ -33,6 +33,17 @@ type mockIONIndexer struct {
 	nftsIndexerTriggered bool
 	balanceTriggered     map[string]struct{}
 }
+type mockAuth struct {
+	userId   string
+	username string
+}
+
+func (m *mockAuth) UserID() string {
+	return m.userId
+}
+func (m *mockAuth) Username() string {
+	return m.username
+}
 
 func newMockedWalletClient() interface {
 	dfns.DfnsClient
@@ -197,8 +208,8 @@ func (m *mockWalletClient) GetUser(ctx context.Context, userID string) (*dfns.Us
 	panic("TODO")
 }
 
-func (m *mockWalletClient) VerifyWebhookSecret(fromWebhook string) bool {
-	panic("TODO")
+func (m *mockWalletClient) VerifyWebhookSecret(now *time.Time, eventSignature string, payload []byte) error {
+	return nil
 }
 
 func (m *mockWalletClient) RegisterPostProxyCallback(url string, cb func(req *http.Request, now *time.Time, res map[string]any) error) {
@@ -348,13 +359,17 @@ func TestFetchWalletInfoForCoinsAggregation(t *testing.T) {
 		coinsRepo:         cl,
 		indexer:           ionIndexer,
 		db:                db,
+		cfg:               &config{DefaultCoinsInWalletView: []string{"ion"}},
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*stdlibtime.Second)
+	ctx = context.WithValue(ctx, "requestingUserCtxValueKey", &mockAuth{userId: "userID"})
 	defer cancel()
 	wallet1, wallet2, wallet3 := "wa-wallet1", "wa-wallet2", "wa-wallet3"
 	tcAddress := "0:abcd:"
 	tcType := "profile"
 	wallets, err := cl.ListWallets(ctx, "userID")
+	require.NoError(t, err)
+	_, err = a.insertIdentityKeyNameWithPubKeyAndVisitorID(ctx, time.Now(), "userID", "userKeyName", "master", "", "", "")
 	require.NoError(t, err)
 	for _, w := range wallets {
 		require.NoError(t, a.storeUserWallet(ctx, "userID", w))
@@ -598,6 +613,10 @@ func TestFetchWalletInfoForCoinsAggregation(t *testing.T) {
 func (m *mockWalletClient) GetWalletHistory(ctx context.Context, walletID, paginationToken string, limit uint64) (*dfns.WalletHistory, error) {
 	panic("not implemented")
 }
+func (m *mockWalletClient) GetWalletTransfers(ctx context.Context, walletID, paginationToken string, limit uint64) (*dfns.Transfers, error) {
+	panic("not implemented")
+}
+
 func (m *mockIONIndexer) WalletTransactions(ctx context.Context, walletId, walletAddr, paginationToken string, limit uint64) ([]indexer.WalletHistoryItem, *string, error) {
 	panic("not implemented")
 }
