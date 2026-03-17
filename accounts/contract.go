@@ -495,8 +495,8 @@ type (
 	}
 
 	webhookBlockchainEventPayloadMetadata struct {
-		Asset webhookAsset `mapstructure:"asset"`
-		Fee   webhookAsset `mapstructure:"fee"`
+		Asset webhookAsset `mapstructure:"asset" json:"asset"`
+		Fee   webhookAsset `mapstructure:"fee" json:"fee"`
 	}
 	webhookTransferRequestMetadata struct {
 		Asset webhookAsset `mapstructure:"asset" json:"asset"`
