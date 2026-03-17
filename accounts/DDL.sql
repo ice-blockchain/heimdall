@@ -65,11 +65,16 @@ CREATE TABLE IF NOT EXISTS wallets (
     key_id TEXT NOT NULL,
     key_scheme TEXT NOT NULL,
     key_curve TEXT NOT NULL,
-    user_id TEXT NOT NULL,
+    user_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     primary key (id)
 ) WITH (FILLFACTOR = 70);
 
 CREATE INDEX IF NOT EXISTS wallets_user_id ON wallets (user_id);
+DO $$ BEGIN
+    if NOT exists (select constraint_name from information_schema.table_constraints where table_name = 'wallets' and constraint_name = 'wallets_user_id_fkey') then
+        ALTER TABLE wallets ADD CONSTRAINT wallets_user_id_fkey FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE;
+    end if;
+END $$;
 
 CREATE TABLE IF NOT EXISTS wallet_views (
     created_at    TIMESTAMP NOT NULL,
@@ -404,3 +409,74 @@ CREATE TABLE IF NOT EXISTS deeplinks (
     event_address TEXT PRIMARY KEY,
     deeplink TEXT NOT NULL
 );
+
+
+CREATE TABLE IF NOT EXISTS wallet_history (
+        i              BIGINT generated always as identity NOT NULL UNIQUE,
+        created_at     TIMESTAMP NOT NULL DEFAULT NOW(),
+        user_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        wallet_id      TEXT        NOT NULL,
+        tx_hash        TEXT        NOT NULL,
+        external_hash  TEXT,
+        log_index      TEXT      NOT NULL,
+        block_number   BIGINT      NOT NULL,
+        timestamp      TIMESTAMP   NOT NULL,
+        network        TEXT        NOT NULL,
+        kind           TEXT        NOT NULL,
+        direction      TEXT        NOT NULL,
+        contract       TEXT,
+        symbol         TEXT,
+        decimals       INT         NOT NULL,
+        value          TEXT        NOT NULL,
+        fee            TEXT,
+        from_address   TEXT        NOT NULL,
+        to_address     TEXT        NOT NULL,
+        org_id         TEXT        NOT NULL,
+        metadata       JSONB       NOT NULL,
+        memo           TEXT,
+        token_id       TEXT,
+        PRIMARY KEY (wallet_id, tx_hash, log_index)
+);
+CREATE INDEX IF NOT EXISTS idx_wallet_history_wallet_id_block_number_i_log_number ON wallet_history(wallet_id, block_number, i, log_index);
+
+CREATE TABLE IF NOT EXISTS wallet_assets (
+    updated_at  TIMESTAMP DEFAULT NOW(),
+    user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    wallet_id   TEXT NOT NULL,
+    balance     TEXT NOT NULL,
+    kind        TEXT NOT NULL,
+    decimals    INT NOT NULL,
+    contract    TEXT NOT NULL DEFAULT '',
+    symbol      TEXT,
+    token_id    TEXT NOT NULL DEFAULT '',
+    verified    BOOL DEFAULT false,
+    raw         JSONB NOT NULL,
+    primary key (wallet_id, contract, token_id)
+);
+
+CREATE TABLE IF NOT EXISTS wallet_transfers
+(
+    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+    user_id           TEXT      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    wallet_id         TEXT      NOT NULL,
+    id                TEXT      NOT NULL,
+    network           TEXT      NOT NULL,
+    kind              TEXT      NOT NULL,
+    status            TEXT      NOT NULL,
+    contract          TEXT      NOT NULL DEFAULT '',
+    token_id          TEXT      NOT NULL DEFAULT '',
+    amount            TEXT      NOT NULL DEFAULT '',
+    fee               TEXT      NOT NULL DEFAULT '',
+    from_address      TEXT      NOT NULL DEFAULT '',
+    to_address        TEXT      NOT NULL DEFAULT '',
+    tx_hash           TEXT      NOT NULL DEFAULT '',
+    requester_user_id TEXT      NOT NULL DEFAULT '',
+    date_requested    TIMESTAMP NOT NULL,
+    date_broadcasted  TIMESTAMP,
+    date_confirmed    TIMESTAMP,
+    raw               JSONB     NOT NULL,
+
+    PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS idx_wallet_transfers_wallet_id on wallet_transfers(wallet_id, date_requested);

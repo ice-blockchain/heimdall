@@ -20,6 +20,7 @@ import (
 	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
+	"github.com/ice-blockchain/wintr/riverqueue"
 	"github.com/ice-blockchain/wintr/totp"
 )
 
@@ -33,7 +34,8 @@ func NewDeviceIdentificationProxy(ctx context.Context, serviceVersion string) De
 
 func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *AppsRuntimeConfig, tokenAnalyticsRepo TokenAnalyticsUserRepository, indexer indexer.Indexer) Accounts {
 	db := storage.MustConnect(ctx, applicationYamlKey, storage.NewStringDDL(ddl))
-	cl := dfns.NewDfnsClient(ctx, db, applicationYamlKey, coinsRepo)
+	missedWebhookEvents := make(chan map[string]any, 200)
+	cl := dfns.NewDfnsClient(ctx, db, applicationYamlKey, coinsRepo, missedWebhookEvents)
 
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
@@ -89,6 +91,31 @@ func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *App
 	}
 	go acc.startBscFeeSyncer(ctx)
 	cancel()
+
+	riverCfg := riverqueue.Config{
+		QueueName:       "sync-data-from-webhook",
+		MaxQueueWorkers: 100,
+		JobMaxTimeout:   30 * time.Second,
+		Credentials:     cfg.WintrStorage.Credentials,
+		PrimaryURLs:     append([]string{cfg.WintrStorage.PrimaryURL}, cfg.WintrStorage.PrimaryFallbackURLs...),
+	}
+
+	riverClient := riverqueue.MustNewClient(ctx,
+		applicationYamlKey,
+		riverqueue.WithConfig(&riverCfg))
+
+	acc.riverClient = riverClient
+	if reg := riverClient.Register(); reg != nil {
+		riverqueue.RegisterWorker[webhookSyncAssetsJobParams](reg, &webhookSyncAssetsWorker{a: &acc})
+		riverqueue.RegisterWorker[webhookSyncHistoryJobParams](reg, &webhookSyncHistoryWorker{a: &acc})
+		riverqueue.RegisterWorker[webhookTransferUpsertJobParams](reg, &webhookTransferUpsertWorker{a: &acc})
+		riverqueue.RegisterWorker[webhookWalletInsertJobParams](reg, &webhookWalletInsertWorker{a: &acc})
+	}
+	go acc.processMissedWebhookEvents(ctx, missedWebhookEvents)
+
+	if err = riverClient.Start(ctx); err != nil {
+		log.Panic(errors.Wrap(err, "failed to start river queue"))
+	}
 
 	return &acc
 }

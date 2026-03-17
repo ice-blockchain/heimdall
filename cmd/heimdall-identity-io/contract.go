@@ -220,12 +220,7 @@ type (
 	}
 	Verify2FARequestResp struct {
 	}
-	WebhookData struct {
-		Date *time.Time     `json:"date"`
-		Data map[string]any `json:"data"`
-		ID   string         `json:"id" allowUnauthorized:"true"`
-		Kind string         `json:"kind"`
-	}
+	WebhookData = accounts.WebhookData
 	WebhookResp struct{}
 	GetNFTsReq  struct {
 		WalletID        string `uri:"walletId"`
@@ -238,7 +233,7 @@ type (
 		NFTs            []*coins.NFT `json:"nfts"`
 		PaginationToken *string      `json:"paginationToken,omitempty"`
 	}
-	GetWalletHistoryReq struct {
+	WalletPaginatedReq struct {
 		WalletID        string `uri:"walletId"`
 		Authorization   string `header:"Authorization" swaggerignore:"true"`
 		PaginationToken string `query:"paginationToken" form:"paginationToken" required:"false"`
@@ -249,6 +244,12 @@ type (
 		Network         string                       `json:"network"`
 		Items           []accounts.WalletHistoryItem `json:"items"`
 		PaginationToken *string                      `json:"paginationToken,omitempty"`
+	}
+	WalletTransfersCollection struct {
+		WalletID        string                  `json:"walletId"`
+		Network         string                  `json:"network"`
+		Items           []accounts.TransferItem `json:"items"`
+		PaginationToken *string                 `json:"paginationToken,omitempty"`
 	}
 	GetWalletAssetsReq struct {
 		WalletID      string `uri:"walletId"`

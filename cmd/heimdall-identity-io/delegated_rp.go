@@ -73,6 +73,7 @@ func (s *service) setupDelegatedRPProxyRoutes(router *server.Router) {
 		GET("wallets/:walletId/nfts", server.RootHandler(s.GetNFTs)).
 		GET("wallets/:walletId/assets", server.RootHandler(s.GetWalletAssets)).
 		GET("wallets/:walletId/history", server.RootHandler(s.GetWalletHistory)).
+		GET("wallets/:walletId/transfers", server.RootHandler(s.GetWalletTransfers)).
 		POST("/auth/login/delegated", s.proxyToDelegatedRP(true)).
 		POST("/v1/webhooks/dfns/events", server.RootHandler(s.EventWebhookFromDelegatedRP)).
 		GET("/.well-known/apple-app-site-association", server.RootHandler(s.AppleAppSiteAssociation)).
@@ -403,7 +404,7 @@ func (s *service) CreateWallet(
 //	@Router			/wallets/{walletId}/history [GET].
 func (s *service) GetWalletHistory(
 	ctx context.Context,
-	req *server.Request[GetWalletHistoryReq, WalletHistoryCollection],
+	req *server.Request[WalletPaginatedReq, WalletHistoryCollection],
 ) (successResp *server.Response[WalletHistoryCollection], errorResp *server.ErrResponse[InternalError]) {
 	if req.Data.Limit == 0 {
 		req.Data.Limit = 100
@@ -420,6 +421,47 @@ func (s *service) GetWalletHistory(
 		return nil, buildDelegatedErrorResponse(http.StatusInternalServerError, err, "")
 	}
 	return server.OK[WalletHistoryCollection](&WalletHistoryCollection{
+		WalletID:        req.Data.WalletID,
+		Network:         network,
+		Items:           history,
+		PaginationToken: newPagination,
+	}), nil
+}
+
+// GetWalletTransfers godoc
+//
+//	@Schemes
+//	@Description	Gets transfer history from the wallet
+//	@Tags			Wallets
+//	@Produce		json
+//	@Param			X-Client-ID		header		string	true	"App ID"									default(ap-)
+//	@Param			Authorization	header		string	true	"Auth token from delegated relying party"	default(Bearer <Add token here>)
+//	@Param			walletId		path		string	true	"ID of the wallet"
+//	@Param			limit			query		string	false	"custom limit"
+//	@Param			paginationToken	query		string	false	"pagination token to continue from"
+//	@Success		200				{object}	WalletTransfersCollection
+//	@Failure		500				{object}	server.ErrorResponse
+//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
+//	@Router			/wallets/{walletId}/transfers [GET].
+func (s *service) GetWalletTransfers(
+	ctx context.Context,
+	req *server.Request[WalletPaginatedReq, WalletTransfersCollection],
+) (successResp *server.Response[WalletTransfersCollection], errorResp *server.ErrResponse[InternalError]) {
+	if req.Data.Limit == 0 {
+		req.Data.Limit = 100
+	}
+	ctx = withAuth(ctx, req.Data.Authorization)
+	history, network, newPagination, err := s.accounts.GetWalletTransfers(ctx, req.Data.WalletID, req.Data.PaginationToken, req.Data.Limit)
+	if err != nil {
+		if delegatedErr := accounts.ParseErrAsDelegatedInternalErr(err); delegatedErr != nil {
+			var delegatedParsedErr *accounts.DelegatedRelyingPartyErr
+			if errors.As(delegatedErr, &delegatedParsedErr) {
+				return nil, buildDelegatedErrorResponse(delegatedParsedErr.HTTPStatus, err, delegatedParsedErr.Message)
+			}
+		}
+		return nil, buildDelegatedErrorResponse(http.StatusInternalServerError, err, "")
+	}
+	return server.OK[WalletTransfersCollection](&WalletTransfersCollection{
 		WalletID:        req.Data.WalletID,
 		Network:         network,
 		Items:           history,
@@ -528,6 +570,12 @@ func (s *service) EventWebhookFromDelegatedRP(
 	ctx context.Context,
 	req *server.Request[WebhookData, WebhookResp],
 ) (successResp *server.Response[WebhookResp], errorResp *server.ErrResponse[*server.ErrorResponse]) {
+	if err := s.accounts.VerifyWebhook(ctx, req.Data.Date, req.Data.Signature, req.Data.Raw); err != nil {
+		return nil, server.Forbidden(err)
+	}
 	log.Debug(fmt.Sprintf("Webhook call for %v %+v", req.Data.Kind, req.Data.Data))
+	if err := s.accounts.ProcessWebhookFromDelegatedRelyingParty(ctx, req.Data.Kind, req.Data.Data); err != nil {
+		return nil, server.Unexpected(err)
+	}
 	return server.OK[WebhookResp](&WebhookResp{}), nil
 }

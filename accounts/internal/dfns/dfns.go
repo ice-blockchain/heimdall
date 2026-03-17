@@ -5,9 +5,13 @@ package dfns
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	stdlog "log"
+	"math"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -35,7 +39,7 @@ import (
 	"github.com/ice-blockchain/wintr/time"
 )
 
-func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey string, coinFeesProvider CoinFeesProvider) DfnsClient {
+func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey string, coinFeesProvider CoinFeesProvider, missedWebhookEvents chan<- map[string]any) DfnsClient {
 	var cfg config
 	cfg.loadCfg(applicationYamlKey)
 	serviceAccountSigner := credentials.NewAsymmetricKeySigner(&credentials.AsymmetricKeySignerConfig{
@@ -63,7 +67,7 @@ func NewDfnsClient(ctx context.Context, db *storage.DB, applicationYamlKey strin
 	if err != nil {
 		log.Panic(errors.Wrap(err, "failed to parse ABI for ERC20"))
 	}
-	cl.mustSetupWebhookOrLoadSecret(ctx, db, &cfg)
+	cl.mustSetupWebhookOrLoadSecret(ctx, db, &cfg, missedWebhookEvents)
 	if _, hasWebFE := cl.cfg.DFNS.AllowedApplications[cl.cfg.DFNS.WebFEAppID]; !hasWebFE {
 		log.Panic(errors.Errorf("webFEAppId is not listed in allowed applications"))
 	}
@@ -303,7 +307,7 @@ func (c *dfnsClient) userClient() *http.Client {
 	return uClient
 }
 
-func (c *dfnsClient) mustSetupWebhookOrLoadSecret(ctx context.Context, db *storage.DB, cfg *config) {
+func (c *dfnsClient) mustSetupWebhookOrLoadSecret(ctx context.Context, db *storage.DB, cfg *config, missedWebhookEvents chan<- map[string]any) {
 	var err error
 	whCtx, whCancel := context.WithTimeout(ctx, 30*stdlibtime.Second)
 	defer whCancel()
@@ -313,7 +317,7 @@ func (c *dfnsClient) mustSetupWebhookOrLoadSecret(ctx context.Context, db *stora
 			if !errors.Is(err, storage.ErrMutexNotLocked) {
 				log.Panic(errors.Wrapf(err, "failed to obtain registerWebhook db lock"))
 			}
-			if c.webhookSecret, err = c.loadWebhookSecret(whCtx, db); err != nil {
+			if c.webhookSecret, c.lastSyncedWHDate, err = c.loadWebhookSecret(whCtx, db); err != nil {
 				if storage.IsErr(err, storage.ErrNotFound) {
 					// Wait until at least one instance create WH and store secret
 					stdlibtime.Sleep(500 * stdlibtime.Millisecond)
@@ -327,7 +331,7 @@ func (c *dfnsClient) mustSetupWebhookOrLoadSecret(ctx context.Context, db *stora
 	}
 	if cfg.DFNS.WebhookURL != "" {
 		registeredHooks := c.mustListWebhooks(ctx)
-		_, webhookSecretErr := c.loadWebhookSecret(whCtx, db)
+		_, _, webhookSecretErr := c.loadWebhookSecret(whCtx, db)
 
 		if len(registeredHooks) > 0 && webhookSecretErr != nil {
 			log.Warn("webhook is registered but secret is missing, treating to delete old webhooks and re-create")
@@ -336,18 +340,65 @@ func (c *dfnsClient) mustSetupWebhookOrLoadSecret(ctx context.Context, db *stora
 			}
 			registeredHooks = []webhook{}
 		}
-
+		var hookId string
 		if len(registeredHooks) == 0 {
-			c.webhookSecret = c.mustRegisterAllEventsWebhook(ctx)
+			c.webhookSecret, hookId = c.mustRegisterAllEventsWebhook(ctx)
 			log.Panic(c.storeWebhookSecret(whCtx, db, c.webhookSecret))
 		} else {
-			if c.webhookSecret, err = c.loadWebhookSecret(whCtx, db); err != nil {
+			for _, hook := range registeredHooks {
+				if hook.Url == cfg.DFNS.WebhookURL {
+					hookId = hook.Id
+					break
+				}
+			}
+			if c.webhookSecret, c.lastSyncedWHDate, err = c.loadWebhookSecret(whCtx, db); err != nil {
 				log.Panic(errors.Wrapf(err, "failed to read stored webhook secret, must re-create webhook"))
 			}
+		}
+		if hookId != "" {
+			go c.readMissedWebhookEvents(ctx, hookId, c.lastSyncedWHDate, missedWebhookEvents)
+			go c.storeLastSyncedDateTime(ctx, db)
 		}
 	}
 
 	_ = whLock.Unlock(whCtx)
+}
+
+func (c *dfnsClient) storeLastSyncedDateTime(ctx context.Context, db *storage.DB) {
+	ticks := make(chan struct{}, 1)
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	go func() {
+		ticker := stdlibtime.NewTicker(stdlibtime.Minute)
+		defer ticker.Stop()
+		defer close(ticks)
+
+		for {
+			select {
+			case <-ticker.C:
+				select {
+				case ticks <- struct{}{}:
+				default:
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	for range ticks {
+		storeLastUpdateCtx, cancelStore := context.WithTimeout(ctx, 10*stdlibtime.Second)
+		_, err := storage.Exec(storeLastUpdateCtx, db, `INSERT INTO global (key,value) VALUES ('WEBHOOK_LAST_EVENT', $1) ON CONFLICT(key) DO
+		UPDATE
+			SET value = excluded.value
+		WHERE global.value::TIMESTAMP < excluded.value::TIMESTAMP;`, c.lastSyncedWHDate)
+		if err != nil {
+			log.Error(errors.Wrapf(err, "failed to store last updated webhook event timestamp"))
+		}
+		cancelStore()
+	}
 }
 
 func (c *dfnsClient) storeWebhookSecret(ctx context.Context, db *storage.DB, whSecret string) error {
@@ -358,18 +409,33 @@ func (c *dfnsClient) storeWebhookSecret(ctx context.Context, db *storage.DB, whS
 
 	return errors.Wrapf(err, "failed to store webhook secret")
 }
-func (c *dfnsClient) loadWebhookSecret(ctx context.Context, db *storage.DB) (string, error) {
+func (c *dfnsClient) loadWebhookSecret(ctx context.Context, db *storage.DB) (key string, ts *time.Time, err error) {
 	res, err := storage.Select[struct {
 		Key   string
 		Value string
-	}](ctx, db, `SELECT * FROM global WHERE key = $1;`, "WEBHOOK_SECRET")
-	if err != nil || res == nil {
-		if res == nil {
+	}](ctx, db, `SELECT * FROM global WHERE key = $1
+			UNION ALL SELECT * FROM global WHERE key = $2;`, "WEBHOOK_SECRET", "WEBHOOK_LAST_EVENT")
+	if err != nil || len(res) == 0 {
+		if len(res) == 0 {
 			err = storage.ErrNotFound
 		}
-		return "", errors.Wrapf(err, "failed to read webhook secret")
+		return "", nil, errors.Wrapf(err, "failed to read webhook secret")
 	}
-	return res[0].Value, nil
+	if len(res) == 1 && res[0].Key == "WEBHOOK_SECRET" {
+		return res[0].Value, nil, nil
+	}
+	for _, r := range res {
+		if r.Key == "WEBHOOK_SECRET" {
+			key = r.Value
+		} else if r.Key == "WEBHOOK_LAST_EVENT" {
+			t, err := stdlibtime.Parse(stdlibtime.RFC3339, r.Value)
+			if err != nil {
+				return "", nil, errors.Wrapf(err, "failed to parse webhook last event timestamp")
+			}
+			ts = time.New(t)
+		}
+	}
+	return key, ts, nil
 }
 
 func (c *dfnsClient) proxy(typ string) *httputil.ReverseProxy {
@@ -388,10 +454,87 @@ func (c *dfnsClient) proxy(typ string) *httputil.ReverseProxy {
 	return proxy
 }
 
-func (c *dfnsClient) VerifyWebhookSecret(fromWebhook string) bool {
-	return c.webhookSecret != "" && c.webhookSecret == fromWebhook
+func (c *dfnsClient) VerifyWebhookSecret(now, eventDateTime *time.Time, eventSignature string, payload []byte) error {
+	if c.webhookSecret == "" {
+		return errors.New("webhook not configured")
+	}
+
+	mac := hmac.New(sha256.New, []byte(c.webhookSecret))
+	mac.Write(payload)
+
+	expectedSignature := "sha256=" + hex.EncodeToString(mac.Sum(nil))
+	isSignatureValid := hmac.Equal([]byte(expectedSignature), []byte(eventSignature))
+	if !isSignatureValid {
+		return ErrInvalidToken
+	}
+	var eventPayload map[string]any
+	if err := json.Unmarshal(payload, &eventPayload); err != nil {
+		return errors.Wrapf(err, "failed to unmarshal webhook payload, invalid json: %v", string(payload))
+	}
+	timestampSentI, ok := eventPayload["timestampSent"]
+	if !ok {
+		return errors.Wrapf(ErrInvalidToken, "failed to extract timestampSent: %+v", eventPayload)
+	}
+	timestampSent, ok := eventPayload["timestampSent"].(float64)
+	if !ok {
+		return errors.Wrapf(ErrInvalidToken, "failed to decode timestampSent: %v", timestampSentI)
+	}
+
+	isTimestampValid := int64(math.Abs(float64(now.Unix()-int64(timestampSent)))) < int64(webhookReplayWindow/stdlibtime.Second)
+	if !isTimestampValid {
+		return errors.Wrapf(ErrExpiredToken, "timestamp sent is too old, current: %d, sent: %d", now.Unix(), timestampSent)
+	}
+	if c.missedWHEventsSynced.Load() {
+		c.lastSyncedWHDate = eventDateTime
+	}
+	return nil
 }
-func (c *dfnsClient) mustRegisterAllEventsWebhook(ctx context.Context) (whSecret string) {
+
+func (wh *WebhookData) SetBytes(b []byte) {
+	wh.Raw = b
+}
+
+func (c *dfnsClient) readMissedWebhookEvents(ctx context.Context, hookId string, lastSyncedEventTS *time.Time, missedWebhookEvents chan<- map[string]any) {
+	defer close(missedWebhookEvents)
+	defer c.missedWHEventsSynced.Store(true)
+	type params struct {
+		PaginationToken string `form:"paginationToken,omitempty"`
+		Limit           uint64 `form:"limit"`
+		DeliveryFailed  bool   `form:"deliveryFailed"`
+	}
+	type webhookEvents struct {
+		Events        []WebhookData `json:"items"`
+		NextPageToken *string       `json:"nextPageToken,omitempty"`
+	}
+	empty := ""
+	var paginationToken *string = &empty
+pagination:
+	for ctx.Err() == nil && paginationToken != nil {
+		events, err := dfnsCall[params, webhookEvents](ctx, c, &params{DeliveryFailed: true, Limit: 200, PaginationToken: *paginationToken}, "GET", fmt.Sprintf("/webhooks/%v/events", hookId), http.Header{})
+		if err != nil {
+			log.Error(errors.Wrapf(err, "failed to fetch missed webhook events"))
+			select {
+			case <-ctx.Done():
+				return
+			case <-stdlibtime.After(30 * stdlibtime.Second):
+				continue
+			default:
+			}
+			break
+		}
+		paginationToken = events.NextPageToken
+		for _, event := range events.Events {
+			if lastSyncedEventTS != nil && event.Date.Before(*lastSyncedEventTS.Time) {
+				break pagination
+			}
+			event.Data["whKind"] = event.Kind
+			missedWebhookEvents <- event.Data
+		}
+	}
+	return
+}
+
+func (c *dfnsClient) mustRegisterAllEventsWebhook(ctx context.Context) (whSecret, whID string) {
 	jData, err := json.MarshalContext(ctx, struct {
 		Url         string   `json:"url"`
 		Description string   `json:"description"`
@@ -414,9 +557,9 @@ func (c *dfnsClient) mustRegisterAllEventsWebhook(ctx context.Context) (whSecret
 		log.Panic(errors.Wrapf(err, "failed to unmarshal webhook response %v into %#v", string(resp), wh))
 	}
 	if wh.Secret != nil {
-		return *wh.Secret
+		return *wh.Secret, wh.Id
 	}
-	return ""
+	return "", wh.Id
 }
 
 func (c *dfnsClient) mustListWebhooks(ctx context.Context) []webhook {
