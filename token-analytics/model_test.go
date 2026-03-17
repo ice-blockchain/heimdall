@@ -44,6 +44,7 @@ func TestIsContentType(t *testing.T) {
 		{"Post type", "post", true},
 		{"Video type", "video", true},
 		{"Article type", "article", true},
+		{"Comment type", "comment", true},
 		{"Empty type", "", false},
 		{"Invalid type", "invalid", false},
 	}

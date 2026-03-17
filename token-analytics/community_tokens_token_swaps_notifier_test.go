@@ -291,6 +291,76 @@ func TestHandleTokenSwapUpdate(t *testing.T) {
 		require.NoError(t, err)
 		require.InDelta(t, 0.005*(1000000.0-100000.0), scoreCombined, 0.001, "profile token should be in combined set")
 	})
+
+	t.Run("comment token swap populates post and anyPost redis sets", func(t *testing.T) {
+		ctx := context.Background()
+
+		db, release := helperCreateDB(t)
+		defer release()
+
+		ta := helperNewForTest(t, db)
+
+		ionAddress := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+		saveBaseTokenPriceToDatabase(ctx, db, "ION", ionAddress, 0.003, big.NewInt(3000000000000000))
+
+		commentExtAddr := "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+		contractAddr := "0x9999888877776666555544443333222211110000"
+		userAddr := "0xaaaa999988887777666655554444333322221111"
+		creatorPubkey := "comment_creator_pubkey"
+
+		helperInsertTestUser(t, ctx, db, creatorPubkey, "comment_creator", "Comment Creator", contractAddr, false, PlatformGroupIonConnect)
+
+		helperInsertTestToken(t, ctx, db,
+			contractAddr, commentExtAddr, "COMM", "comment", contractAddr,
+			"1000000000000000000000000", 0.001, 1000, 10, PlatformGroupIonConnect)
+
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, commentExtAddr,
+			"0xcccc567890123456789012345678901234567890123456789012345678901234", ionAddress)
+
+		txHash := "0xtest_comment_swap_001"
+		helperInsertTokenSwap(t, ctx, db, contractAddr, commentExtAddr, userAddr, txHash,
+			true, "1000000000000000000", "100000000000000000", 0.005)
+
+		userPubkey := "comment_user_pubkey"
+		helperInsertTestUser(t, ctx, db, userPubkey, "comment_testuser", "Comment Test User", userAddr, false, PlatformGroupIonConnect)
+
+		helperInsertUserPosition(t, ctx, db, userAddr, contractAddr, commentExtAddr, userPubkey, "1000000000000000000")
+
+		burnedAmount := "0"
+		update := tokenSwapUpdate{
+			TransactionHash:       txHash,
+			ContractAddress:       contractAddr,
+			ExternalAddress:       commentExtAddr,
+			UserBlockchainAddress: userAddr,
+			Direction:             true,
+			InputAmount:           "1000000000000000000",
+			OutputAmount:          "100000000000000000",
+			CurvePriceUSD:         0.005,
+			CreatedAt:             stdlibtime.Now().Unix(),
+			BaseToken:             ionAddress,
+			TotalSupply:           "1000000000000000000000000",
+			PairId:                "0xcccc567890123456789012345678901234567890123456789012345678901234",
+			Burned:                burnedAmount,
+			Type:                  TokenTypeComment,
+		}
+
+		payload, err := json.Marshal(update)
+		require.NoError(t, err)
+
+		require.NoError(t, ta.handleTokenSwapUpdate(ctx, string(payload)))
+
+		expectedMCap := 0.005 * 1000000.0
+		scorePost, err := ta.processedDataDB.ZScore(ctx, globalTopPostSetKey, commentExtAddr).Result()
+		require.NoError(t, err)
+		require.InDelta(t, expectedMCap, scorePost, 0.001, "comment market cap should be in post set")
+
+		scoreAnyPost, err := ta.processedDataDB.ZScore(ctx, globalTopAnyPostSetKey, commentExtAddr).Result()
+		require.NoError(t, err)
+		require.InDelta(t, expectedMCap, scoreAnyPost, 0.001, "comment market cap should be in anyPost set")
+
+		_, err = ta.processedDataDB.ZScore(ctx, globalTopXcomCombinedSetKey, commentExtAddr).Result()
+		require.Error(t, err, "comment token should not be in combined set")
+	})
 }
 
 func TestUpdateTokenRankingsInRedis_CombinedSet(t *testing.T) {
@@ -332,5 +402,25 @@ func TestUpdateTokenRankingsInRedis_CombinedSet(t *testing.T) {
 		exists, err := ta.processedDataDB.ZScore(ctx, globalTopXcomCombinedSetKey, "30175:ion_post_combined:content").Result()
 		require.Error(t, err, "post token should not be in combined set")
 		require.Equal(t, float64(0), exists)
+	})
+
+	t.Run("ionconnect_comment_does_not_populate_combined_set", func(t *testing.T) {
+		_ = ta.processedDataDB.Del(ctx, globalTopXcomCombinedSetKey).Err()
+
+		commentExtAddr := "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+		err := ta.updateTokenRankingsInRedis(ctx, 250.0, commentExtAddr, PlatformGroupIonConnect, TokenTypeComment)
+		require.NoError(t, err)
+
+		exists, err := ta.processedDataDB.ZScore(ctx, globalTopXcomCombinedSetKey, commentExtAddr).Result()
+		require.Error(t, err, "comment token should not be in combined set")
+		require.Equal(t, float64(0), exists)
+
+		postScore, err := ta.processedDataDB.ZScore(ctx, globalTopPostSetKey, commentExtAddr).Result()
+		require.NoError(t, err)
+		require.InDelta(t, 250.0, postScore, 0.001, "comment should be stored in post top set")
+
+		anyPostScore, err := ta.processedDataDB.ZScore(ctx, globalTopAnyPostSetKey, commentExtAddr).Result()
+		require.NoError(t, err)
+		require.InDelta(t, 250.0, anyPostScore, 0.001, "comment should be in anyPost top set")
 	})
 }

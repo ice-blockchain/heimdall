@@ -482,6 +482,13 @@ token-analytics:
         emissionVolume: 1000000000000000000000000000
         feeSponsorAddress: "0x24c7ef0f468840620e13174e44f0cf10abba3425"
         feeSponsorId: "fs-01jea-99pmi-e7f8j0ofu8q15k9f"
+      comment: #content
+        initialPrice: 16600000000000
+        finalPrice: 10135800000000000
+        bondingCurveAlgAddress: "0x074B22eb9C5b95EF14F7c3BDc4E47e847C8e8b77"
+        emissionVolume: 1000000000000000000000000000
+        feeSponsorAddress: "0x24c7ef0f468840620e13174e44f0cf10abba3425"
+        feeSponsorId: "fs-01jea-99pmi-e7f8j0ofu8q15k9f"
   riverQueue:
     queueName: heimdall_ta
     maxQueueWorkers: 100

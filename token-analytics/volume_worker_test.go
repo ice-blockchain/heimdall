@@ -266,6 +266,43 @@ func TestAddTokenToTrendingSets(t *testing.T) {
 		require.Equal(t, vol.Volume24h, anyPostScore)
 	})
 
+	t.Run("adds ionconnect comment token to post and anyPost sets", func(t *testing.T) {
+		db, release := helperCreateDB(t)
+		defer release()
+
+		ta := helperNewForTest(t, db, WithoutQuestDB())
+		ctx := context.Background()
+
+		_ = ta.processedDataDB.FlushDB(ctx).Err()
+
+		pipe := ta.processedDataDB.TxPipeline()
+		platform := PlatformGroupIonConnect
+		vol := &volumeWithType{
+			Platform:        &platform,
+			TokenAddress:    "0xtoken_comment",
+			Volume24h:       150.5,
+			ExternalAddress: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+			TokenType:       TokenTypeComment,
+		}
+
+		ta.addTokenToTrendingSets(ctx, pipe, vol)
+		_, err := pipe.Exec(ctx)
+		require.NoError(t, err)
+
+		globalScore, err := ta.processedDataDB.ZScore(ctx, globalTrendingSetKey, vol.ExternalAddress).Result()
+		require.NoError(t, err)
+		require.Equal(t, vol.Volume24h, globalScore)
+
+		typeKey := getTrendingSetKeyByType(TokenTypeComment)
+		typeScore, err := ta.processedDataDB.ZScore(ctx, typeKey, vol.ExternalAddress).Result()
+		require.NoError(t, err)
+		require.Equal(t, vol.Volume24h, typeScore)
+
+		anyPostScore, err := ta.processedDataDB.ZScore(ctx, globalTrendingAnyPostSetKey, vol.ExternalAddress).Result()
+		require.NoError(t, err)
+		require.Equal(t, vol.Volume24h, anyPostScore)
+	})
+
 	t.Run("adds profile token to type-specific set only", func(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
@@ -545,6 +582,70 @@ func TestAddTokenToTrendingSets(t *testing.T) {
 		_, err = ta.processedDataDB.ZScore(ctx, globalTrendingOnlinePlusCreatorSetKey, vol.ExternalAddress).Result()
 		require.Error(t, err)
 		require.Equal(t, redis.Nil, err, "article should not be in onlineplus_creator set")
+	})
+
+	t.Run("ionconnect_comment_populates_onlineplus_content_set", func(t *testing.T) {
+		db, release := helperCreateDB(t)
+		defer release()
+
+		ta := helperNewForTest(t, db, WithoutQuestDB())
+		ctx := context.Background()
+
+		_ = ta.processedDataDB.FlushDB(ctx).Err()
+
+		pipe := ta.processedDataDB.TxPipeline()
+		platform := PlatformGroupIonConnect
+		vol := &volumeWithType{
+			Platform:        &platform,
+			TokenAddress:    "0xtoken_opc_comment",
+			Volume24h:       1200.0,
+			ExternalAddress: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+			TokenType:       TokenTypeComment,
+		}
+
+		ta.addTokenToTrendingSets(ctx, pipe, vol)
+		_, err := pipe.Exec(ctx)
+		require.NoError(t, err)
+
+		score, err := ta.processedDataDB.ZScore(ctx, globalTrendingOnlinePlusContentSetKey, vol.ExternalAddress).Result()
+		require.NoError(t, err)
+		require.Equal(t, vol.Volume24h, score)
+
+		_, err = ta.processedDataDB.ZScore(ctx, globalTrendingOnlinePlusCreatorSetKey, vol.ExternalAddress).Result()
+		require.Error(t, err)
+		require.Equal(t, redis.Nil, err, "comment should not be in onlineplus_creator set")
+	})
+
+	t.Run("xcom_comment_populates_xcom_set", func(t *testing.T) {
+		db, release := helperCreateDB(t)
+		defer release()
+
+		ta := helperNewForTest(t, db, WithoutQuestDB())
+		ctx := context.Background()
+
+		_ = ta.processedDataDB.FlushDB(ctx).Err()
+
+		pipe := ta.processedDataDB.TxPipeline()
+		platform := PlatformGroupXCom
+		vol := &volumeWithType{
+			Platform:        &platform,
+			TokenAddress:    "0xtoken_xcom_comment",
+			Volume24h:       500.0,
+			ExternalAddress: "xcom_comment_id_123",
+			TokenType:       TokenTypeComment,
+		}
+
+		ta.addTokenToTrendingSets(ctx, pipe, vol)
+		_, err := pipe.Exec(ctx)
+		require.NoError(t, err)
+
+		score, err := ta.processedDataDB.ZScore(ctx, globalTrendingXcomSetKey, vol.ExternalAddress).Result()
+		require.NoError(t, err)
+		require.Equal(t, vol.Volume24h, score, "xcom comment should be in xcom trending set")
+
+		score, err = ta.processedDataDB.ZScore(ctx, globalTrendingSetKey, vol.ExternalAddress).Result()
+		require.NoError(t, err)
+		require.Equal(t, vol.Volume24h, score, "xcom comment should be in global trending set")
 	})
 }
 

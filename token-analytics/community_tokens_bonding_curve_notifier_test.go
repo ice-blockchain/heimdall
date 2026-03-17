@@ -421,6 +421,51 @@ func TestBondingCurveNotifier(t *testing.T) {
 		require.InDelta(t, 95000000000000000000.0, bcAnyPostScore, 1e15, "AnyPost bonding curve progress should store wei amount for article")
 	})
 
+	t.Run("updates bonding curve for comment type and anyPost set", func(t *testing.T) {
+		ctx := t.Context()
+		db, release := helperCreateDB(t)
+		defer release()
+
+		ta := helperNewForTest(t, db, WithoutQuestDB())
+
+		tokenExternalAddr := "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+		contractAddr := "0xaaaa111122223333444455556666777788889999"
+
+		helperInsertTestToken(t, ctx, db,
+			contractAddr, tokenExternalAddr, "COMMENTBC", "comment", "test_master",
+			"1000000000000000000000000", 0.001, 100, 5, PlatformGroupIonConnect)
+
+		payload := fmt.Sprintf(`{
+			"external_address": "%s",
+			"type": "comment",
+			"platform": "ionconnect",
+			"bonding_curve_migrated": false,
+			"bonding_curve_current_amount": "60000000000000000000",
+			"bonding_curve_goal_amount": "200000000000000000000",
+			"bonding_curve_raised_amount": "10000000000000000000",
+			"bonding_curve_current_amount_usd": 1.0,
+			"bonding_curve_goal_amount_usd": 2.0,
+			"liquidity_usd": 0.5,
+			"start_price":"10000",
+			"end_price":"20000",
+            "total_supply": "200000000000000000000",
+            "price_model": "0x000000000000000000000000000000000000dead",
+            "base_token": "0x2c73996BaBF1a06c2C057177353293f7cA0907c8",
+			"updated_at": 1234567890
+		}`, tokenExternalAddr)
+
+		err := ta.handleBondingCurveUpdate(ctx, payload)
+		require.NoError(t, err)
+
+		bcPostScore, err := ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressPostSetKey, tokenExternalAddr).Result()
+		require.NoError(t, err)
+		require.InDelta(t, 60000000000000000000.0, bcPostScore, 1e15, "Comment bonding curve progress should be stored in post set")
+
+		bcAnyPostScore, err := ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressAnyPostSetKey, tokenExternalAddr).Result()
+		require.NoError(t, err)
+		require.InDelta(t, 60000000000000000000.0, bcAnyPostScore, 1e15, "AnyPost bonding curve progress should store wei amount for comment")
+	})
+
 	t.Run("profile type does NOT update anyPost set", func(t *testing.T) {
 		ctx := t.Context()
 		db, release := helperCreateDB(t)

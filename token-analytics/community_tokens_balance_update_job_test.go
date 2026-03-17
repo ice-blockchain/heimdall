@@ -531,6 +531,26 @@ func TestUpdateBondingCurveInRedis_CombinedSet(t *testing.T) {
 		require.Equal(t, redis.Nil, err, "post token should not be in combined set")
 	})
 
+	t.Run("ionconnect_comment_not_in_combined_set", func(t *testing.T) {
+		_ = ta.processedDataDB.Del(ctx, globalBondingCurveProgressXcomCombinedSetKey).Err()
+
+		commentExtAddr := "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+		err := ta.updateBondingCurveInRedis(ctx, commentExtAddr, TokenTypeComment, PlatformGroupIonConnect, 45.0, false)
+		require.NoError(t, err)
+
+		_, err = ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressXcomCombinedSetKey, commentExtAddr).Result()
+		require.Error(t, err)
+		require.Equal(t, redis.Nil, err, "comment token should not be in combined set")
+
+		postScore, err := ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressPostSetKey, commentExtAddr).Result()
+		require.NoError(t, err)
+		require.InDelta(t, 45.0, postScore, 0.001, "comment should be stored in post bonding curve set")
+
+		anyPostScore, err := ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressAnyPostSetKey, commentExtAddr).Result()
+		require.NoError(t, err)
+		require.InDelta(t, 45.0, anyPostScore, 0.001, "comment should be in anyPost bonding curve set")
+	})
+
 	t.Run("migrated_xcom_token_removed_from_combined_set", func(t *testing.T) {
 		_ = ta.processedDataDB.Del(ctx, globalBondingCurveProgressXcomCombinedSetKey).Err()
 
@@ -1291,6 +1311,76 @@ func TestBalanceUpdateJob_FeeInOtherToken(t *testing.T) {
 		require.NoError(t, err)
 		// fee_in_other_token=TRUE: fee_usd = (3e18 / 1e18) * curve_price = 3 * 0.575 = 1.725
 		require.InDelta(t, 1.725, pos.TotalFeesUSD, 0.001, "Fee in other token: fee * curve_price")
+	})
+}
+
+func TestBalanceUpdateJob_FeeInOtherToken_Comment(t *testing.T) {
+	t.Parallel()
+
+	t.Run("comment_fee_in_other_token_true", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+		db, connString, release := helperCreateDBWithConnString(t)
+		defer release()
+
+		mockBackend, _, _ := bondingcurvefixture.SetupMockedBondingCurveBackend(t, bondingcurvefixture.DefaultMockBackendConfig())
+		mockBackend.SetBalanceOfResponse(big.NewInt(5000000000000000000)) // 5 tokens
+		mockBackend.SetBondingCurveResponse(bondingcurve.BondingCurveBondingInfo{
+			CurrentPrice:      big.NewInt(500000000000000000), // 0.5 base
+			SoldTokens:        big.NewInt(int64(1e18)),
+			BondingTokensGoal: big.NewInt(int64(5e18)),
+			TokensRaised:      big.NewInt(int64(1e18)),
+			EndPrice:          big.NewInt(int64(1e17)),
+			StartPrice:        big.NewInt(int64(1e18)),
+			Migrated:          false,
+		})
+		mockBC := bondingcurvefixture.CreateMockedBondingCurveForBalanceTests(mockBackend)
+
+		ta := helperNewForTest(t, db, WithRealRiverQueue(connString), WithBondingCurve(mockBC), WithoutQuestDB())
+		defer ta.Close()
+
+		userAddr := "0xcc00000000000000000000000000000000000099"
+		userExtAddr := "fee_comment_user"
+		contractAddr := "0xdd00000000000000000000000000000000000099"
+		tokenExtAddr := "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+		txHash := "0xfee_comment_tx_001"
+		pairID := "0x0000000000000000000000000000000000000000000000000000000000000099"
+		baseToken := "0x2c73996babf1a06c2c057177353293f7ca0907c8"
+
+		helperInsertTestUser(t, ctx, db, userExtAddr, "fee_comment_user", "Fee Comment User", userAddr, false, PlatformGroupIonConnect)
+		helperInsertTestToken(t, ctx, db, contractAddr, tokenExtAddr, "FCOMM", "comment", userExtAddr, "1000000000000000000000000000", 0, 0, 0, PlatformGroupIonConnect)
+		helperUpdateTokenPairAndBaseToken(t, ctx, db, tokenExtAddr, pairID, baseToken)
+		helperInsertBaseTokenPrice(t, ctx, db, baseToken, "ION", 0.5)
+		helperSetFeeInOtherToken(t, ctx, db, contractAddr, true)
+		helperInsertUserPosition(t, ctx, db, userAddr, contractAddr, tokenExtAddr, userExtAddr, "0")
+
+		helperInsertUnprocessedSwap(t, ctx, db, contractAddr, tokenExtAddr, userAddr,
+			txHash, false, "10000000000000000000", "5000000000000000000", 0.01, "3000000000000000000")
+
+		err := ta.riverClient.Push(ctx, BalanceUpdateJobArgs{
+			UserBlockchainAddress: userAddr,
+			UserExternalAddress:   userExtAddr,
+			ContractAddress:       contractAddr,
+			TokenExternalAddress:  tokenExtAddr,
+			TransactionHash:       txHash,
+			BlockNumber:           100,
+			PairID:                pairID,
+			BaseToken:             baseToken,
+			TokenType:             TokenTypeComment,
+			Platform:              PlatformGroupIonConnect,
+		})
+		require.NoError(t, err)
+		helperWaitForRiverQueueJobs(t, ctx, ta, 10*time.Second)
+
+		type position struct {
+			TotalFeesUSD float64 `db:"total_fees_usd"`
+		}
+		pos, err := storage.Get[position](ctx, db, `
+			SELECT total_fees_usd FROM user_token_positions
+			WHERE user_blockchain_address = $1 AND contract_address = $2
+		`, strings.ToLower(userAddr), strings.ToLower(contractAddr))
+		require.NoError(t, err)
+		require.InDelta(t, 1.725, pos.TotalFeesUSD, 0.001, "Comment fee_in_other_token=true: fee * curve_price = 3 * 0.575 = 1.725")
 	})
 }
 

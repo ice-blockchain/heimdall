@@ -138,6 +138,7 @@ const (
 	TokenTypePost              = "post"
 	TokenTypeArticle           = "article"
 	TokenTypeVideo             = "video"
+	TokenTypeComment           = "comment"
 	TokenTypeAnyPost           = "anyPost"
 	TokenTypeXcom              = "xcom"
 	TokenTypeXcomCombined      = "xcomCombined"
