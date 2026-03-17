@@ -389,6 +389,9 @@ func (c *dfnsClient) storeLastSyncedDateTime(ctx context.Context, db *storage.DB
 	}()
 
 	for range ticks {
+		if c.lastSyncedWHDate == nil {
+			continue
+		}
 		storeLastUpdateCtx, cancelStore := context.WithTimeout(ctx, 10*stdlibtime.Second)
 		_, err := storage.Exec(storeLastUpdateCtx, db, `INSERT INTO global (key,value) VALUES ('WEBHOOK_LAST_EVENT', $1) ON CONFLICT(key) DO
 		UPDATE

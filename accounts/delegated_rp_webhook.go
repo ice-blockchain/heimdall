@@ -310,7 +310,7 @@ func (a *accounts) insertHistory(ctx context.Context, userID, walletID string, a
 		return nil
 	}
 	_, err := storage.Exec(ctx, a.db, `
-		INSERT INTO wallet_history (user_id, wallet_id, tx_hash, log_index, block_number, timestamp, network, kind, direction, contract, symbol, decimals, value, fee, from_address, to_address, org_id, metadata, memo, token_id) 
+		INSERT INTO wallet_history (user_id, wallet_id, tx_hash, external_hash, log_index, block_number, timestamp, network, kind, direction, contract, symbol, decimals, value, fee, from_address, to_address, org_id, metadata, memo, token_id) 
 		VALUES `+values+` ON CONFLICT (wallet_id, tx_hash, log_index) DO NOTHING;`,
 		params...,
 	)
@@ -329,12 +329,12 @@ func buildHistoryParams(userID string, args []*webhookBlockchainEvent) ([]string
 	i := 1
 	for _, arg := range args {
 		values = append(values, fmt.Sprintf(
-			"($%[1]v, $%[2]v, $%[3]v, $%[4]v, $%[5]v, $%[6]v, $%[7]v, $%[8]v, $%[9]v, $%[10]v, $%[11]v, $%[12]v, $%[13]v, $%[14]v, $%[15]v, $%[16]v, $%[17]v, $%[18]v, $%[19]v, $%[20]v)",
-			i, i+1, i+2, i+3, i+4, i+5, i+6, i+7, i+8, i+9, i+10, i+11, i+12, i+13, i+14, i+15, i+16, i+17, i+18, i+19,
+			"($%[1]v, $%[2]v, $%[3]v, $%[4]v, $%[5]v, $%[6]v, $%[7]v, $%[8]v, $%[9]v, $%[10]v, $%[11]v, $%[12]v, $%[13]v, $%[14]v, $%[15]v, $%[16]v, $%[17]v, $%[18]v, $%[19]v, $%[20]v, $%[21]v)",
+			i, i+1, i+2, i+3, i+4, i+5, i+6, i+7, i+8, i+9, i+10, i+11, i+12, i+13, i+14, i+15, i+16, i+17, i+18, i+19, i+20,
 		))
-		params = append(params, userID, arg.WalletID, arg.TxHash, arg.Index, arg.BlockNumber, arg.Timestamp, arg.Network, arg.Kind, arg.Direction, arg.Contract, arg.Symbol, arg.Decimals, arg.Value, arg.Fee, arg.From, arg.To, arg.OrgID, arg.Metadata, arg.Memo, arg.TokenId)
+		params = append(params, userID, arg.WalletID, arg.TxHash, arg.ExternalHash, arg.Index, arg.BlockNumber, arg.Timestamp, arg.Network, arg.Kind, arg.Direction, arg.Contract, arg.Symbol, arg.Decimals, arg.Value, arg.Fee, arg.From, arg.To, arg.OrgID, arg.Metadata, arg.Memo, arg.TokenId)
 		txs = append(txs, arg.TxHash)
-		i += 20
+		i += 21
 	}
 	return txs, strings.Join(values, ", \n"), params
 }
