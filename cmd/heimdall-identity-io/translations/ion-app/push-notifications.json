@@ -1,6 +1,6 @@
 {
   "en": {
-    "_version": 11,
+    "_version": 12,
     "reply": {
       "title": "Online+",
       "body": "\uD83D\uDCAC @{{username}} replied to your post"
@@ -157,6 +157,10 @@
       "title": "{{displayName}}",
       "body": "\uD83E\uDD11 Sent you {{coinAmount}} {{coinSymbol}}"
     },
+    "anonymousPaymentReceived": {
+      "title": "Online+",
+      "body": "\uD83E\uDD11 Someone sent you {{coinAmount}} {{coinSymbol}}"
+    },
     "yourCreatorTokenIsLive": {
       "title": "\uD83D\uDE80 Creator Token Is Live",
       "body": "Your @{{username}} token is now available for trading."
@@ -219,7 +223,7 @@
     }
   },
   "es": {
-    "_version": 11,
+    "_version": 12,
     "reply": {
       "title": "Online+",
       "body": "[ES] \uD83D\uDCAC @{{username}} replied to your post"
@@ -376,6 +380,10 @@
       "title": "{{displayName}}",
       "body": "[ES] \uD83E\uDD11 Sent you {{coinAmount}} {{coinSymbol}}"
     },
+    "anonymousPaymentReceived": {
+      "title": "Online+",
+      "body": "[ES] \uD83E\uDD11 Someone sent you {{coinAmount}} {{coinSymbol}}"
+    },
     "yourCreatorTokenIsLive": {
       "title": "[ES] \uD83D\uDE80 Creator Token Is Live",
       "body": "[ES] Your @{{username}} token is now available for trading."
@@ -438,7 +446,7 @@
     }
   },
   "fr": {
-    "_version": 11,
+    "_version": 12,
     "reply": {
       "title": "Online+",
       "body": "[FR] \uD83D\uDCAC @{{username}} replied to your post"
@@ -594,6 +602,10 @@
     "paymentReceived": {
       "title": "{{displayName}}",
       "body": "[FR] \uD83E\uDD11 Sent you {{coinAmount}} {{coinSymbol}}"
+    },
+    "anonymousPaymentReceived": {
+      "title": "Online+",
+      "body": "[FR] \uD83E\uDD11 Someone sent you {{coinAmount}} {{coinSymbol}}"
     },
     "yourCreatorTokenIsLive": {
       "title": "[FR] \uD83D\uDE80 Creator Token Is Live",
