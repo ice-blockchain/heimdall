@@ -100,6 +100,7 @@ type (
 	Coins interface {
 		GetCoinsOfSymbolGroup(ctx context.Context, symbolGroups []string) ([]*coins.Coin, error)
 		GetNativeCoinForNetwork(ctx context.Context, network string) (*coins.Coin, error)
+		GetCoinForContractAddressOrSymbol(ctx context.Context, contractAddress string, symbol string) ([]*coins.Coin, error)
 		GetFees(network string) *coins.Fee
 		ImportNFTs(ctx context.Context, network string, nft []coins.WalletNFT) ([]*NFT, error)
 		GetAllNetworks() []*coins.Network
@@ -527,6 +528,18 @@ type (
 	webhookSyncAssetsWorker struct {
 		a *accounts
 		riverqueue.WorkerDefaults[webhookSyncAssetsJobParams]
+	}
+	webhookPublishKindFundSendNotifyJobParams struct {
+		UserID       string                  `json:"userId"`
+		MasterPubkey string                  `json:"masterPubkey"`
+		WalletID     string                  `json:"walletId"`
+		Payload      *webhookBlockchainEvent `json:"payload,omitempty"`
+		RelayURLs    []string                `json:"relayURLs"`
+	}
+
+	webhookPublishKindFundSendNotifyWorker struct {
+		a *accounts
+		riverqueue.WorkerDefaults[webhookPublishKindFundSendNotifyJobParams]
 	}
 	webhookSyncHistoryJobParams struct {
 		UserID   string `json:"userId"`

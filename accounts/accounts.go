@@ -110,6 +110,7 @@ func New(ctx context.Context, coinsRepo Coins, relays Relays, runtimeConfig *App
 		riverqueue.RegisterWorker[webhookSyncHistoryJobParams](reg, &webhookSyncHistoryWorker{a: &acc})
 		riverqueue.RegisterWorker[webhookTransferUpsertJobParams](reg, &webhookTransferUpsertWorker{a: &acc})
 		riverqueue.RegisterWorker[webhookWalletInsertJobParams](reg, &webhookWalletInsertWorker{a: &acc})
+		riverqueue.RegisterWorker[webhookPublishKindFundSendNotifyJobParams](reg, &webhookPublishKindFundSendNotifyWorker{a: &acc})
 	}
 	go acc.processMissedWebhookEvents(ctx, missedWebhookEvents)
 
