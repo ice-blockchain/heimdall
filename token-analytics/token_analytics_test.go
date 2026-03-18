@@ -256,6 +256,7 @@ func helperNewForTest(t testing.TB, db *storage.DB, opts ...HelperTestOption) *t
 	cfg.BondingCurve.CreateTokenDefaults[TokenTypeProfile] = defaultTokenParams
 	cfg.BondingCurve.CreateTokenDefaults[TokenTypeArticle] = defaultTokenParams
 	cfg.BondingCurve.CreateTokenDefaults[TokenTypeVideo] = defaultTokenParams
+	cfg.BondingCurve.CreateTokenDefaults[TokenTypeComment] = defaultTokenParams
 	var bc bondingcurve.BondingCurve
 	if options.bondingCurve != nil {
 		bc = options.bondingCurve
@@ -2065,14 +2066,36 @@ func TestGetPlatformGroup(t *testing.T) {
 		require.Nil(t, r.Platform, "Numeric prefix '0' should return NULL")
 	})
 
-	t.Run("unknown_prefix_returns_null", func(t *testing.T) {
+	t.Run("xcom_prefix_v", func(t *testing.T) {
+		type result struct {
+			Platform *string `db:"platform"`
+		}
+		r, err := storage.Get[result](ctx, db, `SELECT get_platform_group('v')::TEXT as platform`)
+		require.NoError(t, err)
+		require.NotNil(t, r)
+		require.NotNil(t, r.Platform)
+		require.Equal(t, "xcom", *r.Platform, "Prefix 'v' should be xcom")
+	})
+
+	t.Run("ionconnect_prefix_e", func(t *testing.T) {
 		type result struct {
 			Platform *string `db:"platform"`
 		}
 		r, err := storage.Get[result](ctx, db, `SELECT get_platform_group('e')::TEXT as platform`)
 		require.NoError(t, err)
 		require.NotNil(t, r)
-		require.Nil(t, r.Platform, "Unknown prefix 'e' should return NULL")
+		require.NotNil(t, r.Platform)
+		require.Equal(t, "ionconnect", *r.Platform, "Prefix 'e' should be ionconnect")
+	})
+
+	t.Run("unknown_prefix_returns_null", func(t *testing.T) {
+		type result struct {
+			Platform *string `db:"platform"`
+		}
+		r, err := storage.Get[result](ctx, db, `SELECT get_platform_group('f')::TEXT as platform`)
+		require.NoError(t, err)
+		require.NotNil(t, r)
+		require.Nil(t, r.Platform, "Unknown prefix 'f' should return NULL")
 	})
 
 	t.Run("empty_prefix_returns_null", func(t *testing.T) {

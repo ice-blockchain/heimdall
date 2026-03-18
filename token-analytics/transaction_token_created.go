@@ -56,6 +56,8 @@ func parseTokenType(externalType byte, externalAddress string) (tokenType, platf
 			return "", "", "", fmt.Errorf("invalid IonConnect article format: %s", externalAddress)
 		}
 		return TokenTypeArticle, PlatformGroupIonConnect, parts[1], nil
+	case 'e': // IonConnect Comment
+		return TokenTypeComment, PlatformGroupIonConnect, externalAddress, nil
 
 	case 'z': // X.com Profile
 		return TokenTypeProfile, PlatformGroupXCom, externalAddress, nil
@@ -65,6 +67,8 @@ func parseTokenType(externalType byte, externalAddress string) (tokenType, platf
 		return TokenTypeVideo, PlatformGroupXCom, externalAddress, nil
 	case 'w': // X.com Article
 		return TokenTypeArticle, PlatformGroupXCom, externalAddress, nil
+	case 'v': // X.com Comment
+		return TokenTypeComment, PlatformGroupXCom, externalAddress, nil
 
 	default:
 		return "", "", "", fmt.Errorf("unknown externalType '%c' (%d)", externalType, externalType)

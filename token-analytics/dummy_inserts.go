@@ -159,7 +159,7 @@ func (gen *dummyDataGenerator) createTokenWithBuysOrSellsProcessor(ctx context.C
 }
 
 func (gen *dummyDataGenerator) createIonConnectTokenWithBuysOrSellsProcessor(ctx context.Context, stream string) context.CancelFunc {
-	kinds := []int{0, 30023, 30023, 30175}
+	kinds := []int{0, 30023, 30023, 30175, nostr.KindTextNote}
 	kind := kinds[cryptoRandInt(len(kinds))]
 	dTag := uuid.NewString()
 
@@ -181,6 +181,10 @@ func (gen *dummyDataGenerator) createIonConnectTokenWithBuysOrSellsProcessor(ctx
 		externalAddress = BuildContentExternalAddress(kind, master, dTag)
 		tokenType = "article"
 		externalType = 'd' // IonConnect Article
+	} else if kind == nostr.KindTextNote {
+		externalAddress = mustRandomHex(32)
+		tokenType = "comment"
+		externalType = 'e' // IonConnect Comment
 	} else if kind == model.CustomIONKindEditableTextNote {
 		externalAddress = BuildContentExternalAddress(kind, master, dTag)
 		tokenType = "post"
@@ -1377,6 +1381,8 @@ func buildFatAddressV2(tokens []*fatAddressToken, creatorAddr, affiliateAddr com
 					t.RawType = 'c'
 				case TokenTypeArticle:
 					t.RawType = 'd'
+				case TokenTypeComment:
+					t.RawType = 'e'
 				}
 			} else if t.Platform == PlatformGroupXCom {
 				switch t.Type {
@@ -1388,6 +1394,8 @@ func buildFatAddressV2(tokens []*fatAddressToken, creatorAddr, affiliateAddr com
 					t.RawType = 'x'
 				case TokenTypeArticle:
 					t.RawType = 'w'
+				case TokenTypeComment:
+					t.RawType = 'v'
 				}
 			}
 		}

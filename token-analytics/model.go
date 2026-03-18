@@ -189,11 +189,13 @@ const (
 	PlatformIonConnectPost    Platform = "b" // 0x02
 	PlatformIonConnectVideo   Platform = "c" // 0x04
 	PlatformIonConnectArticle Platform = "d" // 0x08
+	PlatformIonConnectComment Platform = "e" // 0x10
 
-	PlatformXComArticle Platform = "w" // 0x10
-	PlatformXComVideo   Platform = "x" // 0x20
-	PlatformXComPost    Platform = "y" // 0x40
-	PlatformXComProfile Platform = "z" // 0x80
+	PlatformXComComment Platform = "v" // 0x20
+	PlatformXComArticle Platform = "w" // 0x40
+	PlatformXComVideo   Platform = "x" // 0x80
+	PlatformXComPost    Platform = "y" // 0x100
+	PlatformXComProfile Platform = "z" // 0x200
 
 	PlatformGroupIonConnect = "ionconnect"
 	PlatformGroupXCom       = "xcom"
@@ -214,7 +216,7 @@ func IsProfileType(tokenType string) bool {
 }
 
 func IsContentType(tokenType string) bool {
-	return tokenType == TokenTypePost || tokenType == TokenTypeVideo || tokenType == TokenTypeArticle
+	return tokenType == TokenTypePost || tokenType == TokenTypeVideo || tokenType == TokenTypeArticle || tokenType == TokenTypeComment
 }
 
 func buildUserAddressesFromExternalAddressAndPlatform(externalAddress, platform string, bnbBscAddress string, ionConnectAddress ...string) (*Addresses, error) {

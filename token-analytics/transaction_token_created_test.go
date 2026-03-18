@@ -79,6 +79,23 @@ func TestParseTokenType(t *testing.T) {
 			externalAddress: "30023::article1",
 			expectError:     true,
 		},
+		// IonConnect comment tokens (type 'e')
+		{
+			name:                      "valid IonConnect comment with event ID",
+			externalType:              'e',
+			externalAddress:           "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+			expectedTokenType:         TokenTypeComment,
+			expectedMasterPubkeyOrXID: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+			expectError:               false,
+		},
+		{
+			name:                      "valid IonConnect comment with colon-delimited address",
+			externalType:              'e',
+			externalAddress:           "30175:pubkey123:eventid456",
+			expectedTokenType:         TokenTypeComment,
+			expectedMasterPubkeyOrXID: "30175:pubkey123:eventid456",
+			expectError:               false,
+		},
 		// X.com profile tokens (type 'z')
 		{
 			name:                      "valid X.com profile",
@@ -113,6 +130,15 @@ func TestParseTokenType(t *testing.T) {
 			externalAddress:           "1122334455",
 			expectedTokenType:         TokenTypeArticle,
 			expectedMasterPubkeyOrXID: "1122334455",
+			expectError:               false,
+		},
+		// X.com comment tokens (type 'v')
+		{
+			name:                      "valid X.com comment",
+			externalType:              'v',
+			externalAddress:           "5566778899",
+			expectedTokenType:         TokenTypeComment,
+			expectedMasterPubkeyOrXID: "5566778899",
 			expectError:               false,
 		},
 		// Edge cases

@@ -406,7 +406,7 @@ func (t *tokenAnalytics) updateBondingCurveInRedis(ctx context.Context, external
 					return errors.Wrapf(err, "failed to update type-specific bonding curve progress in Redis for type %s", tokenType)
 				}
 			}
-			if tokenType == TokenTypePost || tokenType == TokenTypeVideo || tokenType == TokenTypeArticle {
+			if IsContentType(tokenType) {
 				if err := t.processedDataDB.ZAdd(ctx, globalBondingCurveProgressAnyPostSetKey, redis.Z{
 					Score:  currentAmountScore,
 					Member: externalAddress,
@@ -454,7 +454,7 @@ func (t *tokenAnalytics) updateBondingCurveInRedis(ctx context.Context, external
 					return errors.Wrapf(err, "failed to remove token from type-specific bonding curve progress in Redis for type %s", tokenType)
 				}
 			}
-			if tokenType == TokenTypePost || tokenType == TokenTypeVideo || tokenType == TokenTypeArticle {
+			if IsContentType(tokenType) {
 				if err := t.processedDataDB.ZRem(ctx, globalBondingCurveProgressAnyPostSetKey, externalAddress).Err(); err != nil {
 					return errors.Wrap(err, "failed to remove token from anyPost bonding curve progress in Redis")
 				}
