@@ -181,7 +181,7 @@ func TestGetAllTrendingSetKeys(t *testing.T) {
 
 	keys := ta.getAllTrendingSetKeys()
 
-	require.Equal(t, 10, len(keys), "should have global, xcom, xcom_combined, anyPost, onlineplus_creator, onlineplus_content, and 4 token type keys")
+	require.Equal(t, 11, len(keys), "should have global, xcom, xcom_combined, anyPost, onlineplus_creator, onlineplus_content, and 5 token type keys")
 
 	require.Contains(t, keys, globalTrendingSetKey)
 	require.Contains(t, keys, globalTrendingXcomSetKey)
@@ -193,6 +193,7 @@ func TestGetAllTrendingSetKeys(t *testing.T) {
 	require.Contains(t, keys, getTrendingSetKeyByType(TokenTypePost))
 	require.Contains(t, keys, getTrendingSetKeyByType(TokenTypeVideo))
 	require.Contains(t, keys, getTrendingSetKeyByType(TokenTypeArticle))
+	require.Contains(t, keys, getTrendingSetKeyByType(TokenTypeComment))
 }
 
 func TestAddTokenToTrendingSets(t *testing.T) {
@@ -266,7 +267,7 @@ func TestAddTokenToTrendingSets(t *testing.T) {
 		require.Equal(t, vol.Volume24h, anyPostScore)
 	})
 
-	t.Run("adds ionconnect comment token to post and anyPost sets", func(t *testing.T) {
+	t.Run("adds ionconnect comment token to comment and anyPost sets", func(t *testing.T) {
 		db, release := helperCreateDB(t)
 		defer release()
 

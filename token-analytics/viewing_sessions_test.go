@@ -534,7 +534,7 @@ func TestGetGlobalSetKey(t *testing.T) {
 		commentType := TokenTypeComment
 		key, err = getGlobalSetKey(sessionTypeTop, &commentType)
 		require.NoError(t, err)
-		require.Equal(t, globalTopPostSetKey, key)
+		require.Equal(t, globalTopCommentSetKey, key)
 	})
 
 	t.Run("returns correct keys for trending session type", func(t *testing.T) {
@@ -565,7 +565,7 @@ func TestGetGlobalSetKey(t *testing.T) {
 		commentType := TokenTypeComment
 		key, err = getGlobalSetKey(sessionTypeTrending, &commentType)
 		require.NoError(t, err)
-		require.Equal(t, globalTrendingPostSetKey, key)
+		require.Equal(t, globalTrendingCommentSetKey, key)
 	})
 
 	t.Run("returns correct keys for bonding curve progress session type", func(t *testing.T) {
@@ -596,7 +596,7 @@ func TestGetGlobalSetKey(t *testing.T) {
 		commentType := TokenTypeComment
 		key, err = getGlobalSetKey(sessionTypeBondingCurveProgress, &commentType)
 		require.NoError(t, err)
-		require.Equal(t, globalBondingCurveProgressPostSetKey, key)
+		require.Equal(t, globalBondingCurveProgressCommentSetKey, key)
 	})
 
 	t.Run("returns error for unsupported session type", func(t *testing.T) {

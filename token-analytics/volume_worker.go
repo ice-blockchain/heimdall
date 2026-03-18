@@ -275,6 +275,7 @@ func (t *tokenAnalytics) getAllTrendingSetKeys() []string {
 		getTrendingSetKeyByType(TokenTypePost),
 		getTrendingSetKeyByType(TokenTypeVideo),
 		getTrendingSetKeyByType(TokenTypeArticle),
+		getTrendingSetKeyByType(TokenTypeComment),
 	}
 }
 

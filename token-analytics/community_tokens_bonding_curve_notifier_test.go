@@ -457,9 +457,9 @@ func TestBondingCurveNotifier(t *testing.T) {
 		err := ta.handleBondingCurveUpdate(ctx, payload)
 		require.NoError(t, err)
 
-		bcPostScore, err := ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressPostSetKey, tokenExternalAddr).Result()
+		bcCommentScore, err := ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressCommentSetKey, tokenExternalAddr).Result()
 		require.NoError(t, err)
-		require.InDelta(t, 60000000000000000000.0, bcPostScore, 1e15, "Comment bonding curve progress should be stored in post set")
+		require.InDelta(t, 60000000000000000000.0, bcCommentScore, 1e15, "Comment bonding curve progress should be in comment-specific set")
 
 		bcAnyPostScore, err := ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressAnyPostSetKey, tokenExternalAddr).Result()
 		require.NoError(t, err)

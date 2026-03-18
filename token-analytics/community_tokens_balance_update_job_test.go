@@ -542,9 +542,9 @@ func TestUpdateBondingCurveInRedis_CombinedSet(t *testing.T) {
 		require.Error(t, err)
 		require.Equal(t, redis.Nil, err, "comment token should not be in combined set")
 
-		postScore, err := ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressPostSetKey, commentExtAddr).Result()
+		commentScore, err := ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressCommentSetKey, commentExtAddr).Result()
 		require.NoError(t, err)
-		require.InDelta(t, 45.0, postScore, 0.001, "comment should be stored in post bonding curve set")
+		require.InDelta(t, 45.0, commentScore, 0.001, "comment should be in comment-specific bonding curve set")
 
 		anyPostScore, err := ta.processedDataDB.ZScore(ctx, globalBondingCurveProgressAnyPostSetKey, commentExtAddr).Result()
 		require.NoError(t, err)

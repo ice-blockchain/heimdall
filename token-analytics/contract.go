@@ -202,6 +202,7 @@ const (
 	globalTopPostSetKey    = "token_analytics:global:top:post"
 	globalTopVideoSetKey   = "token_analytics:global:top:video"
 	globalTopArticleSetKey = "token_analytics:global:top:article"
+	globalTopCommentSetKey = "token_analytics:global:top:comment"
 	globalTopAnyPostSetKey = "token_analytics:global:top:anyPost"
 	globalTopXcomSetKey    = "token_analytics:global:top:xcom"
 
@@ -209,6 +210,7 @@ const (
 	globalTrendingPostSetKey    = "token_analytics:global:trending:post"
 	globalTrendingVideoSetKey   = "token_analytics:global:trending:video"
 	globalTrendingArticleSetKey = "token_analytics:global:trending:article"
+	globalTrendingCommentSetKey = "token_analytics:global:trending:comment"
 	globalTrendingAnyPostSetKey = "token_analytics:global:trending:anyPost"
 	globalTrendingXcomSetKey    = "token_analytics:global:trending:xcom"
 
@@ -216,6 +218,7 @@ const (
 	globalBondingCurveProgressPostSetKey    = "token_analytics:global:bonding_curve_progress:post"
 	globalBondingCurveProgressVideoSetKey   = "token_analytics:global:bonding_curve_progress:video"
 	globalBondingCurveProgressArticleSetKey = "token_analytics:global:bonding_curve_progress:article"
+	globalBondingCurveProgressCommentSetKey = "token_analytics:global:bonding_curve_progress:comment"
 	globalBondingCurveProgressAnyPostSetKey = "token_analytics:global:bonding_curve_progress:anyPost"
 	globalBondingCurveProgressXcomSetKey    = "token_analytics:global:bonding_curve_progress:xcom"
 

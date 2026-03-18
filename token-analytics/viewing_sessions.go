@@ -451,7 +451,7 @@ func getGlobalSetKey(sessionType string, tokenType *string) (string, error) {
 			case TokenTypeArticle:
 				return globalTopArticleSetKey, nil
 			case TokenTypeComment:
-				return globalTopPostSetKey, nil
+				return globalTopCommentSetKey, nil
 			case TokenTypeAnyPost:
 				return globalTopAnyPostSetKey, nil
 			case TokenTypeXcom:
@@ -479,7 +479,7 @@ func getGlobalSetKey(sessionType string, tokenType *string) (string, error) {
 			case TokenTypeArticle:
 				return globalTrendingArticleSetKey, nil
 			case TokenTypeComment:
-				return globalTrendingPostSetKey, nil
+				return globalTrendingCommentSetKey, nil
 			case TokenTypeAnyPost:
 				return globalTrendingAnyPostSetKey, nil
 			case TokenTypeXcom:
@@ -507,7 +507,7 @@ func getGlobalSetKey(sessionType string, tokenType *string) (string, error) {
 			case TokenTypeArticle:
 				return globalBondingCurveProgressArticleSetKey, nil
 			case TokenTypeComment:
-				return globalBondingCurveProgressPostSetKey, nil
+				return globalBondingCurveProgressCommentSetKey, nil
 			case TokenTypeAnyPost:
 				return globalBondingCurveProgressAnyPostSetKey, nil
 			case TokenTypeXcom:

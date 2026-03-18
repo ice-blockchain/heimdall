@@ -292,7 +292,7 @@ func TestHandleTokenSwapUpdate(t *testing.T) {
 		require.InDelta(t, 0.005*(1000000.0-100000.0), scoreCombined, 0.001, "profile token should be in combined set")
 	})
 
-	t.Run("comment token swap populates post and anyPost redis sets", func(t *testing.T) {
+	t.Run("comment token swap populates comment and anyPost redis sets", func(t *testing.T) {
 		ctx := context.Background()
 
 		db, release := helperCreateDB(t)
@@ -350,9 +350,9 @@ func TestHandleTokenSwapUpdate(t *testing.T) {
 		require.NoError(t, ta.handleTokenSwapUpdate(ctx, string(payload)))
 
 		expectedMCap := 0.005 * 1000000.0
-		scorePost, err := ta.processedDataDB.ZScore(ctx, globalTopPostSetKey, commentExtAddr).Result()
+		scoreComment, err := ta.processedDataDB.ZScore(ctx, globalTopCommentSetKey, commentExtAddr).Result()
 		require.NoError(t, err)
-		require.InDelta(t, expectedMCap, scorePost, 0.001, "comment market cap should be in post set")
+		require.InDelta(t, expectedMCap, scoreComment, 0.001, "comment market cap should be in comment set")
 
 		scoreAnyPost, err := ta.processedDataDB.ZScore(ctx, globalTopAnyPostSetKey, commentExtAddr).Result()
 		require.NoError(t, err)
@@ -415,9 +415,9 @@ func TestUpdateTokenRankingsInRedis_CombinedSet(t *testing.T) {
 		require.Error(t, err, "comment token should not be in combined set")
 		require.Equal(t, float64(0), exists)
 
-		postScore, err := ta.processedDataDB.ZScore(ctx, globalTopPostSetKey, commentExtAddr).Result()
+		commentScore, err := ta.processedDataDB.ZScore(ctx, globalTopCommentSetKey, commentExtAddr).Result()
 		require.NoError(t, err)
-		require.InDelta(t, 250.0, postScore, 0.001, "comment should be stored in post top set")
+		require.InDelta(t, 250.0, commentScore, 0.001, "comment should be in comment-specific top set")
 
 		anyPostScore, err := ta.processedDataDB.ZScore(ctx, globalTopAnyPostSetKey, commentExtAddr).Result()
 		require.NoError(t, err)

@@ -584,7 +584,7 @@ func getTopSetKeyByType(tokenType string) string {
 	case TokenTypeArticle:
 		return globalTopArticleSetKey
 	case TokenTypeComment:
-		return globalTopPostSetKey
+		return globalTopCommentSetKey
 	case TokenTypeAnyPost:
 		return globalTopAnyPostSetKey
 	case TokenTypeXcom:
@@ -609,7 +609,7 @@ func getTrendingSetKeyByType(tokenType string) string {
 	case TokenTypeArticle:
 		return globalTrendingArticleSetKey
 	case TokenTypeComment:
-		return globalTrendingPostSetKey
+		return globalTrendingCommentSetKey
 	case TokenTypeAnyPost:
 		return globalTrendingAnyPostSetKey
 	case TokenTypeXcom:
@@ -634,7 +634,7 @@ func getBondingCurveProgressSetKeyByType(tokenType string) string {
 	case TokenTypeArticle:
 		return globalBondingCurveProgressArticleSetKey
 	case TokenTypeComment:
-		return globalBondingCurveProgressPostSetKey
+		return globalBondingCurveProgressCommentSetKey
 	case TokenTypeAnyPost:
 		return globalBondingCurveProgressAnyPostSetKey
 	case TokenTypeXcom:
