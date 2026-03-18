@@ -98,9 +98,6 @@ func (a *accounts) processWebhookFromDelegatedRelyingParty(ctx context.Context, 
 		}
 		walletID := blockchainEvent.WalletID
 		walletOwner, err := a.enqueuePublishKindFundSendNotify(ctx, walletID, blockchainEvent)
-		if err != nil {
-			return errors.Wrapf(err, "failed to publish 1756 for %v %v from blockchain event", walletID, userID)
-		}
 		if userID == "" {
 			userID = walletOwner
 		}
@@ -130,7 +127,7 @@ func (a *accounts) enqueuePublishKindFundSendNotify(ctx context.Context, walletI
 	SELECT
 		u.id as user_id,
 		u.master_pubkey as master_pubkey,
-		(SELECT json_agg(x) FROM (SELECT userurl as url, relay_type as "type" FROM ion_connect_relays join unnest(u.ion_connect_relays) AS t(userurl) ON url = userurl OR url = replace(userurl, ':4443','')) x) AS ion_connect_relays,
+		COALESCE((SELECT json_agg(x) FROM (SELECT userurl as url, relay_type as "type" FROM ion_connect_relays join unnest(u.ion_connect_relays) AS t(userurl) ON url = userurl OR url = replace(userurl, ':4443','')) x),'[]'::json) AS ion_connect_relays,
 		sender IS NULL as external
 		FROM wallets w 
 		JOIN users u ON u.id = w.user_id
@@ -150,11 +147,24 @@ func (a *accounts) enqueuePublishKindFundSendNotify(ctx context.Context, walletI
 		return relaysAndWallet.UserID, nil
 	}
 
+	writeRelayUrls := make([]string, 0, len(relaysAndWallet.IONConnectRelays))
+	for _, r := range relaysAndWallet.IONConnectRelays {
+		if r.Type == model.RelayListWriteMarker || r.Type == "" {
+			writeRelayUrls = append(writeRelayUrls, r.URL)
+		}
+	}
+	if len(writeRelayUrls) == 0 {
+		if len(relaysAndWallet.IONConnectRelays) == 0 {
+			return "", errors.New("no relays found for user")
+		}
+		writeRelayUrls = append(writeRelayUrls, relaysAndWallet.IONConnectRelays[0].URL)
+	}
+
 	if err = a.riverClient.Push(ctx, &webhookPublishKindFundSendNotifyJobParams{
 		UserID:       relaysAndWallet.UserID,
 		WalletID:     walletID,
 		Payload:      payload,
-		Relays:       relaysAndWallet.IONConnectRelays,
+		Relays:       writeRelayUrls,
 		MasterPubkey: relaysAndWallet.MasterPubkey,
 	}); err != nil {
 		return "", errors.Wrapf(err, "failed to enqueue publishing 1756 for wallet %v user %v", walletID, relaysAndWallet.UserID)
@@ -536,18 +546,6 @@ func (webhookPublishKindFundSendNotifyJobParams) Kind() string {
 
 func (w *webhookPublishKindFundSendNotifyWorker) Work(ctx context.Context, job *riverqueue.Job[webhookPublishKindFundSendNotifyJobParams]) (err error) {
 	args := job.Args
-	writeRelayUrls := make([]string, 0, len(args.Relays))
-	for _, r := range args.Relays {
-		if r.Type == model.RelayListWriteMarker {
-			writeRelayUrls = append(writeRelayUrls, r.URL)
-		}
-	}
-	if len(writeRelayUrls) == 0 {
-		if len(args.Relays) == 0 {
-			return errors.New("no relays found for user")
-		}
-		writeRelayUrls = append(writeRelayUrls, args.Relays[0].URL)
-	}
 	var coin *coins.Coin
 	if args.Payload.Kind == "NativeTransfer" {
 		coin, err = w.a.coinsRepo.GetNativeCoinForNetwork(ctx, args.Payload.Network)
@@ -573,7 +571,7 @@ func (w *webhookPublishKindFundSendNotifyWorker) Work(ctx context.Context, job *
 	if err != nil {
 		return errors.Wrapf(err, "failed to generate kind 1756 event for user %v wallet %v", args.UserID, args.WalletID)
 	}
-	if err = publishEvents(ctx, writeRelayUrls, []*model.Event{event}, w.a.privateKey); err != nil {
+	if err = publishEvents(ctx, args.Relays, []*model.Event{event}, w.a.privateKey); err != nil {
 		return errors.Wrapf(err, "failed to publish kind 1756 event for user %v wallet %v", args.UserID, args.WalletID)
 	}
 	return nil
@@ -645,7 +643,7 @@ func (w *webhookPublishKindFundSendNotifyWorker) generateKindFundSendNotifyEvent
 		},
 	}
 	if err = event.SignWithAlg(w.a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
-		return nil, errors.Wrap(err, "failed to sign 1756 fund send notify event")
+		log.Panic(errors.Wrap(err, "failed to sign 1756 fund send notify event"))
 	}
 
 	return event, nil

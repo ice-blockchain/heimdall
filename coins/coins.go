@@ -550,7 +550,7 @@ func (c *coinsRepository) GetNativeCoinForNetwork(ctx context.Context, network s
 	}
 	network, priority, err := MapNetworkFromCoinGecko(nativeCoin.Network, nativeCoin.SymbolGroup)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get coins of symbol group due to unmapped network %v %+v", nativeCoin.Network, c)
+		return nil, errors.Wrapf(err, "failed to get native coin due to unmapped network %v %+v", nativeCoin.Network, c)
 	}
 	return &Coin{
 		ID:                                nativeCoin.ID,
@@ -576,11 +576,7 @@ func (c *coinsRepository) GetCoinForContractAddressOrSymbol(ctx context.Context,
 		return nil, errors.Wrapf(err, "failed to map network %v to coin gecko", network)
 	}
 
-	isTestnet := false
-	for _, n := range c.GetAllNetworks() {
-		isTestnet = n.IsTestnet
-		break
-	}
+	isTestnet := coingecko.IsTestnet(network)
 	matchingCoins, err := storage.Select[coin](ctx, c.db, `
 		SELECT 
 		c.sync_frequency,
@@ -613,7 +609,7 @@ func (c *coinsRepository) GetCoinForContractAddressOrSymbol(ctx context.Context,
 	for _, matchingCoin := range matchingCoins {
 		network, priority, err := MapNetworkFromCoinGecko(matchingCoin.Network, matchingCoin.SymbolGroup)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get coins of symbol group due to unmapped network %v %+v", matchingCoin.Network, c)
+			return nil, errors.Wrapf(err, "failed to get coins by contract address due to unmapped network %v %+v", matchingCoin.Network, c)
 		}
 		res = append(res, &Coin{
 			ID:                                matchingCoin.ID,
