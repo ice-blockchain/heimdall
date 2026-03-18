@@ -570,7 +570,12 @@ func (c *coinsRepository) GetNativeCoinForNetwork(ctx context.Context, network s
 	}, nil
 }
 
-func (c *coinsRepository) GetCoinForContractAddressOrSymbol(ctx context.Context, contractAddress string, symbol string) ([]*Coin, error) {
+func (c *coinsRepository) GetCoinForContractAddressOrSymbol(ctx context.Context, network, contractAddress, symbol string) ([]*Coin, error) {
+	cgNetwork, err := MapNetworkToCoinGecko(network)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to map network %v to coin gecko", network)
+	}
+
 	isTestnet := false
 	for _, n := range c.GetAllNetworks() {
 		isTestnet = n.IsTestnet
@@ -597,9 +602,10 @@ func (c *coinsRepository) GetCoinForContractAddressOrSymbol(ctx context.Context,
 		c.tc_external_address,
 		c.tc_type
 		FROM (
-		SELECT coins.*, 1 as union_idx from coins where contract_address = $1 
-		UNION ALL SELECT coins.*, 2 as union_idx from coins where symbol = $2 AND $3
-		ORDER BY union_idx) c;`, strings.ToLower(contractAddress), strings.ToLower(symbol), isTestnet)
+		SELECT coins.*, 1 as union_idx from coins where network = $4 AND contract_address = $1 
+		UNION ALL SELECT coins.*, 2 as union_idx from coins where network = $4 AND symbol = $2 AND $3
+		) c
+		ORDER BY c.union_idx;`, strings.ToLower(contractAddress), strings.ToLower(symbol), isTestnet, cgNetwork)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to select coins for contract %v or %v", contractAddress, symbol)
 	}

@@ -242,7 +242,9 @@ func (m *mockWalletClient) ListAssets(ctx context.Context, walletID string) (*df
 		WalletID: walletID,
 	}, nil
 }
-
+func (m *mockWalletClient) GetCoinForContractAddressOrSymbol(ctx context.Context, network, contractAddress, symbol string) ([]*coins.Coin, error) {
+	return nil, nil
+}
 func (m *mockWalletClient) ListNFTs(ctx context.Context, walletID string) (*dfns.NFTs, error) {
 	w := m.mockedWallets[walletID]
 	nfts := w["nfts"].([]dfns.NFT)

@@ -134,7 +134,7 @@ func publishEvents(ctx context.Context, relays []string, events []*model.Event, 
 	ids := make([]string, 0, len(events))
 	for _, ev := range events {
 		evs = append(evs, &ev.Event)
-		ids = append(ids, ev.ID)
+		ids = append(ids, ev.Event.ID)
 	}
 	if err := nostrRelay.PublishMany(ctx, evs...); err != nil {
 		return errors.Wrapf(err, "failed to publish events: %+v", ids)

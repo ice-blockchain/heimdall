@@ -32,7 +32,7 @@ type (
 		GetFees(network string) *Fee
 		ImportNFTs(ctx context.Context, network string, NFTs []WalletNFT) ([]*NFT, error)
 		GetNativeCoinForNetwork(ctx context.Context, network string) (*Coin, error)
-		GetCoinForContractAddressOrSymbol(ctx context.Context, contractAddress string, symbol string) ([]*Coin, error)
+		GetCoinForContractAddressOrSymbol(ctx context.Context, network, contractAddress, symbol string) ([]*Coin, error)
 		Search(ctx context.Context, keyword string, limit, offset uint64) ([]*Coin, error)
 		CoinImport
 	}

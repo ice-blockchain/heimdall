@@ -149,27 +149,15 @@ func (a *accounts) enqueuePublishKindFundSendNotify(ctx context.Context, walletI
 	if !relaysAndWallet.External {
 		return relaysAndWallet.UserID, nil
 	}
-	writeRelayUrls := make([]string, 0, len(relaysAndWallet.IONConnectRelays))
-	for _, r := range relaysAndWallet.IONConnectRelays {
-		if r.Type == model.RelayListWriteMarker {
-			writeRelayUrls = append(writeRelayUrls, r.URL)
-		}
-	}
-	if len(writeRelayUrls) == 0 {
-		if len(relaysAndWallet.IONConnectRelays) == 0 {
-			return "", errors.New("no relays found for user")
-		}
-		writeRelayUrls = append(writeRelayUrls, relaysAndWallet.IONConnectRelays[0].URL)
-	}
 
 	if err = a.riverClient.Push(ctx, &webhookPublishKindFundSendNotifyJobParams{
 		UserID:       relaysAndWallet.UserID,
 		WalletID:     walletID,
 		Payload:      payload,
-		RelayURLs:    writeRelayUrls,
+		Relays:       relaysAndWallet.IONConnectRelays,
 		MasterPubkey: relaysAndWallet.MasterPubkey,
 	}); err != nil {
-		return "", errors.Wrapf(err, "failed to enqueue publishing 1756 for wallet %v user %v", walletID, userID)
+		return "", errors.Wrapf(err, "failed to enqueue publishing 1756 for wallet %v user %v", walletID, relaysAndWallet.UserID)
 	}
 	return relaysAndWallet.UserID, nil
 }
@@ -548,7 +536,18 @@ func (webhookPublishKindFundSendNotifyJobParams) Kind() string {
 
 func (w *webhookPublishKindFundSendNotifyWorker) Work(ctx context.Context, job *riverqueue.Job[webhookPublishKindFundSendNotifyJobParams]) (err error) {
 	args := job.Args
-
+	writeRelayUrls := make([]string, 0, len(args.Relays))
+	for _, r := range args.Relays {
+		if r.Type == model.RelayListWriteMarker {
+			writeRelayUrls = append(writeRelayUrls, r.URL)
+		}
+	}
+	if len(writeRelayUrls) == 0 {
+		if len(args.Relays) == 0 {
+			return errors.New("no relays found for user")
+		}
+		writeRelayUrls = append(writeRelayUrls, args.Relays[0].URL)
+	}
 	var coin *coins.Coin
 	if args.Payload.Kind == "NativeTransfer" {
 		coin, err = w.a.coinsRepo.GetNativeCoinForNetwork(ctx, args.Payload.Network)
@@ -561,7 +560,7 @@ func (w *webhookPublishKindFundSendNotifyWorker) Work(ctx context.Context, job *
 			symbol = args.Payload.Metadata.Asset.Symbol
 		}
 		var matchingCoins []*coins.Coin
-		matchingCoins, err = w.a.coinsRepo.GetCoinForContractAddressOrSymbol(ctx, args.Payload.Contract, symbol)
+		matchingCoins, err = w.a.coinsRepo.GetCoinForContractAddressOrSymbol(ctx, args.Payload.Network, args.Payload.Contract, symbol)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get coin for contract %v symbol %v to populate amount_usd", args.Payload.Contract, symbol)
 		}
@@ -574,7 +573,7 @@ func (w *webhookPublishKindFundSendNotifyWorker) Work(ctx context.Context, job *
 	if err != nil {
 		return errors.Wrapf(err, "failed to generate kind 1756 event for user %v wallet %v", args.UserID, args.WalletID)
 	}
-	if err = publishEvents(ctx, args.RelayURLs, []*model.Event{event}, w.a.privateKey); err != nil {
+	if err = publishEvents(ctx, writeRelayUrls, []*model.Event{event}, w.a.privateKey); err != nil {
 		return errors.Wrapf(err, "failed to publish kind 1756 event for user %v wallet %v", args.UserID, args.WalletID)
 	}
 	return nil
@@ -602,7 +601,10 @@ func (w *webhookPublishKindFundSendNotifyWorker) generateKindFundSendNotifyEvent
 	}
 	usdAmount := "0"
 	if coin != nil {
-		valueF, _ := new(big.Float).SetString(whEvent.Value)
+		valueF, ok := new(big.Float).SetString(whEvent.Value)
+		if !ok {
+			return nil, errors.Errorf("malformed value in tx %v: %v", whEvent.TxHash, whEvent.Value)
+		}
 		valueInTokens, _ := valueF.Quo(valueF, big.NewFloat(math.Pow(10, float64(coin.Decimals)))).Float64()
 		usdAmount = fmt.Sprintf("%.18f", valueInTokens*coin.PriceUSD)
 	}
@@ -622,6 +624,13 @@ func (w *webhookPublishKindFundSendNotifyWorker) generateKindFundSendNotifyEvent
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to marshal content for 1756 wallet %v network %v", whEvent.WalletID, whEvent.Network)
 	}
+	assetAddress := whEvent.Contract
+	if assetAddress == "" {
+		assetAddress = whEvent.Symbol
+	}
+	if assetAddress == "" {
+		assetAddress = whEvent.Metadata.Asset.Symbol
+	}
 	event := &model.Event{
 		Event: nostr.Event{
 			CreatedAt: now,
@@ -630,13 +639,10 @@ func (w *webhookPublishKindFundSendNotifyWorker) generateKindFundSendNotifyEvent
 			Tags: nostr.Tags{
 				{"network", network.ID},
 				{"asset_class", whEvent.Kind},
-				{"L", "wallet.address"},
-				{"l", whEvent.To, "wallet.address"},
+				{"asset_address", assetAddress},
+				{"p", masterKey},
 			},
 		},
-	}
-	if whEvent.Contract != "" {
-		event.Tags = append(event.Tags, nostr.Tag{"asset_address", whEvent.Contract})
 	}
 	if err = event.SignWithAlg(w.a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
 		return nil, errors.Wrap(err, "failed to sign 1756 fund send notify event")
