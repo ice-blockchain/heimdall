@@ -550,7 +550,7 @@ func (c *coinsRepository) GetNativeCoinForNetwork(ctx context.Context, network s
 	}
 	network, priority, err := MapNetworkFromCoinGecko(nativeCoin.Network, nativeCoin.SymbolGroup)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get coins of symbol group due to unmapped network %v %+v", nativeCoin.Network, c)
+		return nil, errors.Wrapf(err, "failed to get native coin due to unmapped network %v %+v", nativeCoin.Network, c)
 	}
 	return &Coin{
 		ID:                                nativeCoin.ID,
@@ -568,6 +568,67 @@ func (c *coinsRepository) GetNativeCoinForNetwork(ctx context.Context, network s
 		TokenizedCommunityExternalAddress: nativeCoin.TokenizedCommunityExternalAddress,
 		TokenizedCommunityTokenType:       nativeCoin.TokenizedCommunityTokenType,
 	}, nil
+}
+
+func (c *coinsRepository) GetCoinForContractAddressOrSymbol(ctx context.Context, network, contractAddress, symbol string) ([]*Coin, error) {
+	cgNetwork, err := MapNetworkToCoinGecko(network)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to map network %v to coin gecko", network)
+	}
+
+	isTestnet := coingecko.IsTestnet(network)
+	matchingCoins, err := storage.Select[coin](ctx, c.db, `
+		SELECT 
+		c.sync_frequency,
+		c.created_at,
+		c.updated_at,
+		c.data_updated_at,
+		c.version,
+		c.coingecko_coin_id,
+		c.id,
+		c.network,
+		c.name,
+		c.contract_address,
+		c.symbol,
+		c.symbol_group,
+		c.icon_url,
+		c.price_usd,
+		c.decimals,
+		c.native,
+		c.tc_external_address,
+		c.tc_type
+		FROM (
+		SELECT coins.*, 1 as union_idx from coins where network = $4 AND contract_address = $1 
+		UNION ALL SELECT coins.*, 2 as union_idx from coins where network = $4 AND symbol = $2 AND $3
+		) c
+		ORDER BY c.union_idx;`, strings.ToLower(contractAddress), strings.ToLower(symbol), isTestnet, cgNetwork)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to select coins for contract %v or %v", contractAddress, symbol)
+	}
+	res := make([]*Coin, 0, len(matchingCoins))
+	for _, matchingCoin := range matchingCoins {
+		network, priority, err := MapNetworkFromCoinGecko(matchingCoin.Network, matchingCoin.SymbolGroup)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get coins by contract address due to unmapped network %v %+v", matchingCoin.Network, c)
+		}
+		res = append(res, &Coin{
+			ID:                                matchingCoin.ID,
+			Name:                              matchingCoin.Name,
+			Symbol:                            matchingCoin.Symbol,
+			SymbolGroup:                       matchingCoin.SymbolGroup,
+			Network:                           network,
+			ContractAddress:                   matchingCoin.ContractAddress,
+			IconURL:                           matchingCoin.IconUrl,
+			PriceUSD:                          matchingCoin.PriceUSD,
+			SyncFrequency:                     matchingCoin.SyncFrequency,
+			Decimals:                          matchingCoin.Decimals,
+			Native:                            matchingCoin.Native,
+			Prioritized:                       priority,
+			TokenizedCommunityExternalAddress: matchingCoin.TokenizedCommunityExternalAddress,
+			TokenizedCommunityTokenType:       matchingCoin.TokenizedCommunityTokenType,
+		})
+	}
+	return res, nil
 }
 
 func tokenizedCommunityTokenToCoin(token TokenAnalyticsToken) *coingecko.Coin {

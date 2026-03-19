@@ -63,7 +63,7 @@ func (a *verifiedUsersSync) ProcessNextVerifiedUsersQueue(ctx context.Context) e
 				writeRelayUrls = append(writeRelayUrls, relay.URL)
 			}
 		}
-		return errors.Wrapf(a.publishEvents(ctx, writeRelayUrls, verificationEvents),
+		return errors.Wrapf(publishEvents(ctx, writeRelayUrls, verificationEvents, a.privateKey),
 			"failed to process verified user: %s", userData.MasterPubKey)
 	}), "failed to process verified user")
 }
@@ -103,7 +103,7 @@ func generateVerificationEvents(heimdallPrivateKey string, masterPubKey string) 
 	return []*model.Event{badgeDefinitionEvent, badgeAwardEvent}, nil
 }
 
-func (a *verifiedUsersSync) publishEvents(ctx context.Context, relays []string, events []*model.Event) error {
+func publishEvents(ctx context.Context, relays []string, events []*model.Event, privateKey string) error {
 	relay := getRandomRelay(relays)
 	if relay == "" {
 		return nil
@@ -121,7 +121,7 @@ func (a *verifiedUsersSync) publishEvents(ctx context.Context, relays []string, 
 	_ = nostrRelay.Publish(ctx, events[0].Event)
 	if err := nostrRelay.Auth(ctx, func(event *nostr.Event) error {
 		subZeroEvent := model.Event{Event: *event}
-		if err := subZeroEvent.SignWithAlg(a.privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
+		if err := subZeroEvent.SignWithAlg(privateKey, model.SignAlgEDDSA, model.KeyAlgCurve25519); err != nil {
 			return err
 		}
 		*event = subZeroEvent.Event
@@ -130,8 +130,14 @@ func (a *verifiedUsersSync) publishEvents(ctx context.Context, relays []string, 
 	}); err != nil {
 		return errors.Wrapf(err, "failed to auth to relay %s", relay)
 	}
-	if err := nostrRelay.PublishMany(ctx, &events[0].Event, &events[1].Event); err != nil {
-		return errors.Wrapf(err, "failed to publish events: %s, %s", events[0].Event.ID, events[1].Event.ID)
+	evs := make([]*nostr.Event, 0, len(events))
+	ids := make([]string, 0, len(events))
+	for _, ev := range events {
+		evs = append(evs, &ev.Event)
+		ids = append(ids, ev.Event.ID)
+	}
+	if err := nostrRelay.PublishMany(ctx, evs...); err != nil {
+		return errors.Wrapf(err, "failed to publish events: %+v", ids)
 	}
 
 	return nil

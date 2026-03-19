@@ -70,6 +70,8 @@ CREATE TABLE IF NOT EXISTS wallets (
 ) WITH (FILLFACTOR = 70);
 
 CREATE INDEX IF NOT EXISTS wallets_user_id ON wallets (user_id);
+CREATE INDEX IF NOT EXISTS wallets_address ON wallets (address);
+
 DO $$ BEGIN
     if NOT exists (select constraint_name from information_schema.table_constraints where table_name = 'wallets' and constraint_name = 'wallets_user_id_fkey') then
         ALTER TABLE wallets ADD CONSTRAINT wallets_user_id_fkey FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE;
