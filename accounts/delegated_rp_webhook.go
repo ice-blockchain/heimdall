@@ -147,24 +147,15 @@ func (a *accounts) enqueuePublishKindFundSendNotify(ctx context.Context, walletI
 		return relaysAndWallet.UserID, nil
 	}
 
-	writeRelayUrls := make([]string, 0, len(relaysAndWallet.IONConnectRelays))
-	for _, r := range relaysAndWallet.IONConnectRelays {
-		if r.Type == model.RelayListWriteMarker || r.Type == "" {
-			writeRelayUrls = append(writeRelayUrls, r.URL)
-		}
-	}
-	if len(writeRelayUrls) == 0 {
-		if len(relaysAndWallet.IONConnectRelays) == 0 {
-			return "", errors.New("no relays found for user")
-		}
-		writeRelayUrls = append(writeRelayUrls, relaysAndWallet.IONConnectRelays[0].URL)
+	if len(relaysAndWallet.IONConnectRelays) == 0 {
+		return "", errors.New("no relays found for user")
 	}
 
 	if err = a.riverClient.Push(ctx, &webhookPublishKindFundSendNotifyJobParams{
 		UserID:       relaysAndWallet.UserID,
 		WalletID:     walletID,
 		Payload:      payload,
-		Relays:       writeRelayUrls,
+		Relays:       relaysAndWallet.IONConnectRelays,
 		MasterPubkey: relaysAndWallet.MasterPubkey,
 	}); err != nil {
 		return "", errors.Wrapf(err, "failed to enqueue publishing 1756 for wallet %v user %v", walletID, relaysAndWallet.UserID)
@@ -566,12 +557,20 @@ func (w *webhookPublishKindFundSendNotifyWorker) Work(ctx context.Context, job *
 			coin = matchingCoins[0] // known coin to calc amountUSD
 		}
 	}
-
+	writeRelayUrls := make([]string, 0, len(args.Relays))
+	for _, r := range args.Relays {
+		if r.Type == model.RelayListWriteMarker || r.Type == "" {
+			writeRelayUrls = append(writeRelayUrls, r.URL)
+		}
+	}
+	if len(writeRelayUrls) == 0 {
+		writeRelayUrls = append(writeRelayUrls, args.Relays[0].URL)
+	}
 	event, err := w.generateKindFundSendNotifyEvent(args.MasterPubkey, args.Payload, coin)
 	if err != nil {
 		return errors.Wrapf(err, "failed to generate kind 1756 event for user %v wallet %v", args.UserID, args.WalletID)
 	}
-	if err = publishEvents(ctx, args.Relays, []*model.Event{event}, w.a.privateKey); err != nil {
+	if err = publishEvents(ctx, writeRelayUrls, []*model.Event{event}, w.a.privateKey); err != nil {
 		return errors.Wrapf(err, "failed to publish kind 1756 event for user %v wallet %v", args.UserID, args.WalletID)
 	}
 	return nil

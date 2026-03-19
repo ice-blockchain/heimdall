@@ -530,11 +530,11 @@ type (
 		riverqueue.WorkerDefaults[webhookSyncAssetsJobParams]
 	}
 	webhookPublishKindFundSendNotifyJobParams struct {
-		UserID       string                  `json:"userId"`
-		MasterPubkey string                  `json:"masterPubkey"`
-		WalletID     string                  `json:"walletId"`
-		Payload      *webhookBlockchainEvent `json:"payload,omitempty"`
-		Relays       []string                `json:"relays"`
+		UserID       string                             `json:"userId"`
+		MasterPubkey string                             `json:"masterPubkey"`
+		WalletID     string                             `json:"walletId"`
+		Payload      *webhookBlockchainEvent            `json:"payload,omitempty"`
+		Relays       relaymanagement.UserAssignedRelays `json:"relays"`
 	}
 
 	webhookPublishKindFundSendNotifyWorker struct {
