@@ -4,12 +4,8 @@ name: CI/CD
 on:
   push:
     branches:
-      - master
       - bugfix/prod_deploy_fix_name
-  pull_request:
-    branches:
-      - master
-      - bugfix/prod_deploy_fix_name
+
 jobs:
   verify-licensing:
     name: Verify Licensing
@@ -402,10 +398,10 @@ jobs:
         with:
           tag_name: ${{ steps.check_tag.outputs.next_tag }}
           draft: false
-          prerelease: false
+          prerelease: true
           fail_on_unmatched_files: true
-          generate_release_notes: true
-          make_latest: true
+          generate_release_notes: false
+          make_latest: false
           files: |
             heimdall-identity-io.linux.amd64.bin
             heimdall-asset-data-syncer.linux.amd64.bin
@@ -506,7 +502,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Setting ENV variables for deployment
-        run: | 
+        run: |
           echo "APP_TAG=${{needs.release.outputs.nextTag}}" >> $GITHUB_ENV
       - name: Checkout the target `master` branch of `secret-infrastructure`
         uses: actions/checkout@v4
@@ -545,10 +541,10 @@ jobs:
           cd secret-infrastructure
           git config user.name "ice CI/CD Bot"
           git config user.email ice-cicd-bot@ice.vip
-          git add helm/heimdall-identity-io/staging/common-values.yaml 
-          git add helm/heimdall-asset-data-syncer/staging/common-values.yaml 
-          git add helm/heimdall-identity-io/testnet/common-values.yaml 
-          git add helm/heimdall-asset-data-syncer/testnet/common-values.yaml 
+          git add helm/heimdall-identity-io/staging/common-values.yaml
+          git add helm/heimdall-asset-data-syncer/staging/common-values.yaml
+          git add helm/heimdall-identity-io/testnet/common-values.yaml
+          git add helm/heimdall-asset-data-syncer/testnet/common-values.yaml
           git commit -m "Updated 'heimdall-identity-io' && 'heimdall-asset-data-syncer' tag version (${{env.APP_TAG}}) in application helm chart deployment manifests"
           git push --set-upstream origin master
       - name: Slack Notification For Success
