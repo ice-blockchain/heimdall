@@ -27,7 +27,28 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
+type dummyClient struct{}
+
+func (*dummyClient) ValidateRequestID(context.Context, *time.Time, string, string) (string, string, error) {
+	return "", "", nil
+}
+
+func (*dummyClient) UpdateRequestID(context.Context, string, string, *string) error {
+	return nil
+}
+
+func (*dummyClient) HealthCheck(context.Context) error {
+	return nil
+}
+
+var _ Client = (*dummyClient)(nil)
+
 func New(applicationYamlKey string, validateLinkedId func(context.Context, string) error) Client {
+	if deviceIdentificationDisabled {
+		log.Warn("[DEVICE_IDENTIFICATION] device identification is disabled")
+		return &dummyClient{}
+	}
+
 	var cfg config
 	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	if cfg.DeviceIdentification.APIKey == "" {
